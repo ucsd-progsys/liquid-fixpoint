@@ -1,0 +1,158 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])
+qualif Auto(vv : int , ~A0 : int , ~A1 : int): (vv = (~A0 + ~A1))
+qualif Auto(vv : int , ~A0 : int , ~A1 : int): (vv = (~A0 + ~A1))
+qualif Auto(v : a_aad , ~P : Pred a_aad   int , ~A0 : int , ~A1 : int): (? papp2([~P;
+                                                                                  v;
+                                                                                  (~A0 + ~A1)]))
+qualif Auto(v : a_aad , ~P : Pred a_aad   int , ~A0 : int , ~A1 : int): (? papp2([~P;
+                                                                                  v;
+                                                                                  (~A0 + ~A1)]))
+constant cmp : func(0, [Ordering; Ordering])
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+bind 0 EQ#6U : {VV#1 : Ordering | [(cmp([VV#1]) = EQ#6U)]}
+bind 1 GT#6W : {VV#2 : Ordering | [(cmp([VV#2]) = GT#6W)]}
+bind 2 LT#6S : {VV#14 : Ordering | [(cmp([VV#14]) = LT#6S)]}
+bind 3 p : {VV#15 : Pred a_aad   int | []}
+bind 4 x0 : {VV#16 : int | []}
+bind 5 f#aa9 : {VV : func(0, [int; int; a_aad]) | []}
+bind 6 i#aaa : {VV#26 : int | [k_27]}
+bind 7 j#aab : {VV#29 : int | [k_30]}
+bind 8 VV#32 : {VV#32 : int | [k_19[VV#18:=VV#32]]}
+bind 9 lq_tmp_x17 : {VV#18 : int | [k_19]}
+bind 10 VV#35 : {VV#35 : int | [k_22[VV#21:=VV#35]]}
+bind 11 lq_tmp_x20 : {VV#21 : int | [k_22]}
+bind 12 dummy.pos.pargs1.hs.4.14 : {VV : func(0, [int;
+                                                  int;
+                                                  a_aad]) | []}
+bind 13 VV#39 : {VV#39 : int | []}
+bind 14 ii : {VV#41 : int | []}
+bind 15 VV#42 : {VV#42 : int | []}
+bind 16 jj : {VV#44 : int | []}
+bind 17 VV#45 : {VV#45 : int | [k_30[VV#29:=VV#45];
+                                (VV#45 = j#aab)]}
+bind 18 VV#47 : {VV#47 : int | [k_27[VV#26:=VV#47];
+                                (VV#47 = i#aaa)]}
+bind 19 VV#18 : {VV#18 : int | [k_19]}
+bind 20 lq_tmp_x17 : {VV#18 : int | [k_19]}
+bind 21 VV#21 : {VV#21 : int | [k_22]}
+bind 22 lq_tmp_x20 : {VV#21 : int | [k_22]}
+bind 23 VV#26 : {VV#26 : int | [k_27]}
+bind 24 VV#29 : {VV#29 : int | [k_30]}
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 9; 11]
+  grd true
+  lhs {VV#F1 : a_aad | [(? papp2([p;
+                                  VV#F1;
+                                  (lq_tmp_x17 + lq_tmp_x20)]))]}
+  rhs {VV#F1 : a_aad | [k_24[VV#23:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 12]
+  grd true
+  lhs {VV#F2 : int | []}
+  rhs {VV#F2 : int | [k_27[f#aa9:=dummy.pos.pargs1.hs.4.14][VV#26:=VV#F2][VV#39:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 12; 14]
+  grd true
+  lhs {VV#F3 : int | []}
+  rhs {VV#F3 : int | [k_30[f#aa9:=dummy.pos.pargs1.hs.4.14][i#aaa:=ii][VV#29:=VV#F3][VV#42:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 4; 12; 14]
+  grd true
+  lhs {VV#F4 : a_aad | [k_24[lq_tmp_x17:=ii][lq_tmp_x20:=jj][f#aa9:=dummy.pos.pargs1.hs.4.14][i#aaa:=ii][j#aab:=jj][VV#23:=VV#F4][VV#F:=VV#F4]]}
+  rhs {VV#F4 : a_aad | [(? papp2([p; VV#F4; (ii + jj)]))]}
+  id 4 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  grd true
+  lhs {VV#F5 : int | [k_30[VV#29:=VV#F5][VV#45:=VV#F5][VV#F:=VV#F5];
+                      (VV#F5 = j#aab)]}
+  rhs {VV#F5 : int | [k_22[lq_tmp_x17:=i#aaa][VV#21:=VV#F5][VV#45:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  grd true
+  lhs {VV#F6 : int | [k_27[VV#26:=VV#F6][VV#47:=VV#F6][VV#F:=VV#F6];
+                      (VV#F6 = i#aaa)]}
+  rhs {VV#F6 : int | [k_19[VV#18:=VV#F6][VV#47:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [1]
+
+
+wf:
+  env [0; 1; 2; 3; 4]
+  reft {VV#18 : int | [k_19]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 20]
+  reft {VV#21 : int | [k_22]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 20; 22]
+  reft {VV#23 : a_aad | [k_24]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5]
+  reft {VV#26 : int | [k_27]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6]
+  reft {VV#29 : int | [k_30]}
+  
+

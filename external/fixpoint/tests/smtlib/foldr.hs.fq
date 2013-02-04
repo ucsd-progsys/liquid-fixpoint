@@ -1,0 +1,419 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])
+constant cmp : func(0, [Ordering; Ordering])
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+constant fix##40##44##35#74 : func(2, [@(0);
+                                       @(1);
+                                       Tuple @(0)   @(1)])
+bind 0 False#68 : {VV#9 : Bool | []}
+bind 1 False#68 : {VV#13 : Bool | [(~ ((? Prop([VV#13]))))]}
+bind 2 EQ#6U : {VV#22 : Ordering | [(cmp([VV#22]) = EQ#6U)]}
+bind 3 LT#6S : {VV#23 : Ordering | [(cmp([VV#23]) = LT#6S)]}
+bind 4 GT#6W : {VV#25 : Ordering | [(cmp([VV#25]) = GT#6W)]}
+bind 5 ds_dqV : {VV#28 : a_aqL | [k_29]}
+bind 6 ds_dqW : {VV#31 : b_aqM | [k_32]}
+bind 7 ds_dqX : {VV#34 : c_aqN | [k_35]}
+bind 8 ds_dqY : {VV#74 : Tuple q_aqR   r_aqS | [k_75]}
+bind 9 lq_anf__dr0 : {VV#74 : Tuple q_aqR   r_aqS | [k_75;
+                                                     (VV#74 = ds_dqY)]}
+bind 10 lq_anf__dr0 : {VV#74 : Tuple q_aqR   r_aqS | [k_75;
+                                                      (VV#74 = ds_dqY);
+                                                      (VV#74 = fix##40##44##35#74([key#aqC;
+                                                                                   value#aqD]))]}
+bind 11 key#aqC : {VV#67 : q_aqR | [k_68[VV#74:=lq_anf__dr0][x1:=key#aqC][x2:=value#aqD]]}
+bind 12 value#aqD : {VV#69 : r_aqS | [k_70[VV#74:=lq_anf__dr0][x1:=key#aqC][x2:=value#aqD];
+                                      k_72[lq_tmp_x73:=key#aqC][VV#71:=VV#69][x1:=key#aqC][x2:=value#aqD]]}
+bind 13 lq_anf__dr1 : {VV : func(0, [Tuple q_aqR   r_aqS;
+                                     p_aqQ;
+                                     p_aqQ]) | []}
+bind 14 lq_tmp_x40 : {VV#41 : p_aqQ | [k_42]}
+bind 15 VV#108 : {VV#108 : [Tuple q_aqR   r_aqS] | [k_64[VV#63:=VV#108];
+                                                    (len([VV#108]) >= 0)]}
+bind 16 VV#110 : {VV#110 : Tuple q_aqR   r_aqS | [k_52[VV#63:=VV#108][VV#51:=VV#110]]}
+bind 17 lq_tmp_x101 : {VV : q_aqR | []}
+bind 18 VV#113 : {VV#113 : Tuple q_aqR   r_aqS | [k_61[VV#60:=VV#113]]}
+bind 19 lq_tmp_x43 : {VV#63 : [Tuple q_aqR   r_aqS] | [k_64;
+                                                       (len([VV#63]) >= 0)]}
+bind 20 VV#116 : {VV#116 : Tuple q_aqR   r_aqS | [k_103[VV#102:=VV#116]]}
+bind 21 lq_tmp_x73 : {VV : q_aqR | []}
+bind 22 lq_tmp_x1 : {VV#102 : Tuple q_aqR   r_aqS | [k_103]}
+bind 23 lq_tmp_x2 : {VV#104 : p_aqQ | [k_105]}
+bind 24 lq_tmp_x77 : {VV#78 : p_aqQ | [k_79]}
+bind 25 VV#122 : {VV#122 : Bool | [(~ ((? Prop([VV#122]))));
+                                   (VV#122 = False#68)]}
+bind 26 VV#102 : {VV#102 : Tuple q_aqR   r_aqS | [k_103]}
+bind 27 lq_tmp_x101 : {VV : q_aqR | []}
+bind 28 VV#74 : {VV#74 : Tuple q_aqR   r_aqS | [k_75]}
+bind 29 lq_tmp_x73 : {VV : q_aqR | []}
+bind 30 lq_tmp_x77 : {VV#78 : p_aqQ | [k_79]}
+bind 31 lq_tmp_x40 : {VV#41 : p_aqQ | [k_42]}
+bind 32 VV#63 : {VV#63 : [Tuple q_aqR   r_aqS] | [k_64;
+                                                  (len([VV#63]) >= 0)]}
+bind 33 VV#51 : {VV#51 : Tuple q_aqR   r_aqS | [k_52]}
+bind 34 lq_tmp_x50 : {VV : q_aqR | []}
+bind 35 lq_tmp_x62 : {VV#133 : Tuple q_aqR   r_aqS | []}
+bind 36 VV#60 : {VV#60 : Tuple q_aqR   r_aqS | [k_61]}
+bind 37 lq_tmp_x62 : {VV#135 : Tuple q_aqR   r_aqS | []}
+bind 38 lq_tmp_x62 : {VV#136 : Tuple q_aqR   r_aqS | []}
+bind 39 lq_tmp_x59 : {VV : q_aqR | []}
+bind 40 lq_tmp_x43 : {VV#63 : [Tuple q_aqR   r_aqS] | [k_64;
+                                                       (len([VV#63]) >= 0)]}
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F16 : q_aqR | [k_68[VV#74:=lq_anf__dr0][x1:=key#aqC][x2:=value#aqD][VV#67:=VV#F16][VV#F:=VV#F16];
+                         (VV#F16 = key#aqC)]}
+  rhs {VV#F16 : q_aqR | [k_87[VV#86:=VV#F16][VV#F:=VV#F16];
+                         k_29[VV#28:=VV#F16][VV#86:=VV#F16][VV#F:=VV#F16]]}
+  id 16 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 13]
+  grd true
+  lhs {VV#F1 : p_aqQ | [k_42[VV#41:=VV#F1][VV#F:=VV#F1]]}
+  rhs {VV#F1 : p_aqQ | [k_105[lq_tmp_x0:=lq_anf__dr1][VV#104:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  grd true
+  lhs {VV#F17 : Bool | [(~ ((? Prop([VV#F17]))));
+                        (VV#F17 = False#68)]}
+  rhs {VV#F17 : Bool | [(? Prop([VV#F17]))]}
+  id 17 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 13; 14; 15]
+  grd true
+  lhs {VV#F2 : Tuple q_aqR   r_aqS | [k_52[VV#63:=VV#108][VV#51:=VV#F2][VV#110:=VV#F2][VV#F:=VV#F2]]}
+  rhs {VV#F2 : Tuple q_aqR   r_aqS | [k_103[lq_tmp_x0:=lq_anf__dr1][lq_tmp_x3:=lq_tmp_x40][VV:=VV#108][VV#102:=VV#F2][VV#110:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [2]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 4; 13; 14; 15]
+  grd true
+  lhs {VV#F3 : q_aqR | [k_45[VV#63:=VV#108][VV#51:=VV#110][VV#44:=VV#F3][VV#F:=VV#F3]]}
+  rhs {VV#F3 : q_aqR | [k_96[lq_tmp_x0:=lq_anf__dr1][lq_tmp_x3:=lq_tmp_x40][VV:=VV#108][VV#102:=VV#110][VV#95:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [2]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 4; 13; 14; 15]
+  grd true
+  lhs {VV#F4 : r_aqS | [k_47[VV#63:=VV#108][VV#51:=VV#110][VV#46:=VV#F4][VV#F:=VV#F4]]}
+  rhs {VV#F4 : r_aqS | [k_98[lq_tmp_x0:=lq_anf__dr1][lq_tmp_x3:=lq_tmp_x40][VV:=VV#108][VV#102:=VV#110][VV#97:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [2]
+
+
+constraint:
+  env [0; 1; 17; 2; 3; 4; 13; 14; 15]
+  grd true
+  lhs {VV#F5 : r_aqS | [k_49[VV#63:=VV#108][lq_tmp_x50:=lq_tmp_x101][VV#48:=VV#F5][VV#F:=VV#F5]]}
+  rhs {VV#F5 : r_aqS | [k_100[lq_tmp_x0:=lq_anf__dr1][lq_tmp_x3:=lq_tmp_x40][VV:=VV#108][VV#99:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 19; 4; 13; 14]
+  grd true
+  lhs {VV#F6 : p_aqQ | [k_105[lq_tmp_x0:=lq_anf__dr1][lq_tmp_x3:=lq_tmp_x40][lq_tmp_x4:=lq_tmp_x43][VV#104:=VV#F6][VV#F:=VV#F6]]}
+  rhs {VV#F6 : p_aqQ | [k_66[VV#65:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 13]
+  grd true
+  lhs {VV#F7 : Tuple q_aqR   r_aqS | [k_103[VV#102:=VV#F7][VV#116:=VV#F7][VV#F:=VV#F7]]}
+  rhs {VV#F7 : Tuple q_aqR   r_aqS | [k_75[VV#74:=VV#F7][VV#116:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 20; 13]
+  grd true
+  lhs {VV#F8 : q_aqR | [k_96[VV#102:=VV#116][VV#95:=VV#F8][VV#F:=VV#F8]]}
+  rhs {VV#F8 : q_aqR | [k_68[VV#74:=VV#116][VV#67:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 20; 13]
+  grd true
+  lhs {VV#F9 : r_aqS | [k_98[VV#102:=VV#116][VV#97:=VV#F9][VV#F:=VV#F9]]}
+  rhs {VV#F9 : r_aqS | [k_70[VV#74:=VV#116][VV#69:=VV#F9][VV#F:=VV#F9]]}
+  id 9 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 21; 13]
+  grd true
+  lhs {VV#F10 : r_aqS | [k_100[lq_tmp_x101:=lq_tmp_x73][VV#99:=VV#F10][VV#F:=VV#F10]]}
+  rhs {VV#F10 : r_aqS | [k_72[VV#71:=VV#F10][VV#F:=VV#F10]]}
+  id 10 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 22; 13]
+  grd true
+  lhs {VV#F11 : p_aqQ | [k_105[VV#104:=VV#F11][VV#F:=VV#F11]]}
+  rhs {VV#F11 : p_aqQ | [k_79[ds_dqY:=lq_tmp_x1][VV#78:=VV#F11][VV#F:=VV#F11]]}
+  id 11 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 22; 23; 13]
+  grd true
+  lhs {VV#F12 : p_aqQ | [k_81[ds_dqY:=lq_tmp_x1][lq_tmp_x77:=lq_tmp_x2][VV#80:=VV#F12][VV#F:=VV#F12]]}
+  rhs {VV#F12 : p_aqQ | [k_105[VV#104:=VV#F12][VV#F:=VV#F12]]}
+  id 12 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F13 : p_aqQ | [k_79[VV#78:=VV#F13][VV#F:=VV#F13]]}
+  rhs {VV#F13 : p_aqQ | [k_91[ds_dqV:=key#aqC][ds_dqW:=value#aqD][VV#90:=VV#F13][VV#F:=VV#F13];
+                         k_35[VV#34:=VV#F13][ds_dqV:=key#aqC][ds_dqW:=value#aqD][VV#90:=VV#F13][VV#F:=VV#F13]]}
+  id 13 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 8; 24; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F14 : p_aqQ | [k_93[ds_dqV:=key#aqC][ds_dqW:=value#aqD][ds_dqX:=lq_tmp_x77][VV#92:=VV#F14][VV#F:=VV#F14];
+                         k_38[x:=False#68][VV#37:=VV#F14][ds_dqV:=key#aqC][ds_dqW:=value#aqD][ds_dqX:=lq_tmp_x77][VV#92:=VV#F14][VV#F:=VV#F14]]}
+  rhs {VV#F14 : p_aqQ | [k_81[VV#80:=VV#F14][VV#F:=VV#F14]]}
+  id 14 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F15 : r_aqS | [k_70[VV#74:=lq_anf__dr0][x1:=key#aqC][x2:=value#aqD][VV#69:=VV#F15][VV#F:=VV#F15];
+                         k_72[lq_tmp_x73:=key#aqC][VV#71:=VV#F15][x1:=key#aqC][x2:=value#aqD][VV#69:=VV#F15][VV#F:=VV#F15];
+                         (VV#F15 = value#aqD)]}
+  rhs {VV#F15 : r_aqS | [k_89[ds_dqV:=key#aqC][VV#88:=VV#F15][VV#F:=VV#F15];
+                         k_32[VV#31:=VV#F15][ds_dqV:=key#aqC][VV#88:=VV#F15][VV#F:=VV#F15]]}
+  id 15 tag [2]
+
+
+wf:
+  env [0; 1; 2; 3; 4; 13]
+  reft {VV#104 : p_aqQ | [k_105]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 13]
+  reft {VV#102 : Tuple q_aqR   r_aqS | [k_103]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 26; 13]
+  reft {VV#95 : q_aqR | [k_96]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 26; 13]
+  reft {VV#97 : r_aqS | [k_98]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 27; 13]
+  reft {VV#99 : r_aqS | [k_100]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4]
+  reft {VV#74 : Tuple q_aqR   r_aqS | [k_75]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 28]
+  reft {VV#67 : q_aqR | [k_68]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 28]
+  reft {VV#69 : r_aqS | [k_70]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 29]
+  reft {VV#71 : r_aqS | [k_72]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 8; 9; 10; 11; 12]
+  reft {VV#92 : p_aqQ | [k_93]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 8; 9; 10; 11; 12]
+  reft {VV#90 : p_aqQ | [k_91]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 8; 9; 10; 11; 12]
+  reft {VV#88 : r_aqS | [k_89]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 8; 9; 10; 11; 12]
+  reft {VV#86 : q_aqR | [k_87]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 8]
+  reft {VV#78 : p_aqQ | [k_79]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 8; 30]
+  reft {VV#80 : p_aqQ | [k_81]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4]
+  reft {VV#41 : p_aqQ | [k_42]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 31]
+  reft {VV#63 : [Tuple q_aqR   r_aqS] | [k_64]}
+  
+
+
+wf:
+  env [0; 32; 1; 2; 3; 4; 31]
+  reft {VV#51 : Tuple q_aqR   r_aqS | [k_52]}
+  
+
+
+wf:
+  env [0; 32; 1; 33; 2; 3; 4; 31]
+  reft {VV#44 : q_aqR | [k_45]}
+  
+
+
+wf:
+  env [0; 32; 1; 33; 2; 3; 4; 31]
+  reft {VV#46 : r_aqS | [k_47]}
+  
+
+
+wf:
+  env [0; 32; 1; 2; 34; 3; 4; 31]
+  reft {VV#48 : r_aqS | [k_49]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 35; 4; 31]
+  reft {VV#60 : Tuple q_aqR   r_aqS | [k_61]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 36; 37; 31]
+  reft {VV#53 : q_aqR | [k_54]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 36; 38; 31]
+  reft {VV#55 : r_aqS | [k_56]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 39; 31]
+  reft {VV#57 : r_aqS | [k_58]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 40; 31]
+  reft {VV#65 : p_aqQ | [k_66]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4]
+  reft {VV#28 : a_aqL | [k_29]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5]
+  reft {VV#31 : b_aqM | [k_32]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6]
+  reft {VV#34 : c_aqN | [k_35]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  reft {VV#37 : d_aqO | [k_38]}
+  
+

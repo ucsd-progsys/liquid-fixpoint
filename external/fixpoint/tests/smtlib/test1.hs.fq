@@ -1,0 +1,257 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])
+constant cmp : func(0, [Ordering; Ordering])
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+bind 0 False#68 : {VV#17 : Bool | []}
+bind 1 I##6c : {VV : func(0, [int; int]) | []}
+bind 2 True#6u : {VV#19 : Bool | []}
+bind 3 liquidAssertB#r7 : {VV : func(0, [Bool; Bool]) | []}
+bind 4 choose#rh : {VV : func(0, [int; int]) | []}
+bind 5 liquidAssertB#r7 : {VV : func(0, [Bool; Bool]) | []}
+bind 6 I##6c : {VV : func(0, [int; int]) | []}
+bind 7 True#6u : {VV#31 : Bool | [(? Prop([VV#31]))]}
+bind 8 False#68 : {VV#32 : Bool | [(~ ((? Prop([VV#32]))))]}
+bind 9 EQ#6U : {VV#40 : Ordering | [(cmp([VV#40]) = EQ#6U)]}
+bind 10 LT#6S : {VV#41 : Ordering | [(cmp([VV#41]) = LT#6S)]}
+bind 11 GT#6W : {VV#43 : Ordering | [(cmp([VV#43]) = GT#6W)]}
+bind 12 lq_anf__dx4 : {VV#49 : int | [(VV#49 = (0  :  int))]}
+bind 13 n#rkk : {VV#47 : int | [k_48]}
+bind 14 a_awK : {VV : num | []}
+bind 15 x#aww : {VV#53 : a_awK | [k_54]}
+bind 16 lq_anf__dx5 : {VV#58 : int | [(VV#58 = 0)]}
+bind 17 lq_anf__dx6 : {VV : a_awK | [(VV = lq_anf__dx5)]}
+bind 18 lq_anf__dx7 : {VV#62 : Bool | [((? Prop([VV#62])) <=> (x#aww > lq_anf__dx6))]}
+bind 19 lq_anf__dx8 : {VV#62 : Bool | [((? Prop([VV#62])) <=> (x#aww > lq_anf__dx6));
+                                       (VV#62 = lq_anf__dx7)]}
+bind 20 lq_anf__dx8 : {VV#62 : Bool | [((? Prop([VV#62])) <=> (x#aww > lq_anf__dx6));
+                                       (VV#62 = lq_anf__dx7);
+                                       (~ ((? Prop([VV#62]))));
+                                       (~ ((? Prop([VV#62]))))]}
+bind 21 lq_anf__dx9 : {VV#65 : int | [(VV#65 = 0)]}
+bind 22 lq_anf__dxa : {VV : a_awK | [(VV = lq_anf__dx9)]}
+bind 23 lq_anf__dx8 : {VV#62 : Bool | [((? Prop([VV#62])) <=> (x#aww > lq_anf__dx6));
+                                       (VV#62 = lq_anf__dx7);
+                                       (? Prop([VV#62]));
+                                       (? Prop([VV#62]))]}
+bind 24 lq_anf__dxb : {VV#71 : int | [k_57[VV#56:=VV#71][fix##36#dNum#35#awL:=fix##36#fNumInt#35#r1K][fix##36#dOrd#35#awM:=fix##36#fOrdInt#35#r3n][x#aww:=n#rkk][VV:=VV#71]]}
+bind 25 lq_anf__dxc : {VV#72 : int | [(VV#72 = (0  :  int))]}
+bind 26 lq_anf__dxd : {VV#75 : Bool | [((? Prop([VV#75])) <=> (lq_anf__dxb >= lq_anf__dxc))]}
+bind 27 prop_absf#rkl : {VV#69 : Bool | [k_70]}
+bind 28 VV#77 : {VV#77 : Bool | [(? Prop([VV#77]))]}
+bind 29 VV#79 : {VV#79 : Bool | [((? Prop([VV#79])) <=> (lq_anf__dxb >= lq_anf__dxc));
+                                 (VV#79 = lq_anf__dxd)]}
+bind 30 VV#81 : {VV#81 : int | [(VV#81 = (0  :  int));
+                                (VV#81 = lq_anf__dxc)]}
+bind 31 VV#83 : {VV#83 : int | [k_57[VV#56:=VV#83][fix##36#dNum#35#awL:=fix##36#fNumInt#35#r1K][fix##36#dOrd#35#awM:=fix##36#fOrdInt#35#r3n][x#aww:=n#rkk][VV:=VV#83][VV#71:=VV#83];
+                                (VV#83 = lq_anf__dxb)]}
+bind 32 VV#85 : {VV#85 : int | [(VV#85 = 0)]}
+bind 33 VV#87 : {VV#87 : int | [k_48[VV#47:=VV#87];
+                                (VV#87 = n#rkk)]}
+bind 34 VV#89 : {VV#89 : int | [(VV#89 = 0);
+                                (VV#89 = lq_anf__dx9)]}
+bind 35 VV#91 : {VV#91 : int | [(VV#91 = 0);
+                                (VV#91 = lq_anf__dx5)]}
+bind 36 VV#93 : {VV#93 : int | []}
+bind 37 VV#95 : {VV#95 : int | [(VV#95 = (0  :  int));
+                                (VV#95 = lq_anf__dx4)]}
+bind 38 VV#97 : {VV#97 : int | [(VV#97 = 0)]}
+bind 39 VV#73 : {VV#73 : int | [k_74]}
+bind 40 VV#69 : {VV#69 : Bool | [k_70]}
+bind 41 VV#47 : {VV#47 : int | [k_48]}
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 24; 9; 25; 10; 26; 11; 13]
+  grd true
+  lhs {VV#F1 : Bool | [(? Prop([VV#F1]))]}
+  rhs {VV#F1 : Bool | [k_70[VV#69:=VV#F1][VV#77:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 24; 9; 25; 10; 26; 11; 13]
+  grd true
+  lhs {VV#F2 : Bool | [((? Prop([VV#F2])) <=> (lq_anf__dxb >= lq_anf__dxc));
+                       (VV#F2 = lq_anf__dxd)]}
+  rhs {VV#F2 : Bool | [(? Prop([VV#F2]))]}
+  id 2 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 24; 9; 25; 10; 11; 13]
+  grd true
+  lhs {VV#F3 : int | [(VV#F3 = (0  :  int)); (VV#F3 = lq_anf__dxc)]}
+  rhs {VV#F3 : int | [k_74[_LIQUID_dummy:=fix##36#fOrdInt#35#r3n][x:=lq_anf__dxb][VV#73:=VV#F3][VV#81:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 24; 9; 25; 10; 11; 13]
+  grd true
+  lhs {VV#F4 : int | [k_57[VV#56:=VV#F4][fix##36#dNum#35#awL:=fix##36#fNumInt#35#r1K][fix##36#dOrd#35#awM:=fix##36#fOrdInt#35#r3n][x#aww:=n#rkk][VV:=VV#F4][VV#71:=VV#F4][VV#83:=VV#F4][VV#F:=VV#F4];
+                      (VV#F4 = lq_anf__dxb)]}
+  rhs {VV#F4 : int | [k_74[_LIQUID_dummy:=fix##36#fOrdInt#35#r3n][VV#73:=VV#F4][VV#83:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 13]
+  grd true
+  lhs {VV#F5 : int | [k_48[VV#47:=VV#F5][VV#87:=VV#F5][VV#F:=VV#F5];
+                      (VV#F5 = n#rkk)]}
+  rhs {VV#F5 : int | [k_54[VV#53:=VV#F5][fix##36#dNum#35#awL:=fix##36#fNumInt#35#r1K][fix##36#dOrd#35#awM:=fix##36#fOrdInt#35#r3n][VV:=VV#F5][VV#87:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [3]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       18;
+       3;
+       19;
+       4;
+       5;
+       6;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F6 : a_awK | [k_54[VV#53:=VV#F6][VV#F:=VV#F6];
+                        (VV#F6 = x#aww)]}
+  rhs {VV#F6 : a_awK | [k_57[VV#56:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       18;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       8;
+       9;
+       10;
+       11;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F7 : a_awK | [(VV#F7 = (lq_anf__dxa - x#aww))]}
+  rhs {VV#F7 : a_awK | [k_57[VV#56:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [2]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 13; 14; 15]
+  grd true
+  lhs {VV#F8 : a_awK | [(VV#F8 = lq_anf__dx5);
+                        (VV#F8 = lq_anf__dx6)]}
+  rhs {VV#F8 : a_awK | [k_61[_LIQUID_dummy:=fix##36#dOrd#35#awM][x:=x#aww][VV#60:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [2]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 13; 14; 15]
+  grd true
+  lhs {VV#F9 : a_awK | [k_54[VV#53:=VV#F9][VV#F:=VV#F9];
+                        (VV#F9 = x#aww)]}
+  rhs {VV#F9 : a_awK | [k_61[_LIQUID_dummy:=fix##36#dOrd#35#awM][VV#60:=VV#F9][VV#F:=VV#F9]]}
+  id 9 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F10 : int | []}
+  rhs {VV#F10 : int | [k_48[VV#47:=VV#F10][VV#93:=VV#F10][VV#F:=VV#F10]]}
+  id 10 tag [1]
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 24; 9; 25; 10; 11; 13]
+  reft {VV#73 : int | [k_74]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 13]
+  reft {VV#69 : Bool | [k_70]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 13; 14]
+  reft {VV#53 : a_awK | [k_54]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 13; 14; 15]
+  reft {VV#60 : a_awK | [k_61]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 13; 14; 15]
+  reft {VV#56 : a_awK | [k_57]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11]
+  reft {VV#47 : int | [k_48]}
+  
+

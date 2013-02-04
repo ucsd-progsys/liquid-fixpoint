@@ -1,0 +1,596 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])
+cut k_55
+cut k_57
+cut k_51
+cut k_53
+cut k_65
+cut k_67
+cut k_60
+cut k_62
+constant cmp : func(0, [Ordering; Ordering])
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+constant fix##40##44##35#74 : func(2, [@(0);
+                                       @(1);
+                                       Tuple @(0)   @(1)])
+bind 0 False#68 : {VV#9 : Bool | []}
+bind 1 True#6u : {VV#10 : Bool | []}
+bind 2 True#6u : {VV#14 : Bool | [(? Prop([VV#14]))]}
+bind 3 False#68 : {VV#15 : Bool | [(~ ((? Prop([VV#15]))))]}
+bind 4 EQ#6U : {VV#23 : Ordering | [(cmp([VV#23]) = EQ#6U)]}
+bind 5 LT#6S : {VV#24 : Ordering | [(cmp([VV#24]) = LT#6S)]}
+bind 6 GT#6W : {VV#26 : Ordering | [(cmp([VV#26]) = GT#6W)]}
+bind 7 a_arK : {VV : num | []}
+bind 8 even_#X4 : {VV : func(0, [a_arK; Bool]) | []}
+bind 9 odd_#X5 : {VV : func(0, [a_arK; Bool]) | []}
+bind 10 a_arK : {VV : num | []}
+bind 11 x#arE : {VV#74 : a_arK | [k_75]}
+bind 12 a_arK : {VV : num | []}
+bind 13 x#arD : {VV#79 : a_arK | [k_80]}
+bind 14 lq_anf__dse : {VV#84 : int | [(VV#84 = 0)]}
+bind 15 lq_anf__dsf : {VV : a_arK | [(VV = lq_anf__dse)]}
+bind 16 lq_anf__dsg : {VV#88 : Bool | [((? Prop([VV#88])) <=> (x#arD = lq_anf__dsf))]}
+bind 17 lq_anf__dsh : {VV#88 : Bool | [((? Prop([VV#88])) <=> (x#arD = lq_anf__dsf));
+                                       (VV#88 = lq_anf__dsg)]}
+bind 18 lq_anf__dsh : {VV#88 : Bool | [((? Prop([VV#88])) <=> (x#arD = lq_anf__dsf));
+                                       (VV#88 = lq_anf__dsg);
+                                       (~ ((? Prop([VV#88]))));
+                                       (~ ((? Prop([VV#88]))))]}
+bind 19 lq_anf__dsh : {VV#88 : Bool | [((? Prop([VV#88])) <=> (x#arD = lq_anf__dsf));
+                                       (VV#88 = lq_anf__dsg);
+                                       (? Prop([VV#88]));
+                                       (? Prop([VV#88]))]}
+bind 20 lq_tmp_x107 : {VV : func(0, [a_arK; Bool]) | []}
+bind 21 a_arP : {VV : num | []}
+bind 22 lq_anf__dsi : {VV#48 : Tuple func(0, [a_arP;
+                                              Bool])   func(0, [a_arP;
+                                                                Bool]) | [k_49[fix##36#dEq#35#arL:=fix##36#dEq#35#arQ][fix##36#dNum#35#arM:=fix##36#dNum#35#arR]]}
+bind 23 lq_anf__dsj : {VV#48 : Tuple func(0, [a_arP;
+                                              Bool])   func(0, [a_arP;
+                                                                Bool]) | [k_49[fix##36#dEq#35#arL:=fix##36#dEq#35#arQ][fix##36#dNum#35#arM:=fix##36#dNum#35#arR];
+                                                                          (VV#48 = lq_anf__dsi)]}
+bind 24 lq_anf__dsj : {VV#48 : Tuple func(0, [a_arP;
+                                              Bool])   func(0, [a_arP;
+                                                                Bool]) | [k_49[fix##36#dEq#35#arL:=fix##36#dEq#35#arQ][fix##36#dNum#35#arM:=fix##36#dNum#35#arR];
+                                                                          (VV#48 = lq_anf__dsi);
+                                                                          (VV#48 = fix##40##44##35#74([odd_#arF;
+                                                                                                       even_#arG]))]}
+bind 25 odd_#arF : {VV : func(0, [a_arP; Bool]) | []}
+bind 26 even_#arG : {VV : func(0, [a_arP; Bool]) | []}
+bind 27 a_arY : {VV : num | []}
+bind 28 lq_anf__dsk : {VV#48 : Tuple func(0, [a_arY;
+                                              Bool])   func(0, [a_arY;
+                                                                Bool]) | [k_49[fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0]]}
+bind 29 lq_anf__dsl : {VV#48 : Tuple func(0, [a_arY;
+                                              Bool])   func(0, [a_arY;
+                                                                Bool]) | [k_49[fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0];
+                                                                          (VV#48 = lq_anf__dsk)]}
+bind 30 lq_anf__dsl : {VV#48 : Tuple func(0, [a_arY;
+                                              Bool])   func(0, [a_arY;
+                                                                Bool]) | [k_49[fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0];
+                                                                          (VV#48 = lq_anf__dsk);
+                                                                          (VV#48 = fix##40##44##35#74([odd_#arF;
+                                                                                                       even_#arG]))]}
+bind 31 odd_#arF : {VV : func(0, [a_arY; Bool]) | []}
+bind 32 even_#arG : {VV : func(0, [a_arY; Bool]) | []}
+bind 33 lq_tmp_x125 : {VV#126 : a_arY | [k_127]}
+bind 34 VV#137 : {VV#137 : Bool | [k_41[fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0][VV#48:=lq_anf__dsl][x1:=odd_#arF][x2:=even_#arG][lq_tmp_x37:=lq_tmp_x125][VV#40:=VV#137];
+                                   k_46[fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0][lq_tmp_x47:=odd_#arF][lq_tmp_x42:=lq_tmp_x125][VV#45:=VV#137][x1:=odd_#arF][x2:=even_#arG][lq_tmp_x37:=lq_tmp_x125][VV#40:=VV#137]]}
+bind 35 lq_tmp_x112 : {VV#113 : a_arP | [k_114]}
+bind 36 VV#140 : {VV#140 : Bool | [k_36[fix##36#dEq#35#arL:=fix##36#dEq#35#arQ][fix##36#dNum#35#arM:=fix##36#dNum#35#arR][VV#48:=lq_anf__dsj][x1:=odd_#arF][x2:=even_#arG][lq_tmp_x32:=lq_tmp_x112][VV#35:=VV#140]]}
+bind 37 VV#142 : {VV#142 : Tuple func(0, [a_arK;
+                                          Bool])   func(0, [a_arK; Bool]) | []}
+bind 38 lq_tmp_x32 : {VV#33 : a_arK | [k_34[VV#48:=VV#142]]}
+bind 39 VV#145 : {VV#145 : Bool | [k_96[x1:=odd_#X5][x2:=even_#X4][VV:=VV#142][lq_tmp_x92:=lq_tmp_x32][VV#95:=VV#145]]}
+bind 40 lq_tmp_x37 : {VV#38 : a_arK | [k_39[VV#48:=VV#142]]}
+bind 41 VV#148 : {VV#148 : Bool | [k_101[x1:=odd_#X5][x2:=even_#X4][VV:=VV#142][lq_tmp_x97:=lq_tmp_x37][VV#100:=VV#148]]}
+bind 42 lq_tmp_x47 : {VV : func(0, [a_arK; Bool]) | []}
+bind 43 lq_tmp_x42 : {VV#43 : a_arK | [k_44]}
+bind 44 VV#152 : {VV#152 : Bool | [k_106[lq_tmp_x102:=lq_tmp_x42][VV#105:=VV#152][x1:=odd_#X5][x2:=even_#X4][lq_tmp_x107:=lq_tmp_x47][lq_tmp_x97:=lq_tmp_x42][VV:=VV#152]]}
+bind 45 lq_tmp_x97 : {VV#98 : a_arK | [k_99[x1:=odd_#X5];
+                                       k_104[lq_tmp_x107:=odd_#X5][VV#103:=VV#98][x1:=odd_#X5]]}
+bind 46 VV#155 : {VV#155 : Bool | [k_62[lq_tmp_x58:=lq_tmp_x97][VV#61:=VV#155]]}
+bind 47 lq_tmp_x92 : {VV#93 : a_arK | [k_94]}
+bind 48 VV#158 : {VV#158 : Bool | [k_67[lq_tmp_x63:=lq_tmp_x92][VV#66:=VV#158]]}
+bind 49 lq_tmp_x63 : {VV#64 : a_arK | [k_65]}
+bind 50 VV#161 : {VV#161 : Bool | [k_57[fix##36#dEq#35#X2:=fix##36#dEq#35#arL][fix##36#dNum#35#X3:=fix##36#dNum#35#arM][x#arD:=lq_tmp_x63][VV#56:=VV#161]]}
+bind 51 lq_tmp_x58 : {VV#59 : a_arK | [k_60]}
+bind 52 VV#164 : {VV#164 : Bool | [k_53[fix##36#dEq#35#X0:=fix##36#dEq#35#arL][fix##36#dNum#35#X1:=fix##36#dNum#35#arM][x#arE:=lq_tmp_x58][VV#52:=VV#164]]}
+bind 53 a_arK : {VV : num | []}
+bind 54 x#arD : {VV#54 : a_arK | [k_55]}
+bind 55 VV#169 : {VV#169 : Bool | [k_83[fix##36#dEq#35#X2:=fix##36#dEq#35#X2][fix##36#dNum#35#X3:=fix##36#dNum#35#X3][x#arD:=x#arD][VV#82:=VV#169]]}
+bind 56 VV#171 : {VV#171 : Bool | [(? Prop([VV#171]));
+                                   (VV#171 = True#6u)]}
+bind 57 VV#173 : {VV#173 : Bool | [k_53[fix##36#dEq#35#X0:=fix##36#dEq#35#X2][fix##36#dNum#35#X1:=fix##36#dNum#35#X3][x#arE:=x#arD][VV#52:=VV#173]]}
+bind 58 VV#175 : {VV#175 : int | [(VV#175 = 0);
+                                  (VV#175 = lq_anf__dse)]}
+bind 59 a_arK : {VV : num | []}
+bind 60 x#arE : {VV#50 : a_arK | [k_51]}
+bind 61 VV#180 : {VV#180 : Bool | [k_57[fix##36#dEq#35#X2:=fix##36#dEq#35#X0][fix##36#dNum#35#X3:=fix##36#dNum#35#X1][x#arD:=x#arE][fix##36#dEq#35#X0:=fix##36#dEq#35#X0][fix##36#dNum#35#X1:=fix##36#dNum#35#X1][x#arE:=x#arE][VV#56:=VV#180]]}
+bind 62 lq_tmp_x125 : {VV#126 : a_arY | [k_127]}
+bind 63 VV#128 : {VV#128 : Bool | [k_129]}
+bind 64 lq_tmp_x112 : {VV#113 : a_arP | [k_114]}
+bind 65 VV#115 : {VV#115 : Bool | [k_116]}
+bind 66 lq_tmp_x107 : {VV : func(0, [a_arK; Bool]) | []}
+bind 67 lq_tmp_x107 : {VV : func(0, [a_arK; Bool]) | []}
+bind 68 lq_tmp_x102 : {VV#103 : a_arK | [k_104]}
+bind 69 lq_tmp_x107 : {VV : func(0, [a_arK; Bool]) | []}
+bind 70 VV#105 : {VV#105 : Bool | [k_106]}
+bind 71 lq_tmp_x97 : {VV#98 : a_arK | [k_99]}
+bind 72 VV#100 : {VV#100 : Bool | [k_101]}
+bind 73 lq_tmp_x92 : {VV#93 : a_arK | [k_94]}
+bind 74 VV#95 : {VV#95 : Bool | [k_96]}
+bind 75 VV#82 : {VV#82 : Bool | [k_83]}
+bind 76 lq_tmp_x63 : {VV#64 : a_arK | [k_65]}
+bind 77 VV#66 : {VV#66 : Bool | [k_67]}
+bind 78 lq_tmp_x58 : {VV#59 : a_arK | [k_60]}
+bind 79 VV#61 : {VV#61 : Bool | [k_62]}
+bind 80 a_arK : {VV : num | []}
+bind 81 x#arD : {VV#54 : a_arK | [k_55]}
+bind 82 VV#56 : {VV#56 : Bool | [k_57]}
+bind 83 a_arK : {VV : num | []}
+bind 84 x#arE : {VV#50 : a_arK | [k_51]}
+bind 85 VV#52 : {VV#52 : Bool | [k_53]}
+bind 86 VV#48 : {VV#48 : Tuple func(0, [a_arK;
+                                        Bool])   func(0, [a_arK; Bool]) | [k_49]}
+bind 87 lq_tmp_x32 : {VV#33 : a_arK | [k_34]}
+bind 88 VV#35 : {VV#35 : Bool | [k_36]}
+bind 89 lq_tmp_x37 : {VV#38 : a_arK | [k_39]}
+bind 90 VV#40 : {VV#40 : Bool | [k_41]}
+bind 91 lq_tmp_x47 : {VV : func(0, [a_arK; Bool]) | []}
+bind 92 lq_tmp_x47 : {VV : func(0, [a_arK; Bool]) | []}
+bind 93 lq_tmp_x42 : {VV#43 : a_arK | [k_44]}
+bind 94 lq_tmp_x47 : {VV : func(0, [a_arK; Bool]) | []}
+bind 95 VV#45 : {VV#45 : Bool | [k_46]}
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F16 : a_arK | [k_65[VV#64:=VV#F16][VV#F:=VV#F16]]}
+  rhs {VV#F16 : a_arK | [k_55[VV#54:=VV#F16][fix##36#dEq#35#X2:=fix##36#dEq#35#arL][fix##36#dNum#35#X3:=fix##36#dNum#35#arM][VV:=VV#F16][VV#F:=VV#F16]]}
+  id 16 tag [1]
+
+
+constraint:
+  env [0; 32; 1; 2; 3; 4; 5; 6; 27; 28; 29; 30; 31]
+  grd true
+  lhs {VV#F1 : a_arY | [k_127[VV#126:=VV#F1][VV#F:=VV#F1]]}
+  rhs {VV#F1 : a_arY | [k_39[VV#38:=VV#F1][fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0][VV#48:=lq_anf__dsl][x1:=odd_#arF][x2:=even_#arG][VV:=VV#F1][VV#F:=VV#F1];
+                        k_44[VV#43:=VV#F1][fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0][lq_tmp_x47:=odd_#arF][x1:=odd_#arF][x2:=even_#arG][VV:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [3]
+
+
+constraint:
+  env [0; 1; 49; 2; 3; 4; 5; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F17 : Bool | [k_57[fix##36#dEq#35#X2:=fix##36#dEq#35#arL][fix##36#dNum#35#X3:=fix##36#dNum#35#arM][x#arD:=lq_tmp_x63][VV#56:=VV#F17][VV#161:=VV#F17][VV#F:=VV#F17]]}
+  rhs {VV#F17 : Bool | [k_67[VV#66:=VV#F17][VV#161:=VV#F17][VV#F:=VV#F17]]}
+  id 17 tag [1]
+
+
+constraint:
+  env [0; 32; 1; 33; 2; 3; 4; 5; 6; 27; 28; 29; 30; 31]
+  grd true
+  lhs {VV#F2 : Bool | [k_41[fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0][VV#48:=lq_anf__dsl][x1:=odd_#arF][x2:=even_#arG][lq_tmp_x37:=lq_tmp_x125][VV#40:=VV#F2][VV#137:=VV#F2][VV#F:=VV#F2];
+                       k_46[fix##36#dEq#35#arL:=fix##36#dEq#35#arZ][fix##36#dNum#35#arM:=fix##36#dNum#35#as0][lq_tmp_x47:=odd_#arF][lq_tmp_x42:=lq_tmp_x125][VV#45:=VV#F2][x1:=odd_#arF][x2:=even_#arG][lq_tmp_x37:=lq_tmp_x125][VV#40:=VV#F2][VV#137:=VV#F2][VV#F:=VV#F2]]}
+  rhs {VV#F2 : Bool | [k_129[VV#128:=VV#F2][VV#137:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F18 : a_arK | [k_60[VV#59:=VV#F18][VV#F:=VV#F18]]}
+  rhs {VV#F18 : a_arK | [k_51[VV#50:=VV#F18][fix##36#dEq#35#X0:=fix##36#dEq#35#arL][fix##36#dNum#35#X1:=fix##36#dNum#35#arM][VV:=VV#F18][VV#F:=VV#F18]]}
+  id 18 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 21; 6; 22; 23; 24; 25; 26]
+  grd true
+  lhs {VV#F3 : a_arP | [k_114[VV#113:=VV#F3][VV#F:=VV#F3]]}
+  rhs {VV#F3 : a_arP | [k_34[VV#33:=VV#F3][fix##36#dEq#35#arL:=fix##36#dEq#35#arQ][fix##36#dNum#35#arM:=fix##36#dNum#35#arR][VV#48:=lq_anf__dsj][x1:=odd_#arF][x2:=even_#arG][VV:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 51; 4; 5; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F19 : Bool | [k_53[fix##36#dEq#35#X0:=fix##36#dEq#35#arL][fix##36#dNum#35#X1:=fix##36#dNum#35#arM][x#arE:=lq_tmp_x58][VV#52:=VV#F19][VV#164:=VV#F19][VV#F:=VV#F19]]}
+  rhs {VV#F19 : Bool | [k_62[VV#61:=VV#F19][VV#164:=VV#F19][VV#F:=VV#F19]]}
+  id 19 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 35; 4; 5; 21; 6; 22; 23; 24; 25; 26]
+  grd true
+  lhs {VV#F4 : Bool | [k_36[fix##36#dEq#35#arL:=fix##36#dEq#35#arQ][fix##36#dNum#35#arM:=fix##36#dNum#35#arR][VV#48:=lq_anf__dsj][x1:=odd_#arF][x2:=even_#arG][lq_tmp_x32:=lq_tmp_x112][VV#35:=VV#F4][VV#140:=VV#F4][VV#F:=VV#F4]]}
+  rhs {VV#F4 : Bool | [k_116[VV#115:=VV#F4][VV#140:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 53; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F20 : a_arK | [k_55[VV#54:=VV#F20][VV#F:=VV#F20]]}
+  rhs {VV#F20 : a_arK | [k_80[fix##36#dEq#35#X2:=fix##36#dEq#35#X2][fix##36#dNum#35#X3:=fix##36#dNum#35#X3][VV#79:=VV#F20][VV#F:=VV#F20]]}
+  id 20 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F5 : Tuple func(0, [a_arK; Bool])   func(0, [a_arK;
+                                                       Bool]) | []}
+  rhs {VV#F5 : Tuple func(0, [a_arK; Bool])   func(0, [a_arK;
+                                                       Bool]) | [k_49[VV#48:=VV#F5][VV#142:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 53; 6; 54; 7; 8; 9]
+  grd true
+  lhs {VV#F21 : Bool | [k_83[fix##36#dEq#35#X2:=fix##36#dEq#35#X2][fix##36#dNum#35#X3:=fix##36#dNum#35#X3][x#arD:=x#arD][VV#82:=VV#F21][VV#169:=VV#F21][VV#F:=VV#F21]]}
+  rhs {VV#F21 : Bool | [k_57[VV#56:=VV#F21][VV#169:=VV#F21][VV#F:=VV#F21]]}
+  id 21 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 37; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F6 : a_arK | [k_34[VV#48:=VV#142][VV#33:=VV#F6][VV#F:=VV#F6]]}
+  rhs {VV#F6 : a_arK | [k_94[x1:=odd_#X5][x2:=even_#X4][VV:=VV#142][VV#93:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 3; 19; 4; 5; 6; 7; 8; 9; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F22 : Bool | [(? Prop([VV#F22])); (VV#F22 = True#6u)]}
+  rhs {VV#F22 : Bool | [k_83[VV#82:=VV#F22][VV#171:=VV#F22][VV#F:=VV#F22]]}
+  id 22 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 37; 6; 38; 7; 8; 9]
+  grd true
+  lhs {VV#F7 : Bool | [k_96[x1:=odd_#X5][x2:=even_#X4][VV:=VV#142][lq_tmp_x92:=lq_tmp_x32][VV#95:=VV#F7][VV#145:=VV#F7][VV#F:=VV#F7]]}
+  rhs {VV#F7 : Bool | [k_36[VV#48:=VV#142][VV#35:=VV#F7][VV#145:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 18; 3; 4; 5; 6; 7; 8; 9; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F23 : Bool | [k_53[fix##36#dEq#35#X0:=fix##36#dEq#35#X2][fix##36#dNum#35#X1:=fix##36#dNum#35#X3][x#arE:=x#arD][VV#52:=VV#F23][VV#173:=VV#F23][VV#F:=VV#F23]]}
+  rhs {VV#F23 : Bool | [k_83[VV#82:=VV#F23][VV#173:=VV#F23][VV#F:=VV#F23]]}
+  id 23 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 37; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F8 : a_arK | [k_39[VV#48:=VV#142][VV#38:=VV#F8][VV#F:=VV#F8]]}
+  rhs {VV#F8 : a_arK | [k_99[x1:=odd_#X5][x2:=even_#X4][VV:=VV#142][VV#98:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 18; 3; 4; 5; 6; 7; 8; 9; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F24 : a_arK | [k_80[VV#79:=VV#F24][VV#F:=VV#F24];
+                         (VV#F24 = x#arD)]}
+  rhs {VV#F24 : a_arK | [k_51[VV#50:=VV#F24][fix##36#dEq#35#X0:=fix##36#dEq#35#X2][fix##36#dNum#35#X1:=fix##36#dNum#35#X3][VV:=VV#F24][VV#F:=VV#F24]]}
+  id 24 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 37; 6; 7; 8; 40; 9]
+  grd true
+  lhs {VV#F9 : Bool | [k_101[x1:=odd_#X5][x2:=even_#X4][VV:=VV#142][lq_tmp_x97:=lq_tmp_x37][VV#100:=VV#F9][VV#148:=VV#F9][VV#F:=VV#F9]]}
+  rhs {VV#F9 : Bool | [k_41[VV#48:=VV#142][VV#40:=VV#F9][VV#148:=VV#F9][VV#F:=VV#F9]]}
+  id 9 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F25 : a_arK | [(VV#F25 = lq_anf__dse);
+                         (VV#F25 = lq_anf__dsf)]}
+  rhs {VV#F25 : a_arK | [k_87[_LIQUID_dummy:=fix##36#dEq#35#X2][x:=x#arD][VV#86:=VV#F25][VV#F:=VV#F25]]}
+  id 25 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 42]
+  grd true
+  lhs {VV#F10 : a_arK | [k_44[VV#43:=VV#F10][VV#F:=VV#F10]]}
+  rhs {VV#F10 : a_arK | [k_104[VV#103:=VV#F10][x1:=odd_#X5][x2:=even_#X4][lq_tmp_x107:=lq_tmp_x47][VV:=VV#F10][VV#F:=VV#F10]]}
+  id 10 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F26 : a_arK | [k_80[VV#79:=VV#F26][VV#F:=VV#F26];
+                         (VV#F26 = x#arD)]}
+  rhs {VV#F26 : a_arK | [k_87[_LIQUID_dummy:=fix##36#dEq#35#X2][VV#86:=VV#F26][VV#F:=VV#F26]]}
+  id 26 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 42; 43]
+  grd true
+  lhs {VV#F11 : Bool | [k_106[lq_tmp_x102:=lq_tmp_x42][VV#105:=VV#F11][x1:=odd_#X5][x2:=even_#X4][lq_tmp_x107:=lq_tmp_x47][lq_tmp_x97:=lq_tmp_x42][VV:=VV#F11][VV#152:=VV#F11][VV#F:=VV#F11]]}
+  rhs {VV#F11 : Bool | [k_46[VV#45:=VV#F11][VV#152:=VV#F11][VV#F:=VV#F11]]}
+  id 11 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 59]
+  grd true
+  lhs {VV#F27 : a_arK | [k_51[VV#50:=VV#F27][VV#F:=VV#F27]]}
+  rhs {VV#F27 : a_arK | [k_75[fix##36#dEq#35#X0:=fix##36#dEq#35#X0][fix##36#dNum#35#X1:=fix##36#dNum#35#X1][VV#74:=VV#F27][VV#F:=VV#F27]]}
+  id 27 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F12 : a_arK | [k_99[x1:=odd_#X5][VV#98:=VV#F12][VV#F:=VV#F12];
+                         k_104[lq_tmp_x107:=odd_#X5][VV#103:=VV#F12][x1:=odd_#X5][VV#98:=VV#F12][VV#F:=VV#F12]]}
+  rhs {VV#F12 : a_arK | [k_60[VV#59:=VV#F12][VV#F:=VV#F12]]}
+  id 12 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 59; 60]
+  grd true
+  lhs {VV#F28 : Bool | [k_57[fix##36#dEq#35#X2:=fix##36#dEq#35#X0][fix##36#dNum#35#X3:=fix##36#dNum#35#X1][x#arD:=x#arE][fix##36#dEq#35#X0:=fix##36#dEq#35#X0][fix##36#dNum#35#X1:=fix##36#dNum#35#X1][x#arE:=x#arE][VV#56:=VV#F28][VV#180:=VV#F28][VV#F:=VV#F28]]}
+  rhs {VV#F28 : Bool | [k_53[VV#52:=VV#F28][VV#180:=VV#F28][VV#F:=VV#F28]]}
+  id 28 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 45]
+  grd true
+  lhs {VV#F13 : Bool | [k_62[lq_tmp_x58:=lq_tmp_x97][VV#61:=VV#F13][VV#155:=VV#F13][VV#F:=VV#F13]]}
+  rhs {VV#F13 : Bool | [k_101[x1:=odd_#X5][VV#100:=VV#F13][VV#155:=VV#F13][VV#F:=VV#F13];
+                        k_106[lq_tmp_x107:=odd_#X5][lq_tmp_x102:=lq_tmp_x97][VV#105:=VV#F13][x1:=odd_#X5][VV#100:=VV#F13][VV#155:=VV#F13][VV#F:=VV#F13]]}
+  id 13 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11]
+  grd true
+  lhs {VV#F29 : a_arK | [k_75[VV#74:=VV#F29][VV#F:=VV#F29];
+                         (VV#F29 = x#arE)]}
+  rhs {VV#F29 : a_arK | [k_55[VV#54:=VV#F29][fix##36#dEq#35#X2:=fix##36#dEq#35#X0][fix##36#dNum#35#X3:=fix##36#dNum#35#X1][VV:=VV#F29][VV#F:=VV#F29]]}
+  id 29 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+  grd true
+  lhs {VV#F14 : a_arK | [k_94[VV#93:=VV#F14][VV#F:=VV#F14]]}
+  rhs {VV#F14 : a_arK | [k_65[VV#64:=VV#F14][VV#F:=VV#F14]]}
+  id 14 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 47]
+  grd true
+  lhs {VV#F15 : Bool | [k_67[lq_tmp_x63:=lq_tmp_x92][VV#66:=VV#F15][VV#158:=VV#F15][VV#F:=VV#F15]]}
+  rhs {VV#F15 : Bool | [k_96[VV#95:=VV#F15][VV#158:=VV#F15][VV#F:=VV#F15]]}
+  id 15 tag [1]
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 27]
+  reft {VV#126 : a_arY | [k_127]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 27; 62]
+  reft {VV#128 : Bool | [k_129]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 21; 6]
+  reft {VV#113 : a_arP | [k_114]}
+  
+
+
+wf:
+  env [0; 64; 1; 2; 3; 4; 5; 21; 6]
+  reft {VV#115 : Bool | [k_116]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 67; 4; 20; 5; 6; 7; 8; 9]
+  reft {VV#103 : a_arK | [k_104]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 20; 68; 5; 69; 6; 7; 8; 9]
+  reft {VV#105 : Bool | [k_106]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+  reft {VV#98 : a_arK | [k_99]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 71; 8; 9]
+  reft {VV#100 : Bool | [k_101]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+  reft {VV#93 : a_arK | [k_94]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 73]
+  reft {VV#95 : Bool | [k_96]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 12]
+  reft {VV#79 : a_arK | [k_80]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 12; 13; 14; 15]
+  reft {VV#86 : a_arK | [k_87]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 12; 13]
+  reft {VV#82 : Bool | [k_83]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10]
+  reft {VV#74 : a_arK | [k_75]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  reft {VV#64 : a_arK | [k_65]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 76]
+  reft {VV#66 : Bool | [k_67]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  reft {VV#59 : a_arK | [k_60]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 78]
+  reft {VV#61 : Bool | [k_62]}
+  
+
+
+wf:
+  env [0; 80; 1; 2; 3; 4; 5; 6; 7]
+  reft {VV#54 : a_arK | [k_55]}
+  
+
+
+wf:
+  env [0; 80; 1; 81; 2; 3; 4; 5; 6; 7]
+  reft {VV#56 : Bool | [k_57]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 83; 4; 5; 6; 7]
+  reft {VV#50 : a_arK | [k_51]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 83; 4; 84; 5; 6; 7]
+  reft {VV#52 : Bool | [k_53]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  reft {VV#48 : Tuple func(0, [a_arK; Bool])   func(0, [a_arK;
+                                                        Bool]) | [k_49]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 86; 7]
+  reft {VV#33 : a_arK | [k_34]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 86; 7; 87]
+  reft {VV#35 : Bool | [k_36]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 86; 7]
+  reft {VV#38 : a_arK | [k_39]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 86; 7; 89]
+  reft {VV#40 : Bool | [k_41]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 92]
+  reft {VV#43 : a_arK | [k_44]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 93; 94]
+  reft {VV#45 : Bool | [k_46]}
+  
+

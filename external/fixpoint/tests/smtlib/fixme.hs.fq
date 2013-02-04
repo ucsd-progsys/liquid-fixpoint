@@ -1,0 +1,146 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])
+qualif Auto(VV : int , ~A0 : int): (~A0 < VV)
+qualif Auto(VV : int , ~A0 : int): (~A0 < VV)
+constant cmp : func(0, [Ordering; Ordering])
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+bind 0 foo#r9G : {VV : func(0, [int; int]) | []}
+bind 1 bar#r9H : {VV : func(0, [int; int]) | []}
+bind 2 I##6c : {VV : func(0, [int; int]) | []}
+bind 3 I##6c : {VV : func(0, [int; int]) | []}
+bind 4 GT#6W : {VV#11 : Ordering | [(cmp([VV#11]) = GT#6W)]}
+bind 5 LT#6S : {VV#22 : Ordering | [(cmp([VV#22]) = LT#6S)]}
+bind 6 EQ#6U : {VV#24 : Ordering | [(cmp([VV#24]) = EQ#6U)]}
+bind 7 n#ab6 : {VV#25 : int | [k_26]}
+bind 8 lq_anf__dbf : {VV#30 : int | [(VV#30 = (1  :  int))]}
+bind 9 n#ab7 : {VV#31 : int | [k_32]}
+bind 10 lq_anf__dbg : {VV#36 : int | [(VV#36 = (1  :  int))]}
+bind 11 VV#37 : {VV#37 : int | []}
+bind 12 n : {VV#39 : int | []}
+bind 13 VV#40 : {VV#40 : int | [k_35[n#ab7:=n][VV#34:=VV#40]]}
+bind 14 VV#42 : {VV#42 : int | [(VV#42 = (n#ab7 + lq_anf__dbg))]}
+bind 15 VV#44 : {VV#44 : int | [(VV#44 = (1  :  int));
+                                (VV#44 = lq_anf__dbg)]}
+bind 16 VV#46 : {VV#46 : int | [k_32[VV#31:=VV#46];
+                                (VV#46 = n#ab7)]}
+bind 17 VV#48 : {VV#48 : int | [(VV#48 = 1)]}
+bind 18 VV#50 : {VV#50 : int | []}
+bind 19 i : {VV#52 : int | []}
+bind 20 VV#53 : {VV#53 : int | [k_29[n#ab6:=i][VV#28:=VV#53]]}
+bind 21 VV#55 : {VV#55 : int | [(VV#55 = (n#ab6 + lq_anf__dbf))]}
+bind 22 VV#57 : {VV#57 : int | [(VV#57 = (1  :  int));
+                                (VV#57 = lq_anf__dbf)]}
+bind 23 VV#59 : {VV#59 : int | [k_26[VV#25:=VV#59];
+                                (VV#59 = n#ab6)]}
+bind 24 VV#61 : {VV#61 : int | [(VV#61 = 1)]}
+bind 25 VV#31 : {VV#31 : int | [k_32]}
+bind 26 VV#34 : {VV#34 : int | [k_35]}
+bind 27 VV#25 : {VV#25 : int | [k_26]}
+bind 28 VV#28 : {VV#28 : int | [k_29]}
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6]
+  grd true
+  lhs {VV#F1 : int | []}
+  rhs {VV#F1 : int | [k_32[VV#31:=VV#F1][VV#37:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 12]
+  grd true
+  lhs {VV#F2 : int | [k_35[n#ab7:=n][VV#34:=VV#F2][VV#40:=VV#F2][VV#F:=VV#F2]]}
+  rhs {VV#F2 : int | [(n < VV#F2)]}
+  id 2 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 9; 10]
+  grd true
+  lhs {VV#F3 : int | [(VV#F3 = (n#ab7 + lq_anf__dbg))]}
+  rhs {VV#F3 : int | [k_35[VV#34:=VV#F3][VV#42:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6]
+  grd true
+  lhs {VV#F4 : int | []}
+  rhs {VV#F4 : int | [k_26[VV#25:=VV#F4][VV#50:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 19; 4; 5; 6]
+  grd true
+  lhs {VV#F5 : int | [k_29[n#ab6:=i][VV#28:=VV#F5][VV#53:=VV#F5][VV#F:=VV#F5]]}
+  rhs {VV#F5 : int | [(i < VV#F5)]}
+  id 5 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8]
+  grd true
+  lhs {VV#F6 : int | [(VV#F6 = (n#ab6 + lq_anf__dbf))]}
+  rhs {VV#F6 : int | [k_29[VV#28:=VV#F6][VV#55:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [2]
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6]
+  reft {VV#31 : int | [k_32]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 9]
+  reft {VV#34 : int | [k_35]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6]
+  reft {VV#25 : int | [k_26]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  reft {VV#28 : int | [k_29]}
+  
+

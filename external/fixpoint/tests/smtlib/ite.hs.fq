@@ -1,0 +1,203 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])
+qualif Auto(VV : int , ~A0 : int): ((~A0 > 0) => (VV = ~A0))
+qualif Auto(VV : int , ~A0 : int): ((~ ((~A0 > 0))) => ((VV + ~A0) = 0))
+constant cmp : func(0, [Ordering; Ordering])
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+bind 0 myabs#r9G : {VV : func(0, [int; int]) | []}
+bind 1 realWorld##0f : {VV#8 : State# RealWorld | []}
+bind 2 False#68 : {VV#10 : Bool | []}
+bind 3 I##6c : {VV : func(0, [int; int]) | []}
+bind 4 True#6u : {VV#12 : Bool | []}
+bind 5 I##6c : {VV : func(0, [int; int]) | []}
+bind 6 True#6u : {VV#19 : Bool | [(? Prop([VV#19]))]}
+bind 7 False#68 : {VV#20 : Bool | [(~ ((? Prop([VV#20]))))]}
+bind 8 EQ#6U : {VV#27 : Ordering | [(cmp([VV#27]) = EQ#6U)]}
+bind 9 LT#6S : {VV#29 : Ordering | [(cmp([VV#29]) = LT#6S)]}
+bind 10 GT#6W : {VV#30 : Ordering | [(cmp([VV#30]) = GT#6W)]}
+bind 11 x#ahb : {VV#35 : int | [k_36]}
+bind 12 lq_anf__dhk : {VV#40 : int | [(VV#40 = (0  :  int))]}
+bind 13 lq_anf__dhl : {VV#43 : Bool | [((? Prop([VV#43])) <=> (x#ahb > lq_anf__dhk))]}
+bind 14 lq_anf__dhm : {VV#43 : Bool | [((? Prop([VV#43])) <=> (x#ahb > lq_anf__dhk));
+                                       (VV#43 = lq_anf__dhl)]}
+bind 15 lq_anf__dhm : {VV#43 : Bool | [((? Prop([VV#43])) <=> (x#ahb > lq_anf__dhk));
+                                       (VV#43 = lq_anf__dhl);
+                                       (~ ((? Prop([VV#43]))));
+                                       (~ ((? Prop([VV#43]))))]}
+bind 16 ds_dhj : {VV#48 : State# RealWorld | [k_49]}
+bind 17 lq_anf__dhn : {VV#53 : int | [(VV#53 = (0  :  int))]}
+bind 18 lq_anf__dhm : {VV#43 : Bool | [((? Prop([VV#43])) <=> (x#ahb > lq_anf__dhk));
+                                       (VV#43 = lq_anf__dhl);
+                                       (? Prop([VV#43]));
+                                       (? Prop([VV#43]))]}
+bind 19 VV#55 : {VV#55 : int | []}
+bind 20 x : {VV#57 : int | []}
+bind 21 VV#58 : {VV#58 : int | [k_39[x#ahb:=x][VV#38:=VV#58]]}
+bind 22 VV#60 : {VV#60 : int | [k_36[VV#35:=VV#60];
+                                (VV#60 = x#ahb)]}
+bind 23 VV#62 : {VV#62 : int | [k_52[ds_dhj:=realWorld##0f][VV#51:=VV#62]]}
+bind 24 VV#64 : {VV#64 : State# RealWorld | [(VV#64 = realWorld##0f)]}
+bind 25 VV#66 : {VV#66 : RealWorld | []}
+bind 26 VV#68 : {VV#68 : int | [(VV#68 = (lq_anf__dhn - x#ahb))]}
+bind 27 VV#70 : {VV#70 : int | [k_36[VV#35:=VV#70];
+                                (VV#70 = x#ahb)]}
+bind 28 VV#72 : {VV#72 : int | [(VV#72 = (0  :  int));
+                                (VV#72 = lq_anf__dhn)]}
+bind 29 VV#74 : {VV#74 : int | [(VV#74 = 0)]}
+bind 30 VV#76 : {VV#76 : int | [(VV#76 = (0  :  int));
+                                (VV#76 = lq_anf__dhk)]}
+bind 31 VV#78 : {VV#78 : int | [k_36[VV#35:=VV#78];
+                                (VV#78 = x#ahb)]}
+bind 32 VV#80 : {VV#80 : int | [(VV#80 = 0)]}
+bind 33 VV#35 : {VV#35 : int | [k_36]}
+bind 34 VV#48 : {VV#48 : State# RealWorld | [k_49]}
+bind 35 VV#46 : {VV#46 : RealWorld | [k_47]}
+bind 36 VV#51 : {VV#51 : int | [k_52]}
+bind 37 VV#41 : {VV#41 : int | [k_42]}
+bind 38 VV#38 : {VV#38 : int | [k_39]}
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10]
+  grd true
+  lhs {VV#F1 : int | []}
+  rhs {VV#F1 : int | [k_36[VV#35:=VV#F1][VV#55:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 20; 5; 6; 7; 8; 9; 10]
+  grd true
+  lhs {VV#F2 : int | [k_39[x#ahb:=x][VV#38:=VV#F2][VV#58:=VV#F2][VV#F:=VV#F2]]}
+  rhs {VV#F2 : int | [&& [((x > 0) => (VV#F2 = x));
+                          ((~ ((x > 0))) => ((VV#F2 + x) = 0))]]}
+  id 2 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 18; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  grd true
+  lhs {VV#F3 : int | [k_36[VV#35:=VV#F3][VV#60:=VV#F3][VV#F:=VV#F3];
+                      (VV#F3 = x#ahb)]}
+  rhs {VV#F3 : int | [k_39[VV#38:=VV#F3][VV#60:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F4 : int | [k_52[ds_dhj:=realWorld##0f][VV#51:=VV#F4][VV#62:=VV#F4][VV#F:=VV#F4]]}
+  rhs {VV#F4 : int | [k_39[VV#38:=VV#F4][VV#62:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F5 : State# RealWorld | [(VV#F5 = realWorld##0f)]}
+  rhs {VV#F5 : State# RealWorld | [k_49[VV#48:=VV#F5][VV#64:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 24; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F6 : RealWorld | []}
+  rhs {VV#F6 : RealWorld | [k_47[VV#48:=VV#64][VV#46:=VV#F6][VV#66:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F7 : int | [(VV#F7 = (lq_anf__dhn - x#ahb))]}
+  rhs {VV#F7 : int | [k_52[VV#51:=VV#F7][VV#68:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F8 : int | [(VV#F8 = (0  :  int)); (VV#F8 = lq_anf__dhk)]}
+  rhs {VV#F8 : int | [k_42[_LIQUID_dummy:=fix##36#fOrdInt#35#r9M][x:=x#ahb][VV#41:=VV#F8][VV#76:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12]
+  grd true
+  lhs {VV#F9 : int | [k_36[VV#35:=VV#F9][VV#78:=VV#F9][VV#F:=VV#F9];
+                      (VV#F9 = x#ahb)]}
+  rhs {VV#F9 : int | [k_42[_LIQUID_dummy:=fix##36#fOrdInt#35#r9M][VV#41:=VV#F9][VV#78:=VV#F9][VV#F:=VV#F9]]}
+  id 9 tag [1]
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10]
+  reft {VV#35 : int | [k_36]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#48 : State# RealWorld | [k_49]}
+  
+
+
+wf:
+  env [0; 1; 2; 34; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#46 : RealWorld | [k_47]}
+  
+
+
+wf:
+  env [0; 16; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#51 : int | [k_52]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12]
+  reft {VV#41 : int | [k_42]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11]
+  reft {VV#38 : int | [k_39]}
+  
+

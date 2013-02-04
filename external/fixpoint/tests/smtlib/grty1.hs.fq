@@ -1,0 +1,600 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])
+cut k_46
+cut k_44
+cut k_51
+cut k_41
+cut k_39
+cut k_36
+cut k_34
+cut k_49
+constant cmp : func(0, [Ordering; Ordering])
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+constant fix##36##36##34#pos#47#grty1.hs#58##40#8#44#1#41##45##40#9#44#14#41##124#function#32#poo#34# : Addr#
+constant fix##36##36##34#pos#47#grty1.hs#58#5#58#1#45#13#124#function#32#sz#34# : Addr#
+constant fix##58##35#64 : func(1, [@(0); [@(0)]; [@(0)]])
+constant fix##91##93##35#6m : func(1, [[@(0)]])
+bind 0 realWorld##0f : {VV#6 : State# RealWorld | []}
+bind 1 GT#6W : {VV#9 : Ordering | [(cmp([VV#9]) = GT#6W)]}
+bind 2 LT#6S : {VV#20 : Ordering | [(cmp([VV#20]) = LT#6S)]}
+bind 3 EQ#6U : {VV#22 : Ordering | [(cmp([VV#22]) = EQ#6U)]}
+bind 4 poo#X0 : {VV : func(0, [[t_acD]; t_acD]) | []}
+bind 5 ds_dcR : {VV#59 : [t_acD] | [k_60; (len([VV#59]) >= 0)]}
+bind 6 lq_anf__dd1 : {VV#59 : [t_acD] | [k_60;
+                                         (len([VV#59]) >= 0);
+                                         (VV#59 = ds_dcR);
+                                         (len([VV#59]) >= 0)]}
+bind 7 lq_anf__dd1 : {VV#59 : [t_acD] | [k_60;
+                                         (len([VV#59]) >= 0);
+                                         (VV#59 = ds_dcR);
+                                         (len([VV#59]) >= 0);
+                                         (VV#59 = fix##91##93##35#6m([]));
+                                         (len([VV#59]) = 0);
+                                         (len([VV#59]) >= 0)]}
+bind 8 ds_dcT : {VV#68 : State# RealWorld | [k_69]}
+bind 9 lq_anf__dd1 : {VV#59 : [t_acD] | [k_60;
+                                         (len([VV#59]) >= 0);
+                                         (VV#59 = ds_dcR);
+                                         (len([VV#59]) >= 0);
+                                         (VV#59 = fix##58##35#64([x#acx; xs#acy]));
+                                         (len([VV#59]) = (1 + len([xs#acy])));
+                                         (len([VV#59]) >= 0)]}
+bind 10 x#acx : {VV#54 : t_acD | [k_55[VV#59:=lq_anf__dd1][y:=x#acx][ys:=xs#acy]]}
+bind 11 xs#acy : {VV#75 : [t_acD] | [(len([VV#75]) >= 0)]}
+bind 12 ds_dcV : {VV#85 : [t_acJ] | [k_86; (len([VV#85]) >= 0)]}
+bind 13 ds_dcY : {VV#92 : State# RealWorld | [k_93]}
+bind 14 fail_dcX : {VV : func(0, [State# RealWorld; t_acJ]) | []}
+bind 15 lq_anf__dd2 : {VV#85 : [t_acJ] | [k_86;
+                                          (len([VV#85]) >= 0);
+                                          (VV#85 = ds_dcV);
+                                          (len([VV#85]) >= 0)]}
+bind 16 lq_anf__dd2 : {VV#85 : [t_acJ] | [k_86;
+                                          (len([VV#85]) >= 0);
+                                          (VV#85 = ds_dcV);
+                                          (len([VV#85]) >= 0);
+                                          (VV#85 = fix##91##93##35#6m([]));
+                                          (len([VV#85]) = 0);
+                                          (len([VV#85]) >= 0)]}
+bind 17 lq_anf__dd2 : {VV#85 : [t_acJ] | [k_86;
+                                          (len([VV#85]) >= 0);
+                                          (VV#85 = ds_dcV);
+                                          (len([VV#85]) >= 0);
+                                          (VV#85 = fix##58##35#64([x#acw; ds_dcW]));
+                                          (len([VV#85]) = (1 + len([ds_dcW])));
+                                          (len([VV#85]) >= 0)]}
+bind 18 x#acw : {VV#80 : t_acJ | [k_81[VV#85:=lq_anf__dd2][y:=x#acw][ys:=ds_dcW]]}
+bind 19 ds_dcW : {VV#102 : [t_acJ] | [(len([VV#102]) >= 0)]}
+bind 20 lq_anf__dd3 : {VV#102 : [t_acJ] | [(len([VV#102]) >= 0);
+                                           (VV#102 = ds_dcW);
+                                           (len([VV#102]) >= 0)]}
+bind 21 lq_anf__dd3 : {VV#102 : [t_acJ] | [(len([VV#102]) >= 0);
+                                           (VV#102 = ds_dcW);
+                                           (len([VV#102]) >= 0);
+                                           (VV#102 = fix##91##93##35#6m([]));
+                                           (len([VV#102]) = 0);
+                                           (len([VV#102]) >= 0)]}
+bind 22 lq_anf__dd3 : {VV#102 : [t_acJ] | [(len([VV#102]) >= 0);
+                                           (VV#102 = ds_dcW);
+                                           (len([VV#102]) >= 0);
+                                           (VV#102 = fix##58##35#64([lq_anf__dd4; lq_anf__dd5]));
+                                           (len([VV#102]) = (1 + len([lq_anf__dd5])));
+                                           (len([VV#102]) >= 0)]}
+bind 23 lq_anf__dd4 : {VV#80 : t_acJ | [k_81[VV#85:=lq_anf__dd2][y:=x#acw][ys:=ds_dcW][VV:=lq_anf__dd3][VV#102:=lq_anf__dd3][y:=lq_anf__dd4][ys:=lq_anf__dd5];
+                                        k_83[lq_tmp_x84:=x#acw][VV#82:=VV#80][y:=x#acw][ys:=ds_dcW][VV:=lq_anf__dd3][VV#102:=lq_anf__dd3][y:=lq_anf__dd4][ys:=lq_anf__dd5]]}
+bind 24 lq_anf__dd5 : {VV#107 : [t_acJ] | [(len([VV#107]) >= 0)]}
+bind 25 VV#108 : {VV#108 : [t_acJ] | [(len([VV#108]) >= 0)]}
+bind 26 lq_tmp_x84 : {VV : t_acJ | []}
+bind 27 dummy.pos.grty1.hs.3.11 : {VV#111 : [t_acJ] | [(len([VV#111]) >= 0)]}
+bind 28 VV#112 : {VV#112 : State# RealWorld | [(VV#112 = realWorld##0f)]}
+bind 29 VV#114 : {VV#114 : RealWorld | []}
+bind 30 VV#116 : {VV#116 : State# RealWorld | [(VV#116 = realWorld##0f)]}
+bind 31 VV#118 : {VV#118 : RealWorld | []}
+bind 32 VV#120 : {VV#120 : Addr# | [(VV#120 = fix##36##36##34#pos#47#grty1.hs#58#5#58#1#45#13#124#function#32#sz#34#)]}
+bind 33 VV#122 : {VV#122 : [t_acD] | [(len([VV#122]) >= 0)]}
+bind 34 lq_tmp_x28 : {VV : t_acD | []}
+bind 35 dummy.pos.grty1.hs.7.12 : {VV#125 : [t_acD] | [(len([VV#125]) >= 0)]}
+bind 36 VV#126 : {VV#126 : [t_acD] | [k_30[VV#29:=VV#126];
+                                      (len([VV#126]) >= 0)]}
+bind 37 lq_tmp_x47 : {VV : t_acD | []}
+bind 38 lq_tmp_x23 : {VV#29 : [t_acD] | [k_30;
+                                         (len([VV#29]) >= 0)]}
+bind 39 VV#130 : {VV#130 : [t_acD] | [k_49[VV#48:=VV#130];
+                                      (len([VV#130]) >= 0)]}
+bind 40 lq_tmp_x37 : {VV : t_acD | []}
+bind 41 lq_tmp_x42 : {VV#48 : [t_acD] | [k_49;
+                                         (len([VV#48]) >= 0)]}
+bind 42 VV#134 : {VV#134 : [t_acD] | [k_39[VV#38:=VV#134];
+                                      (len([VV#134]) >= 0)]}
+bind 43 lq_tmp_x58 : {VV : t_acD | []}
+bind 44 ds_dcR : {VV#38 : [t_acD] | [k_39; (len([VV#38]) >= 0)]}
+bind 45 VV#138 : {VV#138 : [t_acD] | [(len([VV#138]) >= 0);
+                                      (VV#138 = xs#acy);
+                                      (len([VV#138]) >= 0)]}
+bind 46 lq_tmp_x37 : {VV : t_acD | []}
+bind 47 VV#141 : {VV#141 : State# RealWorld | [(VV#141 = realWorld##0f)]}
+bind 48 VV#143 : {VV#143 : RealWorld | []}
+bind 49 VV#145 : {VV#145 : Addr# | [(VV#145 = fix##36##36##34#pos#47#grty1.hs#58##40#8#44#1#41##45##40#9#44#14#41##124#function#32#poo#34#)]}
+bind 50 VV#85 : {VV#85 : [t_acJ] | [k_86; (len([VV#85]) >= 0)]}
+bind 51 lq_tmp_x84 : {VV : t_acJ | []}
+bind 52 VV#92 : {VV#92 : State# RealWorld | [k_93]}
+bind 53 VV#90 : {VV#90 : RealWorld | [k_91]}
+bind 54 VV#59 : {VV#59 : [t_acD] | [k_60; (len([VV#59]) >= 0)]}
+bind 55 lq_tmp_x58 : {VV : t_acD | []}
+bind 56 VV#68 : {VV#68 : State# RealWorld | [k_69]}
+bind 57 VV#66 : {VV#66 : RealWorld | [k_67]}
+bind 58 VV#48 : {VV#48 : [t_acD] | [k_49; (len([VV#48]) >= 0)]}
+bind 59 lq_tmp_x47 : {VV : t_acD | []}
+bind 60 lq_tmp_x42 : {VV#48 : [t_acD] | [k_49;
+                                         (len([VV#48]) >= 0)]}
+bind 61 VV#38 : {VV#38 : [t_acD] | [k_39; (len([VV#38]) >= 0)]}
+bind 62 lq_tmp_x37 : {VV : t_acD | []}
+bind 63 ds_dcR : {VV#38 : [t_acD] | [k_39; (len([VV#38]) >= 0)]}
+bind 64 VV#29 : {VV#29 : [t_acD] | [k_30; (len([VV#29]) >= 0)]}
+bind 65 lq_tmp_x28 : {VV : t_acD | []}
+bind 66 lq_tmp_x23 : {VV#29 : [t_acD] | [k_30;
+                                         (len([VV#29]) >= 0)]}
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 37]
+  grd true
+  lhs {VV#F16 : t_acD | [k_27[lq_tmp_x28:=lq_tmp_x47][VV#26:=VV#F16][VV#F:=VV#F16]]}
+  rhs {VV#F16 : t_acD | [k_46[VV#45:=VV#F16][VV#F:=VV#F16]]}
+  id 16 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 47]
+  grd true
+  lhs {VV#F32 : RealWorld | []}
+  rhs {VV#F32 : RealWorld | [k_67[VV#68:=VV#141][VV#66:=VV#F32][VV#143:=VV#F32][VV#F:=VV#F32]]}
+  id 32 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3]
+  grd true
+  lhs {VV#F1 : [t_acJ] | []}
+  rhs {VV#F1 : [t_acJ] | [k_86[VV#85:=VV#F1][VV#108:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 38]
+  grd true
+  lhs {VV#F17 : t_acD | [k_51[lq_tmp_x42:=lq_tmp_x23][VV#50:=VV#F17][VV#F:=VV#F17]]}
+  rhs {VV#F17 : t_acD | [k_32[VV#31:=VV#F17][VV#F:=VV#F17]]}
+  id 17 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 25]
+  grd true
+  lhs {VV#F2 : t_acJ | []}
+  rhs {VV#F2 : t_acJ | [k_81[VV#85:=VV#108][VV#80:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4]
+  grd true
+  lhs {VV#F18 : [t_acD] | [k_49[VV#48:=VV#F18][VV#130:=VV#F18][VV#F:=VV#F18]]}
+  rhs {VV#F18 : [t_acD] | [k_39[VV#38:=VV#F18][VV#130:=VV#F18][VV#F:=VV#F18]]}
+  id 18 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 26]
+  grd true
+  lhs {VV#F3 : t_acJ | []}
+  rhs {VV#F3 : t_acJ | [k_83[VV#82:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 39]
+  grd true
+  lhs {VV#F19 : t_acD | [k_44[VV#48:=VV#130][VV#43:=VV#F19][VV#F:=VV#F19]]}
+  rhs {VV#F19 : t_acD | [k_79[VV#38:=VV#130][VV#78:=VV#F19][VV#F:=VV#F19];
+                         k_34[VV#33:=VV#F19][VV#38:=VV#130][VV#78:=VV#F19][VV#F:=VV#F19]]}
+  id 19 tag [1]
+
+
+constraint:
+  env [0; 1; 17; 2; 18; 3; 19; 20; 22; 23; 24; 12; 14; 15]
+  grd true
+  lhs {VV#F4 : t_acJ | [k_96[lq_tmp_x0:=fix##36##36##34#pos#47#grty1.hs#58#5#58#1#45#13#124#function#32#sz#34#][ds_dcY:=realWorld##0f][VV#95:=VV#F4][VV#F:=VV#F4]]}
+  rhs {VV#F4 : t_acJ | [k_89[VV#88:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 40]
+  grd true
+  lhs {VV#F20 : t_acD | [k_46[lq_tmp_x47:=lq_tmp_x37][VV#45:=VV#F20][VV#F:=VV#F20]]}
+  rhs {VV#F20 : t_acD | [k_36[VV#35:=VV#F20][VV:=VV#F20][VV#F:=VV#F20]]}
+  id 20 tag [1]
+
+
+constraint:
+  env [0; 1; 17; 2; 18; 3; 19; 20; 22; 23; 24; 12; 14; 15]
+  grd true
+  lhs {VV#F5 : State# RealWorld | [(VV#F5 = realWorld##0f)]}
+  rhs {VV#F5 : State# RealWorld | [k_93[VV#92:=VV#F5][VV#112:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 41]
+  grd true
+  lhs {VV#F21 : t_acD | [k_79[ds_dcR:=lq_tmp_x42][VV#78:=VV#F21][VV#F:=VV#F21];
+                         k_41[VV#40:=VV#F21][ds_dcR:=lq_tmp_x42][VV#78:=VV#F21][VV#F:=VV#F21]]}
+  rhs {VV#F21 : t_acD | [k_51[VV#50:=VV#F21][VV#F:=VV#F21]]}
+  id 21 tag [1]
+
+
+constraint:
+  env [0; 1; 17; 2; 18; 3; 19; 20; 22; 23; 24; 12; 28; 14; 15]
+  grd true
+  lhs {VV#F6 : RealWorld | []}
+  rhs {VV#F6 : RealWorld | [k_91[VV#92:=VV#112][VV#90:=VV#F6][VV#114:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4]
+  grd true
+  lhs {VV#F22 : [t_acD] | [k_39[VV#38:=VV#F22][VV#134:=VV#F22][VV#F:=VV#F22]]}
+  rhs {VV#F22 : [t_acD] | [k_60[VV#59:=VV#F22][VV#134:=VV#F22][VV#F:=VV#F22]]}
+  id 22 tag [1]
+
+
+constraint:
+  env [0; 1; 17; 2; 18; 3; 19; 20; 21; 12; 14; 15]
+  grd true
+  lhs {VV#F7 : t_acJ | [k_81[VV#85:=lq_anf__dd2][y:=x#acw][ys:=ds_dcW][VV#80:=VV#F7][VV#F:=VV#F7];
+                        (VV#F7 = x#acw)]}
+  rhs {VV#F7 : t_acJ | [k_89[VV#88:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 42]
+  grd true
+  lhs {VV#F23 : t_acD | [k_34[VV#38:=VV#134][VV#33:=VV#F23][VV#F:=VV#F23]]}
+  rhs {VV#F23 : t_acD | [k_55[VV#59:=VV#134][VV#54:=VV#F23][VV#F:=VV#F23]]}
+  id 23 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 12; 14; 15]
+  grd true
+  lhs {VV#F8 : t_acJ | [k_96[lq_tmp_x0:=fix##36##36##34#pos#47#grty1.hs#58#5#58#1#45#13#124#function#32#sz#34#][ds_dcY:=realWorld##0f][VV#95:=VV#F8][VV#F:=VV#F8]]}
+  rhs {VV#F8 : t_acJ | [k_89[VV#88:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 43]
+  grd true
+  lhs {VV#F24 : t_acD | [k_36[lq_tmp_x37:=lq_tmp_x58][VV#35:=VV#F24][VV#F:=VV#F24]]}
+  rhs {VV#F24 : t_acD | [k_57[VV#56:=VV#F24][VV#F:=VV#F24]]}
+  id 24 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 12; 14; 15]
+  grd true
+  lhs {VV#F9 : State# RealWorld | [(VV#F9 = realWorld##0f)]}
+  rhs {VV#F9 : State# RealWorld | [k_93[VV#92:=VV#F9][VV#116:=VV#F9][VV#F:=VV#F9]]}
+  id 9 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 44]
+  grd true
+  lhs {VV#F25 : t_acD | [k_63[ds_dcR:=ds_dcR][VV#62:=VV#F25][VV#F:=VV#F25]]}
+  rhs {VV#F25 : t_acD | [k_41[VV#40:=VV#F25][VV#F:=VV#F25]]}
+  id 25 tag [1]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 12; 14; 30; 15]
+  grd true
+  lhs {VV#F10 : RealWorld | []}
+  rhs {VV#F10 : RealWorld | [k_91[VV#92:=VV#116][VV#90:=VV#F10][VV#118:=VV#F10][VV#F:=VV#F10]]}
+  id 10 tag [2]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 9; 10; 11]
+  grd true
+  lhs {VV#F26 : t_acD | [k_77[ds_dcR:=xs#acy][VV#76:=VV#F26][VV#F:=VV#F26];
+                         k_41[VV#40:=VV#F26][ds_dcR:=xs#acy][VV#76:=VV#F26][VV#F:=VV#F26]]}
+  rhs {VV#F26 : t_acD | [k_63[VV#62:=VV#F26][VV#F:=VV#F26]]}
+  id 26 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3]
+  grd true
+  lhs {VV#F11 : [t_acD] | []}
+  rhs {VV#F11 : [t_acD] | [k_30[VV#29:=VV#F11][VV#122:=VV#F11][VV#F:=VV#F11]]}
+  id 11 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 9; 10; 11]
+  grd true
+  lhs {VV#F27 : [t_acD] | [(len([VV#F27]) >= 0); (VV#F27 = xs#acy)]}
+  rhs {VV#F27 : [t_acD] | [k_39[VV#38:=VV#F27][VV#138:=VV#F27][VV#F:=VV#F27]]}
+  id 27 tag [1]
+
+
+constraint:
+  env [0; 1; 33; 2; 3]
+  grd true
+  lhs {VV#F12 : t_acD | []}
+  rhs {VV#F12 : t_acD | [k_25[VV#29:=VV#122][VV#24:=VV#F12][VV#F:=VV#F12]]}
+  id 12 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 9; 10; 11; 45]
+  grd true
+  lhs {VV#F28 : t_acD | [k_55[VV#59:=lq_anf__dd1][y:=x#acx][ys:=xs#acy][VV:=VV#138][VV#75:=VV#138][VV#54:=VV#F28][VV#F:=VV#F28];
+                         k_57[lq_tmp_x58:=x#acx][VV#56:=VV#F28][y:=x#acx][ys:=xs#acy][VV:=VV#138][VV#75:=VV#138][VV#54:=VV#F28][VV#F:=VV#F28]]}
+  rhs {VV#F28 : t_acD | [k_77[VV#38:=VV#138][VV#76:=VV#F28][VV#F:=VV#F28];
+                         k_34[VV#33:=VV#F28][VV#38:=VV#138][VV#76:=VV#F28][VV#F:=VV#F28]]}
+  id 28 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 34; 3]
+  grd true
+  lhs {VV#F13 : t_acD | []}
+  rhs {VV#F13 : t_acD | [k_27[VV#26:=VV#F13][VV#F:=VV#F13]]}
+  id 13 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 9; 10; 11; 46]
+  grd true
+  lhs {VV#F29 : t_acD | [k_57[VV#56:=VV#F29][y:=x#acx][ys:=xs#acy][lq_tmp_x58:=lq_tmp_x37][VV:=VV#F29][VV#F:=VV#F29]]}
+  rhs {VV#F29 : t_acD | [k_36[VV#35:=VV#F29][VV:=VV#F29][VV#F:=VV#F29]]}
+  id 29 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4]
+  grd true
+  lhs {VV#F14 : [t_acD] | [k_30[VV#29:=VV#F14][VV#126:=VV#F14][VV#F:=VV#F14]]}
+  rhs {VV#F14 : [t_acD] | [k_49[VV#48:=VV#F14][VV#126:=VV#F14][VV#F:=VV#F14]]}
+  id 14 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  grd true
+  lhs {VV#F30 : t_acD | [k_72[lq_tmp_x0:=fix##36##36##34#pos#47#grty1.hs#58##40#8#44#1#41##45##40#9#44#14#41##124#function#32#poo#34#][ds_dcT:=realWorld##0f][VV#71:=VV#F30][VV#F:=VV#F30]]}
+  rhs {VV#F30 : t_acD | [k_63[VV#62:=VV#F30][VV#F:=VV#F30]]}
+  id 30 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 36]
+  grd true
+  lhs {VV#F15 : t_acD | [k_25[VV#29:=VV#126][VV#24:=VV#F15][VV#F:=VV#F15]]}
+  rhs {VV#F15 : t_acD | [k_44[VV#48:=VV#126][VV#43:=VV#F15][VV#F:=VV#F15]]}
+  id 15 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  grd true
+  lhs {VV#F31 : State# RealWorld | [(VV#F31 = realWorld##0f)]}
+  rhs {VV#F31 : State# RealWorld | [k_69[VV#68:=VV#F31][VV#141:=VV#F31][VV#F:=VV#F31]]}
+  id 31 tag [1]
+
+
+wf:
+  env [0; 1; 2; 3]
+  reft {VV#85 : [t_acJ] | [k_86]}
+  
+
+
+wf:
+  env [0; 1; 2; 50; 3]
+  reft {VV#80 : t_acJ | [k_81]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 51]
+  reft {VV#82 : t_acJ | [k_83]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 12]
+  reft {VV#92 : State# RealWorld | [k_93]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 52; 12]
+  reft {VV#90 : RealWorld | [k_91]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 12; 13]
+  reft {VV#95 : t_acJ | [k_96]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 12]
+  reft {VV#88 : t_acJ | [k_89]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4]
+  reft {VV#78 : t_acD | [k_79]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4]
+  reft {VV#59 : [t_acD] | [k_60]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 54]
+  reft {VV#54 : t_acD | [k_55]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 55]
+  reft {VV#56 : t_acD | [k_57]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 9; 10; 11]
+  reft {VV#76 : t_acD | [k_77]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7]
+  reft {VV#68 : State# RealWorld | [k_69]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 56]
+  reft {VV#66 : RealWorld | [k_67]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8]
+  reft {VV#71 : t_acD | [k_72]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5]
+  reft {VV#62 : t_acD | [k_63]}
+  
+
+
+wf:
+  env [0; 1; 2; 3]
+  reft {VV#48 : [t_acD] | [k_49]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 58]
+  reft {VV#43 : t_acD | [k_44]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 59]
+  reft {VV#45 : t_acD | [k_46]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 60]
+  reft {VV#50 : t_acD | [k_51]}
+  
+
+
+wf:
+  env [0; 1; 2; 3]
+  reft {VV#38 : [t_acD] | [k_39]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 61]
+  reft {VV#33 : t_acD | [k_34]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 62]
+  reft {VV#35 : t_acD | [k_36]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 63]
+  reft {VV#40 : t_acD | [k_41]}
+  
+
+
+wf:
+  env [0; 1; 2; 3]
+  reft {VV#29 : [t_acD] | [k_30]}
+  
+
+
+wf:
+  env [0; 64; 1; 2; 3]
+  reft {VV#24 : t_acD | [k_25]}
+  
+
+
+wf:
+  env [0; 1; 65; 2; 3]
+  reft {VV#26 : t_acD | [k_27]}
+  
+
+
+wf:
+  env [0; 1; 2; 66; 3]
+  reft {VV#31 : t_acD | [k_32]}
+  
+

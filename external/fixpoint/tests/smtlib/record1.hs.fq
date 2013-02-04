@@ -1,0 +1,138 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:Bool)   : Prop(v) 
+qualif False1(v:Bool)  : ~ Prop(v) 
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(2, [Pred @(0); @(1); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+constant Prop : func(0, [Bool; bool])
+constant cmp : func(0, [Ordering; Ordering])
+constant fromJust : func(1, [Maybe @(0); @(0)])
+constant isBin : func(2, [Map @(0)   @(1); bool])
+constant isJust : func(1, [Maybe @(0); bool])
+constant len : func(1, [[@(0)]; int])
+constant fix##36##36##34#TODO#34# : Addr#
+bind 0 unpackCString##0k : {VV : func(0, [Addr#; [Char]]) | []}
+bind 1 LT#6S : {VV#13 : Ordering | [(cmp([VV#13]) = LT#6S)]}
+bind 2 EQ#6U : {VV#15 : Ordering | [(cmp([VV#15]) = EQ#6U)]}
+bind 3 GT#6W : {VV#17 : Ordering | [(cmp([VV#17]) = GT#6W)]}
+bind 4 lq_anf__db0 : {VV#28 : [Char] | [(len([VV#28]) >= 0)]}
+bind 5 VV#39 : {VV#39 : Map k_aaW   a_aaX | [k_37[lq_tmp_x0:=lq_anf__db0][VV#36:=VV#39]]}
+bind 6 lq_tmp_x25 : {VV : k_aaW | []}
+bind 7 VV#42 : {VV#42 : [Char] | [(len([VV#42]) >= 0);
+                                  (VV#42 = lq_anf__db0);
+                                  (len([VV#42]) >= 0)]}
+bind 8 VV#44 : {VV#44 : Char | []}
+bind 9 VV#46 : {VV#46 : Char | []}
+bind 10 VV#48 : {VV#48 : Addr# | [(VV#48 = fix##36##36##34#TODO#34#)]}
+bind 11 VV#36 : {VV#36 : Map k_aaW   a_aaX | [k_37]}
+bind 12 lq_tmp_x35 : {VV : k_aaW | []}
+bind 13 VV#26 : {VV#26 : Map k_aaW   a_aaX | [k_27]}
+bind 14 lq_tmp_x25 : {VV : k_aaW | []}
+
+
+constraint:
+  env [0; 1; 2; 3; 4]
+  grd true
+  lhs {VV#F1 : Map k_aaW   a_aaX | [k_37[lq_tmp_x0:=lq_anf__db0][VV#36:=VV#F1][VV#39:=VV#F1][VV#F:=VV#F1]]}
+  rhs {VV#F1 : Map k_aaW   a_aaX | [k_27[VV#26:=VV#F1][VV#39:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5]
+  grd true
+  lhs {VV#F2 : k_aaW | [k_30[lq_tmp_x0:=lq_anf__db0][VV#36:=VV#39][VV#29:=VV#F2][VV#F:=VV#F2]]}
+  rhs {VV#F2 : k_aaW | [k_20[VV#26:=VV#39][VV#19:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5]
+  grd true
+  lhs {VV#F3 : a_aaX | [k_32[lq_tmp_x0:=lq_anf__db0][VV#36:=VV#39][VV#31:=VV#F3][VV#F:=VV#F3]]}
+  rhs {VV#F3 : a_aaX | [k_22[VV#26:=VV#39][VV#21:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [1]
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 6]
+  grd true
+  lhs {VV#F4 : k_aaW | [k_34[lq_tmp_x0:=lq_anf__db0][lq_tmp_x35:=lq_tmp_x25][VV#33:=VV#F4][VV#F:=VV#F4]]}
+  rhs {VV#F4 : k_aaW | [k_24[VV#23:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [1]
+
+
+wf:
+  env [0; 1; 2; 3; 4]
+  reft {VV#36 : Map k_aaW   a_aaX | [k_37]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 11]
+  reft {VV#29 : k_aaW | [k_30]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 11]
+  reft {VV#31 : a_aaX | [k_32]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 12]
+  reft {VV#33 : k_aaW | [k_34]}
+  
+
+
+wf:
+  env [0; 1; 2; 3]
+  reft {VV#26 : Map k_aaW   a_aaX | [k_27]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 13]
+  reft {VV#19 : k_aaW | [k_20]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 13]
+  reft {VV#21 : a_aaX | [k_22]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 14]
+  reft {VV#23 : k_aaW | [k_24]}
+  
+
