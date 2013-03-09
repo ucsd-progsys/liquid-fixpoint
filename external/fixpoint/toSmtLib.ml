@@ -314,7 +314,6 @@ let vdefs_of_env env r =
 (************* Build VMap : gather all vars/sorts for regular vars *******) 
 (*************************************************************************)
 
-
 let update_vmap vm (x, t) =
   Misc.maybe_iter begin fun t' ->
     asserts (sort_compat x t t') "ERROR: v-sort incompatible %s" (Sy.to_string x)
@@ -418,12 +417,12 @@ let tx_constraint s c =
   ras |>: begin function 
             | C.Conc p -> { lhs = A.pAnd ((A.pNot p) :: lps)
                           ; rhs = None 
-                          ; id = cid }
+                          ; id  = cid }
             | ra       -> { lhs = A.pAnd lps
                           ; rhs = (match C.preds_of_refa s ra with 
                                   | [p] -> Some p 
                                   | _   -> failwith "tx_constraint")
-                          ; id = cid}
+                          ; id  = cid}
           end
        
        |>: begin function
@@ -454,21 +453,47 @@ let tx_defs cfg =
   ; consts = SM.to_list cfg.Cg.uops 
   }
 
+(*************************************************************************)
+(************* Slicing into Single Assertions ****************************)
+(*************************************************************************)
+
+
+let split_by_assertion cfg =
+  let ccs, kcs = Misc.tr_partition C.is_conc_rhs cfg.Cg.cs in
+  Misc.map (fun c -> { cfg with Cg.cs = c :: kcs }) ccs
+
+let slice_by_assertion cfg = 
+  let cs' =  cfg.Cg.cs 
+          |> Cindex.create cfg.Cg.kuts cfg.Cg.ds 
+          |> Cindex.slice 
+          |> Cindex.to_list
+  in {cfg with Cg.cs = cs' }
+
 
 (*************************************************************************)
 (************* API *******************************************************)
 (*************************************************************************)
 
-  (*
-let render ppf cfg =
-  cfg |> tx_defs 
-      |> F.fprintf ppf "%a" print
-*)
-let dump_smtlib cfg =
+let dump_smtlib_indexed (no, cfg) =
+  let su = Misc.maybe_apply (fun x _ -> "." ^ (string_of_int x)) no "" in
+  let fn = !Constants.out_file ^ su ^ ".smt2"  in 
   let _  = print_now ("BEGIN: Dump SMTLIB \n") in
   let me = tx_defs cfg                         in
-  let _  = Misc.with_out_formatter !Constants.out_file (fun ppf -> F.fprintf ppf "%a" print me) in
+  let _  = Misc.with_out_formatter fn (fun ppf -> F.fprintf ppf "%a" print me) in
   let _  = print_now ("DONE: Dump SMTLIB to " ^ !Constants.out_file ^"\n") in
-  exit 1 
+  ()
 
+let dump_smtlib_mono cfg = 
+  dump_smtlib_indexed (None, cfg);
+  exit 1
+
+let dump_smtlib_sliced cfg = 
+  cfg |>  split_by_assertion
+      |>: slice_by_assertion
+      |>  Misc.index_from 0
+      |>: (Misc.app_fst some) 
+      |>  List.iter dump_smtlib_indexed
+      |>  (fun _ -> exit 1)
+
+let dump_smtlib = dump_smtlib_sliced
 
