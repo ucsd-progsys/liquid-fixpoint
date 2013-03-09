@@ -79,3 +79,157 @@ A solution assigns a predicate variable to a semicolon-separated list
 of predicates:
 
   solution: KVAR := [PREDICATES]
+
+
+Conversion to SMTLIB2 Horn Clauses
+==================================
+
+1.
+
+This
+
+    :extrapreds ((k_120 Int Int Int Int Int Int Int Int Int Int Int))
+
+Becomes
+
+  (declare-fun k_120
+             (Int
+              Int
+              Int
+              Int
+              Int
+              Int
+              Int
+              Int
+              Int
+              Int
+              Int
+              (Array Int Int)
+              (Array Int (Array Int Int))
+              (Array Int Bool)
+              (Array Int Int))
+             Bool)
+
+
+2. This [global]
+
+         ; constant 
+         :extrafuns ((len Int Int))
+
+         ; constant 
+         :extrafuns ((cmp Int Int))
+
+
+  Becomes [local]
+
+         (len (Array Int Int))
+
+         (cmp (Array Int Int)))
+
+3. This 
+
+        (cmp EQ_6U)
+
+    Becomes
+
+        (select cmp EQ_6U)
+
+4. This constraint 
+
+
+; cid = 16
+:assumption
+(implies ((and (k_241 EQ_6U False_68 GT_6W LT_6S True_6u lq_tmp_x15 lq_anf__dC1 m_ruj n_rui realWorld__0f) (and (k_243 EQ_6U False_68 GT_6W LT_6S True_6u lq_tmp_x16 lq_anf__dC1 m_ruj n_rui realWorld__0f) (and (k_61 EQ_6U False_68 GT_6W LT_6S True_6u m_ruj realWorld__0f) (and (k_65 EQ_6U False_68 GT_6W LT_6S True_6u n_rui m_ruj realWorld__0f) (and (= (cmp EQ_6U) EQ_6U) (and (not (Prop False_68)) (and (= (cmp GT_6W) GT_6W) (and (= (cmp LT_6S) LT_6S) (and (Prop True_6u) (and (= lq_anf__dC1 0) (and (= VV_F16 (+ lq_tmp_x15 lq_tmp_x16)) true)))))))))))) (k_241 EQ_6U False_68 GT_6W LT_6S True_6u VV_F16 lq_anf__dC1 m_ruj n_rui realWorld__0f))
+
+    Becomes
+
+(assert (forall ((True_6u Int)
+         (EQ_6U Int)
+         (False_68 Int)
+         (GT_6W Int)
+         (VV_F16 Int)
+         (lq_tmp_x16 Int)
+         (m_ruj Int)
+         (realWorld__0f Int)
+         (lq_anf__dC1 Int)
+         (LT_6S Int)
+         (lq_tmp_x15 Int)
+         (n_rui Int)
+         (len (Array Int Int))
+         (fix__58__35_64 (Array Int (Array Int Int)))
+         (Prop (Array Int Bool))
+         (cmp (Array Int Int)))
+  (=> (and (k_241 EQ_6U
+                  False_68
+                  GT_6W
+                  LT_6S
+                  True_6u
+                  lq_tmp_x15
+                  lq_anf__dC1
+                  m_ruj
+                  n_rui
+                  realWorld__0f
+                  len
+                  fix__58__35_64
+                  Prop
+                  cmp)
+           (k_243 EQ_6U
+                  False_68
+                  GT_6W
+                  LT_6S
+                  True_6u
+                  lq_tmp_x16
+                  lq_anf__dC1
+                  m_ruj
+                  n_rui
+                  realWorld__0f
+                  len
+                  fix__58__35_64
+                  Prop
+                  cmp)
+           (k_61 EQ_6U
+                 False_68
+                 GT_6W
+                 LT_6S
+                 True_6u
+                 m_ruj
+                 realWorld__0f
+                 len
+                 fix__58__35_64
+                 Prop
+                 cmp)
+           (k_65 EQ_6U
+                 False_68
+                 GT_6W
+                 LT_6S
+                 True_6u
+                 n_rui
+                 m_ruj
+                 realWorld__0f
+                 len
+                 fix__58__35_64
+                 Prop
+                 cmp)
+           (= (select cmp EQ_6U) EQ_6U)
+           (not (select Prop False_68))
+           (= (select cmp GT_6W) GT_6W)
+           (= (select cmp LT_6S) LT_6S)
+           (select Prop True_6u)
+           (= lq_anf__dC1 0)
+           (= VV_F16 (+ lq_tmp_x15 lq_tmp_x16))
+           true)
+      (k_241 EQ_6U
+             False_68
+             GT_6W
+             LT_6S
+             True_6u
+             VV_F16
+             lq_anf__dC1
+             m_ruj
+             n_rui
+             realWorld__0f
+             len
+             fix__58__35_64
+             Prop
+             cmp))))
+
