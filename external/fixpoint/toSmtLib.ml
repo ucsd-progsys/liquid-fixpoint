@@ -71,6 +71,8 @@ type smtlib
 type kmap 
   = kdef SM.t
 
+let is_kvar x = Misc.is_prefix "k_" (Sy.to_string x) 
+
 (*************************************************************************)
 (************* Rendering SMTLIB to String ********************************)
 (*************************************************************************)
@@ -114,25 +116,47 @@ let rec print_pred ppf pred =
   | A.Not p ->
       F.fprintf ppf "(not %a)" print_pred p
   | A.Imp (p1, p2) ->
-      F.fprintf ppf "(implies %a %a)" 
+      F.fprintf ppf "(=> %a %a)" 
         print_pred p1 
         print_pred p2
   | A.Iff (p1, p2) ->
-      print_pred ppf (A.pAnd [A.pImp (p1, p2); A.pImp (p2, p1)])
+      F.fprintf ppf "(= %a %a)" 
+        print_pred p1 
+        print_pred p2
   | A.Bexp e ->
       print_expr ppf e
   | _ -> assertf "ERROR: ToSmtLib.print_pred %s" (P.to_string pred)
-      
+     
+and print_expr_app f ppf = function 
+  | [e] -> 
+      F.fprintf ppf "(select %a %a)" 
+        Sy.print f 
+        print_expr e
+  | e::es ->
+      F.fprintf ppf "(select %a %a)"
+        (print_expr_app f) es
+        print_expr e
+
 and print_expr ppf expr =
   match E.unwrap expr with
   | A.Con c ->
       F.fprintf ppf "%a" A.Constant.print c
+  | A.App (v, []) 
   | A.Var v ->
       F.fprintf ppf "%a" Sy.print v
-  | A.App (f, es) ->
+  | A.App (f, es) when is_kvar f ->
       F.fprintf ppf "(%a %a)" 
         Sy.print f
-        (Misc.pprint_many false " " print_expr) es
+        (Misc.pprint_many false " " print_expr) es 
+
+  | A.App (f, es) ->
+      print_expr_app f ppf (List.rev es)
+
+      (*
+      print_expr_app f ppf (List.rev es)
+      F.fprintf ppf "(%a %a)" 
+        Sy.print f
+        (Misc.pprint_many false " " print_expr) es *)
   | A.Bin (e1, op, e2) ->
       F.fprintf ppf "(%a %a %a)"
         print_bop  op
@@ -147,23 +171,23 @@ and print_expr ppf expr =
       F.fprintf ppf "%a" print_expr e
   | _ -> assertf "ERROR: ToSmtLib.print_expr %s" (E.to_string expr)
 
+let print_sort_base ppf t = 
+  if So.is_bool t then 
+    Format.fprintf ppf "Bool"
+  else
+    Format.fprintf ppf "Int"
+
 let rec print_sort ppf t = match So.func_of_t t with
+  | Some (_, [], t) ->
+      print_sort_base ppf t
+
   | Some (_, ts, t) -> 
       Format.fprintf ppf "%a %a"
         (Misc.pprint_many false " " print_sort) ts
         print_sort t
-  | None 
-  when So.is_bool t -> 
-    Format.fprintf ppf "Bool"
-  | _ -> 
-    Format.fprintf ppf "Int"
-
+  | None -> 
+      print_sort_base ppf t
 (*
-let print_ty_kind ppf t = match So.func_of_t t with
-  | Some (_, ts, t) when So.is_bool t -> Format.fprintf ppf "pred"
-  | _                                 -> Format.fprintf ppf "fun"
-*)
-
 let print_vdef ppf (x, t) = match So.func_of_t t with
   | Some (_, ts, t') when So.is_bool t' -> 
       Format.fprintf ppf ":extrapreds ((%a %a))" 
@@ -173,14 +197,23 @@ let print_vdef ppf (x, t) = match So.func_of_t t with
       Format.fprintf ppf ":extrafuns ((%a %a))" 
         Sy.print x 
         print_sort t
-
-  (*
-let print_vdef ppf (x, t) = 
-  Format.fprintf ppf ":extra%as ((%a %a))"
-    print_ty_kind t
-    Sy.print x
-    print_sort t
 *)
+
+let rec print_fun_sorts ppf = function
+  | [t]   -> print_sort ppf t
+  | t::ts -> Format.fprintf ppf "(Array %a %a)" 
+               print_sort t
+               print_fun_sorts ts
+
+let print_vdef ppf (x, t) = match So.func_of_t t with
+  | Some (_, ts, t') -> 
+     Format.fprintf ppf "(%a %a)"
+       Sy.print x
+       print_fun_sorts (ts @ [t'])
+  | _ ->
+      Format.fprintf ppf "(%a %a)" 
+        Sy.print x 
+        print_sort t
 
 let print_const ppf c = 
   Format.fprintf ppf "; constant \n%a\n" print_vdef c
@@ -196,19 +229,44 @@ let print_distinct ppf (t, cs) =
      print_sort t
      (Misc.pprint_many false " " Sy.print) cs
 
+(*
 let print_kdef ppf (kf, xts) = 
   Format.fprintf ppf ":extrapreds ((%a %a))"
     Sy.print kf
     (Misc.pprint_many false " " print_sort) (List.map snd xts)
+*)
+let print_kdef ppf (kf, xts) =
+  Format.fprintf ppf "(declare-fun %a (%a) Bool)"
+    Sy.print kf
+    (Misc.pprint_many false " " print_sort) (List.map snd xts)
+
 
 let print_rhs ppf = function
   | None   -> Format.fprintf ppf "false"
   | Some p -> Format.fprintf ppf "%a" print_pred p
 
+(*
 let print_cstr ppf c = 
   Format.fprintf ppf "\n; cid = %d\n:assumption\n(implies (%a) %a)\n"
     c.id print_pred c.lhs print_rhs c.rhs
+*)
 
+let binds_of_cstr env c =
+  let lsyms = P.support c.lhs                                     in
+  let rsyms = match c.rhs with None -> [] | Some p -> P.support p in
+  Misc.sort_and_compact (lsyms ++ rsyms)    
+  |> List.filter (fun x -> SM.mem x env)
+  |> List.map (fun x -> (x, SM.safeFind x env "binds_of_cstr"))
+
+let print_cstr env ppf c = 
+  Format.fprintf ppf "\n; cid = %d\n(assert (forall (%a) \n (=> %a %a))\n)"
+    c.id 
+    (Misc.pprint_many true " " print_vdef) (binds_of_cstr env c)
+    print_pred c.lhs 
+    print_rhs c.rhs
+
+
+(*
 let print ppf smt = 
   Format.fprintf ppf 
     "(benchmark unknown\n:status unsat\n:logic AUFLIA\n%a\n%a\n%a\n%a\n%a\n)"
@@ -217,6 +275,16 @@ let print ppf smt =
     (Misc.pprint_many true "\n" print_kdef)     smt.kvars
     (Misc.pprint_many true "\n" print_distinct) (groupConsts smt.consts)
     (Misc.pprint_many true "\n" print_cstr)     smt.cstrs
+*)
+
+let print ppf smt =
+  let env = SM.of_list (smt.vars ++ smt.consts) in
+  Format.fprintf ppf 
+    "(set-logic HORN)\n; KVARS\n\n%a\n\n; CONSTRAINTS\n%a\n"
+    (Misc.pprint_many true "\n" print_kdef)     smt.kvars
+    (Misc.pprint_many true "\n" (print_cstr env)) smt.cstrs
+
+
 
 (*************************************************************************)
 (************* Helpers for extracting var-sort bindings ******************) 
@@ -245,7 +313,6 @@ let vdefs_of_env env r =
 (*************************************************************************)
 (************* Build VMap : gather all vars/sorts for regular vars *******) 
 (*************************************************************************)
-
 
 let update_vmap vm (x, t) =
   Misc.maybe_iter begin fun t' ->
@@ -350,12 +417,12 @@ let tx_constraint s c =
   ras |>: begin function 
             | C.Conc p -> { lhs = A.pAnd ((A.pNot p) :: lps)
                           ; rhs = None 
-                          ; id = cid }
+                          ; id  = cid }
             | ra       -> { lhs = A.pAnd lps
                           ; rhs = (match C.preds_of_refa s ra with 
                                   | [p] -> Some p 
                                   | _   -> failwith "tx_constraint")
-                          ; id = cid}
+                          ; id  = cid}
           end
        
        |>: begin function
@@ -386,21 +453,47 @@ let tx_defs cfg =
   ; consts = SM.to_list cfg.Cg.uops 
   }
 
+(*************************************************************************)
+(************* Slicing into Single Assertions ****************************)
+(*************************************************************************)
+
+
+let split_by_assertion cfg =
+  let ccs, kcs = Misc.tr_partition C.is_conc_rhs cfg.Cg.cs in
+  Misc.map (fun c -> { cfg with Cg.cs = c :: kcs }) ccs
+
+let slice_by_assertion cfg = 
+  let cs' =  cfg.Cg.cs 
+          |> Cindex.create cfg.Cg.kuts cfg.Cg.ds 
+          |> Cindex.slice 
+          |> Cindex.to_list
+  in {cfg with Cg.cs = cs' }
+
 
 (*************************************************************************)
 (************* API *******************************************************)
 (*************************************************************************)
 
-  (*
-let render ppf cfg =
-  cfg |> tx_defs 
-      |> F.fprintf ppf "%a" print
-*)
-let dump_smtlib cfg =
+let dump_smtlib_indexed (no, cfg) =
+  let su = Misc.maybe_apply (fun x _ -> "." ^ (string_of_int x)) no "" in
+  let fn = !Constants.out_file ^ su ^ ".smt2"  in 
   let _  = print_now ("BEGIN: Dump SMTLIB \n") in
   let me = tx_defs cfg                         in
-  let _  = Misc.with_out_formatter !Constants.out_file (fun ppf -> F.fprintf ppf "%a" print me) in
+  let _  = Misc.with_out_formatter fn (fun ppf -> F.fprintf ppf "%a" print me) in
   let _  = print_now ("DONE: Dump SMTLIB to " ^ !Constants.out_file ^"\n") in
-  exit 1 
+  ()
 
+let dump_smtlib_mono cfg = 
+  dump_smtlib_indexed (None, cfg);
+  exit 1
+
+let dump_smtlib_sliced cfg = 
+  cfg |>  split_by_assertion
+      |>: slice_by_assertion
+      |>  Misc.index_from 0
+      |>: (Misc.app_fst some) 
+      |>  List.iter dump_smtlib_indexed
+      |>  (fun _ -> exit 1)
+
+let dump_smtlib = dump_smtlib_sliced
 
