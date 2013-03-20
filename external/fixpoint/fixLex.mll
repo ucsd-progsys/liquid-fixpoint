@@ -45,6 +45,11 @@
 		     | i -> accum (acc str.[i]) (d * 10) (i - 1)
     in accum 0 1 (len-1) 
    *)
+
+  let safe_int_of_string s = 
+    try int_of_string s with ex -> 
+      let _ = Printf.printf "safe_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
+      raise ex
 }
 
 let digit    = ['0'-'9' '-']
@@ -129,11 +134,12 @@ rule token = parse
   | "rhs"               { RHS }
   | "reft"              { REF }
   | "@"                 { TVAR } 
-  | (digit)+	        { Num (int_of_string (Lexing.lexeme lexbuf)) }
+  | (digit)+	        { Num (safe_int_of_string (Lexing.lexeme lexbuf)) }
   | (alphlet)letdig*	{ Id    (Lexing.lexeme lexbuf) }
   | '''[^''']*'''       { let str = Lexing.lexeme lexbuf in
-			  let len = String.length str in
-			  Id (String.sub str 1 (len-2)) }
+			              let len = String.length str in
+			              Id (String.sub str 1 (len-2)) 
+                        }
   
   | eof			{ EOF }
   | _			{ 

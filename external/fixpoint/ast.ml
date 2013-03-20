@@ -209,6 +209,7 @@ module Sort =
           | Some _                 -> None
           | None                   -> Some {s with vars = (i,ct) :: s.vars}
           end
+
       | Ptr LFun, Ptr _ 
       | Ptr _, Ptr LFun -> Some s
       | Ptr (Loc cl), Ptr (Lvar j)
