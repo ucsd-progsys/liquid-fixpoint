@@ -449,7 +449,7 @@ let qimps_of_partition tp sm qs =
 
 let wellformed_qual sm q =
   let sm = sm_of_qual sm q in
-  A.sortcheck_pred (fun x -> SM.maybe_find x sm) (Q.pred_of_t q)
+  A.sortcheck_pred Theories.is_interp (fun x -> SM.maybe_find x sm) (Q.pred_of_t q)
 
 let qleqs_of_qs ts sm cs ps qs  =
   let tp = TP.create ts sm cs ps         in
@@ -510,7 +510,7 @@ let valid_bindings env ys (x, t) =
 
 let wellformed_qual wf f q = 
   q |> Q.pred_of_t 
-    |> A.sortcheck_pred f
+    |> A.sortcheck_pred Theories.is_interp f
     (* >> (F.printf "\nwellformed: id = %d q = @[%a@] result %b\n" (C.id_of_wf wf) Q.print q) *)
     (* NEVER uncomment out the above. *)
 

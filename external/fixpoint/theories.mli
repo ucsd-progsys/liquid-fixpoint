@@ -28,3 +28,4 @@ val sort_name   : sortDef -> Ast.Sort.tycon
 val theories    : unit -> sortDef list * appDef list
 val mk_thy_sort : sortDef -> Z3.context -> Z3.sort list -> Z3.sort
 val mk_thy_app  : appDef  -> Z3.context -> Z3.sort list -> Z3.ast list -> Z3.ast
+val is_interp   : Ast.Sort.tycon -> bool
