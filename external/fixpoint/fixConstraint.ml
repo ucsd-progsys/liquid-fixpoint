@@ -226,7 +226,7 @@ let preds_of_envt f env =
 
 (* API *)
 let wellformed_pred env = 
-  A.sortcheck_pred (Misc.maybe_map snd3 <.> Misc.flip SM.maybe_find env)
+  A.sortcheck_pred Theories.is_interp (Misc.maybe_map snd3 <.> Misc.flip SM.maybe_find env)
 
 (* API *)
 let preds_of_lhs_nofilter f c = 

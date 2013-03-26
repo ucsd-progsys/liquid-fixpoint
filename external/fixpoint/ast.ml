@@ -1072,7 +1072,7 @@ let sortcheck_loc f = function
   | Sort.Lvar _ -> None
   | Sort.LFun   -> None
 
-let rec sortcheck_expr f e = 
+let rec sortcheck_expr g f e = 
   match euw e with
   | Bot   -> 
       None
@@ -1081,30 +1081,30 @@ let rec sortcheck_expr f e =
   | Var s ->
       sortcheck_sym f s
   | Bin (e1, op, e2) -> 
-      sortcheck_op f (e1, op, e2)
+      sortcheck_op g f (e1, op, e2)
   | Ite (p, e1, e2) -> 
-      if sortcheck_pred f p then 
-        match Misc.map_pair (sortcheck_expr f) (e1, e2) with
+      if sortcheck_pred g f p then 
+        match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
         | (Some t1, Some t2) when t1 = t2 -> Some t1 
         | _ -> None
       else None
   
   | Cst (e1, t) ->
       begin match euw e1 with
-        | App (uf, es) -> sortcheck_app f (Some t) uf es
+        | App (uf, es) -> sortcheck_app g f (Some t) uf es
         | _            ->
-            match sortcheck_expr f e1 with
+            match sortcheck_expr g f e1 with
               | Some t1 when Sort.compat t t1 -> Some t
               | _                             -> None 
       end
 
   | App (uf, es) ->
-      sortcheck_app f None uf es
+      sortcheck_app g f None uf es
     
   | _ -> assertf "Ast.sortcheck_expr: unhandled expr = %s" (Expression.to_string e)
 
 (* TODO: OMG! 5 levels of matching!!!!! *)
-and sortcheck_app_sub f so_expected uf es =
+and sortcheck_app_sub g f so_expected uf es =
   let yikes uf = F.printf "sortcheck_app_sub: unknown sym = %s \n" (Symbol.to_string uf) in
   sortcheck_sym f uf
   |> function None -> (yikes uf; None) | Some t -> 
@@ -1112,7 +1112,7 @@ and sortcheck_app_sub f so_expected uf es =
        |> function None -> None | Some (tyArity, i_ts, o_t) -> 
               let _  = asserts (List.length es = List.length i_ts) 
                          "ERROR: uf arg-arity error: uf=%s" uf in
-              let e_ts = es |> List.map (sortcheck_expr f) |> Misc.map_partial id in
+              let e_ts = es |> List.map (sortcheck_expr g f) |> Misc.map_partial id in
                 if List.length e_ts <> List.length i_ts then 
                   None 
                 else
@@ -1127,8 +1127,8 @@ and sortcheck_app_sub f so_expected uf es =
                                   | None    -> None
                                   | Some s' -> Some (s', Sort.apply s' t)
 
-and sortcheck_app f so_expected uf es = 
-  sortcheck_app_sub f so_expected uf es 
+and sortcheck_app g f so_expected uf es = 
+  sortcheck_app_sub g f so_expected uf es 
   |> Misc.maybe_map snd 
   (* >> begin function 
        | Some t -> Format.printf "sortcheck_app: e = %s , t = %s \n"
@@ -1140,8 +1140,8 @@ and sortcheck_app f so_expected uf es =
 
 
 
-and sortcheck_op f (e1, op, e2) = 
-  match Misc.map_pair (sortcheck_expr f) (e1, e2) with
+and sortcheck_op g f (e1, op, e2) = 
+  match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
   | (Some Sort.Int, Some Sort.Int) 
   -> Some Sort.Int
   
@@ -1163,8 +1163,8 @@ and sortcheck_op f (e1, op, e2) =
   | _ -> None
 
 
-and sortcheck_rel f (e1, r, e2) =
-  let t1o, t2o = (e1,e2) |> Misc.map_pair (sortcheck_expr f) in
+and sortcheck_rel g f (e1, r, e2) =
+  let t1o, t2o = (e1,e2) |> Misc.map_pair (sortcheck_expr g f) in
   match r, t1o, t2o with
   | _, Some (Sort.Ptr _) , Some (Sort.Ptr Sort.LFun)
   | _, Some (Sort.Ptr Sort.LFun), Some (Sort.Ptr _)
@@ -1175,43 +1175,46 @@ and sortcheck_rel f (e1, r, e2) =
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
     -> t1 = t2
+  | _ , Some (Sort.App (tc,_)), _
+    when (g tc) (* tc is an interpreted tycon *)
+    -> false
   | _ , Some t1, Some t2
     -> t1 = t2 && t1 != Sort.Bool
   | _ -> false
 
-and sortcheck_pred f p =
+and sortcheck_pred g f p =
   match puw p with
     | True  
     | False -> 
         true 
     | Bexp e ->
-        sortcheck_expr f e = Some Sort.Bool 
+        sortcheck_expr g f e = Some Sort.Bool 
     | Not p -> 
-        sortcheck_pred f p
+        sortcheck_pred g f p
     | Imp (p1, p2) | Iff (p1, p2) -> 
-        List.for_all (sortcheck_pred f) [p1; p2]
+        List.for_all (sortcheck_pred g f) [p1; p2]
     | And ps  
     | Or ps ->
-        List.for_all (sortcheck_pred f) ps
+        List.for_all (sortcheck_pred g f) ps
     
     | Atom ((Con (Constant.Int(0)),_), _, e) 
     | Atom (e, _, (Con (Constant.Int(0)),_)) 
       when not (!Constants.strictsortcheck)
-      -> not (None = sortcheck_expr f e)
+      -> not (None = sortcheck_expr g f e)
     
     | Atom ((Var x, _) , Eq, (App (uf, es), _))
     | Atom ((App (uf, es), _), Eq, (Var x, _))
       -> begin match sortcheck_sym f x with 
          | None    -> false 
-         | Some tx -> not (None = sortcheck_app f (Some tx) uf es)
+         | Some tx -> not (None = sortcheck_app g f (Some tx) uf es)
          end
 
     | Atom (e1, r, e2) ->
-        sortcheck_rel f (e1, r, e2)
+        sortcheck_rel g f (e1, r, e2)
     | Forall (qs,p) ->
         (* let f' = fun x -> try List.assoc x qs with _ -> f x in *)
         let f' = fun x -> match Misc.list_assoc_maybe x qs with None -> f x | y -> y
-        in sortcheck_pred f' p
+        in sortcheck_pred g f' p
     | _ -> failwith "Unexpected: sortcheck_pred"
 
 (* and sortcheck_pred f p =
@@ -1225,8 +1228,8 @@ let uf_arity f uf =
       Some i
  
 (* API *)
-let sortcheck_app f t uf es = 
-  match uf_arity f uf, sortcheck_app_sub f t uf es with 
+let sortcheck_app g f t uf es = 
+  match uf_arity f uf, sortcheck_app_sub g f t uf es with 
     | (Some n , Some (s, t)) -> 
         if Sort.check_arity n s then Some (s, t) else
            assertf "Ast.sortcheck_app: type args not fully instantiated %s" 

@@ -226,8 +226,8 @@ let is_z3_int me a =
 exception Z3RelTypeError
 
 let rec z3Rel me env (e1, r, e2) =
-  let p  = A.pAtom (e1, r, e2)                                in
-  let ok = A.sortcheck_pred (Misc.flip SM.maybe_find env) p   in 
+  let p  = A.pAtom (e1, r, e2)                                   in
+  let ok = A.sortcheck_pred Th.is_interp (Misc.flip SM.maybe_find env) p   in 
   (* let _  = F.printf "z3Rel: e = %a, res = %b \n" P.print p ok in
      let _  = F.print_flush ()                                   in *)
   if ok then 
@@ -252,7 +252,7 @@ and z3App me env p zes =
   Z3.mk_app me.c cf (Array.of_list zes)
 
 and z3AppThy me env def tyo f es = 
-  match A.sortcheck_app (Misc.flip SM.maybe_find env) tyo f es with 
+  match A.sortcheck_app Th.is_interp (Misc.flip SM.maybe_find env) tyo f es with 
     | Some (s, t) ->
         let zts = So.sub_args s |> List.map (snd <+> z3Type me) in
         let zes = es            |> List.map (z3Exp me env)      in
@@ -326,7 +326,7 @@ and z3Pred me env = function
       let a  = z3Exp me env e in
       let s1 = Z3.ast_to_string me.c a in
       let s2 = E.to_string e in
-      let Some so = A.sortcheck_expr (Misc.flip SM.maybe_find env) e in
+      let Some so = A.sortcheck_expr Th.is_interp (Misc.flip SM.maybe_find env) e in
       let sos = So.to_string so in
       let _  = asserts (is_z3_bool me a) "Bexp is not bool (e = %s)! z3=%s, fix=%s, sort=%s" 
                                          (E.to_string e) s1 s2 sos in 
