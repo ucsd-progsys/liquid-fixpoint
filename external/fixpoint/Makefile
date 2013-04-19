@@ -15,7 +15,8 @@ LFLAGS=-lflags -cc,g++ \
        -lflags -cclib,-lstdc++ \
        -lflags -cclib,-lz3stubs \
        -lflags -cclib,-lcamlidl \
-			 -lflags -cclib,-fopenmp
+       -lflags -cclib,-fopenmp\
+       -lflags -cclib,-lrt
 
 CFLAGS=-cflags -dtypes,-annot \
        -cflags -I,$(Z3HOME)/ocaml \
