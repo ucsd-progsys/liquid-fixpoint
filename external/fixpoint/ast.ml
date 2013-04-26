@@ -1116,7 +1116,7 @@ and sortcheck_app_sub g f so_expected uf es =
                 if List.length e_ts <> List.length i_ts then 
                   None 
                 else
-                  match Sort.unify i_ts e_ts with
+                  match Sort.unify e_ts i_ts with
                     | None   -> None
                     | Some s ->
                         let t = Sort.apply s o_t in
