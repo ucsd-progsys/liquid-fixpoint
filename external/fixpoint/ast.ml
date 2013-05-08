@@ -1116,7 +1116,7 @@ and sortcheck_app_sub g f so_expected uf es =
                 if List.length e_ts <> List.length i_ts then 
                   None 
                 else
-                  match Sort.unify i_ts e_ts with
+                  match Sort.unify e_ts i_ts with
                     | None   -> None
                     | Some s ->
                         let t = Sort.apply s o_t in
@@ -1172,6 +1172,8 @@ and sortcheck_rel g f (e1, r, e2) =
   | _ , Some Sort.Int,     Some (Sort.Ptr l)
   | _ , Some (Sort.Ptr l), Some Sort.Int
     -> (sortcheck_loc f l = Some Sort.Num)
+  | _ , Some (Sort.Ptr l1), Some (Sort.Ptr l2) when (sortcheck_loc f l1 = Some Sort.Num) && (sortcheck_loc f l2 = Some Sort.Num)
+    -> true
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
     -> t1 = t2
