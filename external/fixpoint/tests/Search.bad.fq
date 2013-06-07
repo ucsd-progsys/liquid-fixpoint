@@ -1,32 +1,3 @@
-//qualif ArrIsEmp(v:Bool, ~A:Data.Text.Array.Array): (Prop(v) <=> alen([~A]) [ > ; = ] 0)
-//qualif ArrZ(v:Data.Text.Array.Array): alen([v]) [ = ; >= ; > ] 0
-//qualif CmpArr(v:Data.Text.Array.Array, ~A:int): (~A [ = ; >= ; > ; < ; <= ] alen([v]))
-//
-//qualif MArrIsEmp(v:Bool, ~A:Data.Text.Array.MArray): (Prop(v) <=> malen([~A]) [ > ; = ] 0)
-//qualif MArrZ(v:Data.Text.Array.MArray): malen([v]) [ = ; >= ; > ] 0
-//qualif CmpMArr(v:Data.Text.Array.MArray, ~A:int): (~A [ = ; >= ; > ; < ; <= ] malen([v]))
-//qualif TIsEmp(v:Bool, ~A: Data.Text.Internal.Text) : (Prop(v) <=> tlength([~A]) [ > ;  = ] 0)
-//qualif TextZ(v: Data.Text.Internal.Text)           : tlength([v]) [ = ; >= ; > ] 0
-//qualif CmpTLen(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text) : (tlength([v]) [ = ; >= ; > ; < ; <= ] tlength([~A]))
-//qualif CmpTLenInt(v:int, ~A: Data.Text.Internal.Text)  : (v [ = ; >= ; > ; < ; <= ] tlength([~A]))
-//qualif TLenCmp(v:Data.Text.Internal.Text, ~A: int)  : ~A [ = ; >= ; > ; < ; <= ] tlength([v])
-//qualif TLenAcc(v:int, ~A:Data.Text.Internal.Text, ~B: int): v = tlength([~A]) + ~B
-//qualif TLenDiff(v:Data.Text.Internal.Text, ~A:int): tlength([v]) = (~A [ + ; - ] 1)
-//qualif TLenComb(v:Data.Text.Internal.Text, ~A:Data.Text.Internal.Text, ~B:Data.Text.Internal.Text): tlength([v]) = (tlength([~A]) [ + ; - ] tlength([~B]))
-//
-//qualif Blah(v:int, a:Data.Text.Internal.Text, b:Data.Text.Internal.Text) : (v [ = ; < ; <=; > ; >= ] (tlen a) [ + ; - ] (tlen b))
-//qualif LTIsEmp(v:Bool, ~A: Data.Text.Lazy.Internal.Text) : (Prop(v) <=> ltlength([~A]) [ > ;  = ] 0)
-//qualif LTextZ(v: Data.Text.Lazy.Internal.Text)           : ltlength([v]) [ = ; >= ; > ] 0
-//qualif CmpLTLen(v:Data.Text.Lazy.Internal.Text, ~A:Data.Text.Lazy.Internal.Text) : (ltlength([v]) [ = ; >= ; > ; < ; <= ] ltlength([~A]))
-//qualif CmpLTLenInt(v:int, ~A: Data.Text.Lazy.Internal.Text)  : (v [ = ; >= ; > ; < ; <= ] ltlength([~A]))
-//qualif LTLenCmp(v:Data.Text.Lazy.Internal.Text, ~A: int)  : ~A [ = ; >= ; > ; < ; <= ] ltlength([v])
-//qualif LTLenAcc(v:int, ~A:Data.Text.Lazy.Internal.Text, ~B: int): v = ltlength([~A]) + ~B
-//qualif LTLenDiff(v:Data.Text.Lazy.Internal.Text, ~A:int): ltlength([v]) = (~A [ + ; - ] 1)
-//qualif LTLenComb(v:Data.Text.Lazy.Internal.Text, ~A:Data.Text.Lazy.Internal.Text, ~B:Data.Text.Lazy.Internal.Text): ltlength([v]) = (ltlength([~A]) [ + ; - ] ltlength([~B]))
-//qualif NonNull(v: [a])        : (? (nonnull([v])))
-//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
-//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
-
 qualif IsEmp(v:Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
 qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
 qualif SameLen(v:[a], ~A:[b]) : len([v]) = len([~A]) 
@@ -60,7 +31,7 @@ constant Prop : func(0, [GHC.Types.Bool; bool])
 qualif Auto(VV : int): (VV >= 0)
 qualif Auto(VV : int): (VV >= 0)
 qualif Auto(VV : Data.Text.Internal.Text): (tlength([VV]) > 0)
-qualif Auto(VV : GHC.Types.Bool, ~A0 : int, ~A1 : int, ~A2 : Data.Text.Internal.Text, ~A3 : Data.Text.Lazy.Internal.Text): ((? Prop([VV])) => (~A0 > ((~A1 + tlen([~A2])) + ltlen([~A3]))))
+
 qualif Auto(VV : int): (VV > 1)
 qualif Auto(VV : int): (0 <= VV)
 qualif Auto(VV : int, ~A0 : int): (VV <= ~A0)
@@ -71,7 +42,13 @@ qualif Auto(VV : Data.Text.Lazy.Internal.Text): (0 <= ltlen([VV]))
 qualif Auto(VV : Data.Text.Lazy.Internal.Text, ~A0 : int): (ltlen([VV]) <= ~A0)
 qualif Auto(VV : Data.Text.Internal.Text): (0 < tlen([VV]))
 qualif Auto(VV : Data.Text.Internal.Text, ~A0 : int): (tlen([VV]) <= ~A0)
+
+// qualif Auto(VV : GHC.Types.Bool, ~A0 : int, ~A1 : int, ~A2 : Data.Text.Internal.Text, ~A3 : Data.Text.Lazy.Internal.Text): ((? Prop([VV])) => (~A0 > ((~A1 + tlen([~A2])) + ltlen([~A3]))))
 qualif Auto(VV : Data.Text.Lazy.Internal.Text, ~A0 : Data.Text.Internal.Text, ~A1 : int, ~A2 : Data.Text.Lazy.Internal.Text): ((ltlen([VV]) + tlen([~A0])) = (~A1 - ltlen([~A2])))
+qualif Auto(VV : Data.Text.Lazy.Internal.Text, ~A0 : Data.Text.Internal.Text, ~A1 : Data.Text.Lazy.Internal.Text, ~A2 : Data.Text.Lazy.Internal.Text): ((ltlen([VV]) + tlen([~A0])) = (ltlen([~A1]) - ltlen([~A2])))
+qualif Auto(VV : Data.Text.Lazy.Internal.Text, ~A0 : Data.Text.Internal.Text, ~A1 : Data.Text.Lazy.Internal.Text, ~A2 : Data.Text.Lazy.Internal.Text): ((ltlen([VV]) + tlen([~A0])) = (ltlen([~A1]) - ltlen([~A2])))
+
+
 qualif Auto(VV : int): (0 <= VV)
 qualif Auto(VV : int, ~A0 : Data.Text.Internal.Text): (VV < tlen([~A0]))
 qualif Auto(VV : int): (0 <= VV)
@@ -85,7 +62,9 @@ qualif Auto(VV : int): (0 <= VV)
 qualif Auto(VV : int, ~A0 : Data.Text.Internal.Text, ~A1 : Data.Text.Lazy.Internal.Text): (VV <= (tlen([~A0]) + ltlen([~A1])))
 qualif Auto(VV : Data.Text.Lazy.Internal.Text, ~A0 : Data.Text.Lazy.Internal.Text): (ltlen([VV]) <= ltlen([~A0]))
 qualif Auto(VV : Data.Text.Internal.Text): (tlen([VV]) > 0)
-qualif Auto(VV : Data.Text.Lazy.Internal.Text, ~A0 : Data.Text.Internal.Text, ~A1 : Data.Text.Lazy.Internal.Text, ~A2 : Data.Text.Lazy.Internal.Text): ((ltlen([VV]) + tlen([~A0])) = (ltlen([~A1]) - ltlen([~A2])))
+
+
+
 qualif Auto(VV : int, ~A0 : Data.Text.Lazy.Internal.Text): (VV = ltlen([~A0]))
 qualif Auto(VV : int, ~A0 : int): (~A0 <= VV)
 qualif Auto(VV : int, ~A0 : Data.Text.Lazy.Internal.Text): (VV < ltlen([~A0]))
@@ -93,7 +72,7 @@ qualif Auto(VV : int, ~A0 : int): (~A0 < VV)
 qualif Auto(VV : Data.Text.Lazy.Internal.Text, ~A0 : Data.Text.Lazy.Internal.Text): (ltlen([VV]) <= ltlen([~A0]))
 qualif Auto(VV : Data.Text.Internal.Text): (0 < tlen([VV]))
 qualif Auto(VV : Data.Text.Internal.Text, ~A0 : Data.Text.Lazy.Internal.Text): (tlen([VV]) <= ltlen([~A0]))
-qualif Auto(VV : Data.Text.Lazy.Internal.Text, ~A0 : Data.Text.Internal.Text, ~A1 : Data.Text.Lazy.Internal.Text, ~A2 : Data.Text.Lazy.Internal.Text): ((ltlen([VV]) + tlen([~A0])) = (ltlen([~A1]) - ltlen([~A2])))
+
 qualif Auto(VV : int, ~A0 : Data.Text.Lazy.Internal.Text): (VV = ltlen([~A0]))
 qualif Auto(VV : int): (0 <= VV)
 qualif Auto(VV : int, ~A0 : Data.Text.Internal.Text): (VV <= tlen([~A0]))
