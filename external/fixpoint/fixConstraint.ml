@@ -59,8 +59,6 @@ type soln = Ast.Symbol.t -> Ast.pred list
 exception BadConstraint of (id * tag * string)
 
 
-
-
 (*
 type soln    = Ast.pred list Ast.Symbol.SMap.t
 type soln = { read  : Ast.Symbol.t -> Ast.pred list

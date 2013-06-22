@@ -164,9 +164,11 @@ let rec acsolve me w s =
       let w''      = if ch then update_worklist me s' c w' else w' in 
       acsolve me w'' s' 
 
-
 let unsat_constraints me s =
   me.sri |> Ci.to_list |> List.filter (Dom.unsat s)
+
+let simplify_solution me s = Dom.simplify s
+
 
 (***************************************************************)
 (****************** Pruning Unconstrained Vars *****************)
@@ -215,6 +217,8 @@ let solve me s =
   let s  = BS.time "Solve.acsolve"  (acsolve me w) s in
   let _  = print_now "\nDONE: Fixpoint Refinement Loop \n" in
   (* let _ = F.printf "create: SOLUTION2 \n %a \n" Dom.print s in *)
+  let s  = if !Co.minquals then simplify_solution me s else s in
+  let _  = print_now "\nDONE: Simplify Solution \n" in
   let _  = BS.time "Solve.dump" (dump me) s in
   let _  = Co.logPrintf "Fixpoint: Testing Solution \n" in
   let u  = BS.time "Solve.unsatcs" (unsat_constraints me) s in
