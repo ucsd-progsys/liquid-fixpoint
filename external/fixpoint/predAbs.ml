@@ -403,8 +403,13 @@ let pred_of_bind q =
   then pred_of_bind_name q 
   else pred_of_bind_raw q 
 
+let min_binds_bot ds = 
+  match Misc.list_find_maybe (P.is_contra <.> pred_of_bind_raw) ds with
+    | None   -> ds
+    | Some d -> [d] 
+
 (* API *)
-let min_binds s ds = Misc.rootsBy (def_leq s) ds
+let min_binds s ds = ds |> min_binds_bot |> Misc.rootsBy (def_leq s)
 let min_read s k   = SM.finds k s.m |> min_binds s |>: pred_of_bind
 let min_read s k   = if !Co.minquals then min_read s k else read s k
 let min_read s k   = BS.time "min_read" (min_read s) k
@@ -753,6 +758,16 @@ let empty = create Cg.empty None
 
 (* API *)
 let meet me you = {me with m = SM.extendWith (fun _ -> (++)) me.m you.m} 
+
+(****************************************************************)
+(************* Simplify Solution Using min_read *****************)
+(****************************************************************)
+
+(* let minb s bs = min_binds s bs 
+              >> Printf.printf "minBinds: [%a] \n\n"  pprint_ds
+ *)
+
+let simplify s = {s with m = SM.map (min_binds s) s.m} 
 
 (************************************************************************)
 (****************** Counterexample Generation ***************************)
