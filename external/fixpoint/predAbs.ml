@@ -718,7 +718,8 @@ let binds_of_quals ws qs =
   >> (fun _ -> print_now "\nDONE: Qualifier Instantiation\n")
   (* >> List.iter ppBinding *)
   |> SM.of_list 
-  (* >> (fun _ -> print_now "\nDONE: QINST sm_of_list \n") *)
+  >> (fun _ -> print_now "\nDONE: Qualifier Instantiation: Built Map \n")
+
 
 let binds_of_quals ws qs = 
   match !Constants.dump_simp with
