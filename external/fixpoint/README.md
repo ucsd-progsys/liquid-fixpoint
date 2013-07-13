@@ -81,15 +81,79 @@ semicolon-separated list of predicates:
 
   solution: KVAR := [PREDICATES]
 
+TpSmtLib
+========
+
+    Z3.context
+    Z3.ast
+    Z3.sort
+    Z3.func_decl
+
+    z3Var 
+
+
+
+
+
+
+Split: 
+    tpZ3Gen  = tpSmt + z3-instance
+    tpSMTLib = tpSmt + smtlib-instance
+
+tpZ3Gen  = tpSmt + Z3 but GENERALIZED to use SMT-Functor
+tpSMTLib = tp
+
+    z3AssertAxiom 
+    z3Distinct
+    z3Do
+    z3Valid
+    z3Assert
+    z3Pred
+    z3Contra
+
+module H    = Hashtbl
+module F    = Format
+module Co   = Constants
+module BS   = BNstats
+module A    = Ast
+module Sy   = A.Symbol
+module So   = A.Sort
+module SM   = Sy.SMap
+module P    = A.Predicate
+module E    = A.Expression
+module Misc = FixMisc open Misc.Ops
+module SSM  = Misc.StringMap
+module Th   = Theories
+
+module Prover : ProverArch.PROVER = struct
+
+type t = int  
+ 
+(**************************************************************************)
+(**************************** API *****************************************)
+(**************************************************************************)
+
+let create (sorts: So.t list) (env: So.t SM.t) (axioms: Ast.pred list) (consts: Sy.t list) : t
+  = failwith "TBD"
+
+let set_filter (me: t) (env: S.t SM.t) (vv: Sy.t) (hyps: Ast.pred list) (goals: ('a * Ast.pred) list) : 'a list
+  = failwith "TBD"
+
+let print_stats (pp: Format.formatter) (me:t) : unit
+  = failwith "TBD"
+
+let is_contra (me : t) (env : So.t SM.t) (goal: Ast.pred) : bool
+  = smtPred 
+
+end
+
+
+
+
 Conversion to SMTLIB2 Horn Clauses
 ==================================
 
-z3Do
-z3Valid
-z3Assert
-z3Pred
-z3Contra
-1.
+
 
 This
 

@@ -25,6 +25,17 @@
 
 (* RJ: This is CLEARLY the wrong API and in need of a major refactoring. *)
 
+module type SMT = sig
+  
+  type context
+  type ast
+  type sort
+  type func_decl
+
+  val smtVar : context -> Sy.t -> So.t -> ast 
+
+end
+
 module type PROVER = 
 sig
   type t 

@@ -20,6 +20,7 @@
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
+(* This file is part of the LiquidC Project *)
 
 module H  = Hashtbl
 module F  = Format
@@ -39,20 +40,112 @@ module Prover : ProverArch.PROVER = struct
 let mydebug = false 
 
 (********************************************************************************)
-(********************************** Type Definitions ****************************)
+(************ SMT INTERFACE *****************************************************) 
 (********************************************************************************)
+
+type smt_context     = Z3.context
+type smt_sort        = Z3.sort
+type smt_ast         = Z3.ast
+type smt_symbol      = Z3.symbol 
+type smt_fun_decl    = Z3.fun_decl 
+
+(** val smtVar : smt_context -> smt_symbol -> So.t -> smt_ast *)
+let smtVar c x t     = Z3.mk_const c x t
+
+(** val smtBoundVar : smt_context -> Sy.t -> So.t -> smt_ast *)
+let smtBoundVar      = Z3.mk_bound
+
+(** val smtStringSymbol : smt_context -> string -> smt_symbol *)
+let smtStringSymbol = Z3.mk_string_symbol 
+
+(** val smtFuncDecl : smt_context -> smt_symbol -> smt_sort array -> smt_sort -> smt_fun_decl *)
+let smtFuncDecl = Z3.mk_func_decl
+
+(** val smtIsBool : smt_context -> smt_ast -> bool *)
+let smtIsBool me a =
+  a |> Z3.get_sort me.c   
+    |> Z3.sort_to_string me.c
+    |> (=) "bool"
+
+(** NOT USED val smtIsInt : smt_context -> smt_ast -> bool *)
+let smtIsInt me a =
+  a |> Z3.get_sort me.c   
+    |> Z3.sort_to_string me.c
+    |> (=) "int"
+
+
+let z3Bind me env x t =
+  let vx = Vbl (x, varSort env x) in
+  me.bnd <- me.bnd + 1; 
+  H.replace me.vart vx (Bound (me.bnd, t)); 
+  me.vars <- vx :: me.vars;
+  smtStringSymbol me.c (fresh "z3b")
+
+(** val smt_forall : (Sy.t * So.t) list -> Ast.pred -> smt_ast *)
+let smt_forall xts p = 
+  let (xs, ts) = List.split xts in
+  let zargs    = Array.of_list (List.map2 (z3Bind me env) xs ts) in
+  let zts      = Array.of_list (List.map  (z3Type me) ts) in 
+  let rv       = Z3.mk_forall me.c 0 [||] zts zargs (z3Pred me env p) in
+  let _        = me.bnd <- me.bnd - (List.length xs) in
+  rv
+
+(** val smt_mkEq : smt_context -> smt_ast -> smt_ast -> smt_ast *)
+let smt_mkEq = Z3.mk_eq
+
+(** val smt_mkNe : smt_context -> smt_ast array -> smt_ast      *) 
+let smt_mkNe = Z3.mk_distinct 
+
+(** val smt_mkGt : smt_context -> smt_ast -> smt_ast -> smt_ast *) 
+let smt_mkGt = Z3.mk_gt
+
+(** val smt_mkGe : smt_context -> smt_ast -> smt_ast -> smt_ast *) 
+let smt_mkGe = Z3.mk_ge
+
+(** val smt_mkLt : smt_context -> smt_ast -> smt_ast -> smt_ast *) 
+let smt_mkLt = Z3.mk_lt
+
+(** val smt_mkLe : smt_context -> smt_ast -> smt_ast -> smt_ast *) 
+let smt_mkLe = Z3.mk_le
+
+(** val smt_mkApp : smt_context -> smt_fun_decl -> smt_ast array -> smt_ast *)
+let smt_mkApp = Z3.mk_app
+
+let smt_mkMul = Z3.mk_mul
+let smt_mkAdd = Z3.mk_add 
+let smt_mkSub = Z3.mk_sub
+let smt_mkMod = Z3.mk_mod 
+let smt_mkIte = Z3.mk_ite
+
+let smt_mkInt   = Z3.mk_int 
+let smt_mkTrue  = Z3.mk_true
+let smt_mkFalse = Z3.mk_false
+let smt_mkNot   = Z3.mk_not
+let smt_mkAnd   = Z3.mk_and 
+let smt_mkOr    = Z3.mk_or
+let smt_mkImp   = Z3.mk_implies
+let smt_mkIff   = Z3.mk_iff
+
+let smt_astString  = Z3.ast_to_string 
+let smt_mkIntSort  = Z3.mk_int_sort  
+let smt_mkBoolSort = Z3.mk_bool_sort 
+let smt_mkContext  = Z3.mk_context_x 
+
+(*************************************************************************)
+(*************************** Type Definitions ****************************)
+(*************************************************************************)
 
 type decl = Vbl of (Sy.t * So.t) | Fun of Sy.t * int | Barrier
 
-type var_ast = Const of Z3.ast | Bound of int * So.t
+type var_ast = Const of ast | Bound of int * So.t
 
 type t = { 
-  c             : Z3.context;
-  tint          : Z3.sort;
-  tbool         : Z3.sort;
+  c             : smt_context;
+  tint          : smt_sort;
+  tbool         : smt_sort;
   vart          : (decl, var_ast) H.t;
-  funt          : (decl, Z3.func_decl) H.t;
-  tydt          : (So.t, Z3.sort) H.t;
+  funt          : (decl, smt_fun_decl) H.t;
+  tydt          : (So.t, smt_sort) H.t;
   mutable vars  : decl list ;
   mutable count : int;
   mutable bnd   : int;
@@ -69,15 +162,6 @@ let pprint_decl ppf = function
   | Barrier 	-> F.fprintf ppf "----@." 
   | Fun (s, i) 	-> F.fprintf ppf "%a[%i]" Sy.print s i
 
-let dump_ast_type me a = 
-  Z3.get_sort me.c a  
-  |> Z3.sort_to_string me.c  
-  |> F.printf "@[z3%s@]@."
-
-let dump_ast me a =
-  Z3.ast_to_string me.c a
-  |> F.printf "@[%s@]@." 
-
 let dump_decls me =
   F.printf "Vars: %a" (Misc.pprint_many true "," pprint_decl) me.vars       
 
@@ -90,29 +174,18 @@ let nb_push 		= ref 0
 let nb_pop  		= ref 0
 let nb_unsat		= ref 0
 let nb_query 		= ref 0
-let nb_unsatLHS         = ref 0
+let nb_unsatLHS     = ref 0
+let us_ref          = ref 0
 
 (************************************************************************)
 (********************** Misc. Constants *********************************)
 (************************************************************************)
 
-(* let bofi_n = Sy.of_string "_BOFI" *)
-(* let iofb_n = Sy.of_string "_IOFB" *)
 let div_n  = Sy.of_string "_DIV"
 let tag_n  = Sy.of_string "_TAG"
 let mul_n  = Sy.of_string "_MUL"
 
 let axioms = []
-(* THESE CAUSE Z3 to SEG-FAULT (tests/t6.fq), 
- * most likely an error in the forall-translation
-  let x = Sy.of_string "x" in
-  [A.pForall ([(x, So.Bool)],                            
-               A.pIff ((A.pAtom (A.eApp (iofb_n, [A.eVar x]), A.Eq, A.one)),
-                       (A.pBexp (A.eVar x))));
-   A.pForall ([(x, So.Int)],
-               A.pIff (A.pBexp (A.eApp (bofi_n, [A.eVar x])),
-                       A.pAtom (A.eVar x, A.Eq, A.one)))]
- *)
 
 (* TBD these are related to ML and should be in DSOLVE, not here *)
 let builtins = 
@@ -120,8 +193,6 @@ let builtins =
   |> SM.add tag_n  (So.t_func 0 [So.t_obj; So.t_int])
   |> SM.add div_n  (So.t_func 0 [So.t_int; So.t_int; So.t_int]) 
   |> SM.add mul_n  (So.t_func 0 [So.t_int; So.t_int; So.t_int]) 
-(*|> SM.add iofb_n (So.Func (0, [So.Bool; So.Int])) *)
-(*|> SM.add bofi_n (So.Func (0, [So.Int; So.Bool])) *)
 
 let select_t = So.t_func 0 [So.t_int; So.t_int]
 
@@ -168,32 +239,26 @@ and z3TypeThy me t = match So.app_of_t t with
 (********************** Identifiers ************************************)
 (***********************************************************************)
 
-let z3Vbl env x = Vbl (x, varSort env x)
+let getVbl env x = Vbl (x, varSort env x)
 
 let z3Var_memo me env x =
-  let vx  = z3Vbl env x in
+  let vx  = getVbl env x in
   Misc.do_memo me.vart
     (fun () -> 
       let t   = x |> varSort env |> z3Type me in
       let sym = fresh "z3v" 
                 (* >> F.printf "z3Var_memo: %a :->  %s\n" Sy.print x *)
-                |> Z3.mk_string_symbol me.c in 
-      let rv  = Const (Z3.mk_const me.c sym t) in
+                |> smtStringSymbol me.c in 
+      let rv  = Const (smtVar me.c sym t) in
       let _   = me.vars <- vx :: me.vars in 
       rv) 
     () vx
 
 let z3Var me env x =
   match BS.time "z3Var memo" (z3Var_memo me env) x with
-  | Const v     -> v
-  | Bound (b,t) -> Z3.mk_bound me.c (me.bnd - b) (z3Type me t)
+  | Const v      -> v
+  | Bound (b, t) -> smtBoundVar me.c (me.bnd - b) (z3Type me t)
 
-let z3Bind me env x t =
-  let vx = Vbl (x, varSort env x) in
-  me.bnd <- me.bnd + 1; 
-  H.replace me.vart vx (Bound (me.bnd, t)); 
-  me.vars <- vx :: me.vars;
-  Z3.mk_string_symbol me.c (fresh "z3b")
 
 let z3Fun me env p t k = 
   Misc.do_memo me.funt begin fun _ -> 
@@ -202,8 +267,8 @@ let z3Fun me env p t k =
     | Some (_, ts, rt) ->
         let ts = List.map (z3Type me) ts in
         let rt = z3Type me rt in
-        let cf = Z3.mk_string_symbol me.c (fresh "z3f") in
-        let rv = Z3.mk_func_decl me.c cf (Array.of_list ts) rt in
+        let cf = smtStringSymbol me.c (fresh "z3f") in
+        let rv = smtFuncDecl me.c cf (Array.of_list ts) rt in
         let _  = me.vars <- (Fun (p,k))::me.vars in
         rv
   end () (Fun (p, k))
@@ -212,16 +277,7 @@ let z3Fun me env p t k =
 (********************** Pred/Expr Transl ******************************)
 (**********************************************************************)
 
-let is_z3_bool me a =
-  a |> Z3.get_sort me.c   
-    |> Z3.sort_to_string me.c
-    |> (=) "bool"
  
-let is_z3_int me a =
-  a |> Z3.get_sort me.c   
-    |> Z3.sort_to_string me.c
-    |> (=) "int"
-
 exception Z3RelTypeError
 
 let rec z3Rel me env (e1, r, e2) =
@@ -232,12 +288,12 @@ let rec z3Rel me env (e1, r, e2) =
   if ok then 
     let a1, a2 = Misc.map_pair (z3Exp me env) (e1, e2) in 
     match r with 
-    | A.Eq -> Z3.mk_eq me.c a1 a2 
-    | A.Ne -> Z3.mk_distinct me.c [|a1; a2|]
-    | A.Gt -> Z3.mk_gt me.c a1 a2
-    | A.Ge -> Z3.mk_ge me.c a1 a2
-    | A.Lt -> Z3.mk_lt me.c a1 a2
-    | A.Le -> Z3.mk_le me.c a1 a2
+    | A.Eq -> smt_mkEq me.c a1 a2 
+    | A.Ne -> smt_mkNe me.c [|a1; a2|]
+    | A.Gt -> smt_mkGt me.c a1 a2
+    | A.Ge -> smt_mkGe me.c a1 a2
+    | A.Lt -> smt_mkLt me.c a1 a2
+    | A.Le -> smt_mkLe me.c a1 a2
   else begin 
     SM.iter (fun s t -> F.printf "@[%a :: %a@]@." Sy.print s So.print t) env;
     F.printf "@[%a@]@.@." P.print (A.pAtom (e1, r, e2));
@@ -248,7 +304,9 @@ let rec z3Rel me env (e1, r, e2) =
 and z3App me env p zes =
   let t  = funSort env p                      in
   let cf = z3Fun me env p t (List.length zes) in
-  Z3.mk_app me.c cf (Array.of_list zes)
+  smt_mkApp me.c cf (Array.of_list zes)
+
+(* HEREHEREHEREHERE *)
 
 and z3AppThy me env def tyo f es = 
   match A.sortcheck_app Th.is_interp (Misc.flip SM.maybe_find env) tyo f es with 
@@ -264,15 +322,15 @@ and z3AppThy me env def tyo f es =
 and z3Mul me env = function
   | ((A.Con (A.Constant.Int i), _), e) 
   | (e, (A.Con (A.Constant.Int i), _)) ->
-      Z3.mk_mul me.c [|(Z3.mk_int me.c i me.tint); (z3Exp me env e)|] 
+      smt_mkMul me.c [|( smt_mkInt me.c i me.tint); (z3Exp me env e)|] 
   | (e1, e2) when !Co.uif_multiply -> 
       z3App me env mul_n (List.map (z3Exp me env) [e1; e2])
   | (e1, e2) -> 
-      Z3.mk_mul me.c (Array.map (z3Exp me env) [| e1; e2 |])
+      smt_mkMul me.c (Array.map (z3Exp me env) [| e1; e2 |])
 
 and z3Exp me env = function
   | A.Con (A.Constant.Int i), _ -> 
-      Z3.mk_int me.c i me.tint 
+      smt_mkInt me.c i me.tint 
   | A.Var s, _ -> 
       z3Var me env s
   | A.Cst ((A.App (f, es), _), t), _ when (H.mem me.thy_symm f) -> 
@@ -282,21 +340,22 @@ and z3Exp me env = function
   | A.App (f, es), _  -> 
       z3App me env f (List.map (z3Exp me env) es)
   | A.Bin (e1, A.Plus, e2), _ ->
-      Z3.mk_add me.c (Array.map (z3Exp me env) [|e1; e2|])
+      smt_mkAdd me.c (Array.map (z3Exp me env) [|e1; e2|])
   | A.Bin (e1, A.Minus, e2), _ ->
-      Z3.mk_sub me.c (Array.map (z3Exp me env) [|e1; e2|])
+      smt_mkSub me.c (Array.map (z3Exp me env) [|e1; e2|])
   | A.Bin((A.Con (A.Constant.Int n1), _), A.Times, (A.Con (A.Constant.Int n2), _)),_ ->
-      Z3.mk_int me.c (n1 * n2) me.tint
+      smt_mkInt me.c (n1 * n2) me.tint
   | A.Bin (e1, A.Times, e2), _ ->
       z3Mul me env (e1, e2)
   | A.Bin (e1, A.Div, e2), _ -> 
       z3App me env div_n (List.map (z3Exp me env) [e1;e2])
   | A.Bin (e, A.Mod, (A.Con (A.Constant.Int i), _)), _ ->
-      Z3.mk_mod me.c (z3Exp me env e) (Z3.mk_int me.c i me.tint)
+      smt_mkMod me.c (z3Exp me env e) (smt_mkInt me.c i me.tint)
   | A.Bin (e1, A.Mod, e2), _ ->
-      Z3.mk_mod me.c (z3Exp me env e1) (z3Exp me env e2)
+      smt_mkMod me.c (z3Exp me env e1) (z3Exp me env e2)
   | A.Ite (e1, e2, e3), _ -> 
-      Z3.mk_ite me.c (z3Pred me env e1) (z3Exp me env e2) (z3Exp me env e3)
+      smt_mkIte me.c (z3Pred me env e1) (z3Exp me env e2) (z3Exp me env e3)
+
   | A.Fld (f, e), _ -> 
       z3App me env (mk_select f) [z3Exp me env e] (** REQUIRES: disjoint field names *)
   | A.Cst (e, _), _ -> 
@@ -306,38 +365,33 @@ and z3Exp me env = function
 
 and z3Pred me env = function
   | A.True, _ -> 
-      Z3.mk_true me.c
+      smt_mkTrue  me.c
   | A.False, _ ->
-      Z3.mk_false me.c
+      smt_mkFalse me.c
   | A.Not p, _ -> 
-      Z3.mk_not me.c (z3Pred me env p)
+      smt_mkNot  me.c (z3Pred me env p)
   | A.And ps, _ -> 
-      Z3.mk_and me.c (Array.of_list (List.map (z3Pred me env) ps))
+      smt_mkAnd me.c (Array.of_list (List.map (z3Pred me env) ps))
   | A.Or ps, _  -> 
-      Z3.mk_or me.c (Array.of_list (List.map (z3Pred me env) ps))
+      smt_mkOr  me.c (Array.of_list (List.map (z3Pred me env) ps))
   | A.Imp (p1, p2), _ -> 
-      Z3.mk_implies me.c (z3Pred me env p1) (z3Pred me env p2)
+      smt_mkImp me.c (z3Pred me env p1) (z3Pred me env p2)
   | A.Iff (p1, p2), _ ->
-      Z3.mk_iff me.c (z3Pred me env p1) (z3Pred me env p2)
+      smt_mkIff me.c (z3Pred me env p1) (z3Pred me env p2)
   | A.Atom (e1, r, e2), _ ->
       z3Rel me env (e1, r, e2)
   | A.Bexp e, _ -> 
       let a  = z3Exp me env e in
-      let s1 = Z3.ast_to_string me.c a in
+      let s1 = smt_astString me.c a in
       let s2 = E.to_string e in
       let Some so = A.sortcheck_expr Th.is_interp (Misc.flip SM.maybe_find env) e in
       let sos = So.to_string so in
-      let _  = asserts (is_z3_bool me a) "Bexp is not bool (e = %s)! z3=%s, fix=%s, sort=%s" 
+      let _  = asserts (smtIsBool me a) "Bexp is not bool (e = %s)! z3=%s, fix=%s, sort=%s" 
                                          (E.to_string e) s1 s2 sos in 
       a
- | A.Forall (xts, p), _ -> 
-      let (xs, ts) = List.split xts in
-      let zargs    = Array.of_list (List.map2 (z3Bind me env) xs ts) in
-      let zts      = Array.of_list (List.map  (z3Type me) ts) in 
-      let rv       = Z3.mk_forall me.c 0 [||] zts zargs (z3Pred me env p) in
-      let _        = me.bnd <- me.bnd - (List.length xs) in
-      rv
- | p -> 
+  | A.Forall (xts, p), _ -> 
+      smt_forall xts p 
+  | p -> 
       assertf "z3Pred: Cannot Convert %s!" (P.to_string p) 
 
 
@@ -347,38 +401,38 @@ let z3Pred me env p =
     BS.time "z3Pred" (z3Pred me env) p
   with ex -> (F.printf "z3Pred: error converting %a\n" P.print p) ; raise ex 
 
+(***************************************************************************)
+(***************** Binder/Stack Management *********************************)
+(***************************************************************************)
 
-let z3Distinct me env = 
-  List.map (z3Var me env) <+> Array.of_list <+> Z3.mk_distinct me.c
+let rec vpop (cs,s) =
+  match s with 
+  | []           -> (cs,s)
+  | Barrier :: t -> (cs,t)
+  | h :: t       -> vpop (h::cs,t) 
+
+let clean_decls me =
+  let cs, vars' = vpop ([],me.vars) in
+  let _         = me.vars <- vars'  in 
+  List.iter begin function 
+    | Barrier    -> failure "ERROR: TPZ3-cleanDecls" 
+    | Vbl _ as d -> H.remove me.vart d 
+    | Fun _ as d -> H.remove me.funt d
+  end cs
+
+let handle_vv me env vv = 
+  H.remove me.vart (getVbl env vv) (* RJ: why are we removing this? *) 
 
 (***************************************************************************)
 (***************** Low Level Query Interface *******************************)
 (***************************************************************************)
 
-let us_ref = ref 0
-
-let unsat me =
-  let _  = if mydebug then (Printf.printf "[%d] UNSAT 1 " (us_ref += 1); flush stdout) in
-  let rv = (BS.time "Z3.check" Z3.check me.c) = Z3.L_FALSE in
-  let _  = if mydebug then (Printf.printf "UNSAT 2 \n"; flush stdout) in
-  let _  = if rv then ignore (nb_unsat += 1) in 
-  rv
-
-let z3AssertAxiom me p =
-  Co.bprintf mydebug "@[Pushing axiom %s@]@." (Z3.ast_to_string me.c p); 
-  BS.time "Z3 assert axiom" (Z3.assert_cnstr me.c) p;
-  asserts (not(unsat me)) "ERROR: Axiom makes background theory inconsistent!"
-
-let rec vpop (cs,s) =
-  match s with 
-  | [] -> (cs,s)
-  | Barrier :: t -> (cs,t)
-  | h :: t -> vpop (h::cs,t) 
-
-let prep_preds me env ps =
-  let ps = List.rev_map (z3Pred me env) ps in
-  let _  = me.vars <- Barrier :: me.vars in
-  ps
+(*** HEREHEREHEREHEREHERE:
+  1. add Z3-API functions to SMT  
+  2. pull into SEPARATE module
+  3. generalize into a SIG, make tp-* be parameterized by SIG
+  4. write the smtlib instantiation of SIG
+  ****)
 
 let z3push me =
   let _ = nb_push += 1 in
@@ -391,93 +445,67 @@ let z3pop me =
   let _ = me.count <- me.count - 1 in
   BS.time "Z3.pop" (Z3.pop me.c) 1 
 
+let z3unsat me =
+  let _  = if mydebug then (Printf.printf "[%d] UNSAT 1 " (us_ref += 1); flush stdout) in
+  let rv = (BS.time "Z3.check" Z3.check me.c) = Z3.L_FALSE in
+  let _  = if mydebug then (Printf.printf "UNSAT 2 \n"; flush stdout) in
+  let _  = if rv then ignore (nb_unsat += 1) in 
+  rv
+
+
+(* Z3 API *)
+let z3AssertAxiom me p =
+  Co.bprintf mydebug "@[Pushing axiom %s@]@." (smt_astString me.c p); 
+  BS.time "Z3 assert axiom" (Z3.assert_cnstr me.c) p;
+  asserts (not (z3unsat me)) "ERROR: Axiom makes background theory inconsistent!"
+
 (* Z3 API *)
 let z3Do me f      = Misc.bracket (fun _ -> z3push me) (fun _ -> z3pop me) f
+
+(* Z3 API *)
 let z3assert me ps = List.iter (fun p -> BS.time "Z3.ass_cst" (Z3.assert_cnstr me.c) p) ps
 
-
-(* COMMENTING OUT FOR PROFILING 
-let valid me p =
-  let _ = BS.time "push" (push me) [(Z3.mk_not me.c p)] in
-  let rv = Timeout.do_timeout !Constants.z3_timeout unsat me in
-  let rv = match rv with Some x -> x
-                       | None -> failwith "UNRECOVERABLE FIXPOINT ERROR: Z3 TIMED OUT" in
-  let _ = pop me in
-  rv
-*)
-(*
-let valid me p =
-  let _ = BS.time "push" (push me) [(Z3.mk_not me.c p)] in
-  BS.time "unsat" unsat me 
-  >> (fun _ -> pop me)
-*)
-
+(* Z3 API *)
 let z3Valid me p = 
   z3Do me begin fun _ ->
     z3assert me [Z3.mk_not me.c p];
-    BS.time "unsat" unsat me 
+    BS.time "unsat" z3unsat me 
   end
 
+(* Z3 API *)
 let z3Contra me p = 
   z3Do me begin fun _ ->
     z3assert me [p];
-    BS.time "unsat" unsat me 
+    BS.time "unsat" z3unsat me 
   end
 
-let clean_decls me =
-  let cs, vars' = vpop ([],me.vars) in
-  let _         = me.vars <- vars'  in 
-  List.iter begin function 
-    | Barrier    -> failure "ERROR: TPZ3.clean_decls" 
-    | Vbl _ as d -> H.remove me.vart d 
-    | Fun _ as d -> H.remove me.funt d
-  end cs
-
-(* DEPRECATED, overall slowdown 
-let min_filter me env p_imp ps =
-  ps 
-  |> List.rev_map (fun (x, p) -> (x, p, z3Pred me env p)) 
-  |> Misc.cov_filter (fun x y -> BS.time "p_imp" (p_imp (fst3 x)) (fst3 y)) (thd3 <+> valid me)
-  |> List.map (fun (x, xs) -> List.map fst3 (x::xs))
-
-let filter me =  
-  if !Constants.minquals then min_filter me else filter me
-*)
-
-let handle_vv me env vv = 
-  H.remove me.vart (z3Vbl env vv) (* RJ: why are we removing this? *) 
-
 (************************************************************************)
 (********************************* API **********************************)
 (************************************************************************)
-
-
-(************************************************************************)
-(********************************* API **********************************)
-(************************************************************************)
-
-
 
 let create_theories () =
   Th.theories () 
   |> (Misc.hashtbl_of_list_with Th.sort_name <**> Misc.hashtbl_of_list_with Th.sym_name)
 
+let mkDistinct me env = 
+  List.map (z3Var me env) <+> Array.of_list <+> smt_mkNe me.c
+
 let assert_distinct_constants me env = function [] -> () | cs -> 
   cs |> Misc.kgroupby (varSort env) 
      |> List.iter begin fun (_, xs) ->
           xs >> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print)
-             |> z3Distinct me env  
+             |> mkDistinct me env  
              |> z3AssertAxiom me
          end
  
 (* API *)
 let create ts env ps consts =
-  let _        = asserts (ts = []) "ERROR: TPZ3.create non-empty sorts!" in
-  let c        = Z3.mk_context_x [|("MODEL", "false"); ("MODEL_PARTIAL", "true")|] in
+  let _        = asserts (ts = []) "ERROR: TPZ3-create non-empty sorts!" in
+  let c        = smt_mkContext [|("MODEL", "false"); ("MODEL_PARTIAL", "true")|] in
   let som, sym = create_theories () in 
   let me       = { c     = c; 
-                   tint  = Z3.mk_int_sort c; 
-                   tbool = Z3.mk_bool_sort c; 
+                   tint  = smt_mkIntSort  c; 
+                   tbool = smt_mkBoolSort c; 
                    tydt  = H.create 37; 
                    vart  = H.create 37; 
                    funt  = H.create 37; 
@@ -489,6 +517,12 @@ let create ts env ps consts =
   let _  = List.iter (z3Pred me env <+> z3AssertAxiom me) (axioms ++ ps) in
   let _  = assert_distinct_constants me env consts                      in
   me
+
+let prep_preds me env ps =
+  let ps = List.rev_map (z3Pred me env) ps in
+  let _  = me.vars <- Barrier :: me.vars in
+  ps
+
 
 (* API *)
 let set_filter (me: t) (env: So.t SM.t) (vv: Sy.t) ps qs =
@@ -510,27 +544,24 @@ let print_stats ppf me =
     "TP stats: sets=%d, pushes=%d, pops=%d, unsats=%d, queries=%d, count=%d, unsatLHS=%d \n" 
     !nb_set !nb_push !nb_pop !nb_unsat !nb_query (List.length me.vars) !nb_unsatLHS
 
-
-
 (*************************************************************************)
 (****************** Unsat Core for CEX generation ************************)
 (*************************************************************************)
 
-(* 
-let mk_prop_var me pfx i : Z3.ast =
+let mk_prop_var me pfx i : smt_ast =
   i |> string_of_int
     |> (^) pfx
-    |> Z3.mk_string_symbol me.c 
-    |> Misc.flip (Z3.mk_const me.c) me.tbool 
+    |> smtStringSymbol me.c 
+    |> Misc.flip (smtVar me.c) me.tbool 
 
-let mk_prop_var_idx me ipa : (Z3.ast array * (Z3.ast -> 'a option)) =
+let mk_prop_var_idx me ipa : (smt_ast array * (smt_ast -> 'a option)) =
   let va  = Array.mapi (fun i _ -> mk_prop_var me "uc_p_" i) ipa in
   let vm  = va 
-            |> Array.map (Z3.ast_to_string me.c)
+            |> Array.map (smt_astString me.c)
             |> Misc.array_to_index_list 
             |> List .map Misc.swap 
             |> SSM.of_list in 
-  let f z = SSM.maybe_find (Z3.ast_to_string me.c z) vm
+  let f z = SSM.maybe_find (smt_astString me.c z) vm
             |> Misc.maybe_map (fst <.> Array.get ipa) in
   (va, f)
 
@@ -539,26 +570,28 @@ let mk_pa me p2z pfx ics =
       |> Array.of_list 
       |> Array.mapi (fun i (x, p) -> (x, p, mk_prop_var me pfx i))
 
-
 (* API *)
 let unsat_core me env bgp ips =
-  let _     = H.clear me.vart                               in 
-  let p2z   = A.fixdiv <+> z3Pred me env                          in
-  let ipa   = ips |> List.map (Misc.app_snd p2z) |> Array.of_list in 
-  let va, f = mk_prop_var_idx me ipa                              in
-  let zp    = ipa |> Array.mapi (fun i (_, p) -> Z3.mk_iff me.c va.(i) p)
+  let _     = H.clear me.vart                                       in 
+  let p2z   = A.fixdiv <+> z3Pred me env                            in
+  let ipa   = ips |> List.map (Misc.app_snd p2z) |> Array.of_list   in 
+  let va, f = mk_prop_var_idx me ipa                                in
+  let zp    = ipa |> Array.mapi (fun i (_, p) -> smt_mkIff me.c va.(i) p)
                   |> Array.to_list
                   |> (++) [p2z bgp]
                   |> Array.of_list
-                  |> Z3.mk_and me.c in
+                  |> smt_mkAnd me.c in
   z3Do me begin fun _ ->
     let _   = z3assert me [zp] in
     let n   = Array.length va in
     let va' = Array.map id va in
-    match Z3.check_assumptions me.c va n va' with
+    failwith "SMT-UNSAT-CORE-TODO"
+    (************************************
+    match SMT.check_assumptions me.c va n va' with
       | (Z3.L_FALSE, m,_, n, ucore) 
           -> Array.map f ucore |> Array.to_list |> Misc.map_partial id 
       | _ -> []
+      ************************************)
   end
  
 (* API *)
@@ -573,7 +606,5 @@ let unsat_suffix me env p ps =
       if unsat me then Some j else loop (j-1) zps'
     in loop (List.length ps) (List.map (z3Pred me env) (p :: List.rev ps)) 
   end
-
-*)
-
+ 
 end
