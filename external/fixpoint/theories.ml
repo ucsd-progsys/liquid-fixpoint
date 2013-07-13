@@ -26,6 +26,9 @@ module Sy = Ast.Symbol
 open FixMisc.Ops
 
 
+
+
+
 type appDef  = { sy_name  : Sy.t
                ; sy_sort  : So.t
                ; sy_emb   : Z3.context -> Z3.sort list -> Z3.ast list -> Z3.ast
