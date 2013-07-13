@@ -32,6 +32,11 @@ module MakeTheory(SMT : SMTSOLVER): (THEORY with smt_context = SMT.context
                                             and  smt_ast     = SMT.ast) 
   = struct 
 
+type context = SMT.context
+type sort    = SMT.sort
+type ast     = SMT.ast
+
+
 type appDef  = { sy_name  : Sy.t
                ; sy_sort  : So.t
                ; sy_emb   : SMT.context -> SMT.sort list -> SMT.ast list -> SMT.ast

@@ -25,9 +25,9 @@
 
 module type THEORY = sig
   
-  type smt_context
-  type smt_sort
-  type smt_ast
+  type context
+  type sort
+  type ast
   type appDef 
   type sortDef 
 
@@ -35,8 +35,8 @@ module type THEORY = sig
   val sym_name    : appDef  -> Ast.Symbol.t
   val sort_name   : sortDef -> Ast.Sort.tycon
   val theories    : unit -> sortDef list * appDef list
-  val mk_thy_sort : sortDef -> smt_context -> smt_sort list -> smt_sort
-  val mk_thy_app  : appDef  -> smt_context -> smt_sort list -> smt_ast list -> smt_ast
+  val mk_thy_sort : sortDef -> context -> sort list -> sort
+  val mk_thy_app  : appDef  -> context -> sort list -> ast list -> ast
   val is_interp   : Ast.Sort.tycon -> bool
 end
 
@@ -62,7 +62,7 @@ module type SMTSOLVER = sig
   val mkLe : context -> ast -> ast -> ast
  
   (* Expression *)
-  val mkAll : context -> int -> Z3.pattern array -> sort array -> symbol array -> ast -> ast
+  val mkAll : context -> sort array -> symbol array -> ast -> ast
   val mkApp : context -> fun_decl -> ast array -> ast
   val mkMul : context -> ast array -> ast
   val mkAdd : context -> ast array -> ast
@@ -112,7 +112,7 @@ module type SMTSOLVER = sig
   val contra        : context -> ast -> bool
  
   (* Stats *)
-  val print_stats : F.formatter -> unit -> unit
+  val print_stats   : Format.formatter -> unit -> unit
 end
 
 module type PROVER = 

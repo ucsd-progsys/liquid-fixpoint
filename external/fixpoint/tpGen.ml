@@ -39,12 +39,16 @@ module SMT  = SmtZ3.SMTZ3
 open Misc.Ops
 open ProverArch
 
-
+(* 
 module MakeTheory(SMT : SMTSOLVER): 
-  (THEORY with type smt_context = SMT.context 
-          and  type smt_sort    = SMT.sort
-          and  type smt_ast     = SMT.ast) 
+  (THEORY with type context = SMT.context 
+          and  type sort    = SMT.sort
+          and  type ast     = SMT.ast) 
   = struct 
+
+type context = SMT.context
+type sort    = SMT.sort
+type ast     = SMT.ast
 
 type appDef  = { sy_name  : Sy.t
                ; sy_sort  : So.t
@@ -181,12 +185,13 @@ let is_interp t = (t = set_tycon)
 
 end
 
+*)
 
 module MakeProver(SMT : SMTSOLVER) : PROVER = struct
 
-module Th   = MakeTheory(SMT) 
+  module Th   = Theories.MakeTheory(SMT) 
 
-let mydebug = false 
+  let mydebug = false 
 
 (*************************************************************************)
 (*************************** Type Definitions ****************************)
@@ -448,11 +453,11 @@ and z3Pred me env = function
                                          (E.to_string e) s1 s2 sos in 
       a
   | A.Forall (xts, p), _ -> 
-      let (xs, ts) = List.split xts                                       in
-      let zargs    = Array.of_list (List.map2 (z3Bind me env) xs ts)      in
-      let zts      = Array.of_list (List.map  (z3Type me) ts)             in 
-      let rv       = SMT.mkAll me.c 0 [||] zts zargs (z3Pred me env p) in
-      let _        = me.bnd <- me.bnd - (List.length xs)                  in
+      let (xs, ts) = List.split xts                                  in
+      let zargs    = Array.of_list (List.map2 (z3Bind me env) xs ts) in
+      let zts      = Array.of_list (List.map  (z3Type me) ts)        in 
+      let rv       = SMT.mkAll me.c zts zargs (z3Pred me env p)      in
+      let _        = me.bnd <- me.bnd - (List.length xs)             in
       rv
   | p -> 
       assertf "z3Pred: Cannot Convert %s!" (P.to_string p) 

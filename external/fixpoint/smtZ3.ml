@@ -36,7 +36,7 @@ module Misc = FixMisc open Misc.Ops
 module SSM = Misc.StringMap
 module Th = Theories
 
-module SMTZ3 (* : ProverArch.SMTSOLVER *) = struct
+module SMTZ3 : ProverArch.SMTSOLVER = struct
 
 let mydebug = false 
 
@@ -69,7 +69,7 @@ let isInt me a =
     |> Z3.sort_to_string me
     |> (=) "int"
 
-let mkAll = Z3.mk_forall
+let mkAll me = Z3.mk_forall me 0 [||]
 let mkEq = Z3.mk_eq
 let mkNe = Z3.mk_distinct 
 let mkGt = Z3.mk_gt
