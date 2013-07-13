@@ -54,53 +54,29 @@ type sort        = Z3.sort
 type ast         = Z3.ast
 type fun_decl    = Z3.func_decl 
 
-(** val var : smt_context -> smt_symbol -> So.t -> ast *)
 let var          = Z3.mk_const 
-
-(** val smtBoundVar : smt_context -> Sy.t -> So.t -> ast *)
-let boundVar      = Z3.mk_bound
-
-(** val stringSymbol : smt_context -> string -> smt_symbol *)
+let boundVar     = Z3.mk_bound
 let stringSymbol = Z3.mk_string_symbol 
+let funcDecl     = Z3.mk_func_decl
 
-(** val smtFuncDecl : smt_context -> smt_symbol -> smt_sort array -> smt_sort -> smt_fun_decl *)
-let funcDecl = Z3.mk_func_decl
-
-(** val isBool : smt_context -> ast -> bool *)
 let isBool c a =
   a |> Z3.get_sort c   
     |> Z3.sort_to_string c
     |> (=) "bool"
 
-(** NOT USED val smtIsInt : smt_context -> ast -> bool *)
-let smt_isInt me a =
+let isInt me a =
   a |> Z3.get_sort me   
     |> Z3.sort_to_string me
     |> (=) "int"
 
 let mkAll = Z3.mk_forall
-
-(** val mkEq : smt_context -> ast -> ast -> ast *)
 let mkEq = Z3.mk_eq
-
-(** val mkNe : smt_context -> ast array -> ast  *) 
 let mkNe = Z3.mk_distinct 
-
-(** val mkGt : smt_context -> ast -> ast -> ast *) 
 let mkGt = Z3.mk_gt
-
-(** val mkGe : smt_context -> ast -> ast -> ast *) 
 let mkGe = Z3.mk_ge
-
-(** val mkLt : smt_context -> ast -> ast -> ast *) 
 let mkLt = Z3.mk_lt
-
-(** val mkLe : smt_context -> ast -> ast -> ast *) 
 let mkLe = Z3.mk_le
-
-(** val mkApp : smt_context -> smt_fun_decl -> ast array -> ast *)
 let mkApp = Z3.mk_app
-
 let mkMul = Z3.mk_mul
 let mkAdd = Z3.mk_add 
 let mkSub = Z3.mk_sub

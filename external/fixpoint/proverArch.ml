@@ -45,68 +45,74 @@ end
 (* RJ: This is CLEARLY the wrong API and in need of a major refactoring. *)
 
 module type SMTSOLVER = sig
-  
+ 
+  (* Types *)
   type context
   type symbol 
   type ast
   type sort
   type fun_decl
-
-  val var : context -> symbol -> sort -> ast 
+ 
+  (* Relations *) 
+  val mkEq : context -> ast -> ast -> ast
+  val mkNe : context -> ast array -> ast
+  val mkGt : context -> ast -> ast -> ast
+  val mkGe : context -> ast -> ast -> ast
+  val mkLt : context -> ast -> ast -> ast
+  val mkLe : context -> ast -> ast -> ast
+ 
+  (* Expression *)
+  val mkAll : context -> int -> Z3.pattern array -> sort array -> symbol array -> ast -> ast
+  val mkApp : context -> fun_decl -> ast array -> ast
+  val mkMul : context -> ast array -> ast
+  val mkAdd : context -> ast array -> ast
+  val mkSub : context -> ast array -> ast
+  val mkMod : context -> ast -> ast -> ast
   
-  val var : Z3.context -> Z3.symbol -> Z3.sort -> Z3.ast
-  val boundVar : Z3.context -> int -> Z3.sort -> Z3.ast
-  val stringSymbol : Z3.context -> string -> Z3.symbol
-  val funcDecl :
-      Z3.context -> Z3.symbol -> Z3.sort array -> Z3.sort -> Z3.func_decl
-  val isBool : Z3.context -> Z3.ast -> bool
-  val smt_isInt : Z3.context -> Z3.ast -> bool
-  val mkAll : Z3.context ->
-              int ->
-              Z3.pattern array ->
-      Z3.sort array -> Z3.symbol array -> Z3.ast -> Z3.ast
-    val mkEq : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkNe : Z3.context -> Z3.ast array -> Z3.ast
-    val mkGt : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkGe : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkLt : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkLe : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkApp : Z3.context -> Z3.func_decl -> Z3.ast array -> Z3.ast
-    val mkMul : Z3.context -> Z3.ast array -> Z3.ast
-    val mkAdd : Z3.context -> Z3.ast array -> Z3.ast
-    val mkSub : Z3.context -> Z3.ast array -> Z3.ast
-    val mkMod : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkIte : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkInt : Z3.context -> int -> Z3.sort -> Z3.ast
-    val mkTrue : Z3.context -> Z3.ast
-    val mkFalse : Z3.context -> Z3.ast
-    val mkNot : Z3.context -> Z3.ast -> Z3.ast
-    val mkAnd : Z3.context -> Z3.ast array -> Z3.ast
-    val mkOr : Z3.context -> Z3.ast array -> Z3.ast
-    val mkImp : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkIff : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val astString : Z3.context -> Z3.ast -> string
-    val mkIntSort : Z3.context -> Z3.sort
-    val mkBoolSort : Z3.context -> Z3.sort
-    val mkSetSort : Z3.context -> Z3.sort -> Z3.sort
-    val mkEmptySet : Z3.context -> Z3.sort -> Z3.ast
-    val mkSetAdd : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkSetMem : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkSetCup : Z3.context -> Z3.ast array -> Z3.ast
-    val mkSetCap : Z3.context -> Z3.ast array -> Z3.ast
-    val mkSetDif : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkSetSub : Z3.context -> Z3.ast -> Z3.ast -> Z3.ast
-    val mkContext : (string * string) array -> Z3.context
-    val z3push : Z3.context -> unit
-    val z3pop : Z3.context -> unit
-    val unsat : Z3.context -> bool
-    val assertAxiom : Z3.context -> Z3.ast -> unit
-    val bracket : Z3.context -> (unit -> 'a) -> 'a
-    val assertPreds : Z3.context -> Z3.ast list -> unit
-    val valid : Z3.context -> Z3.ast -> bool
-    val contra : Z3.context -> Z3.ast -> bool
-    val print_stats : F.formatter -> unit -> unit
+  (* Predicates *)
+  val mkIte     : context -> ast -> ast -> ast -> ast
+  val mkInt     : context -> int -> sort -> ast
+  val mkTrue    : context -> ast
+  val mkFalse   : context -> ast
+  val mkNot     : context -> ast -> ast
+  val mkAnd     : context -> ast array -> ast
+  val mkOr      : context -> ast array -> ast
+  val mkImp     : context -> ast -> ast -> ast
+  val mkIff     : context -> ast -> ast -> ast
+ 
+  (* Conversions *)
+  val astString : context -> ast -> string
 
+  (* Set Theory Operations *)
+  val mkEmptySet    : context -> sort -> ast
+  val mkSetAdd      : context -> ast -> ast -> ast
+  val mkSetMem      : context -> ast -> ast -> ast
+  val mkSetCup      : context -> ast array -> ast
+  val mkSetCap      : context -> ast array -> ast
+  val mkSetDif      : context -> ast -> ast -> ast
+  val mkSetSub      : context -> ast -> ast -> ast
+
+  (* Constructors *)
+  val mkContext     : (string * string) array -> context
+  val mkIntSort     : context -> sort
+  val mkBoolSort    : context -> sort
+  val mkSetSort     : context -> sort -> sort
+  val var           : context -> symbol -> sort -> ast
+  val boundVar      : context -> int -> sort -> ast
+  val stringSymbol  : context -> string -> symbol
+  val funcDecl      : context -> symbol -> sort array -> sort -> fun_decl
+  val isBool        : context -> ast -> bool
+  
+  (* Queries *)
+  val bracket       : context -> (unit -> 'a) -> 'a
+  val assertAxiom   : context -> ast -> unit
+  val assertPreds   : context -> ast list -> unit
+  val unsat         : context -> bool
+  val valid         : context -> ast -> bool
+  val contra        : context -> ast -> bool
+ 
+  (* Stats *)
+  val print_stats : F.formatter -> unit -> unit
 end
 
 module type PROVER = 
