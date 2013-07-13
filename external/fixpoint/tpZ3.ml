@@ -365,7 +365,7 @@ let unsat me =
   let _  = if rv then ignore (nb_unsat += 1) in 
   rv
 
-let assert_axiom me p =
+let z3AssertAxiom me p =
   Co.bprintf mydebug "@[Pushing axiom %s@]@." (Z3.ast_to_string me.c p); 
   BS.time "Z3 assert axiom" (Z3.assert_cnstr me.c) p;
   asserts (not(unsat me)) "ERROR: Axiom makes background theory inconsistent!"
@@ -461,7 +461,7 @@ let assert_distinct_constants me env = function [] -> () | cs ->
      |> List.iter begin fun (_, xs) ->
           xs >> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print)
              |> z3Distinct me env  
-             |> assert_axiom me
+             |> z3AssertAxiom me
          end
  
 (* API *)
@@ -480,56 +480,9 @@ let create ts env ps consts =
                    thy_symm  = sym 
                  } 
   in
-  let _  = List.iter (z3Pred me env <+> assert_axiom me) (axioms ++ ps) in
+  let _  = List.iter (z3Pred me env <+> z3AssertAxiom me) (axioms ++ ps) in
   let _  = assert_distinct_constants me env consts                      in
   me
-
-
- 
-(* 
-  let _  = if Misc.nonnull consts then begin
-             consts 
-             >> (fun xs -> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print) xs)
-             |> z3Distinct me env  
-             |> assert_axiom me
-           end
-  in me
-*)
-
-
-
-(*
-let set me env vv ps =
-  handle_vv me env vv;
-  ps |> prep_preds me env |> push me;
-  (* unsat me *) false
-
-let filter me env _ ps =
-  ps 
-  |> List.rev_map (fun (x, p) -> (x, p, z3Pred me env p)) 
-  |> Misc.filter (thd3 <+> valid me)
-  |> List.map (fst3 <+> Misc.single)
-
-(* API *)
-let set_filter (me: t) (env: So.t SM.t) (vv: Sy.t) ps p_imp qs =
-  let _   = ignore(nb_set   += 1); ignore (nb_query += List.length qs) in
-  let ps  = BS.time "fixdiv" (List.rev_map A.fixdiv) ps in
-  match BS.time "TP set" (set me env vv) ps with 
-  | true  -> 
-    let _ = nb_unsatLHS += 1 in
-    let _ = pop me in
-    List.map (fst <+> Misc.single) qs 
-  
-  | false ->
-     qs 
-     |> List.rev_map   (Misc.app_snd A.fixdiv) 
-     |> List.partition (snd <+> P.is_tauto)
-     |> Misc.app_fst   (List.map (fst <+> Misc.single))
-     |> Misc.app_snd   (BS.time "TP filter" (filter me env p_imp))
-     >> (fun _ -> pop me; clean_decls me)
-     |> Misc.uncurry (++) 
-
-*)
 
 (* API *)
 let set_filter (me: t) (env: So.t SM.t) (vv: Sy.t) ps qs =
