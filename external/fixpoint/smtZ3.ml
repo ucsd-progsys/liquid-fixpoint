@@ -36,7 +36,7 @@ module Misc = FixMisc open Misc.Ops
 module SSM = Misc.StringMap
 module Th = Theories
 
-module SMTZ3 : ProverArch.SMTSOLVER = struct
+module SMTZ3 (* : ProverArch.SMTSOLVER *) = struct
 
 let mydebug = false 
 
@@ -49,9 +49,9 @@ let nb_pop       = ref 0
 let nb_push      = ref 0
 
 type context     = Z3.context
+type symbol      = Z3.symbol
 type sort        = Z3.sort
 type ast         = Z3.ast
-type symbol      = Z3.symbol 
 type fun_decl    = Z3.func_decl 
 
 (** val var : smt_context -> smt_symbol -> So.t -> ast *)
