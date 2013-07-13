@@ -118,7 +118,12 @@ end
 module type PROVER = 
 sig
   type t 
- 
+
+  (* theory interface *)
+  val is_interp   : Ast.Sort.tycon -> bool
+  val interp_syms : () -> (Ast.Symbol.t * Ast.Sort.t) list
+
+  (* constraint solving interface *)
   val create      : Ast.Sort.t list                         (* sorts        *) 
                     -> Ast.Sort.t Ast.Symbol.SMap.t         (* environment  *)
                     -> Ast.pred list                        (* axioms       *) 
@@ -133,21 +138,15 @@ sig
                     -> 'a list
 
   val print_stats : Format.formatter -> t -> unit
-
-  (*
-  val unsat_cores : t                                       
-                    -> Ast.Sort.t Ast.Symbol.SMap.t 
-                    -> Ast.pred                             (* background predicate   *)
-                    -> ('a * Ast.pred) list                 (* [(index, killer-fact)] *)
-                    -> ('b * Ast.pred) list                 (* [(index, killed-fact)] *)
-                    -> ('b * 'a list) list                  (* [(killed, killers)]    *)
-
-  *)
- 
+  
+  
+  (* Counterexample Interface *) 
+  
   val is_contra   : t  
                     -> Ast.Sort.t Ast.Symbol.SMap.t 
                     -> Ast.pred
                     -> bool
+
 
   val unsat_core  : t                                       
                     -> Ast.Sort.t Ast.Symbol.SMap.t 

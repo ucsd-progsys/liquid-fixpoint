@@ -27,9 +27,10 @@ module Sy = Ast.Symbol
 open ProverArch
 open FixMisc.Ops
 
-module MakeTheory(SMT : SMTSOLVER): (THEORY with smt_context = SMT.context 
-                                            and  smt_sort    = SMT.sort
-                                            and  smt_ast     = SMT.ast) 
+module MakeTheory(SMT : SMTSOLVER): 
+  (THEORY with type context = SMT.context 
+          and  type sort    = SMT.sort
+          and  type ast     = SMT.ast) 
   = struct 
 
 type context = SMT.context
