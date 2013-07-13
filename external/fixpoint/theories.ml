@@ -114,7 +114,13 @@ let set_sub : appDef =
   }
 
 (* API *)
-let set_theory = ([set_set], [set_emp; set_sng; set_mem; set_cup; set_cap; set_dif; set_sub])
+let set_theory = ([set_set], [set_emp; 
+                              set_sng; 
+                              set_mem; 
+                              set_cup; 
+                              set_cap; 
+                              set_dif; 
+                              set_sub])
 
 (***************************************************************************)
 (********* Wrappers Around Z3 Constructors For Last-Minute Checking ********)
@@ -152,12 +158,3 @@ let theories () = set_theory
 
 (* API *)
 let is_interp t = (t = set_tycon)
-
-(*
-let symbols  () = 
-  Misc.map_partial begin function 
-    | Sym {sy_name = x; sy_sort = t} -> Some (x, t) 
-    | _                              -> None
-  end (theories ())
-
-*)
