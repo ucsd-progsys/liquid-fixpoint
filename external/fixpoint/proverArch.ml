@@ -21,22 +21,40 @@
  *
  *)
 
+(* Theories API *)
+
+module type THEORY = sig
+  
+  type smt_context
+  type smt_sort
+  type smt_ast
+  type appDef 
+  type sortDef 
+
+  val sym_sort    : appDef  -> Ast.Sort.t
+  val sym_name    : appDef  -> Ast.Symbol.t
+  val sort_name   : sortDef -> Ast.Sort.tycon
+  val theories    : unit -> sortDef list * appDef list
+  val mk_thy_sort : sortDef -> smt_context -> smt_sort list -> smt_sort
+  val mk_thy_app  : appDef  -> smt_context -> smt_sort list -> smt_ast list -> smt_ast
+  val is_interp   : Ast.Sort.tycon -> bool
+end
+
 (* Theorem Prover API *)
 
 (* RJ: This is CLEARLY the wrong API and in need of a major refactoring. *)
 
-(*
-module type SMT = sig
+module type SMTSOLVER = sig
   
   type context
+  type symbol 
   type ast
   type sort
-  type func_decl
+  type fun_decl
 
-  val smtVar : context -> Sy.t -> So.t -> ast 
+  val var : context -> symbol -> sort -> ast 
 
 end
-*)
 
 module type PROVER = 
 sig

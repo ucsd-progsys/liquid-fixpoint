@@ -22,21 +22,24 @@
 
 module So = Ast.Sort
 module Sy = Ast.Symbol
+(* module SMT  = SmtZ3.SMTZ3 *)
 
+open ProverArch
 open FixMisc.Ops
 
-
-
-
+module MakeTheory(SMT : SMTSOLVER): (THEORY with smt_context = SMT.context 
+                                            and  smt_sort    = SMT.sort
+                                            and  smt_ast     = SMT.ast) 
+  = struct 
 
 type appDef  = { sy_name  : Sy.t
                ; sy_sort  : So.t
-               ; sy_emb   : Z3.context -> Z3.sort list -> Z3.ast list -> Z3.ast
+               ; sy_emb   : SMT.context -> SMT.sort list -> SMT.ast list -> SMT.ast
                }
 
 type sortDef = { so_name  : Ast.Sort.tycon
                ; so_arity : int
-               ; so_emb   : Z3.context -> Z3.sort list -> Z3.sort 
+               ; so_emb   : SMT.context -> SMT.sort list -> SMT.sort 
                }
 
 (* API *)
@@ -55,7 +58,7 @@ let set_set : sortDef =
   { so_name  = set_tycon 
   ; so_arity = 1 
   ; so_emb   = fun c -> function 
-                 [t] -> Z3.mk_set_sort c t
+                 [t] -> SMT.mkSetSort c t
                  | _ -> assertf "Set_set: type mismatch"
   }  
 
@@ -63,7 +66,7 @@ let set_emp : appDef  =
   { sy_name  = Sy.of_string "Set_emp"
   ; sy_sort  = So.t_func 1 [t_set (So.t_generic 0); So.t_bool]
   ; sy_emb   = fun c ts es -> match ts, es with
-                 | [t], [e] -> Z3.mk_eq c e (Z3.mk_empty_set c t)
+                 | [t], [e] -> SMT.mkEq c e (SMT.mkEmptySet c t)
                  | _        -> assertf "Set_emp: type mismatch"
   }
 
@@ -71,7 +74,7 @@ let set_sng : appDef  =
   { sy_name = Sy.of_string "Set_sng"
   ; sy_sort = So.t_func 1 [So.t_generic 0; t_set (So.t_generic 0)] 
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e] -> Z3.mk_set_add c (Z3.mk_empty_set c t) e
+                 | [t], [e] -> SMT.mkSetAdd c (SMT.mkEmptySet c t) e
                  | _        -> assertf "Set_sng: type mismatch"
   }
 
@@ -80,7 +83,7 @@ let set_mem : appDef  =
   { sy_name = Sy.of_string "Set_mem"
   ; sy_sort = So.t_func 1 [So.t_generic 0; t_set (So.t_generic 0); So.t_bool] 
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e;es] -> Z3.mk_set_member c e es 
+                 | [t], [e;es] -> SMT.mkSetMem c e es 
                  | _           -> assertf "Set_mem: type mismatch"
   }
 
@@ -88,7 +91,7 @@ let set_cup : appDef  =
   { sy_name = Sy.of_string "Set_cup"
   ; sy_sort = So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)]
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e1;e2] -> Z3.mk_set_union c [| e1; e2 |] 
+                 | [t], [e1;e2] -> SMT.mkSetCup c [| e1; e2 |] 
                  | _            -> assertf "Set_cup: type mismatch"
   }
 
@@ -96,7 +99,7 @@ let set_cap : appDef  =
   { sy_name = Sy.of_string "Set_cap"
   ; sy_sort = So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)] 
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e1;e2] -> Z3.mk_set_intersect c [| e1; e2 |] 
+                 | [t], [e1;e2] -> SMT.mkSetCap  c [| e1; e2 |] 
                  | _            -> assertf "Set_cap: type mismatch"
   }
 
@@ -104,7 +107,7 @@ let set_dif : appDef  =
   { sy_name = Sy.of_string "Set_dif"
   ; sy_sort = So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)]
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e1;e2] -> Z3.mk_set_difference c e1 e2 
+                 | [t], [e1;e2] -> SMT.mkSetDif c e1 e2 
                  | _            -> assertf "Set_dif: type mismatch"
   }
 
@@ -112,7 +115,7 @@ let set_sub : appDef =
   { sy_name = Sy.of_string "Set_sub"
   ; sy_sort = So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); So.t_bool] 
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e1;e2] -> Z3.mk_set_subset c e1 e2 
+                 | [t], [e1;e2] -> SMT.mkSetSub c e1 e2 
                  | _            -> assertf "Set_dif: type mismatch"
   }
 
@@ -161,3 +164,5 @@ let theories () = set_theory
 
 (* API *)
 let is_interp t = (t = set_tycon)
+
+end

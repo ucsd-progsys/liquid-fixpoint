@@ -36,6 +36,7 @@ module Misc = FixMisc open Misc.Ops
 module SSM = Misc.StringMap
 module Th = Theories
 
+module SMTZ3 : ProverArch.SMTSOLVER = struct
 
 let mydebug = false 
 
@@ -82,7 +83,7 @@ let mkAll = Z3.mk_forall
 (** val mkEq : smt_context -> ast -> ast -> ast *)
 let mkEq = Z3.mk_eq
 
-(** val mkNe : smt_context -> ast array -> ast      *) 
+(** val mkNe : smt_context -> ast array -> ast  *) 
 let mkNe = Z3.mk_distinct 
 
 (** val mkGt : smt_context -> ast -> ast -> ast *) 
@@ -106,19 +107,28 @@ let mkSub = Z3.mk_sub
 let mkMod = Z3.mk_mod 
 let mkIte = Z3.mk_ite
 
-let mkInt   = Z3.mk_int 
-let mkTrue  = Z3.mk_true
-let mkFalse = Z3.mk_false
-let mkNot   = Z3.mk_not
-let mkAnd   = Z3.mk_and 
-let mkOr    = Z3.mk_or
-let mkImp   = Z3.mk_implies
-let mkIff   = Z3.mk_iff
-
+let mkInt      = Z3.mk_int 
+let mkTrue     = Z3.mk_true
+let mkFalse    = Z3.mk_false
+let mkNot      = Z3.mk_not
+let mkAnd      = Z3.mk_and 
+let mkOr       = Z3.mk_or
+let mkImp      = Z3.mk_implies
+let mkIff      = Z3.mk_iff
 let astString  = Z3.ast_to_string 
 let mkIntSort  = Z3.mk_int_sort  
 let mkBoolSort = Z3.mk_bool_sort 
+let mkSetSort  = Z3.mk_set_sort  
+let mkEmptySet = Z3.mk_empty_set 
+let mkSetAdd   = Z3.mk_set_add
+let mkSetMem   = Z3.mk_set_member 
+let mkSetCup   = Z3.mk_set_union
+let mkSetCap   = Z3.mk_set_intersect
+let mkSetDif   = Z3.mk_set_difference
+let mkSetSub   = Z3.mk_set_subset 
 let mkContext  = Z3.mk_context_x 
+
+(*********************************************************)
 
 let z3push me =
   let _ = nb_push += 1 in
@@ -171,3 +181,5 @@ let print_stats ppf () =
   F.fprintf ppf
     "SMT stats: pushes=%d, pops=%d, unsats=%d \n" 
     !nb_push !nb_pop !nb_unsat 
+
+end
