@@ -84,18 +84,14 @@ semicolon-separated list of predicates:
 TpSmtLib
 ========
 
-Split: 
-    tpZ3Gen  = tpSmt + z3-instance
-    tpSMTLib = tpSmt + smtlib-instance
 
+1. TP = tpGen.ml + (smtX : SMT) 
 
-1. tpGen.ml + smtZ3
-            + smtCVC
-            + smtLIB
-            + smtALTERGO
-
-3. generalize into a SIG, make tp-* be parameterized by SIG
-4. write the smtlib instantiation of SIG
+2. Instantiate
+    + smtZ3     : SMT
+    + smtLIB    : SMT
+    ? smtCVC    : SMT
+    ? smtAltErgo: SMT
 
 Conversion to SMTLIB2 Horn Clauses
 ==================================
