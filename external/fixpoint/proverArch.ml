@@ -24,7 +24,6 @@
 (* Theories API *)
 
 module type THEORY = sig
-  
   type context
   type sort
   type ast
@@ -39,10 +38,6 @@ module type THEORY = sig
   val mk_thy_app  : appDef  -> context -> sort list -> ast list -> ast
   val is_interp   : Ast.Sort.tycon -> bool
 end
-
-(* Theorem Prover API *)
-
-(* RJ: This is CLEARLY the wrong API and in need of a major refactoring. *)
 
 module type SMTSOLVER = sig
  
@@ -115,13 +110,12 @@ module type SMTSOLVER = sig
   val print_stats   : Format.formatter -> unit -> unit
 end
 
-module type PROVER = 
-sig
+module type PROVER = sig
   type t 
 
   (* theory interface *)
   val is_interp   : Ast.Sort.tycon -> bool
-  val interp_syms : () -> (Ast.Symbol.t * Ast.Sort.t) list
+  val interp_syms : unit -> (Ast.Symbol.t * Ast.Sort.t) list
 
   (* constraint solving interface *)
   val create      : Ast.Sort.t list                         (* sorts        *) 
@@ -139,14 +133,12 @@ sig
 
   val print_stats : Format.formatter -> t -> unit
   
-  
   (* Counterexample Interface *) 
   
   val is_contra   : t  
                     -> Ast.Sort.t Ast.Symbol.SMap.t 
                     -> Ast.pred
                     -> bool
-
 
   val unsat_core  : t                                       
                     -> Ast.Sort.t Ast.Symbol.SMap.t 
