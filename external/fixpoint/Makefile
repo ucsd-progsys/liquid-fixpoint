@@ -29,7 +29,8 @@ all:
 	ln -sf ../misc
 	ocamlbuild -r $(LIBS) $(OFLAGS) -tags thread fixpoint.native
 	ocamlbuild -r $(OFLAGS) fix.cmxa
-	#cp _build/fixpoint.native .
+	rm -f fixpoint.native
+	cp _build/fixpoint.native .
 
 clean:
 	rm -rf *.byte *.native _build _log
