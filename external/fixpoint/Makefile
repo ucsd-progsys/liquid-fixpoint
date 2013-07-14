@@ -25,6 +25,8 @@ CFLAGS=-cflags -dtypes,-annot \
 
 OFLAGS=$(DIRS) $(IFLAGS) $(LFLAGS) $(CFLAGS)
 
+MLITARGET=toSmtLib.ml
+
 all:
 	ln -sf ../misc
 	ocamlbuild -r $(LIBS) $(OFLAGS) -tags thread fixpoint.native
@@ -35,5 +37,5 @@ all:
 clean:
 	rm -rf *.byte *.native _build _log
 
-smt:
-	ocamlc -I _build/ -I _build/misc/ -I $(Z3HOME)/lib -I $(Z3HOME)/ocaml -i smtZ3.ml
+mli:
+	ocamlc -I _build/ -I _build/misc/ -I $(Z3HOME)/lib -I $(Z3HOME)/ocaml -i $(MLITARGET)

@@ -230,8 +230,6 @@ and z3App me env p zes =
   let cf = z3Fun me env p t (List.length zes) in
   SMT.mkApp me.c cf (Array.of_list zes)
 
-(* HEREHEREHEREHERE *)
-
 and z3AppThy me env def tyo f es = 
   match A.sortcheck_app Th.is_interp (Misc.flip SM.maybe_find env) tyo f es with 
     | Some (s, t) ->
