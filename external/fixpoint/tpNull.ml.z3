@@ -23,4 +23,4 @@
 (* This file is part of the LiquidC Project *)
 
 (* USE THIS ON Z3-READY PLATFORMS e.g. Ubuntu *)
-module Prover : ProverArch.PROVER = TpZ3.Prover
+module Prover : ProverArch.PROVER = TpGen.MakeProver(SmtZ3.SMTZ3) 

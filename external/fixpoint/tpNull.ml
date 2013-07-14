@@ -22,5 +22,16 @@
 
 (* This file is part of the LiquidC Project *)
 
-(* USE THIS ON Z3-READY PLATFORMS e.g. Ubuntu *)
-module Prover : ProverArch.PROVER = TpGen.MakeProver(SmtZ3.SMTZ3) 
+(* USE THIS ON NON-Z3 PLATFORMS e.g. Mac *) 
+module Prover : ProverArch.PROVER = struct
+  type t                   = unit
+  let create _ _ _ _       = () 
+  let set_filter _ _ _ _ _ = failwith "TBD: TpNull.set_filter"
+  let print_stats _ _      = failwith "TBD: TpNull.print_stats"
+  let unsat_suffix _       = failwith "TBD: TpNull.unsat_suffix" 
+  let unsat_core _         = failwith "TBD: TpNull.unsat_core"
+  let is_contra   _        = failwith "TBD: TpNull.is_contra"  
+  let interp_syms _        = failwith "TBD: TpNull.interp_syms" 
+  let is_interp _          = failwith "TBD: TpNull.is_interp" 
+
+end
