@@ -93,6 +93,13 @@ TpSmtLib
     ? smtCVC    : SMT
     ? smtAltErgo: SMT
 
+3. 
+
+    Z3.push
+    Z3.pop
+    Z3.check me = Z3.L-FALSE
+    Z3.assert_cnstr 
+
 Conversion to SMTLIB2 Horn Clauses
 ==================================
 

@@ -103,8 +103,6 @@ module type SMTSOLVER = sig
   val assertAxiom   : context -> ast -> unit
   val assertPreds   : context -> ast list -> unit
   val unsat         : context -> bool
-  val valid         : context -> ast -> bool
-  val contra        : context -> ast -> bool
  
   (* Stats *)
   val print_stats   : Format.formatter -> unit -> unit

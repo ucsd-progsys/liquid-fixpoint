@@ -397,6 +397,11 @@ let prep_preds me env ps =
   let _  = me.vars <- Barrier :: me.vars in
   ps
 
+let valid me p = 
+  SMT.bracket me begin fun _ ->
+    SMT.assertPreds me [SMT.mkNot me p];
+    BS.time "unsat" SMT.unsat me 
+  end
 
 (* API *)
 let set_filter (me: t) (env: So.t SM.t) (vv: Sy.t) ps qs =
@@ -404,10 +409,10 @@ let set_filter (me: t) (env: So.t SM.t) (vv: Sy.t) ps qs =
   let _   = handle_vv me env vv  in
   let zps = prep_preds me env ps in (* DO NOT PUSH INSIDE SMT.bracket or z3 blocks postests/ll3.c *)
   SMT.bracket me.c begin fun _ ->
-    let _        = SMT.assertPreds me.c zps                           in
+    let _        = SMT.assertPreds me.c zps                      in
     let tqs, fqs = List.partition (snd <+> P.is_tauto) qs        in
     let fqs      = fqs |> List.rev_map (Misc.app_snd (z3Pred me env))
-                       |> Misc.filter  (snd <+> SMT.valid me.c)  in 
+                       |> Misc.filter  (snd <+> valid me.c)      in 
     let _        = clean_decls me                                in
     (List.map fst tqs) ++ (List.map fst fqs)
   end
@@ -467,9 +472,15 @@ let unsat_core me env bgp ips =
       | _ -> []
       ************************************)
   end
- 
+
+let contra me p = 
+  SMT.bracket me begin fun _ ->
+    SMT.assertPreds me [p];
+    BS.time "unsat" SMT.unsat me 
+  end
+
 (* API *)
-let is_contra me env =  z3Pred me env <+> SMT.contra me.c 
+let is_contra me env =  z3Pred me env <+> contra me.c 
 
 (* API *)
 let unsat_suffix me env p ps =

@@ -60,9 +60,11 @@ type sort        = So.t
 type ast         = E of A.expr | P of A.pred 
 type fun_decl    = So.t 
 
-(* HEREHEREHERE *)
+let var _ x t    = let e = A.eVar x in 
+                   if So.is_bool t 
+                   then P (A.pBexp e) 
+                   else E e 
 
-let var          = Z3.mk_const 
 let boundVar     = Z3.mk_bound
 let stringSymbol = Z3.mk_string_symbol 
 let funcDecl     = Z3.mk_func_decl
@@ -158,19 +160,7 @@ let bracket me f = Misc.bracket (fun _ -> z3push me) (fun _ -> z3pop me) f
 (* Z3 API *)
 let assertPreds me ps = List.iter (fun p -> BS.time "Z3.ass_cst" (Z3.assert_cnstr me) p) ps
 
-(* Z3 API *)
-let valid me p = 
-  bracket me begin fun _ ->
-    assertPreds me [Z3.mk_not me p];
-    BS.time "unsat" unsat me 
-  end
 
-(* Z3 API *)
-let contra me p = 
-  bracket me begin fun _ ->
-    assertPreds me [p];
-    BS.time "unsat" unsat me 
-  end
 
 (* API *)
 let print_stats ppf () =
