@@ -48,14 +48,15 @@ module type SMTSOLVER = sig
   type sort
   type fun_decl
  
-  (* Relations *) 
+  (* Relations
   val mkEq : context -> ast -> ast -> ast
-  val mkNe : context -> ast array -> ast
+  val mkNe : context -> ast -> ast -> ast
   val mkGt : context -> ast -> ast -> ast
   val mkGe : context -> ast -> ast -> ast
   val mkLt : context -> ast -> ast -> ast
   val mkLe : context -> ast -> ast -> ast
- 
+  *)
+
   (* Expression *)
   val mkAll : context -> sort array -> symbol array -> ast -> ast
   val mkApp : context -> fun_decl -> ast array -> ast
@@ -70,11 +71,12 @@ module type SMTSOLVER = sig
   val mkTrue    : context -> ast
   val mkFalse   : context -> ast
   val mkNot     : context -> ast -> ast
-  val mkAnd     : context -> ast array -> ast
-  val mkOr      : context -> ast array -> ast
+  val mkAnd     : context -> ast array  -> ast
+  val mkOr      : context -> ast array  -> ast
   val mkImp     : context -> ast -> ast -> ast
   val mkIff     : context -> ast -> ast -> ast
- 
+  val mkRel     : context -> Ast.brel   -> ast -> ast -> ast 
+
   (* Conversions *)
   val astString : context -> ast -> string
 
@@ -88,24 +90,25 @@ module type SMTSOLVER = sig
   val mkSetSub      : context -> ast -> ast -> ast
 
   (* Constructors *)
-  val mkContext     : (string * string) array -> context
-  val mkIntSort     : context -> sort
-  val mkBoolSort    : context -> sort
-  val mkSetSort     : context -> sort -> sort
-  val var           : context -> symbol -> sort -> ast
-  val boundVar      : context -> int -> sort -> ast
-  val stringSymbol  : context -> string -> symbol
-  val funcDecl      : context -> symbol -> sort array -> sort -> fun_decl
-  val isBool        : context -> ast -> bool
+  val mkContext      : (string * string) array -> context
+  val mkIntSort      : context -> sort
+  val mkBoolSort     : context -> sort
+  val mkSetSort      : context -> sort -> sort
+  val var            : context -> symbol -> sort -> ast
+  val boundVar       : context -> int -> sort -> ast
+  val stringSymbol   : context -> string -> symbol
+  val funcDecl       : context -> symbol -> sort array -> sort -> fun_decl
+  val isBool         : context -> ast -> bool
   
   (* Queries *)
-  val bracket       : context -> (unit -> 'a) -> 'a
-  val assertAxiom   : context -> ast -> unit
-  val assertPreds   : context -> ast list -> unit
-  val unsat         : context -> bool
+  val bracket        : context -> (unit -> 'a) -> 'a
+  val assertAxiom    : context -> ast -> unit
+  val assertPreds    : context -> ast list -> unit
+  val assertDistinct : context -> ast array -> unit
+  val unsat          : context -> bool
  
   (* Stats *)
-  val print_stats   : Format.formatter -> unit -> unit
+  val print_stats    : Format.formatter -> unit -> unit
 end
 
 module type PROVER = sig

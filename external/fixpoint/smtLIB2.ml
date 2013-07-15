@@ -49,60 +49,70 @@ let nb_unsat     = ref 0
 let nb_pop       = ref 0
 let nb_push      = ref 0
 
-(********************************************************************************)
-(************************************ Types *************************************)
-(********************************************************************************)
+(***************************************************************)
+(***************** Interaction *********************************)
+(***************************************************************)
 
-type context     = unit         (* ??? *)
+type context  = unit (* ??? *)
 
-type symbol      = Sy.t 
-type sort        = So.t
-type ast         = E of A.expr | P of A.pred 
-type fun_decl    = So.t 
+let mkContext _ = () 
 
-let var _ x t    = let e = A.eVar x in 
-                   if So.is_bool t 
-                   then P (A.pBexp e) 
-                   else E e 
+(***************************************************************)
+(********************** Types **********************************)
+(***************************************************************)
 
-let boundVar     = Z3.mk_bound
-let stringSymbol = Z3.mk_string_symbol 
-let funcDecl     = Z3.mk_func_decl
+type symbol   = Sy.t 
+type sort     = So.t
+type ast      = E of A.expr | P of A.pred 
+type fun_decl = So.t 
 
-let astString   = Z3.ast_to_string 
+let var _ x t = 
+  let e = A.eVar x in 
+  if So.is_bool t then
+    P (A.pBexp e) 
+  else 
+    E e 
 
-let mkContext   = Z3.mk_context_x 
+let boundVar me i t 
+  = failwith "TODO:SMT.boundVar" (* Z3.mk_bound *)
 
-let isBool c a =
-  a |> Z3.get_sort c   
-    |> Z3.sort_to_string c
-    |> (=) "bool"
+let stringSymbol _ s 
+  = Sy.of_string s
 
-let isInt me a =
-  a |> Z3.get_sort me   
-    |> Z3.sort_to_string me
-    |> (=) "int"
+let funcDecl me s ta t 
+  = So.t_func 0 (Array.to_list ta ++ t) 
 
-(********************************************************************************)
-(***************************** AST Constructors *********************************)
-(********************************************************************************)
+let astString = function 
+  | E e -> E.to_string e
+  | P p -> P.to_string p
 
-let mkIntSort   = Z3.mk_int_sort  
-let mkBoolSort  = Z3.mk_bool_sort 
-let mkSetSort   = Z3.mk_set_sort  
+let isBool c a = failwith "TODO:SMT.isBool"
 
-let mkInt       = Z3.mk_int 
-let mkTrue      = Z3.mk_true
-let mkFalse     = Z3.mk_false
+(***********************************************************************)
+(*********************** AST Constructors ******************************)
+(***********************************************************************)
 
+(* THEORY = QF_UFLIA *)
 
-let mkAll me    = Z3.mk_forall me 0 [||]
-let mkEq        = Z3.mk_eq
-let mkNe        = Z3.mk_distinct 
-let mkGt        = Z3.mk_gt
-let mkGe        = Z3.mk_ge
-let mkLt        = Z3.mk_lt
-let mkLe        = Z3.mk_le
+let mkIntSort _    = So.t_int  
+let mkBoolSort _   = So.t_bool
+let mkSetSort _    = So.t_int
+
+let mkInt _ i _    = A.eInt
+let mkTrue _       = A.pTrue
+let mkFalse _      = A.pFalse 
+
+let mkAll me _ _ _ = failwith "TBD:SMT.mkAll"
+
+let mkRel r e1 e2  = A.pAtom (e1, r, e2)
+
+let mkEq me        = mkRel A.Eq
+let mkNe           = Z3.mk_distinct 
+let mkGt           = Z3.mk_gt
+let mkGe           = Z3.mk_ge
+let mkLt           = Z3.mk_lt
+let mkLe           = Z3.mk_le
+
 let mkApp       = Z3.mk_app
 let mkMul       = Z3.mk_mul
 let mkAdd       = Z3.mk_add 
@@ -159,8 +169,6 @@ let bracket me f = Misc.bracket (fun _ -> z3push me) (fun _ -> z3pop me) f
 
 (* Z3 API *)
 let assertPreds me ps = List.iter (fun p -> BS.time "Z3.ass_cst" (Z3.assert_cnstr me) p) ps
-
-
 
 (* API *)
 let print_stats ppf () =

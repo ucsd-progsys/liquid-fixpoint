@@ -210,14 +210,17 @@ let rec z3Rel me env (e1, r, e2) =
   (* let _  = F.printf "z3Rel: e = %a, res = %b \n" P.print p ok in
      let _  = F.print_flush ()                                   in *)
   if ok then 
-    let a1, a2 = Misc.map_pair (z3Exp me env) (e1, e2) in 
+    SMT.mkRel me.c r (z3Exp me env e1) (z3Exp me env e2)
+    (* let a1, a2 = Misc.map_pair (z3Exp me env) (e1, e2) in 
     match r with 
     | A.Eq -> SMT.mkEq me.c a1 a2 
-    | A.Ne -> SMT.mkNe me.c [|a1; a2|]
+    | A.Ne -> SMT.mkNe me.c a1 a2
     | A.Gt -> SMT.mkGt me.c a1 a2
     | A.Ge -> SMT.mkGe me.c a1 a2
     | A.Lt -> SMT.mkLt me.c a1 a2
     | A.Le -> SMT.mkLe me.c a1 a2
+    *)
+
   else begin 
     SM.iter (fun s t -> F.printf "@[%a :: %a@]@." Sy.print s So.print t) env;
     F.printf "@[%a@]@.@." P.print (A.pAtom (e1, r, e2));
@@ -304,13 +307,15 @@ and z3Pred me env = function
       z3Rel me env (e1, r, e2)
   | A.Bexp e, _ -> 
       let a  = z3Exp me env e in
-      let s1 = SMT.astString me.c a in
-      let s2 = E.to_string e in
+      let s2  = E.to_string e in
       let Some so = A.sortcheck_expr Th.is_interp (Misc.flip SM.maybe_find env) e in
       let sos = So.to_string so in
-      let _  = asserts (SMT.isBool me.c a) "Bexp is not bool (e = %s)! z3=%s, fix=%s, sort=%s" 
-                                         (E.to_string e) s1 s2 sos in 
-      a
+      let s1  = SMT.astString me.c a in
+      let _   = asserts (SMT.isBool me.c a) 
+                        "Bexp is not bool (e = %s)! z3=%s, fix=%s, sort=%s" 
+                        (E.to_string e) s1 s2 sos 
+      in a
+
   | A.Forall (xts, p), _ -> 
       let (xs, ts) = List.split xts                                  in
       let zargs    = Array.of_list (List.map2 (z3Bind me env) xs ts) in
@@ -360,17 +365,15 @@ let create_theories () =
   Th.theories () 
   |> (Misc.hashtbl_of_list_with Th.sort_name <**> Misc.hashtbl_of_list_with Th.sym_name)
 
-let mkDistinct me env = 
-  List.map (z3Var me env) <+> Array.of_list <+> SMT.mkNe me.c
-
 let assert_distinct_constants me env = function [] -> () | cs -> 
   cs |> Misc.kgroupby (varSort env) 
      |> List.iter begin fun (_, xs) ->
-          xs >> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print)
-             |> mkDistinct me env  
-             |> SMT.assertAxiom me.c
+         xs >> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print)
+            |> List.map (z3Var me env) 
+            |> Array.of_list 
+            |> SMT.assertDistinct me.c
          end
- 
+
 (* API *)
 let create ts env ps consts =
   let _        = asserts (ts = []) "ERROR: TPZ3-create non-empty sorts!" in
@@ -436,7 +439,7 @@ let mk_prop_var me pfx i : SMT.ast =
 let mk_prop_var_idx me ipa : (SMT.ast array * (SMT.ast -> 'a option)) =
   let va  = Array.mapi (fun i _ -> mk_prop_var me "uc_p_" i) ipa in
   let vm  = va 
-            |> Array.map (SMT.astString me.c)
+            |> Array.map   (SMT.astString me.c)
             |> Misc.array_to_index_list 
             |> List .map Misc.swap 
             |> SSM.of_list in 

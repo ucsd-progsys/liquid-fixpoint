@@ -72,7 +72,7 @@ let set_emp : appDef  =
   { sy_name  = Sy.of_string "Set_emp"
   ; sy_sort  = So.t_func 1 [t_set (So.t_generic 0); So.t_bool]
   ; sy_emb   = fun c ts es -> match ts, es with
-                 | [t], [e] -> SMT.mkEq c e (SMT.mkEmptySet c t)
+                 | [t], [e] -> SMT.mkRel c Ast.Eq e (SMT.mkEmptySet c t)
                  | _        -> assertf "Set_emp: type mismatch"
   }
 

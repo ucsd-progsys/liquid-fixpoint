@@ -62,7 +62,7 @@ module Sort =
       | Obj
       | Var of int              (* type-var *)
       | Ptr of loc              (* c-pointer *)
-      | Func of int * t list    (* type-var-arity, in-types @ [out-type] *)
+      | Func of int * t list    (* type-var-arity, in-types @ [out-type]      *)
       | Num                     (* kind, for numeric tyvars -- ptr(loc(s)) -- *)
       | App of tycon * t list   (* type constructors *)
 
@@ -594,6 +594,7 @@ let pImp   = fun (p1,p2) -> pwr (Imp (p1,p2))
 let pIff   = fun (p1,p2) -> pwr (Iff (p1,p2))
 let pForall= fun (qs, p) -> pwr (Forall (qs, p))
 let pEqual = fun (e1,e2) -> pAtom (e1, Eq, e2)
+
 
 let pAnd   = fun ps -> match Misc.flap conjuncts ps with 
                        | []  -> pTrue 

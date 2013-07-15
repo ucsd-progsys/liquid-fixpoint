@@ -84,7 +84,6 @@ semicolon-separated list of predicates:
 TpSmtLib
 ========
 
-
 1. TP = tpGen.ml + (smtX : SMT) 
 
 2. Instantiate
@@ -93,12 +92,14 @@ TpSmtLib
     ? smtCVC    : SMT
     ? smtAltErgo: SMT
 
-3. 
-
+3.  HEREHEREHEREHERE 
     Z3.push
     Z3.pop
     Z3.check me = Z3.L-FALSE
     Z3.assert_cnstr 
+
+
+
 
 Conversion to SMTLIB2 Horn Clauses
 ==================================

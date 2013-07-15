@@ -69,13 +69,25 @@ let isInt me a =
     |> Z3.sort_to_string me
     |> (=) "int"
 
-let mkAll me = Z3.mk_forall me 0 [||]
-let mkEq = Z3.mk_eq
-let mkNe = Z3.mk_distinct 
-let mkGt = Z3.mk_gt
-let mkGe = Z3.mk_ge
-let mkLt = Z3.mk_lt
-let mkLe = Z3.mk_le
+let mkAll me     = Z3.mk_forall me 0 [||]
+
+let mkRel c r a1 a2 = match r with
+  | A.Eq -> Z3.mk_eq c a1 a2  
+  | A.Ne -> Z3.mk_distinct c [| a1; a2 |]
+  | A.Gt -> Z3.mk_gt c a1 a2 
+  | A.Ge -> Z3.mk_ge c a1 a2
+  | A.Lt -> Z3.mk_lt c a1 a2
+  | A.Le -> Z3.mk_le c a1 a2
+
+(* 
+let mkEq         = Z3.mk_eq
+let mkNe c e1 e2 = Z3.mk_distinct c [| e1; e2 |]
+let mkGt         = Z3.mk_gt
+let mkGe         = Z3.mk_ge
+let mkLt         = Z3.mk_lt
+let mkLe         = Z3.mk_le
+*)
+
 let mkApp = Z3.mk_app
 let mkMul = Z3.mk_mul
 let mkAdd = Z3.mk_add 
@@ -126,11 +138,15 @@ let unsat =
     let _  = if rv then ignore (nb_unsat += 1) in 
     rv
 
-(* Z3 API *)
+(* API *)
 let assertAxiom me p =
   Co.bprintf mydebug "@[Pushing axiom %s@]@." (astString me p); 
   BS.time "Z3 assert axiom" (Z3.assert_cnstr me) p;
   asserts (not (unsat me)) "ERROR: Axiom makes background theory inconsistent!"
+
+(* API *)
+let assertDistinct me xs =
+  assertAxiom me (Z3.mk_distinct me xs)
 
 (* Z3 API *)
 let bracket me f = Misc.bracket (fun _ -> z3push me) (fun _ -> z3pop me) f
