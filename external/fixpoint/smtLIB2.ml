@@ -64,7 +64,7 @@ let mkContext _ = ()
 type symbol   = Sy.t 
 type sort     = So.t
 type ast      = E of A.expr | P of A.pred 
-type fun_decl = So.t 
+type fun_decl = {fun_name : Sy.t; fun_sort : So.t}
 
 let var _ x t = 
   let e = A.eVar x in 
@@ -74,19 +74,21 @@ let var _ x t =
     E e 
 
 let boundVar me i t 
-  = failwith "TODO:SMT.boundVar" (* Z3.mk_bound *)
+  = failwith "TODO:SMTLib2.boundVar" (* Z3.mk_bound *)
 
 let stringSymbol _ s 
   = Sy.of_string s
 
 let funcDecl me s ta t 
-  = So.t_func 0 (Array.to_list ta ++ t) 
+  = { fun_name = s
+    ; fun_sort = So.t_func 0 (Array.to_list ta ++ [t])
+    }
 
-let astString = function 
+let astString _ = function 
   | E e -> E.to_string e
   | P p -> P.to_string p
 
-let isBool c a = failwith "TODO:SMT.isBool"
+let isBool c a = failwith "TODO:SMTLib2.isBool"
 
 (***********************************************************************)
 (*********************** AST Constructors ******************************)
@@ -96,43 +98,61 @@ let isBool c a = failwith "TODO:SMT.isBool"
 
 let mkIntSort _    = So.t_int  
 let mkBoolSort _   = So.t_bool
-let mkSetSort _    = So.t_int
+let mkSetSort _ _  = failwith "TODO:SMTLib2.mkSetSort"
 
-let mkInt _ i _    = A.eInt
-let mkTrue _       = A.pTrue
-let mkFalse _      = A.pFalse 
+let mkInt _ i _    = E (A.eInt i)
+let mkTrue _       = P A.pTrue
+let mkFalse _      = P A.pFalse 
 
-let mkAll me _ _ _ = failwith "TBD:SMT.mkAll"
+let mkAll _ _ _ _ = failwith "TBD:SMT.mkAll"
 
-let mkRel r e1 e2  = A.pAtom (e1, r, e2)
+let getExpr = function
+  | E e -> e
+  | _   -> assertf "smtLIB2.getExpr"
 
-let mkEq me        = mkRel A.Eq
-let mkNe           = Z3.mk_distinct 
-let mkGt           = Z3.mk_gt
-let mkGe           = Z3.mk_ge
-let mkLt           = Z3.mk_lt
-let mkLe           = Z3.mk_le
+let getPred = function
+  | P p -> p
+  | _   -> assertf "smtLIB2.getPred"
 
-let mkApp       = Z3.mk_app
-let mkMul       = Z3.mk_mul
-let mkAdd       = Z3.mk_add 
-let mkSub       = Z3.mk_sub
-let mkMod       = Z3.mk_mod 
-let mkIte       = Z3.mk_ite
+let mkRel _ r a1 a2 
+  = P (A.pAtom (getExpr a1, r, getExpr a2))
 
-let mkNot       = Z3.mk_not
-let mkAnd       = Z3.mk_and 
-let mkOr        = Z3.mk_or
-let mkImp       = Z3.mk_implies
-let mkIff       = Z3.mk_iff
+let mkApp _ f az 
+  = E (A.eApp (f.fun_name, List.map getExpr az))
 
-let mkEmptySet  = Z3.mk_empty_set 
-let mkSetAdd    = Z3.mk_set_add
-let mkSetMem    = Z3.mk_set_member 
-let mkSetCup    = Z3.mk_set_union
-let mkSetCap    = Z3.mk_set_intersect
-let mkSetDif    = Z3.mk_set_difference
-let mkSetSub    = Z3.mk_set_subset 
+let mkOp op a1 a2
+  = E (A.eBin (getExpr a1, op, getExpr a2))
+
+let mkMul _ = mkOp A.Times  
+let mkAdd _ = mkOp A.Plus
+let mkSub _ = mkOp A.Minus
+let mkMod _ = mkOp A.Mod
+
+let mkIte _ a1 a2 a3 
+  = E (A.eIte (getPred a1, getExpr a2, getExpr a3))
+
+let mkNot _ a 
+  = P (A.pNot (getPred a))
+
+let mkAnd _ az  
+  = P (A.pAnd (List.map getPred az))
+
+let mkOr _ az 
+  = P (A.pOr (List.map getPred az))
+
+let mkImp _ a1 a2 
+  = P (A.pImp (getPred a1, getPred a2))
+
+let mkIff _ a1 a2 
+  = P (A.pIff (getPred a1, getPred a2))
+
+let mkEmptySet _ = failwith "TODO:SMTLIB2.set-theory" 
+let mkSetAdd   _ = failwith "TODO:SMTLIB2.set-theory"
+let mkSetMem   _ = failwith "TODO:SMTLIB2.set-theory"
+let mkSetCup   _ = failwith "TODO:SMTLIB2.set-theory"
+let mkSetCap   _ = failwith "TODO:SMTLIB2.set-theory"
+let mkSetDif   _ = failwith "TODO:SMTLIB2.set-theory" 
+let mkSetSub   _ = failwith "TODO:SMTLIB2.set-theory"
 
 (********************************************************************************)
 (************************************ Queries ***********************************)
@@ -148,7 +168,7 @@ let z3pop me =
   BS.time "Z3.pop" (Z3.pop me) 1 
 
 
-(* Z3 API *)
+(* API *)
 let unsat =  
   let us_ref = ref 0 in
   fun me ->
@@ -158,16 +178,19 @@ let unsat =
     let _  = if rv then ignore (nb_unsat += 1) in 
     rv
 
-(* Z3 API *)
+(* API *)
 let assertAxiom me p =
-  Co.bprintf mydebug "@[Pushing axiom %s@]@." (astString me p); 
+  (* Co.bprintf mydebug "@[Pushing axiom %s@]@." (astString me p); *)
   BS.time "Z3 assert axiom" (Z3.assert_cnstr me) p;
   asserts (not (unsat me)) "ERROR: Axiom makes background theory inconsistent!"
 
-(* Z3 API *)
+(* API *)
+let assertDistinct me xs = failwith "TODO:SMTLIB2.assertDistinct"
+
+(* API *)
 let bracket me f = Misc.bracket (fun _ -> z3push me) (fun _ -> z3pop me) f
 
-(* Z3 API *)
+(* API *)
 let assertPreds me ps = List.iter (fun p -> BS.time "Z3.ass_cst" (Z3.assert_cnstr me) p) ps
 
 (* API *)

@@ -211,16 +211,6 @@ let rec z3Rel me env (e1, r, e2) =
      let _  = F.print_flush ()                                   in *)
   if ok then 
     SMT.mkRel me.c r (z3Exp me env e1) (z3Exp me env e2)
-    (* let a1, a2 = Misc.map_pair (z3Exp me env) (e1, e2) in 
-    match r with 
-    | A.Eq -> SMT.mkEq me.c a1 a2 
-    | A.Ne -> SMT.mkNe me.c a1 a2
-    | A.Gt -> SMT.mkGt me.c a1 a2
-    | A.Ge -> SMT.mkGe me.c a1 a2
-    | A.Lt -> SMT.mkLt me.c a1 a2
-    | A.Le -> SMT.mkLe me.c a1 a2
-    *)
-
   else begin 
     SM.iter (fun s t -> F.printf "@[%a :: %a@]@." Sy.print s So.print t) env;
     F.printf "@[%a@]@.@." P.print (A.pAtom (e1, r, e2));
@@ -231,7 +221,7 @@ let rec z3Rel me env (e1, r, e2) =
 and z3App me env p zes =
   let t  = funSort env p                      in
   let cf = z3Fun me env p t (List.length zes) in
-  SMT.mkApp me.c cf (Array.of_list zes)
+  SMT.mkApp me.c cf zes
 
 and z3AppThy me env def tyo f es = 
   match A.sortcheck_app Th.is_interp (Misc.flip SM.maybe_find env) tyo f es with 
@@ -247,11 +237,11 @@ and z3AppThy me env def tyo f es =
 and z3Mul me env = function
   | ((A.Con (A.Constant.Int i), _), e) 
   | (e, (A.Con (A.Constant.Int i), _)) ->
-      SMT.mkMul me.c [|( SMT.mkInt me.c i me.tint); (z3Exp me env e)|] 
+      SMT.mkMul me.c (SMT.mkInt me.c i me.tint) (z3Exp me env e) 
   | (e1, e2) when !Co.uif_multiply -> 
       z3App me env mul_n (List.map (z3Exp me env) [e1; e2])
   | (e1, e2) -> 
-      SMT.mkMul me.c (Array.map (z3Exp me env) [| e1; e2 |])
+      SMT.mkMul me.c (z3Exp me env e1) (z3Exp me env e2)
 
 and z3Exp me env = function
   | A.Con (A.Constant.Int i), _ -> 
@@ -265,9 +255,9 @@ and z3Exp me env = function
   | A.App (f, es), _  -> 
       z3App me env f (List.map (z3Exp me env) es)
   | A.Bin (e1, A.Plus, e2), _ ->
-      SMT.mkAdd me.c (Array.map (z3Exp me env) [|e1; e2|])
+      SMT.mkAdd me.c (z3Exp me env e1) (z3Exp me env e2)
   | A.Bin (e1, A.Minus, e2), _ ->
-      SMT.mkSub me.c (Array.map (z3Exp me env) [|e1; e2|])
+      SMT.mkSub me.c (z3Exp me env e1) (z3Exp me env e2)
   | A.Bin((A.Con (A.Constant.Int n1), _), A.Times, (A.Con (A.Constant.Int n2), _)),_ ->
       SMT.mkInt me.c (n1 * n2) me.tint
   | A.Bin (e1, A.Times, e2), _ ->
@@ -296,9 +286,9 @@ and z3Pred me env = function
   | A.Not p, _ -> 
       SMT.mkNot  me.c (z3Pred me env p)
   | A.And ps, _ -> 
-      SMT.mkAnd me.c (Array.of_list (List.map (z3Pred me env) ps))
+      SMT.mkAnd me.c (List.map (z3Pred me env) ps)
   | A.Or ps, _  -> 
-      SMT.mkOr  me.c (Array.of_list (List.map (z3Pred me env) ps))
+      SMT.mkOr  me.c (List.map (z3Pred me env) ps)
   | A.Imp (p1, p2), _ -> 
       SMT.mkImp me.c (z3Pred me env p1) (z3Pred me env p2)
   | A.Iff (p1, p2), _ ->

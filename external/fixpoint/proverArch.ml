@@ -47,22 +47,13 @@ module type SMTSOLVER = sig
   type ast
   type sort
   type fun_decl
- 
-  (* Relations
-  val mkEq : context -> ast -> ast -> ast
-  val mkNe : context -> ast -> ast -> ast
-  val mkGt : context -> ast -> ast -> ast
-  val mkGe : context -> ast -> ast -> ast
-  val mkLt : context -> ast -> ast -> ast
-  val mkLe : context -> ast -> ast -> ast
-  *)
 
   (* Expression *)
   val mkAll : context -> sort array -> symbol array -> ast -> ast
-  val mkApp : context -> fun_decl -> ast array -> ast
-  val mkMul : context -> ast array -> ast
-  val mkAdd : context -> ast array -> ast
-  val mkSub : context -> ast array -> ast
+  val mkApp : context -> fun_decl -> ast list -> ast
+  val mkMul : context -> ast -> ast -> ast
+  val mkAdd : context -> ast -> ast -> ast
+  val mkSub : context -> ast -> ast -> ast
   val mkMod : context -> ast -> ast -> ast
   
   (* Predicates *)
@@ -71,8 +62,8 @@ module type SMTSOLVER = sig
   val mkTrue    : context -> ast
   val mkFalse   : context -> ast
   val mkNot     : context -> ast -> ast
-  val mkAnd     : context -> ast array  -> ast
-  val mkOr      : context -> ast array  -> ast
+  val mkAnd     : context -> ast list -> ast
+  val mkOr      : context -> ast list -> ast
   val mkImp     : context -> ast -> ast -> ast
   val mkIff     : context -> ast -> ast -> ast
   val mkRel     : context -> Ast.brel   -> ast -> ast -> ast 

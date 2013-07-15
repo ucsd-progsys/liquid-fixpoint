@@ -378,7 +378,7 @@ type tag = int
 
 type brel = Eq | Ne | Gt | Ge | Lt | Le 
 
-type bop  = Plus | Minus | Times | Div | Mod    (* NOTE: For "Mod" 2nd expr should be a constant or a var *)
+type bop  = Plus | Minus | Times | Div | Mod  (* NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 type expr = expr_int * tag 
     

@@ -73,26 +73,17 @@ let mkAll me = Z3.mk_forall me 0 [||]
 
 let mkRel c r a1 a2 
   = match r with
-  | A.Eq -> Z3.mk_eq c a1 a2  
+  | A.Eq -> Z3.mk_eq c          a1  a2  
   | A.Ne -> Z3.mk_distinct c [| a1; a2 |]
-  | A.Gt -> Z3.mk_gt c a1 a2 
-  | A.Ge -> Z3.mk_ge c a1 a2
-  | A.Lt -> Z3.mk_lt c a1 a2
-  | A.Le -> Z3.mk_le c a1 a2
+  | A.Gt -> Z3.mk_gt c          a1  a2 
+  | A.Ge -> Z3.mk_ge c          a1  a2
+  | A.Lt -> Z3.mk_lt c          a1  a2
+  | A.Le -> Z3.mk_le c          a1  a2
 
-(* 
-let mkEq         = Z3.mk_eq
-let mkNe c e1 e2 = Z3.mk_distinct c [| e1; e2 |]
-let mkGt         = Z3.mk_gt
-let mkGe         = Z3.mk_ge
-let mkLt         = Z3.mk_lt
-let mkLe         = Z3.mk_le
-*)
-
-let mkApp = Z3.mk_app
-let mkMul = Z3.mk_mul
-let mkAdd = Z3.mk_add 
-let mkSub = Z3.mk_sub
+let mkApp c f az  = Z3.mk_app c f (Array.of_list az)
+let mkMul c a1 a2 = Z3.mk_mul c [| a1; a2|]
+let mkAdd c a1 a2 = Z3.mk_add c [| a1; a2|]
+let mkSub c a1 a2 = Z3.mk_sub c [| a1; a2|]
 let mkMod = Z3.mk_mod 
 let mkIte = Z3.mk_ite
 
@@ -100,8 +91,8 @@ let mkInt      = Z3.mk_int
 let mkTrue     = Z3.mk_true
 let mkFalse    = Z3.mk_false
 let mkNot      = Z3.mk_not
-let mkAnd      = Z3.mk_and 
-let mkOr       = Z3.mk_or
+let mkAnd c az = Z3.mk_and c (Array.of_list az) 
+let mkOr c az  = Z3.mk_or c  (Array.of_list az) 
 let mkImp      = Z3.mk_implies
 let mkIff      = Z3.mk_iff
 let astString  = Z3.ast_to_string 
