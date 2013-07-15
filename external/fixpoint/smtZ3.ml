@@ -69,9 +69,10 @@ let isInt me a =
     |> Z3.sort_to_string me
     |> (=) "int"
 
-let mkAll me     = Z3.mk_forall me 0 [||]
+let mkAll me = Z3.mk_forall me 0 [||]
 
-let mkRel c r a1 a2 = match r with
+let mkRel c r a1 a2 
+  = match r with
   | A.Eq -> Z3.mk_eq c a1 a2  
   | A.Ne -> Z3.mk_distinct c [| a1; a2 |]
   | A.Gt -> Z3.mk_gt c a1 a2 
