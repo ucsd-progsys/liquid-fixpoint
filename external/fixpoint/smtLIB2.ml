@@ -79,9 +79,10 @@ type context    = unit (* ??? *)
 let mkContext _ = failwith "TBD:SMTLIB2.mkContext" 
 
 
+HEREHEREHEREHERE
+
 (* val interact : context -> cmd -> resp *)
 let interact me cmd = failwith "TBD:SMTLIB2.mkContext"
-
 
 (* API *)
 let smt_decl me x t 
