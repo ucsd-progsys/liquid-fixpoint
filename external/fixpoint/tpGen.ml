@@ -360,7 +360,6 @@ let assert_distinct_constants me env = function [] -> () | cs ->
      |> List.iter begin fun (_, xs) ->
          xs >> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print)
             |> List.map (z3Var me env) 
-            |> Array.of_list 
             |> SMT.assertDistinct me.c
          end
 
@@ -451,7 +450,6 @@ let unsat_core me env bgp ips =
   let zp    = ipa |> Array.mapi (fun i (_, p) -> SMT.mkIff me.c va.(i) p)
                   |> Array.to_list
                   |> (++) [p2z bgp]
-                  |> Array.of_list
                   |> SMT.mkAnd me.c in
   SMT.bracket me.c begin fun _ ->
     let _   = SMT.assertPreds me.c [zp] in

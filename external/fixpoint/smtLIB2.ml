@@ -50,14 +50,6 @@ let nb_pop       = ref 0
 let nb_push      = ref 0
 
 (***************************************************************)
-(***************** Interaction *********************************)
-(***************************************************************)
-
-type context  = unit (* ??? *)
-
-let mkContext _ = () 
-
-(***************************************************************)
 (********************** Types **********************************)
 (***************************************************************)
 
@@ -66,12 +58,80 @@ type sort     = So.t
 type ast      = E of A.expr | P of A.pred 
 type fun_decl = {fun_name : Sy.t; fun_sort : So.t}
 
-let var _ x t = 
-  let e = A.eVar x in 
+type cmd      = Push
+              | Pop
+              | CheckSat
+              | Declare     of symbol * sort
+              | AssertCnstr of ast
+              | Distinct    of ast list
+
+type resp     = Ok 
+              | Sat 
+              | Unsat 
+              | Error of string
+
+(***************************************************************)
+(***************** Contexts ************************************)
+(***************************************************************)
+
+type context    = unit (* ??? *)
+
+let mkContext _ = failwith "TBD:SMTLIB2.mkContext" 
+
+
+(* val interact : context -> cmd -> resp *)
+let interact me cmd = failwith "TBD:SMTLIB2.mkContext"
+
+
+(* API *)
+let smt_decl me x t 
+  = match interact me (Declare (x, t)) with
+  | Ok -> ()
+  | _  -> assertf "crash: SMTLIB2 smt_decl"
+
+(* API *)
+let smt_push me 
+  = match interact me Push with
+  | Ok -> (nb_push += 1); () 
+  | _  -> assertf "crash: SMTLIB2 smt_push"
+
+(* API *)
+let smt_pop me 
+  = match interact me Pop with
+  | Ok -> (nb_pop += 1); () 
+  | _  -> assertf "crash: SMTLIB2 smt_pop"
+
+(* API *)
+let smt_check_unsat me 
+  = match interact me CheckSat with
+  | Unsat -> true
+  | Sat   -> false
+  | _     -> assertf "crash: SMTLIB2 smt_check_unsat"
+
+(* API *)
+let smt_assert_cnstr me p 
+  = match interact me (AssertCnstr p) with
+  | Ok -> ()
+  | _  -> assertf "crash: SMTLIB2 smt_assert_cnstr"
+
+(* API *)
+let smt_assert_distinct me az
+  = match interact me (Distinct az) with
+  | Ok -> ()
+  | _  -> assertf "crash: SMTLIB2 smt_assert_distinct"
+
+
+(***************************************************************)
+(********************** Constructors ***************************)
+(***************************************************************)
+
+let var me x t =
+  let _ = smt_decl me x t in  
+  let e = A.eVar x        in 
   if So.is_bool t then
     P (A.pBexp e) 
-  else 
-    E e 
+  else
+    E e
 
 let boundVar me i t 
   = failwith "TODO:SMTLib2.boundVar" (* Z3.mk_bound *)
@@ -154,49 +214,45 @@ let mkSetCap   _ = failwith "TODO:SMTLIB2.set-theory"
 let mkSetDif   _ = failwith "TODO:SMTLIB2.set-theory" 
 let mkSetSub   _ = failwith "TODO:SMTLIB2.set-theory"
 
-(********************************************************************************)
-(************************************ Queries ***********************************)
-(********************************************************************************)
+(*******************************************************************)
+(*********************** Queries ***********************************)
+(*******************************************************************)
 
-let z3push me =
-  let _ = nb_push += 1 in
-  let _ = BS.time "Z3.push" Z3.push me in
-  () 
-
-let z3pop me =
-  let _ = incr nb_pop in
-  BS.time "Z3.pop" (Z3.pop me) 1 
-
+let us_ref = ref 0
 
 (* API *)
-let unsat =  
-  let us_ref = ref 0 in
-  fun me ->
-    let _  = if mydebug then (Printf.printf "[%d] UNSAT 1 " (us_ref += 1); flush stdout) in
-    let rv = (BS.time "Z3.check" Z3.check me) = Z3.L_FALSE in
-    let _  = if mydebug then (Printf.printf "UNSAT 2 \n"; flush stdout) in
-    let _  = if rv then ignore (nb_unsat += 1) in 
-    rv
+let unsat me =  
+  let _  = if mydebug then begin 
+              Printf.printf "[%d] UNSAT 1 " (us_ref += 1);
+              flush stdout
+           end 
+  in
+  let rv = BS.time "SMT.check_unsat" smt_check_unsat me               in
+  let _  = if mydebug then (Printf.printf "UNSAT 2 \n"; flush stdout) in
+  let _  = if rv then ignore (nb_unsat += 1) in 
+  rv
 
 (* API *)
-let assertAxiom me p =
-  (* Co.bprintf mydebug "@[Pushing axiom %s@]@." (astString me p); *)
-  BS.time "Z3 assert axiom" (Z3.assert_cnstr me) p;
-  asserts (not (unsat me)) "ERROR: Axiom makes background theory inconsistent!"
+let assertAxiom me p
+  = (* Co.bprintf mydebug "@[Pushing axiom %s@]@." (astString me p); *)
+    BS.time "Z3 assert axiom" (smt_assert_cnstr me) p;
+    asserts (not (unsat me)) "ERROR: Axiom makes background theory inconsistent!"
 
 (* API *)
-let assertDistinct me xs = failwith "TODO:SMTLIB2.assertDistinct"
+let assertDistinct 
+  = smt_assert_distinct
 
 (* API *)
-let bracket me f = Misc.bracket (fun _ -> z3push me) (fun _ -> z3pop me) f
+let bracket me f 
+  = Misc.bracket (fun _ -> smt_push me) (fun _ -> smt_pop me) f
 
 (* API *)
-let assertPreds me ps = List.iter (fun p -> BS.time "Z3.ass_cst" (Z3.assert_cnstr me) p) ps
+let assertPreds me ps 
+  = List.iter (fun p -> BS.time "assertPreds" (smt_assert_cnstr me) p) ps
 
 (* API *)
 let print_stats ppf () =
-  F.fprintf ppf
-    "SMT stats: pushes=%d, pops=%d, unsats=%d \n" 
-    !nb_push !nb_pop !nb_unsat 
+  F.fprintf ppf "SMT stats: pushes=%d, pops=%d, unsats=%d \n" 
+    !nb_push !nb_pop !nb_unsat
 
 end

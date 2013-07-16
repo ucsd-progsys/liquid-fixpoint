@@ -95,7 +95,7 @@ module type SMTSOLVER = sig
   val bracket        : context -> (unit -> 'a) -> 'a
   val assertAxiom    : context -> ast -> unit
   val assertPreds    : context -> ast list -> unit
-  val assertDistinct : context -> ast array -> unit
+  val assertDistinct : context -> ast list -> unit
   val unsat          : context -> bool
  
   (* Stats *)

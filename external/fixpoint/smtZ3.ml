@@ -138,7 +138,7 @@ let assertAxiom me p =
 
 (* API *)
 let assertDistinct me xs =
-  assertAxiom me (Z3.mk_distinct me xs)
+  xs |> Array.of_list |> Z3.mk_distinct me |> assertAxiom me
 
 (* Z3 API *)
 let bracket me f = Misc.bracket (fun _ -> z3push me) (fun _ -> z3pop me) f
