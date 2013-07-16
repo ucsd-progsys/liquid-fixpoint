@@ -53,15 +53,15 @@ let nb_push      = ref 0
 (********************** Types **********************************)
 (***************************************************************)
 
-type symbol   = Sy.t 
-type sort     = So.t
-type ast      = E of A.expr | P of A.pred 
-type fun_decl = {fun_name : Sy.t; fun_sort : So.t}
+type symbol   = string  (* Sy.t *)
+type sort     = string  (* So.t *)
+type ast      = string  (* E of A.expr | P of A.pred *) 
+type fun_decl = symbol 
 
 type cmd      = Push
               | Pop
               | CheckSat
-              | Declare     of symbol * sort
+              | Declare     of symbol * sort list * sort
               | AssertCnstr of ast
               | Distinct    of ast list
 
@@ -75,7 +75,6 @@ type solver   = Z3
 type context  = { cin  : in_channel
                 ; cout : out_channel
                 ; clog : out_channel }
-
 
 (******************************************************************)
 (**************** SMT IO ******************************************)
@@ -119,8 +118,8 @@ let spr = Printf.sprintf
 
 (* val interact : context -> cmd -> resp *)
 let interact me = function 
-  | Declare (x, t) -> 
-      let _ = smt_write me <| spr "(declare-fun %s %s)" x t in
+  | Declare (x, ts, t) -> 
+      let _ = smt_write me <| spr "(declare-fun %s (%s) %s)" x (String.concat " " ts) t in
       Ok 
   | Push -> 
       let _ = smt_write me <|     "(push)" in
@@ -138,110 +137,10 @@ let interact me = function
       let _ = smt_write me <| spr "(distinct %s)" (String.concat " " az) in
       Ok
 
-(* {{{ 
-  
-(***** Scoping ****************************************************************)
-
-let curVars = Stack.create ()
-
-let _ = Stack.push [] curVars
-
-let varInScope x =
-  let b = ref false in
-  Stack.iter (fun l -> if List.mem x l then b := true) curVars;
-  !b
-
-let pushScope () =
-  smt_write ~nl:(not !doingExtract) "(push) ";
-  incr depth;
-  Stack.push [] curVars;
-  ()
-
-let popScope () =
-  decr depth;
-  smt_write "(pop)";
-  ignore (Stack.pop curVars);
-  ()
-
-let inNewScope f =
-  pushScope ();
-  try
-    let x = f () in
-    let _ = popScope () in
-    x
-  with e ->
-    let _ = popScope () in (* in case exception is caught later *)
-    raise e
-
-(***** Querying ***************************************************************)
-
-let queryCount = ref 0
-
-let checkSat cap =
-  let rec readSat () =
-    match smt_read () with
-      | "sat"     -> "sat", true
-      | "unsat"   -> "unsat", false
-      | "unknown" -> "unknown", true
-      | "success" -> readSat ()
-      | s         -> z3err (spr "Zzz.checkSat: read weird string [%s]" s)
-  in
-  (* always print \n after (check-sat), to make sure z3 reads from pipe *)
-  smt_write ~tab:(not !doingExtract) ~nl:true "(check-sat)";
-  incr queryCount;
-  incrQueryRootCount ();
-  let (s,b) = readSat () in
-  smt_write (spr "; [%s] query %d (%s)" s !queryCount cap);
-  b
-
-let checkSat cap =
-  BNstats.time "Zzz.checkSat" checkSat cap
-
-let checkValid cap p =
-  pushScope ();
-  if p = pFls then () (* smt_write "(assert true)" *)
-  else if !doingExtract then
-    smt_write ~tab:false ~nl:false (spr "(assert (not %s))" (embedForm p))
-  else
-    smt_write (spr "(assert (not\n%s  %s))" (indent()) (embedForm p))
-  ;
-  let sat = checkSat cap in
-  popScope ();
-  not sat
-
-(***** Adding variables and formulas ******************************************)
-
-let assertFormula f =
-  if f <> pTru then
-    smt_write (spr "(assert\n%s  %s)" (indent()) (embedForm (simplify f)))
-
-let addBinding x t =
-  smt_write (spr "(declare-fun %s () DVal) ; depth %d" x !depth);
-  smt_write (spr "(assert (not (= %s bot)))" x);
-  if varInScope x then Log.warn (spr "already in scope in logic: %s\n" x);
-  Stack.push (x :: Stack.pop curVars) curVars;
-  assertFormula (applyTyp t (wVar x));
-  if Str.string_match (Str.regexp "^end_of_") x 0 then begin
-    smt_write "";
-    smt_write (String.make 80 ';');
-    smt_write (String.make 80 ';');
-    smt_write (String.make 80 ';');
-    smt_write "";
-  end;
-  ()
-
-}}} *)
-
-
-(***************************************************************************)
-(***************************************************************************)
-(***************************************************************************)
-
-
 
 (* API *)
-let smt_decl me x t 
-  = match interact me (Declare (x, t)) with
+let smt_decl me x ts t 
+  = match interact me (Declare (x, ts, t)) with
   | Ok -> ()
   | _  -> assertf "crash: SMTLIB2 smt_decl"
 
@@ -277,34 +176,6 @@ let smt_assert_distinct me az
   | _  -> assertf "crash: SMTLIB2 smt_assert_distinct"
 
 
-(***************************************************************)
-(********************** Constructors ***************************)
-(***************************************************************)
-
-let var me x t =
-  let _ = smt_decl me x t in  
-  let e = A.eVar x        in 
-  if So.is_bool t then
-    P (A.pBexp e) 
-  else
-    E e
-
-let boundVar me i t 
-  = failwith "TODO:SMTLib2.boundVar" (* Z3.mk_bound *)
-
-let stringSymbol _ s 
-  = Sy.of_string s
-
-let funcDecl me s ta t 
-  = { fun_name = s
-    ; fun_sort = So.t_func 0 (Array.to_list ta ++ [t])
-    }
-
-let astString _ = function 
-  | E e -> E.to_string e
-  | P p -> P.to_string p
-
-let isBool c a = failwith "TODO:SMTLib2.isBool"
 
 (***********************************************************************)
 (*********************** AST Constructors ******************************)
@@ -312,16 +183,30 @@ let isBool c a = failwith "TODO:SMTLib2.isBool"
 
 (* THEORY = QF_UFLIA *)
 
-let mkIntSort _    = So.t_int  
-let mkBoolSort _   = So.t_bool
+let stringSymbol _ s = s
+let astString _ a    = a 
+let isBool c a       = failwith "TODO:SMTLib2.isBool"
+let boundVar me i t  = failwith "TODO:SMTLib2.boundVar" (* Z3.mk_bound *)
+
+let var me x t =
+  let _ = smt_decl me x [] t in  
+  x 
+
+let funcDecl me s ta t =
+  let _ = smt_decl me s (Array.to_list ta) t in
+  s
+
+let mkIntSort _    = "Int"          
+let mkBoolSort _   = "Bool"         
 let mkSetSort _ _  = failwith "TODO:SMTLib2.mkSetSort"
 
-let mkInt _ i _    = E (A.eInt i)
-let mkTrue _       = P A.pTrue
-let mkFalse _      = P A.pFalse 
+let mkInt _ i _    = string_of_int i
+let mkTrue _       = "true"
+let mkFalse _      = "false" 
 
-let mkAll _ _ _ _ = failwith "TBD:SMT.mkAll"
+let mkAll _ _ _ _  = failwith "TODO:SMTLib2.mkAll"
 
+(*
 let getExpr = function
   | E e -> e
   | _   -> assertf "smtLIB2.getExpr"
@@ -329,38 +214,52 @@ let getExpr = function
 let getPred = function
   | P p -> p
   | _   -> assertf "smtLIB2.getPred"
+*)
 
 let mkRel _ r a1 a2 
-  = P (A.pAtom (getExpr a1, r, getExpr a2))
+  = match r with 
+  | A.Eq -> spr "(= %s %s)"       a1 a2 
+  | A.Ne -> spr "(not (= %s %s))" a1 a2 
+  | A.Gt -> spr "(>  %s %s)"      a1 a2 
+  | A.Ge -> spr "(>= %s %s)"      a1 a2 
+  | A.Lt -> spr "(<  %s %s)"      a1 a2 
+  | A.Le -> spr "(<= %s %s)"      a1 a2 
 
 let mkApp _ f az 
-  = E (A.eApp (f.fun_name, List.map getExpr az))
+  = spr "(%s %s)" f (String.concat " " az)
+
+let opStr = function
+  | A.Plus  -> "+"
+  | A.Minus -> "-"
+  | A.Times -> "*"
+  | A.Div   -> "/"
+  | A.Mod   -> "mod"
 
 let mkOp op a1 a2
-  = E (A.eBin (getExpr a1, op, getExpr a2))
-
+  = spr "(%s %s %s)" (opStr op) a1 a2
+  
 let mkMul _ = mkOp A.Times  
 let mkAdd _ = mkOp A.Plus
 let mkSub _ = mkOp A.Minus
 let mkMod _ = mkOp A.Mod
 
 let mkIte _ a1 a2 a3 
-  = E (A.eIte (getPred a1, getExpr a2, getExpr a3))
+  = spr "(%s %s %s)" a1 a2 a3
 
 let mkNot _ a 
-  = P (A.pNot (getPred a))
+  = spr "(not %s)" a 
 
 let mkAnd _ az  
-  = P (A.pAnd (List.map getPred az))
+  = spr "(and %s)" (String.concat " " az) 
 
 let mkOr _ az 
-  = P (A.pOr (List.map getPred az))
+  = spr "(or %s)" (String.concat " " az) 
 
 let mkImp _ a1 a2 
-  = P (A.pImp (getPred a1, getPred a2))
+  = spr "(=> %s %s)" a1 a2 
 
 let mkIff _ a1 a2 
-  = P (A.pIff (getPred a1, getPred a2))
+  = spr "(= %s %s)" a1 a2 
 
 let mkEmptySet _ = failwith "TODO:SMTLIB2.set-theory" 
 let mkSetAdd   _ = failwith "TODO:SMTLIB2.set-theory"
