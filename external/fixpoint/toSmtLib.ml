@@ -187,6 +187,8 @@ let rec print_sort ppf t = match So.func_of_t t with
         print_sort t
   | None -> 
       print_sort_base ppf t
+
+      
 (*
 let print_vdef ppf (x, t) = match So.func_of_t t with
   | Some (_, ts, t') when So.is_bool t' -> 

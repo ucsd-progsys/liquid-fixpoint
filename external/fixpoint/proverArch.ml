@@ -84,9 +84,9 @@ module type SMTSOLVER = sig
   val mkContext      : (string * string) array -> context
   val mkIntSort      : context -> sort
   val mkBoolSort     : context -> sort
-  val mkSetSort      : context -> sort -> sort
+  val mkSetSort      : context -> sort   -> sort
   val var            : context -> symbol -> sort -> ast
-  val boundVar       : context -> int -> sort -> ast
+  val boundVar       : context -> int    -> sort -> ast
   val stringSymbol   : context -> string -> symbol
   val funcDecl       : context -> symbol -> sort array -> sort -> fun_decl
   val isBool         : context -> ast -> bool
