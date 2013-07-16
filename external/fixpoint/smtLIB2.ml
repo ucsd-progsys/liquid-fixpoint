@@ -85,12 +85,12 @@ type context  = { cin  : in_channel
 (* "z3 -smtc SOFT_TIMEOUT=1000 -in" *)
 (* "z3 -smtc -in MBQI=false"        *)
 
-let cmds     = Misc.hashtbl_of_list [(Z3, "z3 -smt2 -in MBQI=false")]
+let cmds     = Misc.hashtbl_of_list [(Z3, "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true")]
 let solver   = Z3 
 let smt_cmd  = fun () -> H.find cmds solver
 let smt_file = fun () -> !Co.out_file ^ ".smt2"
 
-let mkContext =
+let mkContext _ =
   let cin, cout = Unix.open_process <| smt_cmd  () in
   let clog      = open_out          <| smt_file () in
   { cin = cin; cout = cout; clog = clog }
