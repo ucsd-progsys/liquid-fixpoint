@@ -97,7 +97,7 @@ let set_cup : appDef  =
   { sy_name = Sy.of_string "Set_cup"
   ; sy_sort = So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)]
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e1;e2] -> SMT.mkSetCup c [| e1; e2 |] 
+                 | [t], [e1;e2] -> SMT.mkSetCup c e1 e2
                  | _            -> assertf "Set_cup: type mismatch"
   }
 
@@ -105,7 +105,7 @@ let set_cap : appDef  =
   { sy_name = Sy.of_string "Set_cap"
   ; sy_sort = So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)] 
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e1;e2] -> SMT.mkSetCap  c [| e1; e2 |] 
+                 | [t], [e1;e2] -> SMT.mkSetCap  c e1 e2
                  | _            -> assertf "Set_cap: type mismatch"
   }
 

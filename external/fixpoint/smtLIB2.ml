@@ -43,6 +43,8 @@ module Th = Theories
 
 module SMTLib2 : ProverArch.SMTSOLVER = struct
 
+let spr = Printf.sprintf
+
 let mydebug = false 
 
 let nb_unsat     = ref 0
@@ -75,6 +77,40 @@ type solver   = Z3
 type context  = { cin  : in_channel
                 ; cout : out_channel
                 ; clog : out_channel }
+
+(*******************************************************************)
+(*********************** Set Theory ********************************)
+(*******************************************************************)
+
+let elt = "Int"
+let set = "Set"
+let emp = "smt_set_emp"
+let add = "smt_set_add"
+let cup = "smt_set_cup"
+let cap = "smt_set_cap"
+let mem = "smt_set_mem"
+let dif = "smt_set_dif"
+let sub = "smt_set_sub"
+
+let set_thy = [ spr "(declare-sort %s)"             set
+              ; spr "(declare-fun %s () %s)"        emp set
+              ; spr "(declare-fun %s (%s %s) %s)"   add set elt set
+              ; spr "(declare-fun %s (%s %s) %s)"   cup set set set
+              ; spr "(declare-fun %s (%s %s) %s)"   cap set set set
+              ; spr "(declare-fun %s (%s %s) %s)"   dif set set set
+              ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
+              ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
+              (* TODO: add axioms *)
+              ]
+
+let mkSetSort _ _  = set
+let mkEmptySet _ _ = emp
+let mkSetAdd _ s x = spr "(%s %s %s)" add s x
+let mkSetMem _ x s = spr "(%s %s %s)" mem x s 
+let mkSetCup _ s t = spr "(%s %s %s)" cup s t
+let mkSetCap _ s t = spr "(%s %s %s)" cap s t
+let mkSetDif _ s t = spr "(%s %s %s)" dif s t
+let mkSetSub _ s t = spr "(%s %s %s)" sub s t
 
 (******************************************************************)
 (**************** SMT IO ******************************************)
@@ -114,7 +150,6 @@ let rec smt_read me
   | "success" -> smt_read me 
   | s         -> Error s
 
-let spr = Printf.sprintf
 
 (* val interact : context -> cmd -> resp *)
 let interact me = function 
@@ -198,23 +233,12 @@ let funcDecl me s ta t =
 
 let mkIntSort _    = "Int"          
 let mkBoolSort _   = "Bool"         
-let mkSetSort _ _  = failwith "TODO:SMTLib2.mkSetSort"
 
 let mkInt _ i _    = string_of_int i
 let mkTrue _       = "true"
 let mkFalse _      = "false" 
 
 let mkAll _ _ _ _  = failwith "TODO:SMTLib2.mkAll"
-
-(*
-let getExpr = function
-  | E e -> e
-  | _   -> assertf "smtLIB2.getExpr"
-
-let getPred = function
-  | P p -> p
-  | _   -> assertf "smtLIB2.getPred"
-*)
 
 let mkRel _ r a1 a2 
   = match r with 
@@ -260,14 +284,6 @@ let mkImp _ a1 a2
 
 let mkIff _ a1 a2 
   = spr "(= %s %s)" a1 a2 
-
-let mkEmptySet _ = failwith "TODO:SMTLIB2.set-theory" 
-let mkSetAdd   _ = failwith "TODO:SMTLIB2.set-theory"
-let mkSetMem   _ = failwith "TODO:SMTLIB2.set-theory"
-let mkSetCup   _ = failwith "TODO:SMTLIB2.set-theory"
-let mkSetCap   _ = failwith "TODO:SMTLIB2.set-theory"
-let mkSetDif   _ = failwith "TODO:SMTLIB2.set-theory" 
-let mkSetSub   _ = failwith "TODO:SMTLIB2.set-theory"
 
 (*******************************************************************)
 (*********************** Queries ***********************************)
