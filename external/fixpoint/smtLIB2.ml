@@ -86,14 +86,14 @@ type context  = { cin  : in_channel
 (* "z3 -smtc SOFT_TIMEOUT=1000 -in" *)
 (* "z3 -smtc -in MBQI=false"        *)
 
-let cmds     = H.of_list [(Z3, "z3 -smt2 -in MBQI=false")]
+let cmds     = Misc.hashtbl_of_list [(Z3, "z3 -smt2 -in MBQI=false")]
 let solver   = Z3 
 let smt_cmd  = fun () -> H.find cmds solver
 let smt_file = fun () -> !Co.out_file ^ ".smt2"
 
 let mkContext =
-  let cin, cout = Unix.open_process smt_cmd () in
-  let clog      = open_out <| smt_file ()      in
+  let cin, cout = Unix.open_process <| smt_cmd  () in
+  let clog      = open_out          <| smt_file () in
   { cin = cin; cout = cout; clog = clog }
 
 let smt_write_raw me s = 
@@ -108,7 +108,7 @@ let smt_write me ?nl:(nl=true) ?tab:(tab=false) s =
   let suf = if nl  then "\n"   else "" in
   smt_write_raw me (pre^s^suf)
 
-let smt_read me
+let rec smt_read me
   = match smt_read_raw me with
   | "sat"     -> Sat
   | "unsat"   -> Unsat
