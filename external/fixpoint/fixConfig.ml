@@ -60,7 +60,6 @@ type 'bind cfg = {
  ; uops   : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
  ; cons   : Ast.Symbol.t list                 (* Distinct Constants, defined in uops  *)
  ; assm   : FixConstraint.soln                (* Seed Solution -- must be a fixpoint over constraints *)
- ; prover : (module ProverArch.PROVER)                
 }
 
 let get_arity = function
@@ -89,7 +88,7 @@ let extend f cfg = function
   | IBind _       -> cfg 
 
 
-let empty () = 
+let empty = 
   { a      = 0 
   ; ts     = []
   ; ps     = []
@@ -102,7 +101,6 @@ let empty () =
   ; cons   = []
   ; uops   = SM.empty 
   ; assm   = FixConstraint.empty_solution 
-  ; prover = TpNull.mkProver ()
   }
 
 let fes2q qm (f, es) =
@@ -126,7 +124,7 @@ let normalize_defts ds =
 (* API *)
 let create ds =
   let qm, ds' = normalize_defts ds in
-  ds' |> List.fold_left (extend (fes2q qm)) (empty ())
+  ds' |> List.fold_left (extend (fes2q qm)) empty
       |> (fun cfg -> {cfg with a  = get_arity cfg.cs})
       |> (fun cfg -> {cfg with ws = C.add_wf_ids cfg.ws})
 
@@ -149,25 +147,6 @@ module type SIMPLIFIER = sig
   val simplify_ts: FixConstraint.t list -> FixConstraint.t list
 end
 
-module type DOMAIN = sig
-  type t
-  type bind
-  val empty        : t 
-  (* val meet         : t -> t -> t *)
-  val min_read     : t -> FixConstraint.soln
-  val read         : t -> FixConstraint.soln
-  val read_bind    : t -> Ast.Symbol.t -> bind
-  val top          : t -> Ast.Symbol.t list -> t
-  val refine       : t -> FixConstraint.t -> (bool * t)
-  val unsat        : t -> FixConstraint.t -> bool
-  val create       : bind cfg -> FixConstraint.soln option -> t
-  val print        : Format.formatter -> t -> unit
-  val print_stats  : Format.formatter -> t -> unit
-  val dump         : t -> unit
-  val simplify     : t -> t
-  val ctr_examples : t -> FixConstraint.t list -> FixConstraint.t list -> Counterexample.cex list 
-  val mkbind       : qbind -> bind
-end
 
 (* type t = Ast.Qualifier.def list list cfg *)
 

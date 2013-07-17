@@ -17,9 +17,28 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
  * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
- * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONAst.Symbol.
+ * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *)
 
-val read_inputs      : string -> (string list * SolverArch.qbind FixConfig.cfg)
+type qbind   = Qualifier.t list
 
+module type DOMAIN = sig
+  type t
+  type bind
+  val empty        : t 
+  (* val meet         : t -> t -> t *)
+  val min_read     : t -> FixConstraint.soln
+  val read         : t -> FixConstraint.soln
+  val read_bind    : t -> Ast.Symbol.t -> bind
+  val top          : t -> Ast.Symbol.t list -> t
+  val refine       : t -> FixConstraint.t -> (bool * t)
+  val unsat        : t -> FixConstraint.t -> bool
+  val create       : bind FixConfig.cfg -> FixConstraint.soln option -> t
+  val print        : Format.formatter -> t -> unit
+  val print_stats  : Format.formatter -> t -> unit
+  val dump         : t -> unit
+  val simplify     : t -> t
+  val ctr_examples : t -> FixConstraint.t list -> FixConstraint.t list -> Counterexample.cex list 
+  val mkbind       : qbind -> bind
+end

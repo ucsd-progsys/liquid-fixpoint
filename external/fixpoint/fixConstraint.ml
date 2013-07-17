@@ -35,7 +35,6 @@ module Su = Ast.Subst
 module Co  = Constants
 module Misc = FixMisc 
 module MSM  = Misc.StringMap
-module TP   = TpNull.Prover
 
 open Misc.Ops
 
@@ -226,7 +225,7 @@ let preds_of_envt f env =
 
 (* API *)
 let wellformed_pred env = 
-  A.sortcheck_pred TP.is_interp (Misc.maybe_map snd3 <.> Misc.flip SM.maybe_find env)
+  A.sortcheck_pred Theories.is_interp (Misc.maybe_map snd3 <.> Misc.flip SM.maybe_find env)
 
 (* API *)
 let preds_of_lhs_nofilter f c = 

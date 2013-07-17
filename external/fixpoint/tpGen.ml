@@ -45,15 +45,6 @@ module MakeProver(SMT : SMTSOLVER) : PROVER = struct
 
   module Th   = Theories.MakeTheory(SMT) 
 
-  let is_interp  = Th.is_interp
-  
-  let interp_syms () = 
-    Th.theories () 
-    |> snd 
-    |>: (Th.sym_name <*> Th.sym_sort)    (* theory globals *)
-
-
-
 (*************************************************************************)
 (*************************** Type Definitions ****************************)
 (*************************************************************************)
@@ -206,7 +197,7 @@ let z3Bind me env x t =
 
 let rec z3Rel me env (e1, r, e2) =
   let p  = A.pAtom (e1, r, e2)                                   in
-  let ok = A.sortcheck_pred Th.is_interp (Misc.flip SM.maybe_find env) p   in 
+  let ok = A.sortcheck_pred Theories.is_interp (Misc.flip SM.maybe_find env) p   in 
   (* let _  = F.printf "z3Rel: e = %a, res = %b \n" P.print p ok in
      let _  = F.print_flush ()                                   in *)
   if ok then 
@@ -224,7 +215,7 @@ and z3App me env p zes =
   SMT.mkApp me.c cf zes
 
 and z3AppThy me env def tyo f es = 
-  match A.sortcheck_app Th.is_interp (Misc.flip SM.maybe_find env) tyo f es with 
+  match A.sortcheck_app Theories.is_interp (Misc.flip SM.maybe_find env) tyo f es with 
     | Some (s, t) ->
         let zts = So.sub_args s |> List.map (snd <+> z3Type me) in
         let zes = es            |> List.map (z3Exp me env)      in
@@ -298,7 +289,7 @@ and z3Pred me env = function
   | A.Bexp e, _ -> 
       let a  = z3Exp me env e in
       let s2  = E.to_string e in
-      let Some so = A.sortcheck_expr Th.is_interp (Misc.flip SM.maybe_find env) e in
+      let Some so = A.sortcheck_expr Theories.is_interp (Misc.flip SM.maybe_find env) e in
       let sos = So.to_string so in
       (* let s1  = SMT.astString me.c a in
       let _   = asserts (SMT.isBool me.c a) 
@@ -353,7 +344,7 @@ let handle_vv me env vv =
 (************************************************************************)
 
 let create_theories () =
-  Th.theories () 
+  Th.theories 
   |> (Misc.hashtbl_of_list_with Th.sort_name <**> Misc.hashtbl_of_list_with Th.sym_name)
 
 let assert_distinct_constants me env = function [] -> () | cs -> 
@@ -363,27 +354,6 @@ let assert_distinct_constants me env = function [] -> () | cs ->
             |> List.map (z3Var me env) 
             |> SMT.assertDistinct me.c
          end
-
-(* API *)
-let create ts env ps consts =
-  let _        = asserts (ts = []) "ERROR: TPZ3-create non-empty sorts!" in
-  let c        = SMT.mkContext [|("MODEL", "false"); ("MODEL_PARTIAL", "true")|] in
-  let som, sym = create_theories () in 
-  let me       = { c     = c; 
-                   tint  = SMT.mkIntSort  c; 
-                   tbool = SMT.mkBoolSort c; 
-                   tydt  = H.create 37; 
-                   vart  = H.create 37; 
-                   funt  = H.create 37; 
-                   vars  = []; 
-                   bnd   = 0;
-                   thy_sortm = som; 
-                   thy_symm  = sym 
-                 } 
-  in
-  let _  = List.iter (z3Pred me env <+> SMT.assertAxiom me.c) (axioms ++ ps) in
-  let _  = assert_distinct_constants me env consts                      in
-  me
 
 let prep_preds me env ps =
   let ps = List.rev_map (z3Pred me env) ps in
@@ -483,5 +453,47 @@ let unsat_suffix me env p ps =
       if SMT.unsat me.c then Some j else loop (j-1) zps'
     in loop (List.length ps) (List.map (z3Pred me env) (p :: List.rev ps)) 
   end
- 
+
+(***********************************************************************)
+(******** Prover Object ************************************************)
+(***********************************************************************)
+
+(* API *)
+let create ts env ps consts =
+  let _        = asserts (ts = []) "ERROR: TPZ3-create non-empty sorts!" in
+  let c        = SMT.mkContext [|("MODEL", "false"); ("MODEL_PARTIAL", "true")|] in
+  let som, sym = create_theories () in 
+  let me       = { c     = c; 
+                   tint  = SMT.mkIntSort  c; 
+                   tbool = SMT.mkBoolSort c; 
+                   tydt  = H.create 37; 
+                   vart  = H.create 37; 
+                   funt  = H.create 37; 
+                   vars  = []; 
+                   bnd   = 0;
+                   thy_sortm = som; 
+                   thy_symm  = sym 
+                 } 
+  in
+  let _  = List.iter (z3Pred me env <+> SMT.assertAxiom me.c) (axioms ++ ps) in
+  let _  = assert_distinct_constants me env consts                      in
+  me
+
+class tprover ts env ps consts : prover = 
+  object (self)
+    val me = create ts env ps consts 
+    method interp_syms  = Theories.interp_syms 
+    method set_filter :  'a. Ast.Sort.t Ast.Symbol.SMap.t 
+                          -> Ast.Symbol.t 
+                          -> Ast.pred list 
+                          -> ('a * Ast.pred) list 
+                          -> 'a list
+                        = set_filter me  
+    method print_stats  = fun ppf -> print_stats ppf me 
+    method is_contra    = is_contra me 
+    method unsat_suffix = unsat_suffix me
+  end
+
+let mkProver ts env ps consts = new tprover ts env ps consts
+
 end

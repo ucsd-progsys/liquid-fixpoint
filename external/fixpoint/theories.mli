@@ -17,9 +17,11 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
  * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
- * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONAst.Symbol.
- *
+ * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
-val read_inputs      : string -> (string list * SolverArch.qbind FixConfig.cfg)
+val is_interp   : Ast.Sort.tycon -> bool
+val interp_syms : (Ast.Symbol.t * Ast.Sort.t) list
 
+module MakeTheory(SMT : ProverArch.SMTSOLVER): (ProverArch.THEORY with type context = SMT.context and  type sort = SMT.sort and type ast = SMT.ast) 
+ 

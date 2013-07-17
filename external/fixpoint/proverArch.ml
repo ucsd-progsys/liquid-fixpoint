@@ -18,7 +18,6 @@
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
  * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
- *
  *)
 
 (* Theories API *)
@@ -33,10 +32,9 @@ module type THEORY = sig
   val sym_sort    : appDef  -> Ast.Sort.t
   val sym_name    : appDef  -> Ast.Symbol.t
   val sort_name   : sortDef -> Ast.Sort.tycon
-  val theories    : unit -> sortDef list * appDef list
   val mk_thy_sort : sortDef -> context -> sort list -> sort
   val mk_thy_app  : appDef  -> context -> sort list -> ast list -> ast
-  val is_interp   : Ast.Sort.tycon -> bool
+  val theories    : sortDef list * appDef list
 end
 
 module type SMTSOLVER = sig
@@ -102,9 +100,57 @@ module type SMTSOLVER = sig
   val print_stats    : Format.formatter -> unit -> unit
 end
 
-module type PROVER = sig
-  type t 
+class type prover = 
+  object
+       (* AST/TC Interface *)
+       method interp_syms :  (Ast.Symbol.t * Ast.Sort.t) list
 
+       (* Query Interface *)
+       method set_filter  :  'a . Ast.Sort.t Ast.Symbol.SMap.t 
+                          -> Ast.Symbol.t 
+                          -> Ast.pred list 
+                          -> ('a * Ast.pred) list 
+                          -> 'a list
+
+
+       (* method set_filter  :  Ast.Sort.t Ast.Symbol.SMap.t 
+                          -> Ast.Symbol.t 
+                          -> Ast.pred list 
+                          -> ((Ast.Symbol.t * Qualifier.t) * Ast.pred) list 
+                          -> (Ast.Symbol.t * Qualifier.t) list
+        *)
+
+       method print_stats : Format.formatter -> unit
+  
+       (* Counterexample Interface *) 
+       method is_contra   :  Ast.Sort.t Ast.Symbol.SMap.t 
+                          -> Ast.pred 
+                          -> bool
+  
+
+       method unsat_suffix :  Ast.Sort.t Ast.Symbol.SMap.t 
+                           -> Ast.pred                     (* background predicate   *)
+                           -> Ast.pred list                (* [p0,...,pn] *)
+                           -> int option                   (* max j st. p /\i=j..n pi unsat *)
+
+       (* method unsat_core  :  Ast.Sort.t Ast.Symbol.SMap.t 
+                          -> Ast.pred                      (* background predicate   *)
+                          -> ('a * Ast.pred) list          (* [(index, killer-fact)] *)
+                          -> 'a list                       (* [unsat-core-index]    *)
+       *)
+end
+
+module type PROVER = sig
+  
+  val mkProver :  Ast.Sort.t list                      (* sorts        *) 
+               -> Ast.Sort.t Ast.Symbol.SMap.t         (* environment  *)
+               -> Ast.pred list                        (* axioms       *) 
+               -> Ast.Symbol.t list                    (* distinct constants, sorts in env *)
+               -> prover
+
+(* {{{
+  type t 
+  
   (* theory interface *)
   val is_interp   : Ast.Sort.tycon -> bool
   val interp_syms : unit -> (Ast.Symbol.t * Ast.Sort.t) list
@@ -143,5 +189,8 @@ module type PROVER = sig
                    -> Ast.pred                              (* background predicate   *)
                    -> Ast.pred list                         (* [p0,...,pn] *)
                    -> int option                            (* max j st. p /\i=j..n pi unsat *)
+}}} *)
 
 end
+
+
