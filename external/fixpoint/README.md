@@ -92,11 +92,32 @@ TpSmtLib
     ? smtCVC    : SMT
     ? smtAltErgo: SMT
 
-3.  HEREHEREHEREHERE 
-    Z3.push
-    Z3.pop
-    Z3.check me = Z3.L-FALSE
-    Z3.assert_cnstr 
+Failed 18 tests:
+
+  To Fix:
+    , ite1.hs
+    , take.hs
+ 
+  Broken:
+    , SS.hs, cont.hs, ptr.hs, ptr2.hs, ptr3.hs
+   
+  Sets:
+    , deepmeas0.hs
+    , ListConcat.hs
+    , ListElem.hs
+    , listSet.hs
+    , listSetDemo.hs
+    , stacks0.hs
+    , zipper.hs
+    , zipper0.hs
+    , meas9.hs
+    , meas10.hs
+    , meas11.hs
+ 
+Exceptions thrown on 5 tests: SS.hs, ite1.hs, take.hs, zipper.hs, zipper0.hs
+
+
+
 
 
 
