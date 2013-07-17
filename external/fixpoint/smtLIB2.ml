@@ -273,7 +273,7 @@ let mkSub _ = mkOp A.Minus
 let mkMod _ = mkOp A.Mod
 
 let mkIte _ a1 a2 a3 
-  = spr "(%s %s %s)" a1 a2 a3
+  = spr "(ite %s %s %s)" a1 a2 a3
 
 let mkNot _ a 
   = spr "(not %s)" a 
