@@ -48,18 +48,19 @@ type deft = Srt of Ast.Sort.t
           | IBind of int * Ast.Symbol.t * FixConstraint.reft  
 
 type 'bind cfg = { 
-   a     : int                               (* Tag arity                            *)
- ; ts    : Ast.Sort.t list                   (* New sorts, now = []                  *)
- ; ps    : Ast.pred list                     (* New axioms, now = []                 *)
- ; cs    : FixConstraint.t list              (* Implication Constraints              *)
- ; ws    : FixConstraint.wf list             (* Well-formedness Constraints          *)
- ; ds    : FixConstraint.dep list            (* Constraint Dependencies              *)
- ; qs    : Q.t list                          (* Qualifiers                           *)
- ; kuts  : Ast.Symbol.t list                 (* "Cut"-Kvars, which break cycles      *)
- ; bm    : 'bind SM.t                        (* Initial Sol Bindings                 *)
- ; uops  : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
- ; cons  : Ast.Symbol.t list                 (* Distinct Constants, defined in uops  *)
- ; assm  : FixConstraint.soln                (* Seed Solution -- must be a fixpoint over constraints *)
+   a      : int                               (* Tag arity                            *)
+ ; ts     : Ast.Sort.t list                   (* New sorts, now = []                  *)
+ ; ps     : Ast.pred list                     (* New axioms, now = []                 *)
+ ; cs     : FixConstraint.t list              (* Implication Constraints              *)
+ ; ws     : FixConstraint.wf list             (* Well-formedness Constraints          *)
+ ; ds     : FixConstraint.dep list            (* Constraint Dependencies              *)
+ ; qs     : Q.t list                          (* Qualifiers                           *)
+ ; kuts   : Ast.Symbol.t list                 (* "Cut"-Kvars, which break cycles      *)
+ ; bm     : 'bind SM.t                        (* Initial Sol Bindings                 *)
+ ; uops   : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
+ ; cons   : Ast.Symbol.t list                 (* Distinct Constants, defined in uops  *)
+ ; assm   : FixConstraint.soln                (* Seed Solution -- must be a fixpoint over constraints *)
+ ; prover : (module ProverArch.PROVER)                
 }
 
 let get_arity = function
@@ -88,19 +89,21 @@ let extend f cfg = function
   | IBind _       -> cfg 
 
 
-let empty = { a    = 0 
-            ; ts   = []
-            ; ps   = []
-            ; cs   = []
-            ; ws   = []
-            ; ds   = []
-            ; qs   = []
-            ; kuts = []
-            ; bm   = SM.empty
-            ; cons = []
-            ; uops = SM.empty 
-            ; assm = FixConstraint.empty_solution 
-            }
+let empty () = 
+  { a      = 0 
+  ; ts     = []
+  ; ps     = []
+  ; cs     = []
+  ; ws     = []
+  ; ds     = []
+  ; qs     = []
+  ; kuts   = []
+  ; bm     = SM.empty
+  ; cons   = []
+  ; uops   = SM.empty 
+  ; assm   = FixConstraint.empty_solution 
+  ; prover = TpNull.mkProver ()
+  }
 
 let fes2q qm (f, es) =
   let q   = SM.safeFind f qm "name2qual" in
@@ -123,7 +126,7 @@ let normalize_defts ds =
 (* API *)
 let create ds =
   let qm, ds' = normalize_defts ds in
-  ds' |> List.fold_left (extend (fes2q qm)) empty
+  ds' |> List.fold_left (extend (fes2q qm)) (empty ())
       |> (fun cfg -> {cfg with a  = get_arity cfg.cs})
       |> (fun cfg -> {cfg with ws = C.add_wf_ids cfg.ws})
 

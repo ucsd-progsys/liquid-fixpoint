@@ -169,6 +169,6 @@ let mk_thy_sort def c ts =
 let theories () = set_theory
 
 (* API *)
-let is_interp t = (t = set_tycon)
+let is_interp t = t = set_tycon
 
 end

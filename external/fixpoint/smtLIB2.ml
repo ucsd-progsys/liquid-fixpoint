@@ -72,7 +72,7 @@ type resp     = Ok
               | Unsat 
               | Error of string
 
-type solver   = Z3
+type solver   = Z3 
 
 type context  = { cin  : in_channel
                 ; cout : out_channel
@@ -140,9 +140,11 @@ let mkSetSub _ s t = spr "(%s %s %s)" sub s t
 (* "z3 -smtc SOFT_TIMEOUT=1000 -in" *)
 (* "z3 -smtc -in MBQI=false"        *)
 
-let cmds     = Misc.hashtbl_of_list [(Z3, "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true")]
-let solver   = Z3 
-let smt_cmd  = fun () -> H.find cmds solver
+let cmds     = Misc.hashtbl_of_list [
+                 (Z3   , "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true")
+               ]
+
+let smt_cmd  = fun s  -> H.find cmds s
 let smt_file = fun () -> !Co.out_file ^ ".smt2"
 
 let smt_write_raw me s = 
@@ -196,13 +198,13 @@ let smt_decl me x ts t
 (* API *)
 let smt_push me 
   = match interact me Push with
-  | Ok -> (nb_push += 1); () 
+  | Ok -> incr nb_push; () 
   | _  -> assertf "crash: SMTLIB2 smt_push"
 
 (* API *)
 let smt_pop me 
   = match interact me Pop with
-  | Ok -> (nb_pop += 1); () 
+  | Ok -> incr nb_pop; () 
   | _  -> assertf "crash: SMTLIB2 smt_pop"
 
 (* API *)
@@ -224,11 +226,17 @@ let smt_assert_distinct me az
   | Ok -> ()
   | _  -> assertf "crash: SMTLIB2 smt_assert_distinct"
 
+let solver () =
+  match !Co.smt_solver with
+    | Some "z3" -> Z3
+    | Some str  -> assertf "ERROR: fixpoint does not support %s" str
+    | None      -> assertf "ERROR: undefined solver for smtLIB2"
+
 let mkContext _ =
-  let cin, cout = Unix.open_process <| smt_cmd  ()        in
-  let clog      = open_out          <| smt_file ()        in
-  let ctx       = { cin = cin; cout = cout; clog = clog } in
-  let _         = List.iter (smt_write ctx) preamble      in
+  let cin, cout = solver ()   |> smt_cmd |> Unix.open_process in
+  let clog      = smt_file () |> open_out                     in
+  let ctx       = { cin = cin; cout = cout; clog = clog }     in
+  let _         = List.iter (smt_write ctx) preamble        in
   ctx
 
 (***********************************************************************)
@@ -241,7 +249,7 @@ let mkContext _ =
 let stringSymbol _ s = s
 let astString _ a    = a 
 let isBool c a       = failwith "TODO:SMTLib2.isBool"
-let boundVar me i t  = failwith "TODO:SMTLib2.boundVar" (* Z3.mk_bound *)
+let boundVar me i t  = failwith "TODO:SMTLib2.boundVar"
 
 let var me x t =
   let _ = smt_decl me x [] t in  
@@ -329,7 +337,7 @@ let unsat me =
 (* API *)
 let assertAxiom me p
   = (* Co.bprintf mydebug "@[Pushing axiom %s@]@." (astString me p); *)
-    BS.time "Z3 assert axiom" (smt_assert_cnstr me) p;
+    BS.time "assertAxiom" (smt_assert_cnstr me) p;
     asserts (not (unsat me)) "ERROR: Axiom makes background theory inconsistent!"
 
 (* API *)

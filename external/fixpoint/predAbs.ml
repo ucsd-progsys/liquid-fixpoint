@@ -45,7 +45,7 @@ module Cg  = FixConfig
 module H   = Hashtbl
 module PH  = A.Predicate.Hash
 
-module Cx  = Counterexample
+module CX  = Counterexample
 module Misc = FixMisc 
 module IM  = Misc.IntMap
 open Misc.Ops
@@ -103,9 +103,9 @@ type t   =
   ; qleqs: Q2S.t               (* (q1,q2) \in qleqs implies q1 => q2 *)
   
   (* counterexamples *)
-  ; step     : Cx.step         (* which iteration *)
-  ; ctrace   : Cx.ctrace 
-  ; lifespan : Cx.lifespan 
+  ; step     : CX.step         (* which iteration *)
+  ; ctrace   : CX.ctrace 
+  ; lifespan : CX.lifespan 
   
   (* stats *)
   ; stat_simple_refines : int ref 
@@ -775,8 +775,8 @@ let simplify s = {s with m = SM.map (min_binds s) s.m}
 
  
 let ctr_examples me cs ucs = 
-  let cx = Cx.create (read me) cs me.ctrace me.lifespan me.tpc in 
-  List.map (Cx.explain cx) ucs
+  let cx = CX.create (read me) cs me.ctrace me.lifespan me.tpc in 
+  List.map (CX.explain cx) ucs
 
 
 (*******************************************************************************)

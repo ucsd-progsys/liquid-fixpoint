@@ -21,6 +21,12 @@
  *)
 
 (* USE THIS ON Z3-READY PLATFORMS e.g. Ubuntu *)
-module Prover : ProverArch.PROVER = TpGen.MakeProver(SmtLIB2.SMTLib2)
-(* module Prover : ProverArch.PROVER = TpGen.MakeProver(SmtZ3.SMTZ3) *) 
+
+module Mem : ProverArch.PROVER = TpGen.MakeProver(SmtZ3.SMTZ3)
+module Smt : ProverArch.PROVER = TpGen.MakeProver(SmtLIB2.SMTLib2)
+
+let mkProver () : (module ProverArch.PROVER) 
+  = match !Constants.smt_solver with
+      | None   -> (module Mem : ProverArch.PROVER)
+      | Some _ -> (module Smt : ProverArch.PROVER)
 
