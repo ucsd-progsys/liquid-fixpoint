@@ -164,7 +164,7 @@ let z3Var_memo me env x =
     (fun () -> 
       let t   = x |> varSort env |> z3Type me in
       let sym = fresh "z3v" 
-                (* >> F.printf "z3Var_memo: %a :->  %s\n" Sy.print x *)
+                >> F.printf "z3Var_memo: %a :->  %s\n" Sy.print x
                 |> SMT.stringSymbol me.c in 
       let rv  = Const (SMT.var me.c sym t) in
       let _   = me.vars <- vx :: me.vars in 

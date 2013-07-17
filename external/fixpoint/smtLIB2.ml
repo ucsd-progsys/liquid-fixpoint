@@ -92,16 +92,17 @@ let mem = "smt_set_mem"
 let dif = "smt_set_dif"
 let sub = "smt_set_sub"
 
-let set_thy = [ spr "(declare-sort %s)"             set
-              ; spr "(declare-fun %s () %s)"        emp set
-              ; spr "(declare-fun %s (%s %s) %s)"   add set elt set
-              ; spr "(declare-fun %s (%s %s) %s)"   cup set set set
-              ; spr "(declare-fun %s (%s %s) %s)"   cap set set set
-              ; spr "(declare-fun %s (%s %s) %s)"   dif set set set
-              ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
-              ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
-              (* TODO: add axioms *)
-              ]
+let preamble 
+  = [ spr "(declare-sort %s)"             set
+    ; spr "(declare-fun %s () %s)"        emp set
+    ; spr "(declare-fun %s (%s %s) %s)"   add set elt set
+    ; spr "(declare-fun %s (%s %s) %s)"   cup set set set
+    ; spr "(declare-fun %s (%s %s) %s)"   cap set set set
+    ; spr "(declare-fun %s (%s %s) %s)"   dif set set set
+    ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
+    ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
+    (* TODO: add axioms *)
+    ]
 
 let mkSetSort _ _  = set
 let mkEmptySet _ _ = emp
@@ -125,11 +126,6 @@ let cmds     = Misc.hashtbl_of_list [(Z3, "z3 -smt2 -in MODEL=false MODEL.PARTIA
 let solver   = Z3 
 let smt_cmd  = fun () -> H.find cmds solver
 let smt_file = fun () -> !Co.out_file ^ ".smt2"
-
-let mkContext _ =
-  let cin, cout = Unix.open_process <| smt_cmd  () in
-  let clog      = open_out          <| smt_file () in
-  { cin = cin; cout = cout; clog = clog }
 
 let smt_write_raw me s = 
   output_now me.clog s; 
@@ -169,7 +165,7 @@ let interact me = function
       let _ = smt_write me <| spr "(assert %s)" a in
       Ok
   | Distinct az -> 
-      let _ = smt_write me <| spr "(distinct %s)" (String.concat " " az) in
+      let _ = smt_write me <| spr "(assert (distinct %s))" (String.concat " " az) in
       Ok
 
 
@@ -210,9 +206,17 @@ let smt_assert_distinct me az
   | Ok -> ()
   | _  -> assertf "crash: SMTLIB2 smt_assert_distinct"
 
+let mkContext _ =
+  let cin, cout = Unix.open_process <| smt_cmd  ()        in
+  let clog      = open_out          <| smt_file ()        in
+  let ctx       = { cin = cin; cout = cout; clog = clog } in
+  let _         = List.iter (smt_write ctx) preamble      in
+  ctx
+
 (***********************************************************************)
 (*********************** AST Constructors ******************************)
 (***********************************************************************)
+
 
 (* THEORY = QF_UFLIA *)
 
@@ -247,8 +251,9 @@ let mkRel _ r a1 a2
   | A.Lt -> spr "(<  %s %s)"      a1 a2 
   | A.Le -> spr "(<= %s %s)"      a1 a2 
 
-let mkApp _ f az 
-  = spr "(%s %s)" f (String.concat " " az)
+let mkApp _ f = function
+  | [] -> f 
+  | az -> spr "(%s %s)" f (String.concat " " az)
 
 let opStr = function
   | A.Plus  -> "+"
