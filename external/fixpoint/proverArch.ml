@@ -72,11 +72,12 @@ module type SMTSOLVER = sig
   val astString : context -> ast -> string
 
   (* Set Theory Operations *)
+  val mkSetSort     : context -> sort   -> sort
   val mkEmptySet    : context -> sort -> ast
   val mkSetAdd      : context -> ast -> ast -> ast
   val mkSetMem      : context -> ast -> ast -> ast
-  val mkSetCup      : context -> ast array -> ast
-  val mkSetCap      : context -> ast array -> ast
+  val mkSetCup      : context -> ast -> ast -> ast
+  val mkSetCap      : context -> ast -> ast -> ast
   val mkSetDif      : context -> ast -> ast -> ast
   val mkSetSub      : context -> ast -> ast -> ast
 
@@ -84,7 +85,6 @@ module type SMTSOLVER = sig
   val mkContext      : (string * string) array -> context
   val mkIntSort      : context -> sort
   val mkBoolSort     : context -> sort
-  val mkSetSort      : context -> sort   -> sort
   val var            : context -> symbol -> sort -> ast
   val boundVar       : context -> int    -> sort -> ast
   val stringSymbol   : context -> string -> symbol

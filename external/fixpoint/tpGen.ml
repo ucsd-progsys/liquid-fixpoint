@@ -300,11 +300,12 @@ and z3Pred me env = function
       let s2  = E.to_string e in
       let Some so = A.sortcheck_expr Th.is_interp (Misc.flip SM.maybe_find env) e in
       let sos = So.to_string so in
-      let s1  = SMT.astString me.c a in
+      (* let s1  = SMT.astString me.c a in
       let _   = asserts (SMT.isBool me.c a) 
                         "Bexp is not bool (e = %s)! z3=%s, fix=%s, sort=%s" 
                         (E.to_string e) s1 s2 sos 
-      in a
+      in *)      
+      a
 
   | A.Forall (xts, p), _ -> 
       let (xs, ts) = List.split xts                                  in
