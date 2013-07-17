@@ -82,6 +82,8 @@ type context  = { cin  : in_channel
 (*********************** Set Theory ********************************)
 (*******************************************************************)
 
+
+
 let elt = "Int"
 let set = "Set"
 let emp = "smt_set_emp"
@@ -101,8 +103,19 @@ let preamble
     ; spr "(declare-fun %s (%s %s) %s)"   dif set set set
     ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
     ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
-    (* TODO: add axioms *)
-    ]
+    
+    ; spr "(assert (forall ((x %s)) (not (%s x %s))))" 
+          elt mem emp
+    
+    ; spr "(assert (forall ((x %s) (s1 %s) (s2 %s)) 
+            (= (%s x (%s s1 s2)) (or (%s x s1) (%s x s2)))))"
+            elt set set mem cup mem mem
+    ; spr "(assert (forall ((x %s) (s1 %s) (s2 %s)) 
+            (= (%s x (%s s1 s2)) (and (%s x s1) (%s x s2)))))"
+            elt set set mem cap mem mem
+   
+           
+
 
 let mkSetSort _ _  = set
 let mkEmptySet _ _ = emp

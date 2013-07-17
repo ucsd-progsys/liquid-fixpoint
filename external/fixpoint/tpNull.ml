@@ -20,8 +20,6 @@
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
-(* This file is part of the LiquidC Project *)
-
 (* USE THIS ON Z3-READY PLATFORMS e.g. Ubuntu *)
 module Prover : ProverArch.PROVER = TpGen.MakeProver(SmtLIB2.SMTLib2)
 (* module Prover : ProverArch.PROVER = TpGen.MakeProver(SmtZ3.SMTZ3) *) 

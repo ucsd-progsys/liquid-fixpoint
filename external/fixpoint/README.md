@@ -81,22 +81,55 @@ semicolon-separated list of predicates:
 
   solution: KVAR := [PREDICATES]
 
-TpSmtLib
-========
+TpGen
+=====
 
-1. TP = tpGen.ml + (smtX : SMT) 
+1. command line option to fixpoint.native
+    
+    a. -smtlib = ref (SMTLIB option)
+    b. tpNull 
+    
+    fixpoint.native -smt z3    foo.fq
+    fixpoint.native -smt yices foo.fq
+    fixpoint.native -smt cvc4  foo.fq
 
-2. Instantiate
-    + smtZ3     : SMT
-    + smtLIB    : SMT
-    ? smtCVC    : SMT
-    ? smtAltErgo: SMT
+    (default: smtZ3)
+
+
+2. liquid-fixpoint cmdArgs
+
+    fixpoint -smt z3
+    fixpoint -smt yices 
+    fixpoint -smt cvc4
+
+3. liquid-fixpoint check if solver exists
+
+4. liquid cmdArgs
+    
+    liquid -smt z3 etc.
+
+5. Install yices
+    - run benchmarks
+
+6. Install cvc4 
+    - run benchmarks
+
+7. Install mathsat5
+    - run benchmarks
+
+8. Add set axioms
+    - redo 5,6,7
+
+9. MERGE
+
+10. Find clean platform-independent BUILD.
+
+    DELETE z3bind (easy build on macOS) 
+   
+
+
 
 Failed 18 tests:
-
-  To Fix:
-    , ite1.hs
-    , take.hs
  
   Broken:
     , SS.hs, cont.hs, ptr.hs, ptr2.hs, ptr3.hs
@@ -114,9 +147,6 @@ Failed 18 tests:
     , meas10.hs
     , meas11.hs
  
-Exceptions thrown on 5 tests: SS.hs, ite1.hs, take.hs, zipper.hs, zipper0.hs
-
-
 
 
 
