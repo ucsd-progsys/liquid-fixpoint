@@ -104,17 +104,22 @@ let preamble
     ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
     ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
     
-    ; spr "(assert (forall ((x %s)) (not (%s x %s))))" 
+ (* ; spr "(assert (forall ((x %s)) (not (%s x %s))))" 
           elt mem emp
-    
     ; spr "(assert (forall ((x %s) (s1 %s) (s2 %s)) 
             (= (%s x (%s s1 s2)) (or (%s x s1) (%s x s2)))))"
             elt set set mem cup mem mem
     ; spr "(assert (forall ((x %s) (s1 %s) (s2 %s)) 
             (= (%s x (%s s1 s2)) (and (%s x s1) (%s x s2)))))"
             elt set set mem cap mem mem
-   
-           
+    ; spr "(assert (forall ((x %s) (s1 %s) (s2 %s)) 
+            (= (%s x (%s s1 s2)) (and (%s x s1) (not (%s x s2))))))"
+            elt set set mem dif mem mem
+    ; spr "(assert (forall ((x %s) (s %s) (y %s)) 
+            (= (%s x (%s s y)) (or (%s x s) (= x y)))))"
+            elt set elt mem add mem 
+  *)
+    ] 
 
 
 let mkSetSort _ _  = set
