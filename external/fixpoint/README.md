@@ -1,27 +1,20 @@
-Compiling Without Z3
-====================
 
-To build on on platforms WITHOUT Z3, do this:
+Using Different Solvers
+-----------------------
 
-	% cp tpNull.ml.noz3 tpNull.ml
+To run with SMTLIB2 compliant solver 
 
-and then
+    fixpoint.native -smtsolver z3           # default
+    fixpoint.native -smtsolver cvc4     
+    fixpoint.native -smtsolver mathsat
 
-	% make
+To run with Z3 using API
 
-
-To build on the mac (no Z3), do 
-
-	% make -f Makefile.mac
-
-To build on platforms WITH Z3, do this:
-
-	% cp tpNull.ml.z3 tpNull.ml
-	% make
+    fixpoint.native -smtsolver z3mem
 
 
 Constraint Files
-================
+----------------
 
 The general format of a constraint file is:
 
@@ -83,8 +76,6 @@ semicolon-separated list of predicates:
 
 Conversion to SMTLIB2 Horn Clauses
 ==================================
-
-
 
 This
 
