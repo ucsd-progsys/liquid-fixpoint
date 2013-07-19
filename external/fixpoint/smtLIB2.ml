@@ -70,6 +70,7 @@ type cmd      = Push
 type resp     = Ok 
               | Sat 
               | Unsat 
+              | Unknown
               | Error of string
 
 type solver   = Z3 
@@ -78,13 +79,20 @@ type context  = { cin  : in_channel
                 ; cout : out_channel
                 ; clog : out_channel }
 
+let respString = function
+  | Ok      -> "Ok"
+  | Sat     -> "Sat"
+  | Unsat   -> "Unsat"
+  | Unknown -> "Unknown"
+  | Error s -> "Error " ^ s
+
 (*******************************************************************)
 (*********************** Set Theory ********************************)
 (*******************************************************************)
 
 
 
-let elt = "Int"
+let elt = "Elt"
 let set = "Set"
 let emp = "smt_set_emp"
 let add = "smt_set_add"
@@ -93,7 +101,44 @@ let cap = "smt_set_cap"
 let mem = "smt_set_mem"
 let dif = "smt_set_dif"
 let sub = "smt_set_sub"
+let com = "smt_set_com"
 
+(* 
+ 
+   (define-fun smt_set_emp () Set ((as const Set) false))
+   (define-fun smt_set_mem ((x Elt) (s Set)) Bool (select s x))
+   (define-fun smt_set_add ((s Set) (x Elt)) Set  (store s x true))
+   (define-fun smt_set_cap ((s1 Set) (s2 Set)) Set ((_ map and) s1 s2))
+   (define-fun smt_set_cup ((s1 Set) (s2 Set)) Set ((_ map or) s1 s2))
+   (define-fun smt_set_com ((s Set)) Set ((_ map not) s))
+   (define-fun smt_set_dif ((s1 Set) (s2 Set)) Set (smt_set_cap s1 (smt_set_com s2)))
+   (define-fun smt_set_sub ((s1 Set) (s2 Set)) Bool (= smt_set_emp (smt_set_dif s1 s2)))
+*)
+
+(* z3 specific *)
+let preamble 
+  = [ spr "(define-sort %s () Int)"
+        elt
+    ; spr "(define-sort %s () (Array %s Bool))" 
+        set elt
+    ; spr "(define-fun %s () %s ((as const %s) false))" 
+        emp set set 
+    ; spr "(define-fun %s ((x %s) (s %s)) Bool (select s x))"
+        mem elt set
+    ; spr "(define-fun %s ((s %s) (x %s)) %s (store s x true))"
+        add set elt set
+    ; spr "(define-fun %s ((s1 %s) (s2 %s)) %s ((_ map or) s1 s2))"
+        cup set set set
+    ; spr "(define-fun %s ((s1 %s) (s2 %s)) %s ((_ map and) s1 s2))"
+        cap set set set
+    ; spr "(define-fun %s ((s %s)) %s ((_ map not) s))"
+        com set set
+    ; spr "(define-fun %s ((s1 %s) (s2 %s)) %s (%s s1 (%s s2)))"
+        dif set set set cap com
+    ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (= %s (%s s1 s2)))"
+        sub set set emp dif 
+    ] 
+(* 
 let preamble 
   = [ spr "(declare-sort %s)"             set
     ; spr "(declare-fun %s () %s)"        emp set
@@ -104,7 +149,7 @@ let preamble
     ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
     ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
     
- (* ; spr "(assert (forall ((x %s)) (not (%s x %s))))" 
+    ; spr "(assert (forall ((x %s)) (not (%s x %s))))" 
           elt mem emp
     ; spr "(assert (forall ((x %s) (s1 %s) (s2 %s)) 
             (= (%s x (%s s1 s2)) (or (%s x s1) (%s x s2)))))"
@@ -118,9 +163,8 @@ let preamble
     ; spr "(assert (forall ((x %s) (s %s) (y %s)) 
             (= (%s x (%s s y)) (or (%s x s) (= x y)))))"
             elt set elt mem add mem 
-  *)
     ] 
-
+*)
 
 let mkSetSort _ _  = set
 let mkEmptySet _ _ = emp
@@ -135,13 +179,13 @@ let mkSetSub _ s t = spr "(%s %s %s)" sub s t
 (**************** SMT IO ******************************************)
 (** https://raw.github.com/ravichugh/djs/master/src/zzz.ml ********)
 (******************************************************************)
-
+        
 (* "z3 -smt2 -in"                   *)
 (* "z3 -smtc SOFT_TIMEOUT=1000 -in" *)
 (* "z3 -smtc -in MBQI=false"        *)
 
 let cmds     = Misc.hashtbl_of_list [
-                 (Z3   , "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true")
+                 (Z3   , "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true smt.mbqi=false auto-config=false")
                ]
 
 let smt_cmd  = fun s  -> H.find cmds s
@@ -164,6 +208,7 @@ let rec smt_read me
   | "sat"     -> Sat
   | "unsat"   -> Unsat
   | "success" -> smt_read me 
+  | "unknown" -> Unknown
   | s         -> Error s
 
 
@@ -210,9 +255,10 @@ let smt_pop me
 (* API *)
 let smt_check_unsat me 
   = match interact me CheckSat with
-  | Unsat -> true
-  | Sat   -> false
-  | _     -> assertf "crash: SMTLIB2 smt_check_unsat"
+  | Unsat   -> true
+  | Sat     -> false
+  | Unknown -> false 
+  | e       -> assertf "crash: SMTLIB2 smt_check_unsat %s" (respString e)
 
 (* API *)
 let smt_assert_cnstr me p 
