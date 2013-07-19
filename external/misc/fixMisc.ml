@@ -114,8 +114,9 @@ let print_now_error msg =
   prerr_string msg;
   flush stderr
 
-
-
+let output_now c s = 
+  output_string c s; 
+  flush c
 
 let some = fun x -> Some x
 
@@ -1290,7 +1291,7 @@ let cardinality = fun xs -> xs |> sort_and_compact |> List.length
 let disjoint    = fun xs ys -> cardinality xs + cardinality ys = cardinality (xs ++ ys)
 
 let bracket (l : unit -> unit) (r : unit -> unit) (f : unit -> 'a) : 'a = 
-  try () |> l |> f >> (fun _ -> r ())
+  try l () |> f >> (fun _ -> r ())
   with ex -> assertf "bracket hits exn: %s \n" (Printexc.to_string ex)
 
 (*
