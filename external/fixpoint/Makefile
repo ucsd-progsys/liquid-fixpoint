@@ -1,4 +1,4 @@
-include ../../config.make
+include config.make
 
 DIRS=-I misc
 OFLAGS=$(DIRS) $(IFLAGS) $(LFLAGS) $(CFLAGS)
