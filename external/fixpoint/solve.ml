@@ -37,8 +37,7 @@ module C  = FixConstraint
 module Ci = Cindex
 module PP = Prepass
 module Cg = FixConfig
-module Th = Theories
-
+(* module TP   = TpNull.Prover *)
 module Misc = FixMisc open Misc.Ops
 
 
@@ -67,7 +66,7 @@ module type SOLVER = sig
   (* val meet   : soln -> soln -> soln  *)
 end
 
-module Make (Dom : Cg.DOMAIN) = struct
+module Make (Dom : SolverArch.DOMAIN) = struct
   type soln     = Dom.t
   type bind     = Dom.bind
   let min_read  = Dom.min_read
@@ -227,8 +226,8 @@ let solve me s =
   (s, u, cx)
 
 let global_symbols cfg = 
-     (SM.to_list cfg.Cg.uops)                                           (* specified globals *) 
-  ++ (Theories.theories () |> snd |>: (Th.sym_name <*> Th.sym_sort))    (* theory globals *)
+     (SM.to_list cfg.Cg.uops)   (* specified globals *) 
+  ++ (Theories.interp_syms)     (* theory globals    *)
 
 (* API *)
 let create cfg kf =

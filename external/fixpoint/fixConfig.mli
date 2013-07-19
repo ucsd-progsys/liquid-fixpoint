@@ -3,7 +3,6 @@
 (*
 exception UnmappedKvar of Ast.Symbol.t
 *)
-type qbind   = Qualifier.t list
 type solbind = Ast.Symbol.t * ((Ast.Symbol.t * (Ast.expr list)) list)
 type deft = Srt of Ast.Sort.t 
           | Axm of Ast.pred 
@@ -32,25 +31,6 @@ type 'bind cfg = {
 }
 
 
-module type DOMAIN = sig
-  type t
-  type bind
-  val empty        : t 
-  (* val meet         : t -> t -> t *)
-  val min_read     : t -> FixConstraint.soln
-  val read         : t -> FixConstraint.soln
-  val read_bind    : t -> Ast.Symbol.t -> bind
-  val top          : t -> Ast.Symbol.t list -> t
-  val refine       : t -> FixConstraint.t -> (bool * t)
-  val unsat        : t -> FixConstraint.t -> bool
-  val create       : bind cfg -> FixConstraint.soln option -> t
-  val print        : Format.formatter -> t -> unit
-  val print_stats  : Format.formatter -> t -> unit
-  val dump         : t -> unit
-  val simplify     : t -> t
-  val ctr_examples : t -> FixConstraint.t list -> FixConstraint.t list -> Counterexample.cex list 
-  val mkbind       : qbind -> bind
-end
 
 
 module type SIMPLIFIER = sig
@@ -58,7 +38,7 @@ module type SIMPLIFIER = sig
 end
 
 val empty     : 'a cfg 
-val create    : deft list -> qbind cfg
+val create    : deft list -> (Qualifier.t list) cfg
 val print     : Format.formatter -> 'a cfg -> unit
 val create_raw:  Ast.Sort.t list 
               -> Ast.Sort.t Ast.Symbol.SMap.t 

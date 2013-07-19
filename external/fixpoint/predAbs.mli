@@ -13,4 +13,4 @@
  *
  *)
 
-include FixConfig.DOMAIN
+include SolverArch.DOMAIN

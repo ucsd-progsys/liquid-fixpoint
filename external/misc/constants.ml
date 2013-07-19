@@ -64,6 +64,7 @@ let refine_sort                 = ref false (* -refinesort *)
 let sorted_quals                = ref false (* -sortedquals *)
 let true_unconstrained          = ref true  (* -true_unconstrained *)
 let do_nothing                  = ref false (* -nop *)
+let smt_solver                  = ref (Some "z3") (* -smtsolver [z3, yices, cvc4, ...] *)
 let dump_imp                    = ref false (* -imp *)
 let dump_smtlib                 = ref false (* -smtlib *)
 let dump_simp                   = ref ""    (* -simp *)
@@ -329,6 +330,10 @@ let arg_spec =
    ("-imp",
     Arg.Set dump_imp,
     " print constraints as IMP program (experimental)"
+   );
+   ("-smtsolver",
+    Arg.String (fun s -> smt_solver := if s = "z3mem" then None else Some s),
+    (" SMT solver (default: Z3 SMTLIB2. z3mem for bindings)")
    );
    ("-smtlib",
     Arg.Set dump_smtlib,
