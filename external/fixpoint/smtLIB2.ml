@@ -142,7 +142,8 @@ let z3_preamble
     ] 
  
 let smtlib_preamble 
-  = [ spr "(define-sort %s () Int)"       elt
+  = [ spr "(set-logic QF_UFLIA)"
+    ; spr "(define-sort %s () Int)"       elt
     ; spr "(define-sort %s () Int)"       set 
     ; spr "(declare-fun %s () %s)"        emp set
     ; spr "(declare-fun %s (%s %s) %s)"   add set elt set
@@ -192,7 +193,7 @@ let mkSetSub _ s t = spr "(%s %s %s)" sub s t
 let smt_cmd = function
   | Z3      -> "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true smt.mbqi=false auto-config=false"
   | Mathsat -> "mathsat -input=smt2"
-  | Cvc4    -> "cvc4"
+  | Cvc4    -> "cvc4 --incremental -L smtlib2"
 
 let smt_preamble = function
   | Z3 -> z3_preamble
@@ -286,6 +287,7 @@ let solver () =
   match !Co.smt_solver with
     | Some "z3"      -> Z3
     | Some "mathsat" -> Mathsat
+    | Some "cvc4"    -> Cvc4
     | Some str       -> assertf "ERROR: fixpoint does not yet support SMTSOLVER: %s" str
     | None           -> assertf "ERROR: undefined solver for smtLIB2"
 
@@ -301,9 +303,6 @@ let mkContext _ =
 (***********************************************************************)
 (*********************** AST Constructors ******************************)
 (***********************************************************************)
-
-
-(* THEORY = QF_UFLIA *)
 
 let stringSymbol _ s = s
 let astString _ a    = a 
