@@ -189,12 +189,10 @@ let mkSetSub _ s t = spr "(%s %s %s)" sub s t
 (* "z3 -smtc SOFT_TIMEOUT=1000 -in" *)
 (* "z3 -smtc -in MBQI=false"        *)
 
-let cmds     = Misc.hashtbl_of_list [
-                 (Z3     , "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true smt.mbqi=false auto-config=false")
-               ; (Mathsat, "mathsat -input=smt2") 
-               ]
-
-let smt_cmd  = fun s  -> H.find cmds s
+let smt_cmd = function
+  | Z3      -> "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true smt.mbqi=false auto-config=false"
+  | Mathsat -> "mathsat -input=smt2"
+  | Cvc4    -> "cvc4"
 
 let smt_preamble = function
   | Z3 -> z3_preamble
