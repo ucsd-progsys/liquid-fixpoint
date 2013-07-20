@@ -73,7 +73,7 @@ type resp     = Ok
               | Unknown
               | Error of string
 
-type solver   = Z3 
+type solver   = Z3 | Mathsat | Cvc4 
 
 type context  = { cin  : in_channel
                 ; cout : out_channel
@@ -86,11 +86,14 @@ let respString = function
   | Unknown -> "Unknown"
   | Error s -> "Error " ^ s
 
+let solverString = function
+  | Z3      -> "z3"
+  | Mathsat -> "mathsat"
+  | Cvc4    -> "cvc4"
+
 (*******************************************************************)
 (*********************** Set Theory ********************************)
 (*******************************************************************)
-
-
 
 let elt = "Elt"
 let set = "Set"
@@ -104,7 +107,6 @@ let sub = "smt_set_sub"
 let com = "smt_set_com"
 
 (* 
- 
    (define-fun smt_set_emp () Set ((as const Set) false))
    (define-fun smt_set_mem ((x Elt) (s Set)) Bool (select s x))
    (define-fun smt_set_add ((s Set) (x Elt)) Set  (store s x true))
@@ -116,7 +118,7 @@ let com = "smt_set_com"
 *)
 
 (* z3 specific *)
-let preamble 
+let z3_preamble 
   = [ spr "(define-sort %s () Int)"
         elt
     ; spr "(define-sort %s () (Array %s Bool))" 
@@ -138,9 +140,10 @@ let preamble
     ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (= %s (%s s1 s2)))"
         sub set set emp dif 
     ] 
-(* 
-let preamble 
-  = [ spr "(declare-sort %s)"             set
+ 
+let smtlib_preamble 
+  = [ spr "(define-sort %s () Int)"       elt
+    ; spr "(define-sort %s () Int)"       set 
     ; spr "(declare-fun %s () %s)"        emp set
     ; spr "(declare-fun %s (%s %s) %s)"   add set elt set
     ; spr "(declare-fun %s (%s %s) %s)"   cup set set set
@@ -148,7 +151,8 @@ let preamble
     ; spr "(declare-fun %s (%s %s) %s)"   dif set set set
     ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
     ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
-    
+   
+    (* HIDE? 
     ; spr "(assert (forall ((x %s)) (not (%s x %s))))" 
           elt mem emp
     ; spr "(assert (forall ((x %s) (s1 %s) (s2 %s)) 
@@ -163,8 +167,9 @@ let preamble
     ; spr "(assert (forall ((x %s) (s %s) (y %s)) 
             (= (%s x (%s s y)) (or (%s x s) (= x y)))))"
             elt set elt mem add mem 
+    *)
     ] 
-*)
+
 
 let mkSetSort _ _  = set
 let mkEmptySet _ _ = emp
@@ -185,10 +190,17 @@ let mkSetSub _ s t = spr "(%s %s %s)" sub s t
 (* "z3 -smtc -in MBQI=false"        *)
 
 let cmds     = Misc.hashtbl_of_list [
-                 (Z3   , "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true smt.mbqi=false auto-config=false")
+                 (Z3     , "z3 -smt2 -in MODEL=false MODEL.PARTIAL=true smt.mbqi=false auto-config=false")
+               ; (Mathsat, "mathsat -input=smt2") 
                ]
 
 let smt_cmd  = fun s  -> H.find cmds s
+
+let smt_preamble = function
+  | Z3 -> z3_preamble
+  | _  -> smtlib_preamble 
+
+
 let smt_file = fun () -> !Co.out_file ^ ".smt2"
 
 let smt_write_raw me s = 
@@ -218,10 +230,10 @@ let interact me = function
       let _ = smt_write me <| spr "(declare-fun %s (%s) %s)" x (String.concat " " ts) t in
       Ok 
   | Push -> 
-      let _ = smt_write me <|     "(push)" in
+      let _ = smt_write me <|     "(push 1)" in
       Ok
   | Pop -> 
-      let _ = smt_write me <|     "(pop)" in
+      let _ = smt_write me <|     "(pop 1)" in
       Ok
   | CheckSat -> 
       let _ = smt_write me <|     "(check-sat)" in
@@ -274,15 +286,18 @@ let smt_assert_distinct me az
 
 let solver () =
   match !Co.smt_solver with
-    | Some "z3" -> Z3
-    | Some str  -> assertf "ERROR: fixpoint does not support %s" str
-    | None      -> assertf "ERROR: undefined solver for smtLIB2"
+    | Some "z3"      -> Z3
+    | Some "mathsat" -> Mathsat
+    | Some str       -> assertf "ERROR: fixpoint does not yet support SMTSOLVER: %s" str
+    | None           -> assertf "ERROR: undefined solver for smtLIB2"
 
 let mkContext _ =
-  let cin, cout = solver ()   |> smt_cmd |> Unix.open_process in
-  let clog      = smt_file () |> open_out                     in
-  let ctx       = { cin = cin; cout = cout; clog = clog }     in
-  let _         = List.iter (smt_write ctx) preamble        in
+  let s      = solver ()                          in
+  let ci, co = Unix.open_process <| smt_cmd s     in
+  let cl     = smt_file () |> open_out            in
+  let pre    = smt_preamble s                     in
+  let ctx    = { cin = ci; cout = co; clog = cl } in
+  let _      = List.iter (smt_write ctx) pre      in
   ctx
 
 (***********************************************************************)
