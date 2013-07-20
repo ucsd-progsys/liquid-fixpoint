@@ -65,7 +65,7 @@ type cmd      = Push
               | CheckSat
               | Declare     of symbol * sort list * sort
               | AssertCnstr of ast
-              | Distinct    of ast list
+              | Distinct    of ast list (* {v: ast list | (len v) >= 2} *)
 
 type resp     = Ok 
               | Sat 
@@ -402,8 +402,9 @@ let assertAxiom me p
     asserts (not (unsat me)) "ERROR: Axiom makes background theory inconsistent!"
 
 (* API *)
-let assertDistinct 
-  = smt_assert_distinct
+let assertDistinct me = function 
+  | ((x1::x2::_) as az) -> smt_assert_distinct me az
+  | _                   -> ()
 
 (* API *)
 let bracket me f 
