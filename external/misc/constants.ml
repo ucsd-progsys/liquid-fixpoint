@@ -75,6 +75,7 @@ let timeout                     = ref (-1)
 let lfp                         = ref true  (* -nolfp *)
 let slice                       = ref true  (* -slice  *)
 let no_lib_hquals               = ref false (* -no-lib-hquals *)
+let gen_qual_sorts              = ref true  (* -no-gen-qual-sorts  *)
 let web_demo                    = ref false (* -web-demo *)
 let simple                      = ref true  (* -simple  *) 
 
@@ -367,6 +368,9 @@ let arg_spec =
    ("-no-lib-hquals",
     Arg.Set(no_lib_hquals),
     " don't use qualifier library in type inference");
+   ("-no-gen-qual-sorts",
+    Arg.Clear(gen_qual_sorts),
+    " don't generalize parameter sorts in qualifiers");
    ("-web-demo",
     Arg.Set(web_demo),
     " set HTML output to web demo mode");

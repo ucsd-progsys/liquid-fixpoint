@@ -311,11 +311,13 @@ let expandPred n es =
 (***************************** Create ********************************)
 (*********************************************************************)
 
-
 let generalize_sorts vts = 
   let vs, ts = List.split vts   in
   let ts'    = So.generalize ts in
   List.combine vs ts'
+
+let generalize_sorts z = 
+  if !Co.gen_qual_sorts then generalize_sorts z else z
 
 let close_params vts p =
   p |> P.support

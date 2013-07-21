@@ -117,7 +117,7 @@ let dump me s =
 let log_iter_stats me s =
   (if Co.ck_olev Co.ol_insane then Co.logPrintf "%a" Dom.print s);
   (if !(me.stat_refines) mod 100 = 0 then 
-     let msg = Printf.sprintf "num refines=%d" !(me.stat_refines) in 
+     let msg = Printf.sprintf "\n num refines=%d" !(me.stat_refines) in 
      let _   = Timer.log_event me.tt (Some msg) in
      let _   = Co.logPrintf "%s" msg in 
      let _   = Co.logPrintf "%a \n" Dom.print_stats s in
