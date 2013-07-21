@@ -1334,4 +1334,13 @@ let safeApply pp f x = match f x with
   | Some y -> y
   | None   -> failwith ("ERROR: safeApply " ^ (pp x)) 
 
+let stringIsUpper = function
+  | "" -> false
+  | s  -> let c = s.[0] in c = Char.uppercase c
+
+let stringIsLower = function
+  | "" -> false
+  | s  -> let c = s.[0] in c = Char.lowercase c
+
+
 

@@ -316,8 +316,7 @@ let generalize_sorts vts =
   let ts'    = So.generalize ts in
   List.combine vs ts'
 
-let generalize_sorts z = 
-  if !Co.gen_qual_sorts then generalize_sorts z else z
+(* let generalize_sorts z = if !Co.gen_qual_sorts then generalize_sorts z else z *)
 
 let close_params vts p =
   p |> P.support

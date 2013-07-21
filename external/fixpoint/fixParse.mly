@@ -8,6 +8,7 @@ module P  = A.Predicate
 module H  = A.Horn
 module Su = A.Subst
 module C  = FixConstraint
+module Co = Constants
 open FixMisc.Ops
 
 (* 
@@ -170,7 +171,12 @@ bsort:
   | TVAR LPAREN Num RPAREN              { So.t_generic $3 }
   | FUNC LPAREN sorts RPAREN            { So.t_func 0 $3  }
   | FUNC LPAREN Num COMMA sorts RPAREN  { So.t_func $3 $5 }
-  | Id                                  { So.t_ptr (So.Loc $1) }
+  | Id                                  { let s = $1 in 
+                                          if !Co.gen_qual_sorts || FixMisc.stringIsLower s then 
+                                            So.t_ptr (So.Loc s)       (* tyvar *) 
+                                          else 
+                                            So.t_app (So.tycon s) []  (* tycon *) 
+                                        }
   | LPAREN sort RPAREN                  { $2 }
   ; 
 
