@@ -117,7 +117,7 @@ let dump me s =
 let log_iter_stats me s =
   (if Co.ck_olev Co.ol_insane then Co.logPrintf "%a" Dom.print s);
   (if !(me.stat_refines) mod 100 = 0 then 
-     let msg = Printf.sprintf "num refines=%d" !(me.stat_refines) in 
+     let msg = Printf.sprintf "\n num refines=%d" !(me.stat_refines) in 
      let _   = Timer.log_event me.tt (Some msg) in
      let _   = Co.logPrintf "%s" msg in 
      let _   = Co.logPrintf "%a \n" Dom.print_stats s in
@@ -244,11 +244,12 @@ let create cfg kf =
             |> BS.time  "Constant EnvWF" (List.map (C.add_consts_wf gts))
             |> PP.validate_wfs in
   let cfg = { cfg with Cg.cs = Ci.to_list sri; Cg.ws = ws } in
-  let s   = if !Constants.dump_simp <> "" then Dom.empty else Dom.create cfg kf in
-  let _   = Co.logPrintf "DONE: Dom.create\n" in
+  let s   = if !Constants.dump_simp <> "" then Dom.empty else BS.time "Dom.create" (Dom.create cfg) kf in
+  let _   = print_now "\nDONE: Dom.create\n" in
+  let _   = print_now "\nBEGIN: PP.validate\n" in
   let _   = Ci.to_list sri
             |> BS.time "Validate" (PP.validate cfg.Cg.a (Dom.read s)) in
-  let _   = Co.logPrintf "DONE: PP.validate \n" in
+  let _   = print_now "\nEND: PP.validate\n" in
   ({ sri          = sri
    ; ws           = ws
    (* stat *)

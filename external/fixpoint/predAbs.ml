@@ -727,29 +727,15 @@ let binds_of_quals ws qs =
   | "" -> binds_of_quals ws qs  (* regular solving mode *)
   | _  -> SM.empty              (* constraint simplification mode *)
 
-(*
-let refine_sort cs me = 
-  if !Constants.refine_sort then 
-    (* List.fold_left refine_sort me cs -- STACKOVERFLOW!!! *)
-    let mer = ref me in
-    let csr = ref cs in
-    while not (!csr = []) do 
-      let (c :: cs') = !csr in
-      mer := refine_sort !mer c;
-      csr := cs'
-    done;
-    !mer
-  else me
-*)
 
 (* API *)
 let create c facts = 
   binds_of_quals c.Cg.ws c.Cg.qs
-(*  >> (fun _ -> assertf "DIED in predAbs.create 0")  *)
   |> SM.extendWith (fun _ -> (++)) c.Cg.bm
   |> create c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
-  (* |> refine_sort c.Cg.cs *)
+  >> (fun _ -> print_now "\nBEGIN: refine_sort\n")
   |> ((!Constants.refine_sort) <?> Misc.flip (List.fold_left refine_sort) c.Cg.cs)
+  >> (fun _ -> print_now "\nEND: refine_sort\n")
   |> Misc.maybe_apply (apply_facts c.Cg.cs) facts
 
 

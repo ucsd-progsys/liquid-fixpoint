@@ -274,7 +274,7 @@ module Sort =
     let generalize ts = 
       let locs = ts |> Misc.flap locs_of_t |> Misc.sort_and_compact       in
       let idx  = ts |> Misc.flap vars_of_t |> Misc.list_max (-1) |> (+) 1 in 
-      let lim  = Misc.index_from idx locs |>: Misc.swap |> SM.of_list          in
+      let lim  = Misc.index_from idx locs |>: Misc.swap |> SM.of_list     in
       List.map (subst_locs_vars lim) ts
 
     (* API *)
