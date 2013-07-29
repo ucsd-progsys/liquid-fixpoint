@@ -29,6 +29,6 @@ module type SOLVER = sig
 
 end
 
-module Make (Dom : FixConfig.DOMAIN) : SOLVER 
+module Make (Dom : SolverArch.DOMAIN) : SOLVER 
   with type bind = Dom.bind 
   with type soln = Dom.t

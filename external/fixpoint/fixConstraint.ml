@@ -34,7 +34,8 @@ module BS = BNstats
 module Su = Ast.Subst
 module Co  = Constants
 module Misc = FixMisc 
-module MSM = Misc.StringMap
+module MSM  = Misc.StringMap
+
 open Misc.Ops
 
 type tag  = int list * string

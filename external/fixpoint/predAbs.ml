@@ -39,13 +39,12 @@ module SS  = Sy.SSet
 module C   = FixConstraint
 
 module BS  = BNstats
-module TP  = TpNull.Prover
 module Co  = Constants
 module Cg  = FixConfig
 module H   = Hashtbl
 module PH  = A.Predicate.Hash
 
-module Cx  = Counterexample
+module CX  = Counterexample
 module Misc = FixMisc 
 module IM  = Misc.IntMap
 open Misc.Ops
@@ -95,7 +94,7 @@ module SCC = Graph.Components.Make(G)
 type bind = Q.t list
 
 type t   = 
-  { tpc  : TP.t
+  { tpc  : ProverArch.prover
   ; m    : bind SM.t
   ; assm : FixConstraint.soln  (* invariant assumption for K, 
                                  must be a fixpoint wrt constraints *)
@@ -103,9 +102,9 @@ type t   =
   ; qleqs: Q2S.t               (* (q1,q2) \in qleqs implies q1 => q2 *)
   
   (* counterexamples *)
-  ; step     : Cx.step         (* which iteration *)
-  ; ctrace   : Cx.ctrace 
-  ; lifespan : Cx.lifespan 
+  ; step     : CX.step         (* which iteration *)
+  ; ctrace   : CX.ctrace 
+  ; lifespan : CX.lifespan 
   
   (* stats *)
   ; stat_simple_refines : int ref 
@@ -281,7 +280,7 @@ let check_tp me env vv t lps =  function [] -> [] | rcs ->
           ; ignore(me.stat_imp_queries   += (List.length rcs))
           ; ignore(me.stat_valid_queries += (List.length rv)) 
   in rv *)
-  TP.set_filter me.tpc env vv lps rcs
+  me.tpc#set_filter env vv lps rcs
   >> (fun _  -> me.stat_tp_refines    += 1)
   >> (fun _  -> me.stat_imp_queries   += List.length rcs)
   >> (fun rv -> me.stat_valid_queries += List.length rv) 
@@ -368,7 +367,9 @@ let unsat me c =
   let (vv,t,_) = C.lhs_of_t c in
   let lps      = C.preds_of_lhs s c  in
   let rhsp     = c |> C.rhs_of_t |> C.preds_of_reft s |> A.pAnd in
-  not ((check_tp me (C.senv_of_t c) vv t lps [(0, rhsp)]) = [0])
+  let k        = Sy.of_string "k" in
+  let kq       = (k, Q.create k k Ast.Sort.t_int [] A.pTrue) in
+  not ((check_tp me (C.senv_of_t c) vv t lps [(kq, rhsp)]) = [kq])
 
 (****************************************************************)
 (************* Minimization: For Prettier Output ****************)
@@ -435,13 +436,13 @@ let sm_of_qual sm q =
     |> SM.extend sm
 
 (*  check_leq tp sm q qs = [q' | q' <- qs, Z3 |- q => q'] *)
-let check_leq tp sm (q : Q.t) (qs : Q.t list) : Q.t list = 
+let check_leq (tp : ProverArch.prover) sm (q : Q.t) (qs : Q.t list) : Q.t list = 
   let vv  = Q.vv_of_t q in
   let lps = [Q.pred_of_t q] in
   let sm  = q |> sm_of_qual sm |> close_env qs in
   qs |> List.map (rename_vv q) (* (fun q -> (q, Q.pred_of_t q)) *)
      (* >> (List.map fst <+> F.printf "CHECK_TP: %a IN %a \n" Q.print q pprint_qs) *)
-     |> TP.set_filter tp sm vv lps
+     |> tp#set_filter sm vv lps
      (* >> F.printf "CHECK_TP: %a OUT %a \n" Q.print q pprint_qs *)
 
 let qimps_of_partition tp sm qs =
@@ -457,7 +458,7 @@ let wellformed_qual sm q =
   A.sortcheck_pred Theories.is_interp (fun x -> SM.maybe_find x sm) (Q.pred_of_t q)
 
 let qleqs_of_qs ts sm cs ps qs  =
-  let tp = TP.create ts sm cs ps         in
+  let tp = TpNull.create ts sm cs ps in
   qs |> Misc.filter (wellformed_qual sm)
      |> Misc.groupby (List.map snd <.> Q.all_params_of_t) (* Q.sort_of_t *)
      |> Misc.flap (qimps_of_partition tp sm)
@@ -648,7 +649,7 @@ let create ts sm ps consts assm qs bm =
   ; qm    = qs |>: Misc.pad_fst Q.name_of_t |> SM.of_list
   ; qleqs = Misc.with_ref_at Constants.strictsortcheck false 
               (fun () -> create_qleqs ts sm consts ps qs) 
-  ; tpc   = TP.create ts sm ps consts
+  ; tpc   = TpNull.create ts sm ps consts
   
   (* Counterexamples *) 
   ; step     = 0
@@ -718,36 +719,23 @@ let binds_of_quals ws qs =
   >> (fun _ -> print_now "\nDONE: Qualifier Instantiation\n")
   (* >> List.iter ppBinding *)
   |> SM.of_list 
-  (* >> (fun _ -> print_now "\nDONE: QINST sm_of_list \n") *)
+  >> (fun _ -> print_now "\nDONE: Qualifier Instantiation: Built Map \n")
+
 
 let binds_of_quals ws qs = 
   match !Constants.dump_simp with
   | "" -> binds_of_quals ws qs  (* regular solving mode *)
   | _  -> SM.empty              (* constraint simplification mode *)
 
-(*
-let refine_sort cs me = 
-  if !Constants.refine_sort then 
-    (* List.fold_left refine_sort me cs -- STACKOVERFLOW!!! *)
-    let mer = ref me in
-    let csr = ref cs in
-    while not (!csr = []) do 
-      let (c :: cs') = !csr in
-      mer := refine_sort !mer c;
-      csr := cs'
-    done;
-    !mer
-  else me
-*)
 
 (* API *)
 let create c facts = 
   binds_of_quals c.Cg.ws c.Cg.qs
-(*  >> (fun _ -> assertf "DIED in predAbs.create 0")  *)
   |> SM.extendWith (fun _ -> (++)) c.Cg.bm
   |> create c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
-  (* |> refine_sort c.Cg.cs *)
+  >> (fun _ -> print_now "\nBEGIN: refine_sort\n")
   |> ((!Constants.refine_sort) <?> Misc.flip (List.fold_left refine_sort) c.Cg.cs)
+  >> (fun _ -> print_now "\nEND: refine_sort\n")
   |> Misc.maybe_apply (apply_facts c.Cg.cs) facts
 
 
@@ -775,8 +763,8 @@ let simplify s = {s with m = SM.map (min_binds s) s.m}
 
  
 let ctr_examples me cs ucs = 
-  let cx = Cx.create (read me) cs me.ctrace me.lifespan me.tpc in 
-  List.map (Cx.explain cx) ucs
+  let cx = CX.create me.tpc (read me) cs me.ctrace me.lifespan in 
+  List.map (CX.explain cx) ucs
 
 
 (*******************************************************************************)
@@ -819,7 +807,7 @@ let print_stats ppf me =
   F.fprintf ppf "#Queries: umatch=%d, match=%d, ask=%d, valid=%d\n" 
     !(me.stat_umatches) !(me.stat_matches) !(me.stat_imp_queries)
     !(me.stat_valid_queries);
-  F.fprintf ppf "%a" TP.print_stats me.tpc
+  me.tpc#print_stats ppf
 
 (* API *)
 let save fname s =

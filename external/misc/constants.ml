@@ -64,6 +64,7 @@ let refine_sort                 = ref false (* -refinesort *)
 let sorted_quals                = ref false (* -sortedquals *)
 let true_unconstrained          = ref true  (* -true_unconstrained *)
 let do_nothing                  = ref false (* -nop *)
+let smt_solver                  = ref (Some "z3") (* -smtsolver [z3, yices, cvc4, ...] *)
 let dump_imp                    = ref false (* -imp *)
 let dump_smtlib                 = ref false (* -smtlib *)
 let dump_simp                   = ref ""    (* -simp *)
@@ -74,6 +75,7 @@ let timeout                     = ref (-1)
 let lfp                         = ref true  (* -nolfp *)
 let slice                       = ref true  (* -slice  *)
 let no_lib_hquals               = ref false (* -no-lib-hquals *)
+let gen_qual_sorts              = ref true  (* -no-gen-qual-sorts  *)
 let web_demo                    = ref false (* -web-demo *)
 let simple                      = ref true  (* -simple  *) 
 
@@ -330,6 +332,10 @@ let arg_spec =
     Arg.Set dump_imp,
     " print constraints as IMP program (experimental)"
    );
+   ("-smtsolver",
+    Arg.String (fun s -> smt_solver := if s = "z3mem" then None else Some s),
+    (" SMT solver (default: Z3 SMTLIB2. z3mem for bindings)")
+   );
    ("-smtlib",
     Arg.Set dump_smtlib,
     " print constraints as SMTLIB query (experimental)"
@@ -362,6 +368,9 @@ let arg_spec =
    ("-no-lib-hquals",
     Arg.Set(no_lib_hquals),
     " don't use qualifier library in type inference");
+   ("-no-gen-qual-sorts",
+    Arg.Clear(gen_qual_sorts),
+    " don't generalize parameter sorts in qualifiers");
    ("-web-demo",
     Arg.Set(web_demo),
     " set HTML output to web demo mode");

@@ -40,11 +40,11 @@ type ctrace  = step list FixMisc.IntMap.t
 
 type cex     
 
-val create  :  FixConstraint.soln       (* assumes           *) 
+val create  :  ProverArch.prover        (* tp context        *)
+            -> FixConstraint.soln       (* assumes           *) 
             -> FixConstraint.t list     (* all constraints   *)
             -> ctrace                   
             -> lifespan 
-            -> TpNull.Prover.t          (* tp context        *)
             -> t
 
 val explain : t -> FixConstraint.t -> cex

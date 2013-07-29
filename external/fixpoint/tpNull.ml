@@ -20,7 +20,17 @@
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
-(* This file is part of the LiquidC Project *)
+open FixMisc.Ops
 
-(* USE THIS ON Z3-READY PLATFORMS e.g. Ubuntu *)
-module Prover : ProverArch.PROVER = TpZ3.Prover
+module Mem : ProverArch.PROVER = TpGen.MakeProver(SmtZ3.SMTZ3)
+module Smt : ProverArch.PROVER = TpGen.MakeProver(SmtLIB2.SMTLib2)
+
+let create ts env ps cs  
+  = match !Constants.smt_solver with
+      | None   -> 
+          print_now "\nUSING z3 bindings \n"; 
+          Mem.mkProver ts env ps cs
+      | Some s -> 
+          print_now ("\nUSING SMTLIB bindings with " ^ s ^ "\n"); 
+          Smt.mkProver ts env ps cs
+

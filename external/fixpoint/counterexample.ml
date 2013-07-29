@@ -40,7 +40,6 @@ module SS = Sy.SSet
 module P  = A.Predicate
 module Su = A.Subst
 module Q  = Qualifier
-module TP  = TpNull.Prover
 
 open Misc.Ops
 
@@ -110,7 +109,7 @@ module FactMap = Misc.EMap (struct
   let print   = print_fact
 end)
 
-type t = { tpc      : TP.t 
+type t = { tpc      : ProverArch.prover 
          ; n        : int                   (* number of solver iters *)
          ; s        : FixConstraint.soln
          ; cm       : FixConstraint.t IM.t
@@ -154,7 +153,7 @@ let isUnsatAt me c n =
   let s     = solutionAt me n                                 in
   let rhsp  = A.pAnd <| C.preds_of_reft s (C.rhs_of_t c)      in
   let query = A.pAnd <| (A.pNot rhsp) :: (C.preds_of_lhs s c) in
-  not <| TP.is_contra me.tpc (C.senv_of_t c) query
+  not <| me.tpc#is_contra (C.senv_of_t c) query
 
 let prevStep_conc me c : int =
   let _  = asserts (C.is_conc_rhs c) in
@@ -217,7 +216,7 @@ let killedPred me c f =
 let getKillStep me c bgp iks =
   let iks = Misc.fsort fst iks in
   let ps  = iks |>: (snd <+> List.map snd <+> A.pAnd) in
-  match TP.unsat_suffix me.tpc (C.senv_of_t c) bgp ps with
+  match me.tpc#unsat_suffix (C.senv_of_t c) bgp ps with
   | Some j when 0 <= j && j < List.length iks 
        -> List.nth iks j 
   | io -> let _ = F.printf 
@@ -277,7 +276,7 @@ let underApproxCubes me  (p:pred) (q:pred) (rs: ('a * pred) list) : 'a option =
 
 let getKillers_cands me c p q rs =
   let env    = C.senv_of_t c in
-  let contra = fun p -> TP.is_contra me.tpc env p in
+  let contra = fun p -> me.tpc#is_contra env p in
   Misc.map_partial begin fun (f, fp) ->
     if contra (A.pAnd [p; fp; q]) && not (contra (A.pAnd [p; fp]))
     then Some f
@@ -305,7 +304,7 @@ let rec explain me f =
 (********************************************************************)
 
 (* API *)
-let create s cs ctrace lifespan tpc =
+let create tpc s cs ctrace lifespan =
   let scm    = scm_of_ctrace ctrace in
   { tpc      = tpc 
   ; s        = s 

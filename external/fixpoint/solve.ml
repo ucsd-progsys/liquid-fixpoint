@@ -37,8 +37,7 @@ module C  = FixConstraint
 module Ci = Cindex
 module PP = Prepass
 module Cg = FixConfig
-module Th = Theories
-
+(* module TP   = TpNull.Prover *)
 module Misc = FixMisc open Misc.Ops
 
 
@@ -67,7 +66,7 @@ module type SOLVER = sig
   (* val meet   : soln -> soln -> soln  *)
 end
 
-module Make (Dom : Cg.DOMAIN) = struct
+module Make (Dom : SolverArch.DOMAIN) = struct
   type soln     = Dom.t
   type bind     = Dom.bind
   let min_read  = Dom.min_read
@@ -118,7 +117,7 @@ let dump me s =
 let log_iter_stats me s =
   (if Co.ck_olev Co.ol_insane then Co.logPrintf "%a" Dom.print s);
   (if !(me.stat_refines) mod 100 = 0 then 
-     let msg = Printf.sprintf "num refines=%d" !(me.stat_refines) in 
+     let msg = Printf.sprintf "\n num refines=%d" !(me.stat_refines) in 
      let _   = Timer.log_event me.tt (Some msg) in
      let _   = Co.logPrintf "%s" msg in 
      let _   = Co.logPrintf "%a \n" Dom.print_stats s in
@@ -227,8 +226,8 @@ let solve me s =
   (s, u, cx)
 
 let global_symbols cfg = 
-     (SM.to_list cfg.Cg.uops)                                           (* specified globals *) 
-  ++ (Theories.theories () |> snd |>: (Th.sym_name <*> Th.sym_sort))    (* theory globals *)
+     (SM.to_list cfg.Cg.uops)   (* specified globals *) 
+  ++ (Theories.interp_syms)     (* theory globals    *)
 
 (* API *)
 let create cfg kf =
@@ -245,11 +244,12 @@ let create cfg kf =
             |> BS.time  "Constant EnvWF" (List.map (C.add_consts_wf gts))
             |> PP.validate_wfs in
   let cfg = { cfg with Cg.cs = Ci.to_list sri; Cg.ws = ws } in
-  let s   = if !Constants.dump_simp <> "" then Dom.empty else Dom.create cfg kf in
-  let _   = Co.logPrintf "DONE: Dom.create\n" in
+  let s   = if !Constants.dump_simp <> "" then Dom.empty else BS.time "Dom.create" (Dom.create cfg) kf in
+  let _   = print_now "\nDONE: Dom.create\n" in
+  let _   = print_now "\nBEGIN: PP.validate\n" in
   let _   = Ci.to_list sri
             |> BS.time "Validate" (PP.validate cfg.Cg.a (Dom.read s)) in
-  let _   = Co.logPrintf "DONE: PP.validate \n" in
+  let _   = print_now "\nEND: PP.validate\n" in
   ({ sri          = sri
    ; ws           = ws
    (* stat *)

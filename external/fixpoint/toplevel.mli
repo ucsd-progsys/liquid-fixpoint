@@ -21,5 +21,5 @@
  *
  *)
 
-val read_inputs      : string -> (string list * FixConfig.qbind FixConfig.cfg)
+val read_inputs      : string -> (string list * SolverArch.qbind FixConfig.cfg)
 
