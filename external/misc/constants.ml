@@ -37,8 +37,7 @@ let out_file            = ref "out"            (* -save *)
 let save_file           = ref "out.fq"         (* -save *)
 let dump_ref_constraints= ref false            (* -drconstr *)
 let ctypes_only         = ref false            (* -ctypes *)
-let ol_default          = 2
-let verbose_level       = ref ol_default       (* -v *)
+let verbose_level       = ref 0                (* -v *)
 let inccheck            = ref SS.empty         (* -inccheck *)
 let cex                 = ref false            (* -counterexamples *)
 let shortannots         = ref true             (* -shortannots *)
@@ -92,7 +91,7 @@ let uif_multiply  = ref true            (* -no-uif-multiply *)
 (****************************************************************)
 (************* Output levels ************************************)
 (****************************************************************)
-
+ 
 (* verbosity levels by purpose *)
 let ol_always = 0
 let ol_solve_error = 1
@@ -119,20 +118,23 @@ let ol_dump_quals = 50
 let ol_insane = 200
 
 let verb_stack = ref []
-let null_formatter = Format.make_formatter (fun a b c -> ()) ignore
-let nprintf a = Format.fprintf null_formatter a
-let ck_olev l = l <= !verbose_level
-
-let bprintf b = if b then Format.printf else nprintf
-let cprintf l = if ck_olev l then Format.printf else nprintf
-let ecprintf l = if ck_olev l then Format.eprintf else nprintf
-let fcprintf ppf l = if ck_olev l then Format.fprintf ppf else nprintf
+let ck_olev l              = l <= !verbose_level
+let null_formatter         = Format.make_formatter (fun a b c -> ()) ignore
+let nprintf a              = Format.fprintf null_formatter a
+let cprintf l              = if ck_olev l then Format.printf else nprintf
+let ecprintf l             = if ck_olev l then Format.eprintf else nprintf
+let fcprintf ppf l         = if ck_olev l then Format.fprintf ppf else nprintf
 let icprintf printer l ppf = if ck_olev l then printer ppf else printer null_formatter
-let cprintln l s = if ck_olev l then Printf.ksprintf (Format.printf "@[%s@\n@]") s else nprintf
-let elevate_olev l = if ck_olev l then () else verb_stack := !verbose_level :: !verb_stack; verbose_level := l
-let restore_olev = match !verb_stack with x :: xs -> verbose_level := x; verb_stack := xs | _ -> ()
+let cprintln l s           = if ck_olev l then Printf.ksprintf (Format.printf "@[%s@\n@]") s else nprintf
+let elevate_olev l         = if ck_olev l then () else verb_stack := !verbose_level :: !verb_stack; verbose_level := l
+let restore_olev           = match !verb_stack with 
+                               | x :: xs -> verbose_level := x; verb_stack := xs 
+                               | _       -> ()
 
+let bprintf b       = if b || ck_olev 1 then Format.printf else nprintf
 let bprintflush b s = bprintf b "%s" s; flush stdout
+
+
 
 (******************************************************************************)
 (*********************************** Logging **********************************)

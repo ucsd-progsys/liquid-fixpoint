@@ -89,7 +89,7 @@ let hashtbl_print_frequency t =
   |> List.map (fun ((n,b), xs) -> (n, b, List.map (fst <+> fst) xs))
   |> List.sort compare
   |> List.iter begin fun (n, b, xs) -> 
-       Co.logPrintf "ITERFREQ: %d times (ch = %b) %d constraints %s \n"
+       Co.bprintf mydebug "ITERFREQ: %d times (ch = %b) %d constraints %s \n"
          n b (List.length xs) (Misc.map_to_string string_of_int xs) 
      end
 
@@ -110,18 +110,17 @@ let print_solver_stats ppf me =
   F.fprintf ppf "Iteration Periods: @[%a@] \n" Timer.print me.tt
 
 let dump me s = 
-  Co.cLogPrintf Co.ol_solve_stats "%a \n" print_solver_stats me;
-  Co.cLogPrintf Co.ol_solve_stats "%a \n" Dom.print_stats s;
+  Co.bprintf mydebug "%a \n" print_solver_stats me;
+  Co.bprintf mydebug "%a \n" Dom.print_stats s;
   Dom.dump s
 
 let log_iter_stats me s =
-  (if Co.ck_olev Co.ol_insane then Co.logPrintf "%a" Dom.print s);
+  (if Co.ck_olev Co.ol_insane then Co.bprintf mydebug "log_iter_stats\n%a" Dom.print s);
   (if !(me.stat_refines) mod 100 = 0 then 
      let msg = Printf.sprintf "\n num refines=%d" !(me.stat_refines) in 
-     let _   = Timer.log_event me.tt (Some msg) in
-     let _   = Co.logPrintf "%s" msg in 
-     let _   = Co.logPrintf "%a \n" Dom.print_stats s in
-     let _   = Format.print_flush () in
+     let _   = Timer.log_event me.tt (Some msg)                      in
+     let _   = Co.bprintf mydebug "%s\n %a\n" msg Dom.print_stats s  in
+     let _   = Format.print_flush ()                                 in
      ());
   ()
 
@@ -185,11 +184,9 @@ let unconstrained_kvars cs =
 
 let true_unconstrained sri s =
   sri |> Ci.to_list 
-      >> (fun _ -> Co.logPrintf "Fixpoint: true_unconstrained Step 2 \n")
       |> unconstrained_kvars
-      >> (fun _ -> Co.logPrintf "Fixpoint: true_unconstrained Step 2 \n")
       |> Dom.top s
-      >> (fun _ -> Co.logPrintf "Fixpoint: true_unconstrained Step 3 \n")
+
 (* 
 let true_unconstrained sri s = 
   if !Co.true_unconstrained then 
@@ -202,24 +199,24 @@ let true_unconstrained sri s =
 
 (* API *)
 let solve me s = 
-  let _  = Co.logPrintf "Fixpoint: Validating Initial Solution \n" in
+  let _  = Co.bprintflush mydebug "Fixpoint: Validating Initial Solution \n" in
   (* let _ = F.printf "create: SOLUTION \n %a \n" Dom.print s in *)
   let _  = BS.time "Prepass.profile" PP.profile me.sri in
-  let _  = print_now "\nBEGIN: Fixpoint: Trueing Unconstrained Variables \n" in
+  let _  = Co.bprintflush mydebug "\nBEGIN: Fixpoint: Trueing Unconstrained Variables \n" in
   let s  = s |> (!Co.true_unconstrained <?> BS.time "Prepass.true_unconstr" (true_unconstrained me.sri)) in
-  let _  = print_now "\nDONE: Fixpoint: Trueing Unconstrained Variables \n" in
+  let _  = Co.bprintflush mydebug "\nDONE: Fixpoint: Trueing Unconstrained Variables \n" in
   (* let _ = F.printf "create: SOLUTION1 \n %a \n" Dom.print s in *)
-  let _  = print_now "\nBEGIN: Fixpoint: Initialize Worklist \n" in
+  let _  = Co.bprintflush mydebug "\nBEGIN: Fixpoint: Initialize Worklist \n" in
   let w  = BS.time "Cindex.winit" Ci.winit me.sri in 
-  let _  = print_now "\nDONE: Fixpoint: Initialize Worklist \n" in
-  let _  = print_now "\nBEGIN: Fixpoint Refinement Loop \n" in
+  let _  = Co.bprintflush mydebug "\nDONE: Fixpoint: Initialize Worklist \n" in
+  let _  = Co.bprintflush mydebug "\nBEGIN: Fixpoint Refinement Loop \n" in
   let s  = BS.time "Solve.acsolve"  (acsolve me w) s in
-  let _  = print_now "\nDONE: Fixpoint Refinement Loop \n" in
+  let _  = Co.bprintflush mydebug "\nDONE: Fixpoint Refinement Loop \n" in
   (* let _ = F.printf "create: SOLUTION2 \n %a \n" Dom.print s in *)
   let s  = if !Co.minquals then simplify_solution me s else s in
-  let _  = print_now "\nDONE: Simplify Solution \n" in
+  let _  = Co.bprintflush mydebug "\nDONE: Simplify Solution \n" in
   let _  = BS.time "Solve.dump" (dump me) s in
-  let _  = Co.logPrintf "Fixpoint: Testing Solution \n" in
+  let _  = Co.bprintflush mydebug "Fixpoint: Testing Solution \n" in
   let u  = BS.time "Solve.unsatcs" (unsat_constraints me) s in
   let _  = if u != [] then F.printf "Unsatisfied Constraints:\n %a" (Misc.pprint_many true "\n" (C.print_t None)) u in
   let cx = if !Co.cex && Misc.nonnull u then Dom.ctr_examples s (Ci.to_list me.sri) u else [] in
@@ -233,10 +230,10 @@ let global_symbols cfg =
 let create cfg kf =
   let gts = global_symbols cfg in
   let sri = cfg.Cg.cs
-            >> Co.logPrintf "Pre-Simplify Stats\n%a" print_constr_stats
+            >> Co.bprintf mydebug "Pre-Simplify Stats\n%a" print_constr_stats
             |> BS.time  "Constant Env" (List.map (C.add_consts_t gts))
             |> BS.time  "Simplify" FixSimplify.simplify_ts
-            >> Co.logPrintf "Post-Simplify Stats\n%a" print_constr_stats
+            >> Co.bprintf mydebug "Post-Simplify Stats\n%a" print_constr_stats
             |> BS.time  "Ref Index" Ci.create cfg.Cg.kuts cfg.Cg.ds
             |> (!Co.slice <?> BS.time "Slice" Ci.slice) in
   let ws  = cfg.Cg.ws
@@ -245,11 +242,11 @@ let create cfg kf =
             |> PP.validate_wfs in
   let cfg = { cfg with Cg.cs = Ci.to_list sri; Cg.ws = ws } in
   let s   = if !Constants.dump_simp <> "" then Dom.empty else BS.time "Dom.create" (Dom.create cfg) kf in
-  let _   = print_now "\nDONE: Dom.create\n" in
-  let _   = print_now "\nBEGIN: PP.validate\n" in
+  let _   = Co.bprintflush mydebug "\nDONE: Dom.create\n" in
+  let _   = Co.bprintflush mydebug "\nBEGIN: PP.validate\n" in
   let _   = Ci.to_list sri
             |> BS.time "Validate" (PP.validate cfg.Cg.a (Dom.read s)) in
-  let _   = print_now "\nEND: PP.validate\n" in
+  let _   = Co.bprintflush mydebug "\nEND: PP.validate\n" in
   ({ sri          = sri
    ; ws           = ws
    (* stat *)
@@ -257,7 +254,7 @@ let create cfg kf =
    ; stat_refines = ref 0
    ; stat_cfreqt  = Hashtbl.create 37
    }, s)
-   >> (fun _ -> Co.logPrintf "DONE: Solve.create\n")
+   >> (fun _ -> Co.bprintflush mydebug "DONE: Solve.create\n")
 
 (* API *)
 let save fname me s =

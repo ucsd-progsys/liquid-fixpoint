@@ -35,10 +35,12 @@ module SM = Sy.SMap
 module SS = Sy.SSet
 module C  = FixConstraint
 module Cg = FixConfig
+module Co = Constants
 (*module BS = BNstats*)
 
 module Misc = FixMisc open Misc.Ops
 
+let mydebug = false
 
 (*************************************************************************)
 (************* Datatypes for SMTLIB Representation ***********************)
@@ -479,10 +481,10 @@ let slice_by_assertion cfg =
 let dump_smtlib_indexed (no, cfg) =
   let su = Misc.maybe_apply (fun x _ -> "." ^ (string_of_int x)) no "" in
   let fn = !Constants.out_file ^ su ^ ".smt2"  in 
-  let _  = print_now ("BEGIN: Dump SMTLIB \n") in
+  let _  = Co.bprintflush mydebug ("BEGIN: Dump SMTLIB \n") in
   let me = tx_defs cfg                         in
   let _  = Misc.with_out_formatter fn (fun ppf -> F.fprintf ppf "%a" print me) in
-  let _  = print_now ("DONE: Dump SMTLIB to " ^ !Constants.out_file ^"\n") in
+  let _  = Co.bprintflush mydebug ("DONE: Dump SMTLIB to " ^ !Constants.out_file ^"\n") in
   ()
 
 let dump_smtlib_mono cfg = 

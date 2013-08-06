@@ -80,7 +80,7 @@ let scc_print g a =
   Array.iteri begin fun i xs -> 
     C.bprintf mydebug "%d : [%a] \n" i (FixMisc.pprint_many false "," int_s_to_string) xs
   end a;
-  C.cprintf C.ol_scc "\n"
+  C.bprintf mydebug "\n"
 
 let make_graph s f is ijs = 
   let g = G.create () in

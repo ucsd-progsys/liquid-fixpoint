@@ -242,7 +242,7 @@ let make_lives cm real_deps =
        in ((js, vm), not (IS.is_empty js))
      end
   |> (fst <+> snd) 
-  >> (IS.cardinal <+> Printf.printf "#Live Constraints: %d \n") 
+  >> (IS.cardinal <+> Co.bprintf mydebug "#Live Constraints: %d \n") 
 
 let create_raw kuts ds cm dm real_deps =
   let deps = adjust_deps cm ds real_deps in

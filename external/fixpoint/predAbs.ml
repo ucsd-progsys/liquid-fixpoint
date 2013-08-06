@@ -179,7 +179,7 @@ let quals_of_bindings bm =
      |> Misc.flatten
      (* |> Misc.map (snd <+> fst)  *)
      |> Misc.sort_and_compact
-     >> (fun qs -> Co.logPrintf "Quals of Bindings: \n%a" (Misc.pprint_many true "\n" Q.print) qs; flush stdout)
+     >> (fun qs -> Co.bprintf mydebug "Quals of Bindings: \n%a" (Misc.pprint_many true "\n" Q.print) qs; flush stdout)
 
 (************************************************************************)
 (*************************** Dumping to Dot *****************************) 
@@ -221,7 +221,7 @@ let update m k ds' =
   ((n != n'), SM.add k ds' m)
   (* >> begin fun _ -> 
         if n' > n && n > 0 then 
-          print_now  <| Printf.sprintf "OMFG: update k = %s |ds| = %d |ds'| = %d \n" 
+          Co.bprintflush mydebug  <| Printf.sprintf "OMFG: update k = %s |ds| = %d |ds'| = %d \n" 
                           (Sy.to_string k) n n'
      end
    *)
@@ -241,9 +241,9 @@ let group_ks_kqs ks kqs =
         |> Misc.map fst 
 
 let p_update me ks kqs = 
-  (* let _    = print_now (Printf.sprintf "p_update A: |kqs| = %d \n" (List.length kqs)) in *)
+  (* let _    = Co.bprintflush mydebug (Printf.sprintf "p_update A: |kqs| = %d \n" (List.length kqs)) in *)
   let kqs  = group_ks_kqs ks kqs in
-  (* let _    = print_now (Printf.sprintf "p_update B: |kqs| = %d \n" (List.length kqs)) in *)
+  (* let _    = Co.bprintflush mydebug (Printf.sprintf "p_update B: |kqs| = %d \n" (List.length kqs)) in *)
   let kqsm = SM.of_alist kqs in
   let me   = me |> (!Co.cex <?> BS.time "cx_update" (cx_update ks) kqsm) in 
   List.fold_left begin fun (b, m) k ->
@@ -257,7 +257,7 @@ let p_update me ks kqs =
 (* API *)
 let top s ks = 
   ks (* |> List.partition (fun k -> SM.mem k s.m)
-     >> (fun (_, badks) -> Co.logPrintf "WARNING: Trueing Unbound KVars = %s \n" (Misc.fsprintf (Misc.pprint_many false "," Sy.print) badks))
+     >> (fun (_, badks) -> Co.bprintf mydebug "WARNING: Trueing Unbound KVars = %s \n" (Misc.fsprintf (Misc.pprint_many false "," Sy.print) badks))
      |> fst *)
      |> Misc.flip (p_update s) []
      |> snd
@@ -267,11 +267,11 @@ let top s ks =
 (***************************************************************)
 
 let rhs_cands s = function
-  | C.Kvar (su, k) -> k (* >> (fun k -> print_now ("rhs_cands: k = "^(Sy.to_string k)^"\n")) *)
+  | C.Kvar (su, k) -> k (* >> (fun k -> Co.bprintflush mydebug ("rhs_cands: k = "^(Sy.to_string k)^"\n")) *)
                         |> p_read s 
-                        (* >> (fun xs -> print_now ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n")) *)
+                        (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n")) *)
                         |>: (Misc.app_snd (Misc.flip A.substs_pred su))
-                        (* >> (fun xs -> print_now ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
+                        (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
   | _ -> []
 
 let check_tp me env vv t lps =  function [] -> [] | rcs ->
@@ -339,24 +339,24 @@ let refts_of_c c =
 let refine_sort_reft env me ((vv, so, ras) as r) = 
   let env' = SM.add vv r env in 
   let ks   = r |> C.kvars_of_reft |>: snd in
-  (* let _    = let s =  String.concat ", " (List.map Sy.to_string ks) in print_now ("\n refine_sort_reft ks = "^s^"\n")  in  *)
+  (* let _    = let s =  String.concat ", " (List.map Sy.to_string ks) in Co.bprintflush mydebug ("\n refine_sort_reft ks = "^s^"\n")  in  *)
   ras 
   |> Misc.flap (rhs_cands me) (* OMFG blowup due to FLAP if kv appears multiple times...*)
   |> Misc.filter (fun (_, p) -> C.wellformed_pred env' p)
   |> List.rev_map fst
-(* |> (fun xs -> print_now (Printf.sprintf "refine_sort_reft map: size = %d\n" (List.length xs)); 
+(* |> (fun xs -> Co.bprintflush mydebug (Printf.sprintf "refine_sort_reft map: size = %d\n" (List.length xs)); 
                 List.rev_map fst xs)
-  >> (fun _ -> print_now "\n refine_sort_reft TICK 4 \n")
+  >> (fun _ -> Co.bprintflush mydebug "\n refine_sort_reft TICK 4 \n")
   *)
   |> p_update me ks
   |> snd
 
 let refine_sort me c =
   let env = C.env_of_t c in
-  c (* >> (fun _ -> print_now ("\n refine_sort TICK 0 id = "^(string_of_int (C.id_of_t c))^"\n")) *)
+  c (* >> (fun _ -> Co.bprintflush mydebug ("\n refine_sort TICK 0 id = "^(string_of_int (C.id_of_t c))^"\n")) *)
     |> refts_of_c
     |> List.fold_left (refine_sort_reft env) me  
-    (* >> (fun _ -> print_now "\n refine_sort TICK 2 \n") *)
+    (* >> (fun _ -> Co.bprintflush mydebug "\n refine_sort TICK 2 \n") *)
 
 (***************************************************************)
 (************************* Satisfaction ************************)
@@ -713,13 +713,13 @@ let apply_facts cs kf me =
 let binds_of_quals ws qs =
   qs
   (* |> Q.normalize *)
-  >> (fun qs -> Co.logPrintf "Using Quals: \n%a" (Misc.pprint_many true "\n" Q.print) qs; flush !Co.logChannel)
-  >> (fun _ -> print_now "\nBEGIN: Qualifier Instantiation\n")
+  >> (fun qs -> Co.bprintf mydebug "Using Quals: \n%a" (Misc.pprint_many true "\n" Q.print) qs)
+  >> (fun _  -> Co.bprintflush mydebug "\nBEGIN: Qualifier Instantiation\n")
   |> BS.time "Qual Inst" (inst ws) 
-  >> (fun _ -> print_now "\nDONE: Qualifier Instantiation\n")
+  >> (fun _  -> Co.bprintflush mydebug "\nDONE: Qualifier Instantiation\n")
   (* >> List.iter ppBinding *)
   |> SM.of_list 
-  >> (fun _ -> print_now "\nDONE: Qualifier Instantiation: Built Map \n")
+  >> (fun _ -> Co.bprintflush mydebug "\nDONE: Qualifier Instantiation: Built Map \n")
 
 
 let binds_of_quals ws qs = 
@@ -733,9 +733,9 @@ let create c facts =
   binds_of_quals c.Cg.ws c.Cg.qs
   |> SM.extendWith (fun _ -> (++)) c.Cg.bm
   |> create c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
-  >> (fun _ -> print_now "\nBEGIN: refine_sort\n")
+  >> (fun _ -> Co.bprintflush mydebug "\nBEGIN: refine_sort\n")
   |> ((!Constants.refine_sort) <?> Misc.flip (List.fold_left refine_sort) c.Cg.cs)
-  >> (fun _ -> print_now "\nEND: refine_sort\n")
+  >> (fun _ -> Co.bprintflush mydebug "\nEND: refine_sort\n")
   |> Misc.maybe_apply (apply_facts c.Cg.cs) facts
 
 
@@ -831,10 +831,8 @@ let dump s =
   |> List.map (snd <+> List.map Q.pred_of_t)
   |> Misc.groupby key_of_quals
   |> List.map begin function 
-     | [] -> assertf "impossible" 
-     | (ps::_ as pss) -> Co.cprintf Co.ol_solve 
-                         "SolnCluster: preds %d = size %d \n"
-                         (List.length ps) (List.length pss)
+     | []             -> assertf "impossible" 
+     | (ps::_ as pss) -> Co.bprintf mydebug "SolnCluster: preds %d = size %d \n" (List.length ps) (List.length pss)
      end
   |> ignore
 

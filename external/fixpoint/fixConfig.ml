@@ -25,11 +25,13 @@ module SM  = Sy.SMap
 module Q   = Qualifier
 module C   = FixConstraint
 module So  = Ast.Sort
+module Co  = Constants
 
 module Misc = FixMisc open Misc.Ops
 
 exception UnmappedKvar of Ast.Symbol.t
 
+let mydebug  = false 
 
 type qbind   = Q.t list
 
@@ -63,14 +65,14 @@ type 'bind cfg = {
 }
 
 let get_arity = function
-  | []   -> Constants.logPrintf "WARNING: NO CONSTRAINTS!"; 0
+  | []   -> Constants.bprintflush mydebug "WARNING: NO CONSTRAINTS!"; 0
   | c::_ -> c |> FixConstraint.tag_of_t |> fst |> List.length
 
 let sift_quals qs = 
-  qs >> (fun _ -> print_now "BEGIN: Q.normalize\n")
+  qs >> (fun _ -> Co.bprintflush mydebug "BEGIN: Q.normalize\n")
      |> Q.normalize 
      (* >> (Format.printf "Normalized Quals: \n%a" (Misc.pprint_many true "\n" Q.print)) *)
-     >> (fun _ -> print_now "DONE: Q.normalize\n")
+     >> (fun _ -> Co.bprintflush mydebug "DONE: Q.normalize\n")
      |> Misc.map (Misc.pad_fst Q.name_of_t)
      |> SM.of_list
 

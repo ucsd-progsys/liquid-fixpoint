@@ -201,12 +201,12 @@ let profile_cstr im c =
 let dump_profile im =
   let (tsz, tcsz, tksz, tesz) = 
     IM.fold begin fun i (sz, csz, ksz, esz) (tsz, tcsz, tksz, tesz) -> 
-      Co.cLogPrintf Co.ol_solve
+      Co.bprintf mydebug
         "ctag %d: binds=%d, cbinds=%d, kbinds=%d, ebinds=%d \n" 
          i sz csz ksz esz;
       (tsz + sz, tcsz + csz, tksz + ksz, tesz + esz)
     end im (0,0,0,0) in
-  Co.cLogPrintf Co.ol_solve_stats 
+  Co.bprintf mydebug 
     "Total binds=%d, cbinds=%d, kbinds=%d, ebinds=%d \n" 
     tsz tcsz tksz tesz
 
@@ -227,7 +227,7 @@ let profile2 sri =
   sri |> Cindex.to_list
       |> Misc.groupby key_of_cstr 
       |> List.length
-      |> fun n -> Co.cLogPrintf Co.ol_solve_stats "Constraint Clusters = %d \n" n
+      |> fun n -> Co.bprintf mydebug "Constraint Clusters = %d \n" n
 
 (* API *) 
 let profile sri = 

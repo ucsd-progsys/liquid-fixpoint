@@ -35,13 +35,13 @@ let parse f =
   rv
 
 let read_inputs usage = 
-  print_now "\n \n \n \n \n";
-  print_now "========================================================\n";
-  print_now "© Copyright 2009 Regents of the University of California.\n";
-  print_now "All Rights Reserved.\n";
-  print_now "========================================================\n";
-  print_now (Sys.argv |> Array.to_list |> String.concat " ");
-  print_now "\n========================================================\n";
+  Co.bprintflush true "\n\n";
+  Co.bprintflush true "========================================================\n";
+  Co.bprintflush true "© Copyright 2009 Regents of the University of California.\n";
+  Co.bprintflush true "All Rights Reserved.\n";
+  Co.bprintflush true "========================================================\n";
+  Co.bprintflush true (Sys.argv |> Array.to_list |> String.concat " ");
+  Co.bprintflush true "\n========================================================\n";
   let fs = ref [] in
   let _  = Arg.parse Co.arg_spec (fun s -> fs := s::!fs) usage in
   let fq = !fs |> BS.time "parse" (Misc.flap parse) |> FixConfig.create in 

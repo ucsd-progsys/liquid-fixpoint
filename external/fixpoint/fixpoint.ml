@@ -25,9 +25,6 @@
 (** read a set of constraints, solve, and dump out the solution *)
 
 module CX  = Counterexample
-
-
-
 module BS  = BNstats
 module SM  = Ast.Symbol.SMap
 module Co  = Constants 
@@ -39,6 +36,8 @@ module SPA = Solve.Make (PA)
 module Cg  = FixConfig
 
 module Misc = FixMisc open Misc.Ops
+
+let mydebug = false
 
 (*****************************************************************)
 (********************* Hooking into Solver ***********************)
@@ -65,20 +64,20 @@ let save_crash fname (id, tag, msg) =
   end
 
 let solve ac  = 
-  let _         = print_now "Fixpoint: Creating  CI\n" in
+  let _         = Co.bprintflush mydebug "Fixpoint: Creating  CI\n" in
   let ctx, s    = BS.time "create" SPA.create ac None in
-  let _         = print_now "Fixpoint: Solving \n" in
+  let _         = Co.bprintflush mydebug "Fixpoint: Solving \n" in
   let s, cs',_  = BS.time "solve" (SPA.solve ctx) s in
   
-  let _         = print_now "Fixpoint: Saving Result \n" in
+  let _         = Co.bprintflush mydebug "Fixpoint: Saving Result \n" in
   let _         = BS.time "save" (save_raw !Co.out_file cs') s in
-  let _         = print_now "Fixpoint: Saving Result DONE \n" in
+  let _         = Co.bprintflush mydebug "Fixpoint: Saving Result DONE \n" in
   cs'
 
 let dump_solve ac = 
   try 
     let cs' = solve { ac with Cg.bm = SM.map PA.mkbind ac.Cg.bm } in
-    let _   = BNstats.print stdout "Fixpoint Solver Time \n" in
+    let _   = if Co.ck_olev 1 then BNstats.print stdout "Fixpoint Solver Time \n" in
     match cs' with 
     | [] -> (F.printf "\nSAT\n" ; exit 0)
     | _  -> (F.printf "\nUNSAT\n" ; exit 1)

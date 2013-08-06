@@ -25,12 +25,14 @@ open FixMisc.Ops
 module Mem : ProverArch.PROVER = TpGen.MakeProver(SmtZ3.SMTZ3)
 module Smt : ProverArch.PROVER = TpGen.MakeProver(SmtLIB2.SMTLib2)
 
+let mydebug = false
+
 let create ts env ps cs  
   = match !Constants.smt_solver with
       | None   -> 
-          print_now "\nUSING z3 bindings \n"; 
+          Constants.bprintflush mydebug "\nUSING z3 bindings \n"; 
           Mem.mkProver ts env ps cs
       | Some s -> 
-          print_now ("\nUSING SMTLIB bindings with " ^ s ^ "\n"); 
+          Constants.bprintflush mydebug ("\nUSING SMTLIB bindings with " ^ s ^ "\n"); 
           Smt.mkProver ts env ps cs
 
