@@ -350,7 +350,7 @@ let create_theories () =
 let assert_distinct_constants me env = function [] -> () | cs -> 
   cs |> Misc.kgroupby (varSort env) 
      |> List.iter begin fun (_, xs) ->
-         xs >> F.printf "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print)
+         xs >> Co.bprintf mydebug "Distinct Constants: %a \n" (Misc.pprint_many false ", " Sy.print)
             |> List.map (z3Var me env) 
             |> SMT.assertDistinct me.c
          end
