@@ -374,9 +374,16 @@ module Constant =
   end
  
 
-type tag = int
+type tag  = int
 
-type brel = Eq | Ne | Gt | Ge | Lt | Le 
+type brel = Eq    (* equal                  *)
+          | Ne    (* not-equal              *)
+          | Gt    (* greater than           *) 
+          | Ge    (* greater than or equal  *)
+          | Lt    (* less than              *)
+          | Le    (* less than or equal     *)
+          | Ueq   (* unsorted-equality      *) 
+          | Une   (* unsorted-disequality   *)
 
 type bop  = Plus | Minus | Times | Div | Mod  (* NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
@@ -583,17 +590,18 @@ let rec conjuncts = function
 
 
 (* Constructors: Predicates *)
-let pTrue  = pwr True
-let pFalse = pwr False
-let pAtom  = fun (e1, r, e2) -> pwr (Atom (e1, r, e2))
-let pMAtom = fun (e1, r, e2) -> pwr (MAtom (e1, r, e2))
-let pOr    = fun ps -> pwr (Or ps)
-let pNot   = fun p  -> pwr (Not p)
-let pBexp  = fun e  -> pwr (Bexp e)
-let pImp   = fun (p1,p2) -> pwr (Imp (p1,p2))
-let pIff   = fun (p1,p2) -> pwr (Iff (p1,p2))
-let pForall= fun (qs, p) -> pwr (Forall (qs, p))
-let pEqual = fun (e1,e2) -> pAtom (e1, Eq, e2)
+let pTrue   = pwr True
+let pFalse  = pwr False
+let pAtom   = fun (e1, r, e2) -> pwr (Atom (e1, r, e2))
+let pMAtom  = fun (e1, r, e2) -> pwr (MAtom (e1, r, e2))
+let pOr     = fun ps -> pwr (Or ps)
+let pNot    = fun p  -> pwr (Not p)
+let pBexp   = fun e  -> pwr (Bexp e)
+let pImp    = fun (p1,p2) -> pwr (Imp (p1,p2))
+let pIff    = fun (p1,p2) -> pwr (Iff (p1,p2))
+let pForall = fun (qs, p) -> pwr (Forall (qs, p))
+let pEqual  = fun (e1,e2) -> pAtom (e1, Eq, e2)
+let pUequal = fun (e1,e2) -> pAtom (e1, Ueq, e2)
 
 
 let pAnd   = fun ps -> match Misc.flap conjuncts ps with 
@@ -623,12 +631,14 @@ let bop_to_string = function
   | Mod   -> "mod" 
 
 let brel_to_string = function 
-  | Eq -> "="
-  | Ne -> "!="
-  | Gt -> ">"
-  | Ge -> ">="
-  | Lt -> "<"
-  | Le -> "<="
+  | Eq  -> "="
+  | Ne  -> "!="
+  | Gt  -> ">"
+  | Ge  -> ">="
+  | Lt  -> "<"
+  | Le  -> "<="
+  | Ueq -> "~~"
+  | Une -> "!~"
 
 let print_brel ppf r = 
   F.fprintf ppf "%s" (brel_to_string r)
@@ -976,12 +986,13 @@ module Predicate = struct
    
 
   let rec is_tauto  = function
-    | Atom(e1, Eq, e2), _ -> snd e1 == snd e2
-    | Imp (p1, p2), _     -> snd p1 == snd p2
-    | And ps, _           -> List.for_all is_tauto ps
-    | Or  ps, _           -> List.exists is_tauto ps
-    | True, _             -> true
-    | _                   -> false
+    | Atom(e1, Eq,  e2), _ -> snd e1 == snd e2
+    | Atom(e1, Ueq, e2), _ -> snd e1 == snd e2
+    | Imp (p1, p2), _      -> snd p1 == snd p2
+    | And ps, _            -> List.for_all is_tauto ps
+    | Or  ps, _            -> List.exists is_tauto ps
+    | True, _              -> true
+    | _                    -> false
 
   let has_bot p =
     let r = ref false in
@@ -1173,11 +1184,16 @@ and sortcheck_rel g f (e1, r, e2) =
   | _ , Some Sort.Int,     Some (Sort.Ptr l)
   | _ , Some (Sort.Ptr l), Some Sort.Int
     -> (sortcheck_loc f l = Some Sort.Num)
-  | _ , Some (Sort.Ptr l1), Some (Sort.Ptr l2) when (sortcheck_loc f l1 = Some Sort.Num) && (sortcheck_loc f l2 = Some Sort.Num)
+  | _ , Some (Sort.Ptr l1), Some (Sort.Ptr l2) 
+    when (sortcheck_loc f l1 = Some Sort.Num) 
+      && (sortcheck_loc f l2 = Some Sort.Num)
     -> true
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
     -> t1 = t2
+  | Ueq, Some (Sort.App (_,_)), Some (Sort.App (_,_)) 
+  | Une, Some (Sort.App (_,_)), Some (Sort.App (_,_)) 
+    -> true
   | _ , Some (Sort.App (tc,_)), _
     when (g tc) (* tc is an interpreted tycon *)
     -> false
@@ -1277,21 +1293,24 @@ let remove_bot p =
   else p
 
 let symm_brel = function
-  | Eq -> Eq 
-  | Ne -> Ne 
-  | Gt -> Lt
-  | Ge -> Le
-  | Lt -> Gt
-  | Le -> Ge
-
+  | Eq  -> Eq 
+  | Ueq -> Ueq 
+  | Ne  -> Ne 
+  | Une -> Une 
+  | Gt  -> Lt
+  | Ge  -> Le
+  | Lt  -> Gt
+  | Le  -> Ge
 
 let neg_brel = function 
-  | Eq -> Ne
-  | Ne -> Eq
-  | Gt -> Le
-  | Ge -> Lt
-  | Lt -> Ge
-  | Le -> Gt
+  | Eq  -> Ne
+  | Ueq -> Une
+  | Ne  -> Eq
+  | Une -> Ueq
+  | Gt  -> Le
+  | Ge  -> Lt
+  | Lt  -> Ge
+  | Le  -> Gt
 
 let rec push_neg ?(neg=false) ((p, _) as pred) =
   match p with

@@ -103,6 +103,8 @@ rule token = parse
   | "=>"                { IMPL }
   | "!="		        { NE }
   | "="		            { EQ }
+  | "~~"		        { UEQ }
+  | "!~"		        { UNE }
   | "<="		        { LE }
   | "<"		            { LT }
   | ">="		        { GE }
