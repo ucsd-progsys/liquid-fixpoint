@@ -73,12 +73,14 @@ let mkAll me = Z3.mk_forall me 0 [||]
 
 let mkRel c r a1 a2 
   = match r with
-  | A.Eq -> Z3.mk_eq c          a1  a2  
-  | A.Ne -> Z3.mk_distinct c [| a1; a2 |]
-  | A.Gt -> Z3.mk_gt c          a1  a2 
-  | A.Ge -> Z3.mk_ge c          a1  a2
-  | A.Lt -> Z3.mk_lt c          a1  a2
-  | A.Le -> Z3.mk_le c          a1  a2
+  | A.Eq 
+  | A.Ueq -> Z3.mk_eq c          a1  a2  
+  | A.Ne  
+  | A.Une -> Z3.mk_distinct c [| a1; a2 |]
+  | A.Gt  -> Z3.mk_gt c          a1  a2 
+  | A.Ge  -> Z3.mk_ge c          a1  a2
+  | A.Lt  -> Z3.mk_lt c          a1  a2
+  | A.Le  -> Z3.mk_le c          a1  a2
 
 let mkApp c f az  = Z3.mk_app c f (Array.of_list az)
 let mkMul c a1 a2 = Z3.mk_mul c [| a1; a2|]

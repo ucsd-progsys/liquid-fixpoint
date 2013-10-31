@@ -59,7 +59,7 @@ let env_of_ibindings is =
 %token BEXP
 %token TRUE FALSE
 %token LPAREN  RPAREN LB RB LC RC
-%token EQ NE GT GE LT LE
+%token EQ NE GT GE LT LE UEQ UNE
 %token AND OR NOT NOTWORD IMPL IFF IFFWORD FORALL SEMI COMMA COLON MID
 %token EOF
 %token MOD 
@@ -207,12 +207,14 @@ relsne:
   ;
 
 rel:
-   EQ                                   { A.Eq }
- | NE                                   { A.Ne }    
- | GT                                   { A.Gt }
- | GE                                   { A.Ge }
- | LT                                   { A.Lt }
- | LE                                   { A.Le }
+   EQ                                   { A.Eq  }
+ | NE                                   { A.Ne  }    
+ | UEQ                                  { A.Ueq }    
+ | UNE                                  { A.Une }    
+ | GT                                   { A.Gt  }
+ | GE                                   { A.Ge  }
+ | LT                                   { A.Lt  }
+ | LE                                   { A.Le  }
  ;
 
 

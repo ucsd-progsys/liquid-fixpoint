@@ -328,12 +328,14 @@ let mkAll _ _ _ _  = failwith "TODO:SMTLib2.mkAll"
 
 let mkRel _ r a1 a2 
   = match r with 
-  | A.Eq -> spr "(= %s %s)"       a1 a2 
-  | A.Ne -> spr "(not (= %s %s))" a1 a2 
-  | A.Gt -> spr "(>  %s %s)"      a1 a2 
-  | A.Ge -> spr "(>= %s %s)"      a1 a2 
-  | A.Lt -> spr "(<  %s %s)"      a1 a2 
-  | A.Le -> spr "(<= %s %s)"      a1 a2 
+  | A.Eq  
+  | A.Ueq -> spr "(= %s %s)"       a1 a2 
+  | A.Ne  
+  | A.Une -> spr "(not (= %s %s))" a1 a2 
+  | A.Gt  -> spr "(>  %s %s)"      a1 a2 
+  | A.Ge  -> spr "(>= %s %s)"      a1 a2 
+  | A.Lt  -> spr "(<  %s %s)"      a1 a2 
+  | A.Le  -> spr "(<= %s %s)"      a1 a2 
 
 
 

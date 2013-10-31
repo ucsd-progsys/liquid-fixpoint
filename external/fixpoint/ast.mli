@@ -109,7 +109,7 @@ module Constant :
 
 type tag  (* externally opaque *)
 
-type brel = Eq | Ne | Gt | Ge | Lt | Le 
+type brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
 
 type bop  = Plus | Minus | Times | Div | Mod    (* NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
@@ -169,7 +169,7 @@ val pIff   : (pred * pred) -> pred
 val pBexp  : expr -> pred
 val pForall: ((Symbol.t * Sort. t) list) * pred -> pred
 val pEqual : expr * expr -> pred
-
+val pUequal : expr * expr -> pred
 val neg_brel : brel -> brel
 
 module Expression : 
