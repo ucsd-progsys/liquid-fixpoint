@@ -4,6 +4,7 @@
 exception UnmappedKvar of Ast.Symbol.t
 *)
 type solbind = Ast.Symbol.t * ((Ast.Symbol.t * (Ast.expr list)) list)
+
 type deft = Srt of Ast.Sort.t 
           | Axm of Ast.pred 
           | Cst of FixConstraint.t
