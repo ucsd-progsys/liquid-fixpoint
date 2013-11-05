@@ -178,6 +178,7 @@ bsort:
                                             So.t_app (So.tycon s) []  (* tycon *) 
                                         }
   | LPAREN sort RPAREN                  { $2 }
+  | LB RB                               { So.t_app (So.tycon "List") [] }
   ; 
 
 
