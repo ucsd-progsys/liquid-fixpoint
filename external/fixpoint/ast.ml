@@ -171,6 +171,21 @@ module Sort =
       | App (c, ts) -> Some (c, ts) 
       | _           -> None
 
+    (* (L t1 t2 t3) is now encoded as
+        ---> (((L @ t1) @ t2) @ t3)
+        ---> App(@, [App(@, [App(@, [L[]; t1]); t2]); t3])
+        The following decodes the above as 
+     *)
+    let rec app_args_of_t acc = function 
+      | App (c, [t1; t2]) when c = tc_app -> app_args_of_t (t2 :: acc) t1 
+      | App (c, [])                       -> (c, acc)
+      | Ptr (Loc s)                       -> (tycon s, acc)
+      | t                                 -> assertf "app_args_of_t: unexpected t1 = %s" (to_string t)
+
+    let app_of_t = function
+      | App (c, _) as t when c = tc_app   -> Some (app_args_of_t [] t)
+      | App (c, ts)                       -> Some (c, ts)
+      | _                                 -> None 
 
     let func_of_t = function
       | Func (i, ts) -> let (xts, t) = ts |> Misc.list_snoc |> Misc.swap in 
