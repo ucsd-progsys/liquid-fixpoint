@@ -179,8 +179,12 @@ module Sort =
     let rec app_args_of_t acc = function 
       | App (c, [t1; t2]) when c = tc_app -> app_args_of_t (t2 :: acc) t1 
       | App (c, [])                       -> (c, acc)
+      | t                                 -> (tc_app, t :: acc)
+      
+      (*
       | Ptr (Loc s)                       -> (tycon s, acc)
       | t                                 -> assertf "app_args_of_t: unexpected t1 = %s" (to_string t)
+      *)
 
     let app_of_t = function
       | App (c, _) as t when c = tc_app   -> Some (app_args_of_t [] t)
