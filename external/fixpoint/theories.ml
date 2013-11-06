@@ -22,7 +22,6 @@
 
 module So = Ast.Sort
 module Sy = Ast.Symbol
-(* module SMT  = SmtZ3.SMTZ3 *)
 
 open ProverArch
 open FixMisc.Ops

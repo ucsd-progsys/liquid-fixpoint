@@ -88,19 +88,17 @@ module Sort =
     let t_ptr       = fun l -> Ptr l
     let t_func      = fun i ts -> Func (i, ts)
     let tycon s     = s 
-    
+    let tc_app      = "FAppTy"
+
     (* let tycon_re    = Str.regexp "[A-Z][0-9 a-z A-Z '.']"
      * function | s when Str.string_match tycon_re s 0 -> s  
                 | s -> assertf "Error: Invalid tycon: %s" s 
      *)
 
-    let t_app c ts  = match c with 
-      | "FAppTy" -> App (c, ts)
-      | _        -> List.fold_left (fun t1 t2 -> App ("FAppTy", [t1; t2])) (App (c, [])) ts
-
+    let t_app c ts  = if c = tc_app then App (c, ts) else 
+                        List.fold_left (fun t1 t2 -> App (tc_app, [t1; t2])) (App (c, [])) ts
     (* let t_app c ts  = List.fold_left (fun t1 t2 -> App ("FAppTy", [t1; t2])) (App (c, [])) ts *)   
     (* let t_app c ts  = App (c, ts) *)
-
 
     let loc_to_string = function
       | Loc s  -> s
