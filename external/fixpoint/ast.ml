@@ -88,13 +88,17 @@ module Sort =
     let t_ptr       = fun l -> Ptr l
     let t_func      = fun i ts -> Func (i, ts)
     let tycon s     = s 
-    
+    let tc_app      = "FAppTy"
+
     (* let tycon_re    = Str.regexp "[A-Z][0-9 a-z A-Z '.']"
      * function | s when Str.string_match tycon_re s 0 -> s  
                 | s -> assertf "Error: Invalid tycon: %s" s 
      *)
 
-    let t_app c ts  = App (c, ts)
+    let t_app c ts  = if c = tc_app then App (c, ts) else 
+                        List.fold_left (fun t1 t2 -> App (tc_app, [t1; t2])) (App (c, [])) ts
+    (* let t_app c ts  = List.fold_left (fun t1 t2 -> App ("FAppTy", [t1; t2])) (App (c, [])) ts *)   
+    (* let t_app c ts  = App (c, ts) *)
 
     let loc_to_string = function
       | Loc s  -> s
@@ -167,6 +171,25 @@ module Sort =
       | App (c, ts) -> Some (c, ts) 
       | _           -> None
 
+    (* (L t1 t2 t3) is now encoded as
+        ---> (((L @ t1) @ t2) @ t3)
+        ---> App(@, [App(@, [App(@, [L[]; t1]); t2]); t3])
+        The following decodes the above as 
+     *)
+    let rec app_args_of_t acc = function 
+      | App (c, [t1; t2]) when c = tc_app -> app_args_of_t (t2 :: acc) t1 
+      | App (c, [])                       -> (c, acc)
+      | t                                 -> (tc_app, t :: acc)
+      
+      (*
+      | Ptr (Loc s)                       -> (tycon s, acc)
+      | t                                 -> assertf "app_args_of_t: unexpected t1 = %s" (to_string t)
+      *)
+
+    let app_of_t = function
+      | App (c, _) as t when c = tc_app   -> Some (app_args_of_t [] t)
+      | App (c, ts)                       -> Some (c, ts)
+      | _                                 -> None 
 
     let func_of_t = function
       | Func (i, ts) -> let (xts, t) = ts |> Misc.list_snoc |> Misc.swap in 
