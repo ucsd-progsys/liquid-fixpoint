@@ -89,17 +89,17 @@ module Id : Graph.Sig.ORDERED_TYPE_DFT with type t = unit = struct
 end
 
 module G   = Graph.Persistent.Digraph.ConcreteLabeled(V)(Id)
+
 module SCC = Graph.Components.Make(G)
 
-type bind = Q.t list
+type bind  = Bot | NonBot of Q.t list
 
-type t   = 
-  { tpc  : ProverArch.prover
-  ; m    : bind SM.t
-  ; assm : FixConstraint.soln  (* invariant assumption for K, 
-                                 must be a fixpoint wrt constraints *)
-  ; qm   : Q.t SM.t            (* map from names to qualifiers *)
-  ; qleqs: Q2S.t               (* (q1,q2) \in qleqs implies q1 => q2 *)
+type t     = 
+  { tpc    : ProverArch.prover
+  ; m      : bind SM.t
+  ; assm   : FixConstraint.soln  (* invariant assumption for K, must be a fixpoint wrt constraints *)
+  ; qm     : Q.t SM.t            (* map from names to qualifiers *)
+  ; qleqs  : Q2S.t               (* (q1,q2) \in qleqs implies q1 => q2 *)
   
   (* counterexamples *)
   ; step     : CX.step         (* which iteration *)
@@ -184,7 +184,6 @@ let quals_of_bindings bm =
 (************************************************************************)
 (*************************** Dumping to Dot *****************************) 
 (************************************************************************)
-
 
 module DotGraph = struct
   type t = G.t
