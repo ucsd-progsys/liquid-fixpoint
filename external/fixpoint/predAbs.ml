@@ -305,14 +305,14 @@ let check_tp me env vv t lps =  function [] -> [] | rcs ->
   >> (fun _  -> me.stat_imp_queries   += List.length rcs)
   >> (fun rv -> me.stat_valid_queries += List.length rv) 
 
-let raw_read s k =
-  match SM.maybe_find k s.m with
+let raw_read me k =
+  match SM.maybe_find k me.m with
     | None             -> []
     | Some Bot         -> [A.pFalse]
     | Some (NonBot qs) -> List.rev_map Q.pred_of_t qs
 
 (* API *)
-let read me k = (me.assm k) ++ (raw_read me.m k)
+let read me k = (me.assm k) ++ (raw_read me k)
 
 
 (* API *)
@@ -435,7 +435,9 @@ let min_binds_bot ds =
 
 (* API *)
 let min_binds s ds = ds |> min_binds_bot |> Misc.rootsBy (def_leq s)
-let min_read s k   = SM.finds k s.m |> min_binds s |>: pred_of_bind
+let min_read s k   = SM.find_default Bot k s.m |> function 
+                      | Bot       -> [A.pFalse] 
+                      | NonBot qs -> qs |> min_binds s |>: pred_of_bind
 let min_read s k   = if !Co.minquals then min_read s k else read s k
 let min_read s k   = BS.time "min_read" (min_read s) k
 
@@ -702,7 +704,7 @@ let update_pruned ks me fqm =
     if not (SM.mem k fqm) then m else
       let false_qs = SM.safeFind k fqm "update_pruned 1" in
       let qs = SM.safeFind k m "update_pruned 2" 
-               |> List.filter (fun q -> (not (List.mem (k,q) false_qs))) 
+               |> List.filter (fun q -> (not (List.mem (k, q) false_qs))) 
       in SM.add k qs m
   end me.m ks
 
@@ -712,7 +714,7 @@ let apply_facts_c kf me c =
   let (_,_,ras) as rhs = C.rhs_of_t c in
   let ks = rhs |> C.kvars_of_reft |> List.map snd in
   let lps = C.preds_of_lhs kf c in (* Use the known facts here *)
-  let rcs = (Misc.flap (rhs_cands me)) ras in
+  let rcs = Misc.flap (rhs_cands me) ras in
     if rcs = [] then               (* Nothing on the right hand side *)
       me
     else if check_tp me env vv t lps [(0, A.pFalse)] = [0] then
@@ -754,6 +756,7 @@ let binds_of_quals ws qs =
 
 (* API *)
 let create c facts = 
+  if not (facts = None) then assertf "PredAbs.create"   
   binds_of_quals c.Cg.ws c.Cg.qs
   |> SM.extendWith (fun _ -> (++)) c.Cg.bm
   |> create c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
