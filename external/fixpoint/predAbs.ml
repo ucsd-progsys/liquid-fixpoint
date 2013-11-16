@@ -149,10 +149,15 @@ let cx_ctrace b c me =
   if b then { me with ctrace = IM.adds (C.id_of_t c) [me.step] me.ctrace } else me
 
 
+let lookup_qualifiers k m = 
+  lookup_bind k m 
+  |> function | Bot       -> []
+              | NonBot qs -> qs
+
+
 let cx_update ks kqsm' me : t = 
   List.fold_left begin fun me k -> 
-    let qs = lookup_bind k me.m  
-    let qs    = QS.of_list  (SM.finds k me.m)  in
+    let qs    = QS.of_list  (lookup_qualifiers k me.m)  in
     let qs'   = QS.of_list  (SM.finds k kqsm') in
     let kills = QS.elements (QS.diff qs qs')   in
     if Misc.nonnull kills 
@@ -212,17 +217,16 @@ let dump_graph s g =
     >> (fun oc -> Dot.output_graph oc g)
     |> close_out 
 
-let p_read s k =
-  let _ = asserts (SM.mem k s.m) "ERROR: p_read : unknown kvar %s\n" (Sy.to_string k) in
-  SM.find k s.m  |>: (fun q -> ((k, q), Q.pred_of_t q))
+
 
 (* INV: qs' \subseteq qs *)
 let update m k ds' =
-  let ds = SM.finds k m in
-  let n  = List.length ds  in
-  let n' = List.length ds' in 
+  let n' = List.length ds'                    in 
+  let n  = match SM.find_default Bot k m with 
+             | Bot        -> 1 + n' 
+             | NonBot qs  -> List.length qs   in
   let _  = asserts (n = 0 || n' <= n) "PredAbs.update: Non-monotone k = %s |ds| = %d |ds'| = %d \n" (Sy.to_string k) n n' in 
-  ((n != n'), SM.add k ds' m)
+  ((n != n'), SM.add k (NonBot ds') m)
   (* >> begin fun _ -> 
         if n' > n && n > 0 then 
           Co.bprintflush mydebug  <| Printf.sprintf "OMFG: update k = %s |ds| = %d |ds'| = %d \n" 
@@ -270,12 +274,24 @@ let top s ks =
 (************************** Refinement *************************)
 (***************************************************************)
 
+(* p_read :: soln -> kvar -> [((kvar, qual), pred)] *)
+
+let p_read s k = failwith "TODO"
+(*
+  let _ = asserts (SM.mem k s.m) "ERROR: p_read : unknown kvar %s\n" (Sy.to_string k) in
+  SM.find k s.m  |> function
+    | Bot ->(fun q -> ((k, q), Q.pred_of_t q))
+*)
+
+
 let rhs_cands s = function
-  | C.Kvar (su, k) -> k (* >> (fun k -> Co.bprintflush mydebug ("rhs_cands: k = "^(Sy.to_string k)^"\n")) *)
-                        |> p_read s 
-                        (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n")) *)
-                        |>: (Misc.app_snd (Misc.flip A.substs_pred su))
-                        (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
+  | C.Kvar (su, k) -> 
+      k 
+  (* >> (fun k -> Co.bprintflush mydebug ("rhs_cands: k = "^(Sy.to_string k)^"\n")) *)
+      |> p_read s 
+  (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n")) *)
+      |>: (Misc.app_snd (Misc.flip A.substs_pred su))
+  (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
   | _ -> []
 
 let check_tp me env vv t lps =  function [] -> [] | rcs ->
@@ -289,11 +305,15 @@ let check_tp me env vv t lps =  function [] -> [] | rcs ->
   >> (fun _  -> me.stat_imp_queries   += List.length rcs)
   >> (fun rv -> me.stat_valid_queries += List.length rv) 
 
-
-
+let raw_read s k =
+  match SM.maybe_find k s.m with
+    | None             -> []
+    | Some Bot         -> [A.pFalse]
+    | Some (NonBot qs) -> List.rev_map Q.pred_of_t qs
 
 (* API *)
-let read me k = (me.assm k) ++ (if SM.mem k me.m then p_read me k |>: snd else [])
+let read me k = (me.assm k) ++ (raw_read me.m k)
+
 
 (* API *)
 let read_bind s k = failwith "PredAbs.read_bind"
