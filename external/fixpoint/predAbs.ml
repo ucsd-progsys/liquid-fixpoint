@@ -117,6 +117,8 @@ type t     =
   ; stat_emptyRHS       : int ref 
 }
 
+let lookup_bind k m = SM.find_default Bot k m 
+
 let pprint_ps =
   Misc.pprint_many false ";" P.print 
 
@@ -133,6 +135,7 @@ let pprint_qs ppf =
 let pprint_qs' ppf = 
   List.map (fst <+> snd <+> snd <+> fst) <+> pprint_qs ppf 
 
+
 (*************************************************************)
 (************* Breadcrumbs for Cex Generation ****************)
 (*************************************************************)
@@ -145,8 +148,10 @@ let cx_ctrace b c me =
                           me.step (C.id_of_t c) b in
   if b then { me with ctrace = IM.adds (C.id_of_t c) [me.step] me.ctrace } else me
 
+
 let cx_update ks kqsm' me : t = 
   List.fold_left begin fun me k -> 
+    let qs = lookup_bind k me.m  
     let qs    = QS.of_list  (SM.finds k me.m)  in
     let qs'   = QS.of_list  (SM.finds k kqsm') in
     let kills = QS.elements (QS.diff qs qs')   in
