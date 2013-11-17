@@ -94,11 +94,20 @@ module SCC = Graph.Components.Make(G)
 
 type bind  = Bot | NonBot of Q.t list
 
+(* API *)
+let meet_bind b1 b2 = match (b1, b2) with
+  | (Bot, _)              -> b2
+  | (_, Bot)              -> b1
+  | (NonBot x, NonBot y)  -> NonBot (x ++ y)
+
 type t     = 
   { tpc    : ProverArch.prover
   ; m      : bind SM.t
+  ; om     : (Q.t list) SM.t
+  ; wm     : (Ast.Sort.t SM.t * C.reft) SM.t
   ; assm   : FixConstraint.soln  (* invariant assumption for K, must be a fixpoint wrt constraints *)
-  ; qm     : Q.t SM.t            (* map from names to qualifiers *)
+  (* ; qm     : Q.t SM.t  *)     (* map from names to qualifiers *)
+  ; qs     : Q.t list            (* list of qualifiers *) 
   ; qleqs  : Q2S.t               (* (q1,q2) \in qleqs implies q1 => q2 *)
   
   (* counterexamples *)
@@ -274,41 +283,194 @@ let top s ks =
      |> snd
 
 (***************************************************************)
-(************************** Refinement *************************)
+(******************** Qualifier Instantiation ******************)
 (***************************************************************)
 
-(* LAZYINST: p_read :: soln -> kvar -> [((kvar, qual), pred)] 
- * should TRIGGER initialization if currently mapped to BOT *)
 
-let p_read s k = failwith "TODO"
-(*
-  let _ = asserts (SM.mem k s.m) "ERROR: p_read : unknown kvar %s\n" (Sy.to_string k) in
-  SM.find k s.m  |> function
-    | Bot ->(fun q -> ((k, q), Q.pred_of_t q))
+(* DEBUG ONLY *)
+let print_param ppf (x, t) =
+  F.fprintf ppf "%a:%a" Sy.print x Ast.Sort.print t 
+let print_params ppf args =
+  F.fprintf ppf "%a" (Misc.pprint_many false ", " print_param) args
+let print_valid_binding ppf (x,y) =
+  F.fprintf ppf "[%a := %a]" Sy.print x Sy.print y
+let print_valid_bindings ppf xys =
+  F.printf "[%a]" (Misc.pprint_many false "" print_valid_binding) xys
+
+(* 
+let dupfree_binding xys : bool = 
+  let ys  = List.map snd xys in
+  let ys' = Misc.sort_and_compact ys in
+  List.length ys = List.length ys'
 *)
 
+let varmatch_ctr = ref 0
 
-let rhs_cands s = function
+let varmatch (x, y) = 
+  let _ = varmatch_ctr += 1 in
+  let (x,y) = Misc.map_pair Sy.to_string (x,y) in
+  if x.[0] = '@' then
+    let x' = Misc.suffix_of_string x 1 in
+    Misc.is_prefix x' y
+  else true
+
+let sort_compat t1 t2 = A.Sort.unify [t1] [t2] <> None
+
+let wellformed_qual f q = 
+  Q.pred_of_t q 
+  |> A.sortcheck_pred Theories.is_interp f
+(* >> (F.printf "\nwellformed: id = %d q = @[%a@] result %b\n" (C.id_of_wf wf) Q.print q) *)
+(* NEVER uncomment out the above. *)
+
+(***************************************************************)
+(**************** Lazy Instantiation: WF-Index *****************)
+(***************************************************************)
+
+let kvars_of_wf wf = 
+  let check_trivial su = asserts (Su.is_empty su) "non-trivial substitution in WF constraint!" in
+  wf |> C.reft_of_wf 
+     |> C.kvars_of_reft 
+     >> List.iter (fst <+> check_trivial)
+     |> List.map snd
+
+(* API *)
+let create_wf_index cs ws : (Ast.Sort.t SM.t * C.reft) SM.t = failwith "TODO"
+
+(********************************************************************************)
+(****** Brute Force (Post-Selection based) Qualifier Instantiation **************)
+(********************************************************************************)
+
+type qual_binding = (Sy.t * Sy.t) list
+
+let is_valid_binding (xys : qual_binding) : bool = 
+  List.for_all varmatch xys
+
+let valid_bindings ys (x,_) =
+  ys |> List.map (fun y -> (x, y))
+     |> List.filter varmatch
+
+let inst_qual env ys evv (q : Q.t) : Q.t list =
+  let vve = (Q.vv_of_t q, evv) in
+  match Q.params_of_t q with
+  | [] ->
+      [(Q.inst q [vve])]
+  | xts ->
+      xts
+      (* >> F.printf "\n\ninst_qual: params q = %a: %a" Q.print q print_params          *)
+      |> List.map (valid_bindings ys)                       (* candidate bindings    *)
+      |> Misc.product                                       (* generate combinations *) 
+      (* >> (List.iter (F.printf "\ninst_qual: pre-binds = %a\n" print_valid_bindings)) *)
+      |> List.filter is_valid_binding                       (* remove bogus bindings *)
+      (* >> (List.iter (F.printf "\ninst_qual: post-binds = %a\n" print_valid_bindings)) *)
+      |> List.rev_map (List.map (Misc.app_snd A.eVar))      (* instantiations        *)
+      |> List.rev_map (fun xes -> Q.inst q (vve::xes))      (* quals *)
+      (* >> (F.printf "\n\ninst_qual: result q = %a:\n%a DONE\n" Q.print q (Misc.pprint_many true "" Q.print)) *)
+
+let inst_vars env = 
+  env |> Sy.SMap.to_list 
+      |> List.filter (fun (_, (_,so,_)) -> not (A.Sort.is_func so))
+      |> List.map fst 
+
+let inst_ext qs wf = 
+  let _    = Misc.display_tick () in
+  let r    = C.reft_of_wf wf in 
+  let ks   = C.kvars_of_reft r |> List.map snd in
+  let env  = C.env_of_wf wf in
+  let vv   = fst3 r in
+  let t    = snd3 r in
+  let ys   = inst_vars env   in
+  let env' = Misc.maybe_map C.sort_of_reft <.> C.lookup_env (SM.add vv r env) in
+  qs |> List.filter (Q.sort_of_t <+> sort_compat t)
+     |> Misc.flap   (inst_qual env ys (A.eVar vv))
+     |> Misc.filter (wellformed_qual env' <&&> C.filter_of_wf wf)
+     |> Misc.cross_product ks
+     
+(********************************************************************************)
+(****** Sort Based Qualifier Instantiation **************************************)
+(********************************************************************************)
+
+let inst_binds env = 
+  env |> SM.to_list 
+      |> Misc.map (Misc.app_snd snd3) 
+      |> Misc.filter (not <.> A.Sort.is_func <.> snd)
+
+(* [ (su', (x,y) : xys) | (su, xys) <- wkl
+                        , (y, ty)   <- yts
+                        , varmatch (x, y)
+                        , Some su'  <- unifyWith su [tx] [ty] ]  *)
+
+let ext_bindings yts wkl (x, tx) =
+  let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
+  Misc.tr_rev_flap (fun (su, xys) ->
+    Misc.map_partial (fun (y, ty) -> 
+      match A.Sort.unifyWith su [tx] [ty] with
+        | None     -> None
+        | Some su' -> Some (su', (x,y) :: xys)
+    ) yts
+  ) wkl 
+
+let inst_qual_sorted yts vv t q = 
+  let (qvv0, t0) :: xts = Q.all_params_of_t q     in
+  match A.Sort.unify [t0] [t] with 
+    | Some su0 -> 
+        xts |> List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]  (* generate subs-bindings   *)
+            |> List.rev_map (List.rev <.> snd)                          (* extract sorted bindings  *)
+            |> List.rev_map (List.map (Misc.app_snd A.eVar))            (* instantiations           *)
+            |> List.rev_map (Q.inst q)                                  (* quals *)
+    | None    -> [] 
+
+let inst_ext_sorted qs (env, (vv,t,_)) = 
+  let _    = Misc.display_tick ()               in
+  let yts  = inst_binds env                     in
+  qs |> Misc.flap (inst_qual_sorted yts vv t)
+
+(***************************************************************)
+(**************** Lazy Instantiation ***************************)
+(***************************************************************)
+
+let inst_ext qs (z : Ast.Sort.t SM.t * C.reft) : Q.t list =
+  if !Co.sorted_quals 
+  then inst_ext_sorted qs z 
+  else inst_ext        qs z 
+
+(* API *)
+let lazy_instantiate_with me c k : Q.t list =
+  SM.safeFind k me.wm "lazy_instantiate" 
+  |> inst_ext me.qs
+  |> ((++) (SM.find_default [] k me.om))
+
+(***************************************************************)
+(**************** Query Current Solution ***********************)
+(***************************************************************)
+
+
+(* KEEP AROUND FOR DEBUG PRINTING SIGH.
+let rhs_cands me = function
   | C.Kvar (su, k) -> 
       k 
   (* >> (fun k -> Co.bprintflush mydebug ("rhs_cands: k = "^(Sy.to_string k)^"\n")) *)
-      |> p_read s 
+      |> p_read me 
   (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n")) *)
       |>: (Misc.app_snd (Misc.flip A.substs_pred su))
   (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
   | _ -> []
+*)
 
-let check_tp me env vv t lps =  function [] -> [] | rcs ->
-  (* let rv  = TP.set_filter me.tpc env vv lps rcs               in
-  let _   = ignore(me.stat_tp_refines    += 1)
-          ; ignore(me.stat_imp_queries   += (List.length rcs))
-          ; ignore(me.stat_valid_queries += (List.length rv)) 
-  in rv *)
-  me.tpc#set_filter env vv lps rcs
-  >> (fun _  -> me.stat_tp_refines    += 1)
-  >> (fun _  -> me.stat_imp_queries   += List.length rcs)
-  >> (fun rv -> me.stat_valid_queries += List.length rv) 
+let quals_of_bind me c k = function
+  | Bot       -> lazy_instantiate_with me c k
+  | NonBot qs -> qs
 
+let make_cand k su q =
+  let qp  = Q.pred_of_t q       in
+  let qp' = A.substs_pred qp su in
+  ((k, q), qp')
+
+let rhs_cands me c = function
+  | C.Kvar (su, k) -> 
+      SM.safeFind k me.m "rhs_cands" 
+      |> quals_of_bind me c k 
+      |>: make_cand k su
+  | _              -> []
 
 let preds_of_bind = function
   | Bot       -> [A.pFalse]
@@ -321,15 +483,24 @@ let raw_read me k = match SM.maybe_find k me.m with
 (* API *)
 let read me k = (me.assm k) ++ (raw_read me k)
 
-
 (* API *)
 let read_bind s k = failwith "PredAbs.read_bind"
+
+(***************************************************************)
+(**************** Refinement ***********************************)
+(***************************************************************)
+
+let check_tp me env vv t lps =  function [] -> [] | rcs ->
+  me.tpc#set_filter env vv lps rcs
+  >> (fun _  -> me.stat_tp_refines    += 1)
+  >> (fun _  -> me.stat_imp_queries   += List.length rcs)
+  >> (fun rv -> me.stat_valid_queries += List.length rv) 
 
 let refine me c =
   let (_,_,ra2s) as r2 = C.rhs_of_t c in
   let k2s = r2 |> C.kvars_of_reft |> List.map snd in
-  let rcs = BS.time "rhs_cands" (Misc.flap (rhs_cands me)) ra2s in
-  if rcs = [] then
+  let rcs = BS.time "rhs_cands" (Misc.flap (rhs_cands me c)) ra2s in
+  if rcs  = [] then
     let _ = me.stat_emptyRHS += 1 in
     (false, me)
   else 
@@ -360,34 +531,6 @@ let refine me c =
   (b, me)
 
 
-(***************************************************************)
-(****************** Sort Check Based Refinement ****************)
-(***************************************************************)
-
-let refts_of_c c =
-  [ C.lhs_of_t c ; C.rhs_of_t c] ++ (C.env_of_t c |> C.bindings_of_env |>: snd)
-
-let refine_sort_reft env me ((vv, so, ras) as r) = 
-  let env' = SM.add vv r env in 
-  let ks   = r |> C.kvars_of_reft |>: snd in
-  (* let _    = let s =  String.concat ", " (List.map Sy.to_string ks) in Co.bprintflush mydebug ("\n refine_sort_reft ks = "^s^"\n")  in  *)
-  ras 
-  |> Misc.flap (rhs_cands me) (* OMFG blowup due to FLAP if kv appears multiple times...*)
-  |> Misc.filter (fun (_, p) -> C.wellformed_pred env' p)
-  |> List.rev_map fst
-(* |> (fun xs -> Co.bprintflush mydebug (Printf.sprintf "refine_sort_reft map: size = %d\n" (List.length xs)); 
-                List.rev_map fst xs)
-  >> (fun _ -> Co.bprintflush mydebug "\n refine_sort_reft TICK 4 \n")
-  *)
-  |> p_update me ks
-  |> snd
-
-let refine_sort me c =
-  let env = C.env_of_t c in
-  c (* >> (fun _ -> Co.bprintflush mydebug ("\n refine_sort TICK 0 id = "^(string_of_int (C.id_of_t c))^"\n")) *)
-    |> refts_of_c
-    |> List.fold_left (refine_sort_reft env) me  
-    (* >> (fun _ -> Co.bprintflush mydebug "\n refine_sort TICK 2 \n") *)
 
 (***************************************************************)
 (************************* Satisfaction ************************)
@@ -499,173 +642,6 @@ let qleqs_of_qs ts sm cs ps qs  =
      |> Misc.map (Misc.map_pair Q.name_of_t) 
      |> Q2S.of_list
 
-(***************************************************************)
-(******************** Qualifier Instantiation ******************)
-(***************************************************************)
-
-type qual_binding = (Sy.t * Sy.t) list
-
-(* DEBUG ONLY *)
-let print_param ppf (x, t) =
-  F.fprintf ppf "%a:%a" Sy.print x Ast.Sort.print t 
-let print_params ppf args =
-  F.fprintf ppf "%a" (Misc.pprint_many false ", " print_param) args
-let print_valid_binding ppf (x,y) =
-  F.fprintf ppf "[%a := %a]" Sy.print x Sy.print y
-let print_valid_bindings ppf xys =
-  F.printf "[%a]" (Misc.pprint_many false "" print_valid_binding) xys
-
-(* 
-let dupfree_binding xys : bool = 
-  let ys  = List.map snd xys in
-  let ys' = Misc.sort_and_compact ys in
-  List.length ys = List.length ys'
-*)
-
-let varmatch_ctr = ref 0
-
-let varmatch (x, y) = 
-  let _ = varmatch_ctr += 1 in
-  let (x,y) = Misc.map_pair Sy.to_string (x,y) in
-  if x.[0] = '@' then
-    let x' = Misc.suffix_of_string x 1 in
-    Misc.is_prefix x' y
-  else true
-
-let sort_compat t1 t2 = A.Sort.unify [t1] [t2] <> None
-
-(* {{{ DONT DELETE FOR NOW let valid_bindings_sort env (x, t) =
-  let _ = failwith "valid_bindings_sort: slow AND incorrect. suppressed!" in
-  env |> SM.to_list
-      |> Misc.filter (snd <+> C.sort_of_reft <+> (sort_compat t))
-      |> Misc.map (fun (y,_) -> (x, y))
-      |> Misc.filter varmatch
-
-let valid_bindings env ys (x, t) =
-  if !Co.sorted_quals
-  then valid_bindings_sort env (x, t)
-  else valid_bindings ys x
-}}} *)
-
-let wellformed_qual wf f q = 
-  q |> Q.pred_of_t 
-    |> A.sortcheck_pred Theories.is_interp f
-    (* >> (F.printf "\nwellformed: id = %d q = @[%a@] result %b\n" (C.id_of_wf wf) Q.print q) *)
-    (* NEVER uncomment out the above. *)
-
-(********************************************************************************)
-(****** Brute Force (Post-Selection based) Qualifier Instantiation **************)
-(********************************************************************************)
-
-let is_valid_binding (xys : qual_binding) : bool = 
-  List.for_all varmatch xys
-
-let valid_bindings ys (x,_) =
-  ys |> List.map (fun y -> (x, y))
-     |> List.filter varmatch
-
-let inst_qual env ys evv (q : Q.t) : Q.t list =
-  let vve = (Q.vv_of_t q, evv) in
-  match Q.params_of_t q with
-  | [] ->
-      [(Q.inst q [vve])]
-  | xts ->
-      xts
-      (* >> F.printf "\n\ninst_qual: params q = %a: %a" Q.print q print_params          *)
-      |> List.map (valid_bindings ys)                       (* candidate bindings    *)
-      |> Misc.product                                       (* generate combinations *) 
-      (* >> (List.iter (F.printf "\ninst_qual: pre-binds = %a\n" print_valid_bindings)) *)
-      |> List.filter is_valid_binding                       (* remove bogus bindings *)
-      (* >> (List.iter (F.printf "\ninst_qual: post-binds = %a\n" print_valid_bindings)) *)
-      |> List.rev_map (List.map (Misc.app_snd A.eVar))      (* instantiations        *)
-      |> List.rev_map (fun xes -> Q.inst q (vve::xes))      (* quals *)
-      (* >> (F.printf "\n\ninst_qual: result q = %a:\n%a DONE\n" Q.print q (Misc.pprint_many true "" Q.print)) *)
-
-let inst_vars env = 
-  env |> Sy.SMap.to_list 
-      |> List.filter (fun (_, (_,so,_)) -> not (A.Sort.is_func so))
-      |> List.map fst 
-
-let inst_ext qs wf = 
-  let _    = Misc.display_tick () in
-  let r    = C.reft_of_wf wf in 
-  let ks   = C.kvars_of_reft r |> List.map snd in
-  let env  = C.env_of_wf wf in
-  let vv   = fst3 r in
-  let t    = snd3 r in
-  let ys   = inst_vars env   in
-  let env' = Misc.maybe_map C.sort_of_reft <.> C.lookup_env (SM.add vv r env) in
-  qs |> List.filter (Q.sort_of_t <+> sort_compat t)
-     |> Misc.flap   (inst_qual env ys (A.eVar vv))
-     |> Misc.filter (wellformed_qual wf env' <&&> C.filter_of_wf wf)
-     |> Misc.cross_product ks
-     
-(********************************************************************************)
-(****** Sort Based Qualifier Instantiation **************************************)
-(********************************************************************************)
-
-let inst_binds env = 
-  env |> SM.to_list 
-      |> Misc.map (Misc.app_snd snd3) 
-      |> Misc.filter (not <.> A.Sort.is_func <.> snd)
-
-(* [ (su', (x,y) : xys) | (su, xys) <- wkl
-                        , (y, ty)   <- yts
-                        , varmatch (x, y)
-                        , Some su'  <- unifyWith su [tx] [ty] ]  *)
-
-let ext_bindings yts wkl (x, tx) =
-  let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
-  Misc.tr_rev_flap (fun (su, xys) ->
-    Misc.map_partial (fun (y, ty) -> 
-      match A.Sort.unifyWith su [tx] [ty] with
-        | None     -> None
-        | Some su' -> Some (su', (x,y) :: xys)
-    ) yts
-  ) wkl 
-
-let inst_qual_sorted yts vv t q = 
-  let (qvv0, t0) :: xts = Q.all_params_of_t q     in
-  match A.Sort.unify [t0] [t] with 
-    | Some su0 -> 
-        xts |> List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]  (* generate subs-bindings *)
-            |> List.rev_map (List.rev <.> snd)                          (* extract sorted bindings *)
-            |> List.rev_map (List.map (Misc.app_snd A.eVar))            (* instantiations        *)
-            |> List.rev_map (Q.inst q)                                  (* quals *)
-    | None    -> [] 
-
-let inst_ext_sorted qs wf = 
-  let _    = Misc.display_tick ()               in
-  let r    = C.reft_of_wf wf                    in 
-  let ks   = List.map snd <| C.kvars_of_reft r  in
-  let env  = C.env_of_wf wf                     in
-  let vv   = fst3 r                             in
-  let t    = snd3 r                             in
-  let yts  = inst_binds env                     in
-  qs |> Misc.flap (inst_qual_sorted yts vv t)
-     |> Misc.cross_product ks
-
-(*************************************************************************************)
-
-let inst_ext qs wf =
-  if !Co.sorted_quals 
-  then inst_ext_sorted qs wf 
-  else inst_ext        qs wf
- 
-let inst_ext qs wf =
-  if mydebug then 
-    let msg = Printf.sprintf "inst_ext wf id = %d" (C.id_of_wf wf) in
-    Misc.trace msg (inst_ext qs) wf
-    >> (List.length <+> F.printf "\n\ninst_ext wfid = %d: size = %d\n"  (C.id_of_wf wf))
-  else inst_ext qs wf
-
-(* API *)
-let inst ws qs =
-  Misc.flap (inst_ext qs) ws 
-  |> Misc.kgroupby fst 
-  |> Misc.map (Misc.app_snd (List.map snd)) 
-
-
 
 (*************************************************************************)
 (*************************** Creation ************************************)
@@ -676,10 +652,13 @@ let create_qleqs ts sm ps consts qs =
   then BS.time "Annots: make qleqs" (qleqs_of_qs ts sm consts ps) qs 
   else Q2S.empty
 
-let create ts sm ps consts assm qs bm =
- {  m     = bm
+let create obm cs ws ts sm ps consts assm qs bm =
+  { m     = bm
+  ; om    = SM.map (function Bot -> [] | NonBot qs -> qs) obm
+  ; wm    = create_wf_index cs ws
   ; assm  = assm
-  ; qm    = qs |>: Misc.pad_fst Q.name_of_t |> SM.of_list
+(*; qm    = qs |>: Misc.pad_fst Q.name_of_t |> SM.of_list *)
+  ; qs    = qs
   ; qleqs = Misc.with_ref_at Constants.strictsortcheck false 
               (fun () -> create_qleqs ts sm consts ps qs) 
   ; tpc   = TpNull.create ts sm ps consts
@@ -703,11 +682,41 @@ let ppBinding (k, zs) =
     Sy.print k 
     (Misc.pprint_many false "," Q.print) zs
 
+(***************************************************************)
+(****************** Sort Check Based Refinement ****************)
+(***************************************************************)
+(* LAZYINST
+let refts_of_c c =
+  [ C.lhs_of_t c ; C.rhs_of_t c] ++ (C.env_of_t c |> C.bindings_of_env |>: snd)
+
+let refine_sort_reft env me ((vv, so, ras) as r) = 
+  let env' = SM.add vv r env in 
+  let ks   = r |> C.kvars_of_reft |>: snd in
+  (* let _    = let s =  String.concat ", " (List.map Sy.to_string ks) in Co.bprintflush mydebug ("\n refine_sort_reft ks = "^s^"\n")  in  *)
+  ras 
+  |> Misc.flap (rhs_cands me) (* OMFG blowup due to FLAP if kv appears multiple times...*)
+  |> Misc.filter (fun (_, p) -> C.wellformed_pred env' p)
+  |> List.rev_map fst
+(* |> (fun xs -> Co.bprintflush mydebug (Printf.sprintf "refine_sort_reft map: size = %d\n" (List.length xs)); 
+                List.rev_map fst xs)
+  >> (fun _ -> Co.bprintflush mydebug "\n refine_sort_reft TICK 4 \n")
+  *)
+  |> p_update me ks
+  |> snd
+
+let refine_sort me c =
+  let env = C.env_of_t c in
+  c (* >> (fun _ -> Co.bprintflush mydebug ("\n refine_sort TICK 0 id = "^(string_of_int (C.id_of_t c))^"\n")) *)
+    |> refts_of_c
+    |> List.fold_left (refine_sort_reft env) me  
+    (* >> (fun _ -> Co.bprintflush mydebug "\n refine_sort TICK 2 \n") *)
+*)
+
 (****************************************************************************)
 (****************** APPLYING FACTS FOR INCREMENTAL SOLVING ******************)
 (****************************************************************************)
 
-(* COMMENTED OUT FOR LAZY INSTANTIATION
+(* LAZYINST
 
 (* Take in a solution of things that are known to be true, kf. Using
    this, we can prune qualifiers whose negations are implied by
@@ -751,49 +760,27 @@ let apply_facts cs kf me =
 
 *)
 
-let binds_of_quals ws qs =
-  qs
-  (* |> Q.normalize *)
-  >> (fun qs -> Co.bprintf mydebug "Using Quals: \n%a" (Misc.pprint_many true "\n" Q.print) qs)
-  >> (fun _  -> Co.bprintflush mydebug "\nBEGIN: Qualifier Instantiation\n")
-  |> BS.time "Qual Inst" (inst ws) 
-  >> (fun _  -> Co.bprintflush mydebug "\nDONE: Qualifier Instantiation\n")
-  (* >> List.iter ppBinding *)
-  |> SM.of_list 
-  >> (fun _ -> Co.bprintflush mydebug "\nDONE: Qualifier Instantiation: Built Map \n")
-
-
-let binds_of_quals ws qs = 
-  match !Constants.dump_simp with
-  | "" -> binds_of_quals ws qs  (* regular solving mode *)
-  | _  -> SM.empty              (* constraint simplification mode *)
-
-(* original/eager inst 
-let initial_solution c =
-  binds_of_quals c.Cg.ws c.Cg.qs
-  |> SM.extendWith (fun _ -> (++)) c.Cg.bm
-*)
-
 (* LAZYINST: map each KVAR to BOT *)
-let initial_solution c = failwith "TODO"
+let initial_solution c = 
+  c.Cg.ws
+  |>  Misc.flap kvars_of_wf 
+  |>: (fun k -> (k, Bot))
+  |>  SM.of_list
 
 (* API *)
 let create c = function
   | None -> 
       initial_solution c
-      |> create c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
+      |> create c.Cg.bm c.Cg.cs c.Cg.ws c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
+      (* LAZYINST: this is factored into the canonical env for each K
       >> (fun _ -> Co.bprintflush mydebug "\nBEGIN: refine_sort\n")
       |> ((!Constants.refine_sort) <?> Misc.flip (List.fold_left refine_sort) c.Cg.cs)
       >> (fun _ -> Co.bprintflush mydebug "\nEND: refine_sort\n")
+      *)
   | _ -> assertf "PredAbs.create: does not support facts" 
 
 (* API *)
 let empty = create Cg.empty None
-
-let meet_bind b1 b2 = match (b1, b2) with
-  | (Bot, _)              -> b2
-  | (_, Bot)              -> b1
-  | (NonBot x, NonBot y)  -> NonBot (x ++ y)
 
 (* API *)
 let meet me you = {me with m = SM.extendWith (fun _ -> meet_bind) me.m you.m} 
@@ -835,11 +822,10 @@ let print_m ppf s =
   end s.m 
  
 let print_qs ppf s = 
-  SM.range s.qm
-  >> (fun _ -> F.fprintf ppf "//QUALIFIERS \n\n")
-  |> F.fprintf ppf "%a" (Misc.pprint_many true "\n" Q.print)
-(*  |> List.iter (F.fprintf ppf "%a" Q.print) 
- *) |> ignore
+  s.qs >> (fun _ -> F.fprintf ppf "//QUALIFIERS \n\n")
+       |> F.fprintf ppf "%a" (Misc.pprint_many true "\n" Q.print)
+(*  |> List.iter (F.fprintf ppf "%a" Q.print) *) 
+       |> ignore
 
 (* API *)
 let print ppf s = s >> print_m ppf >> print_qs ppf |> ignore
