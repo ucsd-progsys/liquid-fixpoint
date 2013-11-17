@@ -89,17 +89,17 @@ module Id : Graph.Sig.ORDERED_TYPE_DFT with type t = unit = struct
 end
 
 module G   = Graph.Persistent.Digraph.ConcreteLabeled(V)(Id)
-
 module SCC = Graph.Components.Make(G)
 
-type bind  = Bot | NonBot of Q.t list
+type bind = Q.t list
 
-type t     = 
-  { tpc    : ProverArch.prover
-  ; m      : bind SM.t
-  ; assm   : FixConstraint.soln  (* invariant assumption for K, must be a fixpoint wrt constraints *)
-  ; qm     : Q.t SM.t            (* map from names to qualifiers *)
-  ; qleqs  : Q2S.t               (* (q1,q2) \in qleqs implies q1 => q2 *)
+type t   = 
+  { tpc  : ProverArch.prover
+  ; m    : bind SM.t
+  ; assm : FixConstraint.soln  (* invariant assumption for K, 
+                                 must be a fixpoint wrt constraints *)
+  ; qm   : Q.t SM.t            (* map from names to qualifiers *)
+  ; qleqs: Q2S.t               (* (q1,q2) \in qleqs implies q1 => q2 *)
   
   (* counterexamples *)
   ; step     : CX.step         (* which iteration *)
@@ -117,10 +117,9 @@ type t     =
   ; stat_emptyRHS       : int ref 
 }
 
-let lookup_bind k m = SM.find_default Bot k m 
-
 let pprint_ps =
   Misc.pprint_many false ";" P.print 
+
  
 let pprint_dep ppf q = 
   F.fprintf ppf "(%a, %a)" P.print (Q.pred_of_t q) Q.print_args q
@@ -128,16 +127,11 @@ let pprint_dep ppf q =
 let pprint_ds = 
   Misc.pprint_many false ";" pprint_dep
 
-let pprint_bind ppf = function 
-  | Bot       -> F.fprintf ppf "(false, BOT())"
-  | NonBot qs -> pprint_ds ppf qs
-
 let pprint_qs ppf = 
   F.fprintf ppf "[%a]" (Misc.pprint_many false ";" Q.print)
 
 let pprint_qs' ppf = 
   List.map (fst <+> snd <+> snd <+> fst) <+> pprint_qs ppf 
-
 
 (*************************************************************)
 (************* Breadcrumbs for Cex Generation ****************)
@@ -151,16 +145,9 @@ let cx_ctrace b c me =
                           me.step (C.id_of_t c) b in
   if b then { me with ctrace = IM.adds (C.id_of_t c) [me.step] me.ctrace } else me
 
-
-let lookup_qualifiers k m = 
-  lookup_bind k m 
-  |> function | Bot       -> []
-              | NonBot qs -> qs
-
-
 let cx_update ks kqsm' me : t = 
   List.fold_left begin fun me k -> 
-    let qs    = QS.of_list  (lookup_qualifiers k me.m)  in
+    let qs    = QS.of_list  (SM.finds k me.m)  in
     let qs'   = QS.of_list  (SM.finds k kqsm') in
     let kills = QS.elements (QS.diff qs qs')   in
     if Misc.nonnull kills 
@@ -198,6 +185,7 @@ let quals_of_bindings bm =
 (*************************** Dumping to Dot *****************************) 
 (************************************************************************)
 
+
 module DotGraph = struct
   type t = G.t
   module V = G.V
@@ -220,16 +208,17 @@ let dump_graph s g =
     >> (fun oc -> Dot.output_graph oc g)
     |> close_out 
 
-
+let p_read s k =
+  let _ = asserts (SM.mem k s.m) "ERROR: p_read : unknown kvar %s\n" (Sy.to_string k) in
+  SM.find k s.m  |>: (fun q -> ((k, q), Q.pred_of_t q))
 
 (* INV: qs' \subseteq qs *)
 let update m k ds' =
-  let n' = List.length ds'                    in 
-  let n  = match SM.find_default Bot k m with 
-             | Bot        -> 1 + n' 
-             | NonBot qs  -> List.length qs   in
+  let ds = SM.finds k m in
+  let n  = List.length ds  in
+  let n' = List.length ds' in 
   let _  = asserts (n = 0 || n' <= n) "PredAbs.update: Non-monotone k = %s |ds| = %d |ds'| = %d \n" (Sy.to_string k) n n' in 
-  ((n != n'), SM.add k (NonBot ds') m)
+  ((n != n'), SM.add k ds' m)
   (* >> begin fun _ -> 
         if n' > n && n > 0 then 
           Co.bprintflush mydebug  <| Printf.sprintf "OMFG: update k = %s |ds| = %d |ds'| = %d \n" 
@@ -277,25 +266,12 @@ let top s ks =
 (************************** Refinement *************************)
 (***************************************************************)
 
-(* LAZYINST: p_read :: soln -> kvar -> [((kvar, qual), pred)] 
- * should TRIGGER initialization if currently mapped to BOT *)
-
-let p_read s k = failwith "TODO"
-(*
-  let _ = asserts (SM.mem k s.m) "ERROR: p_read : unknown kvar %s\n" (Sy.to_string k) in
-  SM.find k s.m  |> function
-    | Bot ->(fun q -> ((k, q), Q.pred_of_t q))
-*)
-
-
 let rhs_cands s = function
-  | C.Kvar (su, k) -> 
-      k 
-  (* >> (fun k -> Co.bprintflush mydebug ("rhs_cands: k = "^(Sy.to_string k)^"\n")) *)
-      |> p_read s 
-  (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n")) *)
-      |>: (Misc.app_snd (Misc.flip A.substs_pred su))
-  (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
+  | C.Kvar (su, k) -> k (* >> (fun k -> Co.bprintflush mydebug ("rhs_cands: k = "^(Sy.to_string k)^"\n")) *)
+                        |> p_read s 
+                        (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" BEGIN \n")) *)
+                        |>: (Misc.app_snd (Misc.flip A.substs_pred su))
+                        (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
   | _ -> []
 
 let check_tp me env vv t lps =  function [] -> [] | rcs ->
@@ -310,17 +286,10 @@ let check_tp me env vv t lps =  function [] -> [] | rcs ->
   >> (fun rv -> me.stat_valid_queries += List.length rv) 
 
 
-let preds_of_bind = function
-  | Bot       -> [A.pFalse]
-  | NonBot qs -> List.rev_map Q.pred_of_t qs
 
-let raw_read me k = match SM.maybe_find k me.m with
-  | None   -> []
-  | Some z -> preds_of_bind z
 
 (* API *)
-let read me k = (me.assm k) ++ (raw_read me k)
-
+let read me k = (me.assm k) ++ (if SM.mem k me.m then p_read me k |>: snd else [])
 
 (* API *)
 let read_bind s k = failwith "PredAbs.read_bind"
@@ -442,9 +411,7 @@ let min_binds_bot ds =
 
 (* API *)
 let min_binds s ds = ds |> min_binds_bot |> Misc.rootsBy (def_leq s)
-let min_read s k   = SM.find_default Bot k s.m |> function 
-                      | Bot       -> [A.pFalse] 
-                      | NonBot qs -> qs |> min_binds s |>: pred_of_bind
+let min_read s k   = SM.finds k s.m |> min_binds s |>: pred_of_bind
 let min_read s k   = if !Co.minquals then min_read s k else read s k
 let min_read s k   = BS.time "min_read" (min_read s) k
 
@@ -703,12 +670,6 @@ let ppBinding (k, zs) =
     Sy.print k 
     (Misc.pprint_many false "," Q.print) zs
 
-(****************************************************************************)
-(****************** APPLYING FACTS FOR INCREMENTAL SOLVING ******************)
-(****************************************************************************)
-
-(* COMMENTED OUT FOR LAZY INSTANTIATION
-
 (* Take in a solution of things that are known to be true, kf. Using
    this, we can prune qualifiers whose negations are implied by
    information in kf *)
@@ -717,7 +678,7 @@ let update_pruned ks me fqm =
     if not (SM.mem k fqm) then m else
       let false_qs = SM.safeFind k fqm "update_pruned 1" in
       let qs = SM.safeFind k m "update_pruned 2" 
-               |> List.filter (fun q -> (not (List.mem (k, q) false_qs))) 
+               |> List.filter (fun q -> (not (List.mem (k,q) false_qs))) 
       in SM.add k qs m
   end me.m ks
 
@@ -727,7 +688,7 @@ let apply_facts_c kf me c =
   let (_,_,ras) as rhs = C.rhs_of_t c in
   let ks = rhs |> C.kvars_of_reft |> List.map snd in
   let lps = C.preds_of_lhs kf c in (* Use the known facts here *)
-  let rcs = Misc.flap (rhs_cands me) ras in
+  let rcs = (Misc.flap (rhs_cands me)) ras in
     if rcs = [] then               (* Nothing on the right hand side *)
       me
     else if check_tp me env vv t lps [(0, A.pFalse)] = [0] then
@@ -749,8 +710,6 @@ let apply_facts cs kf me =
   let _ = Printf.printf "Started with %d, proved %d false\n" numqs (numqs-numqs') in
     sol
 
-*)
-
 let binds_of_quals ws qs =
   qs
   (* |> Q.normalize *)
@@ -768,35 +727,25 @@ let binds_of_quals ws qs =
   | "" -> binds_of_quals ws qs  (* regular solving mode *)
   | _  -> SM.empty              (* constraint simplification mode *)
 
-(* original/eager inst 
-let initial_solution c =
-  binds_of_quals c.Cg.ws c.Cg.qs
-  |> SM.extendWith (fun _ -> (++)) c.Cg.bm
-*)
-
-(* LAZYINST: map each KVAR to BOT *)
-let initial_solution c = failwith "TODO"
 
 (* API *)
-let create c = function
-  | None -> 
-      initial_solution c
-      |> create c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
-      >> (fun _ -> Co.bprintflush mydebug "\nBEGIN: refine_sort\n")
-      |> ((!Constants.refine_sort) <?> Misc.flip (List.fold_left refine_sort) c.Cg.cs)
-      >> (fun _ -> Co.bprintflush mydebug "\nEND: refine_sort\n")
-  | _ -> assertf "PredAbs.create: does not support facts" 
+let create c facts = 
+  binds_of_quals c.Cg.ws c.Cg.qs
+  |> SM.extendWith (fun _ -> (++)) c.Cg.bm
+  |> create c.Cg.ts c.Cg.uops c.Cg.ps c.Cg.cons c.Cg.assm c.Cg.qs
+  >> (fun _ -> Co.bprintflush mydebug "\nBEGIN: refine_sort\n")
+  |> ((!Constants.refine_sort) <?> Misc.flip (List.fold_left refine_sort) c.Cg.cs)
+  >> (fun _ -> Co.bprintflush mydebug "\nEND: refine_sort\n")
+  |> Misc.maybe_apply (apply_facts c.Cg.cs) facts
+
+
+
 
 (* API *)
 let empty = create Cg.empty None
 
-let meet_bind b1 b2 = match (b1, b2) with
-  | (Bot, _)              -> b2
-  | (_, Bot)              -> b1
-  | (NonBot x, NonBot y)  -> NonBot (x ++ y)
-
 (* API *)
-let meet me you = {me with m = SM.extendWith (fun _ -> meet_bind) me.m you.m} 
+let meet me you = {me with m = SM.extendWith (fun _ -> (++)) me.m you.m} 
 
 (****************************************************************)
 (************* Simplify Solution Using min_read *****************)
@@ -806,11 +755,7 @@ let meet me you = {me with m = SM.extendWith (fun _ -> meet_bind) me.m you.m}
               >> Printf.printf "minBinds: [%a] \n\n"  pprint_ds
  *)
 
-let simplify s = { s with m = SM.map begin function 
-                                | Bot       -> Bot 
-                                | NonBot qs -> NonBot (min_binds s qs)
-                              end s.m 
-                 } 
+let simplify s = {s with m = SM.map (min_binds s) s.m} 
 
 (************************************************************************)
 (****************** Counterexample Generation ***************************)
@@ -827,11 +772,9 @@ let ctr_examples me cs ucs =
 (*******************************************************************************)
 
 let print_m ppf s = 
-  SM.iter begin fun k -> function
-    | Bot       -> F.fprintf ppf "solution: %a := [%a] \n\n"  Sy.print k pprint_bind Bot
-    | NonBot ds -> ds 
-                   |> (<?>) (!Co.minquals) (min_binds s)
-                   |> F.fprintf ppf "solution: %a := [%a] \n\n"  Sy.print k pprint_ds 
+  SM.iter begin fun k ds ->
+    ds |> (<?>) (!Co.minquals) (min_binds s)
+       |> F.fprintf ppf "solution: %a := [%a] \n\n"  Sy.print k pprint_ds 
   end s.m 
  
 let print_qs ppf s = 
@@ -845,21 +788,15 @@ let print_qs ppf s =
 let print ppf s = s >> print_m ppf >> print_qs ppf |> ignore
 
      
-let botInt = function
-  | Bot       -> 1
-  | NonBot qs -> if List.exists (Q.pred_of_t <+> P.is_contra) qs then 1 else 0
-
-let bindSize = function
-  | Bot       -> 0
-  | NonBot x  -> List.length x
+let botInt qs = if List.exists (Q.pred_of_t <+> P.is_contra) qs then 1 else 0
 
 (* API *)
 let print_stats ppf me =
   let (sum, max, min, bot) =   
-    (SM.fold (fun _ b x -> (+) x (bindSize b)) me.m 0,
-     SM.fold (fun _ b x -> max x (bindSize b)) me.m min_int,
-     SM.fold (fun _ b x -> min x (bindSize b)) me.m max_int,
-     SM.fold (fun _ b x -> x      + botInt b)  me.m 0) in
+    (SM.fold (fun _ qs x -> (+) x (List.length qs)) me.m 0,
+     SM.fold (fun _ qs x -> max x (List.length qs)) me.m min_int,
+     SM.fold (fun _ qs x -> min x (List.length qs)) me.m max_int,
+     SM.fold (fun _ qs x -> x + botInt qs) me.m 0) in
   let n   = SM.length me.m in
   let avg = (float_of_int sum) /. (float_of_int n) in
   F.fprintf ppf "# Vars: (Total=%d, False=%d) Quals: (Total=%d, Avg=%f, Max=%d, Min=%d)\n" 
@@ -885,13 +822,13 @@ let key_of_quals qs =
      |> String.concat ","
 
 (* API *)
-let mkbind qs = assertf "PredAbs.mkBind not supported in lazyinst" (* NonBot qs *)(* Misc.flatten <+> Misc.sort_and_compact *)
+let mkbind = id (* Misc.flatten <+> Misc.sort_and_compact *)
 
 (* API *)
 let dump s = 
   s.m 
   |> SM.to_list 
-  |> List.map (snd <+> preds_of_bind) 
+  |> List.map (snd <+> List.map Q.pred_of_t)
   |> Misc.groupby key_of_quals
   |> List.map begin function 
      | []             -> assertf "impossible" 
