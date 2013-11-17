@@ -366,33 +366,21 @@ let inst_qual env ys evv (q : Q.t) : Q.t list =
       |> List.rev_map (fun xes -> Q.inst q (vve::xes))      (* quals *)
       (* >> (F.printf "\n\ninst_qual: result q = %a:\n%a DONE\n" Q.print q (Misc.pprint_many true "" Q.print)) *)
 
-let inst_vars env = 
-  env |> Sy.SMap.to_list 
-      |> List.filter (fun (_, (_,so,_)) -> not (A.Sort.is_func so))
-      |> List.map fst 
+let inst_binds env = 
+  env |> SM.to_list 
+      |> Misc.filter (not <.> A.Sort.is_func <.> snd)
 
-let inst_ext qs wf = 
-  let _    = Misc.display_tick () in
-  let r    = C.reft_of_wf wf in 
-  let ks   = C.kvars_of_reft r |> List.map snd in
-  let env  = C.env_of_wf wf in
-  let vv   = fst3 r in
-  let t    = snd3 r in
-  let ys   = inst_vars env   in
+let inst_ext qs env ((vv,t,_) as r) = 
+  let _    = Misc.display_tick ()   in
+  let ys   = inst_binds env |>: fst in
   let env' = Misc.maybe_map C.sort_of_reft <.> C.lookup_env (SM.add vv r env) in
   qs |> List.filter (Q.sort_of_t <+> sort_compat t)
      |> Misc.flap   (inst_qual env ys (A.eVar vv))
-     |> Misc.filter (wellformed_qual env' <&&> C.filter_of_wf wf)
-     |> Misc.cross_product ks
-     
+     |> Misc.filter (wellformed_qual env') 
+
 (********************************************************************************)
 (****** Sort Based Qualifier Instantiation **************************************)
 (********************************************************************************)
-
-let inst_binds env = 
-  env |> SM.to_list 
-      |> Misc.map (Misc.app_snd snd3) 
-      |> Misc.filter (not <.> A.Sort.is_func <.> snd)
 
 (* [ (su', (x,y) : xys) | (su, xys) <- wkl
                         , (y, ty)   <- yts
@@ -419,19 +407,19 @@ let inst_qual_sorted yts vv t q =
             |> List.rev_map (Q.inst q)                                  (* quals *)
     | None    -> [] 
 
-let inst_ext_sorted qs (env, (vv,t,_)) = 
-  let _    = Misc.display_tick ()               in
-  let yts  = inst_binds env                     in
-  qs |> Misc.flap (inst_qual_sorted yts vv t)
+let inst_ext_sorted qs env (vv, t,_) = 
+  let _    = Misc.display_tick () in
+  let yts  = inst_binds env       in
+  Misc.flap (inst_qual_sorted yts vv t) qs
 
 (***************************************************************)
 (**************** Lazy Instantiation ***************************)
 (***************************************************************)
 
-let inst_ext qs (z : Ast.Sort.t SM.t * C.reft) : Q.t list =
+let inst_ext qs (env : Ast.Sort.t SM.t) (r : C.reft) : Q.t list =
   if !Co.sorted_quals 
-  then inst_ext_sorted qs z 
-  else inst_ext        qs z 
+  then inst_ext_sorted qs env r 
+  else inst_ext        qs env r
 
 (* API *)
 let lazy_instantiate_with me c k : Q.t list =
