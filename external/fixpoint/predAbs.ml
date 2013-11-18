@@ -334,7 +334,8 @@ let kvars_of_wf wf =
      |> List.map snd
 
 (* API *)
-let create_wf_index cs ws : (Ast.Sort.t SM.t * C.reft) SM.t = failwith "TODO"
+let create_wf_index cs ws : (Ast.Sort.t SM.t * C.reft) SM.t = 
+  failwith "TODO: create_wf_index"
 
 (********************************************************************************)
 (****** Brute Force (Post-Selection based) Qualifier Instantiation **************)
@@ -373,7 +374,7 @@ let inst_binds env =
 let inst_ext qs env ((vv,t,_) as r) = 
   let _    = Misc.display_tick ()   in
   let ys   = inst_binds env |>: fst in
-  let env' = Misc.maybe_map C.sort_of_reft <.> C.lookup_env (SM.add vv r env) in
+  let env' = Misc.flip SM.maybe_find (SM.add vv t env) in
   qs |> List.filter (Q.sort_of_t <+> sort_compat t)
      |> Misc.flap   (inst_qual env ys (A.eVar vv))
      |> Misc.filter (wellformed_qual env') 
@@ -407,7 +408,7 @@ let inst_qual_sorted yts vv t q =
             |> List.rev_map (Q.inst q)                                  (* quals *)
     | None    -> [] 
 
-let inst_ext_sorted qs env (vv, t,_) = 
+let inst_ext_sorted qs env (vv, t, _) = 
   let _    = Misc.display_tick () in
   let yts  = inst_binds env       in
   Misc.flap (inst_qual_sorted yts vv t) qs
@@ -416,15 +417,21 @@ let inst_ext_sorted qs env (vv, t,_) =
 (**************** Lazy Instantiation ***************************)
 (***************************************************************)
 
-let inst_ext qs (env : Ast.Sort.t SM.t) (r : C.reft) : Q.t list =
+
+let inst_ext qs env r  : Q.t list =
   if !Co.sorted_quals 
   then inst_ext_sorted qs env r 
   else inst_ext        qs env r
 
+let is_non_trivial_var me c su = 
+  let cxs = failwith "TODO: lhs_nontrivial_vars me c" in
+  fun y _ -> failwith "TODO: SS.mem (apply_subst su y) cxs"
+
 (* API *)
-let lazy_instantiate_with me c k : Q.t list =
-  SM.safeFind k me.wm "lazy_instantiate" 
-  |> inst_ext me.qs
+let lazy_instantiate_with me c k su : Q.t list =
+  let (env, r) = SM.safeFind k me.wm "lazy_instantiate"     in
+  let env'     = SM.filter (is_non_trivial_var me c su) env  in
+  inst_ext me.qs env' r
   |> ((++) (SM.find_default [] k me.om))
 
 (***************************************************************)
@@ -444,8 +451,8 @@ let rhs_cands me = function
   | _ -> []
 *)
 
-let quals_of_bind me c k = function
-  | Bot       -> lazy_instantiate_with me c k
+let quals_of_bind me c k su = function
+  | Bot       -> lazy_instantiate_with me c k su
   | NonBot qs -> qs
 
 let make_cand k su q =
@@ -456,7 +463,7 @@ let make_cand k su q =
 let rhs_cands me c = function
   | C.Kvar (su, k) -> 
       SM.safeFind k me.m "rhs_cands" 
-      |> quals_of_bind me c k 
+      |> quals_of_bind me c k su 
       |>: make_cand k su
   | _              -> []
 
