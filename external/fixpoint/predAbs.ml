@@ -104,7 +104,7 @@ type t     =
   { tpc    : ProverArch.prover
   ; m      : bind SM.t
   ; om     : (Q.t list) SM.t
-  ; wm     : (Ast.Sort.t SM.t * C.reft) SM.t
+  ; wm     : (Ast.Sort.t SM.t * Ast.Symbol.t * Ast.Sort.t) SM.t
   ; assm   : FixConstraint.soln  (* invariant assumption for K, must be a fixpoint wrt constraints *)
   (* ; qm     : Q.t SM.t  *)     (* map from names to qualifiers *)
   ; qs     : Q.t list            (* list of qualifiers *) 
@@ -352,9 +352,28 @@ let kvars_of_wf wf =
      >> List.iter (fst <+> check_trivial)
      |> List.map snd
 
+let meet_wf_index k = function 
+  | (Some (env, v, t), (env', (v', t', _))) when (v=v' && t=t') -> 
+      env |> SM.filter (fun x _ -> SM.mem x env')
+          |> (fun env' -> (env', v, t))
+  | (None, (env, (v, t, _))) -> 
+      (env, v, t)
+  | _  -> 
+      assertf "Conflicting v,t for WF %s" (Sy.to_string k)
+
+let upds_wf_index z wm ks = 
+  List.fold_left begin fun wm k -> 
+    SM.add k (meet_wf_index k (SM.maybe_find k wm, z)) wm
+  end wm ks
+
 (* API *)
-let create_wf_index cs ws : (Ast.Sort.t SM.t * C.reft) SM.t = 
-  failwith "TODO: create_wf_index"
+let create_wf_index ws : (Ast.Sort.t SM.t * Ast.Symbol.t * Ast.Sort.t) SM.t =
+  List.fold_left begin fun wm w ->
+    let env = SM.map C.sort_of_reft <| C.env_of_wf w in
+    let r   = C.reft_of_wf w                         in
+    upds_wf_index (env, r) wm (kvars_of_wf w)
+  end SM.empty ws
+
 
 (********************************************************************************)
 (****** Brute Force (Post-Selection based) Qualifier Instantiation **************)
@@ -390,7 +409,7 @@ let inst_binds env =
   env |> SM.to_list 
       |> Misc.filter (not <.> A.Sort.is_func <.> snd)
 
-let inst_ext qs env ((vv,t,_) as r) = 
+let inst_ext qs env vv t = 
   let _    = Misc.display_tick ()   in
   let ys   = inst_binds env |>: fst in
   let env' = Misc.flip SM.maybe_find (SM.add vv t env) in
@@ -427,7 +446,7 @@ let inst_qual_sorted yts vv t q =
             |> List.rev_map (Q.inst q)                                  (* quals *)
     | None    -> [] 
 
-let inst_ext_sorted qs env (vv, t, _) = 
+let inst_ext_sorted qs env vv t = 
   let _    = Misc.display_tick () in
   let yts  = inst_binds env       in
   Misc.flap (inst_qual_sorted yts vv t) qs
@@ -437,21 +456,25 @@ let inst_ext_sorted qs env (vv, t, _) =
 (***************************************************************)
 
 
-let inst_ext qs env r  : Q.t list =
+let inst_ext qs env v t  : Q.t list =
   if !Co.sorted_quals 
-  then inst_ext_sorted qs env r 
-  else inst_ext        qs env r
+  then inst_ext_sorted qs env v t 
+  else inst_ext        qs env v t 
 
 let is_non_trivial_var me lps su = 
-  let cxs =  failwith "TODO: lhs_nontrivial_vars me c" in
-  fun y _ -> failwith "TODO: SS.mem (apply_subst su y) cxs"
+  let cxs = SS.of_list <| Misc.flap P.support lps in
+  fun y _ -> 
+    Su.apply su y 
+    |> (function None -> [y] | Some ye -> E.support ye)
+    |> List.for_all (fun y' -> SS.mem y' cxs) 
+
 
 (* API *)
 let lazy_instantiate_with me lhs k su : Q.t list =
-  let (env, r) = SM.safeFind k me.wm "lazy_instantiate"       in
-  let lps      = Lazy.force lhs                               in
-  let env'     = SM.filter (is_non_trivial_var me lps su) env in
-  inst_ext me.qs env' r
+  let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
+  let lps       = Lazy.force lhs                               in
+  let env'      = SM.filter (is_non_trivial_var me lps su) env in
+  inst_ext me.qs env' v t
   |> ((++) (SM.find_default [] k me.om))
 
 
@@ -496,11 +519,9 @@ let check_tp me env vv t lps =  function [] -> [] | rcs ->
 
 let get_lhs me c    = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c
 let get_rhs_kvars c = C.rhs_of_t c |> C.kvars_of_reft |>: snd
-let is_bot_rhs me c = failwith "TODO"
 
-let refine me c =
+let refine me c  =
   let lps        = lazy (get_lhs me c)                                     in
-  let lhs        = if is_bot_rhs me c then Some (Lazy.force lps) else None in  
   let (_,_,ra2s) = C.rhs_of_t c                                            in
   let rcs        = BS.time "rhs_cands" (Misc.flap (rhs_cands me lps)) ra2s in
   if rcs = [] then 
@@ -524,7 +545,7 @@ let refine me c =
           let vv   = C.vv_of_t c   in
           let t    = C.sort_of_t c in
           kqs1 ++ (BS.time "check tp" (check_tp me senv vv t lps) x2))
-    |> p_update me (get_rhs_kvars c)
+    |> p_update me (get_rhs_kvars c) 
 
 
 (* 
@@ -688,7 +709,7 @@ let create_qleqs ts sm ps consts qs =
 let create obm cs ws ts sm ps consts assm qs bm =
   { m     = bm
   ; om    = SM.map (function Bot -> [] | NonBot qs -> qs) obm
-  ; wm    = create_wf_index cs ws
+  ; wm    = create_wf_index ws
   ; assm  = assm
 (*; qm    = qs |>: Misc.pad_fst Q.name_of_t |> SM.of_list *)
   ; qs    = qs
