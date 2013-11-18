@@ -468,6 +468,11 @@ let is_non_trivial_var me lps su =
     |> (function None -> [y] | Some ye -> E.support ye)
     |> List.for_all (fun y' -> SS.mem y' cxs) 
 
+(* RJ: DO NOT DELETE EVER! *)
+let ppBinding k zs = 
+  F.printf "ppBind %a := %a \n" 
+    Sy.print k 
+    (Misc.pprint_many false ", " Q.print) zs
 
 (* API *)
 let lazy_instantiate_with me lhs k su : Q.t list =
@@ -475,6 +480,7 @@ let lazy_instantiate_with me lhs k su : Q.t list =
   let lps       = Lazy.force lhs                               in
   let env'      = SM.filter (is_non_trivial_var me lps su) env in
   inst_ext me.qs env' v t
+  >> ppBinding k 
   |> ((++) (SM.find_default [] k me.om))
 
 
@@ -729,12 +735,6 @@ let create obm cs ws ts sm ps consts assm qs bm =
   ; stat_umatches       = ref 0; stat_unsatLHS       = ref 0
   ; stat_emptyRHS       = ref 0
   } 
-
-(* RJ: DO NOT DELETE! *)
-let ppBinding (k, zs) = 
-  F.printf "ppBind %a := %a \n" 
-    Sy.print k 
-    (Misc.pprint_many false "," Q.print) zs
 
 (***************************************************************)
 (****************** Sort Check Based Refinement ****************)
