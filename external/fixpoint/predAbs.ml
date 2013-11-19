@@ -504,7 +504,7 @@ let bind_read me k = SM.find_default Bot k me.m
 
 let is_bot_reft me (_,_,ras) =
   List.exists begin function C.Conc _ -> false | C.Kvar (_,k) ->
-    not (bind_read me k = Bot)
+    (bind_read me k = Bot)
   end ras
   
 let is_bot_lhs me c =
@@ -514,7 +514,6 @@ let is_bot_lhs me c =
 
 let is_bot_rhs me c =
   is_bot_reft me <| C.rhs_of_t c
-
 
 let make_cand k su q =
   let qp  = Q.pred_of_t q       in
@@ -555,25 +554,28 @@ let rhs_cands_inst me c lps =
   let (me, zs)    = Misc.mapfold (rhs_cands_inst c lps) me ras in 
   (Misc.flatten zs, me)
 
-let lhs_preds me c = failwith "TODO: first run WITHOUT any filtering to see if tests break"
+let lhs_preds me c = 
+  let lps = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c in
+  (lps, me)
 
 let refine_sort_bot_rhs me c =
-  let (lps, me) = lhs_preds me c                                         in
-  let (rcs, me) = rhs_cands_inst me c lps                                in
-  let rcs       = failwith "Misc.filter (fun (_,p) -> C.wellformed_pred ... p) rcs" in
+  let (lps, me) = lhs_preds me c                                          in
+  let (rcs, me) = rhs_cands_inst me c lps                                 in
+  let senv      = C.senv_of_t c                                           in
+  let rcs       = Misc.filter (fun (_,p) -> C.wellformed_pred senv p) rcs in
   (true, me, lps, rcs)
  
 let refine_sort_first_time me c = 
-  let (lps, me) = lhs_preds me c                                         in
-  let rcs       = rhs_cands_noinst me c                                  in 
-  let rcs'      = failwith "Misc.filter (fun (_,p) -> C.wellformed_pred ... p) rcs" in
+  let (lps, me) = lhs_preds me c                                          in
+  let rcs       = rhs_cands_noinst me c                                   in 
+  let senv      = C.senv_of_t c                                           in
+  let rcs'      = Misc.filter (fun (_,p) -> C.wellformed_pred senv p) rcs in
   (List.length rcs != List.length rcs', me, lps, rcs')
 
 let refine_sort_default me c = 
-  let lps = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c in
-  let rcs = rhs_cands_noinst me c                               in 
+  let (lps, me) = lhs_preds me c        in 
+  let rcs       = rhs_cands_noinst me c in 
     (false, me, lps, rcs)
-
 
 let refine_sort me c = 
   if is_bot_rhs me c then 
