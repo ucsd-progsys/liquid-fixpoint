@@ -455,11 +455,12 @@ let inst_ext_sorted env vv t qs =
 (**************** Lazy Instantiation ***************************)
 (***************************************************************)
 
-let inst_ext qs env v t  : Q.t list =
+let inst_ext qs ckEnv env v t  : Q.t list =
   let instf = if !Co.sorted_quals then inst_ext_sorted else inst_ext in
-  let env'  = Misc.flip SM.maybe_find (SM.add v t env)              in
+  let env'  = Misc.flip SM.maybe_find (SM.add v t ckEnv)             in
   qs |> instf env v t 
      |> Misc.filter (wellformed_qual env')
+
 
 let is_non_trivial_var me lps su = 
   let cxs = SS.of_list <| Misc.flap P.support lps in
@@ -479,8 +480,8 @@ let lazy_instantiate_with me lhs k su : Q.t list =
   let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
   let lps       = Lazy.force lhs                               in
   let env'      = SM.filter (is_non_trivial_var me lps su) env in
-  inst_ext me.qs env' v t
-  (* >> ppBinding k  *)
+  inst_ext me.qs env env' v t
+  (* >> ppBinding k *)
   |> ((++) (SM.find_default [] k me.om))
 
 
