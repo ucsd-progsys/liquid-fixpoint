@@ -459,7 +459,7 @@ let inst_ext qs ckEnv env v t  : Q.t list =
   let instf = if !Co.sorted_quals then inst_ext_sorted else inst_ext in
   let env'  = Misc.flip SM.maybe_find (SM.add v t ckEnv)             in
   qs |> instf env v t 
-     |> Misc.filter (wellformed_qual env')
+     (* |> Misc.filter (wellformed_qual env') *)
 
 
 let is_non_trivial_var me lps su = 
@@ -484,25 +484,52 @@ let lazy_instantiate_with me lhs k su : Q.t list =
   (* >> ppBinding k *)
   |> ((++) (SM.find_default [] k me.om))
 
-
 (***************************************************************)
 (**************** Refinement ***********************************)
 (***************************************************************)
 
-let quals_of_bind me lhs k su = function
-  | Bot       -> lazy_instantiate_with me lhs k su
-  | NonBot qs -> qs
+let get_lhs me c    = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c
+let get_rhs_kvars c = C.rhs_of_t c |> C.kvars_of_reft |>: snd
+let bind_read me k  = SM.find_default Bot k me.m
+
+let is_bot_reft me (_,_,ras) =
+  List.exists begin function C.Conc _ -> false | C.Kvar (_,k) ->
+    not (bind_read me k = Bot)
+  end ras
+  
+let is_bot_lhs me c =
+  C.kbindings_of_lhs c 
+  |>: snd 
+  |> List.exists (is_bot_reft me)
+
+let is_bot_rhs me c =
+  is_bot_reft me <| C.rhs_of_t c
 
 let make_cand k su q =
   let qp  = Q.pred_of_t q       in
   let qp' = A.substs_pred qp su in
   ((k, q), qp')
 
+
+let quals_of_bind me lhs k su = function
+  | Bot       -> (true , lazy_instantiate_with me lhs k su)
+  | NonBot qs -> (false, qs)
+
 let rhs_cands me lhs = function
   | C.Kvar (su, k) -> 
-      SM.safeFind k me.m "rhs_cands" 
-      |> quals_of_bind me lhs k su 
-      |>: make_cand k su
+      let (ch, qs) = SM.safeFind k me.m "rhs_cands" 
+                     |> quals_of_bind me lhs k su                         in
+      let (ch, me) = if ch then p_update me [k] (qs |>: (fun q -> (k,q))) 
+                           else (false, me)                               in
+      (ch, me, qs |>: make_cand k su)
+  | _              -> 
+      (false, me, [])
+
+let rhs_cands_noinst me = function
+  | C.Kvar (su, k) -> begin match bind_read me k with 
+                        | Bot       -> assertf "rhs_cands_noinst" 
+                        | NonBot qs -> qs |>: make_cand k su
+                      end
   | _              -> []
 
 (*** {{{ KEEP AROUND FOR DEBUG PRINTING SIGH.
@@ -518,26 +545,89 @@ let rhs_cands me = function
 }}} *)
 
 
+let refine_sort me c = 
+  if is_bot_rhs me c then
+    failwith "TODO"
+  else
+    let lps  = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c        in
+    let ra2s = thd3 <| C.rhs_of_t c                                       in
+    let rcs  = BS.time "rhs_cands" (Misc.flap (rhs_cands_noinst me)) ra2s in
+    (false, me, lps, rcs)
+
+
+  (* is rhs bot? then 
+   *   me = filter lhs by sort 
+   *   get lhs pred
+   *   get rcs
+   *   me = filter rcs by sort
+   *   (true, me, lhs, rcs)
+   * else
+   *   (false, me, get-lhs, get-rcs)
+   *)
+
+let is_trivial_rhs me c = 
+  let is_trivial_refa me = function 
+    | C.Conc _     -> true 
+    | C.Kvar (_,k) -> bind_read me k = NonBot [] 
+  in 
+    C.rhs_of_t c
+    |> C.ras_of_reft 
+    |> List.for_all (is_trivial_refa me)  
+
+let is_trivial_c me c = is_bot_lhs me c || is_trivial_rhs me c
+
+let refine_match me lps rcs = 
+  let lt      = PH.create 17                                  in
+  let _       = List.iter (fun p -> PH.add lt p ()) lps       in
+  let (x1,x2) = List.partition (fun (_,p) -> PH.mem lt p) rcs in
+  let _       = me.stat_matches += (List.length x1)           in
+  (List.map fst x1, x2)
+
+
 let check_tp me env vv t lps =  function [] -> [] | rcs ->
   me.tpc#set_filter env vv lps rcs
   >> (fun _  -> me.stat_tp_refines    += 1)
   >> (fun _  -> me.stat_imp_queries   += List.length rcs)
   >> (fun rv -> me.stat_valid_queries += List.length rv) 
 
-let get_lhs me c    = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c
-let get_rhs_kvars c = C.rhs_of_t c |> C.kvars_of_reft |>: snd
+let refine_tp me c lps x2 =
+  if C.is_simple c then
+    (me.stat_simple_refines += 1) >| []
+  else
+    let senv = C.senv_of_t c in
+    let vv   = C.vv_of_t c   in
+    let t    = C.sort_of_t c in
+    BS.time "check tp" (check_tp me senv vv t lps) x2
 
+let refine me c = 
+  if is_trivial_c me c then 
+    (false, me) 
+  else
+    let (ch, me, lps, rcs) = refine_sort me c                             in
+    if BS.time "lhs_contra" (List.exists P.is_contra) lps then
+      let _          = me.stat_unsatLHS += 1                              in
+      let _          = me.stat_umatches += List.length rcs                in
+      (ch, me)
+    else
+      let rcs        = List.filter (fun (_,p) -> not (P.is_contra p)) rcs in
+      let (kqs1, x2) = refine_match me lps rcs                            in
+      let kqs2       = refine_tp me c lps x2                              in
+      let ks         = get_rhs_kvars c                                    in
+      let (ch', me)  = p_update me ks (kqs1 ++ kqs2)                      in
+      (ch || ch', me)
+
+(* LAZYINST 
 let refine me c  =
   let lps        = lazy (get_lhs me c)                                     in
-  let (_,_,ra2s) = C.rhs_of_t c                                            in
-  let rcs        = BS.time "rhs_cands" (Misc.flap (rhs_cands me lps)) ra2s in
+  let (_,_,ra2s) as r = C.rhs_of_t c                                       in
+  let (ins, rcs) = BS.time "rhs_cands" (Misc.flap (rhs_cands me lps)) ra2s in
   if rcs = [] then 
     let _ = me.stat_emptyRHS += 1 in
     (false, me)
   else if BS.time "lhs_contra" (List.exists P.is_contra) (Lazy.force lps) then 
     let _ = me.stat_unsatLHS += 1               in
     let _ = me.stat_umatches += List.length rcs in
-    (false, me)
+    (ch, me)
   else
     let lps     = Lazy.force lps                                      in
     let rcs     = List.filter (fun (_,p) -> not (P.is_contra p)) rcs  in
@@ -552,10 +642,9 @@ let refine me c  =
           let vv   = C.vv_of_t c   in
           let t    = C.sort_of_t c in
           kqs1 ++ (BS.time "check tp" (check_tp me senv vv t lps) x2))
-    |> p_update me (get_rhs_kvars c) 
+    |> p_update me (get_rhs_kvars c)
+    |> (fun (ch', z) -> (ch || ch', z))
 
-
-(* 
 let refine me c =
   let (_,_,ra2s) as r2 = C.rhs_of_t c in
   let k2s = r2 |> C.kvars_of_reft |> List.map snd in
