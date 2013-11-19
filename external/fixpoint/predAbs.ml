@@ -409,7 +409,7 @@ let inst_binds env =
   env |> SM.to_list 
       |> Misc.filter (not <.> A.Sort.is_func <.> snd)
 
-let inst_ext qs env vv t = 
+let inst_ext env vv t qs = 
   let _    = Misc.display_tick ()   in
   let ys   = inst_binds env |>: fst in
   let env' = Misc.flip SM.maybe_find (SM.add vv t env) in
@@ -446,20 +446,21 @@ let inst_qual_sorted yts vv t q =
             |> List.rev_map (Q.inst q)                                  (* quals *)
     | None    -> [] 
 
-let inst_ext_sorted qs env vv t = 
-  let _    = Misc.display_tick () in
-  let yts  = inst_binds env       in
-  Misc.flap (inst_qual_sorted yts vv t) qs
+let inst_ext_sorted env vv t qs = 
+  let _    = Misc.display_tick ()                      in
+  let yts  = inst_binds env                            in
+  qs |> Misc.flap (inst_qual_sorted yts vv t)
+     |> Misc.filter (wellformed_qual env')
 
 (***************************************************************)
 (**************** Lazy Instantiation ***************************)
 (***************************************************************)
 
-
 let inst_ext qs env v t  : Q.t list =
-  if !Co.sorted_quals 
-  then inst_ext_sorted qs env v t 
-  else inst_ext        qs env v t 
+  let instf = if !Co.sorted_quals then inst_ext_sorted else inst_ext in
+  let env'  = Misc.flip SM.maybe_find (SM.add vv t env)              in
+  qs |> instf env v t 
+     |> Misc.filter (wellformed_qual env')
 
 let is_non_trivial_var me lps su = 
   let cxs = SS.of_list <| Misc.flap P.support lps in
@@ -480,7 +481,7 @@ let lazy_instantiate_with me lhs k su : Q.t list =
   let lps       = Lazy.force lhs                               in
   let env'      = SM.filter (is_non_trivial_var me lps su) env in
   inst_ext me.qs env' v t
-  >> ppBinding k 
+  (* >> ppBinding k  *)
   |> ((++) (SM.find_default [] k me.om))
 
 
