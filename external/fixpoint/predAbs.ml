@@ -458,7 +458,7 @@ let inst_ext_sorted env vv t qs =
 
 let inst_ext qs ckEnv env v t  : Q.t list =
   let instf = if !Co.sorted_quals then inst_ext_sorted else inst_ext in
-  let env' = Misc.flip SM.maybe_find (SM.add vv t ckEnv) in
+  let env' = Misc.flip SM.maybe_find (SM.add v t ckEnv) in
   qs |> instf env v t 
      |> Misc.filter (wellformed_qual env') 
 
