@@ -44,9 +44,10 @@ module Cg  = FixConfig
 module H   = Hashtbl
 module PH  = A.Predicate.Hash
 
-module CX  = Counterexample
+module CX   = Counterexample
 module Misc = FixMisc 
-module IM  = Misc.IntMap
+module IM   = Misc.IntMap
+module IS   = Misc.IntSet
 open Misc.Ops
 
 let mydebug = false 
@@ -109,7 +110,7 @@ type t     =
   (* ; qm     : Q.t SM.t  *)     (* map from names to qualifiers *)
   ; qs     : Q.t list            (* list of qualifiers *) 
   ; qleqs  : Q2S.t               (* (q1,q2) \in qleqs implies q1 => q2 *)
-  
+  ; seen   : IS.t                (* constraint (ids) that have been "refined" once *) 
   (* counterexamples *)
   ; step     : CX.step         (* which iteration *)
   ; ctrace   : CX.ctrace 
@@ -459,8 +460,6 @@ let inst_ext qs env v t  : Q.t list =
   let instf = if !Co.sorted_quals then inst_ext_sorted else inst_ext in
   qs |> instf env v t 
 
-
-
 let is_non_trivial_var me lps su = 
   let cxs = SS.of_list <| Misc.flap P.support lps in
   fun y _ -> 
@@ -474,16 +473,11 @@ let ppBinding k zs =
     Sy.print k 
     (Misc.pprint_many false ", " Q.print) zs
 
-let filter_malsorted c binds = failwith "TODO"
-  (* let env'  = Misc.flip SM.maybe_find (SM.add v t -----(senv_of_t c)---) in
-     |> Misc.filter (wellformed_qual env') *)
-
 (* API *)
 let lazy_instantiate_with me c lps k su : Q.t list =
   let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
   let env'      = SM.filter (is_non_trivial_var me lps su) env in
   inst_ext me.qs env' v t
-  |> filter_malsorted c
   (* >> ppBinding k *)
   |> ((++) (SM.find_default [] k me.om))
 
@@ -521,6 +515,7 @@ let is_bot_lhs me c =
 let is_bot_rhs me c =
   is_bot_reft me <| C.rhs_of_t c
 
+
 let make_cand k su q =
   let qp  = Q.pred_of_t q       in
   let qp' = A.substs_pred qp su in
@@ -542,6 +537,11 @@ let rhs_cands_noinst me = function
                       end
   | _              -> []
 
+let rhs_cands_noinst me c =
+  c |> C.rhs_of_t
+    |> thd3 
+    |> BS.time "rhs_cands" (Misc.flap (rhs_cands_noinst me))
+
 (* only called when SOME RHS k is BOT *)
 let rhs_cands_inst c lhs me = function
   | C.Conc _ -> 
@@ -550,41 +550,38 @@ let rhs_cands_inst c lhs me = function
       let (qs, me) = SM.safeFind k me.m "rhs_cands" |> quals_of_bind me c lhs k su  in 
       (me, qs |>: make_cand k su)
 
-
 let rhs_cands_inst me c lps =
   let (_, _, ras) = C.rhs_of_t c                               in
   let (me, zs)    = Misc.mapfold (rhs_cands_inst c lps) me ras in 
   (Misc.flatten zs, me)
 
-let preds_of_lhs_filter me c = failwith "TODO"
+let lhs_preds me c = failwith "TODO: first run WITHOUT any filtering to see if tests break"
 
-let refine_sort me c = 
-  if is_bot_rhs me c then
-    let (lps, me) = preds_of_lhs_filter me c in
-    let (rcs, me) = rhs_cands_inst me c lps  in
-    (true, me, lps, rcs)
-   (*   me = filter lhs by sort 
-    *   get lhs pred
-    *   get rcs
-    *   me = filter rcs by sort
-    *   (true, me, lhs, rcs) 
-    *)
-  else
-    let lps  = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c        in
-    let ra2s = thd3 <| C.rhs_of_t c                                       in
-    let rcs  = BS.time "rhs_cands" (Misc.flap (rhs_cands_noinst me)) ra2s in
+let refine_sort_bot_rhs me c =
+  let (lps, me) = lhs_preds me c                                         in
+  let (rcs, me) = rhs_cands_inst me c lps                                in
+  let rcs       = failwith "Misc.filter (fun (_,p) -> C.wellformed_pred ... p) rcs" in
+  (true, me, lps, rcs)
+ 
+let refine_sort_first_time me c = 
+  let (lps, me) = lhs_preds me c                                         in
+  let rcs       = rhs_cands_noinst me c                                  in 
+  let rcs'      = failwith "Misc.filter (fun (_,p) -> C.wellformed_pred ... p) rcs" in
+  (List.length rcs != List.length rcs', me, lps, rcs')
+
+let refine_sort_default me c = 
+  let lps = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c in
+  let rcs = rhs_cands_noinst me c                               in 
     (false, me, lps, rcs)
 
 
-  (* is rhs bot? then 
-   *   me = filter lhs by sort 
-   *   get lhs pred
-   *   get rcs
-   *   me = filter rcs by sort
-   *   (true, me, lhs, rcs)
-   * else
-   *   (false, me, get-lhs, get-rcs)
-   *)
+let refine_sort me c = 
+  if is_bot_rhs me c then 
+    refine_sort_bot_rhs me c
+  else if not (IS.mem (C.id_of_t c) (me.seen)) then
+    refine_sort_first_time me c 
+  else 
+    refine_sort_default me c
 
 let is_trivial_rhs me c = 
   let is_trivial_refa me = function 
@@ -603,7 +600,6 @@ let refine_match me lps rcs =
   let (x1,x2) = List.partition (fun (_,p) -> PH.mem lt p) rcs in
   let _       = me.stat_matches += (List.length x1)           in
   (List.map fst x1, x2)
-
 
 let check_tp me env vv t lps =  function [] -> [] | rcs ->
   me.tpc#set_filter env vv lps rcs
@@ -636,6 +632,10 @@ let refine me c =
       let ks         = C.rhs_of_t c |> C.kvars_of_reft |>: snd            in
       let (ch', me)  = p_update me ks (kqs1 ++ kqs2)                      in
       (ch || ch', me)
+
+let refine me c =
+  let (ch, me) = refine me c in
+  (ch, {me with seen = IS.add (C.id_of_t c) me.seen})
 
 (* LAZYINST 
 let refine me c  =
@@ -833,7 +833,8 @@ let create obm cs ws ts sm ps consts assm qs bm =
   ; qleqs = Misc.with_ref_at Constants.strictsortcheck false 
               (fun () -> create_qleqs ts sm consts ps qs) 
   ; tpc   = TpNull.create ts sm ps consts
-  
+  ; seen  = IS.empty
+
   (* Counterexamples *) 
   ; step     = 0
   ; ctrace   = IM.empty

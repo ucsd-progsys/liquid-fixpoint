@@ -33,10 +33,12 @@ type id   = int         (* for identifying: must be unique *)
 
 exception BadConstraint of (id * tag * string)
 
-type soln = Ast.Symbol.t -> Ast.pred list
-type refa = Conc of Ast.pred | Kvar of Ast.Subst.t * Ast.Symbol.t
-type reft = Ast.Symbol.t * Ast.Sort.t * refa list   (* { VV: t | [ra] } *)
-type envt = reft Ast.Symbol.SMap.t
+type soln  = Ast.Symbol.t -> Ast.pred list
+type refa  = Conc of Ast.pred | Kvar of Ast.Subst.t * Ast.Symbol.t
+type reft  = Ast.Symbol.t * Ast.Sort.t * refa list   (* { VV: t | [ra] } *)
+type envt  = reft Ast.Symbol.SMap.t
+type senvt = Ast.Sort.t Ast.Symbol.SMap.t
+
 
 val fresh_kvar       : unit -> Ast.Symbol.t
 val kvars_of_reft    : reft -> (Ast.Subst.t * Ast.Symbol.t) list
@@ -49,10 +51,10 @@ val empty_solution   : soln
 val meet_solution    : soln -> soln -> soln
 val apply_solution   : soln -> reft -> reft
 
-val wellformed_pred  : envt -> Ast.pred -> bool
-val preds_of_refa    : soln -> refa -> Ast.pred list
-val preds_of_reft    : soln -> reft -> Ast.pred list
-val preds_of_lhs     : soln -> t -> Ast.pred list
+val wellformed_pred  : senvt -> Ast.pred -> bool
+val preds_of_refa    : soln  -> refa -> Ast.pred list
+val preds_of_reft    : soln  -> reft -> Ast.pred list
+val preds_of_lhs     : soln  -> t -> Ast.pred list
 val preds_of_lhs_nofilter : soln -> t -> Ast.pred list
 
 val vars_of_t        : soln -> t -> Ast.Symbol.t list
@@ -115,7 +117,7 @@ val make_t           : envt -> Ast.pred -> reft -> reft -> id option -> tag -> t
 
 val sort_of_t        : t -> Ast.Sort.t
 val vv_of_t          : t -> Ast.Symbol.t
-val senv_of_t        : t -> Ast.Sort.t Ast.Symbol.SMap.t
+val senv_of_t        : t -> senvt
 val env_of_t         : t -> envt
 val grd_of_t         : t -> Ast.pred
 val lhs_of_t         : t -> reft
