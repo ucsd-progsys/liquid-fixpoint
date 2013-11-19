@@ -449,8 +449,7 @@ let inst_qual_sorted yts vv t q =
 let inst_ext_sorted env vv t qs = 
   let _    = Misc.display_tick ()                      in
   let yts  = inst_binds env                            in
-  qs |> Misc.flap (inst_qual_sorted yts vv t)
-     |> Misc.filter (wellformed_qual env')
+  Misc.flap (inst_qual_sorted yts vv t) qs
 
 (***************************************************************)
 (**************** Lazy Instantiation ***************************)
@@ -458,7 +457,7 @@ let inst_ext_sorted env vv t qs =
 
 let inst_ext qs env v t  : Q.t list =
   let instf = if !Co.sorted_quals then inst_ext_sorted else inst_ext in
-  let env'  = Misc.flip SM.maybe_find (SM.add vv t env)              in
+  let env'  = Misc.flip SM.maybe_find (SM.add v t env)              in
   qs |> instf env v t 
      |> Misc.filter (wellformed_qual env')
 
