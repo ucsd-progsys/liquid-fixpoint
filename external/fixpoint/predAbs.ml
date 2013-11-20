@@ -512,7 +512,7 @@ let lazy_instantiate_with me c lps k su : Q.t list =
   let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
   let env'      = SM.filter (is_non_trivial_var me lps su) env in
   inst_ext me.qs env env' v t
-  (* >> ppBinding k *)
+  >> ppBinding k
   |> ((++) (SM.find_default [] k me.om))
 
  
