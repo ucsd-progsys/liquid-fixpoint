@@ -385,14 +385,13 @@ let refine_wf_index wm c =
   let senv  = C.senv_of_t c in
   let ok z  = SM.mem z senv  in
   let ksus  = kvars_of_c c  in (* [(su, k)] *)
-  let pp k xts = F.printf "\n refine_wf_index k = %a, xs = %a\n" Sy.print k
-  (Misc.pprint_many false ", " Sy.print) (List.map fst xts) in
-
+  (* let pp k xts = F.printf "\n refine_wf_index k = %a, xs = %a\n" Sy.print k
+                 (Misc.pprint_many false ", " Sy.print) (List.map fst xts) 
+     in *)
   List.fold_left begin fun wm (su, k) ->
     let (xts, v, t) = SM.safeFind k wm "refine_wf_index"                              in
     let xts'        = Misc.filter (fun (x,t) -> A.Sort.is_kind t || valid_after_substitution ok su x) xts in
-    let _ = pp k xts  in
-    let _ = pp k xts' in 
+    (* let _           = pp k xts; pp k xts' in *)
     SM.add k (xts', v, t) wm
   end wm ksus
 
@@ -517,7 +516,7 @@ let lazy_instantiate_with me c lps k su : Q.t list =
   let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
   let env'      = SM.filter (is_non_trivial_var me lps su) env in
   inst_ext me.qs env env' v t
-  >> ppBinding k
+  (* >> ppBinding k *)
   |> ((++) (SM.find_default [] k me.om))
 
  
