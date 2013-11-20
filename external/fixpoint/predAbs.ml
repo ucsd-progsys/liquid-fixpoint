@@ -385,9 +385,14 @@ let refine_wf_index wm c =
   let senv  = C.senv_of_t c in
   let ok z  = SM.mem z senv  in
   let ksus  = kvars_of_c c  in (* [(su, k)] *)
+  let pp k xts = F.printf "\n refine_wf_index k = %a, xs = %a\n" Sy.print k
+  (Misc.pprint_many false ", " Sy.print) (List.map fst xts) in
+
   List.fold_left begin fun wm (su, k) ->
     let (xts, v, t) = SM.safeFind k wm "refine_wf_index"                              in
-    let xts'        = Misc.filter (fun (x,_) -> valid_after_substitution ok su x) xts in
+    let xts'        = Misc.filter (fun (x,t) -> A.Sort.is_kind t || valid_after_substitution ok su x) xts in
+    let _ = pp k xts  in
+    let _ = pp k xts' in 
     SM.add k (xts', v, t) wm
   end wm ksus
 
@@ -399,7 +404,7 @@ let create_wf_index_basic ws =
   end SM.empty ws
 
 let create_wf_index_refine_sort cs wm =
-  wm |> SM.map (fun (env,v,t) -> ((v,t) :: (SM.to_list env), v, t))
+  wm |> SM.map (fun (env,v,t) -> ((SM.to_list env), v, t))
      |> Misc.flip (List.fold_left refine_wf_index) cs
      |> SM.map (fun (xts,v,t) -> (SM.of_list xts, v, t))
 
