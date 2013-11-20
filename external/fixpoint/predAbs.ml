@@ -368,13 +368,45 @@ let upds_wf_index z wm ks =
   end wm ks
 
 (* API *)
-let create_wf_index ws : (Ast.Sort.t SM.t * Ast.Symbol.t * Ast.Sort.t) SM.t =
+let valid_after_substitution f su y =
+  Su.apply su y 
+  |> (function None -> [y] | Some ye -> E.support ye)
+  |> List.for_all f 
+
+let kvars_of_bind (x, r) = 
+  let xv   = (C.vv_of_reft r, A.eVar x) in
+  C.kvars_of_reft r |>: (fun (su, k) -> (Su.extend su xv, k))
+
+let kvars_of_c c =
+  (C.kvars_of_reft         <| C.rhs_of_t         c) ++ 
+  (Misc.flap kvars_of_bind <| C.kbindings_of_lhs c)
+
+let refine_wf_index wm c = 
+  let senv  = C.senv_of_t c in
+  let ok z  = SM.mem z senv  in
+  let ksus  = kvars_of_c c  in (* [(su, k)] *)
+  List.fold_left begin fun wm (su, k) ->
+    let (xts, v, t) = SM.safeFind k wm "refine_wf_index"                              in
+    let xts'        = Misc.filter (fun (x,_) -> valid_after_substitution ok su x) xts in
+    SM.add k (xts', v, t) wm
+  end wm ksus
+
+let create_wf_index_basic ws = 
   List.fold_left begin fun wm w ->
     let env = SM.map C.sort_of_reft <| C.env_of_wf w in
     let r   = C.reft_of_wf w                         in
     upds_wf_index (env, r) wm (kvars_of_wf w)
   end SM.empty ws
 
+let create_wf_index_refine_sort cs wm =
+  wm |> SM.map (fun (env,v,t) -> ((v,t) :: (SM.to_list env), v, t))
+     |> Misc.flip (List.fold_left refine_wf_index) cs
+     |> SM.map (fun (xts,v,t) -> (SM.of_list xts, v, t))
+
+(* API *)
+let create_wf_index cs ws =
+  ws |> create_wf_index_basic
+     |> ((!Constants.refine_sort) <?> (create_wf_index_refine_sort cs))
 
 (********************************************************************************)
 (****** Brute Force (Post-Selection based) Qualifier Instantiation **************)
@@ -462,14 +494,12 @@ let inst_ext qs ckEnv env v t  : Q.t list =
   qs |> instf env v t 
      |> Misc.filter (wellformed_qual env') 
 
-
+ 
 
 let is_non_trivial_var me lps su = 
-  let cxs = SS.of_list <| Misc.flap P.support lps in
-  fun y _ -> 
-    Su.apply su y 
-    |> (function None -> [y] | Some ye -> E.support ye)
-    |> List.for_all (fun y' -> SS.mem y' cxs) 
+  let cxs  = SS.of_list <| Misc.flap P.support lps in
+  let ok z = SS.mem z cxs                          in
+  fun y _ -> valid_after_substitution ok su y
 
 (* RJ: DO NOT DELETE EVER! *)
 let ppBinding k zs = 
@@ -832,7 +862,7 @@ let create_qleqs ts sm ps consts qs =
 let create obm cs ws ts sm ps consts assm qs bm =
   { m     = bm
   ; om    = SM.map (function Bot -> [] | NonBot qs -> qs) obm
-  ; wm    = create_wf_index ws
+  ; wm    = create_wf_index cs ws
   ; assm  = assm
 (*; qm    = qs |>: Misc.pad_fst Q.name_of_t |> SM.of_list *)
   ; qs    = qs
