@@ -505,11 +505,18 @@ let inst_ext qs ckEnv env v t  : Q.t list =
      |> Misc.filter (wellformed_qual env') 
 
  
-
+(*
 let is_non_trivial_var me lps su = 
   let cxs  = SS.of_list <| Misc.flap P.support lps in
   let ok z = SS.mem z cxs                          in
   fun y _ -> valid_after_substitution ok su y
+*)
+
+let is_non_trivial_var me c su =
+  let senv = C.senv_of_t c in
+  let ok z = SM.mem z senv in
+  fun y _ -> valid_after_substitution ok su y
+
 
 (* RJ: DO NOT DELETE EVER! *)
 let ppBinding k zs = 
@@ -520,9 +527,9 @@ let ppBinding k zs =
 (* API *)
 let lazy_instantiate_with me c lps k su : Q.t list =
   let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
-  let env'      = SM.filter (is_non_trivial_var me lps su) env in
+  let env'      = SM.filter (is_non_trivial_var me c (* lps *) su) env in
   inst_ext me.qs env env' v t
-  >> ppBinding k
+  (* >> ppBinding k *)
   |> ((++) (SM.find_default [] k me.om))
 
  
