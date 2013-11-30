@@ -69,6 +69,7 @@ module Sort :
     val is_bool     : t -> bool
     val is_int      : t -> bool
     val is_func     : t -> bool
+    val is_kind     : t -> bool
     val app_of_t    : t -> (tycon * t list) option 
     val func_of_t   : t -> (int * t list * t) option
     val ptr_of_t    : t -> loc option

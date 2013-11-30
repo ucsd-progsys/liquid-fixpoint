@@ -45,6 +45,7 @@ type dep  = Adp of tag * tag | Ddp of tag * tag | Ddp_s of tag | Ddp_t of tag
 type refa = Conc of A.pred | Kvar of Su.t * Sy.t
 type reft = Sy.t * A.Sort.t * refa list                (* { VV: t | [ra] } *)
 type envt = reft SM.t
+type senvt = So.t SM.t
 type wf   = envt * reft * (id option) * (Qualifier.t -> bool)
 type t    = { full    : envt; 
               nontriv : envt;
@@ -67,6 +68,53 @@ type soln = { read  : Ast.Symbol.t -> Ast.pred list
 *)
 
 let mydebug = false 
+ 
+(***************************************************************)
+(*********************** Getter/Setter *************************)
+(***************************************************************)
+
+let vv_of_reft    = fst3
+let sort_of_reft  = snd3
+let ras_of_reft   = thd3
+let shape_of_reft = fun (v, so, _) -> (v, so, [])
+
+
+(* API *)
+let env_of_t    = fun t -> t.full 
+let grd_of_t    = fun t -> t.guard 
+let lhs_of_t    = fun t -> t.lhs 
+let rhs_of_t    = fun t -> t.rhs
+let tag_of_t    = fun t -> t.tag
+let ido_of_t    = fun t -> t.ido
+let id_of_t     = fun t -> match t.ido with Some i -> i | _ -> assertf "C.id_of_t"
+let vv_of_t     = fun t -> fst3 t.lhs
+let sort_of_t   = fun t -> snd3 t.lhs
+let senv_of_t   = fun t -> SM.map snd3 t.full |> SM.add (vv_of_t t) (sort_of_t t) 
+
+(*
+let make_t      = fun env p ((v,t,ras1) as r1) r2 io is ->
+                    let p        = A.simplify_pred p in
+                    let po, kras = split_ras ras1    in
+                    let ne, ps   = non_trivial env   in
+                    let gps      = match po with Some p' -> p' :: p :: ps | _ -> p :: ps in
+                    { full    = env 
+                    ; nontriv = ne
+                    ; guard   = p
+                    ; iguard  = A.pAnd gps 
+                    ; lhs     = (v, t, kras) 
+                    ; rhs     = r2
+                    ; ido     = io
+                    ; tag     = is }
+*)
+
+(* API *)
+let make_wf          = fun env r io -> (env, r, io, fun _ -> true)
+let make_filtered_wf = fun env r io fltr -> (env, r, io, fltr)
+let env_of_wf        = fst4
+let reft_of_wf       = snd4
+let id_of_wf         = function (_,_,Some i,_) -> i | _ -> assertf "C.id_of_wf"
+let filter_of_wf     = fth4
+ 
 
 (*************************************************************)
 (************************** Misc.  ***************************)
@@ -79,7 +127,9 @@ let is_simple_refatom = function
 let is_tauto_refatom  = function 
   | Conc p -> P.is_tauto p 
   |  _ -> false
-  
+
+(* API *)
+let is_tauto    = rhs_of_t <+> ras_of_reft <+> List.for_all is_tauto_refatom
 
 (* API *)
 let fresh_kvar = 
@@ -189,6 +239,20 @@ let non_trivial env =
   end env (SM.empty, []) 
 
 (* API *)
+let make_t      = fun env p r1 r2 io is ->
+                    let p      = A.simplify_pred p in
+                    let ne, ps = non_trivial env   in
+                    { full     = env 
+                    ; nontriv  = ne
+                    ; guard    = p
+                    ; iguard   = A.pAnd (p::ps) 
+                    ; lhs      = r1 
+                    ; rhs      = r2
+                    ; ido      = io
+                    ; tag     = is }
+
+
+(* API *)
 let is_conc_refa = function
   | Conc _ -> true
   | _      -> false
@@ -224,8 +288,8 @@ let preds_of_envt f env =
     env [] 
 
 (* API *)
-let wellformed_pred env = 
-  A.sortcheck_pred Theories.is_interp (Misc.maybe_map snd3 <.> Misc.flip SM.maybe_find env)
+let wellformed_pred senv = 
+  A.sortcheck_pred Theories.is_interp (Misc.flip SM.maybe_find senv)
 
 (* API *)
 let preds_of_lhs_nofilter f c = 
@@ -245,19 +309,19 @@ let preds_of_lhs_nofilter f c =
   else ps
 *)
 
-let report_wellformed env c p wf = 
+let report_wellformed senv c p wf = 
   if not wf then
-    let msg = F.sprintf "WARNING: Malformed Lhs Pred (%s)\n" (P.to_string p)                  in 
-    let _   = F.eprintf "%s" msg                                                              in 
-    let _   = SM.iter (fun s (_,t,_) -> F.eprintf "@[%a :: %a@]@." Sy.print s So.print t) env in
-    let _   = F.eprintf "@[%a@]@.@." P.print p                                                in
+    let msg = F.sprintf "WARNING: Malformed Lhs Pred (%s)\n" (P.to_string p)             in 
+    let _   = F.eprintf "%s" msg                                                         in 
+    let _   = SM.iter (fun s t -> F.eprintf "@[%a :: %a@]@." Sy.print s So.print t) senv in
+    let _   = F.eprintf "@[%a@]@.@." P.print p                                           in
     if !Co.strictsortcheck then raise (BadConstraint (Misc.maybe c.ido, c.tag, msg))
 
 (* API *)
 let preds_of_lhs f c = 
-  let env = SM.add (fst3 c.lhs) c.lhs c.full in
+  let senv = senv_of_t c in (* SM.add (fst3 c.lhs) c.lhs c.full in *)
   preds_of_lhs_nofilter f c 
-  |> List.filter (fun p -> wellformed_pred env p >> report_wellformed env c p)
+  |> List.filter (fun p -> wellformed_pred senv p >> report_wellformed senv c p)
 
 (* API *)
 let vars_of_t f ({rhs = r2} as c) =
@@ -376,88 +440,6 @@ let binding_to_string = Misc.fsprintf (print_binding None)
 
 
  
-(***************************************************************)
-(*********************** Getter/Setter *************************)
-(***************************************************************)
-
-let theta_ra (su': Su.t) = function
-  | Conc p       -> Conc (A.substs_pred p su')
-  | Kvar (su, k) -> Kvar (Su.compose su su', k) 
-
-
-(* API *)
-let make_reft     = fun v so ras -> (v, so, List.map (theta_ra Su.empty) (canon_ras ras))
-
-let vv_of_reft    = fst3
-let sort_of_reft  = snd3
-let ras_of_reft   = thd3
-let shape_of_reft = fun (v, so, _) -> (v, so, [])
-let theta         = fun subs (v, so, ras) -> (v, so, Misc.map (theta_ra subs) ras)
-
-
-(* API *)
-let env_of_t    = fun t -> t.full 
-let grd_of_t    = fun t -> t.guard 
-let lhs_of_t    = fun t -> t.lhs 
-let rhs_of_t    = fun t -> t.rhs
-let tag_of_t    = fun t -> t.tag
-let ido_of_t    = fun t -> t.ido
-let id_of_t     = fun t -> match t.ido with Some i -> i | _ -> assertf "C.id_of_t"
-let is_tauto    = rhs_of_t <+> ras_of_reft <+> List.for_all is_tauto_refatom
-let make_t      = fun env p r1 r2 io is ->
-                    let p        = A.simplify_pred p in
-                    let ne, ps   = non_trivial env   in
-                    { full    = env 
-                    ; nontriv = ne
-                    ; guard   = p
-                    ; iguard  = A.pAnd (p::ps) 
-                    ; lhs     = r1 
-                    ; rhs     = r2
-                    ; ido     = io
-                    ; tag     = is }
-
-let vv_of_t     = fun t -> fst3 t.lhs
-let sort_of_t   = fun t -> snd3 t.lhs
-let senv_of_t   = fun t -> SM.map snd3 t.full
-                        |> SM.add (vv_of_t t) (sort_of_t t) 
-
-(*
-let make_t      = fun env p ((v,t,ras1) as r1) r2 io is ->
-                    let p        = A.simplify_pred p in
-                    let po, kras = split_ras ras1    in
-                    let ne, ps   = non_trivial env   in
-                    let gps      = match po with Some p' -> p' :: p :: ps | _ -> p :: ps in
-                    { full    = env 
-                    ; nontriv = ne
-                    ; guard   = p
-                    ; iguard  = A.pAnd gps 
-                    ; lhs     = (v, t, kras) 
-                    ; rhs     = r2
-                    ; ido     = io
-                    ; tag     = is }
-*)
-
-let reft_of_sort so = make_reft (Sy.value_variable so) so []
-
-let add_consts_env consts env =
-  consts
-  |> List.map (Misc.app_snd reft_of_sort)
-  |> List.fold_left (fun env (x,r) -> SM.add x r env) env
-
-(* API *)
-let add_consts_wf consts (env,x,y,z) = (add_consts_env consts env, x, y, z)
-
-(* API *)
-let add_consts_t consts t = {t with full = add_consts_env consts t.full}
-
-(* API *)
-let make_wf          = fun env r io -> (env, r, io, fun _ -> true)
-let make_filtered_wf = fun env r io fltr -> (env, r, io, fltr)
-let env_of_wf        = fst4
-let reft_of_wf       = snd4
-let id_of_wf         = function (_,_,Some i,_) -> i | _ -> assertf "C.id_of_wf"
-let filter_of_wf     = fth4
-  
 let intersect_maps m1 m2 = SM.filter begin fun k elt ->
   SM.mem k m2 && SM.find k m2 = elt
 end m1
@@ -509,6 +491,32 @@ let preds_kvars_of_reft reft =
     | Conc p -> p :: ps, ks
     | Kvar (xes, kvar) -> ps, (xes, kvar) :: ks 
   end ([], []) (ras_of_reft reft)
+
+(***************************************************************************************)
+(***************************************************************************************)
+(***************************************************************************************)
+
+let theta_ra (su': Su.t) = function
+  | Conc p       -> Conc (A.substs_pred p su')
+  | Kvar (su, k) -> Kvar (Su.compose su su', k) 
+
+(* API *)
+let make_reft     = fun v so ras -> (v, so, List.map (theta_ra Su.empty) (canon_ras ras))
+let theta         = fun subs (v, so, ras) -> (v, so, Misc.map (theta_ra subs) ras)
+
+let reft_of_sort so = make_reft (Sy.value_variable so) so []
+
+let add_consts_env consts env =
+  consts
+  |> List.map (Misc.app_snd reft_of_sort)
+  |> List.fold_left (fun env (x,r) -> SM.add x r env) env
+
+(* API *)
+let add_consts_wf consts (env,x,y,z) = (add_consts_env consts env, x, y, z)
+
+(* API *)
+let add_consts_t consts t = {t with full = add_consts_env consts t.full}
+
 
 
 (***************************************************************)
