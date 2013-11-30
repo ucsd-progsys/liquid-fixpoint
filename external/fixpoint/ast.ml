@@ -167,6 +167,10 @@ module Sort =
       | Func _ -> true
       | _   -> false
 
+    let is_kind = function
+      | Num    -> true
+      | _      -> false
+
     let app_of_t = function
       | App (c, ts) -> Some (c, ts) 
       | _           -> None
