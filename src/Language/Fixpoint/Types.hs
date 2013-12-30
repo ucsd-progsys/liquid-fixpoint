@@ -90,6 +90,7 @@ module Language.Fixpoint.Types (
   -- * Constructing Refinements
   , trueSortedReft          -- trivial reft
   , trueRefa                -- trivial reft
+  , trueReft                -- trivial reft
   , exprReft                -- singleton: v == e
   , notExprReft             -- singleton: v /= e
   , uexprReft               -- singleton: v ~~ e
@@ -143,7 +144,7 @@ import Data.Generics        (Data)
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
-import Data.List            (foldl', sort, stripPrefix)
+import Data.List            (foldl', sort, stripPrefix, intersect)
 import Data.Hashable        
 import qualified Data.Foldable as F
 import Data.Traversable
@@ -1101,10 +1102,14 @@ newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
 mkSubst                  = Su -- . M.fromList
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
 emptySubst               = Su [] -- M.empty
-catSubst (Su s1) (Su s2) = Su $ s1' ++ s2
+catSubst (Su s1) (Su s2) 
+  | null $ intersect xs1 xs2 
+  = Su $ s1' ++ s2
+  | otherwise 
+  = errorstar $ "Fixpoint.Types catSubst on intersecting substitutions"
   where s1' = mapSnd (subst (Su s2)) <$> s1
-  -- = Su $ s1' `M.union` s2
-  --   where s1' = subst (Su s2) `M.map` s1
+        xs1 = fst <$> s1
+        xs2 = fst <$> s2
 
 instance Monoid Subst where
   mempty  = emptySubst
@@ -1259,6 +1264,7 @@ removeLhsKvars cs vs
 trueSubCKvar v
   = subC emptyIBindEnv PTrue mempty (RR mempty (Reft(vv_, [RKvar v emptySubst]))) Nothing [0] 
 
+shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v' 
    | v == v'   = r
    | otherwise = Reft (v', (subst1 ras (v, EVar v')))
@@ -1362,8 +1368,8 @@ class (Monoid r, Subable r) => Reftable r where
   isTauto :: r -> Bool
   ppTy    :: r -> Doc -> Doc
   
-  top     :: r
-  top     =  mempty
+  top     :: r -> r
+  top _   =  mempty
  
   -- | should also refactor `top` so it takes a parameter.
   bot     :: r -> r
@@ -1396,10 +1402,10 @@ instance Subable () where
 instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
-  top       = ()
+  top  _    = ()
   bot  _    = ()
   meet _ _  = ()
-  toReft _  = top
+  toReft _  = mempty
   params _  = []
 
 instance Reftable Reft where
@@ -1407,7 +1413,9 @@ instance Reftable Reft where
   ppTy     = ppr_reft
   toReft   = id
   params _ = []
-  bot    _ = falseReft
+
+  bot    _        = falseReft
+  top (Reft(v,_)) = Reft(v,[])
 
 instance Monoid Sort where
   mempty            = FObj (S "any")
