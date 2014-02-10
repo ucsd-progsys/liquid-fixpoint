@@ -460,7 +460,7 @@ let unsat_suffix me env p ps =
 
 (* API *)
 let create ts env ps consts =
-  let _        = asserts (ts = []) "ERROR: TPZ3-create non-empty sorts!" in
+  let _        = asserts (ts = []) "ERROR: TPGEN-create non-empty sorts!" in
   let c        = SMT.mkContext [|("MODEL", "false"); ("MODEL_PARTIAL", "true")|] in
   let som, sym = create_theories () in 
   let me       = { c     = c; 

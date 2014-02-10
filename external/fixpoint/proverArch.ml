@@ -46,6 +46,10 @@ module type SMTSOLVER = sig
   type sort
   type fun_decl
 
+  (* Sorts *)
+  val mkIntSort      : context -> sort
+  val mkBoolSort     : context -> sort
+ 
   (* Expression *)
   val mkAll : context -> sort array -> symbol array -> ast -> ast
   val mkApp : context -> fun_decl -> ast list -> ast
@@ -81,14 +85,15 @@ module type SMTSOLVER = sig
 
   (* Constructors *)
   val mkContext      : (string * string) array -> context
-  val mkIntSort      : context -> sort
-  val mkBoolSort     : context -> sort
-  val var            : context -> symbol -> sort -> ast
-  val boundVar       : context -> int    -> sort -> ast
+ 
   val stringSymbol   : context -> string -> symbol
-  val funcDecl       : context -> symbol -> sort array -> sort -> fun_decl
   val isBool         : context -> ast -> bool
+  val boundVar       : context -> int    -> sort -> ast
   
+  (* Declarations *)
+  val var            : context -> symbol -> sort -> ast
+  val funcDecl       : context -> symbol -> sort array -> sort -> fun_decl
+ 
   (* Queries *)
   val bracket        : context -> (unit -> 'a) -> 'a
   val assertAxiom    : context -> ast -> unit
