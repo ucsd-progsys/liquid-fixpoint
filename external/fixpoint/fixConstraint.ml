@@ -198,12 +198,6 @@ let is_simple {lhs = (_,_,ra1s); rhs = (_,_,ra2s)} =
 let is_conc_refa = function Conc p -> not (P.is_tauto p) | _ -> false
 
 (* API *)
-let is_conc_rhs {rhs = (_,_,ras)} =
-  List.exists is_conc_refa ras
-  >> (fun rv -> if rv then (asserts (List.for_all is_conc_refa ras) "is_conc_rhs"))
-
-
-(* API *)
 let kvars_of_t {nontriv = env; lhs = lhs; rhs = rhs} =
   [lhs; rhs] 
   |> SM.fold (fun _ r acc -> r :: acc) env
@@ -547,3 +541,14 @@ let add_ids n cs =
     | {ido = None} -> j+1, {c with ido = Some j}
     | c            -> j, c
   end ((max_id n cs) + 1) cs
+
+
+
+(* API *)
+let is_conc_rhs {ido = i; rhs = (_,_,ras)} =
+  let idn = match i with Some i -> i | None -> (-1) in
+  List.exists is_conc_refa ras
+  >> (fun rv -> if rv then (asserts (List.for_all is_conc_refa ras) "is_conc_rhs: id = %d" idn))
+
+ 
+
