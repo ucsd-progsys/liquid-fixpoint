@@ -32,6 +32,7 @@ let createTicker = FixMisc.debugTicker  "tpNull.create"
 
 let create ts env ps cs  
   = let _ = createTicker () in 
+    let _ = Constants.get_smt2_file () >> (fun x -> print_now ("\nTpNull.create : " ^ x)) in
     match !Constants.smt_solver with
       | None   -> 
           Constants.bprintflush mydebug "\nUSING z3 bindings \n"; 

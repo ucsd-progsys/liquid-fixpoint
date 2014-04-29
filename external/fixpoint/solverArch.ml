@@ -26,7 +26,7 @@ type qbind   = Qualifier.t list
 module type DOMAIN = sig
   type t
   type bind
-  val empty        : t 
+  val empty        : unit -> t 
   (* val meet         : t -> t -> t *)
   val min_read     : t -> FixConstraint.soln
   val read         : t -> FixConstraint.soln

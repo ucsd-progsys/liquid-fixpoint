@@ -858,6 +858,7 @@ let wellformed_qual sm q =
   A.sortcheck_pred Theories.is_interp (fun x -> SM.maybe_find x sm) (Q.pred_of_t q)
 
 let qleqs_of_qs ts sm cs ps qs  =
+  let _ = Constants.get_smt2_file () >> (fun x -> print_now ("\nqleqs_of_qs: " ^ x)) in
   let tp = TpNull.create ts sm cs ps in
   qs |> Misc.filter (wellformed_qual sm)
      |> Misc.groupby (List.map snd <.> Q.all_params_of_t) (* Q.sort_of_t *)
@@ -999,7 +1000,7 @@ let create c = function
   | _ -> assertf "PredAbs.create: does not support facts" 
 
 (* API *)
-let empty = create Cg.empty None
+let empty () = create Cg.empty None
 
 (* API *)
 let meet me you = {me with m = SM.extendWith (fun _ -> meet_bind) me.m you.m} 
