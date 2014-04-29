@@ -33,8 +33,11 @@ let file: string option ref = ref None         (* last commandline param*)
 let csolve_file_prefix  = ref "csolve"         (* where to find/place csolve-related files *)
 let safe                = ref false            (* -safe *)
 let manual              = ref false            (* -manual *)
-let out_file            = ref "out"            (* -save *)
-let save_file           = ref "out.fq"         (* -save *)
+let out_file_name       = ref "out"            (* -out    *)
+(*
+let save_file           = ref "out.fq"         (* -save   *)
+*)
+
 let dump_ref_constraints= ref false            (* -drconstr *)
 let ctypes_only         = ref false            (* -ctypes *)
 let verbose_level       = ref 0                (* -v *)
@@ -151,6 +154,10 @@ let logPrintf a  = Format.fprintf !logFormatter a
 let blogPrintf b = if b then logPrintf else nprintf
 let cLogPrintf l = if ck_olev l then logPrintf else nprintf
 
+let get_out_file  = fun () -> !out_file_name 
+let get_save_file = fun () -> (!out_file_name ^ ".fq")
+let get_smt2_file = fun () -> (!out_file_name ^ ".smt2")
+
 (*****************************************************************)
 (*********** Command Line Options ********************************)
 (*****************************************************************)
@@ -159,11 +166,15 @@ let cLogPrintf l = if ck_olev l then logPrintf else nprintf
 
 let arg_spec = 
   [("-out", 
-    Arg.String (fun s -> out_file := s), 
+    Arg.String (fun s -> out_file_name := s), 
     " Save solution to file [out]"); 
+
+    (*
    ("-save", 
     Arg.String (fun s -> save_file := s), 
     " Save constraints to file [out.fq]"); 
+    *)
+
    ("-inccheck", 
     Arg.String (fun s -> true_unconstrained := false; 
                          inccheck := SS.add s !inccheck), 

@@ -494,6 +494,10 @@ class tprover ts env ps consts : prover =
     method unsat_suffix = unsat_suffix me
   end
 
-let mkProver ts env ps consts = new tprover ts env ps consts
+let dTick = FixMisc.debugTicker "mkProver" 
+
+let mkProver ts env ps consts = 
+  let _ = dTick () in
+  new tprover ts env ps consts
 
 end

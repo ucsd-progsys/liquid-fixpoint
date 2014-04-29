@@ -203,7 +203,7 @@ let cone_ids g =
 
 (* API *)
 let print_stats g = 
-  g >> dump_graph (!Constants.save_file^".dot")
+  g >> dump_graph ((Constants.get_out_file ())^".dot")
     >> (single_wr_ks <+> print_ks "single write kvs:")
     >> (multi_wr_ks  <+> print_ks "multi write kvs:")
     >> (undef_ks     <+> print_ks "undefined kvs:")

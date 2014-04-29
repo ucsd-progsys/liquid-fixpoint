@@ -27,8 +27,12 @@ module Smt : ProverArch.PROVER = TpGen.MakeProver(SmtLIB2.SMTLib2)
 
 let mydebug = false
 
+
+let createTicker = FixMisc.debugTicker  "tpNull.create"
+
 let create ts env ps cs  
-  = match !Constants.smt_solver with
+  = let _ = createTicker () in 
+    match !Constants.smt_solver with
       | None   -> 
           Constants.bprintflush mydebug "\nUSING z3 bindings \n"; 
           Mem.mkProver ts env ps cs
