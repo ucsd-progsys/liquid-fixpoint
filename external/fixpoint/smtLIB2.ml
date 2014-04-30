@@ -292,7 +292,7 @@ let solver () =
 let mkContext _ =
   let s      = solver ()                          in
   let ci, co = Unix.open_process <| smt_cmd s     in
-  let cl     = Co.get_smt2_file () >> print_now |> open_out            in
+  let cl     = open_out <| Co.get_smt2_file ()    in
   let pre    = smt_preamble s                     in
   let ctx    = { cin = ci; cout = co; clog = cl } in
   let _      = List.iter (smt_write ctx) pre      in
