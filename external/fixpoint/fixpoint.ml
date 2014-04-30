@@ -70,7 +70,7 @@ let solve ac  =
   let s, cs',_  = BS.time "solve" (SPA.solve ctx) s in
   
   let _         = Co.bprintflush mydebug "Fixpoint: Saving Result \n" in
-  let _         = BS.time "save" (save_raw !Co.out_file cs') s in
+  let _         = BS.time "save" (save_raw (Co.get_out_file ()) cs') s in
   let _         = Co.bprintflush mydebug "Fixpoint: Saving Result DONE \n" in
   cs'
 
@@ -84,7 +84,7 @@ let dump_solve ac =
   with (C.BadConstraint (id, tag, msg)) -> begin
     Format.printf "Fixpoint: Bad Constraint! id = %d (%s) tag = %a \n" 
     id msg C.print_tag tag;
-    save_crash !Co.out_file (id, tag, msg); 
+    save_crash (Co.get_out_file ()) (id, tag, msg); 
   end
 
 (*****************************************************************)
@@ -112,7 +112,7 @@ let simplify_ts cs = hook_simplify_ts !Co.dump_simp cs
 
 let dump_simp ac = 
   let ac = {ac with Cg.cs = simplify_ts ac.Cg.cs; Cg.bm = SM.empty} in
-  Misc.with_out_formatter !Co.save_file (fun ppf -> Cg.print ppf ac)
+  Misc.with_out_formatter (Co.get_save_file ()) (fun ppf -> Cg.print ppf ac)
 
 (*
 let dump_simp ac = 

@@ -999,7 +999,7 @@ let create c = function
   | _ -> assertf "PredAbs.create: does not support facts" 
 
 (* API *)
-let empty = create Cg.empty None
+let empty () = create Cg.empty None
 
 (* API *)
 let meet me you = {me with m = SM.extendWith (fun _ -> meet_bind) me.m you.m} 

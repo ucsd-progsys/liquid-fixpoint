@@ -288,7 +288,7 @@ let slice me =
   let rdeps = me.rdeps 
               |> Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives) in  
   create_raw me.kuts me.ds cm dm rdeps
-  >> save !Co.save_file
+  >> save (Co.get_save_file ())
 
 (* API *) 
 let slice_wf me ws = 

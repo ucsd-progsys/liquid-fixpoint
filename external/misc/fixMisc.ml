@@ -124,6 +124,14 @@ end
 
 open Ops
 
+
+let debugTicker msg = 
+  let x = ref 0 in
+  fun () -> print_now ("\nDEBUG TICKER " ^ msg ^ " : " ^ (string_of_int (x += 1)))
+
+
+
+
 let maybe_fold f b xs = 
   let fo = fun bo x -> match bo with Some b -> f b x | _ -> None in
   List.fold_left fo (Some b) xs

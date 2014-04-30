@@ -242,7 +242,7 @@ let create cfg kf =
             |> BS.time  "Constant EnvWF" (List.map (C.add_consts_wf gts))
             |> PP.validate_wfs in
   let cfg = { cfg with Cg.cs = Ci.to_list sri; Cg.ws = ws } in
-  let s   = if !Constants.dump_simp <> "" then Dom.empty else BS.time "Dom.create" (Dom.create cfg) kf in
+  let s   = if !Constants.dump_simp <> "" then Dom.empty () else BS.time "Dom.create" (Dom.create cfg) kf in
   let _   = Co.bprintflush mydebug "\nDONE: Dom.create\n" in
   let _   = Co.bprintflush mydebug "\nBEGIN: PP.validate\n" in
   let _   = Ci.to_list sri
