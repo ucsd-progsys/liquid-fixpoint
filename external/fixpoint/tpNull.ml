@@ -28,11 +28,12 @@ module Smt : ProverArch.PROVER = TpGen.MakeProver(SmtLIB2.SMTLib2)
 let mydebug = false
 
 let create ts env ps cs  
-  = match !Constants.smt_solver with
+  = let xxx = Constants.get_smt2_file () in
+    match !Constants.smt_solver with
       | None   -> 
           Constants.bprintflush mydebug "\nUSING z3 bindings \n"; 
           Mem.mkProver ts env ps cs
       | Some s -> 
-          Constants.bprintflush mydebug ("\nUSING SMTLIB bindings with " ^ s ^ "\n"); 
+          Constants.bprintflush mydebug ("\nUSING SMTLIB bindings -- " ^ xxx ^ " -- with " ^ s ^ "\n"); 
           Smt.mkProver ts env ps cs
 
