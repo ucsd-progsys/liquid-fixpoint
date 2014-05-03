@@ -785,6 +785,7 @@ let args_leq q1 q2 =
   let xe1s, xe2s = (Q.args_of_t q1, Q.args_of_t q2) in
   let xe1e2s     = Misc.join fst xe1s xe2s          in
   List.for_all (fun ((_,e1),(_,e2)) -> e1 = e2) xe1e2s 
+  && List.length xe1e2s >= List.length xe1s 
 
 (* P(v,x,y,z) => Q(v,x) if P => Q held and _intersection_ of args match. *)
 let def_leq s q1 q2 = 
