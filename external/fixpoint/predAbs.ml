@@ -782,10 +782,8 @@ let subst_leq =
 *)
 
 let args_leq q1 q2 =
-  let xe1s, xe2s = (Q.args_of_t q1, Q.args_of_t q2) in
-  let xe1e2s     = Misc.join fst xe1s xe2s          in
-  List.for_all (fun ((_,e1),(_,e2)) -> e1 = e2) xe1e2s 
-  && List.length xe1e2s >= List.length xe1s 
+  let qArgs = List.map snd <.> Q.args_of_t in 
+  try List.for_all2 (=) (qArgs q1) (qArgs q2) with _ -> false
 
 (* P(v,x,y,z) => Q(v,x) if P => Q held and _intersection_ of args match. *)
 let def_leq s q1 q2 = 
