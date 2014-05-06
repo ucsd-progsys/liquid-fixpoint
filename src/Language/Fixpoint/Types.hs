@@ -84,7 +84,7 @@ module Language.Fixpoint.Types (
   , IBindEnv, BindId
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv
   , BindEnv
-  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv
+  , rawBindEnv, insertBindEnv, lookupBindEnv, emptyBindEnv, mapBindEnv
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
@@ -811,6 +811,9 @@ insertsIBindEnv is (FB s) = FB (foldr S.insert s is)
 -- | Functions for Global Binder Environment
 insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
 insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
+
+lookupBindEnv :: Symbolic x => x -> BindEnv -> [BindId]
+lookupBindEnv x (BE _ m) = [ i | (i, (s,_)) <- M.toList m, s == symbol x ]
 
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
