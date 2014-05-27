@@ -242,7 +242,7 @@ let make_lives cm real_deps =
        in ((js, vm), not (IS.is_empty js))
      end
   |> (fst <+> snd) 
-  >> (IS.cardinal <+> Co.bprintf mydebug "#Live Constraints: %d \n") 
+  >> (IS.cardinal <+> Co.bprintf mydebug "#Live Constraints: %d \n")
 
 let create_raw kuts ds cm dm real_deps =
   let deps = adjust_deps cm ds real_deps in
@@ -297,8 +297,10 @@ let slice_wf me ws =
            |> Misc.flap C.kvars_of_t 
            |> Misc.map snd 
            |> SS.of_list 
-  in Misc.filter (C.reft_of_wf <+> C.kvars_of_reft <+> List.exists (fun (_,k) -> SS.mem k ks)) ws
-  
+           >> (SS.cardinal <+> Co.bprintf mydebug "#Live KVars: %d \n")
+  in 
+  Misc.filter (C.reft_of_wf <+> C.kvars_of_reft <+> List.exists (fun (_,k) -> SS.mem k ks)) ws
+  >> (List.length <+> Co.bprintf mydebug "#Live WF: %d \n")
   
 let pp_cstr_id ppf c   = F.fprintf ppf "%d" (C.id_of_t c)
 let pp_cstr_ids ppf cs = F.fprintf ppf "@[%a@.@]" (Misc.pprint_many false "," pp_cstr_id) cs
