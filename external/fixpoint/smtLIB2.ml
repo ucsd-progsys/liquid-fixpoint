@@ -119,7 +119,8 @@ let com = "smt_set_com"
 
 (* z3 specific *)
 let z3_preamble 
-  = [ spr "(define-sort %s () Int)"
+ = if not !Co.set_theory then [] else
+    [ spr "(define-sort %s () Int)"
         elt
     ; spr "(define-sort %s () (Array %s Bool))" 
         set elt
@@ -140,7 +141,7 @@ let z3_preamble
     ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (= %s (%s s1 s2)))"
         sub set set emp dif 
     ] 
- 
+
 let smtlib_preamble 
   = [ spr "(set-logic QF_UFLIA)"
     ; spr "(define-sort %s () Int)"       elt

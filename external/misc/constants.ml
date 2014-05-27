@@ -80,6 +80,7 @@ let no_lib_hquals               = ref false (* -no-lib-hquals *)
 let gen_qual_sorts              = ref true  (* -no-gen-qual-sorts  *)
 let web_demo                    = ref false (* -web-demo *)
 let simple                      = ref true  (* -simple  *) 
+let set_theory                  = ref true  (* -set-theory  *) 
 
 (* JHALA: what do these do ? *)
 let psimple       = ref true            (* -psimple *)
@@ -237,6 +238,9 @@ let arg_spec =
    ( "-nosimple"
    , Arg.Clear simple
    , " Directly propagate qualifiers for simple constraints (K1 <: K2) [true]");
+   ( "-nosettheory"
+   , Arg.Clear set_theory
+   , " Support for set theory on Z3 [true]");
    ("-psimple", 
     Arg.Set psimple, 
     " prioritize simple constraints [true]");
