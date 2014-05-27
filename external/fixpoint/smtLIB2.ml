@@ -118,7 +118,7 @@ let com = "smt_set_com"
 *)
 
 (* z3 specific *)
-let z3_preamble 
+let z3_preamble _  
  = if not !Co.set_theory then [] else
     [ spr "(define-sort %s () Int)"
         elt
@@ -197,7 +197,7 @@ let smt_cmd = function
   | Cvc4    -> "cvc4 --incremental -L smtlib2"
 
 let smt_preamble = function
-  | Z3 -> z3_preamble
+  | Z3 -> z3_preamble ()
   | _  -> smtlib_preamble 
 
 

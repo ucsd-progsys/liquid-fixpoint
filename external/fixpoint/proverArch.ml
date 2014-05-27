@@ -108,7 +108,7 @@ end
 class type prover = 
   object
        (* AST/TC Interface *)
-       method interp_syms :  (Ast.Symbol.t * Ast.Sort.t) list
+       method interp_syms :  unit -> (Ast.Symbol.t * Ast.Sort.t) list
 
        (* Query Interface *)
        method set_filter  :  'a . Ast.Sort.t Ast.Symbol.SMap.t 

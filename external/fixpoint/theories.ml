@@ -55,7 +55,10 @@ let dif = ( Sy.of_string "Set_dif"
 let sub = ( Sy.of_string "Set_sub" 
           , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); So.t_bool] )
 
-let interp_syms = [emp; sng; mem; cup; cap; dif; sub]
+let interp_syms _ 
+  = if !Constants.set_theory 
+     then [emp; sng; mem; cup; cap; dif; sub]
+     else []
 
 module MakeTheory(SMT : SMTSOLVER): 
   (THEORY with type context = SMT.context 
