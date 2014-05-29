@@ -84,6 +84,7 @@ let mkRel c r a1 a2
 
 let mkApp c f az  = Z3.mk_app c f (Array.of_list az)
 let mkMul c a1 a2 = Z3.mk_mul c [| a1; a2|]
+let mkDiv c a1 a2 = Z3.mk_div c [| a1; a2|]
 let mkAdd c a1 a2 = Z3.mk_add c [| a1; a2|]
 let mkSub c a1 a2 = Z3.mk_sub c [| a1; a2|]
 let mkMod = Z3.mk_mod 

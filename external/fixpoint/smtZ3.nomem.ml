@@ -45,6 +45,7 @@ let mkAll _          = failwith msg
 let mkRel _          = failwith msg
 let mkApp _          = failwith msg  
 let mkMul _          = failwith msg
+let mkDiv _          = failwith msg
 let mkAdd _          = failwith msg
 let mkSub _          = failwith msg
 let mkMod _          = failwith msg

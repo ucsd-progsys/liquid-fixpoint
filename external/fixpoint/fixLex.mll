@@ -116,6 +116,7 @@ rule token = parse
   | "obj"               { OBJ }
   | "num"               { NUM }
   | "int"               { INT }
+  | "real"              { REAL }
   | "ptr"               { PTR }
   | "<fun>"             { LFUN }
   (* | "fptr"           { FPTR } *)

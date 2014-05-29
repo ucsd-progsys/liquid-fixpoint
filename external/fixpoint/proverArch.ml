@@ -55,6 +55,7 @@ module type SMTSOLVER = sig
   val mkAll : context -> sort array -> symbol array -> ast -> ast
   val mkApp : context -> fun_decl -> ast list -> ast
   val mkMul : context -> ast -> ast -> ast
+  val mkDiv : context -> ast -> ast -> ast
   val mkAdd : context -> ast -> ast -> ast
   val mkSub : context -> ast -> ast -> ast
   val mkMod : context -> ast -> ast -> ast

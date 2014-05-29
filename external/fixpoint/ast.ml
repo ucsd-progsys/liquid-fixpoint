@@ -58,6 +58,7 @@ module Sort =
 
     type t =
       | Int
+      | Real
       | Bool
       | Obj
       | Var of int              (* type-var *)
@@ -84,6 +85,7 @@ module Sort =
     let t_obj       = Obj
     let t_bool      = Bool
     let t_int       = Int
+    let t_real      = Real
     let t_generic   = fun i -> let _ = asserts (0 <= i) "t_generic: %d" i in Var i
     let t_ptr       = fun l -> Ptr l
     let t_func      = fun i ts -> Func (i, ts)
@@ -106,8 +108,9 @@ module Sort =
       | LFun   -> "<fun>"
 
     let rec to_string = function
-      | Var i        -> Printf.sprintf "@(%d)" i
+      | Var i        -> Printf.sprintf "Var @(%d)" i
       | Int          -> "int"
+      | Real         -> "real"
       | Bool         -> "bool"
       | Obj          -> "obj"
       | Num          -> "num"
@@ -162,6 +165,10 @@ module Sort =
     let is_int = function
       | Int -> true
       | _   -> false
+
+    let is_real = function
+      | Real -> true
+      | _    -> false
 
     let is_func = function
       | Func _ -> true
@@ -1052,7 +1059,7 @@ let pull_divisor = function
 
 let calc_cm e1 e2 =
     pull_divisor e1 * pull_divisor e2 
-
+(*
 let rec apply_mult m = function 
   | Bin (e, Div,  (Con (Constant.Int d),_)), _ ->
       let _   = assert ((m/d) * d = m) in
@@ -1063,7 +1070,7 @@ let rec apply_mult m = function
       eCon (Constant.Int (i*m))
   | e -> 
       eTim (eCon (Constant.Int m), e)
-
+*)
 let rec pred_isdiv = function 
   | True,_ | False,_ -> 
       false
@@ -1080,7 +1087,7 @@ let rec pred_isdiv = function
   | Atom (e1, _, e2), _ -> 
       expr_isdiv e1 || expr_isdiv e2
   | _ -> failwith "Unexpected: pred_isdiv"
-
+(*
 let bound m e e1 e2 =
   pAnd [pAtom (apply_mult m e, Gt, apply_mult m e2);
         pAtom(apply_mult m e, Le, apply_mult m e1)] 
@@ -1101,7 +1108,7 @@ let rec fixdiv = function
   | Not p, _ -> 
       pNot (fixdiv p) 
   | p -> p
-
+*)
 (***************************************************************************)
 (************* Type Checking Expressions and Predicates ********************)
 (***************************************************************************)
@@ -1118,8 +1125,10 @@ let rec sortcheck_expr g f e =
   match euw e with
   | Bot   -> 
       None
-  | Con _ -> 
+  | Con (Constant.Int _) -> 
       Some Sort.Int 
+  | Con (Constant.Real _) -> 
+      Some Sort.Real 
   | Var s ->
       sortcheck_sym f s
   | Bin (e1, op, e2) -> 
@@ -1186,7 +1195,10 @@ and sortcheck_op g f (e1, op, e2) =
   match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
   | (Some Sort.Int, Some Sort.Int) 
   -> Some Sort.Int
-  
+
+  | (Some Sort.Real, Some Sort.Real) 
+  -> Some Sort.Real
+ 
   (* only allow when language is Haskell *)
   | (Some (Sort.Ptr l), Some (Sort.Ptr l')) 
   when (l = l' && sortcheck_loc f l = Some Sort.Num)
@@ -1220,7 +1232,7 @@ and sortcheck_rel g f (e1, r, e2) =
     -> true
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
-    -> t1 = t2
+    -> (F.printf "%s=?= %s" (Sort.to_string t1) (Sort.to_string t2);  t1 = t2)
   | Ueq, Some (Sort.App (_,_)), Some (Sort.App (_,_)) 
   | Une, Some (Sort.App (_,_)), Some (Sort.App (_,_)) 
     -> true

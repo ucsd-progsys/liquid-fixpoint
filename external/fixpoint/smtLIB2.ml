@@ -355,6 +355,7 @@ let mkOp op a1 a2
   = spr "(%s %s %s)" (opStr op) a1 a2
   
 let mkMul _ = mkOp A.Times  
+let mkDiv _ = mkOp A.Div
 let mkAdd _ = mkOp A.Plus
 let mkSub _ = mkOp A.Minus
 let mkMod _ = mkOp A.Mod
