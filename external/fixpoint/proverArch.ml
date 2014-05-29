@@ -48,6 +48,7 @@ module type SMTSOLVER = sig
 
   (* Sorts *)
   val mkIntSort      : context -> sort
+  val mkRealSort     : context -> sort
   val mkBoolSort     : context -> sort
  
   (* Expression *)
@@ -61,6 +62,7 @@ module type SMTSOLVER = sig
   (* Predicates *)
   val mkIte     : context -> ast -> ast -> ast -> ast
   val mkInt     : context -> int -> sort -> ast
+  val mkReal    : context -> float -> sort -> ast
   val mkTrue    : context -> ast
   val mkFalse   : context -> ast
   val mkNot     : context -> ast -> ast

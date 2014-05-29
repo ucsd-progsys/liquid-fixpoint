@@ -103,7 +103,7 @@ module Symbol :
 
 module Constant :
   sig
-    type t = Int of int
+    type t = Int of int | Real of float
     val to_string : t -> string
     val print : Format.formatter -> t -> unit
   end

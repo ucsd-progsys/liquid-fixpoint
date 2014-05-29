@@ -391,10 +391,11 @@ module Symbol =
 
 module Constant =
   struct
-    type t = Int of int
+    type t = Int of int | Real of float
 
     let to_string = function
       | Int i -> string_of_int i
+      | Real i -> string_of_float i ^ "0"
 
     let print fmt s =
       to_string s |> Format.fprintf fmt "%s"
@@ -446,7 +447,7 @@ and pred_int =
 let list_hash b xs = 
   List.fold_left (fun v (_,id) -> 2*v + id) b xs
 
-module Hashcons (X : sig type t 
+module Hashcons (X : sig type t
                          val sub_equal : t -> t -> bool 
                          val hash : t -> int end) = struct
 
@@ -499,6 +500,8 @@ module ExprHashconsStruct = struct
   let hash = function
     | Con (Constant.Int x) -> 
         x
+    | Con (Constant.Real x) -> 
+        64 + int_of_float x
     | MExp es ->
         list_hash 6 es 
     | Var x -> 

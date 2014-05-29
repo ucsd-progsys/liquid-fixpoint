@@ -56,6 +56,7 @@ type var_ast = Const of SMT.ast | Bound of int * So.t
 type t = { 
   c             : SMT.context;
   tint          : SMT.sort;
+  treal         : SMT.sort;
   tbool         : SMT.sort;
   vart          : (decl, var_ast) H.t;
   funt          : (decl, SMT.fun_decl) H.t;
@@ -237,6 +238,8 @@ and z3Mul me env = function
 and z3Exp me env = function
   | A.Con (A.Constant.Int i), _ -> 
       SMT.mkInt me.c i me.tint 
+  | A.Con (A.Constant.Real i), _ -> 
+      SMT.mkReal me.c i me.treal
   | A.Var s, _ -> 
       z3Var me env s
   | A.Cst ((A.App (f, es), _), t), _ when (H.mem me.thy_symm f) -> 
@@ -465,6 +468,7 @@ let create ts env ps consts =
   let som, sym = create_theories () in 
   let me       = { c     = c; 
                    tint  = SMT.mkIntSort  c; 
+                   treal = SMT.mkRealSort c; 
                    tbool = SMT.mkBoolSort c; 
                    tydt  = H.create 37; 
                    vart  = H.create 37; 

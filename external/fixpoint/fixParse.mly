@@ -54,6 +54,7 @@ let env_of_ibindings is =
 
 %token <string> Id
 %token <int> Num
+%token <float> Real
 %token TVAR 
 %token TAG ID 
 %token BEXP
@@ -305,8 +306,10 @@ opsne:
 
 
 con:
+  | Real                                   { (A.Constant.Real $1) }
   | Num                                   { (A.Constant.Int $1) }
   | MINUS Num                             { (A.Constant.Int (-1 * $2)) }
+  | MINUS Real                             { (A.Constant.Real (-. $2)) }
   ;
 
 cons:

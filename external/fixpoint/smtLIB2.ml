@@ -317,9 +317,11 @@ let funcDecl me s ta t =
   s
 
 let mkIntSort _    = "Int"          
+let mkRealSort _   = "Real"          
 let mkBoolSort _   = "Bool"         
 
 let mkInt _ i _    = string_of_int i
+let mkReal _ i _   = string_of_float i
 let mkTrue _       = "true"
 let mkFalse _      = "false" 
 
