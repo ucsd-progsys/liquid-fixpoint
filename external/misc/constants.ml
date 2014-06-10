@@ -80,6 +80,7 @@ let no_lib_hquals               = ref false (* -no-lib-hquals *)
 let gen_qual_sorts              = ref true  (* -no-gen-qual-sorts  *)
 let web_demo                    = ref false (* -web-demo *)
 let simple                      = ref true  (* -simple  *) 
+let ueq_all_sorts               = ref false (* -ueq-all-sorts *)
 
 (* JHALA: what do these do ? *)
 let psimple       = ref true            (* -psimple *)
@@ -387,6 +388,9 @@ let arg_spec =
    ("-web-demo",
     Arg.Set(web_demo),
     " set HTML output to web demo mode");
+   ("-ueq-all-sorts",
+    Arg.Set(ueq_all_sorts),
+    " make ~~ (UEq) accept all inputs [false]");
   ]
 
 
