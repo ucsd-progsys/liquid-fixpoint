@@ -1266,6 +1266,11 @@ and sortcheck_pred g f p =
     | Or ps ->
         List.for_all (sortcheck_pred g f) ps
     
+    | Atom (e1, Ueq, e2) 
+      when !Constants.ueq_all_sorts 
+      -> (not (None = sortcheck_expr g f e1)) && 
+         (not (None = sortcheck_expr g f e2)) 
+    
     | Atom ((Con (Constant.Int(0)),_), _, e) 
     | Atom (e, _, (Con (Constant.Int(0)),_)) 
       when not (!Constants.strictsortcheck)
