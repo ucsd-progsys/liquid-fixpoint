@@ -303,7 +303,10 @@ and z3Pred me env = function
   | A.Bexp e, _ -> 
       let a  = z3Exp me env e in
       let s2  = E.to_string e in
-      let Some so = A.sortcheck_expr Theories.is_interp (Misc.flip SM.maybe_find env) e in
+      let so = match A.sortcheck_expr Theories.is_interp (Misc.flip SM.maybe_find env) e with  
+                | Some so -> so
+                | _ -> F.printf "No type for %s" (E.to_string e);
+                       assert false in
       let sos = So.to_string so in
       (* let s1  = SMT.astString me.c a in
       let _   = asserts (SMT.isBool me.c a) 

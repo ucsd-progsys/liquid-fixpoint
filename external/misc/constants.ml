@@ -91,6 +91,7 @@ let check_is      = ref false           (* -check-indices *)
 let trace_scalar  = ref false           (* -trace-scalar *)
 let prune_index   = ref false           (* -prune-index *)  
 let uif_multiply  = ref true            (* -no-uif-multiply *) 
+let uif_divide    = ref true            (* -no-uif-multiply *) 
 
 (****************************************************************)
 (************* Output levels ************************************)
@@ -364,6 +365,10 @@ let arg_spec =
    ("-no-uif-multiply",
     Arg.Clear uif_multiply,
     " Don't encode non-linear multiplication with UIFs [true]"
+   );
+   ("-no-uif-divide",
+    Arg.Clear uif_divide,
+    " Don't encode non-linear division  with UIFs [true]"
    );
    ("-simp",
     Arg.String ((:=) dump_simp),

@@ -108,7 +108,7 @@ module Sort =
       | LFun   -> "<fun>"
 
     let rec to_string = function
-      | Var i        -> Printf.sprintf "Var @(%d)" i
+      | Var i        -> Printf.sprintf "@(%d)" i
       | Int          -> "int"
       | Real         -> "real"
       | Bool         -> "bool"
@@ -284,7 +284,7 @@ module Sort =
       end
 
     let rec fold f acc t = match t with
-      | Var _ | Int  | Bool | Obj | Num | Ptr _ 
+      | Var _ | Int | Real | Bool | Obj | Num | Ptr _ 
         -> f acc t 
       | Func (_, ts) | App (_, ts) 
         -> List.fold_left (fold f) (f acc t) ts 
@@ -1191,7 +1191,15 @@ and sortcheck_app g f so_expected uf es =
 
 
 
-and sortcheck_op g f (e1, op, e2) = 
+and sortcheck_op g f (e1, op, e2) =
+(* DEBUGGING   
+  let (s1, s2) = Misc.map_pair (sortcheck_expr g f) (e1, e2) in 
+  let _ = match (s1, s2) with 
+    | (Some t1, Some t2) -> F.printf "sortcheck_op : \n%s - %s\n" (Sort.to_string t1) (Sort.to_string t2) 
+    | (_, Some t2) -> F.printf "sortcheck_op1 : \n - %s\n" (Sort.to_string t2) 
+    | (Some t1, _) -> F.printf "sortcheck_op2 : \n%s \n" (Sort.to_string t1) 
+    | (_, _) -> F.printf "sortcheck_op3 : \n" 
+    in *)
   match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
   | (Some Sort.Int, Some Sort.Int) 
   -> Some Sort.Int
@@ -1232,7 +1240,7 @@ and sortcheck_rel g f (e1, r, e2) =
     -> true
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
-    -> (F.printf "%s=?= %s" (Sort.to_string t1) (Sort.to_string t2);  t1 = t2)
+    -> t1 = t2
   | Ueq, Some (Sort.App (_,_)), Some (Sort.App (_,_)) 
   | Une, Some (Sort.App (_,_)), Some (Sort.App (_,_)) 
     -> true
