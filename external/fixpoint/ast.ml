@@ -1059,7 +1059,7 @@ let pull_divisor = function
 
 let calc_cm e1 e2 =
     pull_divisor e1 * pull_divisor e2 
-(*
+
 let rec apply_mult m = function 
   | Bin (e, Div,  (Con (Constant.Int d),_)), _ ->
       let _   = assert ((m/d) * d = m) in
@@ -1070,7 +1070,7 @@ let rec apply_mult m = function
       eCon (Constant.Int (i*m))
   | e -> 
       eTim (eCon (Constant.Int m), e)
-*)
+
 let rec pred_isdiv = function 
   | True,_ | False,_ -> 
       false
@@ -1087,7 +1087,7 @@ let rec pred_isdiv = function
   | Atom (e1, _, e2), _ -> 
       expr_isdiv e1 || expr_isdiv e2
   | _ -> failwith "Unexpected: pred_isdiv"
-(*
+
 let bound m e e1 e2 =
   pAnd [pAtom (apply_mult m e, Gt, apply_mult m e2);
         pAtom(apply_mult m e, Le, apply_mult m e1)] 
@@ -1108,7 +1108,7 @@ let rec fixdiv = function
   | Not p, _ -> 
       pNot (fixdiv p) 
   | p -> p
-*)
+
 (***************************************************************************)
 (************* Type Checking Expressions and Predicates ********************)
 (***************************************************************************)

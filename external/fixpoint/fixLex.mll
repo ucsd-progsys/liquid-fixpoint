@@ -49,6 +49,7 @@
     try float_of_string s with ex -> 
       let _ = Printf.printf "safe_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
       raise ex
+
   let safe_int_of_string s = 
     try int_of_string s with ex -> 
       let _ = Printf.printf "safe_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
@@ -140,7 +141,7 @@ rule token = parse
   | "rhs"               { RHS }
   | "reft"              { REF }
   | "@"                 { TVAR } 
-  | (digit)+'.'(digit)+	        { Real (safe_float_of_string (Lexing.lexeme lexbuf)) }
+  | (digit)+'.'(digit)+	{ Real (safe_float_of_string (Lexing.lexeme lexbuf)) }
   | (digit)+	        { Num (safe_int_of_string (Lexing.lexeme lexbuf)) }
   | (alphlet)letdig*	{ Id    (Lexing.lexeme lexbuf) }
   | '''[^''']*'''       { let str = Lexing.lexeme lexbuf in

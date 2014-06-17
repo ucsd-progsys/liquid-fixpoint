@@ -233,7 +233,7 @@ module Horn :
   end
 
 val print_stats    : unit -> unit
-(* val fixdiv         : pred -> pred *)
+val fixdiv         : pred -> pred
 val zero           : expr
 val one            : expr
 val bot            : expr

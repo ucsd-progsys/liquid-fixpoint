@@ -307,10 +307,10 @@ opsne:
 
 
 con:
-  | Real                                   { (A.Constant.Real $1) }
+  | Real                                  { (A.Constant.Real $1) }
   | Num                                   { (A.Constant.Int $1) }
   | MINUS Num                             { (A.Constant.Int (-1 * $2)) }
-  | MINUS Real                             { (A.Constant.Real (-. $2)) }
+  | MINUS Real                            { (A.Constant.Real (-. $2)) }
   ;
 
 cons:

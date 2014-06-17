@@ -228,7 +228,7 @@ and z3AppThy me env def tyo f es =
         |> assertf "z3AppThy: sort error %s"
 
 and z3Div me env = function
-  | (e1, e2) when false (* add flag*) -> 
+  | (e1, e2) when !Co.uif_divide -> 
      z3App me env div_n (List.map (z3Exp me env) [e1; e2])
   | (e1, e2) -> 
      SMT.mkDiv me.c (z3Exp me env e1) (z3Exp me env e2)
@@ -265,10 +265,6 @@ and z3Exp me env = function
       z3Mul me env (e1, e2)
   | A.Bin (e1, A.Div, e2), _ ->
       z3Div me env (e1, e2)
-(*
-  | A.Bin (e1, A.Div, e2), _ -> 
-      z3App me env div_n (List.map (z3Exp me env) [e1;e2])
-*)
   | A.Bin (e, A.Mod, (A.Con (A.Constant.Int i), _)), _ ->
       SMT.mkMod me.c (z3Exp me env e) (SMT.mkInt me.c i me.tint)
   | A.Bin (e1, A.Mod, e2), _ ->
