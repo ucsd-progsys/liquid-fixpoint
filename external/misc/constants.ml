@@ -80,6 +80,7 @@ let no_lib_hquals               = ref false (* -no-lib-hquals *)
 let gen_qual_sorts              = ref true  (* -no-gen-qual-sorts  *)
 let web_demo                    = ref false (* -web-demo *)
 let simple                      = ref true  (* -simple  *) 
+let set_theory                  = ref true  (* -set-theory  *) 
 let ueq_all_sorts               = ref false (* -ueq-all-sorts *)
 
 (* JHALA: what do these do ? *)
@@ -91,6 +92,7 @@ let check_is      = ref false           (* -check-indices *)
 let trace_scalar  = ref false           (* -trace-scalar *)
 let prune_index   = ref false           (* -prune-index *)  
 let uif_multiply  = ref true            (* -no-uif-multiply *) 
+let uif_divide    = ref true            (* -no-uif-multiply *) 
 
 (****************************************************************)
 (************* Output levels ************************************)
@@ -238,6 +240,9 @@ let arg_spec =
    ( "-nosimple"
    , Arg.Clear simple
    , " Directly propagate qualifiers for simple constraints (K1 <: K2) [true]");
+   ( "-nosettheory"
+   , Arg.Clear set_theory
+   , " Support for set theory on Z3 [true]");
    ("-psimple", 
     Arg.Set psimple, 
     " prioritize simple constraints [true]");
@@ -361,6 +366,10 @@ let arg_spec =
    ("-no-uif-multiply",
     Arg.Clear uif_multiply,
     " Don't encode non-linear multiplication with UIFs [true]"
+   );
+   ("-no-uif-divide",
+    Arg.Clear uif_divide,
+    " Don't encode non-linear division  with UIFs [true]"
    );
    ("-simp",
     Arg.String ((:=) dump_simp),

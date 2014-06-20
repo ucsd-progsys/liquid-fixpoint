@@ -225,7 +225,7 @@ let solve me s =
 
 let global_symbols cfg = 
      (SM.to_list cfg.Cg.uops)   (* specified globals *) 
-  ++ (Theories.interp_syms)     (* theory globals    *)
+  ++ (Theories.interp_syms ())  (* theory globals    *)
 
 (* API *)
 let create cfg kf =

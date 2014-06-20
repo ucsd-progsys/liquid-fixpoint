@@ -58,6 +58,7 @@ module Sort =
 
     type t =
       | Int
+      | Real
       | Bool
       | Obj
       | Var of int              (* type-var *)
@@ -84,6 +85,7 @@ module Sort =
     let t_obj       = Obj
     let t_bool      = Bool
     let t_int       = Int
+    let t_real      = Real
     let t_generic   = fun i -> let _ = asserts (0 <= i) "t_generic: %d" i in Var i
     let t_ptr       = fun l -> Ptr l
     let t_func      = fun i ts -> Func (i, ts)
@@ -108,6 +110,7 @@ module Sort =
     let rec to_string = function
       | Var i        -> Printf.sprintf "@(%d)" i
       | Int          -> "int"
+      | Real         -> "real"
       | Bool         -> "bool"
       | Obj          -> "obj"
       | Num          -> "num"
@@ -162,6 +165,10 @@ module Sort =
     let is_int = function
       | Int -> true
       | _   -> false
+
+    let is_real = function
+      | Real -> true
+      | _    -> false
 
     let is_func = function
       | Func _ -> true
@@ -277,7 +284,7 @@ module Sort =
       end
 
     let rec fold f acc t = match t with
-      | Var _ | Int  | Bool | Obj | Num | Ptr _ 
+      | Var _ | Int | Real | Bool | Obj | Num | Ptr _ 
         -> f acc t 
       | Func (_, ts) | App (_, ts) 
         -> List.fold_left (fold f) (f acc t) ts 
@@ -391,10 +398,11 @@ module Symbol =
 
 module Constant =
   struct
-    type t = Int of int
+    type t = Int of int | Real of float
 
     let to_string = function
       | Int i -> string_of_int i
+      | Real i -> string_of_float i ^ "0"
 
     let print fmt s =
       to_string s |> Format.fprintf fmt "%s"
@@ -446,7 +454,7 @@ and pred_int =
 let list_hash b xs = 
   List.fold_left (fun v (_,id) -> 2*v + id) b xs
 
-module Hashcons (X : sig type t 
+module Hashcons (X : sig type t
                          val sub_equal : t -> t -> bool 
                          val hash : t -> int end) = struct
 
@@ -499,6 +507,8 @@ module ExprHashconsStruct = struct
   let hash = function
     | Con (Constant.Int x) -> 
         x
+    | Con (Constant.Real x) -> 
+        64 + int_of_float x
     | MExp es ->
         list_hash 6 es 
     | Var x -> 
@@ -1115,8 +1125,10 @@ let rec sortcheck_expr g f e =
   match euw e with
   | Bot   -> 
       None
-  | Con _ -> 
+  | Con (Constant.Int _) -> 
       Some Sort.Int 
+  | Con (Constant.Real _) -> 
+      Some Sort.Real 
   | Var s ->
       sortcheck_sym f s
   | Bin (e1, op, e2) -> 
@@ -1179,11 +1191,22 @@ and sortcheck_app g f so_expected uf es =
 
 
 
-and sortcheck_op g f (e1, op, e2) = 
+and sortcheck_op g f (e1, op, e2) =
+(* DEBUGGING   
+  let (s1, s2) = Misc.map_pair (sortcheck_expr g f) (e1, e2) in 
+  let _ = match (s1, s2) with 
+    | (Some t1, Some t2) -> F.printf "sortcheck_op : \n%s - %s\n" (Sort.to_string t1) (Sort.to_string t2) 
+    | (_, Some t2) -> F.printf "sortcheck_op1 : \n - %s\n" (Sort.to_string t2) 
+    | (Some t1, _) -> F.printf "sortcheck_op2 : \n%s \n" (Sort.to_string t1) 
+    | (_, _) -> F.printf "sortcheck_op3 : \n" 
+    in *)
   match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
   | (Some Sort.Int, Some Sort.Int) 
   -> Some Sort.Int
-  
+
+  | (Some Sort.Real, Some Sort.Real) 
+  -> Some Sort.Real
+ 
   (* only allow when language is Haskell *)
   | (Some (Sort.Ptr l), Some (Sort.Ptr l')) 
   when (l = l' && sortcheck_loc f l = Some Sort.Num)

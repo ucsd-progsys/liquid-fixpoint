@@ -45,6 +45,10 @@
 		     | i -> accum (acc str.[i]) (d * 10) (i - 1)
     in accum 0 1 (len-1) 
    *)
+  let safe_float_of_string s = 
+    try float_of_string s with ex -> 
+      let _ = Printf.printf "safe_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
+      raise ex
 
   let safe_int_of_string s = 
     try int_of_string s with ex -> 
@@ -113,6 +117,7 @@ rule token = parse
   | "obj"               { OBJ }
   | "num"               { NUM }
   | "int"               { INT }
+  | "real"              { REAL }
   | "ptr"               { PTR }
   | "<fun>"             { LFUN }
   (* | "fptr"           { FPTR } *)
@@ -136,6 +141,7 @@ rule token = parse
   | "rhs"               { RHS }
   | "reft"              { REF }
   | "@"                 { TVAR } 
+  | (digit)+'.'(digit)+	{ Real (safe_float_of_string (Lexing.lexeme lexbuf)) }
   | (digit)+	        { Num (safe_int_of_string (Lexing.lexeme lexbuf)) }
   | (alphlet)letdig*	{ Id    (Lexing.lexeme lexbuf) }
   | '''[^''']*'''       { let str = Lexing.lexeme lexbuf in

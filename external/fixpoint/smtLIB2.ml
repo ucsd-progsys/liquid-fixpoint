@@ -118,8 +118,9 @@ let com = "smt_set_com"
 *)
 
 (* z3 specific *)
-let z3_preamble 
-  = [ spr "(define-sort %s () Int)"
+let z3_preamble _  
+ = if not !Co.set_theory then [] else
+    [ spr "(define-sort %s () Int)"
         elt
     ; spr "(define-sort %s () (Array %s Bool))" 
         set elt
@@ -140,7 +141,7 @@ let z3_preamble
     ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (= %s (%s s1 s2)))"
         sub set set emp dif 
     ] 
- 
+
 let smtlib_preamble 
   = [ spr "(set-logic QF_UFLIA)"
     ; spr "(define-sort %s () Int)"       elt
@@ -196,7 +197,7 @@ let smt_cmd = function
   | Cvc4    -> "cvc4 --incremental -L smtlib2"
 
 let smt_preamble = function
-  | Z3 -> z3_preamble
+  | Z3 -> z3_preamble ()
   | _  -> smtlib_preamble 
 
 
@@ -316,9 +317,11 @@ let funcDecl me s ta t =
   s
 
 let mkIntSort _    = "Int"          
+let mkRealSort _   = "Real"          
 let mkBoolSort _   = "Bool"         
 
 let mkInt _ i _    = string_of_int i
+let mkReal _ i _   = string_of_float i
 let mkTrue _       = "true"
 let mkFalse _      = "false" 
 
@@ -352,6 +355,7 @@ let mkOp op a1 a2
   = spr "(%s %s %s)" (opStr op) a1 a2
   
 let mkMul _ = mkOp A.Times  
+let mkDiv _ = mkOp A.Div
 let mkAdd _ = mkOp A.Plus
 let mkSub _ = mkOp A.Minus
 let mkMod _ = mkOp A.Mod

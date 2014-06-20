@@ -56,6 +56,7 @@ type var_ast = Const of SMT.ast | Bound of int * So.t
 type t = { 
   c             : SMT.context;
   tint          : SMT.sort;
+  treal         : SMT.sort;
   tbool         : SMT.sort;
   vart          : (decl, var_ast) H.t;
   funt          : (decl, SMT.fun_decl) H.t;
@@ -131,9 +132,10 @@ let rec z3Type me t =
   Misc.do_memo me.tydt begin fun t -> 
     if So.is_bool t then me.tbool else
       if So.is_int t then me.tint else
-        match z3TypeThy me t with 
-          | Some t' -> t'
-          | None    -> me.tint
+        if So.is_real t then me.treal else
+          match z3TypeThy me t with 
+            | Some t' -> t'
+            | None    -> me.tint
   end t t
 
 and z3TypeThy me t = match So.app_of_t t with
@@ -225,6 +227,12 @@ and z3AppThy me env def tyo f es =
         |> E.to_string
         |> assertf "z3AppThy: sort error %s"
 
+and z3Div me env = function
+  | (e1, e2) when !Co.uif_divide -> 
+     z3App me env div_n (List.map (z3Exp me env) [e1; e2])
+  | (e1, e2) -> 
+     SMT.mkDiv me.c (z3Exp me env e1) (z3Exp me env e2)
+
 and z3Mul me env = function
   | ((A.Con (A.Constant.Int i), _), e) 
   | (e, (A.Con (A.Constant.Int i), _)) ->
@@ -237,6 +245,8 @@ and z3Mul me env = function
 and z3Exp me env = function
   | A.Con (A.Constant.Int i), _ -> 
       SMT.mkInt me.c i me.tint 
+  | A.Con (A.Constant.Real i), _ -> 
+      SMT.mkReal me.c i me.treal
   | A.Var s, _ -> 
       z3Var me env s
   | A.Cst ((A.App (f, es), _), t), _ when (H.mem me.thy_symm f) -> 
@@ -253,8 +263,8 @@ and z3Exp me env = function
       SMT.mkInt me.c (n1 * n2) me.tint
   | A.Bin (e1, A.Times, e2), _ ->
       z3Mul me env (e1, e2)
-  | A.Bin (e1, A.Div, e2), _ -> 
-      z3App me env div_n (List.map (z3Exp me env) [e1;e2])
+  | A.Bin (e1, A.Div, e2), _ ->
+      z3Div me env (e1, e2)
   | A.Bin (e, A.Mod, (A.Con (A.Constant.Int i), _)), _ ->
       SMT.mkMod me.c (z3Exp me env e) (SMT.mkInt me.c i me.tint)
   | A.Bin (e1, A.Mod, e2), _ ->
@@ -289,7 +299,10 @@ and z3Pred me env = function
   | A.Bexp e, _ -> 
       let a  = z3Exp me env e in
       let s2  = E.to_string e in
-      let Some so = A.sortcheck_expr Theories.is_interp (Misc.flip SM.maybe_find env) e in
+      let so = match A.sortcheck_expr Theories.is_interp (Misc.flip SM.maybe_find env) e with  
+                | Some so -> so
+                | _ -> F.printf "No type for %s" (E.to_string e);
+                       assert false in
       let sos = So.to_string so in
       (* let s1  = SMT.astString me.c a in
       let _   = asserts (SMT.isBool me.c a) 
@@ -312,7 +325,7 @@ and z3Pred me env = function
   
 let z3Pred me env p = 
   try 
-    let p = BS.time "fixdiv" A.fixdiv p in
+    let p = p in (*BS.time "fixdiv" A.fixdiv p in *)
     BS.time "z3Pred" (z3Pred me env) p
   with ex -> (F.printf "z3Pred: error converting %a\n" P.print p) ; raise ex 
 
@@ -415,7 +428,7 @@ let mk_pa me p2z pfx ics =
 (* API *)
 let unsat_core me env bgp ips =
   let _     = H.clear me.vart                                       in 
-  let p2z   = A.fixdiv <+> z3Pred me env                            in
+  let p2z   = (*A.fixdiv <+>*) z3Pred me env                            in
   let ipa   = ips |> List.map (Misc.app_snd p2z) |> Array.of_list   in 
   let va, f = mk_prop_var_idx me ipa                                in
   let zp    = ipa |> Array.mapi (fun i (_, p) -> SMT.mkIff me.c va.(i) p)
@@ -465,6 +478,7 @@ let create ts env ps consts =
   let som, sym = create_theories () in 
   let me       = { c     = c; 
                    tint  = SMT.mkIntSort  c; 
+                   treal = SMT.mkRealSort c; 
                    tbool = SMT.mkBoolSort c; 
                    tydt  = H.create 37; 
                    vart  = H.create 37; 

@@ -1,0 +1,14 @@
+// pass with no-uif-multiply
+
+bind 0 x : {VV#x : real | [(not (x = 0.0)) ]}
+bind 1 y : {VV#y : real | [(x= VV#y)]}
+bind 2 z : {VV#x : real | []}
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+
+constraint: 
+   env [0; 1; 2]
+   grd true
+   lhs {VV#F1 : GHC.Types.Bool | [(? Prop([VV#F1]) <=> (1.0 =  x * (1.0 / x)))] }
+   rhs {VV#F1 : GHC.Types.Bool | [(? Prop([VV#F1]) <=> true)] }
+   id 1

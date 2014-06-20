@@ -54,6 +54,7 @@ let env_of_ibindings is =
 
 %token <string> Id
 %token <int> Num
+%token <float> Real
 %token TVAR 
 %token TAG ID 
 %token BEXP
@@ -68,7 +69,7 @@ let env_of_ibindings is =
 %token TIMES 
 %token DIV 
 %token QM DOT ASGN
-%token OBJ INT NUM PTR LFUN BOOL UNINT FUNC
+%token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC
 %token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
 %token ENV GRD LHS RHS REF
 
@@ -161,6 +162,7 @@ sort:
 
 bsort:
   | INT                                 { So.t_int }
+  | REAL                                { So.t_real }
   | BOOL                                { So.t_bool }
   | PTR                                 { So.t_ptr (So.Lvar 0) }
   | PTR LPAREN LFUN RPAREN              { So.t_ptr (So.LFun) }
@@ -305,8 +307,10 @@ opsne:
 
 
 con:
+  | Real                                  { (A.Constant.Real $1) }
   | Num                                   { (A.Constant.Int $1) }
   | MINUS Num                             { (A.Constant.Int (-1 * $2)) }
+  | MINUS Real                            { (A.Constant.Real (-. $2)) }
   ;
 
 cons:

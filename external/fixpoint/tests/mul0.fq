@@ -1,0 +1,14 @@
+// pass with no-uif-multiply
+
+bind 0 x : {VV#x : int | []}
+bind 1 y : {VV#x : int | []}
+bind 2 z : {VV#x : int | []}
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+
+constraint: 
+   env [0; 1; 2]
+   grd true
+   lhs {VV#F1 : GHC.Types.Bool | [((x * y * z = (x * y) * z) <=> (? Prop([VV#F1])))] }
+   rhs {VV#F1 : GHC.Types.Bool | [(? Prop([VV#F1]) <=> true)] }
+   id 1

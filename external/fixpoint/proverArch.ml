@@ -48,12 +48,14 @@ module type SMTSOLVER = sig
 
   (* Sorts *)
   val mkIntSort      : context -> sort
+  val mkRealSort     : context -> sort
   val mkBoolSort     : context -> sort
  
   (* Expression *)
   val mkAll : context -> sort array -> symbol array -> ast -> ast
   val mkApp : context -> fun_decl -> ast list -> ast
   val mkMul : context -> ast -> ast -> ast
+  val mkDiv : context -> ast -> ast -> ast
   val mkAdd : context -> ast -> ast -> ast
   val mkSub : context -> ast -> ast -> ast
   val mkMod : context -> ast -> ast -> ast
@@ -61,6 +63,7 @@ module type SMTSOLVER = sig
   (* Predicates *)
   val mkIte     : context -> ast -> ast -> ast -> ast
   val mkInt     : context -> int -> sort -> ast
+  val mkReal    : context -> float -> sort -> ast
   val mkTrue    : context -> ast
   val mkFalse   : context -> ast
   val mkNot     : context -> ast -> ast
@@ -108,7 +111,7 @@ end
 class type prover = 
   object
        (* AST/TC Interface *)
-       method interp_syms :  (Ast.Symbol.t * Ast.Sort.t) list
+       method interp_syms :  unit -> (Ast.Symbol.t * Ast.Sort.t) list
 
        (* Query Interface *)
        method set_filter  :  'a . Ast.Sort.t Ast.Symbol.SMap.t 

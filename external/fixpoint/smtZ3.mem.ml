@@ -84,12 +84,14 @@ let mkRel c r a1 a2
 
 let mkApp c f az  = Z3.mk_app c f (Array.of_list az)
 let mkMul c a1 a2 = Z3.mk_mul c [| a1; a2|]
+let mkDiv c a1 a2 = Z3.mk_div c [| a1; a2|]
 let mkAdd c a1 a2 = Z3.mk_add c [| a1; a2|]
 let mkSub c a1 a2 = Z3.mk_sub c [| a1; a2|]
 let mkMod = Z3.mk_mod 
 let mkIte = Z3.mk_ite
 
 let mkInt      = Z3.mk_int 
+let mkReal     = Z3.mk_real
 let mkTrue     = Z3.mk_true
 let mkFalse    = Z3.mk_false
 let mkNot      = Z3.mk_not
@@ -99,6 +101,7 @@ let mkImp      = Z3.mk_implies
 let mkIff      = Z3.mk_iff
 let astString  = Z3.ast_to_string 
 let mkIntSort  = Z3.mk_int_sort  
+let mkRealSort = Z3.mk_real_sort  
 let mkBoolSort = Z3.mk_bool_sort 
 let mkSetSort  = Z3.mk_set_sort  
 let mkEmptySet = Z3.mk_empty_set 

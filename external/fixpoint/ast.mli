@@ -60,6 +60,7 @@ module Sort :
     val t_obj       : t
     val t_bool      : t
     val t_int       : t
+    val t_real      : t
     val t_generic   : int -> t
     val t_ptr       : loc -> t
     val t_func      : int -> t list -> t
@@ -68,6 +69,7 @@ module Sort :
    
     val is_bool     : t -> bool
     val is_int      : t -> bool
+    val is_real     : t -> bool
     val is_func     : t -> bool
     val is_kind     : t -> bool
     val app_of_t    : t -> (tycon * t list) option 
@@ -103,7 +105,7 @@ module Symbol :
 
 module Constant :
   sig
-    type t = Int of int
+    type t = Int of int | Real of float
     val to_string : t -> string
     val print : Format.formatter -> t -> unit
   end
