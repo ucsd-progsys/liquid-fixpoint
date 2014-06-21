@@ -84,14 +84,14 @@ let mkRel c r a1 a2
 
 let mkApp c f az  = Z3.mk_app c f (Array.of_list az)
 let mkMul c a1 a2 = Z3.mk_mul c [| a1; a2|]
-let mkDiv c a1 a2 = Z3.mk_div c [| a1; a2|]
+let mkDiv c a1 a2 = Z3.mk_div c    a1  a2
 let mkAdd c a1 a2 = Z3.mk_add c [| a1; a2|]
 let mkSub c a1 a2 = Z3.mk_sub c [| a1; a2|]
 let mkMod = Z3.mk_mod 
 let mkIte = Z3.mk_ite
 
 let mkInt      = Z3.mk_int 
-let mkReal     = Z3.mk_real
+let mkReal c f = Z3.mk_numeral c (string_of_float f)
 let mkTrue     = Z3.mk_true
 let mkFalse    = Z3.mk_false
 let mkNot      = Z3.mk_not
