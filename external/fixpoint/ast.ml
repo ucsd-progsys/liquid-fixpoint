@@ -707,12 +707,21 @@ let rec print_expr ppf e = match euw e with
         print_expr e1 
         (ops |>: bop_to_string |> String.concat " ; ")
         print_expr e2
- 
+  
+  | Ite (ip, te, ee) -> 
+      F.fprintf ppf "if %a then %a else %a" 
+        print_pred ip 
+        print_expr te
+        print_expr ee
+  
+  (* DEPRECATED TO HELP HS Parser
   | Ite(ip,te,ee) -> 
       F.fprintf ppf "(%a ? %a : %a)" 
         print_pred ip 
         print_expr te
         print_expr ee
+  *)     
+
   | Fld(s, e) -> 
       F.fprintf ppf "%a.%s" print_expr e s 
   | Cst(e,t) ->
