@@ -38,7 +38,7 @@ module P  = Ast.Predicate
 
 open Misc.Ops
 
-let mydebug = false 
+let mydebug = false
 
 (* TODO: Describe the SCC ordering scheme! *)
 
@@ -228,7 +228,7 @@ let make_roots rankm ijs =
  * lives := Pre*(roots) where Pre* is refl-trans-clos of the depends-on relation *)
 
 let make_lives cm real_deps =
-  let dm = real_deps |>: Misc.swap |> IM.of_alist in
+  let dm = real_deps |> List.rev_map Misc.swap |> IM.of_alist                   in
   let js = cm |> IM.filter (fun _ -> C.is_conc_rhs) |> IM.domain |> IS.of_list  in
   (js, IS.empty)
   |> Misc.fixpoint begin fun (js, vm) ->
@@ -249,7 +249,6 @@ let create_raw kuts ds cm dm real_deps =
   let rnkm = make_ranks cm deps kuts     in
   { cnst = cm; ds  = ds; kuts = kuts; rdeps = real_deps; rnkm  = rnkm
   ; depm = dm; rts = make_roots rnkm deps ;  pend = H.create 17}
-
 
 (***********************************************************************)
 (**************************** API **************************************)
@@ -279,7 +278,7 @@ let create kuts ds cs =
 
 (* API *)
 let slice me = 
-  let lives = make_lives me.cnst me.rdeps in
+  let lives = BS.time "make_lives" (make_lives me.cnst) me.rdeps in
   let cm    = me.cnst  
               |> IM.filter (fun i _ -> IS.mem i lives) in
   let dm    = me.depm  
@@ -287,8 +286,23 @@ let slice me =
               |> IM.map (List.filter (fun j -> IS.mem j lives)) in
   let rdeps = me.rdeps 
               |> Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives) in  
-  create_raw me.kuts me.ds cm dm rdeps
-  >> save (Co.get_save_file ())
+  (BS.time "create_raw" (create_raw me.kuts me.ds cm dm) rdeps)
+  >> (fun z -> if !Co.save_slice then save (Co.get_save_file ()) z)
+
+(* 
+let slice me = 
+  let lives = BS.time "make_lives" (make_lives me.cnst) me.rdeps                        in
+  let cm    = BS.time "slice-filter-1" (IM.filter (fun i _ -> IS.mem i lives)) me.cnst  in
+  let dm0   = me.depm                                                                   in
+  let dm1   = BS.time "slice-filter-2" (IM.filter (fun i _ -> IS.mem i lives)) dm0      in 
+  let dm2   = BS.time "slice-filter-2" (IM.map (List.filter (fun j -> IS.mem j lives))) dm1 in
+  let rdeps = BS.time "slice-filter-4" (Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives)) me.rdeps  in  
+  let rv    = (BS.time "create_raw" (create_raw me.kuts me.ds cm dm2) rdeps)   in
+  let _     = if !Co.save_slice then BS.time "save slice" (save (Co.get_save_file ())) rv in 
+  rv
+
+*)
+
 
 (* API *) 
 let slice_wf me ws = 
