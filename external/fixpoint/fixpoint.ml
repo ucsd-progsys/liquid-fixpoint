@@ -64,7 +64,7 @@ let save_crash fname (id, tag, msg) =
   end
 
 let solve ac  = 
-  let _         = Co.bprintflush mydebug "Fixpoint: Creating  CI\n" in
+  let _         = Co.bprintflush mydebug "Fixpoint: Creating CI\n" in
   let ctx, s    = BS.time "create" SPA.create ac None in
   let _         = Co.bprintflush mydebug "Fixpoint: Solving \n" in
   let s, cs',_  = BS.time "solve" (SPA.solve ctx) s in

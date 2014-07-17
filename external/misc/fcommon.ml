@@ -74,8 +74,8 @@ let dump_graph s g =
 let int_s_to_string ppf (i,s) = 
   F.fprintf ppf "(%d,%s)" i s 
 
-let scc_print g a = 
-  C.bprintf mydebug "dep graph: vertices= %d, sccs= %d \n" (G.nb_vertex g) (Array.length a);
+let scc_print s g a = 
+  C.bprintf mydebug "dep graph (%s): vertices= %d, sccs= %d \n" s (G.nb_vertex g) (Array.length a);
   C.bprintf mydebug "scc sizes: \n";
   Array.iteri begin fun i xs -> 
     C.bprintf mydebug "%d : [%a] \n" i (FixMisc.pprint_many false "," int_s_to_string) xs
@@ -95,7 +95,7 @@ let make_graph s f is ijs =
 let scc_rank s f is ijs = 
   let g = BNstats.time "making_graph" (make_graph s f is) ijs in
   let a = SCC.scc_array g in
-  let _ = scc_print g a in
+  let _ = scc_print s g a in
   let sccs = FixMisc.array_to_index_list a in
   FixMisc.flap (fun (i,vs) -> List.map (fun (j,_) -> (j,i)) vs) sccs
 

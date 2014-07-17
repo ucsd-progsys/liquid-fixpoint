@@ -37,7 +37,6 @@ module C  = FixConstraint
 module Ci = Cindex
 module PP = Prepass
 module Cg = FixConfig
-(* module TP   = TpNull.Prover *)
 module Misc = FixMisc open Misc.Ops
 
 

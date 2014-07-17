@@ -38,7 +38,7 @@ module P  = Ast.Predicate
 
 open Misc.Ops
 
-let mydebug = false 
+let mydebug = false
 
 (* TODO: Describe the SCC ordering scheme! *)
 
@@ -228,7 +228,7 @@ let make_roots rankm ijs =
  * lives := Pre*(roots) where Pre* is refl-trans-clos of the depends-on relation *)
 
 let make_lives cm real_deps =
-  let dm = real_deps |>: Misc.swap |> IM.of_alist in
+  let dm = real_deps |> List.rev_map Misc.swap |> IM.of_alist                   in
   let js = cm |> IM.filter (fun _ -> C.is_conc_rhs) |> IM.domain |> IS.of_list  in
   (js, IS.empty)
   |> Misc.fixpoint begin fun (js, vm) ->
@@ -249,7 +249,6 @@ let create_raw kuts ds cm dm real_deps =
   let rnkm = make_ranks cm deps kuts     in
   { cnst = cm; ds  = ds; kuts = kuts; rdeps = real_deps; rnkm  = rnkm
   ; depm = dm; rts = make_roots rnkm deps ;  pend = H.create 17}
-
 
 (***********************************************************************)
 (**************************** API **************************************)
@@ -279,7 +278,7 @@ let create kuts ds cs =
 
 (* API *)
 let slice me = 
-  let lives = make_lives me.cnst me.rdeps in
+  let lives = BS.time "make_lives" (make_lives me.cnst) me.rdeps in
   let cm    = me.cnst  
               |> IM.filter (fun i _ -> IS.mem i lives) in
   let dm    = me.depm  
