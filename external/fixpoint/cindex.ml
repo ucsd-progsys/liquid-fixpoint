@@ -277,7 +277,7 @@ let create kuts ds cs =
   create_raw kuts ds cm dm real_deps 
 
 (* API *)
-(* let slice me = 
+let slice me = 
   let lives = BS.time "make_lives" (make_lives me.cnst) me.rdeps in
   let cm    = me.cnst  
               |> IM.filter (fun i _ -> IS.mem i lives) in
@@ -287,9 +287,9 @@ let create kuts ds cs =
   let rdeps = me.rdeps 
               |> Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives) in  
   (BS.time "create_raw" (create_raw me.kuts me.ds cm dm) rdeps)
-  >> save (Co.get_save_file ())
-*)
+  >> (fun z -> if !Co.save_slice then save (Co.get_save_file ()) z)
 
+(* 
 let slice me = 
   let lives = BS.time "make_lives" (make_lives me.cnst) me.rdeps                        in
   let cm    = BS.time "slice-filter-1" (IM.filter (fun i _ -> IS.mem i lives)) me.cnst  in
@@ -301,6 +301,7 @@ let slice me =
   let _     = if !Co.save_slice then BS.time "save slice" (save (Co.get_save_file ())) rv in 
   rv
 
+*)
 
 
 (* API *) 
