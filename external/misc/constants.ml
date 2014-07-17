@@ -37,7 +37,7 @@ let out_file_name       = ref "out"            (* -out    *)
 (*
 let save_file           = ref "out.fq"         (* -save   *)
 *)
-
+let save_slice          = ref false            (* -save-slice *)
 let dump_ref_constraints= ref false            (* -drconstr *)
 let ctypes_only         = ref false            (* -ctypes *)
 let verbose_level       = ref 0                (* -v *)
@@ -207,6 +207,10 @@ let arg_spec =
    ("-ctypes",
     Arg.Set ctypes_only,
     " Infer ctypes only [false]");
+   ("-saveslice", 
+    Arg.Set save_slice, 
+    " save slices to file [false]");
+   
    ("-safe", 
     Arg.Set safe, 
     " run in failsafe mode [false]");

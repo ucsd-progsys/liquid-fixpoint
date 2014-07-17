@@ -277,7 +277,7 @@ let create kuts ds cs =
   create_raw kuts ds cm dm real_deps 
 
 (* API *)
-let slice me = 
+(* let slice me = 
   let lives = BS.time "make_lives" (make_lives me.cnst) me.rdeps in
   let cm    = me.cnst  
               |> IM.filter (fun i _ -> IS.mem i lives) in
@@ -286,8 +286,22 @@ let slice me =
               |> IM.map (List.filter (fun j -> IS.mem j lives)) in
   let rdeps = me.rdeps 
               |> Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives) in  
-  create_raw me.kuts me.ds cm dm rdeps
+  (BS.time "create_raw" (create_raw me.kuts me.ds cm dm) rdeps)
   >> save (Co.get_save_file ())
+*)
+
+let slice me = 
+  let lives = BS.time "make_lives" (make_lives me.cnst) me.rdeps                        in
+  let cm    = BS.time "slice-filter-1" (IM.filter (fun i _ -> IS.mem i lives)) me.cnst  in
+  let dm0   = me.depm                                                                   in
+  let dm1   = BS.time "slice-filter-2" (IM.filter (fun i _ -> IS.mem i lives)) dm0      in 
+  let dm2   = BS.time "slice-filter-2" (IM.map (List.filter (fun j -> IS.mem j lives))) dm1 in
+  let rdeps = BS.time "slice-filter-4" (Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives)) me.rdeps  in  
+  let rv    = (BS.time "create_raw" (create_raw me.kuts me.ds cm dm2) rdeps)   in
+  let _     = if !Co.save_slice then BS.time "save slice" (save (Co.get_save_file ())) rv in 
+  rv
+
+
 
 (* API *) 
 let slice_wf me ws = 

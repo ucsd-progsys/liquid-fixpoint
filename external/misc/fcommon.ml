@@ -30,9 +30,9 @@ let mydebug = false
 (************* SCC Ranking **************************************)
 (****************************************************************)
 
-module Int : Graph.Sig.COMPARABLE with type t = int * string =
+module Int : Graph.Sig.COMPARABLE with type t = int =
 struct
-   type t = int * string 
+   type t = int 
    let compare = compare
    let hash = Hashtbl.hash
    let equal = (=)
@@ -57,8 +57,8 @@ struct
    let iter_edges_e = G.iter_edges_e
    let graph_attributes g = [`Size (11.0, 8.5); `Ratio (`Float 1.29)]
    let default_vertex_attributes g = [`Shape `Box]
-   let vertex_name (i,_) = string_of_int i (* Printf.sprintf "V_%d" i *) 
-   let vertex_attributes (_,s) = [`Label s]
+   let vertex_name i = string_of_int i (* Printf.sprintf "V_%d" i *) 
+   let vertex_attributes _ = [] (* [`Label s] *)
    let default_edge_attributes g = []
    let edge_attributes e = []
    let get_subgraph v = None
@@ -71,8 +71,14 @@ let dump_graph s g =
   Dot.output_graph oc g; 
   close_out oc
 
+  (*
 let int_s_to_string ppf (i,s) = 
   F.fprintf ppf "(%d,%s)" i s 
+*)
+
+let int_s_to_string ppf i = 
+  F.fprintf ppf "(%d)" i  
+
 
 let scc_print s g a = 
   C.bprintf mydebug "dep graph (%s): vertices= %d, sccs= %d \n" s (G.nb_vertex g) (Array.length a);
@@ -82,22 +88,36 @@ let scc_print s g a =
   end a;
   C.bprintf mydebug "\n"
 
+
+let make_graph s f is ijs = 
+  let g = G.create () in
+  let _ = List.iter (G.add_vertex g) is in
+  let _ = List.iter (fun (i,j) -> G.add_edge g i j) ijs in
+  let _ = if !Constants.dump_graph then dump_graph s g in
+  g
+
+
+  (* 
 let make_graph s f is ijs = 
   let g = G.create () in
   let _ = List.iter (fun i -> G.add_vertex g (i, (f i))) is in
   let _ = List.iter (fun (i,j) -> G.add_edge g (i,(f i)) (j,(f j))) ijs in
   let _ = if !Constants.dump_graph then dump_graph s g in
   g
- 
+
+  *)
+
+let my_scc_array _ g = SCC.scc_array g
+
 (* Given list [(u,v)] returns a numbering [(ui,ri)] s.t. 
  * 1. if ui,uj in same SCC then ri = rj
  * 2. if ui -> uj then ui >= uj *)
 let scc_rank s f is ijs = 
   let g = BNstats.time "making_graph" (make_graph s f is) ijs in
-  let a = SCC.scc_array g in
+  let a = BNstats.time "scc_array" (my_scc_array ()) g in
   let _ = scc_print s g a in
   let sccs = FixMisc.array_to_index_list a in
-  FixMisc.flap (fun (i,vs) -> List.map (fun (j,_) -> (j,i)) vs) sccs
+  FixMisc.flap (fun (i,vs) -> List.map (fun j -> (j,i)) vs) sccs
 
 (*
 let g1 = [(1,2);(2,3);(3,1);(2,4);(3,4);(4,5)];;
