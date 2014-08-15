@@ -273,7 +273,7 @@ expr:
     Id                                    { A.eVar (Sy.of_string $1) }
   | con                                   { A.eCon $1  }
   | exprs                                 { A.eMExp $1 } 
-  | LPAREN expr MOD Num RPAREN            { A.eMod ($2, $4) }
+  | LPAREN expr MOD expr RPAREN           { A.eMod ($2, $4) }
   | expr PLUS expr                        { A.eBin ($1, A.Plus, $3) }
   | expr MINUS expr                       { A.eBin ($1, A.Minus, $3) }
   | expr TIMES expr                       { A.eBin ($1, A.Times, $3) }

@@ -150,7 +150,7 @@ val eTim : expr * expr -> expr
 val eInt : int -> expr
 val eCon : Constant.t -> expr
 val eMExp : expr list -> expr
-val eMod : expr * int -> expr
+val eMod : expr * expr -> expr
 val eModExp : expr * expr -> expr
 val eVar : Symbol.t -> expr
 val eApp : Symbol.t * expr list -> expr
