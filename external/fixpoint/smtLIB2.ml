@@ -117,9 +117,15 @@ let com = "smt_set_com"
    (define-fun smt_set_sub ((s1 Set) (s2 Set)) Bool (= smt_set_emp (smt_set_dif s1 s2)))
 *)
 
+let (++) = List.append
+
 (* z3 specific *)
 let z3_preamble _  
- = if not !Co.set_theory then [] else
+ =  [ "(set-option :auto-config false)"
+    ; "(set-option :model true)"
+    ; "(set-option :model.partial false)"
+    ; "(set-option :smt.mbqi false)"
+    ] ++ if not !Co.set_theory then [] else
     [ spr "(define-sort %s () Int)"
         elt
     ; spr "(define-sort %s () (Array %s Bool))" 
