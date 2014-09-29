@@ -95,8 +95,8 @@ let solverString = function
 (*********************** Set Theory ********************************)
 (*******************************************************************)
 
-let elt = "Elt"
-let set = "Set"
+let elt = "SMT_Elt"
+let set = "SMT_Set"
 let emp = "smt_set_emp"
 let add = "smt_set_add"
 let cup = "smt_set_cup"
@@ -117,9 +117,15 @@ let com = "smt_set_com"
    (define-fun smt_set_sub ((s1 Set) (s2 Set)) Bool (= smt_set_emp (smt_set_dif s1 s2)))
 *)
 
+let (++) = List.append
+
 (* z3 specific *)
 let z3_preamble _  
- = if not !Co.set_theory then [] else
+ =  [ "(set-option :auto-config false)"
+    ; "(set-option :model true)"
+    ; "(set-option :model.partial false)"
+    ; "(set-option :smt.mbqi false)"
+    ] ++ if not !Co.set_theory then [] else
     [ spr "(define-sort %s () Int)"
         elt
     ; spr "(define-sort %s () (Array %s Bool))" 
@@ -140,6 +146,36 @@ let z3_preamble _
         dif set set set cap com
     ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (= %s (%s s1 s2)))"
         sub set set emp dif 
+    ] 
+
+(* cvc4 specific *)
+let cvc4_preamble _  
+ =  if not !Co.set_theory then [] else
+    [ spr "(set-logic QF_UFNIRAFS)"
+    ; spr "(define-sort %s () Int)"
+        elt
+    ; spr "(define-sort %s () (Set %s))" 
+        set elt
+    ; spr "(define-fun %s () %s (as emptyset (Set %s)))"
+        emp set elt
+    ; spr "(define-fun %s ((x %s) (s %s)) Bool (member x s))"
+        mem elt set
+    ; spr "(define-fun %s ((s %s) (x %s)) %s (insert x s))"
+        add set elt set
+    ; spr "(define-fun %s ((s1 %s) (s2 %s)) %s (union s1 s2))"
+        cup set set set
+    ; spr "(define-fun %s ((s1 %s) (s2 %s)) %s (intersection s1 s2))"
+        cap set set set
+    ; spr "(declare-fun %s (%s) %s)"
+        com set set
+    (* 
+    ; spr "(define-fun %s ((s %s)) %s ((_ map not) s))"
+        com set set
+     *)
+    ; spr "(define-fun %s ((s1 %s) (s2 %s)) %s (setminus s1 s2))"
+        dif set set set
+    ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (subset s1 s2))"
+        sub set set
     ] 
 
 let smtlib_preamble 
@@ -198,6 +234,7 @@ let smt_cmd = function
 
 let smt_preamble = function
   | Z3 -> z3_preamble ()
+  | Cvc4 -> cvc4_preamble ()
   | _  -> smtlib_preamble 
 
 
@@ -320,8 +357,10 @@ let mkIntSort _    = "Int"
 let mkRealSort _   = "Real"          
 let mkBoolSort _   = "Bool"         
 
-let mkInt _ i _    = string_of_int i
-let mkReal _ i _   = string_of_float i
+let mkInt _ i _    = if i >= 0 then string_of_int i
+                     else spr "(- %d)" (abs i)
+let mkReal _ i _   = if i >= 0. then string_of_float i ^ "0" (* add trailing 0 for floats like 1. *)
+                     else spr "(- %s)" (string_of_float (i *. -1.0) ^ "0")
 let mkTrue _       = "true"
 let mkFalse _      = "false" 
 
