@@ -33,6 +33,9 @@ let t_set a    = So.t_app set_tycon [a]
 let is_interp t = t = set_tycon
 
 (* API *)
+let emp0 = ( Sy.of_string "Set_empty"
+           , So.t_func 1 [t_set (So.t_generic 0)] )
+
 let emp = ( Sy.of_string "Set_emp"
           , So.t_func 1 [t_set (So.t_generic 0); So.t_bool] )
 
@@ -57,7 +60,7 @@ let sub = ( Sy.of_string "Set_sub"
 
 let interp_syms _ 
   = if !Constants.set_theory 
-     then [emp; sng; mem; cup; cap; dif; sub]
+     then [emp0; emp; sng; mem; cup; cap; dif; sub]
      else []
 
 module MakeTheory(SMT : SMTSOLVER): 
@@ -97,6 +100,17 @@ let set_set : sortDef =
                  [t] -> SMT.mkSetSort c t
                  | _ -> assertf "Set_set: type mismatch"
   }  
+
+
+let set_empty : appDef  = 
+  { sy_name  = fst emp0
+  ; sy_sort  = snd emp0 
+  ; sy_emb   = fun c ts es -> match ts, es with
+                 | [t], [] -> SMT.mkEmptySet c t
+                 | _        -> assertf "Set_empty: type mismatch"
+  }
+
+
 
 let set_emp : appDef  = 
   { sy_name  = fst emp 
@@ -189,6 +203,7 @@ let mk_thy_sort def c ts =
 (* API *)
 let theories = 
   ([set_set], [set_emp; 
+	       set_empty; 
                set_sng; 
                set_mem; 
                set_cup; 

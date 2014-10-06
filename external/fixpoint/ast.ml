@@ -1295,6 +1295,16 @@ and sortcheck_pred g f p =
          | Some tx -> not (None = sortcheck_app g f (Some tx) uf es)
          end
 
+    | Atom (((App (uf1, e1s), _) as e1), Eq, ((App (uf2, e2s), _) as e2))
+      -> let t1o = sortcheck_app g f None uf1 e1s in
+         let t2o = sortcheck_app g f None uf2 e2s in
+         begin match t1o, t2o with
+               | (Some t1, Some t2) -> let _ = assertf "ZIGN" in t1 = t2
+               | (None, None)       -> let _ = assertf "IASDAD" in false 
+               | (None, Some t2)    -> let _ = assertf "FOO 1" in not (None = sortcheck_app g f (Some t2) uf1 e1s)
+               | (Some t1, None)    -> let _ = assertf "BAR 1" in not (None = sortcheck_app g f (Some t1) uf2 e2s) 
+         end
+
     | Atom (e1, r, e2) ->
         sortcheck_rel g f (e1, r, e2)
     | Forall (qs,p) ->
