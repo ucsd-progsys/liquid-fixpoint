@@ -232,15 +232,15 @@ predsne:
 ;
 
 pred:
-    TRUE				                { A.pTrue }
-  | FALSE				                { A.pFalse }
+    TRUE				{ A.pTrue }
+  | FALSE				{ A.pFalse }
   | BEXP expr                           { A.pBexp $2 }
   | QM expr                             { A.pBexp $2 }
   | Id LPAREN argsne RPAREN             { A.pBexp (A.eApp ((Sy.of_string $1), $3)) }
-  | AND preds   			            { A.pAnd ($2) }
-  | OR  preds 	        		        { A.pOr  ($2) }
-  | NOT pred				            { A.pNot ($2) }
-  | NOTWORD pred				        { A.pNot ($2) }
+  | AND preds   			{ A.pAnd ($2) }
+  | OR  preds 	        		{ A.pOr  ($2) }
+  | NOT pred				{ A.pNot ($2) }
+  | NOTWORD pred			{ A.pNot ($2) }
   | LPAREN pred AND pred RPAREN         { A.pAnd [$2; $4] }
   | LPAREN pred OR  pred RPAREN         { A.pOr  [$2; $4] }
   | expr rel expr                       { A.pAtom  ($1, $2, $3) }
@@ -249,7 +249,7 @@ pred:
   | pred IMPL pred                      { A.pImp ($1, $3) }
   | pred IFF pred                       { A.pIff ($1, $3) }
   | pred IFFWORD pred                   { A.pIff ($1, $3) }
-  | LPAREN pred RPAREN			        { $2 }
+  | LPAREN pred RPAREN			{ $2 }
   ;
 
 argsne:
