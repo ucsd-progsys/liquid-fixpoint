@@ -1308,13 +1308,13 @@ and sortcheck_pred g f p =
          end
 
     | Atom (((App (uf1, e1s), _) as e1), Eq, ((App (uf2, e2s), _) as e2))
-      -> let t1o = solved_app f uf1 <| sortcheck_app g f None uf1 e1s in
-         let t2o = solved_app f uf2 <| sortcheck_app g f None uf2 e2s in
+      -> let t1o = solved_app f uf1 <| sortcheck_app_sub g f None uf1 e1s in
+         let t2o = solved_app f uf2 <| sortcheck_app_sub g f None uf2 e2s in
          begin match t1o, t2o with
-               | (Some t1, Some t2) -> let _ = assertf "ZIGN" in t1 = t2
-               | (None, None)       -> let _ = assertf "IASDAD" in false 
-               | (None, Some t2)    -> let _ = assertf "FOO 1" in not (None = sortcheck_app g f (Some t2) uf1 e1s)
-               | (Some t1, None)    -> let _ = assertf "BAR 1" in not (None = sortcheck_app g f (Some t1) uf2 e2s) 
+               | (Some t1, Some t2) -> t1 = t2
+               | (None, None)       -> false 
+               | (None, Some t2)    -> not (None = sortcheck_app g f (Some t2) uf1 e1s)
+               | (Some t1, None)    -> not (None = sortcheck_app g f (Some t1) uf2 e2s) 
          end
 
     | Atom (e1, r, e2) ->
@@ -1330,17 +1330,29 @@ and sortcheck_pred g f p =
   >> (fun b -> if not b then F.eprintf "WARNING: Malformed Lhs Pred (%a)\n" Predicate.print p) 
  *)
 
+let opt_to_string p = function
+  | None   -> "none"
+  | Some x -> p x
+
 
 (* API *)
-
-
-let sortcheck_app g f t uf es = 
-  match uf_arity f uf, sortcheck_app_sub g f t uf es with 
+let sortcheck_app g f tExp uf es = 
+  match uf_arity f uf, sortcheck_app_sub g f tExp uf es with 
     | (Some n, Some (s, t)) -> 
         if Sort.check_arity n s then 
            Some (s, t) 
-        else 
-           assertf "Ast.sortcheck_app: type params not instantiated %s" (expr_to_string (eApp (uf, es)))
+        else
+          None
+          (*
+          let msg = Printf.sprintf  "Ast.sortcheck_app: type params not instantiated %s: n = %d, s = %s, t = %s, tExp = %s"
+                      (expr_to_string (eApp (uf, es)))
+                      n
+                      (Sort.sub_to_string s)
+                      (Sort.to_string t)         
+                      (opt_to_string Sort.to_string tExp)
+          in
+             assertf "%s" msg
+             *)
     | _ -> None
 
 

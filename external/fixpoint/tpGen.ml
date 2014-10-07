@@ -187,8 +187,22 @@ let z3Fun me env p t k =
 (********************** Pred/Expr Transl ******************************)
 (**********************************************************************)
 
+let opt_to_string p = function
+  | None   -> "none"
+  | Some x -> p x
  
 exception Z3RelTypeError
+
+let pred_sort env p = 
+  A.sortcheck_pred Theories.is_interp (Misc.flip SM.maybe_find env) p 
+
+let app_sort env tyo f es =
+  A.sortcheck_app Theories.is_interp (Misc.flip SM.maybe_find env) tyo f es
+
+let expr_sort env = function
+  | A.App (f, es), _ -> Misc.maybe_map snd <| app_sort env None f es 
+  | e                -> A.sortcheck_expr Theories.is_interp (Misc.flip SM.maybe_find env) e
+
 
 let z3Bind me env x t =
   let vx = Vbl (x, varSort env x) in
@@ -198,12 +212,14 @@ let z3Bind me env x t =
   SMT.stringSymbol me.c (fresh "z3b")
 
 let rec z3Rel me env (e1, r, e2) =
-  let p  = A.pAtom (e1, r, e2)                                   in
-  let ok = A.sortcheck_pred Theories.is_interp (Misc.flip SM.maybe_find env) p   in 
-  (* let _  = F.printf "z3Rel: e = %a, res = %b \n" P.print p ok in
-     let _  = F.print_flush ()                                   in *)
+  let p  = A.pAtom (e1, r, e2) in
+  let ok = pred_sort env p     in 
+  let _  = F.printf "z3Rel: e = %a, res = %b \n" P.print p ok in
+  let _  = F.print_flush ()                                   in
   if ok then 
-    SMT.mkRel me.c r (z3Exp me env e1) (z3Exp me env e2)
+    z3Rel_cast me env (e1, r, e2)
+    (* z3Rel_real me env (e1, r, e2) *)
+    (* SMT.mkRel me.c r (z3Exp me env e1) (z3Exp me env e2) *)
   else begin 
     SM.iter (fun s t -> F.printf "@[%a :: %a@]@." Sy.print s So.print t) env;
     F.printf "@[%a@]@.@." P.print (A.pAtom (e1, r, e2));
@@ -211,13 +227,36 @@ let rec z3Rel me env (e1, r, e2) =
     raise Z3RelTypeError
   end
 
+
+
+
+and z3Rel_cast me env = function
+  | (e1, A.Eq, e2) -> begin
+      let (t1o, t2o) = (expr_sort env e1, expr_sort env e2) in 
+      let _ = F.printf "z3Rel_cast: t1o = %s, t2o = %s \n" 
+                (opt_to_string So.to_string t1o) (opt_to_string So.to_string t2o) in
+      match (t1o, t2o) with
+        | (Some t , None  ) -> z3Rel_real me env (e1, A.Eq, A.eCst (e2, t))  
+        | (None   , Some t) -> z3Rel_real me env (A.eCst (e1, t), A.Eq, e2)
+        | (_      , _     ) -> z3Rel_real me env (e1, A.Eq, e2) 
+    end
+  | (e1, r, e2) -> 
+      z3Rel_real me env (e1, r, e2) 
+
+and z3Rel_real me env (e1, r, e2) =
+  let _ = F.printf "z3Rel_real: e1 = %s, e2 = %s \n"
+            (E.to_string e1)
+            (E.to_string e2) in
+  SMT.mkRel me.c r (z3Exp me env e1) (z3Exp me env e2)
+
 and z3App me env p zes =
   let t  = funSort env p                      in
   let cf = z3Fun me env p t (List.length zes) in
   SMT.mkApp me.c cf zes
 
 and z3AppThy me env def tyo f es = 
-  match A.sortcheck_app Theories.is_interp (Misc.flip SM.maybe_find env) tyo f es with 
+  (* match A.sortcheck_app Theories.is_interp (Misc.flip SM.maybe_find env) tyo f es with *)
+  match app_sort env tyo f es with 
     | Some (s, t) ->
         let zts = So.sub_args s |> List.map (snd <+> z3Type me) in
         let zes = es            |> List.map (z3Exp me env)      in
@@ -299,10 +338,9 @@ and z3Pred me env = function
   | A.Bexp e, _ -> 
       let a  = z3Exp me env e in
       let s2  = E.to_string e in
-      let so = match A.sortcheck_expr Theories.is_interp (Misc.flip SM.maybe_find env) e with  
-                | Some so -> so
-                | _ -> F.printf "No type for %s" (E.to_string e);
-                       assert false in
+      let so = match expr_sort env e with Some so -> so
+                 | _ -> F.printf "No type for %s" (E.to_string e);
+                        assert false in
       let sos = So.to_string so in
       (* let s1  = SMT.astString me.c a in
       let _   = asserts (SMT.isBool me.c a) 
