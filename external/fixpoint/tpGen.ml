@@ -214,8 +214,9 @@ let z3Bind me env x t =
 let rec z3Rel me env (e1, r, e2) =
   let p  = A.pAtom (e1, r, e2) in
   let ok = pred_sort env p     in 
-  let _  = F.printf "z3Rel: e = %a, res = %b \n" P.print p ok in
-  let _  = F.print_flush ()                                   in
+  (* let _  = F.printf "z3Rel: e = %a, res = %b \n" P.print p ok in
+     let _  = F.print_flush ()                                   in *)
+
   if ok then 
     z3Rel_cast me env (e1, r, e2)
     (* z3Rel_real me env (e1, r, e2) *)
@@ -233,8 +234,9 @@ let rec z3Rel me env (e1, r, e2) =
 and z3Rel_cast me env = function
   | (e1, A.Eq, e2) -> begin
       let (t1o, t2o) = (expr_sort env e1, expr_sort env e2) in 
-      let _ = F.printf "z3Rel_cast: t1o = %s, t2o = %s \n" 
+      (* let _ = F.printf "z3Rel_cast: t1o = %s, t2o = %s \n" 
                 (opt_to_string So.to_string t1o) (opt_to_string So.to_string t2o) in
+       *)
       match (t1o, t2o) with
         | (Some t , None  ) -> z3Rel_real me env (e1, A.Eq, A.eCst (e2, t))  
         | (None   , Some t) -> z3Rel_real me env (A.eCst (e1, t), A.Eq, e2)
@@ -244,9 +246,10 @@ and z3Rel_cast me env = function
       z3Rel_real me env (e1, r, e2) 
 
 and z3Rel_real me env (e1, r, e2) =
-  let _ = F.printf "z3Rel_real: e1 = %s, e2 = %s \n"
+  (* let _ = F.printf "z3Rel_real: e1 = %s, e2 = %s \n"
             (E.to_string e1)
             (E.to_string e2) in
+   *)
   SMT.mkRel me.c r (z3Exp me env e1) (z3Exp me env e2)
 
 and z3App me env p zes =

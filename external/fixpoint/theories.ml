@@ -34,7 +34,7 @@ let is_interp t = t = set_tycon
 
 (* API *)
 let emp0 = ( Sy.of_string "Set_empty"
-           , So.t_func 1 [t_set (So.t_generic 0)] )
+           , So.t_func 1 [So.t_int; t_set (So.t_generic 0)] )
 
 let emp = ( Sy.of_string "Set_emp"
           , So.t_func 1 [t_set (So.t_generic 0); So.t_bool] )
@@ -106,7 +106,7 @@ let set_empty : appDef  =
   { sy_name  = fst emp0
   ; sy_sort  = snd emp0 
   ; sy_emb   = fun c ts es -> match ts, es with
-                 | [t], [] -> SMT.mkEmptySet c t
+                 | [t], [_] -> SMT.mkEmptySet c t
                  | _        -> assertf "Set_empty: type mismatch"
   }
 
