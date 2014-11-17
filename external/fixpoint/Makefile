@@ -5,7 +5,7 @@ OFLAGS=$(DIRS) $(IFLAGS) $(LFLAGS) $(CFLAGS)
 
 LIBS_=-libs unix,str,graph
 IFLAGS_=-lflags -I,$(OCAMLGRAPHHOME)
-LFLAGS_=-lflags -cclib,-L$(OCAMLLIB) \
+LFLAGS_=-lflags -cclib,-L$(OCAMLLIB)
 
 CFLAGS_=-cflags -dtypes,-annot \
 		-cflags -I,$(OCAMLGRAPHHOME) \
