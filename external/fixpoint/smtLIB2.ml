@@ -242,8 +242,30 @@ let smt_write_raw me s =
   output_now me.clog s; 
   output_now me.cout s
 
+(* copied from String.trim in ocaml-4.0 since mingw-ocaml uses 3.x *)
+let trim s =
+  let is_space = function
+    | ' ' | '\012' | '\n' | '\r' | '\t' -> true
+    | _ -> false in
+  let len = String.length s in
+  let i = ref 0 in
+  while !i < len && is_space (String.get s !i) do
+    incr i
+  done;
+  let j = ref (len - 1) in
+  while !j >= !i && is_space (String.get s !j) do
+    decr j
+  done;
+  if !i = 0 && !j = len - 1 then
+    s
+  else if !j >= !i then
+    String.sub s !i (!j - !i + 1)
+  else
+    ""
+
+(* strip off trailing whitespace, e.g. \r on windows.. *)
 let smt_read_raw me = 
-  input_line me.cin
+  trim (input_line me.cin)
 
 let smt_write me ?nl:(nl=true) ?tab:(tab=false) s =
   let pre = if tab then "    " else "" in
