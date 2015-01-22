@@ -71,6 +71,11 @@ let mkSetCup _       = failwith msg
 let mkSetCap _       = failwith msg
 let mkSetDif _       = failwith msg
 let mkSetSub _       = failwith msg
+let mkMapSort _      = failwith msg
+let mkMapSelect _    = failwith msg
+let mkMapStore _     = failwith msg
+
+
 let mkContext _      = failwith msg
 let unsat _          = failwith msg  
 let assertAxiom _    = failwith msg

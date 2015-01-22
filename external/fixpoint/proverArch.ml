@@ -34,7 +34,7 @@ module type THEORY = sig
   val sort_name   : sortDef -> Ast.Sort.tycon
   val mk_thy_sort : sortDef -> context -> sort list -> sort
   val mk_thy_app  : appDef  -> context -> sort list -> ast list -> ast
-  val theories    : sortDef list * appDef list
+  val theories    : unit -> sortDef list * appDef list
 end
 
 module type SMTSOLVER = sig

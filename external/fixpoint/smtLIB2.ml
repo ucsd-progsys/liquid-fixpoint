@@ -106,6 +106,10 @@ let dif = "smt_set_dif"
 let sub = "smt_set_sub"
 let com = "smt_set_com"
 
+let map = "SMT_Map"
+let sel = "smt_map_sel"
+let sto = "smt_map_sto"
+
 (* 
    (define-fun smt_set_emp () Set ((as const Set) false))
    (define-fun smt_set_mem ((x Elt) (s Set)) Bool (select s x))
@@ -118,6 +122,18 @@ let com = "smt_set_com"
 *)
 
 let (++) = List.append
+
+(* array preamble *)
+let array_preamble _ = 
+  if not !Co.map_theory then [] else
+    [ spr "(define-sort %s () (Array %s %s))" 
+        map elt elt 
+    ; spr "(define-fun %s ((m %s) (k %s)) %s (select m k))"
+        sel map elt elt 
+    ; spr "(define-fun %s ((m %s) (k %s) (v %s)) %s (store m k v))"
+        sto map elt elt map
+    ]
+
 
 (* z3 specific *)
 let z3_preamble _  
@@ -146,7 +162,8 @@ let z3_preamble _
         dif set set set cap com
     ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (= %s (%s s1 s2)))"
         sub set set emp dif 
-    ] 
+    ] ++ array_preamble ()
+
 
 (* cvc4 specific *)
 let cvc4_preamble _  
@@ -168,10 +185,6 @@ let cvc4_preamble _
         cap set set set
     ; spr "(declare-fun %s (%s) %s)"
         com set set
-    (* 
-    ; spr "(define-fun %s ((s %s)) %s ((_ map not) s))"
-        com set set
-     *)
     ; spr "(define-fun %s ((s1 %s) (s2 %s)) %s (setminus s1 s2))"
         dif set set set
     ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (subset s1 s2))"
@@ -189,7 +202,8 @@ let smtlib_preamble
     ; spr "(declare-fun %s (%s %s) %s)"   dif set set set
     ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
     ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
-  
+    ; spr "(declare-fun %s (%s %s) %s)"    sel map elt elt 
+    ; spr "(declare-fun %s (%s %s %s) %s)" sto map elt elt map 
     
     (* HIDE? 
     ; spr "(assert (forall ((x %s)) (not (%s x %s))))" 
@@ -219,9 +233,9 @@ let mkSetCap _ s t = spr "(%s %s %s)" cap s t
 let mkSetDif _ s t = spr "(%s %s %s)" dif s t
 let mkSetSub _ s t = spr "(%s %s %s)" sub s t
 
-let mkArraySort c k v    = arr 
-let mkArraySelect c m k  = spr "(%s %s %s)"    sel m k 
-let mkArrayStore c m k v = spr "(%s %s %s %s)" sto m k v
+let mkMapSort c k v    = map 
+let mkMapSelect c m k  = spr "(%s %s %s)"    sel m k 
+let mkMapStore c m k v = spr "(%s %s %s %s)" sto m k v
 
 
 (******************************************************************)

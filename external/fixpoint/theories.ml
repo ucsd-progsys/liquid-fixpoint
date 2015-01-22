@@ -26,7 +26,72 @@ module Sy = Ast.Symbol
 open ProverArch
 open FixMisc.Ops
 
+(***************************************************************************)
+(********************* NAMES (independent of SMT) **************************)
+(***************************************************************************)
 
+(********************* Sets ************************************************)
+
+let set_tycon  = So.tycon "Set_Set"
+let t_set a    = So.t_app set_tycon [a]
+
+(* API *)
+let emp0 = ( Sy.of_string "Set_empty"
+           , So.t_func 1 [So.t_int; t_set (So.t_generic 0)] )
+
+let emp = ( Sy.of_string "Set_emp"
+          , So.t_func 1 [t_set (So.t_generic 0); So.t_bool] )
+
+let sng = ( Sy.of_string "Set_sng"
+          , So.t_func 1 [So.t_generic 0; t_set (So.t_generic 0)] )
+
+let mem = ( Sy.of_string "Set_mem"
+          , So.t_func 1 [So.t_generic 0; t_set (So.t_generic 0); So.t_bool] )
+
+let cup = ( Sy.of_string "Set_cup"
+          , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)])
+
+let cap = ( Sy.of_string "Set_cap"
+          , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)])
+
+let dif = ( Sy.of_string "Set_dif"
+          , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)])
+
+let sub = ( Sy.of_string "Set_sub" 
+          , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); So.t_bool] )
+
+(********************* Maps ************************************************)
+
+let map_tycon  = So.tycon "Map_t"
+
+let t_map k v  = So.t_app map_tycon [k; v]
+
+let select     = let k = So.t_generic 0 in
+                 let v = So.t_generic 1 in
+                 ( Sy.of_string "Map_select"
+                 , So.t_func 2 [t_map k v; k; v] )
+
+let store      = let k = So.t_generic 0 in
+                 let v = So.t_generic 1 in
+                 ( Sy.of_string "Map_store"
+                 , So.t_func 2 [t_map k v; k; v; t_map k v] )
+
+
+(** WARNING: DO NOT PUT INSIDE MakeTheory; adds SMT dependency ***)
+
+(* API *)
+let is_interp t = t = set_tycon || t = map_tycon
+
+(* API *)
+let interp_syms _ 
+  = []
+    |> (!Constants.set_theory <?> (++) [emp0; emp; sng; mem; cup; cap; dif; sub])
+    |> (!Constants.map_theory <?> (++) [select; store])
+
+
+(***************************************************************************)
+(***************************************************************************)
+(***************************************************************************)
 
 module MakeTheory(SMT : SMTSOLVER): 
   (THEORY with type context = SMT.context 
@@ -89,36 +154,6 @@ let mk_thy_sort def c ts =
 (***************************************************************************)
 (******************** Theory of Sets ***************************************)
 (***************************************************************************)
-
-(********************* NAMES (independent of SMT) **************************)
-
-let set_tycon  = So.tycon "Set_Set"
-let t_set a    = So.t_app set_tycon [a]
-
-(* API *)
-let emp0 = ( Sy.of_string "Set_empty"
-           , So.t_func 1 [So.t_int; t_set (So.t_generic 0)] )
-
-let emp = ( Sy.of_string "Set_emp"
-          , So.t_func 1 [t_set (So.t_generic 0); So.t_bool] )
-
-let sng = ( Sy.of_string "Set_sng"
-          , So.t_func 1 [So.t_generic 0; t_set (So.t_generic 0)] )
-
-let mem = ( Sy.of_string "Set_mem"
-          , So.t_func 1 [So.t_generic 0; t_set (So.t_generic 0); So.t_bool] )
-
-let cup = ( Sy.of_string "Set_cup"
-          , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)])
-
-let cap = ( Sy.of_string "Set_cap"
-          , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)])
-
-let dif = ( Sy.of_string "Set_dif"
-          , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)])
-
-let sub = ( Sy.of_string "Set_sub" 
-          , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); So.t_bool] )
 
 
 (**************** EMBEDDING (dependent of SMT) **************************)
@@ -212,29 +247,13 @@ let theory_set
 (******************** Theory of Maps ***************************************)
 (***************************************************************************)
 
-(********************* NAMES (independent of SMT) **************************)
-
-let map_tycon  = So.tycon "Map_t"
-
-let t_map k v  = So.t_app map_tycon [k; v]
-
-let select     = let k = So.t_generic 0 in
-                 let v = So.t_generic 1 in
-                 ( Sy.of_string "Map_select"
-                 , So.t_func 2 [t_map k v; k; v] )
-
-let store      = let k = So.t_generic 0 in
-                 let v = So.t_generic 1 in
-                 ( Sy.of_string "Map_store"
-                 , So.t_func 2 [t_map k v; k; v; t_map k v] )
-
 (**************** EMBEDDING (dependent of SMT) **************************)
 
 let map_t : sortDef = 
   { so_name  = map_tycon 
   ; so_arity = 2 
   ; so_emb   = fun c -> function 
-                 | [k; v] -> SMT.mkArraySort c k v 
+                 | [k; v] -> SMT.mkMapSort c k v 
                  | _      -> assertf "Map_t: type mismatch"
   }  
 
@@ -242,7 +261,7 @@ let map_select : appDef  =
   { sy_name = fst select 
   ; sy_sort = snd select 
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [_; _], [m; k] -> SMT.mkArraySelect c m k 
+                 | [_; _], [m; k] -> SMT.mkMapSelect c m k 
                  | _           -> assertf "Map_select: type mismatch"
   }
 
@@ -250,7 +269,7 @@ let map_store : appDef  =
   { sy_name = fst store 
   ; sy_sort = snd store 
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [_; _], [m; k; v] -> SMT.mkArrayStore c m k v 
+                 | [_; _], [m; k; v] -> SMT.mkMapStore c m k v 
                  | _           -> assertf "Map_store: type mismatch"
   }
 
@@ -269,13 +288,6 @@ let theories () =
   |> (!Constants.set_theory <?> add_thy theory_set)
   |> (!Constants.map_theory <?> add_thy theory_map)
 
-let app_sym a = (a.sy_name, a.sy_sort) 
-
-(* API *)
-let interp_syms () = theories () |> snd |>: app_sym
-
-(* API *)
-let is_interp t = t = set_tycon || t = map_tycon
 
 (* ideally:
 let is_interp t = 
