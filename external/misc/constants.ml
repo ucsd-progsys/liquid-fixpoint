@@ -81,6 +81,7 @@ let gen_qual_sorts              = ref true  (* -no-gen-qual-sorts  *)
 let web_demo                    = ref false (* -web-demo *)
 let simple                      = ref true  (* -simple  *) 
 let set_theory                  = ref true  (* -set-theory  *) 
+let map_theory                  = ref true  (* -map-theory  *) 
 let ueq_all_sorts               = ref false (* -ueq-all-sorts *)
 
 (* JHALA: what do these do ? *)
@@ -246,7 +247,10 @@ let arg_spec =
    , " Directly propagate qualifiers for simple constraints (K1 <: K2) [true]");
    ( "-nosettheory"
    , Arg.Clear set_theory
-   , " Support for set theory on Z3 [true]");
+   , " Support for SMT set theory [true]");
+   ( "-nomaptheory"
+   , Arg.Clear map_theory
+   , " Support for SMT map theory [true]");
    ("-psimple", 
     Arg.Set psimple, 
     " prioritize simple constraints [true]");

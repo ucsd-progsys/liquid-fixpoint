@@ -189,7 +189,8 @@ let smtlib_preamble
     ; spr "(declare-fun %s (%s %s) %s)"   dif set set set
     ; spr "(declare-fun %s (%s %s) Bool)" sub set set 
     ; spr "(declare-fun %s (%s %s) Bool)" mem elt set 
-   
+  
+    
     (* HIDE? 
     ; spr "(assert (forall ((x %s)) (not (%s x %s))))" 
           elt mem emp
@@ -217,6 +218,11 @@ let mkSetCup _ s t = spr "(%s %s %s)" cup s t
 let mkSetCap _ s t = spr "(%s %s %s)" cap s t
 let mkSetDif _ s t = spr "(%s %s %s)" dif s t
 let mkSetSub _ s t = spr "(%s %s %s)" sub s t
+
+let mkArraySort c k v    = arr 
+let mkArraySelect c m k  = spr "(%s %s %s)"    sel m k 
+let mkArrayStore c m k v = spr "(%s %s %s %s)" sto m k v
+
 
 (******************************************************************)
 (**************** SMT IO ******************************************)
