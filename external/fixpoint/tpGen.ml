@@ -398,7 +398,7 @@ let handle_vv me env vv =
 (************************************************************************)
 
 let create_theories () =
-  Th.theories 
+  Th.theories () 
   |> (Misc.hashtbl_of_list_with Th.sort_name <**> Misc.hashtbl_of_list_with Th.sym_name)
 
 let assert_distinct_constants me env = function [] -> () | cs -> 

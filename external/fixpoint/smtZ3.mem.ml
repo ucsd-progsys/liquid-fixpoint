@@ -113,6 +113,12 @@ let mkSetDif   = Z3.mk_set_difference
 let mkSetSub   = Z3.mk_set_subset 
 let mkContext  = Z3.mk_context_x 
 
+
+let mkMapSort   = fun _ _ _ -> failwith "TODO: smtZ3.mem : mkMapSort"
+let mkMapSelect = fun _ _ _ -> failwith "TODO: smtZ3.mem : mkMapSelect"
+let mkMapStore  = fun _ _ _ _ -> failwith "TODO: smtZ3.mem : mkMapStore"
+
+
 (*********************************************************)
 
 let z3push me =

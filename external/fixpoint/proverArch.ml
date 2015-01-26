@@ -34,7 +34,7 @@ module type THEORY = sig
   val sort_name   : sortDef -> Ast.Sort.tycon
   val mk_thy_sort : sortDef -> context -> sort list -> sort
   val mk_thy_app  : appDef  -> context -> sort list -> ast list -> ast
-  val theories    : sortDef list * appDef list
+  val theories    : unit -> sortDef list * appDef list
 end
 
 module type SMTSOLVER = sig
@@ -85,6 +85,13 @@ module type SMTSOLVER = sig
   val mkSetCap      : context -> ast -> ast -> ast
   val mkSetDif      : context -> ast -> ast -> ast
   val mkSetSub      : context -> ast -> ast -> ast
+
+
+  (* Map Theory Operations *)
+
+  val mkMapSort     : context -> sort -> sort -> sort
+  val mkMapSelect   : context -> ast -> ast -> ast
+  val mkMapStore    : context -> ast -> ast -> ast -> ast
 
   (* Constructors *)
   val mkContext      : (string * string) array -> context
