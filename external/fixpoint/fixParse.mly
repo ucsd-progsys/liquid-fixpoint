@@ -54,6 +54,7 @@ let env_of_ibindings is =
 
 %token <string> Id
 %token <int> Num
+%token <int> Bitv 
 %token <float> Real
 %token TVAR 
 %token TAG ID 
@@ -311,6 +312,7 @@ con:
   | Num                                   { (A.Constant.Int $1) }
   | MINUS Num                             { (A.Constant.Int (-1 * $2)) }
   | MINUS Real                            { (A.Constant.Real (-. $2)) }
+  | LPAREN Bitv Num RPAREN                { (A.Constant.bv $3 $2) }
   ;
 
 cons:

@@ -142,7 +142,8 @@ rule token = parse
   | "reft"              { REF }
   | "@"                 { TVAR } 
   | (digit)+'.'(digit)+	{ Real (safe_float_of_string (Lexing.lexeme lexbuf)) }
-  | (digit)+	        { Num (safe_int_of_string (Lexing.lexeme lexbuf)) }
+  | (digit)+	        { Num  (safe_int_of_string (Lexing.lexeme lexbuf)) }
+  | "bv"(digit)+	    { Bitv (safe_int_of_string (Lexing.lexeme lexbuf)) }
   | (alphlet)letdig*	{ Id    (Lexing.lexeme lexbuf) }
   | '''[^''']*'''       { let str = Lexing.lexeme lexbuf in
 			              let len = String.length str in
