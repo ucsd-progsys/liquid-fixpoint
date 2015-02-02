@@ -107,6 +107,7 @@ module Symbol :
 
 module Constant :
   sig
+    type bv_t
     type t = Int of int | Real of float | BV of bv_t
     val bv : int -> int -> t
     val to_string : t -> string

@@ -405,11 +405,12 @@ module Symbol =
 
 module Constant =
   struct
+
+    type bv_t = { bv_size : int; bv_value : int }
+    
     type t = Int  of int 
            | Real of float 
            | BV   of bv_t
-
-    type bv_t = { bv_size : int; bv_value : int }
 
     let bv size value = BV {bv_size = size; bv_value = value}
 
