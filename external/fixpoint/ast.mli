@@ -16,9 +16,6 @@
  * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
- * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
- * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
- *
  *)
 
 (**
@@ -109,7 +106,7 @@ module Constant :
   sig
     type bv_t
     type t = Int of int | Real of float | BV of bv_t
-    val bv : int -> int -> t
+    val bv : int -> string -> t
     val to_string : t -> string
     val print : Format.formatter -> t -> unit
   end

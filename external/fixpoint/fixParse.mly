@@ -53,13 +53,14 @@ let env_of_ibindings is =
 %}
 
 %token <string> Id
-%token <int> Num
-%token <int> Bitv 
-%token <float> Real
+%token <int>    Num
+%token <string> Bitv 
+%token <float>  Real
 %token TVAR 
 %token TAG ID 
 %token BEXP
 %token TRUE FALSE
+%token UNDERSCORE 
 %token LPAREN  RPAREN LB RB LC RC
 %token EQ NE GT GE LT LE UEQ UNE
 %token AND OR NOT NOTWORD IMPL IFF IFFWORD FORALL SEMI COMMA COLON MID
@@ -70,7 +71,7 @@ let env_of_ibindings is =
 %token TIMES 
 %token DIV 
 %token QM DOT ASGN
-%token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC
+%token OBJ REAL INT NUM PTR LFUN BITV BOOL UNINT FUNC
 %token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
 %token ENV GRD LHS RHS REF
 
@@ -165,6 +166,7 @@ bsort:
   | INT                                 { So.t_int }
   | REAL                                { So.t_real }
   | BOOL                                { So.t_bool }
+  | UNDERSCORE BITV Num                 { So.t_bitvector $3 }
   | PTR                                 { So.t_ptr (So.Lvar 0) }
   | PTR LPAREN LFUN RPAREN              { So.t_ptr (So.LFun) }
   | PTR LPAREN Num RPAREN               { So.t_ptr (So.Lvar $3) }
@@ -312,7 +314,7 @@ con:
   | Num                                   { (A.Constant.Int $1) }
   | MINUS Num                             { (A.Constant.Int (-1 * $2)) }
   | MINUS Real                            { (A.Constant.Real (-. $2)) }
-  | LPAREN Bitv Num RPAREN                { (A.Constant.bv $3 $2) }
+  | LPAREN UNDERSCORE Bitv Num RPAREN     { (A.Constant.bv $4 $3) }
   ;
 
 cons:
@@ -326,13 +328,13 @@ consne:
   ;
 
 wf:
-    ENV env REF reft                              { C.make_wf $2 $4 None }
-  | ENV env REF reft ID Num                       { C.make_wf $2 $4 (Some $6) }
+    ENV env REF reft                      { C.make_wf $2 $4 None }
+  | ENV env REF reft ID Num               { C.make_wf $2 $4 (Some $6) }
   ;
 
 tagsne:
-  Num                                             { [$1] }
-  | Num SEMI tagsne                               { $1 :: $3 }
+  Num                                     { [$1] }
+  | Num SEMI tagsne                       { $1 :: $3 }
   ;
 
 tag: 

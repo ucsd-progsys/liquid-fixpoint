@@ -3,7 +3,7 @@ include config.make
 DIRS=-I misc
 OFLAGS=$(DIRS) $(IFLAGS) $(LFLAGS) $(CFLAGS)
 
-LIBS_=-libs unix,str,graph
+LIBS_=-libs unix,str,graph,nums
 IFLAGS_=-lflags -I,$(OCAMLGRAPHHOME)
 LFLAGS_=-lflags -cclib,-L$(OCAMLLIB)
 

@@ -1,10 +1,9 @@
-
 // http://rise4fun.com/Z3/cxLS
 
-bind 0 pos25 : {VV : Bitvector_t 32 | [VV = #x02000000]}
-bind 1 x     : {VV : Bitvector_t 32 | []}
-bind 2 y     : {VV : Bitvector_t 32 | [VV = Bitvector_or([x; pos25])]}
-bind 3 z     : {VV : Bitvector_t 32 | [VV = Bitvector_and([y;pos25])]}
+bind 0 pos25 : {VV : (_ BitVec 32) | [VV = (_ bv33554432 32)]}
+bind 1 x     : {VV : (_ BitVec 32) | []}
+bind 2 y     : {VV : (_ BitVec 32) | [VV = Bitvector_or([x; pos25])]}
+bind 3 z     : {VV : (_ BitVec 32) | [VV = Bitvector_and([y;pos25])]}
 
 // sel-is-uif
 

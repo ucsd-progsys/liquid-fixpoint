@@ -47,13 +47,24 @@
    *)
   let safe_float_of_string s = 
     try float_of_string s with ex -> 
-      let _ = Printf.printf "safe_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
+      let _ = Printf.printf "safe_float_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
       raise ex
 
   let safe_int_of_string s = 
     try int_of_string s with ex -> 
       let _ = Printf.printf "safe_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
       raise ex
+
+  let string_suffix_from s n = String.sub s n (String.length s - n)
+
+
+  (* let safe_big_int_of_string s = 
+    try Big_int.big_int_of_string (string_suffix_from s 2) with ex -> 
+      let _ = Printf.printf "safe_big_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
+      raise ex
+   *)
+
+
 }
 
 let digit    = ['0'-'9' '-']
@@ -76,6 +87,7 @@ rule token = parse
 			              token lexbuf
                           end 
                         }
+  | '_'                 { UNDERSCORE }
   | '['                 { LB }
   | ']'                 { RB }
   | '('			        { LPAREN }
@@ -121,6 +133,7 @@ rule token = parse
   | "ptr"               { PTR }
   | "<fun>"             { LFUN }
   (* | "fptr"           { FPTR } *)
+  | "BitVec"            { BITV }
   | "bool"              { BOOL }
   | "uit"               { UNINT }
   | "func"              { FUNC }
@@ -141,9 +154,9 @@ rule token = parse
   | "rhs"               { RHS }
   | "reft"              { REF }
   | "@"                 { TVAR } 
+  | "bv"(digit)+	    { Bitv (Lexing.lexeme lexbuf) }
   | (digit)+'.'(digit)+	{ Real (safe_float_of_string (Lexing.lexeme lexbuf)) }
   | (digit)+	        { Num  (safe_int_of_string (Lexing.lexeme lexbuf)) }
-  | "bv"(digit)+	    { Bitv (safe_int_of_string (Lexing.lexeme lexbuf)) }
   | (alphlet)letdig*	{ Id    (Lexing.lexeme lexbuf) }
   | '''[^''']*'''       { let str = Lexing.lexeme lexbuf in
 			              let len = String.length str in

@@ -111,7 +111,7 @@ module Sort =
 
     let rec to_string = function
       | Var i        -> Printf.sprintf "@(%d)" i
-      | BV i         -> Printf.sprintf "Bitvector_t %d" i
+      | BV i         -> Printf.sprintf "(_ BitVec %d)" i
       | Int          -> "int"
       | Real         -> "real"
       | Bool         -> "bool"
@@ -406,7 +406,7 @@ module Symbol =
 module Constant =
   struct
 
-    type bv_t = { bv_size : int; bv_value : int }
+    type bv_t = { bv_size : int; bv_value : string } (* can't compare big-int, needed for hashing. sigh. *) 
     
     type t = Int  of int 
            | Real of float 
@@ -417,7 +417,7 @@ module Constant =
     let to_string = function
       | Int i  -> string_of_int i
       | Real i -> string_of_float i ^ "0"
-      | BV b   -> Printf.sprintf "(_ bv%d %d)" b.bv_value b.bv_size
+      | BV b   -> Printf.sprintf "(_ %s %d)" b.bv_value b.bv_size
 
     let print fmt s =
       to_string s |> Format.fprintf fmt "%s"
@@ -525,7 +525,7 @@ module ExprHashconsStruct = struct
     | Con (Constant.Real x) -> 
         64 + int_of_float x
     | Con (Constant.BV x) -> 
-        32 + x.Constant.bv_value
+        32 + Hashtbl.hash x.Constant.bv_value
     | MExp es ->
         list_hash 6 es 
     | Var x -> 
