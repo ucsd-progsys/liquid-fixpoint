@@ -168,7 +168,7 @@ let z3_preamble _
 (* cvc4 specific *)
 let cvc4_preamble _  
  =  if not !Co.set_theory then [] else
-    [ spr "(set-logic QF_UFNIRAFS)"
+    [ spr "(set-logic QF_AUFNIRAFS)"
     ; spr "(define-sort %s () Int)"
         elt
     ; spr "(define-sort %s () (Set %s))" 
@@ -189,7 +189,7 @@ let cvc4_preamble _
         dif set set set
     ; spr "(define-fun %s ((s1 %s) (s2 %s)) Bool (subset s1 s2))"
         sub set set
-    ] 
+    ] ++ array_preamble ()
 
 let smtlib_preamble 
   = [ spr "(set-logic QF_UFLIA)"
