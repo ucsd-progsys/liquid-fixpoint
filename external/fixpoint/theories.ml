@@ -292,18 +292,18 @@ let theory_map
 
 let size32_t : sortDef =
   { so_name  = sz32_tycon 
-  ; so_arity = 0 
+  ; so_arity = 1 
   ; so_emb   = fun c -> function 
-                 | [] -> SMT.mkSizeSort c 32 
-                 | _  -> assertf "Map_t: type mismatch"
+                 | [_] -> SMT.mkSizeSort c 32 
+                 | _   -> assertf "Map_t: type mismatch"
   }  
 
 let size64_t : sortDef =
   { so_name  = sz64_tycon 
-  ; so_arity = 0 
-  ; so_emb   = fun c -> function 
-                 | [] -> SMT.mkSizeSort c 64 
-                 | _  -> assertf "Map_t: type mismatch"
+  ; so_arity = 1 
+  ; so_emb   = fun c   -> function 
+                 | [_] -> SMT.mkSizeSort c 64 
+                 | _   -> assertf "Map_t: type mismatch"
   }  
     
 let bit_t : sortDef =

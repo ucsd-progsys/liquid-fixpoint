@@ -133,25 +133,20 @@ let rec z3Type me t =
     if So.is_bool t then me.tbool else
       if So.is_int t then me.tint else
         if So.is_real t then me.treal else
-          match z3TypeThy me t with 
-            | Some t' -> let _ = F.printf "z3TYPETHY t = %s t' = %s\n" (So.to_string t) (SMT.sortString me.c t') in t'
-            | None    -> let _ = F.printf "z3TYPETHY-NONE t = %s\n" (So.to_string t) in me.tint 
+          Misc.maybe_default (z3TypeThy me t) me.tint
+          (* match z3TypeThy me t with 
+              | Some t' -> t'
+              | None    -> me.tint *) 
   end t t
 
 and z3TypeThy me t =
-  let _ = H.iter (fun k _ -> F.printf "thy_sortm k = %s\n" (So.tycon_string k)) me.thy_sortm in
   match So.app_of_t t with
-  | Some (c, ts) ->
-       if H.mem me.thy_sortm c then 
-         let def = H.find me.thy_sortm c   in
-         let zts = List.map (z3Type me) ts in
-         Some (Th.mk_thy_sort def me.c zts)
-       else
-         let _ = F.printf "z3TT: Cannot find %s" (So.tycon_string c) in
-         None
+  | Some (c, ts) when H.mem me.thy_sortm c -> 
+     let def = H.find me.thy_sortm c   in
+     let zts = List.map (z3Type me) ts in
+     Some (Th.mk_thy_sort def me.c zts)
   | _ ->
-         let _ = F.printf "z3TT: %s is not an app_of_t" (So.to_string t) in
-         None 
+     None 
  
 (***********************************************************************)
 (********************** Identifiers ************************************)
