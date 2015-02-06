@@ -42,6 +42,10 @@ else
   SMTZ3SRC=smtZ3.nomem.ml
 endif
 
+ifdef CCOPT
+  CFLAGS+= -cflags -ccopt,-m32
+endif
+
 all: smtz3
 	ln -sf ../misc
 	$(OCAMLBUILD) -r $(LIBS) $(OFLAGS) -tags thread fixpoint.native
