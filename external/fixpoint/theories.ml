@@ -98,7 +98,7 @@ let bvor         = bv_binop "bvor"
 (***************************************************************************)
 
 (* API *)
-let is_interp t = t = set_tycon || t = map_tycon || t = bv_tycon
+let is_interp t = List.mem t [set_tycon; map_tycon; sz32_tycon; sz64_tycon; bv_tycon]
 
 (* API *)
 let interp_syms _ 
