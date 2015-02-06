@@ -53,12 +53,14 @@ let env_of_ibindings is =
 %}
 
 %token <string> Id
-%token <int> Num
-%token <float> Real
+%token <int>    Num
+%token <float>  Real
+%token <string> StringLit 
 %token TVAR 
 %token TAG ID 
 %token BEXP
 %token TRUE FALSE
+%token UNDERSCORE 
 %token LPAREN  RPAREN LB RB LC RC
 %token EQ NE GT GE LT LE UEQ UNE
 %token AND OR NOT NOTWORD IMPL IFF IFFWORD FORALL SEMI COMMA COLON MID
@@ -69,7 +71,7 @@ let env_of_ibindings is =
 %token TIMES 
 %token DIV 
 %token QM DOT ASGN
-%token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC
+%token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC LIT
 %token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
 %token ENV GRD LHS RHS REF
 
@@ -311,6 +313,7 @@ con:
   | Num                                   { (A.Constant.Int $1) }
   | MINUS Num                             { (A.Constant.Int (-1 * $2)) }
   | MINUS Real                            { (A.Constant.Real (-. $2)) }
+  | LIT StringLit sort                    { (A.Constant.Lit ($2, $3)) }
   ;
 
 cons:
@@ -324,13 +327,13 @@ consne:
   ;
 
 wf:
-    ENV env REF reft                              { C.make_wf $2 $4 None }
-  | ENV env REF reft ID Num                       { C.make_wf $2 $4 (Some $6) }
+    ENV env REF reft                      { C.make_wf $2 $4 None }
+  | ENV env REF reft ID Num               { C.make_wf $2 $4 (Some $6) }
   ;
 
 tagsne:
-  Num                                             { [$1] }
-  | Num SEMI tagsne                               { $1 :: $3 }
+  Num                                     { [$1] }
+  | Num SEMI tagsne                       { $1 :: $3 }
   ;
 
 tag: 

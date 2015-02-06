@@ -16,9 +16,6 @@
  * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
- * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
- * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
- *
  *)
 
 (**
@@ -55,7 +52,6 @@ module Sort :
 
     val to_string   : t -> string
     val print       : Format.formatter -> t -> unit
-   
     val t_num       : t
     val t_obj       : t
     val t_bool      : t
@@ -67,14 +63,14 @@ module Sort :
     val t_app       : tycon -> t list -> t
     (* val t_fptr      : t *)
    
-    val is_bool     : t -> bool
-    val is_int      : t -> bool
-    val is_real     : t -> bool
-    val is_func     : t -> bool
-    val is_kind     : t -> bool
-    val app_of_t    : t -> (tycon * t list) option 
-    val func_of_t   : t -> (int * t list * t) option
-    val ptr_of_t    : t -> loc option
+    val is_bool      : t -> bool
+    val is_int       : t -> bool
+    val is_real      : t -> bool
+    val is_func      : t -> bool
+    val is_kind      : t -> bool
+    val app_of_t     : t -> (tycon * t list) option 
+    val func_of_t    : t -> (int * t list * t) option
+    val ptr_of_t     : t -> loc option
  
     val compat      : t -> t -> bool
     val empty_sub   : sub
@@ -105,7 +101,10 @@ module Symbol :
 
 module Constant :
   sig
-    type t = Int of int | Real of float
+    type t = Int  of int
+           | Real of float
+           | Lit  of string * Sort.t
+
     val to_string : t -> string
     val print : Format.formatter -> t -> unit
   end

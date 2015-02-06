@@ -133,17 +133,20 @@ let rec z3Type me t =
     if So.is_bool t then me.tbool else
       if So.is_int t then me.tint else
         if So.is_real t then me.treal else
-          match z3TypeThy me t with 
-            | Some t' -> t'
-            | None    -> me.tint
+          Misc.maybe_default (z3TypeThy me t) me.tint
+          (* match z3TypeThy me t with 
+              | Some t' -> t'
+              | None    -> me.tint *) 
   end t t
 
-and z3TypeThy me t = match So.app_of_t t with
- | Some (c, ts) when H.mem me.thy_sortm c -> 
+and z3TypeThy me t =
+  match So.app_of_t t with
+  | Some (c, ts) when H.mem me.thy_sortm c -> 
      let def = H.find me.thy_sortm c   in
      let zts = List.map (z3Type me) ts in
      Some (Th.mk_thy_sort def me.c zts)
- | _ -> None 
+  | _ ->
+     None 
  
 (***********************************************************************)
 (********************** Identifiers ************************************)
@@ -284,11 +287,17 @@ and z3Mul me env = function
   | (e1, e2) -> 
       SMT.mkMul me.c (z3Exp me env e1) (z3Exp me env e2)
 
-and z3Exp me env = function
-  | A.Con (A.Constant.Int i), _ -> 
+and z3Con me env = function
+  | A.Constant.Int i -> 
       SMT.mkInt me.c i me.tint 
-  | A.Con (A.Constant.Real i), _ -> 
+  | A.Constant.Real i -> 
       SMT.mkReal me.c i me.treal
+  | A.Constant.Lit (l, t) ->
+      SMT.mkLit me.c l (z3Type me t)
+                
+and z3Exp me env = function
+  | A.Con c, _ ->
+      z3Con me env c
   | A.Var s, _ -> 
       z3Var me env s
   | A.Cst ((A.App (f, es), _), t), _ when (H.mem me.thy_symm f) -> 

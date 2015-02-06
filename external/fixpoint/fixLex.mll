@@ -47,13 +47,27 @@
    *)
   let safe_float_of_string s = 
     try float_of_string s with ex -> 
-      let _ = Printf.printf "safe_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
+      let _ = Printf.printf "safe_float_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
       raise ex
 
   let safe_int_of_string s = 
     try int_of_string s with ex -> 
       let _ = Printf.printf "safe_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
       raise ex
+
+  let string_suffix_from s n = String.sub s n (String.length s - n)
+
+  let snip_begin_end str =
+    let len = String.length str in
+		String.sub str 1 (len-2)
+                            
+  (* let safe_big_int_of_string s = 
+    try Big_int.big_int_of_string (string_suffix_from s 2) with ex -> 
+      let _ = Printf.printf "safe_big_int_of_string crashes on: %s (error = %s)" s (Printexc.to_string ex) in
+      raise ex
+   *)
+
+
 }
 
 let digit    = ['0'-'9' '-']
@@ -76,6 +90,7 @@ rule token = parse
 			              token lexbuf
                           end 
                         }
+  | '_'                 { UNDERSCORE }
   | '['                 { LB }
   | ']'                 { RB }
   | '('			        { LPAREN }
@@ -121,6 +136,7 @@ rule token = parse
   | "ptr"               { PTR }
   | "<fun>"             { LFUN }
   (* | "fptr"           { FPTR } *)
+  | "lit"               { LIT }
   | "bool"              { BOOL }
   | "uit"               { UNINT }
   | "func"              { FUNC }
@@ -142,13 +158,10 @@ rule token = parse
   | "reft"              { REF }
   | "@"                 { TVAR } 
   | (digit)+'.'(digit)+	{ Real (safe_float_of_string (Lexing.lexeme lexbuf)) }
-  | (digit)+	        { Num (safe_int_of_string (Lexing.lexeme lexbuf)) }
-  | (alphlet)letdig*	{ Id    (Lexing.lexeme lexbuf) }
-  | '''[^''']*'''       { let str = Lexing.lexeme lexbuf in
-			              let len = String.length str in
-			              Id (String.sub str 1 (len-2)) 
-                        }
-  
+  | (digit)+	          { Num  (safe_int_of_string (Lexing.lexeme lexbuf)) }
+  | (alphlet)letdig*	  { Id    (Lexing.lexeme lexbuf) }
+  | '''[^''']*'''       { Id (snip_begin_end (Lexing.lexeme lexbuf)) }
+  | '"'[^''']*'"'       { StringLit (snip_begin_end (Lexing.lexeme lexbuf)) }
   | eof			{ EOF }
   | _			{ 
                           begin

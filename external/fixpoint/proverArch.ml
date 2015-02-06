@@ -64,6 +64,7 @@ module type SMTSOLVER = sig
   val mkIte     : context -> ast -> ast -> ast -> ast
   val mkInt     : context -> int -> sort -> ast
   val mkReal    : context -> float -> sort -> ast
+  val mkLit     : context -> string -> sort -> ast
   val mkTrue    : context -> ast
   val mkFalse   : context -> ast
   val mkNot     : context -> ast -> ast
@@ -74,8 +75,9 @@ module type SMTSOLVER = sig
   val mkRel     : context -> Ast.brel   -> ast -> ast -> ast 
 
   (* Conversions *)
-  val astString : context -> ast -> string
-
+  val astString     : context -> ast -> string
+  val sortString    : context -> sort -> string
+                                           
   (* Set Theory Operations *)
   val mkSetSort     : context -> sort   -> sort
   val mkEmptySet    : context -> sort -> ast
@@ -86,12 +88,20 @@ module type SMTSOLVER = sig
   val mkSetDif      : context -> ast -> ast -> ast
   val mkSetSub      : context -> ast -> ast -> ast
 
-
   (* Map Theory Operations *)
 
   val mkMapSort     : context -> sort -> sort -> sort
   val mkMapSelect   : context -> ast -> ast -> ast
   val mkMapStore    : context -> ast -> ast -> ast -> ast
+
+
+  (* BitVector Theory Operations *)
+  val mkSizeSort    : context -> int  -> sort 
+  val mkBitSort     : context -> sort -> sort 
+  val mkBitAnd      : context -> ast  -> ast -> ast 
+  val mkBitOr       : context -> ast  -> ast -> ast
+
+
 
   (* Constructors *)
   val mkContext      : (string * string) array -> context

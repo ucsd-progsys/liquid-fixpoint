@@ -165,7 +165,7 @@ module Sort =
     let is_int = function
       | Int -> true
       | _   -> false
-
+    
     let is_real = function
       | Real -> true
       | _    -> false
@@ -398,11 +398,15 @@ module Symbol =
 
 module Constant =
   struct
-    type t = Int of int | Real of float
+
+    type t = Int  of int 
+           | Real of float 
+           | Lit  of string * Sort.t
 
     let to_string = function
-      | Int i -> string_of_int i
-      | Real i -> string_of_float i ^ "0"
+      | Int i     -> string_of_int i
+      | Real i    -> string_of_float i ^ "0"
+      | Lit (s,t) -> Printf.sprintf "(lit \"%s\" %s)" s (Sort.to_string t)
 
     let print fmt s =
       to_string s |> Format.fprintf fmt "%s"
@@ -509,6 +513,8 @@ module ExprHashconsStruct = struct
         x
     | Con (Constant.Real x) -> 
         64 + int_of_float x
+    | Con (Constant.Lit (s,_)) -> 
+        32 + Hashtbl.hash s
     | MExp es ->
         list_hash 6 es 
     | Var x -> 
@@ -1154,6 +1160,8 @@ let rec sortcheck_expr g f e =
       Some Sort.Int 
   | Con (Constant.Real _) -> 
       Some Sort.Real 
+  | Con (Constant.Lit (_, t)) ->
+      Some t 
   | Var s ->
       sortcheck_sym f s
   | Bin (e1, op, e2) -> 

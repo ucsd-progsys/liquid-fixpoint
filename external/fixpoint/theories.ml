@@ -77,16 +77,35 @@ let store      = let k = So.t_generic 0 in
                  , So.t_func 2 [t_map k v; k; v; t_map k v] )
 
 
-(** WARNING: DO NOT PUT INSIDE MakeTheory; adds SMT dependency ***)
+
+(********************* Maps ************************************************)
+
+let bv_tycon     = So.tycon "BitVec"
+let sz32_tycon   = So.tycon "Size32"
+let sz64_tycon   = So.tycon "Size64"
+let t_bv a       = So.t_app bv_tycon [a]
+
+let bv_binop op  = let k = So.t_generic 0 in
+                   ( Sy.of_string op 
+                   , So.t_func 1 [t_bv k; t_bv k; t_bv k] ) 
+
+let bvand        = bv_binop "bvand"
+let bvor         = bv_binop "bvor"
+
+                 
+(********************* All Theories ****************************************)
+(** WARNING: DO NOT PUT INSIDE MakeTheory; adds SMT dependency *************)
+(***************************************************************************)
 
 (* API *)
-let is_interp t = t = set_tycon || t = map_tycon
+let is_interp t = List.mem t [set_tycon; map_tycon; sz32_tycon; sz64_tycon; bv_tycon]
 
 (* API *)
 let interp_syms _ 
   = []
-    |> (!Constants.set_theory <?> (++) [emp0; emp; sng; mem; cup; cap; dif; sub])
+    |> (!Constants.set_theory <?> (++) [emp0  ; emp; sng; mem; cup; cap; dif; sub])
     |> (!Constants.map_theory <?> (++) [select; store])
+    |> (!Constants.bit_theory <?> (++) [bvand ; bvor])
 
 
 (***************************************************************************)
@@ -151,12 +170,8 @@ let mk_thy_sort def c ts =
   def.so_emb c ts 
 
 
-(***************************************************************************)
-(******************** Theory of Sets ***************************************)
-(***************************************************************************)
+(** Theory of Sets *********************************************************)
 
-
-(**************** EMBEDDING (dependent of SMT) **************************)
 
 let set_t : sortDef = 
   { so_name  = set_tycon 
@@ -243,11 +258,7 @@ let theory_set
      ; set_dif 
      ; set_sub ])
 
-(***************************************************************************)
-(******************** Theory of Maps ***************************************)
-(***************************************************************************)
-
-(**************** EMBEDDING (dependent of SMT) **************************)
+(** Theory of Maps *********************************************************)
 
 let map_t : sortDef = 
   { so_name  = map_tycon 
@@ -277,9 +288,53 @@ let map_store : appDef  =
 let theory_map
   = ([map_t], [map_select; map_store])
 
-(***************************************************************************)
-(** Composing Theories *****************************************************)
-(***************************************************************************)
+(** Theory of Bitvectors ***************************************************)
+
+let size32_t : sortDef =
+  { so_name  = sz32_tycon 
+  ; so_arity = 1 
+  ; so_emb   = fun c -> function 
+                 | [_] -> SMT.mkSizeSort c 32 
+                 | _   -> assertf "Map_t: type mismatch"
+  }  
+
+let size64_t : sortDef =
+  { so_name  = sz64_tycon 
+  ; so_arity = 1 
+  ; so_emb   = fun c   -> function 
+                 | [_] -> SMT.mkSizeSort c 64 
+                 | _   -> assertf "Map_t: type mismatch"
+  }  
+    
+let bit_t : sortDef =
+  { so_name  = bv_tycon 
+  ; so_arity = 1 
+  ; so_emb   = fun c -> function 
+                 | [n] -> SMT.mkBitSort c n 
+                 | _   -> assertf "BitVector: type mismatch"
+  }  
+
+let bit_and : appDef  = 
+  { sy_name = fst bvand 
+  ; sy_sort = snd bvand  
+  ; sy_emb  = fun c ts es -> match ts, es with
+                 | [_], [x; y] -> SMT.mkBitAnd c x y 
+                 | _           -> assertf "bit_and: type mismatch"
+  }
+
+let bit_or : appDef  = 
+  { sy_name = fst bvor
+  ; sy_sort = snd bvor
+  ; sy_emb  = fun c ts es -> match ts, es with
+                 | [_], [x; y] -> SMT.mkBitOr c x y 
+                 | _           -> assertf "bit_or: type mismatch"
+  }
+
+(* API *)
+let theory_bit
+  = ([size32_t; size64_t; bit_t], [bit_and; bit_or])
+    
+(** Theory Composition *****************************************************)
 
 (* API *)
 let theories () = 
@@ -287,28 +342,6 @@ let theories () =
   ([], [])
   |> (!Constants.set_theory <?> add_thy theory_set)
   |> (!Constants.map_theory <?> add_thy theory_map)
-
-
-(* ideally:
-let is_interp t = 
-  let sorts = fst theories |>: (fun x -> x.so_name) in
-  List.mem t sorts
-*)
-
-
-(* JUNK
-
-let interp_syms_set 
-  = [emp0; emp; sng; mem; cup; cap; dif; sub]
-
-let interp_syms_map
-  = [sel; sto] 
-
-(* API *)
-let interp_syms _ 
-  = []
-    |> (!Constants.set_theory <?> add_syms interp_syms_set)
-    |> (!Constants.map_theory <?> add_syms interp_syms_map)
-*)
+  |> (!Constants.bit_theory <?> add_thy theory_bit)
 
 end
