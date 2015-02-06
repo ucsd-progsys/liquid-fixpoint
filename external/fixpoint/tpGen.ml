@@ -134,8 +134,8 @@ let rec z3Type me t =
       if So.is_int t then me.tint else
         if So.is_real t then me.treal else
           match z3TypeThy me t with 
-            | Some t' -> t'
-            | None    -> me.tint
+            | Some t' -> let _ = F.printf "z3TYPETHY t = %s t' = %s" (So.to_string t) (SMT.sortString me.c t') in t'
+            | None    -> let _ = F.printf "z3TYPETHY-NONE t = %s" (So.to_string t) in me.tint 
   end t t
 
 and z3TypeThy me t = match So.app_of_t t with
@@ -284,11 +284,17 @@ and z3Mul me env = function
   | (e1, e2) -> 
       SMT.mkMul me.c (z3Exp me env e1) (z3Exp me env e2)
 
-and z3Exp me env = function
-  | A.Con (A.Constant.Int i), _ -> 
+and z3Con me env = function
+  | A.Constant.Int i -> 
       SMT.mkInt me.c i me.tint 
-  | A.Con (A.Constant.Real i), _ -> 
+  | A.Constant.Real i -> 
       SMT.mkReal me.c i me.treal
+  | A.Constant.Lit (l, t) ->
+      SMT.mkLit me.c l (z3Type me t)
+                
+and z3Exp me env = function
+  | A.Con c, _ ->
+      z3Con me env c
   | A.Var s, _ -> 
       z3Var me env s
   | A.Cst ((A.App (f, es), _), t), _ when (H.mem me.thy_symm f) -> 

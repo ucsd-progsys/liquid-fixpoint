@@ -80,6 +80,7 @@ let no_lib_hquals               = ref false (* -no-lib-hquals *)
 let gen_qual_sorts              = ref true  (* -no-gen-qual-sorts  *)
 let web_demo                    = ref false (* -web-demo *)
 let simple                      = ref true  (* -simple  *) 
+let bit_theory                  = ref true  (* -bit-theory  *) 
 let set_theory                  = ref true  (* -set-theory  *) 
 let map_theory                  = ref true  (* -map-theory  *) 
 let ueq_all_sorts               = ref false (* -ueq-all-sorts *)
@@ -245,6 +246,9 @@ let arg_spec =
    ( "-nosimple"
    , Arg.Clear simple
    , " Directly propagate qualifiers for simple constraints (K1 <: K2) [true]");
+   ( "-nobittheory"
+   , Arg.Clear bit_theory
+   , " Support for SMT bitvector theory [true]");
    ( "-nosettheory"
    , Arg.Clear set_theory
    , " Support for SMT set theory [true]");

@@ -52,7 +52,6 @@ module Sort :
 
     val to_string   : t -> string
     val print       : Format.formatter -> t -> unit
-   
     val t_num       : t
     val t_obj       : t
     val t_bool      : t

@@ -237,7 +237,8 @@ let mkMapSort c k v    = map
 let mkMapSelect c m k  = spr "(%s %s %s)"    sel m k 
 let mkMapStore c m k v = spr "(%s %s %s %s)" sto m k v
 
-
+let mkSizeSort _ n = spr "%d" n                          
+let mkBitSort _ s  = spr "(_ BitVec %s)" s 
 let mkBitAnd _ x y = spr "(bvand %s %s)" x y
 let mkBitOr  _ x y = spr "(bvor  %s %s)" x y
 
@@ -388,6 +389,7 @@ let mkContext _ =
 
 let stringSymbol _ s = s
 let astString _ a    = a 
+let sortString _ s   = s 
 let isBool c a       = failwith "TODO:SMTLib2.isBool"
 let boundVar me i t  = failwith "TODO:SMTLib2.boundVar"
 
@@ -407,6 +409,9 @@ let mkInt _ i _    = if i >= 0 then string_of_int i
                      else spr "(- %d)" (abs i)
 let mkReal _ i _   = if i >= 0. then string_of_float i ^ "0" (* add trailing 0 for floats like 1. *)
                      else spr "(- %s)" (string_of_float (i *. -1.0) ^ "0")
+
+let mkLit _ l _    = l
+                       
 let mkTrue _       = "true"
 let mkFalse _      = "false" 
 
