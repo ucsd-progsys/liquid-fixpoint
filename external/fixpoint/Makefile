@@ -3,6 +3,10 @@ include config.make
 DIRS=-I misc
 OFLAGS=$(DIRS) $(IFLAGS) $(LFLAGS) $(CFLAGS)
 
+OCAMLC=ocamlc
+OCAMLOPT=ocamlopt
+OCAMLBUILD=ocamlbuild -ocamlc $(OCAMLC) -ocamlopt $(OCAMLOPT)
+
 LIBS_=-libs unix,str,graph,nums
 IFLAGS_=-lflags -I,$(OCAMLGRAPHHOME)
 LFLAGS_=-lflags -cclib,-L$(OCAMLLIB)
@@ -40,8 +44,8 @@ endif
 
 all: smtz3
 	ln -sf ../misc
-	ocamlbuild -r $(LIBS) $(OFLAGS) -tags thread fixpoint.native
-	ocamlbuild -r $(OFLAGS) fix.cmxa
+	$(OCAMLBUILD) -r $(LIBS) $(OFLAGS) -tags thread fixpoint.native
+	$(OCAMLBUILD) -r $(OFLAGS) fix.cmxa
 	rm -f fixpoint.native
 	cp _build/fixpoint.native .
 
