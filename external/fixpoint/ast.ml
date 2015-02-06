@@ -406,7 +406,7 @@ module Constant =
     let to_string = function
       | Int i     -> string_of_int i
       | Real i    -> string_of_float i ^ "0"
-      | Lit (s,t) -> Printf.sprintf "(lit #%s# %s)" s (Sort.to_string t)
+      | Lit (s,t) -> Printf.sprintf "(lit \"%s\" %s)" s (Sort.to_string t)
 
     let print fmt s =
       to_string s |> Format.fprintf fmt "%s"
