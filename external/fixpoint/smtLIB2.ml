@@ -238,6 +238,10 @@ let mkMapSelect c m k  = spr "(%s %s %s)"    sel m k
 let mkMapStore c m k v = spr "(%s %s %s %s)" sto m k v
 
 
+let mkBitAnd _ x y = spr "(bvand %s %s)" x y
+let mkBitOr  _ x y = spr "(bvor  %s %s)" x y
+
+
 (******************************************************************)
 (**************** SMT IO ******************************************)
 (** https://raw.github.com/ravichugh/djs/master/src/zzz.ml ********)

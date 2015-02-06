@@ -74,6 +74,8 @@ let mkSetSub _       = failwith msg
 let mkMapSort _      = failwith msg
 let mkMapSelect _    = failwith msg
 let mkMapStore _     = failwith msg
+let mkBitAnd _       = failwith msg
+let mkBitOr _        = failwith msg
 
 
 let mkContext _      = failwith msg

@@ -62,7 +62,6 @@ module Sort =
       | Bool
       | Obj
       | Var of int              (* type-var *)
-      | BV  of int              (* bitvector-width *)
       | Ptr of loc              (* c-pointer *)
       | Func of int * t list    (* type-var-arity, in-types @ [out-type]      *)
       | Num                     (* kind, for numeric tyvars -- ptr(loc(s)) -- *)
@@ -88,7 +87,6 @@ module Sort =
     let t_int       = Int
     let t_real      = Real
     let t_generic   = fun i -> let _ = asserts (0 <= i) "t_generic: %d" i in Var i
-    let t_bitvector = fun i -> let _ = asserts (0 <= i) "t_bitvector: %d" i in BV i
     let t_ptr       = fun l -> Ptr l
     let t_func      = fun i ts -> Func (i, ts)
     let tycon s     = s 
@@ -111,7 +109,6 @@ module Sort =
 
     let rec to_string = function
       | Var i        -> Printf.sprintf "@(%d)" i
-      | BV i         -> Printf.sprintf "(_ BitVec %d)" i
       | Int          -> "int"
       | Real         -> "real"
       | Bool         -> "bool"
@@ -169,10 +166,6 @@ module Sort =
       | Int -> true
       | _   -> false
     
-    let is_bitvector = function
-      | BV _ -> true
-      | _    -> false
-
     let is_real = function
       | Real -> true
       | _    -> false
@@ -291,7 +284,7 @@ module Sort =
       end
 
     let rec fold f acc t = match t with
-      | Var _ | BV _ | Int | Real | Bool | Obj | Num | Ptr _ 
+      | Var _ | Int | Real | Bool | Obj | Num | Ptr _ 
         -> f acc t 
       | Func (_, ts) | App (_, ts) 
         -> List.fold_left (fold f) (f acc t) ts 
@@ -406,18 +399,14 @@ module Symbol =
 module Constant =
   struct
 
-    type bv_t = { bv_size : int; bv_value : string } (* can't compare big-int, needed for hashing. sigh. *) 
-    
     type t = Int  of int 
            | Real of float 
-           | BV   of bv_t
-
-    let bv size value = BV {bv_size = size; bv_value = value}
+           | Lit  of string * Sort.t
 
     let to_string = function
-      | Int i  -> string_of_int i
-      | Real i -> string_of_float i ^ "0"
-      | BV b   -> Printf.sprintf "(_ %s %d)" b.bv_value b.bv_size
+      | Int i     -> string_of_int i
+      | Real i    -> string_of_float i ^ "0"
+      | Lit (s,t) -> Printf.sprintf "(lit #%s# %s)" s (Sort.to_string t)
 
     let print fmt s =
       to_string s |> Format.fprintf fmt "%s"
@@ -524,8 +513,8 @@ module ExprHashconsStruct = struct
         x
     | Con (Constant.Real x) -> 
         64 + int_of_float x
-    | Con (Constant.BV x) -> 
-        32 + Hashtbl.hash x.Constant.bv_value
+    | Con (Constant.Lit (s,_)) -> 
+        32 + Hashtbl.hash s
     | MExp es ->
         list_hash 6 es 
     | Var x -> 
@@ -1171,8 +1160,8 @@ let rec sortcheck_expr g f e =
       Some Sort.Int 
   | Con (Constant.Real _) -> 
       Some Sort.Real 
-  | Con (Constant.BV b) ->
-      Some (Sort.BV b.Constant.bv_size) 
+  | Con (Constant.Lit (_, t)) ->
+      Some t 
   | Var s ->
       sortcheck_sym f s
   | Bin (e1, op, e2) -> 

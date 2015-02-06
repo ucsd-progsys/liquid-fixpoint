@@ -86,12 +86,21 @@ module type SMTSOLVER = sig
   val mkSetDif      : context -> ast -> ast -> ast
   val mkSetSub      : context -> ast -> ast -> ast
 
-
   (* Map Theory Operations *)
 
   val mkMapSort     : context -> sort -> sort -> sort
   val mkMapSelect   : context -> ast -> ast -> ast
   val mkMapStore    : context -> ast -> ast -> ast -> ast
+
+
+  (* BitVector Theory Operations *)
+
+  val mkBitAnd      : context -> ast -> ast -> ast 
+  val mkBitOr       : context -> ast -> ast -> ast
+
+
+
+
 
   (* Constructors *)
   val mkContext      : (string * string) array -> context

@@ -54,8 +54,8 @@ let env_of_ibindings is =
 
 %token <string> Id
 %token <int>    Num
-%token <string> Bitv 
 %token <float>  Real
+%token <string> StringLit 
 %token TVAR 
 %token TAG ID 
 %token BEXP
@@ -71,7 +71,7 @@ let env_of_ibindings is =
 %token TIMES 
 %token DIV 
 %token QM DOT ASGN
-%token OBJ REAL INT NUM PTR LFUN BITV BOOL UNINT FUNC
+%token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC LIT
 %token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
 %token ENV GRD LHS RHS REF
 
@@ -166,7 +166,6 @@ bsort:
   | INT                                 { So.t_int }
   | REAL                                { So.t_real }
   | BOOL                                { So.t_bool }
-  | UNDERSCORE BITV Num                 { So.t_bitvector $3 }
   | PTR                                 { So.t_ptr (So.Lvar 0) }
   | PTR LPAREN LFUN RPAREN              { So.t_ptr (So.LFun) }
   | PTR LPAREN Num RPAREN               { So.t_ptr (So.Lvar $3) }
@@ -314,7 +313,7 @@ con:
   | Num                                   { (A.Constant.Int $1) }
   | MINUS Num                             { (A.Constant.Int (-1 * $2)) }
   | MINUS Real                            { (A.Constant.Real (-. $2)) }
-  | LPAREN UNDERSCORE Bitv Num RPAREN     { (A.Constant.bv $4 $3) }
+  | LIT StringLit sort                    { (A.Constant.Lit ($2, $3)) }
   ;
 
 cons:
