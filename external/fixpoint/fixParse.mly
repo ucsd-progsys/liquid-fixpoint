@@ -18,7 +18,7 @@ open FixMisc.Ops
   | Tycon                               { So.t_app (So.tycon $1) [] }
   | Tycon tyconargsne                   { So.t_app (So.tycon $1) $2 }
    *)
-  (*  | Id                                  { So.t_ptr (So.Loc $1) }
+  (*  | Id                              { So.t_ptr (So.Loc $1) }
 
 (*
 pExprs:
