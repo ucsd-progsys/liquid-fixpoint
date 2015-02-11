@@ -161,7 +161,7 @@ rule token = parse
   | (digit)+	          { Num  (safe_int_of_string (Lexing.lexeme lexbuf)) }
   | (alphlet)letdig*	  { Id    (Lexing.lexeme lexbuf) }
   | '''[^''']*'''       { Id (snip_begin_end (Lexing.lexeme lexbuf)) }
-  | '"'[^'"']*'"'       { Stringlit (snip_begin_end (Lexing.lexeme lexbuf)) }
+  | '"'[^'"']*'"'       { StringLit (snip_begin_end (Lexing.lexeme lexbuf)) }
   | eof			            { EOF }
   | _			              { begin
                             lexerror ("Illegal Character '" ^ 
