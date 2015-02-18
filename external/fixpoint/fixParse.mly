@@ -276,10 +276,8 @@ expr:
   | con                                   { A.eCon $1  }
   | exprs                                 { A.eMExp $1 } 
   | LPAREN expr MOD expr RPAREN           { A.eMod ($2, $4) }
-  | expr PLUS expr                        { A.eBin ($1, A.Plus, $3) }
-  | expr MINUS expr                       { A.eBin ($1, A.Minus, $3) }
-  | expr TIMES expr                       { A.eBin ($1, A.Times, $3) }
-  | expr DIV expr                         { A.eBin ($1, A.Div, $3) }
+  | MINUS expr                            { A.eBin (A.zero, A.Minus, $3) }
+  | expr op expr                          { A.eBin ($1, $2, $3) }
   | expr ops expr                         { A.eMBin ($1, $2, $3) }
   | Id LPAREN exprs RPAREN                { A.eApp ((Sy.of_string $1), $3) }
   | Id Id                                 { A.eApp ((Sy.of_string $1), [A.eVar (Sy.of_string $2)]) }
