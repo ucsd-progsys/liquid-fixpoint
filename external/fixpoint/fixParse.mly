@@ -276,7 +276,7 @@ expr:
   | con                                   { A.eCon $1  }
   | exprs                                 { A.eMExp $1 } 
   | LPAREN expr MOD expr RPAREN           { A.eMod ($2, $4) }
-  | MINUS expr                            { A.eBin (A.zero, A.Minus, $3) }
+  | MINUS expr                            { A.eBin (A.zero, A.Minus, $2) }
   | expr op expr                          { A.eBin ($1, $2, $3) }
   | expr ops expr                         { A.eMBin ($1, $2, $3) }
   | Id LPAREN exprs RPAREN                { A.eApp ((Sy.of_string $1), $3) }
