@@ -690,64 +690,6 @@ let refine me c =
   let (ch, me) = refine me c in
   (ch, {me with seen = IS.add (C.id_of_t c) me.seen})
 
-(* LAZYINST 
-let refine me c  =
-  let lps        = lazy (get_lhs me c)                                     in
-  let (_,_,ra2s) as r = C.rhs_of_t c                                       in
-  let (ins, rcs) = BS.time "rhs_cands" (Misc.flap (rhs_cands me lps)) ra2s in
-  if rcs = [] then 
-    let _ = me.stat_emptyRHS += 1 in
-    (false, me)
-  else if BS.time "lhs_contra" (List.exists P.is_contra) (Lazy.force lps) then 
-    let _ = me.stat_unsatLHS += 1               in
-    let _ = me.stat_umatches += List.length rcs in
-    (ch, me)
-  else
-    let lps     = Lazy.force lps                                      in
-    let rcs     = List.filter (fun (_,p) -> not (P.is_contra p)) rcs  in
-    let lt      = PH.create 17                                        in
-    let _       = List.iter (fun p -> PH.add lt p ()) lps             in
-    let (x1,x2) = List.partition (fun (_,p) -> PH.mem lt p) rcs       in
-    let _       = me.stat_matches += (List.length x1)                 in
-    let kqs1    = List.map fst x1                                     in
-    (if C.is_simple c 
-     then (ignore(me.stat_simple_refines += 1); kqs1) 
-     else let senv = C.senv_of_t c in
-          let vv   = C.vv_of_t c   in
-          let t    = C.sort_of_t c in
-          kqs1 ++ (BS.time "check tp" (check_tp me senv vv t lps) x2))
-    |> p_update me (get_rhs_kvars c)
-    |> (fun (ch', z) -> (ch || ch', z))
-
-let refine me c =
-  let (_,_,ra2s) as r2 = C.rhs_of_t c in
-  let k2s = r2 |> C.kvars_of_reft |> List.map snd in
-  let rcs = BS.time "rhs_cands" (Misc.flap (rhs_cands me c)) ra2s in
-  if rcs  = [] then
-    let _ = me.stat_emptyRHS += 1 in
-    (false, me)
-  else
-    let lps = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c in
-    if BS.time "lhs_contra" (List.exists P.is_contra) lps then 
-    let _ = me.stat_unsatLHS += 1 in
-    let _ = me.stat_umatches += List.length rcs in
-    (false, me)
-  else 
-    let rcs     = List.filter (fun (_,p) -> not (P.is_contra p)) rcs in
-    let lt      = PH.create 17 in
-    let _       = List.iter (fun p -> PH.add lt p ()) lps in
-    let (x1,x2) = List.partition (fun (_,p) -> PH.mem lt p) rcs in
-    let _       = me.stat_matches += (List.length x1) in
-    let kqs1    = List.map fst x1 in
-    (if C.is_simple c 
-     then (ignore(me.stat_simple_refines += 1); kqs1) 
-     else let senv = C.senv_of_t c in
-          let vv   = C.vv_of_t c   in
-          let t    = C.sort_of_t c in
-          kqs1 ++ (BS.time "check tp" (check_tp me senv vv t lps) x2))
-    |> p_update me k2s
-*)
-
 let refine me c = 
   let me      = me |> (!Co.cex <?> cx_iter c)     in
   let (b, me) = refine me c                       in
