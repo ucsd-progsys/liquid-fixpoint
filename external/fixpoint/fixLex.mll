@@ -131,6 +131,7 @@ rule token = parse
   | "mod"               { MOD }
   | "obj"               { OBJ }
   | "num"               { NUM }
+  | "frac"              { FRAC }
   | "int"               { INT }
   | "real"              { REAL }
   | "ptr"               { PTR }
