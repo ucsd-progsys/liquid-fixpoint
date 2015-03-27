@@ -63,8 +63,9 @@ module Sort =
       | Obj
       | Var of int              (* type-var *)
       | Ptr of loc              (* c-pointer *)
-      | Func of int * t list    (* type-var-arity, in-types @ [out-type]      *)
-      | Num                     (* kind, for numeric tyvars -- ptr(loc(s)) -- *)
+      | Func of int * t list    (* type-var-arity, in-types @ [out-type]         *)
+      | Num                     (* kind, for numeric tyvars -- ptr(loc(s))    -- *)
+      | Frac                    (* kind, for fractional tyvars -- ptr(loc(s)) -- *)
       | App of tycon * t list   (* type constructors *)
 
     type sub = { locs: (int * string) list;
@@ -82,6 +83,7 @@ module Sort =
     *)
 
     let t_num       = Num
+    let t_frac      = Frac
     let t_obj       = Obj
     let t_bool      = Bool
     let t_int       = Int
@@ -114,6 +116,7 @@ module Sort =
       | Bool         -> "bool"
       | Obj          -> "obj"
       | Num          -> "num"
+      | Frac         -> "frac"
       | Ptr l        -> loc_to_string l
                         (* Printf.sprintf "ptr(%s)" (loc_to_string l) *)
       | Func (n, ts) -> ts |> List.map to_string
@@ -1267,9 +1270,14 @@ and sortcheck_rel g f (e1, r, e2) =
   | _ , Some (Sort.Ptr l), Some Sort.Int
     -> (sortcheck_loc f l = Some Sort.Num)
   | _ , Some (Sort.Ptr l1), Some (Sort.Ptr l2)
-    when (sortcheck_loc f l1 = Some Sort.Num)
-      && (sortcheck_loc f l2 = Some Sort.Num)
-    -> true
+    when ((sortcheck_loc f l1 = Some Sort.Num)
+      &&  (sortcheck_loc f l2 = Some Sort.Num))
+      || ((sortcheck_loc f l1 = Some Sort.Frac)
+      &&  (sortcheck_loc f l2 = Some Sort.Frac))
+    -> true   
+  | _ , Some Sort.Real,     Some (Sort.Ptr l)
+  | _ , Some (Sort.Ptr l), Some Sort.Real
+    -> sortcheck_loc f l = Some Sort.Frac
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
     -> t1 = t2
@@ -1288,8 +1296,8 @@ and sortcheck_pred g f p =
     | True
     | False ->
         true
-    | Bexp e ->
-        sortcheck_expr g f e = Some Sort.Bool
+    | Bexp e ->  
+        sortcheck_expr g f e = Some Sort.Bool 
     | Not p ->
         sortcheck_pred g f p
     | Imp (p1, p2) | Iff (p1, p2) ->
