@@ -1281,8 +1281,8 @@ and sortcheck_rel g f (e1, r, e2) =
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
     -> t1 = t2
-  | Ueq, Some (Sort.App (_,_)), Some (Sort.App (_,_))
-  | Une, Some (Sort.App (_,_)), Some (Sort.App (_,_))
+  | Ueq, Some (_), Some (_)
+  | Une, Some (_), Some (_)
     -> true
   | _ , Some (Sort.App (tc,_)), _
     when (g tc) (* tc is an interpreted tycon *)
