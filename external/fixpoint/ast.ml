@@ -1257,6 +1257,13 @@ and sortcheck_op g f (e1, op, e2) =
   when op = Minus && s = s'
   -> Some Sort.Int
 
+  | (Some (Sort.Var v), Some t)
+  | (Some t, Some (Sort.Var v))
+  -> begin match Sort.unify [Sort.Var v] [t] with
+     | None   -> None
+     | Some _ -> Some t  (* PV: subst is lost here *)
+     end
+
   | _ -> None
 
 
