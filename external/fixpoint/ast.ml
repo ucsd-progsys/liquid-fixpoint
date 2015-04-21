@@ -1368,7 +1368,8 @@ let sortcheck_app g f tExp uf es =
         if Sort.check_arity n s then
            Some (s, t)
         else
-    (* None *)
+          None 
+          (*
           let msg = Printf.sprintf  "Ast.sortcheck_app: type params not instantiated %s: n = %d, s = %s, t = %s, tExp = %s"
                       (expr_to_string (eApp (uf, es)))
                       n
@@ -1377,6 +1378,7 @@ let sortcheck_app g f tExp uf es =
                       (opt_to_string Sort.to_string tExp)
           in
              assertf "%s" msg
+          *)
     | _ -> None
 
 
