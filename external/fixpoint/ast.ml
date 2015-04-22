@@ -1154,6 +1154,12 @@ let solved_app f uf = function
                    end
   | None        -> None
 
+let checkArity f uf = function
+  | None        -> None
+  | Some (s, t) -> begin match uf_arity f uf with
+                         | Some n -> if Sort.check_arity n s then Some (s, t) else None
+                         | _      -> None
+                   end
 
 let rec sortcheck_expr g f e =
   match euw e with
@@ -1214,17 +1220,18 @@ and sortcheck_app_sub g f so_expected uf es =
                                   | None    -> None
                                   | Some s' -> Some (s', Sort.apply s' t)
 
-and sortcheck_app g f so_expected uf es =
-  sortcheck_app_sub g f so_expected uf es
+and sortcheck_app g f tExp uf es =
+  sortcheck_app_sub g f tExp uf es
+  |> checkArity f uf  (* THIS CHECK IS NEW, but will it break a bunch of tests? *)
   |> Misc.maybe_map snd
-  (* >> begin function
+                    (*
+  >> begin function
        | Some t -> Format.printf "sortcheck_app: e = %s , t = %s \n"
                      (expr_to_string (eApp (uf, es))) (Sort.to_string t)
        | None   -> Format.printf "sortcheck_app: e = %s FAILS\n"
                      (expr_to_string (eApp (uf, es)))
      end
-  *)
-
+                     *)
 
 and sortcheck_op g f (e1, op, e2) =
 (* DEBUGGING
@@ -1281,7 +1288,7 @@ and sortcheck_rel g f (e1, r, e2) =
       &&  (sortcheck_loc f l2 = Some Sort.Num))
       || ((sortcheck_loc f l1 = Some Sort.Frac)
       &&  (sortcheck_loc f l2 = Some Sort.Frac))
-    -> true   
+    -> true
   | _ , Some Sort.Real,     Some (Sort.Ptr l)
   | _ , Some (Sort.Ptr l), Some Sort.Real
     -> sortcheck_loc f l = Some Sort.Frac
@@ -1303,8 +1310,8 @@ and sortcheck_pred g f p =
     | True
     | False ->
         true
-    | Bexp e ->  
-        sortcheck_expr g f e = Some Sort.Bool 
+    | Bexp e ->
+        sortcheck_expr g f e = Some Sort.Bool
     | Not p ->
         sortcheck_pred g f p
     | Imp (p1, p2) | Iff (p1, p2) ->
@@ -1363,12 +1370,16 @@ let opt_to_string p = function
 
 (* API *)
 let sortcheck_app g f tExp uf es =
+  sortcheck_app_sub g f tExp uf es
+  |> checkArity f uf
+
+                (*
   match uf_arity f uf, sortcheck_app_sub g f tExp uf es with
     | (Some n, Some (s, t)) ->
         if Sort.check_arity n s then
            Some (s, t)
         else
-          None 
+          None
           (*
           let msg = Printf.sprintf  "Ast.sortcheck_app: type params not instantiated %s: n = %d, s = %s, t = %s, tExp = %s"
                       (expr_to_string (eApp (uf, es)))
@@ -1380,13 +1391,12 @@ let sortcheck_app g f tExp uf es =
              assertf "%s" msg
           *)
     | _ -> None
+                 *)
 
 
-(*
-let sortcheck_pred f p =
-  sortcheck_pred f p
-  >> (fun b -> ignore <| F.printf "sortcheck_pred: p = %a, res = %b\n"
-  Predicate.print p b)
+let sortcheck_pred g f p =
+  sortcheck_pred g f p
+(*   >> (fun b -> ignore <| F.printf "DEBUG: sortcheck_pred: p = %a, res = %b\n" Predicate.print p b)
 *)
 
 (***************************************************************************)
