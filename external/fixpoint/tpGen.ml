@@ -245,10 +245,11 @@ let rec z3Rel me env (e1, r, e2) =
 and z3Rel_cast me env = function
   | (e1, A.Eq, e2) -> begin
       let (t1o, t2o) = (expr_sort env e1, expr_sort env e2) in
+      (*
       let _ = F.printf "z3Rel_cast: t1o = %s, t2o = %s \n"
                        (opt_to_string So.to_string t1o)
                        (opt_to_string So.to_string t2o) in
-
+       *)
       match (t1o, t2o) with
         | (Some t , None  ) -> z3Rel_real me env (e1, A.Eq, A.eCst (e2, t))
         | (None   , Some t) -> z3Rel_real me env (A.eCst (e1, t), A.Eq, e2)
