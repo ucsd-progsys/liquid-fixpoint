@@ -1200,7 +1200,7 @@ let rec sortcheck_expr g f e =
 and sortcheck_app_sub g f so_expected uf es =
   let yikes uf = F.printf "sortcheck_app_sub: unknown sym = %s \n" (Symbol.to_string uf) in
   sortcheck_sym f uf
-  |> function None -> (yikes uf; None) | Some t ->
+  |> function None -> (* yikes uf; *) None | Some t ->
        Sort.func_of_t t
        |> function None -> None | Some (tyArity, i_ts, o_t) ->
               let _  = asserts (List.length es = List.length i_ts)
