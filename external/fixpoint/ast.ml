@@ -1200,7 +1200,7 @@ let rec sortcheck_expr g f e =
 and sortcheck_app_sub g f so_expected uf es =
   let yikes uf = F.printf "sortcheck_app_sub: unknown sym = %s \n" (Symbol.to_string uf) in
   sortcheck_sym f uf
-  |> function None -> (yikes uf; None) | Some t ->
+  |> function None -> (* yikes uf; *) None | Some t ->
        Sort.func_of_t t
        |> function None -> None | Some (tyArity, i_ts, o_t) ->
               let _  = asserts (List.length es = List.length i_ts)
@@ -1277,6 +1277,9 @@ and sortcheck_op g f (e1, op, e2) =
 and sortcheck_rel g f (e1, r, e2) =
   let t1o, t2o = (e1,e2) |> Misc.map_pair (sortcheck_expr g f) in
   match r, t1o, t2o with
+  | Ueq, Some (_), Some (_)
+  | Une, Some (_), Some (_)
+    -> true
   | _, Some (Sort.Ptr _) , Some (Sort.Ptr Sort.LFun)
   | _, Some (Sort.Ptr Sort.LFun), Some (Sort.Ptr _)
     -> true
@@ -1295,9 +1298,6 @@ and sortcheck_rel g f (e1, r, e2) =
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
     -> t1 = t2
-  | Ueq, Some (_), Some (_)
-  | Une, Some (_), Some (_)
-    -> true
   | _ , Some (Sort.App (tc,_)), _
     when (g tc) (* tc is an interpreted tycon *)
     -> false
@@ -1319,7 +1319,6 @@ and sortcheck_pred g f p =
     | And ps
     | Or ps ->
         List.for_all (sortcheck_pred g f) ps
-
     | Atom (e1, Ueq, e2)
       when !Constants.ueq_all_sorts
       -> (not (None = sortcheck_expr g f e1)) &&
@@ -1330,9 +1329,9 @@ and sortcheck_pred g f p =
       when not (!Constants.strictsortcheck)
       -> not (None = sortcheck_expr g f e)
 
-    | Atom (((Con _, _) as e) ,  Eq, (App (uf, es), _))
+    | Atom (((Con _, _) as e), Eq, (App (uf, es), _))
     | Atom ((App (uf, es), _), Eq, ((Con _, _) as e))
-    | Atom (((Var _, _) as e) ,  Eq, (App (uf, es), _))
+    | Atom (((Var _, _) as e), Eq, (App (uf, es), _))
     | Atom ((App (uf, es), _), Eq, ((Var _, _) as e))
            (* -> begin match sortcheck_sym f x with *)
       -> begin match sortcheck_expr g f e with
