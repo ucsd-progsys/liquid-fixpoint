@@ -1,14 +1,14 @@
 //qualif NonNull(v: [a])        : (? (nonnull([v])))
 //qualif Null(v: [a])           : (~ (? (nonnull([v]))))
-//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+//qualif EqNull(v:Bool, x: [a]): (Prop(v) <=> (? (nonnull([x]))))
 
-qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif IsEmp(v:GHC.Types.Bool, x: [a]) : (Prop(v) <=> len([x]) [ > ;  = ] 0)
 qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
-qualif CmpLen(v:[a], ~A:[b])  : len([v]) [= ; >=; >; <=; <] len([~A]) 
-qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
-qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
-qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
-qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+qualif CmpLen(v:[a], x:[b])  : len([v]) [= ; >=; >; <=; <] len([x]) 
+qualif EqLen(v:int, x: [a])  : v = len([x]) 
+qualif LenEq(v:[a], x: int)  : x = len([v]) 
+qualif LenAcc(v:int, x:[a], ~B: int): v = len([x]) + ~B
+qualif LenDiff(v:[a], x:int): len([v]) = (x [ +; - ] 1)
 //BOT: Do not delete EVER!
 
 qualif Bot(v:@(0))    : 0 = 1 
@@ -17,8 +17,8 @@ qualif Bot(v:a)       : 0 = 1
 qualif Bot(v:bool)    : 0 = 1 
 qualif Bot(v:int)     : 0 = 1 
 qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
-qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
-qualif Cmp(v:int,~A:int)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif Cmp(v:a,x:a)  : v [ < ; <= ; > ; >= ; = ; != ] x
+qualif Cmp(v:int,x:int)  : v [ < ; <= ; > ; >= ; = ; != ] x
 qualif One(v:int)     : v = 1
 qualif True(v:bool)   : (? v) 
 qualif False(v:bool)  : ~ (? v) 
