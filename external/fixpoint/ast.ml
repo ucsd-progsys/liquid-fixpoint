@@ -238,6 +238,14 @@ module Sort =
 
     let rec unifyt s = function
       | Num,_ | _, Num -> None
+      | (Var i), (Var j) -> 
+          begin match lookup_var s i with
+          | Some ct -> Some {s with vars = (j,ct) :: s.vars}
+          | None -> begin match lookup_var s j with
+                    | Some ct -> Some {s with vars = (i, ct)    :: s.vars}
+                    | None    -> Some {s with vars = (i, Var j) :: s.vars}
+                    end
+          end
       | ct, (Var i)
       | (Var i), ct
         (* when ct != Bool *) ->
