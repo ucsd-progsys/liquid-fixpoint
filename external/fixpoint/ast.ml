@@ -326,8 +326,13 @@ module Sort =
     let sub_args s = List.sort compare s.vars
 
     (* API *)
-    let check_arity n s = s.vars |>: fst |> Misc.sort_and_compact |> List.length |> (=) n
-      (* if ... then s else assertf "Type Inst. With Wrong Arity!" *)
+    let check_arity n s = 
+      let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in 
+      if n == 1 && n_vars == 0
+        (* then true as come from fun call with zero args for instantiation of ty vars*) 
+        then true 
+        else n == n_vars 
+
 
   end
 
