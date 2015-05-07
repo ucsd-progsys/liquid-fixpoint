@@ -70,7 +70,7 @@ let env_of_ibindings is =
 %token MINUS
 %token TIMES 
 %token DIV 
-%token QM DOT ASGN
+%token DOL QM DOT ASGN
 %token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC LIT FRAC
 %token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
 %token ENV GRD LHS RHS REF
@@ -397,7 +397,7 @@ refasne:
   ;
   
 refa:
-    Id subs                             { C.Kvar ($2, (Sy.of_string $1)) }
+    DOL Id subs                         { C.Kvar ($3, (Sy.of_string $2)) }
   | Id subs                             { C.Kvar ($2, (Sy.of_string $1)) }
   | pred                                { C.Conc $1 }
   ;
