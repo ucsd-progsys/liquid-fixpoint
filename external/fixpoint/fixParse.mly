@@ -398,6 +398,7 @@ refasne:
   
 refa:
     Id subs                             { C.Kvar ($2, (Sy.of_string $1)) }
+  | Id subs                             { C.Kvar ($2, (Sy.of_string $1)) }
   | pred                                { C.Conc $1 }
   ;
 
