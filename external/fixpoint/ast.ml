@@ -1191,10 +1191,14 @@ let rec sortcheck_expr g f e =
   | Ite (p, e1, e2) ->
       if sortcheck_pred g f p then
         match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
-        | (Some t1, Some t2) when t1 = t2 -> Some t1
+        | (Some t1, Some t2) -> 
+          begin 
+          match Sort.unify [t1] [t2] with 
+            | Some s -> Some (Sort.apply s t1) 
+            | None -> None
+          end 
         | _ -> None
       else None
-
   | Cst (e1, t) ->
       begin match euw e1 with
         | App (uf, es) -> sortcheck_app g f (Some t) uf es
