@@ -132,7 +132,7 @@ def:
   | WF  COLON wf                        { FixConfig.Wfc $3 }
   | sol                                 { FixConfig.Sol $1 } 
   | QUL qual                            { FixConfig.Qul $2 }
-  | KUT Id                              { FixConfig.Kut (Sy.of_string $2) }
+  | KUT kvid                            { FixConfig.Kut $2 }
   | dep                                 { FixConfig.Dep $1 }
   | BIND Num Id COLON reft              { let (i, x, r) = ($2, Sy.of_string $3, $5) 
                                                           >> set_ibind 
@@ -395,11 +395,15 @@ refasne:
     refa                                { [$1] }
   | refa SEMI refasne                   { $1 :: $3 }
   ;
-  
+
+kvid:
+    DOL Id                              { Sy.of_string $2 }
+  | Id                                  { Sy.of_string $1 }
+  ;
+
 refa:
-    DOL Id subs                         { C.Kvar ($3, (Sy.of_string $2)) }
-  | Id subs                             { C.Kvar ($2, (Sy.of_string $1)) }
-  | pred                                { C.Conc $1 }
+  | kvid subs                           { C.Kvar ($2, $1) }
+  | pred                                { C.Conc $1       }
   ;
 
 subs:
