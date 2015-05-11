@@ -238,6 +238,10 @@ module Sort =
 
     let rec unifyt s = function
       | Num,_ | _, Num -> None
+(* NIKI: Unifycation of two variables should always succeed, 
+but the bellow code crashes tests/zipper0.hs.fq
+*)
+(*      
       | (Var i), (Var j) -> 
           begin match lookup_var s i with
           | Some ct -> Some {s with vars = (j,ct) :: s.vars}
@@ -246,6 +250,7 @@ module Sort =
                     | None    -> Some {s with vars = (i, Var j) :: s.vars}
                     end
           end
+*)
       | ct, (Var i)
       | (Var i), ct
         (* when ct != Bool *) ->
