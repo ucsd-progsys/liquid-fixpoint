@@ -241,7 +241,6 @@ module Sort =
 (* NIKI: Unifycation of two variables should always succeed, 
 but the bellow code crashes tests/zipper0.hs.fq
 *)
-(*      
       | (Var i), (Var j) -> 
           begin match lookup_var s i with
           | Some ct -> Some {s with vars = (j,ct) :: s.vars}
@@ -250,7 +249,6 @@ but the bellow code crashes tests/zipper0.hs.fq
                     | None    -> Some {s with vars = (i, Var j) :: s.vars}
                     end
           end
-*)
       | ct, (Var i)
       | (Var i), ct
         (* when ct != Bool *) ->
@@ -333,7 +331,9 @@ but the bellow code crashes tests/zipper0.hs.fq
     (* API *)
     let check_arity n s = 
       let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in 
-      n == n_vars 
+      if n==1  && n_vars=0 
+      then true 
+      else (n == n_vars)
 
 
   end
