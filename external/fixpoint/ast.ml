@@ -333,10 +333,7 @@ but the bellow code crashes tests/zipper0.hs.fq
     (* API *)
     let check_arity n s = 
       let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in 
-      if n == 1 && n_vars == 0
-        (* then true as come from fun call with zero args for instantiation of ty vars*) 
-        then true 
-        else n == n_vars 
+      n == n_vars 
 
 
   end
