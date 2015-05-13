@@ -1176,6 +1176,11 @@ let checkArity f uf = function
                          | _      -> None
                    end
 
+let unifiable t1 t2 = 
+  match Sort.unify [t1] [t2] with
+  | Some _ -> true 
+  | _ -> let _ = F.printf "Cannot unify %s - %s" (Sort.to_string t1) (Sort.to_string t2) in false
+
 let rec sortcheck_expr g f e =
   match euw e with
   | Bot   ->
@@ -1316,12 +1321,12 @@ and sortcheck_rel g f (e1, r, e2) =
     -> sortcheck_loc f l = Some Sort.Frac
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
-    -> t1 = t2
+    -> unifiable t1 t2
   | _ , Some (Sort.App (tc,_)), _
     when (g tc) (* tc is an interpreted tycon *)
     -> false
   | _ , Some t1, Some t2
-    -> t1 = t2 && t1 != Sort.Bool
+    -> unifiable t1 t2 && t1 != Sort.Bool
   | _ -> false
 
 and sortcheck_pred g f p =
@@ -1362,7 +1367,7 @@ and sortcheck_pred g f p =
       -> let t1o = solved_app f uf1 <| sortcheck_app_sub g f None uf1 e1s in
          let t2o = solved_app f uf2 <| sortcheck_app_sub g f None uf2 e2s in
          begin match t1o, t2o with
-               | (Some t1, Some t2) -> t1 = t2
+               | (Some t1, Some t2) -> unifiable t1 t2
                | (None, None)       -> false
                | (None, Some t2)    -> not (None = sortcheck_app g f (Some t2) uf1 e1s)
                | (Some t1, None)    -> not (None = sortcheck_app g f (Some t1) uf2 e2s)
