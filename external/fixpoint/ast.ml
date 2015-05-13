@@ -1179,7 +1179,7 @@ let checkArity f uf = function
 let unifiable t1 t2 = 
   match Sort.unify [t1] [t2] with
   | Some _ -> true 
-  | _ -> let _ = F.printf "Cannot unify %s - %s" (Sort.to_string t1) (Sort.to_string t2) in false
+  | _ -> false
 
 let rec sortcheck_expr g f e =
   match euw e with
