@@ -1196,7 +1196,7 @@ let updateArity env f = function
           else match Sort.lookup_var su n with 
                 | Some _ -> go (n-1)
                 | None   -> (n, Sort.Var n) :: go (n-1)
-    in Some({su with vars = List.append su.vars (go n) }, t)
+    in Some({su with Sort.vars = List.append su.Sort.vars (go n) }, t)
     | None -> None
  end 
 
