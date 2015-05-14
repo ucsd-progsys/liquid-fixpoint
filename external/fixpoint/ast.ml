@@ -1181,6 +1181,25 @@ let unifiable t1 t2 =
   | Some _ -> true 
   | _ -> false
 
+
+(* added for sortcheck of Nothing([])
+ it used to fail, as (su, Some (Just @0)) = sortcheck_expr (Nothing ([]))
+ but su.vars is empty
+ *)
+let updateArity env f = function 
+  | None -> None 
+  | Some (su, t) -> begin match uf_arity f env with 
+    | Some n -> 
+     let rec go n 
+       = if n < 0 
+          then [] 
+          else match Sort.lookup_var su n with 
+                | Some _ -> go (n-1)
+                | None   -> (n, Sort.Var n) :: go (n-1)
+    in Some({su with vars = List.append su.vars (go n) }, t)
+    | None -> None
+ end 
+
 let rec sortcheck_expr g f e =
   match euw e with
   | Bot   ->
@@ -1245,8 +1264,9 @@ and sortcheck_app_sub g f so_expected uf es =
                                   | Some s' -> Some (s', Sort.apply s' t)
 
 and sortcheck_app g f tExp uf es =
+
   sortcheck_app_sub g f tExp uf es
-  |> checkArity f uf  (* THIS CHECK IS NEW, but will it break a bunch of tests? *)
+  |> updateArity uf f  (* THIS CHECK IS NEW, but will it break a bunch of tests? *)
   |> Misc.maybe_map snd
                     (*
   >> begin function
