@@ -1,0 +1,1318 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif CmpLen(v:[a], ~A:[b])  : len([v]) [= ; >=; >; <=; <] len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif Cmp(v:int,~A:int)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:GHC.Types.Bool)   : Prop(v)
+qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(1, [Pred @(0); @(0); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+qualif Papp3(v:a,~X:b, ~Y:c, ~P:Pred a b c) : papp3(~P, v, ~X, ~Y)
+constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
+
+// qualif Papp4(v:a,~X:b, ~Y:c, ~Z:d, ~P:Pred a b c d) : papp4(~P, v, ~X, ~Y, ~Z)
+constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool])
+
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+qualif Fst(v : a, fix##126#Y : b): (v = fst([fix##126#Y])) // "/Users/niki/.cabal/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 26, column 8)
+qualif Snd(v : a, fix##126#Y : b): (v = snd([fix##126#Y])) // "/Users/niki/.cabal/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 27, column 8)
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+constant x_Tuple64 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(3)])
+constant x_Tuple54 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(3)])
+constant x_Tuple44 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(3)])
+constant xListSelector : func(1, [[@(0)]; @(0)])
+constant x_Tuple41 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(0)])
+constant x_Tuple76 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(5)])
+constant addrLen : func(0, [int; int])
+constant x_Tuple65 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(4)])
+constant x_Tuple52 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(1)])
+constant x_Tuple75 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(4)])
+constant x_Tuple33 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(2)])
+constant fst : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(0)])
+constant x_Tuple73 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(2)])
+constant x_Tuple31 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(0)])
+constant x_Tuple43 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(2)])
+constant x_Tuple71 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(0)])
+constant x_Tuple32 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(1)])
+constant x_Tuple72 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(1)])
+constant x_Tuple63 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(2)])
+constant x_Tuple51 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(0)])
+constant len : func(1, [[@(0)]; int])
+constant xsListSelector : func(1, [[@(0)]; [@(0)]])
+constant null : func(1, [[@(0)]; bool])
+constant x_Tuple53 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(2)])
+constant x_Tuple22 : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                              @(1)])
+constant fromJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); @(0)])
+constant snd : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(1)])
+constant x_Tuple62 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(1)])
+constant x_Tuple55 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(4)])
+constant x_Tuple74 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(3)])
+constant cmp : func(0, [GHC.Types.Ordering; GHC.Types.Ordering])
+constant x_Tuple42 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(1)])
+constant x_Tuple21 : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                              @(0)])
+constant x_Tuple61 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(0)])
+constant isJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); bool])
+constant x_Tuple66 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(5)])
+constant x_Tuple77 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(6)])
+constant Data.Maybe.Just#r1a : func(1, [@(0);
+                                        FAppTy Data.Maybe.Maybe  @(0)])
+bind 0 fix#GHC.Num.#36#fNumInteger#35#rhw : {VV#142 : FAppTy GHC.Num.Num  int | []}
+bind 1 fix#Data.Maybe.#36#fMonadMaybe#35#rpz : {VV#143 : FAppTy GHC.Base.Monad  Data.Maybe.Maybe | []}
+bind 2 GHC.Types.EQ#6U : {VV#145 : GHC.Types.Ordering | []}
+bind 3 GHC.Types.LT#6S : {VV#146 : GHC.Types.Ordering | []}
+bind 4 GHC.Types.GT#6W : {VV#147 : GHC.Types.Ordering | []}
+bind 5 GHC.Integer.Type.smallInteger#0Z : {VV : func(0, [int;
+                                                         int]) | []}
+bind 6 GHC.Types.I##6c : {VV : func(0, [int; int]) | []}
+bind 7 fix#GHC.Prim.#43##35##35#98 : {VV : func(0, [int;
+                                                    int;
+                                                    int]) | []}
+bind 8 fix#GHC.Prim.#45##35##35#99 : {VV : func(0, [int;
+                                                    int;
+                                                    int]) | []}
+bind 9 fix#GHC.Prim.#61##61##35##35#9o : {VV : func(0, [int;
+                                                        int;
+                                                        int]) | []}
+bind 10 fix#GHC.Prim.#62##61##35##35#9n : {VV : func(0, [int;
+                                                         int;
+                                                         int]) | []}
+bind 11 fix#GHC.Prim.#60##61##35##35#9r : {VV : func(0, [int;
+                                                         int;
+                                                         int]) | []}
+bind 12 fix#GHC.Prim.#60##35##35#9q : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 13 fix#GHC.Prim.#62##35##35#9m : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 14 GHC.Types.EQ#6U : {VV#164 : GHC.Types.Ordering | [(cmp([VV#164]) = GHC.Types.EQ#6U)]}
+bind 15 GHC.Types.LT#6S : {VV#166 : GHC.Types.Ordering | [(cmp([VV#166]) = GHC.Types.LT#6S)]}
+bind 16 GHC.Types.GT#6W : {VV#167 : GHC.Types.Ordering | [(cmp([VV#167]) = GHC.Types.GT#6W)]}
+bind 17 fix##36#dMonad_aOi : {VV#177 : FAppTy GHC.Base.Monad  m_aOg | []}
+bind 18 c#aNZ : {VV#178 : a_aOh | [k_179]}
+bind 19 lq_anf__dPa : {lq_tmp_x199 : int | [(lq_tmp_x199 = 1)]}
+bind 20 lq_anf__dPb : {lq_tmp_x201 : FAppTy Data.Maybe.Maybe  int | [(fromJust([lq_tmp_x201]) = lq_anf__dPa);
+                                                                     ((? isJust([lq_tmp_x201])) <=> true)]}
+bind 21 x#aO0 : {VV#210 : int | [k_211]}
+bind 22 lq_anf__dPc : {lq_tmp_x220 : int | [(lq_tmp_x220 = 3)]}
+bind 23 lq_anf__dPd : {lq_tmp_x229 : FAppTy Data.Maybe.Maybe  int | []}
+bind 24 y#aO1 : {VV#238 : int | [k_239]}
+bind 25 lq_anf__dPe : {lq_tmp_x250 : func(0, [int;
+                                              FAppTy Data.Maybe.Maybe  int]) | []}
+bind 26 lq_anf__dPf : {lq_tmp_x270 : int | [(lq_tmp_x270 = (x#aO0 + y#aO1))]}
+bind 27 lq_anf__dPg : {VV : func(0, [int;
+                                     FAppTy Data.Maybe.Maybe  int]) | []}
+bind 28 lq_anf__dPh : {VV : func(0, [int;
+                                     FAppTy Data.Maybe.Maybe  int]) | []}
+bind 29 Monad.foo#rpv : {VV#196 : FAppTy Data.Maybe.Maybe  int | [k_197]}
+bind 30 VV#359 : {VV#359 : FAppTy Data.Maybe.Maybe  int | []}
+bind 31 VV#359 : {VV#359 : FAppTy Data.Maybe.Maybe  int | []}
+bind 32 VV#362 : {VV#362 : int | [k_348[VV#347:=VV#362][lq_tmp_x9:=lq_anf__dPb][lq_tmp_x12:=lq_anf__dPh][lq_tmp_x340:=VV#359][lq_tmp_x350:=VV#362]]}
+bind 33 VV#362 : {VV#362 : int | [k_348[VV#347:=VV#362][lq_tmp_x9:=lq_anf__dPb][lq_tmp_x12:=lq_anf__dPh][lq_tmp_x340:=VV#359][lq_tmp_x350:=VV#362]]}
+bind 34 lq_tmp_x356 : {lq_tmp_x356 : func(0, [int;
+                                              FAppTy Data.Maybe.Maybe  int]) | [(lq_tmp_x356 = lq_anf__dPh)]}
+bind 35 VV#366 : {VV#366 : int | [k_344[VV#343:=VV#366][lq_tmp_x9:=lq_anf__dPb][lq_tmp_x346:=VV#366]]}
+bind 36 VV#366 : {VV#366 : int | [k_344[VV#343:=VV#366][lq_tmp_x9:=lq_anf__dPb][lq_tmp_x346:=VV#366]]}
+bind 37 lq_tmp_x13 : {lq_tmp_x346 : int | [k_344[VV#343:=lq_tmp_x346][lq_tmp_x9:=lq_anf__dPb]]}
+bind 38 VV#370 : {VV#370 : FAppTy Data.Maybe.Maybe  int | [k_218[VV#217:=VV#370][x#aO0:=lq_tmp_x13][lq_tmp_x357:=lq_tmp_x13][lq_tmp_x355:=VV#370]]}
+bind 39 VV#370 : {VV#370 : FAppTy Data.Maybe.Maybe  int | [k_218[VV#217:=VV#370][x#aO0:=lq_tmp_x13][lq_tmp_x357:=lq_tmp_x13][lq_tmp_x355:=VV#370]]}
+bind 40 VV#373 : {VV#373 : int | [k_215[VV#214:=VV#373][VV#217:=VV#370][x#aO0:=lq_tmp_x13][lq_tmp_x357:=lq_tmp_x13][lq_tmp_x355:=VV#370][lq_tmp_x354:=VV#373]]}
+bind 41 VV#373 : {VV#373 : int | [k_215[VV#214:=VV#373][VV#217:=VV#370][x#aO0:=lq_tmp_x13][lq_tmp_x357:=lq_tmp_x13][lq_tmp_x355:=VV#370][lq_tmp_x354:=VV#373]]}
+bind 42 VV#376 : {VV#376 : FAppTy Data.Maybe.Maybe  int | [(fromJust([VV#376]) = lq_anf__dPa);
+                                                           ((? isJust([VV#376])) <=> true);
+                                                           (VV#376 = lq_anf__dPb)]}
+bind 43 VV#376 : {VV#376 : FAppTy Data.Maybe.Maybe  int | [(fromJust([VV#376]) = lq_anf__dPa);
+                                                           ((? isJust([VV#376])) <=> true);
+                                                           (VV#376 = lq_anf__dPb)]}
+bind 44 VV#379 : {VV#379 : int | [k_205[VV#204:=VV#379][lq_tmp_x203:=lq_anf__dPa][lq_tmp_x207:=VV#379][lq_tmp_x201:=VV#376][lq_tmp_x352:=VV#376][lq_tmp_x351:=VV#379]]}
+bind 45 VV#379 : {VV#379 : int | [k_205[VV#204:=VV#379][lq_tmp_x203:=lq_anf__dPa][lq_tmp_x207:=VV#379][lq_tmp_x201:=VV#376][lq_tmp_x352:=VV#376][lq_tmp_x351:=VV#379]]}
+bind 46 VV#382 : {VV#382 : FAppTy Data.Maybe.Maybe  int | []}
+bind 47 VV#382 : {VV#382 : FAppTy Data.Maybe.Maybe  int | []}
+bind 48 VV#385 : {VV#385 : int | [k_319[VV#318:=VV#385][lq_tmp_x9:=lq_anf__dPd][lq_tmp_x12:=lq_anf__dPg][lq_tmp_x311:=VV#382][lq_tmp_x321:=VV#385]]}
+bind 49 VV#385 : {VV#385 : int | [k_319[VV#318:=VV#385][lq_tmp_x9:=lq_anf__dPd][lq_tmp_x12:=lq_anf__dPg][lq_tmp_x311:=VV#382][lq_tmp_x321:=VV#385]]}
+bind 50 lq_tmp_x327 : {lq_tmp_x327 : func(0, [int;
+                                              FAppTy Data.Maybe.Maybe  int]) | [(lq_tmp_x327 = lq_anf__dPg)]}
+bind 51 VV#389 : {VV#389 : int | [k_315[VV#314:=VV#389][lq_tmp_x9:=lq_anf__dPd][lq_tmp_x317:=VV#389]]}
+bind 52 VV#389 : {VV#389 : int | [k_315[VV#314:=VV#389][lq_tmp_x9:=lq_anf__dPd][lq_tmp_x317:=VV#389]]}
+bind 53 lq_tmp_x13 : {lq_tmp_x317 : int | [k_315[VV#314:=lq_tmp_x317][lq_tmp_x9:=lq_anf__dPd]]}
+bind 54 VV#393 : {VV#393 : FAppTy Data.Maybe.Maybe  int | [k_246[VV#245:=VV#393][y#aO1:=lq_tmp_x13][lq_tmp_x328:=lq_tmp_x13][lq_tmp_x326:=VV#393]]}
+bind 55 VV#393 : {VV#393 : FAppTy Data.Maybe.Maybe  int | [k_246[VV#245:=VV#393][y#aO1:=lq_tmp_x13][lq_tmp_x328:=lq_tmp_x13][lq_tmp_x326:=VV#393]]}
+bind 56 VV#396 : {VV#396 : int | [k_243[VV#242:=VV#396][VV#245:=VV#393][y#aO1:=lq_tmp_x13][lq_tmp_x328:=lq_tmp_x13][lq_tmp_x326:=VV#393][lq_tmp_x325:=VV#396]]}
+bind 57 VV#396 : {VV#396 : int | [k_243[VV#242:=VV#396][VV#245:=VV#393][y#aO1:=lq_tmp_x13][lq_tmp_x328:=lq_tmp_x13][lq_tmp_x326:=VV#393][lq_tmp_x325:=VV#396]]}
+bind 58 VV#399 : {VV#399 : FAppTy Data.Maybe.Maybe  int | [(VV#399 = lq_anf__dPd)]}
+bind 59 VV#399 : {VV#399 : FAppTy Data.Maybe.Maybe  int | [(VV#399 = lq_anf__dPd)]}
+bind 60 VV#402 : {VV#402 : int | [k_231[VV#230:=VV#402][lq_tmp_x226:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][lq_tmp_x227:=lq_anf__dPc][lq_tmp_x233:=VV#402][lq_tmp_x229:=VV#399][lq_tmp_x323:=VV#399][lq_tmp_x322:=VV#402];
+                                  k_190[lq_tmp_x21:=lq_anf__dPc][fix##36#dMonad_aOi:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][c#aNZ:=lq_anf__dPc][VV#189:=VV#402][lq_tmp_x226:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][lq_tmp_x227:=lq_anf__dPc][lq_tmp_x233:=VV#402][lq_tmp_x229:=VV#399][lq_tmp_x323:=VV#399][lq_tmp_x322:=VV#402]]}
+bind 61 VV#402 : {VV#402 : int | [k_231[VV#230:=VV#402][lq_tmp_x226:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][lq_tmp_x227:=lq_anf__dPc][lq_tmp_x233:=VV#402][lq_tmp_x229:=VV#399][lq_tmp_x323:=VV#399][lq_tmp_x322:=VV#402];
+                                  k_190[lq_tmp_x21:=lq_anf__dPc][fix##36#dMonad_aOi:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][c#aNZ:=lq_anf__dPc][VV#189:=VV#402][lq_tmp_x226:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][lq_tmp_x227:=lq_anf__dPc][lq_tmp_x233:=VV#402][lq_tmp_x229:=VV#399][lq_tmp_x323:=VV#399][lq_tmp_x322:=VV#402]]}
+bind 62 VV#405 : {VV#405 : FAppTy Data.Maybe.Maybe  int | [k_290[VV#289:=VV#405][lq_tmp_x280:=lq_anf__dPe][lq_tmp_x281:=lq_anf__dPf][lq_tmp_x293:=VV#405]]}
+bind 63 VV#405 : {VV#405 : FAppTy Data.Maybe.Maybe  int | [k_290[VV#289:=VV#405][lq_tmp_x280:=lq_anf__dPe][lq_tmp_x281:=lq_anf__dPf][lq_tmp_x293:=VV#405]]}
+bind 64 VV#408 : {VV#408 : int | [k_287[VV#286:=VV#408][VV#289:=VV#405][lq_tmp_x280:=lq_anf__dPe][lq_tmp_x281:=lq_anf__dPf][lq_tmp_x293:=VV#405][lq_tmp_x292:=VV#408]]}
+bind 65 VV#408 : {VV#408 : int | [k_287[VV#286:=VV#408][VV#289:=VV#405][lq_tmp_x280:=lq_anf__dPe][lq_tmp_x281:=lq_anf__dPf][lq_tmp_x293:=VV#405][lq_tmp_x292:=VV#408]]}
+bind 66 VV#411 : {VV#411 : int | [(VV#411 = (x#aO0 + y#aO1));
+                                  (VV#411 = lq_anf__dPf)]}
+bind 67 VV#411 : {VV#411 : int | [(VV#411 = (x#aO0 + y#aO1));
+                                  (VV#411 = lq_anf__dPf)]}
+bind 68 lq_tmp_x297 : {lq_tmp_x297 : func(0, [int;
+                                              FAppTy Data.Maybe.Maybe  int]) | [(lq_tmp_x297 = lq_anf__dPe)]}
+bind 69 VV#415 : {VV#415 : int | [k_283[VV#282:=VV#415][lq_tmp_x285:=VV#415]]}
+bind 70 VV#415 : {VV#415 : int | [k_283[VV#282:=VV#415][lq_tmp_x285:=VV#415]]}
+bind 71 lq_tmp_x279 : {lq_tmp_x285 : int | [k_283[VV#282:=lq_tmp_x285]]}
+bind 72 VV#419 : {VV#419 : FAppTy Data.Maybe.Maybe  int | []}
+bind 73 VV#419 : {VV#419 : FAppTy Data.Maybe.Maybe  int | []}
+bind 74 VV#422 : {VV#422 : int | [k_258[VV#257:=VV#422][lq_tmp_x260:=VV#422][lq_tmp_x254:=VV#419][lq_tmp_x21:=lq_tmp_x279][lq_tmp_x298:=lq_tmp_x279][lq_tmp_x296:=VV#419][lq_tmp_x295:=VV#422]]}
+bind 75 VV#422 : {VV#422 : int | [k_258[VV#257:=VV#422][lq_tmp_x260:=VV#422][lq_tmp_x254:=VV#419][lq_tmp_x21:=lq_tmp_x279][lq_tmp_x298:=lq_tmp_x279][lq_tmp_x296:=VV#419][lq_tmp_x295:=VV#422]]}
+bind 76 VV#425 : {VV#425 : int | [k_239[VV#238:=VV#425][lq_tmp_x274:=VV#425];
+                                  (VV#425 = y#aO1)]}
+bind 77 VV#425 : {VV#425 : int | [k_239[VV#238:=VV#425][lq_tmp_x274:=VV#425];
+                                  (VV#425 = y#aO1)]}
+bind 78 VV#428 : {VV#428 : int | [k_211[VV#210:=VV#428][lq_tmp_x273:=VV#428];
+                                  (VV#428 = x#aO0)]}
+bind 79 VV#428 : {VV#428 : int | [k_211[VV#210:=VV#428][lq_tmp_x273:=VV#428];
+                                  (VV#428 = x#aO0)]}
+bind 80 VV#431 : {VV#431 : int | [(VV#431 = 3);
+                                  (VV#431 = lq_anf__dPc)]}
+bind 81 VV#431 : {VV#431 : int | [(VV#431 = 3);
+                                  (VV#431 = lq_anf__dPc)]}
+bind 82 VV#434 : {VV#434 : int | [(VV#434 = 1);
+                                  (VV#434 = lq_anf__dPa)]}
+bind 83 VV#434 : {VV#434 : int | [(VV#434 = 1);
+                                  (VV#434 = lq_anf__dPa)]}
+bind 84 VV#178 : {VV#178 : a_aOh | [k_179; (VV#178 = c#aNZ)]}
+bind 85 VV#347 : {VV#347 : int | [k_348]}
+bind 86 VV#343 : {VV#343 : int | [k_344]}
+bind 87 VV#210 : {VV#210 : int | [k_211]}
+bind 88 VV#318 : {VV#318 : int | [k_319]}
+bind 89 VV#314 : {VV#314 : int | [k_315]}
+bind 90 VV#238 : {VV#238 : int | [k_239]}
+bind 91 VV#289 : {VV#289 : FAppTy Data.Maybe.Maybe  int | [k_290]}
+bind 92 VV#286 : {VV#286 : int | [k_287]}
+bind 93 VV#282 : {VV#282 : int | [k_283]}
+bind 94 VV#257 : {VV#257 : int | [k_258]}
+bind 95 VV#245 : {VV#245 : FAppTy Data.Maybe.Maybe  int | [k_246]}
+bind 96 VV#242 : {VV#242 : int | [k_243]}
+bind 97 VV#230 : {VV#230 : int | [k_231]}
+bind 98 VV#217 : {VV#217 : FAppTy Data.Maybe.Maybe  int | [k_218]}
+bind 99 VV#214 : {VV#214 : int | [k_215]}
+bind 100 VV#204 : {VV#204 : int | [k_205]}
+bind 101 VV#196 : {VV#196 : FAppTy Data.Maybe.Maybe  int | [k_197]}
+bind 102 VV#193 : {VV#193 : int | [k_194]}
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       71;
+       8;
+       24;
+       9;
+       25;
+       73;
+       10;
+       26;
+       74;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F16 : int | [k_258[VV#257:=VV#F16][lq_tmp_x260:=VV#F16][lq_tmp_x254:=VV#419][lq_tmp_x21:=lq_tmp_x279][lq_tmp_x298:=lq_tmp_x279][lq_tmp_x296:=VV#419][lq_tmp_x295:=VV#F16][VV#422:=VV#F16][VV#F:=VV#F16];
+                       true]}
+  rhs {VV#F16 : int | [k_287[VV#286:=VV#F16][VV#289:=VV#419][lq_tmp_x293:=VV#419][lq_tmp_x292:=VV#F16][VV#422:=VV#F16][VV#F:=VV#F16]]}
+  id 16 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       28;
+       13;
+       14;
+       30;
+       15]
+  grd true
+  lhs {VV#F1 : FAppTy Data.Maybe.Maybe  int | [true]}
+  rhs {VV#F1 : FAppTy Data.Maybe.Maybe  int | [k_197[VV#196:=VV#F1][VV#359:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       80;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F17 : int | [(VV#F17 = 3); (VV#F17 = lq_anf__dPc); true]}
+  rhs {VV#F17 : int | [k_231[VV#230:=VV#F17][lq_tmp_x226:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][lq_tmp_x233:=VV#F17][VV#431:=VV#F17][VV#F:=VV#F17];
+                       k_179[fix##36#dMonad_aOi:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][VV#178:=VV#F17][lq_tmp_x226:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][lq_tmp_x233:=VV#F17][VV#431:=VV#F17][VV#F:=VV#F17]]}
+  id 17 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       28;
+       13;
+       14;
+       15;
+       31]
+  grd true
+  lhs {VV#F2 : int | [k_348[VV#347:=VV#F2][lq_tmp_x9:=lq_anf__dPb][lq_tmp_x12:=lq_anf__dPh][lq_tmp_x340:=VV#359][lq_tmp_x350:=VV#F2][VV#362:=VV#F2][VV#F:=VV#F2];
+                      true]}
+  rhs {VV#F2 : int | [k_194[VV#196:=VV#359][VV#193:=VV#F2][VV#362:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       82;
+       3;
+       19;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F18 : int | [(VV#F18 = 1); (VV#F18 = lq_anf__dPa); true]}
+  rhs {VV#F18 : int | [k_205[VV#204:=VV#F18][lq_tmp_x207:=VV#F18][VV#434:=VV#F18][VV#F:=VV#F18]]}
+  id 18 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       28;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F3 : int | [k_344[VV#343:=VV#F3][lq_tmp_x9:=lq_anf__dPb][lq_tmp_x346:=VV#F3][VV#366:=VV#F3][VV#F:=VV#F3];
+                      true]}
+  rhs {VV#F3 : int | [k_211[VV#210:=VV#F3][lq_tmp_x353:=VV#F3][VV#366:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       18;
+       3;
+       4;
+       84;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F19 : a_aOh | [k_179[VV#178:=VV#F19][VV#F:=VV#F19];
+                         (VV#F19 = c#aNZ);
+                         true]}
+  rhs {VV#F19 : a_aOh | [k_190[VV#189:=VV#F19][VV#F:=VV#F19]]}
+  id 19 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       37;
+       6;
+       7;
+       39;
+       8;
+       40;
+       9;
+       10;
+       11;
+       12;
+       28;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F4 : int | [k_215[VV#214:=VV#F4][VV#217:=VV#370][x#aO0:=lq_tmp_x13][lq_tmp_x357:=lq_tmp_x13][lq_tmp_x355:=VV#370][lq_tmp_x354:=VV#F4][VV#373:=VV#F4][VV#F:=VV#F4];
+                      true]}
+  rhs {VV#F4 : int | [k_348[VV#347:=VV#F4][lq_tmp_x9:=lq_anf__dPb][lq_tmp_x340:=VV#370][lq_tmp_x350:=VV#F4][VV#373:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       43;
+       12;
+       28;
+       44;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F5 : int | [k_205[VV#204:=VV#F5][lq_tmp_x203:=lq_anf__dPa][lq_tmp_x207:=VV#F5][lq_tmp_x201:=VV#376][lq_tmp_x352:=VV#376][lq_tmp_x351:=VV#F5][VV#379:=VV#F5][VV#F:=VV#F5];
+                      true]}
+  rhs {VV#F5 : int | [k_344[VV#343:=VV#F5][lq_tmp_x340:=VV#376][lq_tmp_x346:=VV#F5][VV#379:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       27;
+       12;
+       13;
+       14;
+       46;
+       15]
+  grd true
+  lhs {VV#F6 : FAppTy Data.Maybe.Maybe  int | [true]}
+  rhs {VV#F6 : FAppTy Data.Maybe.Maybe  int | [k_218[VV#217:=VV#F6][VV#382:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       48;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       27;
+       12;
+       13;
+       14;
+       15;
+       47]
+  grd true
+  lhs {VV#F7 : int | [k_319[VV#318:=VV#F7][lq_tmp_x9:=lq_anf__dPd][lq_tmp_x12:=lq_anf__dPg][lq_tmp_x311:=VV#382][lq_tmp_x321:=VV#F7][VV#385:=VV#F7][VV#F:=VV#F7];
+                      true]}
+  rhs {VV#F7 : int | [k_215[VV#217:=VV#382][VV#214:=VV#F7][VV#385:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       51;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       27;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F8 : int | [k_315[VV#314:=VV#F8][lq_tmp_x9:=lq_anf__dPd][lq_tmp_x317:=VV#F8][VV#389:=VV#F8][VV#F:=VV#F8];
+                      true]}
+  rhs {VV#F8 : int | [k_239[VV#238:=VV#F8][lq_tmp_x324:=VV#F8][VV#389:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       53;
+       6;
+       22;
+       7;
+       23;
+       55;
+       8;
+       56;
+       9;
+       10;
+       11;
+       27;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F9 : int | [k_243[VV#242:=VV#F9][VV#245:=VV#393][y#aO1:=lq_tmp_x13][lq_tmp_x328:=lq_tmp_x13][lq_tmp_x326:=VV#393][lq_tmp_x325:=VV#F9][VV#396:=VV#F9][VV#F:=VV#F9];
+                      true]}
+  rhs {VV#F9 : int | [k_319[VV#318:=VV#F9][lq_tmp_x9:=lq_anf__dPd][lq_tmp_x311:=VV#393][lq_tmp_x321:=VV#F9][VV#396:=VV#F9][VV#F:=VV#F9]]}
+  id 9 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       27;
+       59;
+       12;
+       60;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F10 : int | [k_231[VV#230:=VV#F10][lq_tmp_x226:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][lq_tmp_x227:=lq_anf__dPc][lq_tmp_x233:=VV#F10][lq_tmp_x229:=VV#399][lq_tmp_x323:=VV#399][lq_tmp_x322:=VV#F10][VV#402:=VV#F10][VV#F:=VV#F10];
+                       k_190[lq_tmp_x21:=lq_anf__dPc][fix##36#dMonad_aOi:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][c#aNZ:=lq_anf__dPc][VV#189:=VV#F10][lq_tmp_x226:=fix#Data.Maybe.#36#fMonadMaybe#35#rpz][lq_tmp_x227:=lq_anf__dPc][lq_tmp_x233:=VV#F10][lq_tmp_x229:=VV#399][lq_tmp_x323:=VV#399][lq_tmp_x322:=VV#F10][VV#402:=VV#F10][VV#F:=VV#F10];
+                       true]}
+  rhs {VV#F10 : int | [k_315[VV#314:=VV#F10][lq_tmp_x311:=VV#399][lq_tmp_x317:=VV#F10][VV#402:=VV#F10][VV#F:=VV#F10]]}
+  id 10 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       12;
+       13;
+       14;
+       62;
+       15]
+  grd true
+  lhs {VV#F11 : FAppTy Data.Maybe.Maybe  int | [k_290[VV#289:=VV#F11][lq_tmp_x280:=lq_anf__dPe][lq_tmp_x281:=lq_anf__dPf][lq_tmp_x293:=VV#F11][VV#405:=VV#F11][VV#F:=VV#F11];
+                                                true]}
+  rhs {VV#F11 : FAppTy Data.Maybe.Maybe  int | [k_246[VV#245:=VV#F11][VV#405:=VV#F11][VV#F:=VV#F11]]}
+  id 11 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       64;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       12;
+       13;
+       14;
+       15;
+       63]
+  grd true
+  lhs {VV#F12 : int | [k_287[VV#286:=VV#F12][VV#289:=VV#405][lq_tmp_x280:=lq_anf__dPe][lq_tmp_x281:=lq_anf__dPf][lq_tmp_x293:=VV#405][lq_tmp_x292:=VV#F12][VV#408:=VV#F12][VV#F:=VV#F12];
+                       true]}
+  rhs {VV#F12 : int | [k_243[VV#245:=VV#405][VV#242:=VV#F12][VV#408:=VV#F12][VV#F:=VV#F12]]}
+  id 12 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       66;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F13 : int | [(VV#F13 = (x#aO0 + y#aO1));
+                       (VV#F13 = lq_anf__dPf);
+                       true]}
+  rhs {VV#F13 : int | [k_283[VV#282:=VV#F13][lq_tmp_x280:=lq_anf__dPe][lq_tmp_x285:=VV#F13][VV#411:=VV#F13][VV#F:=VV#F13]]}
+  id 13 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       69;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F14 : int | [k_283[VV#282:=VV#F14][lq_tmp_x285:=VV#F14][VV#415:=VV#F14][VV#F:=VV#F14];
+                       true]}
+  rhs {VV#F14 : int | [k_258[VV#257:=VV#F14][lq_tmp_x260:=VV#F14][lq_tmp_x294:=VV#F14][VV#415:=VV#F14][VV#F:=VV#F14]]}
+  id 14 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       10;
+       26;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F15 : FAppTy Data.Maybe.Maybe  int | [true]}
+  rhs {VV#F15 : FAppTy Data.Maybe.Maybe  int | [k_290[VV#289:=VV#F15][lq_tmp_x293:=VV#F15][VV#419:=VV#F15][VV#F:=VV#F15]]}
+  id 15 tag [2]
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       28;
+       13;
+       14;
+       15]
+  reft {VV#347 : int | [k_348]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       28;
+       13;
+       14;
+       15]
+  reft {VV#343 : int | [k_344]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#210 : int | [k_211]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       27;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#318 : int | [k_319]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       27;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#314 : int | [k_315]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#238 : int | [k_239]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#289 : FAppTy Data.Maybe.Maybe  int | [k_290]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       91;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#286 : int | [k_287]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#282 : int | [k_283]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#257 : int | [k_258]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#245 : FAppTy Data.Maybe.Maybe  int | [k_246]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15;
+       95]
+  reft {VV#242 : int | [k_243]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#230 : int | [k_231]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#217 : FAppTy Data.Maybe.Maybe  int | [k_218]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       2;
+       98;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#214 : int | [k_215]}
+  
+
+
+wf:
+  env [0; 16; 1; 2; 3; 19; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#204 : int | [k_205]}
+  
+
+
+wf:
+  env [0; 16; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#196 : FAppTy Data.Maybe.Maybe  int | [k_197]}
+  
+
+
+wf:
+  env [0; 16; 1; 2; 3; 4; 5; 101; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#193 : int | [k_194]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#178 : a_aOh | [k_179]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       18;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#189 : a_aOh | [k_190]}
+  

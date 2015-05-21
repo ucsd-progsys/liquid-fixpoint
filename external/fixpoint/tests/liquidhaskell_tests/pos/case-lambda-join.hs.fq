@@ -1,0 +1,6521 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif CmpLen(v:[a], ~A:[b])  : len([v]) [= ; >=; >; <=; <] len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif Cmp(v:int,~A:int)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:GHC.Types.Bool)   : Prop(v)
+qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(1, [Pred @(0); @(0); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+qualif Papp3(v:a,~X:b, ~Y:c, ~P:Pred a b c) : papp3(~P, v, ~X, ~Y)
+constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
+
+// qualif Papp4(v:a,~X:b, ~Y:c, ~Z:d, ~P:Pred a b c d) : papp4(~P, v, ~X, ~Y, ~Z)
+constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool])
+
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+qualif Fst(v : a, fix##126#Y : b): (v = fst([fix##126#Y])) // "/Users/niki/.cabal/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 26, column 8)
+qualif Snd(v : a, fix##126#Y : b): (v = snd([fix##126#Y])) // "/Users/niki/.cabal/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 27, column 8)
+qualif Auto(VV : FAppTy Foo.RBTree  a_a13h): (elems([VV]) = Set_empty([0])) // "case-lambda-join.hs" (line 8, column 17)
+
+cut k_938
+cut k_935
+cut k_932
+constant Prop : func(0, [GHC.Types.Bool; bool])
+constant x_Tuple54 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(3)])
+constant x_Tuple44 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(3)])
+constant xListSelector : func(1, [[@(0)]; @(0)])
+constant Set_emp : func(1, [FAppTy Set_Set  @(0); bool])
+constant Set_empty : func(1, [int; FAppTy Set_Set  @(0)])
+constant Set_cup : func(1, [FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0)])
+constant x_Tuple41 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(0)])
+constant Foo.B#r13a : Foo.Color
+constant x_Tuple76 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(5)])
+constant Set_sub : func(1, [FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0);
+                            bool])
+constant addrLen : func(0, [int; int])
+constant elems : func(1, [FAppTy Foo.RBTree  @(0);
+                          FAppTy Set_Set  @(0)])
+constant Set_dif : func(1, [FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0)])
+constant Set_cap : func(1, [FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0)])
+constant listElts : func(1, [[@(0)]; FAppTy Set_Set  @(0)])
+constant Set_sng : func(1, [@(0); FAppTy Set_Set  @(0)])
+constant Set_mem : func(1, [@(0); FAppTy Set_Set  @(0); bool])
+constant x_Tuple52 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(1)])
+constant GHC.Types.False#68 : GHC.Types.Bool
+constant x_Tuple75 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(4)])
+constant x_Tuple64 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(3)])
+constant x_Tuple33 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(2)])
+constant fst : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(0)])
+constant x_Tuple31 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(0)])
+constant x_Tuple43 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(2)])
+constant x_Tuple71 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(0)])
+constant x_Tuple65 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(4)])
+constant x_Tuple32 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(1)])
+constant x_Tuple72 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(1)])
+constant x_Tuple63 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(2)])
+constant Foo.R#r139 : Foo.Color
+constant x_Tuple51 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(0)])
+constant len : func(1, [[@(0)]; int])
+constant xsListSelector : func(1, [[@(0)]; [@(0)]])
+constant null : func(1, [[@(0)]; bool])
+constant x_Tuple53 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(2)])
+constant x_Tuple22 : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                              @(1)])
+constant fromJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); @(0)])
+constant snd : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(1)])
+constant x_Tuple73 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(2)])
+constant x_Tuple62 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(1)])
+constant x_Tuple55 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(4)])
+constant x_Tuple74 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(3)])
+constant cmp : func(0, [GHC.Types.Ordering; GHC.Types.Ordering])
+constant x_Tuple42 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(1)])
+constant x_Tuple21 : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                              @(0)])
+constant x_Tuple61 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(0)])
+constant isJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); bool])
+constant x_Tuple66 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(5)])
+constant GHC.Types.True#6u : GHC.Types.Bool
+constant x_Tuple77 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(6)])
+constant fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case : int
+constant lit#ASD : int
+constant fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case : int
+constant Foo.Node#r13c : func(1, [Foo.Color;
+                                  @(0);
+                                  FAppTy Foo.RBTree  @(0);
+                                  FAppTy Foo.RBTree  @(0);
+                                  FAppTy Foo.RBTree  @(0)])
+constant fix#GHC.Classes.D#58#Eq#35#r62 : func(1, [func(0, [@(0);
+                                                            @(0);
+                                                            GHC.Types.Bool]);
+                                                   func(0, [@(0); @(0); GHC.Types.Bool]);
+                                                   FAppTy GHC.Classes.Eq  @(0)])
+constant Foo.Leaf#r13d : func(1, [FAppTy Foo.RBTree  @(0)])
+bind 0 GHC.CString.unpackCString##0k : {VV : func(0, [int;
+                                                      [GHC.Types.Char]]) | []}
+bind 1 GHC.Types.False#68 : {VV#221 : GHC.Types.Bool | []}
+bind 2 GHC.Types.True#6u : {VV#222 : GHC.Types.Bool | []}
+bind 3 GHC.Classes.not#r1d : {VV : func(0, [GHC.Types.Bool;
+                                            GHC.Types.Bool]) | []}
+bind 4 Foo.B#r13a : {VV#225 : Foo.Color | []}
+bind 5 Foo.R#r139 : {VV#226 : Foo.Color | []}
+bind 6 GHC.Types.EQ#6U : {VV#230 : GHC.Types.Ordering | []}
+bind 7 GHC.Types.LT#6S : {VV#231 : GHC.Types.Ordering | []}
+bind 8 GHC.Types.GT#6W : {VV#232 : GHC.Types.Ordering | []}
+bind 9 GHC.Types.True#6u : {v : GHC.Types.Bool | [(? Prop([v]))]}
+bind 10 GHC.Types.False#68 : {v : GHC.Types.Bool | [(~ ((? Prop([v]))))]}
+bind 11 GHC.Classes.not#r1d : {VV : func(0, [GHC.Types.Bool;
+                                             GHC.Types.Bool]) | []}
+bind 12 Language.Haskell.Liquid.Prelude.plus#rou : {VV : func(0, [int;
+                                                                  int;
+                                                                  int]) | []}
+bind 13 Language.Haskell.Liquid.Prelude.minus#rpv : {VV : func(0, [int;
+                                                                   int;
+                                                                   int]) | []}
+bind 14 Language.Haskell.Liquid.Prelude.times#rpw : {VV : func(0, [int;
+                                                                   int;
+                                                                   int]) | []}
+bind 15 Language.Haskell.Liquid.Prelude.eq#rpx : {VV : func(0, [int;
+                                                                int;
+                                                                GHC.Types.Bool]) | []}
+bind 16 Language.Haskell.Liquid.Prelude.neq#rpy : {VV : func(0, [int;
+                                                                 int;
+                                                                 GHC.Types.Bool]) | []}
+bind 17 Language.Haskell.Liquid.Prelude.leq#rpz : {VV : func(0, [int;
+                                                                 int;
+                                                                 GHC.Types.Bool]) | []}
+bind 18 Language.Haskell.Liquid.Prelude.geq#rpA : {VV : func(0, [int;
+                                                                 int;
+                                                                 GHC.Types.Bool]) | []}
+bind 19 Language.Haskell.Liquid.Prelude.lt#rpB : {VV : func(0, [int;
+                                                                int;
+                                                                GHC.Types.Bool]) | []}
+bind 20 Language.Haskell.Liquid.Prelude.gt#rpC : {VV : func(0, [int;
+                                                                int;
+                                                                GHC.Types.Bool]) | []}
+bind 21 Language.Haskell.Liquid.Prelude.liquidAssertB#rpD : {VV : func(0, [GHC.Types.Bool;
+                                                                           GHC.Types.Bool]) | []}
+bind 22 Language.Haskell.Liquid.Prelude.isEven#rpL : {VV : func(0, [int;
+                                                                    GHC.Types.Bool]) | []}
+bind 23 Language.Haskell.Liquid.Prelude.isOdd#rpM : {VV : func(0, [int;
+                                                                   GHC.Types.Bool]) | []}
+bind 24 GHC.Integer.Type.smallInteger#0Z : {VV : func(0, [int;
+                                                          int]) | []}
+bind 25 GHC.Types.I##6c : {VV : func(0, [int; int]) | []}
+bind 26 fix#GHC.Prim.#43##35##35#98 : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 27 fix#GHC.Prim.#45##35##35#99 : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 28 fix#GHC.Prim.#61##61##35##35#9o : {VV : func(0, [int;
+                                                         int;
+                                                         int]) | []}
+bind 29 fix#GHC.Prim.#62##61##35##35#9n : {VV : func(0, [int;
+                                                         int;
+                                                         int]) | []}
+bind 30 fix#GHC.Prim.#60##61##35##35#9r : {VV : func(0, [int;
+                                                         int;
+                                                         int]) | []}
+bind 31 fix#GHC.Prim.#60##35##35#9q : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 32 fix#GHC.Prim.#62##35##35#9m : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 33 GHC.Types.EQ#6U : {VV#270 : GHC.Types.Ordering | [(cmp([VV#270]) = GHC.Types.EQ#6U)]}
+bind 34 GHC.Types.LT#6S : {VV#272 : GHC.Types.Ordering | [(cmp([VV#272]) = GHC.Types.LT#6S)]}
+bind 35 GHC.Types.GT#6W : {VV#273 : GHC.Types.Ordering | [(cmp([VV#273]) = GHC.Types.GT#6W)]}
+bind 36 x#a17K : {VV : a_a18z | []}
+bind 37 l#a17L : {VV#289 : FAppTy Foo.RBTree  a_a18z | []}
+bind 38 r#a17M : {VV#290 : FAppTy Foo.RBTree  a_a18z | []}
+bind 39 lq_anf__d19z : {lq_tmp_x291 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x291 = r#a17M)]}
+bind 40 lq_anf__d19z : {lq_tmp_x293 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x293 = r#a17M)]}
+bind 41 lq_anf__d19z : {lq_tmp_x293 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x293 = r#a17M);
+                                                                   (lq_tmp_x293 = Foo.Leaf#r13d([]));
+                                                                   (elems([lq_tmp_x293]) = Set_empty([0]))]}
+bind 42 lq_anf__d19z : {lq_tmp_x309 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x309 = r#a17M)]}
+bind 43 ds_d19c : {lq_tmp_x322 : Foo.Color | []}
+bind 44 z#a17N : {VV : a_a18z | []}
+bind 45 ds_d19d : {lq_tmp_x323 : FAppTy Foo.RBTree  a_a18z | []}
+bind 46 d#a17R : {lq_tmp_x324 : FAppTy Foo.RBTree  a_a18z | []}
+bind 47 lq_anf__d19z : {lq_tmp_x309 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x309 = r#a17M);
+                                                                   (lq_tmp_x309 = Foo.Node#r13c([ds_d19c;
+                                                                                                 z#a17N;
+                                                                                                 ds_d19d;
+                                                                                                 d#a17R]));
+                                                                   (elems([lq_tmp_x309]) = Set_cup([Set_sng([z#a17N]);
+                                                                                                    Set_cup([elems([ds_d19d]);
+                                                                                                             elems([d#a17R])])]))]}
+bind 48 lq_anf__d19A : {lq_tmp_x336 : Foo.Color | [(lq_tmp_x336 = ds_d19c)]}
+bind 49 lq_anf__d19A : {lq_tmp_x338 : Foo.Color | [(lq_tmp_x338 = ds_d19c)]}
+bind 50 lq_anf__d19A : {lq_tmp_x338 : Foo.Color | [(lq_tmp_x338 = ds_d19c);
+                                                   (lq_tmp_x338 = Foo.B#r13a)]}
+bind 51 lq_anf__d19A : {lq_tmp_x354 : Foo.Color | [(lq_tmp_x354 = ds_d19c)]}
+bind 52 lq_anf__d19A : {lq_tmp_x354 : Foo.Color | [(lq_tmp_x354 = ds_d19c);
+                                                   (lq_tmp_x354 = Foo.R#r139)]}
+bind 53 lq_anf__d19B : {lq_tmp_x359 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x359 = ds_d19d)]}
+bind 54 lq_anf__d19B : {lq_tmp_x361 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x361 = ds_d19d)]}
+bind 55 lq_anf__d19B : {lq_tmp_x361 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x361 = ds_d19d);
+                                                                   (lq_tmp_x361 = Foo.Leaf#r13d([]));
+                                                                   (elems([lq_tmp_x361]) = Set_empty([0]))]}
+bind 56 lq_anf__d19B : {lq_tmp_x377 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x377 = ds_d19d)]}
+bind 57 ds_d19e : {lq_tmp_x390 : Foo.Color | []}
+bind 58 y#a17O : {VV : a_a18z | []}
+bind 59 b#a17P : {lq_tmp_x391 : FAppTy Foo.RBTree  a_a18z | []}
+bind 60 c#a17Q : {lq_tmp_x392 : FAppTy Foo.RBTree  a_a18z | []}
+bind 61 lq_anf__d19B : {lq_tmp_x377 : FAppTy Foo.RBTree  a_a18z | [(lq_tmp_x377 = ds_d19d);
+                                                                   (lq_tmp_x377 = Foo.Node#r13c([ds_d19e;
+                                                                                                 y#a17O;
+                                                                                                 b#a17P;
+                                                                                                 c#a17Q]));
+                                                                   (elems([lq_tmp_x377]) = Set_cup([Set_sng([y#a17O]);
+                                                                                                    Set_cup([elems([b#a17P]);
+                                                                                                             elems([c#a17Q])])]))]}
+bind 62 lq_anf__d19C : {lq_tmp_x404 : Foo.Color | [(lq_tmp_x404 = ds_d19e)]}
+bind 63 lq_anf__d19C : {lq_tmp_x406 : Foo.Color | [(lq_tmp_x406 = ds_d19e)]}
+bind 64 lq_anf__d19C : {lq_tmp_x406 : Foo.Color | [(lq_tmp_x406 = ds_d19e);
+                                                   (lq_tmp_x406 = Foo.B#r13a)]}
+bind 65 lq_anf__d19C : {lq_tmp_x422 : Foo.Color | [(lq_tmp_x422 = ds_d19e)]}
+bind 66 lq_anf__d19C : {lq_tmp_x422 : Foo.Color | [(lq_tmp_x422 = ds_d19e);
+                                                   (lq_tmp_x422 = Foo.R#r139)]}
+bind 67 lq_anf__d19D : {lq_tmp_x430 : FAppTy Foo.RBTree  a_a18z | [(elems([lq_tmp_x430]) = Set_cup([Set_sng([x#a17K]);
+                                                                                                    Set_cup([elems([l#a17L]);
+                                                                                                             elems([b#a17P])])]))]}
+bind 68 lq_anf__d19E : {lq_tmp_x449 : FAppTy Foo.RBTree  a_a18z | [(elems([lq_tmp_x449]) = Set_cup([Set_sng([z#a17N]);
+                                                                                                    Set_cup([elems([c#a17Q]);
+                                                                                                             elems([d#a17R])])]))]}
+bind 69 x#a17x : {VV : a_a18R | []}
+bind 70 l#a17y : {VV#488 : FAppTy Foo.RBTree  a_a18R | []}
+bind 71 r#a17z : {VV#489 : FAppTy Foo.RBTree  a_a18R | []}
+bind 72 lq_anf__d19F : {lq_tmp_x490 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x490 = r#a17z)]}
+bind 73 lq_anf__d19F : {lq_tmp_x492 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x492 = r#a17z)]}
+bind 74 lq_anf__d19F : {lq_tmp_x492 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x492 = r#a17z);
+                                                                   (lq_tmp_x492 = Foo.Leaf#r13d([]));
+                                                                   (elems([lq_tmp_x492]) = Set_empty([0]))]}
+bind 75 lq_anf__d19F : {lq_tmp_x508 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x508 = r#a17z)]}
+bind 76 ds_d19k : {lq_tmp_x521 : Foo.Color | []}
+bind 77 y#a17A : {VV : a_a18R | []}
+bind 78 b#a17B : {lq_tmp_x522 : FAppTy Foo.RBTree  a_a18R | []}
+bind 79 ds_d19l : {lq_tmp_x523 : FAppTy Foo.RBTree  a_a18R | []}
+bind 80 lq_anf__d19F : {lq_tmp_x508 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x508 = r#a17z);
+                                                                   (lq_tmp_x508 = Foo.Node#r13c([ds_d19k;
+                                                                                                 y#a17A;
+                                                                                                 b#a17B;
+                                                                                                 ds_d19l]));
+                                                                   (elems([lq_tmp_x508]) = Set_cup([Set_sng([y#a17A]);
+                                                                                                    Set_cup([elems([b#a17B]);
+                                                                                                             elems([ds_d19l])])]))]}
+bind 81 lq_anf__d19G : {lq_tmp_x535 : Foo.Color | [(lq_tmp_x535 = ds_d19k)]}
+bind 82 lq_anf__d19G : {lq_tmp_x537 : Foo.Color | [(lq_tmp_x537 = ds_d19k)]}
+bind 83 lq_anf__d19G : {lq_tmp_x537 : Foo.Color | [(lq_tmp_x537 = ds_d19k);
+                                                   (lq_tmp_x537 = Foo.B#r13a)]}
+bind 84 lq_anf__d19G : {lq_tmp_x553 : Foo.Color | [(lq_tmp_x553 = ds_d19k)]}
+bind 85 lq_anf__d19G : {lq_tmp_x553 : Foo.Color | [(lq_tmp_x553 = ds_d19k);
+                                                   (lq_tmp_x553 = Foo.R#r139)]}
+bind 86 lq_anf__d19H : {lq_tmp_x558 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x558 = ds_d19l)]}
+bind 87 lq_anf__d19H : {lq_tmp_x560 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x560 = ds_d19l)]}
+bind 88 lq_anf__d19H : {lq_tmp_x560 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x560 = ds_d19l);
+                                                                   (lq_tmp_x560 = Foo.Leaf#r13d([]));
+                                                                   (elems([lq_tmp_x560]) = Set_empty([0]))]}
+bind 89 lq_anf__d19I : {lq_tmp_x565 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x565 = b#a17B)]}
+bind 90 lq_anf__d19I : {lq_tmp_x567 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x567 = b#a17B)]}
+bind 91 lq_anf__d19I : {lq_tmp_x567 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x567 = b#a17B);
+                                                                   (lq_tmp_x567 = Foo.Leaf#r13d([]));
+                                                                   (elems([lq_tmp_x567]) = Set_empty([0]))]}
+bind 92 lq_anf__d19I : {lq_tmp_x583 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x583 = b#a17B)]}
+bind 93 ds_d19n : {lq_tmp_x596 : Foo.Color | []}
+bind 94 y#a17G : {VV : a_a18R | []}
+bind 95 b#a17H : {lq_tmp_x597 : FAppTy Foo.RBTree  a_a18R | []}
+bind 96 c#a17I : {lq_tmp_x598 : FAppTy Foo.RBTree  a_a18R | []}
+bind 97 lq_anf__d19I : {lq_tmp_x583 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x583 = b#a17B);
+                                                                   (lq_tmp_x583 = Foo.Node#r13c([ds_d19n;
+                                                                                                 y#a17G;
+                                                                                                 b#a17H;
+                                                                                                 c#a17I]));
+                                                                   (elems([lq_tmp_x583]) = Set_cup([Set_sng([y#a17G]);
+                                                                                                    Set_cup([elems([b#a17H]);
+                                                                                                             elems([c#a17I])])]))]}
+bind 98 lq_anf__d19J : {lq_tmp_x610 : Foo.Color | [(lq_tmp_x610 = ds_d19n)]}
+bind 99 lq_anf__d19J : {lq_tmp_x612 : Foo.Color | [(lq_tmp_x612 = ds_d19n)]}
+bind 100 lq_anf__d19J : {lq_tmp_x612 : Foo.Color | [(lq_tmp_x612 = ds_d19n);
+                                                    (lq_tmp_x612 = Foo.B#r13a)]}
+bind 101 lq_anf__d19J : {lq_tmp_x628 : Foo.Color | [(lq_tmp_x628 = ds_d19n)]}
+bind 102 lq_anf__d19J : {lq_tmp_x628 : Foo.Color | [(lq_tmp_x628 = ds_d19n);
+                                                    (lq_tmp_x628 = Foo.R#r139)]}
+bind 103 lq_anf__d19K : {lq_tmp_x636 : FAppTy Foo.RBTree  a_a18R | [(elems([lq_tmp_x636]) = Set_cup([Set_sng([x#a17x]);
+                                                                                                     Set_cup([elems([l#a17y]);
+                                                                                                              elems([b#a17H])])]))]}
+bind 104 lq_anf__d19L : {lq_tmp_x655 : FAppTy Foo.RBTree  a_a18R | [(elems([lq_tmp_x655]) = Set_cup([Set_sng([y#a17A]);
+                                                                                                     Set_cup([elems([c#a17I]);
+                                                                                                              elems([ds_d19l])])]))]}
+bind 105 lq_anf__d19H : {lq_tmp_x689 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x689 = ds_d19l)]}
+bind 106 ds_d19m : {lq_tmp_x702 : Foo.Color | []}
+bind 107 z#a17C : {VV : a_a18R | []}
+bind 108 c#a17D : {lq_tmp_x703 : FAppTy Foo.RBTree  a_a18R | []}
+bind 109 d#a17E : {lq_tmp_x704 : FAppTy Foo.RBTree  a_a18R | []}
+bind 110 lq_anf__d19H : {lq_tmp_x689 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x689 = ds_d19l);
+                                                                    (lq_tmp_x689 = Foo.Node#r13c([ds_d19m;
+                                                                                                  z#a17C;
+                                                                                                  c#a17D;
+                                                                                                  d#a17E]));
+                                                                    (elems([lq_tmp_x689]) = Set_cup([Set_sng([z#a17C]);
+                                                                                                     Set_cup([elems([c#a17D]);
+                                                                                                              elems([d#a17E])])]))]}
+bind 111 lq_anf__d19M : {lq_tmp_x716 : Foo.Color | [(lq_tmp_x716 = ds_d19m)]}
+bind 112 lq_anf__d19M : {lq_tmp_x718 : Foo.Color | [(lq_tmp_x718 = ds_d19m)]}
+bind 113 lq_anf__d19M : {lq_tmp_x718 : Foo.Color | [(lq_tmp_x718 = ds_d19m);
+                                                    (lq_tmp_x718 = Foo.B#r13a)]}
+bind 114 lq_anf__d19N : {lq_tmp_x723 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x723 = b#a17B)]}
+bind 115 lq_anf__d19N : {lq_tmp_x725 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x725 = b#a17B)]}
+bind 116 lq_anf__d19N : {lq_tmp_x725 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x725 = b#a17B);
+                                                                    (lq_tmp_x725 = Foo.Leaf#r13d([]));
+                                                                    (elems([lq_tmp_x725]) = Set_empty([0]))]}
+bind 117 lq_anf__d19N : {lq_tmp_x741 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x741 = b#a17B)]}
+bind 118 ds_d19n : {lq_tmp_x754 : Foo.Color | []}
+bind 119 y#a17G : {VV : a_a18R | []}
+bind 120 b#a17H : {lq_tmp_x755 : FAppTy Foo.RBTree  a_a18R | []}
+bind 121 c#a17I : {lq_tmp_x756 : FAppTy Foo.RBTree  a_a18R | []}
+bind 122 lq_anf__d19N : {lq_tmp_x741 : FAppTy Foo.RBTree  a_a18R | [(lq_tmp_x741 = b#a17B);
+                                                                    (lq_tmp_x741 = Foo.Node#r13c([ds_d19n;
+                                                                                                  y#a17G;
+                                                                                                  b#a17H;
+                                                                                                  c#a17I]));
+                                                                    (elems([lq_tmp_x741]) = Set_cup([Set_sng([y#a17G]);
+                                                                                                     Set_cup([elems([b#a17H]);
+                                                                                                              elems([c#a17I])])]))]}
+bind 123 lq_anf__d19O : {lq_tmp_x768 : Foo.Color | [(lq_tmp_x768 = ds_d19n)]}
+bind 124 lq_anf__d19O : {lq_tmp_x770 : Foo.Color | [(lq_tmp_x770 = ds_d19n)]}
+bind 125 lq_anf__d19O : {lq_tmp_x770 : Foo.Color | [(lq_tmp_x770 = ds_d19n);
+                                                    (lq_tmp_x770 = Foo.B#r13a)]}
+bind 126 lq_anf__d19O : {lq_tmp_x786 : Foo.Color | [(lq_tmp_x786 = ds_d19n)]}
+bind 127 lq_anf__d19O : {lq_tmp_x786 : Foo.Color | [(lq_tmp_x786 = ds_d19n);
+                                                    (lq_tmp_x786 = Foo.R#r139)]}
+bind 128 lq_anf__d19P : {lq_tmp_x794 : FAppTy Foo.RBTree  a_a18R | [(elems([lq_tmp_x794]) = Set_cup([Set_sng([x#a17x]);
+                                                                                                     Set_cup([elems([l#a17y]);
+                                                                                                              elems([b#a17H])])]))]}
+bind 129 lq_anf__d19Q : {lq_tmp_x813 : FAppTy Foo.RBTree  a_a18R | [(elems([lq_tmp_x813]) = Set_cup([Set_sng([y#a17A]);
+                                                                                                     Set_cup([elems([c#a17I]);
+                                                                                                              elems([ds_d19l])])]))]}
+bind 130 lq_anf__d19M : {lq_tmp_x847 : Foo.Color | [(lq_tmp_x847 = ds_d19m)]}
+bind 131 lq_anf__d19M : {lq_tmp_x847 : Foo.Color | [(lq_tmp_x847 = ds_d19m);
+                                                    (lq_tmp_x847 = Foo.R#r139)]}
+bind 132 lq_anf__d19R : {lq_tmp_x856 : [GHC.Types.Char] | [(len([lq_tmp_x856]) >= 0)]}
+bind 133 ds_d19v : {VV#879 : Foo.Color | [k_880]}
+bind 134 ds_d19w : {VV#883 : Foo.Color | [k_884]}
+bind 135 lq_anf__d19S : {lq_tmp_x890 : Foo.Color | [k_880[VV#879:=lq_tmp_x890];
+                                                    (lq_tmp_x890 = ds_d19v)]}
+bind 136 lq_anf__d19S : {lq_tmp_x892 : Foo.Color | [k_880[VV#879:=lq_tmp_x892][lq_tmp_x890:=lq_tmp_x892];
+                                                    (lq_tmp_x892 = ds_d19v)]}
+bind 137 lq_anf__d19S : {lq_tmp_x892 : Foo.Color | [k_880[VV#879:=lq_tmp_x892][lq_tmp_x890:=lq_tmp_x892];
+                                                    (lq_tmp_x892 = ds_d19v);
+                                                    (lq_tmp_x892 = Foo.B#r13a)]}
+bind 138 lq_anf__d19T : {lq_tmp_x897 : Foo.Color | [k_884[VV#883:=lq_tmp_x897];
+                                                    (lq_tmp_x897 = ds_d19w)]}
+bind 139 lq_anf__d19T : {lq_tmp_x899 : Foo.Color | [k_884[VV#883:=lq_tmp_x899][lq_tmp_x897:=lq_tmp_x899];
+                                                    (lq_tmp_x899 = ds_d19w)]}
+bind 140 lq_anf__d19T : {lq_tmp_x899 : Foo.Color | [k_884[VV#883:=lq_tmp_x899][lq_tmp_x897:=lq_tmp_x899];
+                                                    (lq_tmp_x899 = ds_d19w);
+                                                    (lq_tmp_x899 = Foo.B#r13a)]}
+bind 141 lq_anf__d19T : {lq_tmp_x905 : Foo.Color | [k_884[VV#883:=lq_tmp_x905][lq_tmp_x897:=lq_tmp_x905];
+                                                    (lq_tmp_x905 = ds_d19w)]}
+bind 142 lq_anf__d19T : {lq_tmp_x905 : Foo.Color | [k_884[VV#883:=lq_tmp_x905][lq_tmp_x897:=lq_tmp_x905];
+                                                    (lq_tmp_x905 = ds_d19w);
+                                                    (lq_tmp_x905 = Foo.R#r139)]}
+bind 143 lq_anf__d19S : {lq_tmp_x911 : Foo.Color | [k_880[VV#879:=lq_tmp_x911][lq_tmp_x890:=lq_tmp_x911];
+                                                    (lq_tmp_x911 = ds_d19v)]}
+bind 144 lq_anf__d19S : {lq_tmp_x911 : Foo.Color | [k_880[VV#879:=lq_tmp_x911][lq_tmp_x890:=lq_tmp_x911];
+                                                    (lq_tmp_x911 = ds_d19v);
+                                                    (lq_tmp_x911 = Foo.R#r139)]}
+bind 145 lq_anf__d19U : {lq_tmp_x916 : Foo.Color | [k_884[VV#883:=lq_tmp_x916];
+                                                    (lq_tmp_x916 = ds_d19w)]}
+bind 146 lq_anf__d19U : {lq_tmp_x918 : Foo.Color | [k_884[VV#883:=lq_tmp_x918][lq_tmp_x916:=lq_tmp_x918];
+                                                    (lq_tmp_x918 = ds_d19w)]}
+bind 147 lq_anf__d19U : {lq_tmp_x918 : Foo.Color | [k_884[VV#883:=lq_tmp_x918][lq_tmp_x916:=lq_tmp_x918];
+                                                    (lq_tmp_x918 = ds_d19w);
+                                                    (lq_tmp_x918 = Foo.B#r13a)]}
+bind 148 lq_anf__d19U : {lq_tmp_x924 : Foo.Color | [k_884[VV#883:=lq_tmp_x924][lq_tmp_x916:=lq_tmp_x924];
+                                                    (lq_tmp_x924 = ds_d19w)]}
+bind 149 lq_anf__d19U : {lq_tmp_x924 : Foo.Color | [k_884[VV#883:=lq_tmp_x924][lq_tmp_x916:=lq_tmp_x924];
+                                                    (lq_tmp_x924 = ds_d19w);
+                                                    (lq_tmp_x924 = Foo.R#r139)]}
+bind 150 fix##36#c#61##61##35#a18W : {VV : func(0, [Foo.Color;
+                                                    Foo.Color;
+                                                    GHC.Types.Bool]) | []}
+bind 151 fix#Foo.#36#fEqColor#35#r13U : {VV#942 : FAppTy GHC.Classes.Eq  Foo.Color | []}
+bind 152 fix##36#c#47##61##35#a18Z : {VV : func(0, [Foo.Color;
+                                                    Foo.Color;
+                                                    GHC.Types.Bool]) | []}
+bind 153 a#a18l : {VV#931 : Foo.Color | [k_932]}
+bind 154 b#a18m : {VV#934 : Foo.Color | [k_935[a#a18l:=a#a18l][lq_tmp_x940:=a#a18l]]}
+bind 155 lq_anf__d19V : {lq_tmp_x980 : GHC.Types.Bool | [((? Prop([lq_tmp_x980])) <=> (a#a18l = b#a18m))]}
+bind 156 VV#1001 : {VV#1001 : GHC.Types.Bool | [((? Prop([VV#1001])) <=> (~ ((? Prop([lq_anf__d19V])))))]}
+bind 157 VV#1001 : {VV#1001 : GHC.Types.Bool | [((? Prop([VV#1001])) <=> (~ ((? Prop([lq_anf__d19V])))))]}
+bind 158 VV#1004 : {VV#1004 : GHC.Types.Bool | [((? Prop([VV#1004])) <=> (a#a18l = b#a18m));
+                                                (VV#1004 = lq_anf__d19V)]}
+bind 159 VV#1004 : {VV#1004 : GHC.Types.Bool | [((? Prop([VV#1004])) <=> (a#a18l = b#a18m));
+                                                (VV#1004 = lq_anf__d19V)]}
+bind 160 VV#1007 : {VV#1007 : Foo.Color | [k_935[a#a18l:=a#a18l][lq_tmp_x940:=a#a18l][VV#934:=VV#1007][lq_tmp_x994:=VV#1007];
+                                           (VV#1007 = b#a18m)]}
+bind 161 VV#1007 : {VV#1007 : Foo.Color | [k_935[a#a18l:=a#a18l][lq_tmp_x940:=a#a18l][VV#934:=VV#1007][lq_tmp_x994:=VV#1007];
+                                           (VV#1007 = b#a18m)]}
+bind 162 VV#1010 : {VV#1010 : Foo.Color | [k_932[VV#931:=VV#1010][lq_tmp_x993:=VV#1010];
+                                           (VV#1010 = a#a18l)]}
+bind 163 VV#1010 : {VV#1010 : Foo.Color | [k_932[VV#931:=VV#1010][lq_tmp_x993:=VV#1010];
+                                           (VV#1010 = a#a18l)]}
+bind 164 lq_tmp_x974 : {lq_tmp_x974 : func(0, [Foo.Color;
+                                               Foo.Color;
+                                               GHC.Types.Bool]) | [(lq_tmp_x974 = fix##36#c#47##61##35#a18Z)]}
+bind 165 VV#1014 : {VV#1014 : Foo.Color | [k_960[VV#959:=VV#1014][lq_tmp_x957:=fix##36#c#61##61##35#a18W][lq_tmp_x962:=VV#1014]]}
+bind 166 VV#1014 : {VV#1014 : Foo.Color | [k_960[VV#959:=VV#1014][lq_tmp_x957:=fix##36#c#61##61##35#a18W][lq_tmp_x962:=VV#1014]]}
+bind 167 lq_tmp_x955 : {lq_tmp_x962 : Foo.Color | [k_960[VV#959:=lq_tmp_x962][lq_tmp_x957:=fix##36#c#61##61##35#a18W]]}
+bind 168 lq_tmp_x973 : {lq_tmp_x973 : func(0, [Foo.Color;
+                                               GHC.Types.Bool]) | []}
+bind 169 VV#1019 : {VV#1019 : Foo.Color | [k_960[VV#959:=VV#1019][lq_tmp_x957:=fix##36#c#61##61##35#a18W][lq_tmp_x962:=VV#1019]]}
+bind 170 VV#1019 : {VV#1019 : Foo.Color | [k_960[VV#959:=VV#1019][lq_tmp_x957:=fix##36#c#61##61##35#a18W][lq_tmp_x962:=VV#1019]]}
+bind 171 lq_tmp_x956 : {lq_tmp_x962 : Foo.Color | [k_960[VV#959:=lq_tmp_x962][lq_tmp_x957:=fix##36#c#61##61##35#a18W]]}
+bind 172 VV#1023 : {VV#1023 : GHC.Types.Bool | [k_938[a#a18l:=lq_tmp_x955][b#a18m:=lq_tmp_x956][VV#937:=VV#1023][lq_tmp_x940:=lq_tmp_x955][lq_tmp_x941:=lq_tmp_x956][lq_tmp_x975:=lq_tmp_x955][lq_tmp_x976:=lq_tmp_x956][lq_tmp_x972:=VV#1023]]}
+bind 173 VV#1023 : {VV#1023 : GHC.Types.Bool | [k_938[a#a18l:=lq_tmp_x955][b#a18m:=lq_tmp_x956][VV#937:=VV#1023][lq_tmp_x940:=lq_tmp_x955][lq_tmp_x941:=lq_tmp_x956][lq_tmp_x975:=lq_tmp_x955][lq_tmp_x976:=lq_tmp_x956][lq_tmp_x972:=VV#1023]]}
+bind 174 lq_tmp_x967 : {lq_tmp_x967 : func(0, [Foo.Color;
+                                               Foo.Color;
+                                               GHC.Types.Bool]) | [(lq_tmp_x967 = fix##36#c#61##61##35#a18W)]}
+bind 175 VV#1027 : {VV#1027 : Foo.Color | [k_960[VV#959:=VV#1027][lq_tmp_x962:=VV#1027]]}
+bind 176 VV#1027 : {VV#1027 : Foo.Color | [k_960[VV#959:=VV#1027][lq_tmp_x962:=VV#1027]]}
+bind 177 lq_tmp_x953 : {lq_tmp_x962 : Foo.Color | [k_960[VV#959:=lq_tmp_x962]]}
+bind 178 lq_tmp_x966 : {lq_tmp_x966 : func(0, [Foo.Color;
+                                               GHC.Types.Bool]) | []}
+bind 179 VV#1032 : {VV#1032 : Foo.Color | [k_960[VV#959:=VV#1032][lq_tmp_x962:=VV#1032]]}
+bind 180 VV#1032 : {VV#1032 : Foo.Color | [k_960[VV#959:=VV#1032][lq_tmp_x962:=VV#1032]]}
+bind 181 lq_tmp_x954 : {lq_tmp_x962 : Foo.Color | [k_960[VV#959:=lq_tmp_x962]]}
+bind 182 VV#1036 : {VV#1036 : GHC.Types.Bool | [k_888[VV#887:=VV#1036][ds_d19v:=lq_tmp_x953][ds_d19w:=lq_tmp_x954][lq_tmp_x968:=lq_tmp_x953][lq_tmp_x969:=lq_tmp_x954][lq_tmp_x965:=VV#1036]]}
+bind 183 VV#1036 : {VV#1036 : GHC.Types.Bool | [k_888[VV#887:=VV#1036][ds_d19v:=lq_tmp_x953][ds_d19w:=lq_tmp_x954][lq_tmp_x968:=lq_tmp_x953][lq_tmp_x969:=lq_tmp_x954][lq_tmp_x965:=VV#1036]]}
+bind 184 VV#1039 : {VV#1039 : GHC.Types.Bool | [(? Prop([VV#1039]));
+                                                (VV#1039 = GHC.Types.True#6u)]}
+bind 185 VV#1039 : {VV#1039 : GHC.Types.Bool | [(? Prop([VV#1039]));
+                                                (VV#1039 = GHC.Types.True#6u)]}
+bind 186 VV#1042 : {VV#1042 : GHC.Types.Bool | [(~ ((? Prop([VV#1042]))));
+                                                (VV#1042 = GHC.Types.False#68)]}
+bind 187 VV#1042 : {VV#1042 : GHC.Types.Bool | [(~ ((? Prop([VV#1042]))));
+                                                (VV#1042 = GHC.Types.False#68)]}
+bind 188 VV#1045 : {VV#1045 : GHC.Types.Bool | [(~ ((? Prop([VV#1045]))));
+                                                (VV#1045 = GHC.Types.False#68)]}
+bind 189 VV#1045 : {VV#1045 : GHC.Types.Bool | [(~ ((? Prop([VV#1045]))));
+                                                (VV#1045 = GHC.Types.False#68)]}
+bind 190 VV#1048 : {VV#1048 : GHC.Types.Bool | [(? Prop([VV#1048]));
+                                                (VV#1048 = GHC.Types.True#6u)]}
+bind 191 VV#1048 : {VV#1048 : GHC.Types.Bool | [(? Prop([VV#1048]));
+                                                (VV#1048 = GHC.Types.True#6u)]}
+bind 192 VV#1051 : {VV#1051 : FAppTy Foo.RBTree  a_a18R | [k_871[VV#870:=VV#1051][lq_tmp_x866:=lq_anf__d19R][lq_tmp_x873:=VV#1051]]}
+bind 193 VV#1051 : {VV#1051 : FAppTy Foo.RBTree  a_a18R | [k_871[VV#870:=VV#1051][lq_tmp_x866:=lq_anf__d19R][lq_tmp_x873:=VV#1051]]}
+bind 194 VV#867 : {VV#867 : a_a18R | [k_868[VV#870:=VV#1051][lq_tmp_x866:=lq_anf__d19R][lq_tmp_x873:=VV#1051]]}
+bind 195 VV#1055 : {VV#1055 : [GHC.Types.Char] | [(len([VV#1055]) >= 0);
+                                                  (VV#1055 = lq_anf__d19R);
+                                                  (len([VV#1055]) >= 0)]}
+bind 196 VV#1055 : {VV#1055 : [GHC.Types.Char] | [(len([VV#1055]) >= 0);
+                                                  (VV#1055 = lq_anf__d19R);
+                                                  (len([VV#1055]) >= 0)]}
+bind 197 VV#1058 : {VV#1058 : GHC.Types.Char | []}
+bind 198 VV#1058 : {VV#1058 : GHC.Types.Char | []}
+bind 199 lq_tmp_x862 : {VV#1061 : GHC.Types.Char | []}
+bind 200 VV#1062 : {VV#1062 : GHC.Types.Char | []}
+bind 201 VV#1062 : {VV#1062 : GHC.Types.Char | []}
+bind 202 VV#1065 : {VV#1065 : int | [(VV#1065 = lit#ASD)]}
+bind 203 VV#1065 : {VV#1065 : int | [(VV#1065 = lit#ASD)]}
+bind 204 VV#1068 : {VV#1068 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1068]) = Set_cup([Set_sng([y#a17G]);
+                                                                                        Set_cup([elems([lq_anf__d19P]);
+                                                                                                 elems([lq_anf__d19Q])])]))]}
+bind 205 VV#1068 : {VV#1068 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1068]) = Set_cup([Set_sng([y#a17G]);
+                                                                                        Set_cup([elems([lq_anf__d19P]);
+                                                                                                 elems([lq_anf__d19Q])])]))]}
+bind 206 VV#841 : {VV#841 : a_a18R | [k_842[lq_tmp_x837:=Foo.R#r139][lq_tmp_x838:=y#a17G][lq_tmp_x839:=lq_anf__d19P][lq_tmp_x840:=lq_anf__d19Q][lq_tmp_x832:=VV#1068]]}
+bind 207 VV#1072 : {VV#1072 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1072]) = Set_cup([Set_sng([y#a17A]);
+                                                                                        Set_cup([elems([c#a17I]);
+                                                                                                 elems([ds_d19l])])]));
+                                                           (VV#1072 = lq_anf__d19Q)]}
+bind 208 VV#1072 : {VV#1072 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1072]) = Set_cup([Set_sng([y#a17A]);
+                                                                                        Set_cup([elems([c#a17I]);
+                                                                                                 elems([ds_d19l])])]));
+                                                           (VV#1072 = lq_anf__d19Q)]}
+bind 209 VV#822 : {VV#822 : a_a18R | [k_823[lq_tmp_x818:=Foo.B#r13a][lq_tmp_x819:=y#a17A][lq_tmp_x820:=c#a17I][lq_tmp_x821:=ds_d19l][lq_tmp_x813:=VV#1072][lq_tmp_x846:=VV#1072]]}
+bind 210 VV#1076 : {VV#1076 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1076]) = Set_cup([Set_sng([x#a17x]);
+                                                                                        Set_cup([elems([l#a17y]);
+                                                                                                 elems([b#a17H])])]));
+                                                           (VV#1076 = lq_anf__d19P)]}
+bind 211 VV#1076 : {VV#1076 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1076]) = Set_cup([Set_sng([x#a17x]);
+                                                                                        Set_cup([elems([l#a17y]);
+                                                                                                 elems([b#a17H])])]));
+                                                           (VV#1076 = lq_anf__d19P)]}
+bind 212 VV#803 : {VV#803 : a_a18R | [k_804[lq_tmp_x799:=Foo.B#r13a][lq_tmp_x800:=x#a17x][lq_tmp_x801:=l#a17y][lq_tmp_x802:=b#a17H][lq_tmp_x794:=VV#1076][lq_tmp_x845:=VV#1076]]}
+bind 213 VV : {VV : a_a18R | [(VV = y#a17G)]}
+bind 214 VV#1081 : {VV#1081 : Foo.Color | [(VV#1081 = Foo.R#r139)]}
+bind 215 VV#1081 : {VV#1081 : Foo.Color | [(VV#1081 = Foo.R#r139)]}
+bind 216 VV#1084 : {VV#1084 : FAppTy Foo.RBTree  a_a18R | [(VV#1084 = ds_d19l)]}
+bind 217 VV#1084 : {VV#1084 : FAppTy Foo.RBTree  a_a18R | [(VV#1084 = ds_d19l)]}
+bind 218 VV : {VV : a_a18R | []}
+bind 219 VV#1088 : {VV#1088 : FAppTy Foo.RBTree  a_a18R | [(VV#1088 = c#a17I)]}
+bind 220 VV#1088 : {VV#1088 : FAppTy Foo.RBTree  a_a18R | [(VV#1088 = c#a17I)]}
+bind 221 VV : {VV : a_a18R | []}
+bind 222 VV : {VV : a_a18R | [(VV = y#a17A)]}
+bind 223 VV#1093 : {VV#1093 : Foo.Color | [(VV#1093 = Foo.B#r13a)]}
+bind 224 VV#1093 : {VV#1093 : Foo.Color | [(VV#1093 = Foo.B#r13a)]}
+bind 225 VV#1096 : {VV#1096 : FAppTy Foo.RBTree  a_a18R | [(VV#1096 = b#a17H)]}
+bind 226 VV#1096 : {VV#1096 : FAppTy Foo.RBTree  a_a18R | [(VV#1096 = b#a17H)]}
+bind 227 VV : {VV : a_a18R | []}
+bind 228 VV#1100 : {VV#1100 : FAppTy Foo.RBTree  a_a18R | [(VV#1100 = l#a17y)]}
+bind 229 VV#1100 : {VV#1100 : FAppTy Foo.RBTree  a_a18R | [(VV#1100 = l#a17y)]}
+bind 230 VV : {VV : a_a18R | []}
+bind 231 VV : {VV : a_a18R | [(VV = x#a17x)]}
+bind 232 VV#1105 : {VV#1105 : Foo.Color | [(VV#1105 = Foo.B#r13a)]}
+bind 233 VV#1105 : {VV#1105 : Foo.Color | [(VV#1105 = Foo.B#r13a)]}
+bind 234 VV#1108 : {VV#1108 : FAppTy Foo.RBTree  a_a18R | [k_782[VV#781:=VV#1108][lq_tmp_x777:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x784:=VV#1108]]}
+bind 235 VV#1108 : {VV#1108 : FAppTy Foo.RBTree  a_a18R | [k_782[VV#781:=VV#1108][lq_tmp_x777:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x784:=VV#1108]]}
+bind 236 VV#778 : {VV#778 : a_a18R | [k_779[VV#781:=VV#1108][lq_tmp_x777:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x784:=VV#1108]]}
+bind 237 VV#1112 : {VV#1112 : int | [(VV#1112 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 238 VV#1112 : {VV#1112 : int | [(VV#1112 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 239 VV#1115 : {VV#1115 : FAppTy Foo.RBTree  a_a18R | [k_737[VV#736:=VV#1115][lq_tmp_x732:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x739:=VV#1115]]}
+bind 240 VV#1115 : {VV#1115 : FAppTy Foo.RBTree  a_a18R | [k_737[VV#736:=VV#1115][lq_tmp_x732:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x739:=VV#1115]]}
+bind 241 VV#733 : {VV#733 : a_a18R | [k_734[VV#736:=VV#1115][lq_tmp_x732:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x739:=VV#1115]]}
+bind 242 VV#1119 : {VV#1119 : int | [(VV#1119 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 243 VV#1119 : {VV#1119 : int | [(VV#1119 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 244 VV#1122 : {VV#1122 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1122]) = Set_cup([Set_sng([y#a17G]);
+                                                                                        Set_cup([elems([lq_anf__d19K]);
+                                                                                                 elems([lq_anf__d19L])])]))]}
+bind 245 VV#1122 : {VV#1122 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1122]) = Set_cup([Set_sng([y#a17G]);
+                                                                                        Set_cup([elems([lq_anf__d19K]);
+                                                                                                 elems([lq_anf__d19L])])]))]}
+bind 246 VV#683 : {VV#683 : a_a18R | [k_684[lq_tmp_x679:=Foo.R#r139][lq_tmp_x680:=y#a17G][lq_tmp_x681:=lq_anf__d19K][lq_tmp_x682:=lq_anf__d19L][lq_tmp_x674:=VV#1122]]}
+bind 247 VV#1126 : {VV#1126 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1126]) = Set_cup([Set_sng([y#a17A]);
+                                                                                        Set_cup([elems([c#a17I]);
+                                                                                                 elems([ds_d19l])])]));
+                                                           (VV#1126 = lq_anf__d19L)]}
+bind 248 VV#1126 : {VV#1126 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1126]) = Set_cup([Set_sng([y#a17A]);
+                                                                                        Set_cup([elems([c#a17I]);
+                                                                                                 elems([ds_d19l])])]));
+                                                           (VV#1126 = lq_anf__d19L)]}
+bind 249 VV#664 : {VV#664 : a_a18R | [k_665[lq_tmp_x660:=Foo.B#r13a][lq_tmp_x661:=y#a17A][lq_tmp_x662:=c#a17I][lq_tmp_x663:=ds_d19l][lq_tmp_x655:=VV#1126][lq_tmp_x688:=VV#1126]]}
+bind 250 VV#1130 : {VV#1130 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1130]) = Set_cup([Set_sng([x#a17x]);
+                                                                                        Set_cup([elems([l#a17y]);
+                                                                                                 elems([b#a17H])])]));
+                                                           (VV#1130 = lq_anf__d19K)]}
+bind 251 VV#1130 : {VV#1130 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#1130]) = Set_cup([Set_sng([x#a17x]);
+                                                                                        Set_cup([elems([l#a17y]);
+                                                                                                 elems([b#a17H])])]));
+                                                           (VV#1130 = lq_anf__d19K)]}
+bind 252 VV#645 : {VV#645 : a_a18R | [k_646[lq_tmp_x641:=Foo.B#r13a][lq_tmp_x642:=x#a17x][lq_tmp_x643:=l#a17y][lq_tmp_x644:=b#a17H][lq_tmp_x636:=VV#1130][lq_tmp_x687:=VV#1130]]}
+bind 253 VV : {VV : a_a18R | [(VV = y#a17G)]}
+bind 254 VV#1135 : {VV#1135 : Foo.Color | [(VV#1135 = Foo.R#r139)]}
+bind 255 VV#1135 : {VV#1135 : Foo.Color | [(VV#1135 = Foo.R#r139)]}
+bind 256 VV#1138 : {VV#1138 : FAppTy Foo.RBTree  a_a18R | [(VV#1138 = ds_d19l)]}
+bind 257 VV#1138 : {VV#1138 : FAppTy Foo.RBTree  a_a18R | [(VV#1138 = ds_d19l)]}
+bind 258 VV : {VV : a_a18R | []}
+bind 259 VV#1142 : {VV#1142 : FAppTy Foo.RBTree  a_a18R | [(VV#1142 = c#a17I)]}
+bind 260 VV#1142 : {VV#1142 : FAppTy Foo.RBTree  a_a18R | [(VV#1142 = c#a17I)]}
+bind 261 VV : {VV : a_a18R | []}
+bind 262 VV : {VV : a_a18R | [(VV = y#a17A)]}
+bind 263 VV#1147 : {VV#1147 : Foo.Color | [(VV#1147 = Foo.B#r13a)]}
+bind 264 VV#1147 : {VV#1147 : Foo.Color | [(VV#1147 = Foo.B#r13a)]}
+bind 265 VV#1150 : {VV#1150 : FAppTy Foo.RBTree  a_a18R | [(VV#1150 = b#a17H)]}
+bind 266 VV#1150 : {VV#1150 : FAppTy Foo.RBTree  a_a18R | [(VV#1150 = b#a17H)]}
+bind 267 VV : {VV : a_a18R | []}
+bind 268 VV#1154 : {VV#1154 : FAppTy Foo.RBTree  a_a18R | [(VV#1154 = l#a17y)]}
+bind 269 VV#1154 : {VV#1154 : FAppTy Foo.RBTree  a_a18R | [(VV#1154 = l#a17y)]}
+bind 270 VV : {VV : a_a18R | []}
+bind 271 VV : {VV : a_a18R | [(VV = x#a17x)]}
+bind 272 VV#1159 : {VV#1159 : Foo.Color | [(VV#1159 = Foo.B#r13a)]}
+bind 273 VV#1159 : {VV#1159 : Foo.Color | [(VV#1159 = Foo.B#r13a)]}
+bind 274 VV#1162 : {VV#1162 : FAppTy Foo.RBTree  a_a18R | [k_624[VV#623:=VV#1162][lq_tmp_x619:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x626:=VV#1162]]}
+bind 275 VV#1162 : {VV#1162 : FAppTy Foo.RBTree  a_a18R | [k_624[VV#623:=VV#1162][lq_tmp_x619:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x626:=VV#1162]]}
+bind 276 VV#620 : {VV#620 : a_a18R | [k_621[VV#623:=VV#1162][lq_tmp_x619:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x626:=VV#1162]]}
+bind 277 VV#1166 : {VV#1166 : int | [(VV#1166 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 278 VV#1166 : {VV#1166 : int | [(VV#1166 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 279 VV#1169 : {VV#1169 : FAppTy Foo.RBTree  a_a18R | [k_579[VV#578:=VV#1169][lq_tmp_x574:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x581:=VV#1169]]}
+bind 280 VV#1169 : {VV#1169 : FAppTy Foo.RBTree  a_a18R | [k_579[VV#578:=VV#1169][lq_tmp_x574:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x581:=VV#1169]]}
+bind 281 VV#575 : {VV#575 : a_a18R | [k_576[VV#578:=VV#1169][lq_tmp_x574:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x581:=VV#1169]]}
+bind 282 VV#1173 : {VV#1173 : int | [(VV#1173 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 283 VV#1173 : {VV#1173 : int | [(VV#1173 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 284 VV#1176 : {VV#1176 : FAppTy Foo.RBTree  a_a18R | [k_549[VV#548:=VV#1176][lq_tmp_x544:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x551:=VV#1176]]}
+bind 285 VV#1176 : {VV#1176 : FAppTy Foo.RBTree  a_a18R | [k_549[VV#548:=VV#1176][lq_tmp_x544:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x551:=VV#1176]]}
+bind 286 VV#545 : {VV#545 : a_a18R | [k_546[VV#548:=VV#1176][lq_tmp_x544:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x551:=VV#1176]]}
+bind 287 VV#1180 : {VV#1180 : int | [(VV#1180 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 288 VV#1180 : {VV#1180 : int | [(VV#1180 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 289 VV#1183 : {VV#1183 : FAppTy Foo.RBTree  a_a18R | [k_504[VV#503:=VV#1183][lq_tmp_x499:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x506:=VV#1183]]}
+bind 290 VV#1183 : {VV#1183 : FAppTy Foo.RBTree  a_a18R | [k_504[VV#503:=VV#1183][lq_tmp_x499:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x506:=VV#1183]]}
+bind 291 VV#500 : {VV#500 : a_a18R | [k_501[VV#503:=VV#1183][lq_tmp_x499:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x506:=VV#1183]]}
+bind 292 VV#1187 : {VV#1187 : int | [(VV#1187 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 293 VV#1187 : {VV#1187 : int | [(VV#1187 = fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case)]}
+bind 294 VV#1190 : {VV#1190 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#1190]) = Set_cup([Set_sng([y#a17O]);
+                                                                                        Set_cup([elems([lq_anf__d19D]);
+                                                                                                 elems([lq_anf__d19E])])]))]}
+bind 295 VV#1190 : {VV#1190 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#1190]) = Set_cup([Set_sng([y#a17O]);
+                                                                                        Set_cup([elems([lq_anf__d19D]);
+                                                                                                 elems([lq_anf__d19E])])]))]}
+bind 296 VV#477 : {VV#477 : a_a18z | [k_478[lq_tmp_x473:=Foo.R#r139][lq_tmp_x474:=y#a17O][lq_tmp_x475:=lq_anf__d19D][lq_tmp_x476:=lq_anf__d19E][lq_tmp_x468:=VV#1190]]}
+bind 297 VV#1194 : {VV#1194 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#1194]) = Set_cup([Set_sng([z#a17N]);
+                                                                                        Set_cup([elems([c#a17Q]);
+                                                                                                 elems([d#a17R])])]));
+                                                           (VV#1194 = lq_anf__d19E)]}
+bind 298 VV#1194 : {VV#1194 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#1194]) = Set_cup([Set_sng([z#a17N]);
+                                                                                        Set_cup([elems([c#a17Q]);
+                                                                                                 elems([d#a17R])])]));
+                                                           (VV#1194 = lq_anf__d19E)]}
+bind 299 VV#458 : {VV#458 : a_a18z | [k_459[lq_tmp_x454:=Foo.B#r13a][lq_tmp_x455:=z#a17N][lq_tmp_x456:=c#a17Q][lq_tmp_x457:=d#a17R][lq_tmp_x449:=VV#1194][lq_tmp_x482:=VV#1194]]}
+bind 300 VV#1198 : {VV#1198 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#1198]) = Set_cup([Set_sng([x#a17K]);
+                                                                                        Set_cup([elems([l#a17L]);
+                                                                                                 elems([b#a17P])])]));
+                                                           (VV#1198 = lq_anf__d19D)]}
+bind 301 VV#1198 : {VV#1198 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#1198]) = Set_cup([Set_sng([x#a17K]);
+                                                                                        Set_cup([elems([l#a17L]);
+                                                                                                 elems([b#a17P])])]));
+                                                           (VV#1198 = lq_anf__d19D)]}
+bind 302 VV#439 : {VV#439 : a_a18z | [k_440[lq_tmp_x435:=Foo.B#r13a][lq_tmp_x436:=x#a17K][lq_tmp_x437:=l#a17L][lq_tmp_x438:=b#a17P][lq_tmp_x430:=VV#1198][lq_tmp_x481:=VV#1198]]}
+bind 303 VV : {VV : a_a18z | [(VV = y#a17O)]}
+bind 304 VV#1203 : {VV#1203 : Foo.Color | [(VV#1203 = Foo.R#r139)]}
+bind 305 VV#1203 : {VV#1203 : Foo.Color | [(VV#1203 = Foo.R#r139)]}
+bind 306 VV#1206 : {VV#1206 : FAppTy Foo.RBTree  a_a18z | [(VV#1206 = d#a17R)]}
+bind 307 VV#1206 : {VV#1206 : FAppTy Foo.RBTree  a_a18z | [(VV#1206 = d#a17R)]}
+bind 308 VV : {VV : a_a18z | []}
+bind 309 VV#1210 : {VV#1210 : FAppTy Foo.RBTree  a_a18z | [(VV#1210 = c#a17Q)]}
+bind 310 VV#1210 : {VV#1210 : FAppTy Foo.RBTree  a_a18z | [(VV#1210 = c#a17Q)]}
+bind 311 VV : {VV : a_a18z | []}
+bind 312 VV : {VV : a_a18z | [(VV = z#a17N)]}
+bind 313 VV#1215 : {VV#1215 : Foo.Color | [(VV#1215 = Foo.B#r13a)]}
+bind 314 VV#1215 : {VV#1215 : Foo.Color | [(VV#1215 = Foo.B#r13a)]}
+bind 315 VV#1218 : {VV#1218 : FAppTy Foo.RBTree  a_a18z | [(VV#1218 = b#a17P)]}
+bind 316 VV#1218 : {VV#1218 : FAppTy Foo.RBTree  a_a18z | [(VV#1218 = b#a17P)]}
+bind 317 VV : {VV : a_a18z | []}
+bind 318 VV#1222 : {VV#1222 : FAppTy Foo.RBTree  a_a18z | [(VV#1222 = l#a17L)]}
+bind 319 VV#1222 : {VV#1222 : FAppTy Foo.RBTree  a_a18z | [(VV#1222 = l#a17L)]}
+bind 320 VV : {VV : a_a18z | []}
+bind 321 VV : {VV : a_a18z | [(VV = x#a17K)]}
+bind 322 VV#1227 : {VV#1227 : Foo.Color | [(VV#1227 = Foo.B#r13a)]}
+bind 323 VV#1227 : {VV#1227 : Foo.Color | [(VV#1227 = Foo.B#r13a)]}
+bind 324 VV#1230 : {VV#1230 : FAppTy Foo.RBTree  a_a18z | [k_418[VV#417:=VV#1230][lq_tmp_x413:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x420:=VV#1230]]}
+bind 325 VV#1230 : {VV#1230 : FAppTy Foo.RBTree  a_a18z | [k_418[VV#417:=VV#1230][lq_tmp_x413:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x420:=VV#1230]]}
+bind 326 VV#414 : {VV#414 : a_a18z | [k_415[VV#417:=VV#1230][lq_tmp_x413:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x420:=VV#1230]]}
+bind 327 VV#1234 : {VV#1234 : int | [(VV#1234 = fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case)]}
+bind 328 VV#1234 : {VV#1234 : int | [(VV#1234 = fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case)]}
+bind 329 VV#1237 : {VV#1237 : FAppTy Foo.RBTree  a_a18z | [k_373[VV#372:=VV#1237][lq_tmp_x368:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x375:=VV#1237]]}
+bind 330 VV#1237 : {VV#1237 : FAppTy Foo.RBTree  a_a18z | [k_373[VV#372:=VV#1237][lq_tmp_x368:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x375:=VV#1237]]}
+bind 331 VV#369 : {VV#369 : a_a18z | [k_370[VV#372:=VV#1237][lq_tmp_x368:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x375:=VV#1237]]}
+bind 332 VV#1241 : {VV#1241 : int | [(VV#1241 = fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case)]}
+bind 333 VV#1241 : {VV#1241 : int | [(VV#1241 = fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case)]}
+bind 334 VV#1244 : {VV#1244 : FAppTy Foo.RBTree  a_a18z | [k_350[VV#349:=VV#1244][lq_tmp_x345:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x352:=VV#1244]]}
+bind 335 VV#1244 : {VV#1244 : FAppTy Foo.RBTree  a_a18z | [k_350[VV#349:=VV#1244][lq_tmp_x345:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x352:=VV#1244]]}
+bind 336 VV#346 : {VV#346 : a_a18z | [k_347[VV#349:=VV#1244][lq_tmp_x345:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x352:=VV#1244]]}
+bind 337 VV#1248 : {VV#1248 : int | [(VV#1248 = fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case)]}
+bind 338 VV#1248 : {VV#1248 : int | [(VV#1248 = fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case)]}
+bind 339 VV#1251 : {VV#1251 : FAppTy Foo.RBTree  a_a18z | [k_305[VV#304:=VV#1251][lq_tmp_x300:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x307:=VV#1251]]}
+bind 340 VV#1251 : {VV#1251 : FAppTy Foo.RBTree  a_a18z | [k_305[VV#304:=VV#1251][lq_tmp_x300:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x307:=VV#1251]]}
+bind 341 VV#301 : {VV#301 : a_a18z | [k_302[VV#304:=VV#1251][lq_tmp_x300:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x307:=VV#1251]]}
+bind 342 VV#1255 : {VV#1255 : int | [(VV#1255 = fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case)]}
+bind 343 VV#1255 : {VV#1255 : int | [(VV#1255 = fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case)]}
+bind 344 VV#987 : {VV#987 : Foo.Color | [k_988]}
+bind 345 VV#959 : {VV#959 : Foo.Color | [k_960]}
+bind 346 VV#931 : {VV#931 : Foo.Color | [k_932]}
+bind 347 a#a18l : {VV#931 : Foo.Color | [k_932]}
+bind 348 VV#934 : {VV#934 : Foo.Color | [k_935]}
+bind 349 b#a18m : {VV#934 : Foo.Color | [k_935]}
+bind 350 VV#937 : {VV#937 : GHC.Types.Bool | [k_938]}
+bind 351 VV#879 : {VV#879 : Foo.Color | [k_880]}
+bind 352 VV#883 : {VV#883 : Foo.Color | [k_884]}
+bind 353 VV#887 : {VV#887 : GHC.Types.Bool | [k_888]}
+bind 354 VV#870 : {VV#870 : FAppTy Foo.RBTree  a_a18R | [k_871]}
+bind 355 VV#781 : {VV#781 : FAppTy Foo.RBTree  a_a18R | [k_782]}
+bind 356 VV#736 : {VV#736 : FAppTy Foo.RBTree  a_a18R | [k_737]}
+bind 357 VV#623 : {VV#623 : FAppTy Foo.RBTree  a_a18R | [k_624]}
+bind 358 VV#578 : {VV#578 : FAppTy Foo.RBTree  a_a18R | [k_579]}
+bind 359 VV#548 : {VV#548 : FAppTy Foo.RBTree  a_a18R | [k_549]}
+bind 360 VV#503 : {VV#503 : FAppTy Foo.RBTree  a_a18R | [k_504]}
+bind 361 VV#417 : {VV#417 : FAppTy Foo.RBTree  a_a18z | [k_418]}
+bind 362 VV#372 : {VV#372 : FAppTy Foo.RBTree  a_a18z | [k_373]}
+bind 363 VV#349 : {VV#349 : FAppTy Foo.RBTree  a_a18z | [k_350]}
+bind 364 VV#304 : {VV#304 : FAppTy Foo.RBTree  a_a18z | [k_305]}
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       1;
+       17;
+       33;
+       81;
+       113;
+       129;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       213;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F16 : a_a18R | [(VV#F16 = y#a17G); true]}
+  rhs {VV#F16 : a_a18R | [k_842[lq_tmp_x837:=Foo.R#r139][VV#841:=VV#F16][VV#F:=VV#F16]]}
+  id 16 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       266;
+       26;
+       11;
+       267;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F32 : a_a18R | [true]}
+  rhs {VV#F32 : a_a18R | [k_646[lq_tmp_x641:=Foo.B#r13a][lq_tmp_x642:=x#a17x][lq_tmp_x643:=l#a17y][lq_tmp_x635:=VV#1150][VV#645:=VV#F32][VV#F:=VV#F32]]}
+  id 32 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       321;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F48 : a_a18z | [(VV#F48 = x#a17K); true]}
+  rhs {VV#F48 : a_a18z | [k_440[lq_tmp_x435:=Foo.B#r13a][VV#439:=VV#F48][VV#F:=VV#F48]]}
+  id 48 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       8;
+       24;
+       152;
+       9;
+       25;
+       153;
+       10;
+       26;
+       154;
+       11;
+       27;
+       155;
+       12;
+       28;
+       156;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F1 : GHC.Types.Bool | [((? Prop([VV#F1])) <=> (~ ((? Prop([lq_anf__d19V])))));
+                                 true]}
+  rhs {VV#F1 : GHC.Types.Bool | [k_938[a#a18l:=a#a18l][b#a18m:=b#a18m][lq_tmp_x940:=a#a18l][lq_tmp_x941:=b#a18m][VV#937:=VV#F1][VV#1001:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       217;
+       10;
+       26;
+       106;
+       122;
+       218;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F17 : a_a18R | [true]}
+  rhs {VV#F17 : a_a18R | [k_823[lq_tmp_x818:=Foo.B#r13a][lq_tmp_x819:=y#a17A][lq_tmp_x820:=c#a17I][lq_tmp_x812:=VV#1084][VV#822:=VV#F17][VV#F:=VV#F17]]}
+  id 17 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       269;
+       29;
+       77;
+       93;
+       14;
+       270;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F33 : a_a18R | [true]}
+  rhs {VV#F33 : a_a18R | [k_646[lq_tmp_x641:=Foo.B#r13a][lq_tmp_x642:=x#a17x][lq_tmp_x634:=VV#1154][VV#645:=VV#F33][VV#F:=VV#F33]]}
+  id 33 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       64;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       324;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47;
+       63]
+  grd true
+  lhs {VV#F49 : FAppTy Foo.RBTree  a_a18z | [k_418[VV#417:=VV#F49][lq_tmp_x413:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x420:=VV#F49][VV#1230:=VV#F49][VV#F:=VV#F49];
+                                             true]}
+  rhs {VV#F49 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#F49]) = Set_cup([Set_sng([x#a17K]);
+                                                                         Set_cup([elems([l#a17L]);
+                                                                                  elems([r#a17M])])]))]}
+  id 49 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       160;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       8;
+       24;
+       152;
+       9;
+       25;
+       153;
+       10;
+       26;
+       154;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F2 : Foo.Color | [k_935[a#a18l:=a#a18l][lq_tmp_x940:=a#a18l][VV#934:=VV#F2][lq_tmp_x994:=VV#F2][VV#1007:=VV#F2][VV#F:=VV#F2];
+                            (VV#F2 = b#a18m);
+                            true]}
+  rhs {VV#F2 : Foo.Color | [k_988[VV#987:=VV#F2][lq_tmp_x984:=fix#Foo.#36#fEqColor#35#r13U][lq_tmp_x985:=a#a18l][lq_tmp_x990:=VV#F2][VV#1007:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       220;
+       13;
+       29;
+       77;
+       109;
+       221;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F18 : a_a18R | [true]}
+  rhs {VV#F18 : a_a18R | [k_823[lq_tmp_x818:=Foo.B#r13a][lq_tmp_x819:=y#a17A][lq_tmp_x811:=VV#1088][VV#822:=VV#F18][VV#F:=VV#F18]]}
+  id 18 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       271;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F34 : a_a18R | [(VV#F34 = x#a17x); true]}
+  rhs {VV#F34 : a_a18R | [k_646[lq_tmp_x641:=Foo.B#r13a][VV#645:=VV#F34][VV#F:=VV#F34]]}
+  id 34 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       54;
+       7;
+       23;
+       39;
+       55;
+       8;
+       24;
+       9;
+       25;
+       329;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       45;
+       14;
+       30;
+       46;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F50 : FAppTy Foo.RBTree  a_a18z | [k_373[VV#372:=VV#F50][lq_tmp_x368:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x375:=VV#F50][VV#1237:=VV#F50][VV#F:=VV#F50];
+                                             true]}
+  rhs {VV#F50 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#F50]) = Set_cup([Set_sng([x#a17K]);
+                                                                         Set_cup([elems([l#a17L]);
+                                                                                  elems([r#a17M])])]))]}
+  id 50 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       162;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       8;
+       24;
+       152;
+       9;
+       25;
+       153;
+       10;
+       26;
+       154;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F3 : Foo.Color | [k_932[VV#931:=VV#F3][lq_tmp_x993:=VV#F3][VV#1010:=VV#F3][VV#F:=VV#F3];
+                            (VV#F3 = a#a18l);
+                            true]}
+  rhs {VV#F3 : Foo.Color | [k_988[VV#987:=VV#F3][lq_tmp_x984:=fix#Foo.#36#fEqColor#35#r13U][lq_tmp_x990:=VV#F3][VV#1010:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       222;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F19 : a_a18R | [(VV#F19 = y#a17A); true]}
+  rhs {VV#F19 : a_a18R | [k_823[lq_tmp_x818:=Foo.B#r13a][VV#822:=VV#F19][VV#F:=VV#F19]]}
+  id 19 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       274;
+       34;
+       98;
+       3;
+       19;
+       35;
+       99;
+       4;
+       20;
+       84;
+       100;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F35 : FAppTy Foo.RBTree  a_a18R | [k_624[VV#623:=VV#F35][lq_tmp_x619:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x626:=VV#F35][VV#1162:=VV#F35][VV#F:=VV#F35];
+                                             true]}
+  rhs {VV#F35 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F35]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 35 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       49;
+       2;
+       18;
+       34;
+       50;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       45;
+       14;
+       30;
+       46;
+       334;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F51 : FAppTy Foo.RBTree  a_a18z | [k_350[VV#349:=VV#F51][lq_tmp_x345:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x352:=VV#F51][VV#1244:=VV#F51][VV#F:=VV#F51];
+                                             true]}
+  rhs {VV#F51 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#F51]) = Set_cup([Set_sng([x#a17K]);
+                                                                         Set_cup([elems([l#a17L]);
+                                                                                  elems([r#a17M])])]))]}
+  id 51 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       165;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       8;
+       24;
+       152;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F4 : Foo.Color | [k_960[VV#959:=VV#F4][lq_tmp_x957:=fix##36#c#61##61##35#a18W][lq_tmp_x962:=VV#F4][VV#1014:=VV#F4][VV#F:=VV#F4];
+                            true]}
+  rhs {VV#F4 : Foo.Color | [k_932[VV#931:=VV#F4][lq_tmp_x970:=VV#F4][VV#1014:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       226;
+       3;
+       19;
+       35;
+       227;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F20 : a_a18R | [true]}
+  rhs {VV#F20 : a_a18R | [k_804[lq_tmp_x799:=Foo.B#r13a][lq_tmp_x800:=x#a17x][lq_tmp_x801:=l#a17y][lq_tmp_x793:=VV#1096][VV#803:=VV#F20][VV#F:=VV#F20]]}
+  id 20 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       279;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       90;
+       11;
+       27;
+       75;
+       91;
+       12;
+       28;
+       76;
+       13;
+       29;
+       77;
+       14;
+       30;
+       78;
+       15;
+       31;
+       79]
+  grd true
+  lhs {VV#F36 : FAppTy Foo.RBTree  a_a18R | [k_579[VV#578:=VV#F36][lq_tmp_x574:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x581:=VV#F36][VV#1169:=VV#F36][VV#F:=VV#F36];
+                                             true]}
+  rhs {VV#F36 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F36]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 36 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       339;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       40;
+       9;
+       25;
+       41;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F52 : FAppTy Foo.RBTree  a_a18z | [k_305[VV#304:=VV#F52][lq_tmp_x300:=fix#lit#35#case#45#lambda#45#join.hs#58##40#16#44#16#41##45##40#18#44#69#41##124#case][lq_tmp_x307:=VV#F52][VV#1251:=VV#F52][VV#F:=VV#F52];
+                                             true]}
+  rhs {VV#F52 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#F52]) = Set_cup([Set_sng([x#a17K]);
+                                                                         Set_cup([elems([l#a17L]);
+                                                                                  elems([r#a17M])])]))]}
+  id 52 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       167;
+       8;
+       24;
+       152;
+       9;
+       25;
+       169;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F5 : Foo.Color | [k_960[VV#959:=VV#F5][lq_tmp_x957:=fix##36#c#61##61##35#a18W][lq_tmp_x962:=VV#F5][VV#1019:=VV#F5][VV#F:=VV#F5];
+                            true]}
+  rhs {VV#F5 : Foo.Color | [k_935[a#a18l:=lq_tmp_x955][VV#934:=VV#F5][lq_tmp_x940:=lq_tmp_x955][lq_tmp_x975:=lq_tmp_x955][lq_tmp_x971:=VV#F5][VV#1019:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       229;
+       6;
+       22;
+       70;
+       86;
+       118;
+       230;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F21 : a_a18R | [true]}
+  rhs {VV#F21 : a_a18R | [k_804[lq_tmp_x799:=Foo.B#r13a][lq_tmp_x800:=x#a17x][lq_tmp_x792:=VV#1100][VV#803:=VV#F21][VV#F:=VV#F21]]}
+  id 21 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       82;
+       3;
+       19;
+       35;
+       83;
+       4;
+       20;
+       5;
+       21;
+       69;
+       6;
+       22;
+       70;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       284;
+       76;
+       13;
+       29;
+       77;
+       14;
+       30;
+       78;
+       15;
+       31;
+       79]
+  grd true
+  lhs {VV#F37 : FAppTy Foo.RBTree  a_a18R | [k_549[VV#548:=VV#F37][lq_tmp_x544:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x551:=VV#F37][VV#1176:=VV#F37][VV#F:=VV#F37];
+                                             true]}
+  rhs {VV#F37 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F37]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 37 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       8;
+       24;
+       152;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31;
+       175]
+  grd true
+  lhs {VV#F6 : Foo.Color | [k_960[VV#959:=VV#F6][lq_tmp_x962:=VV#F6][VV#1027:=VV#F6][VV#F:=VV#F6];
+                            true]}
+  rhs {VV#F6 : Foo.Color | [k_880[VV#879:=VV#F6][lq_tmp_x963:=VV#F6][VV#1027:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       231;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F22 : a_a18R | [(VV#F22 = x#a17x); true]}
+  rhs {VV#F22 : a_a18R | [k_804[lq_tmp_x799:=Foo.B#r13a][VV#803:=VV#F22][VV#F:=VV#F22]]}
+  id 22 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       289;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       69;
+       6;
+       22;
+       70;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       73;
+       10;
+       26;
+       74;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F38 : FAppTy Foo.RBTree  a_a18R | [k_504[VV#503:=VV#F38][lq_tmp_x499:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x506:=VV#F38][VV#1183:=VV#F38][VV#F:=VV#F38];
+                                             true]}
+  rhs {VV#F38 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F38]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 38 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       177;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       179;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       8;
+       24;
+       152;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F7 : Foo.Color | [k_960[VV#959:=VV#F7][lq_tmp_x962:=VV#F7][VV#1032:=VV#F7][VV#F:=VV#F7];
+                            true]}
+  rhs {VV#F7 : Foo.Color | [k_884[VV#883:=VV#F7][ds_d19v:=lq_tmp_x953][lq_tmp_x968:=lq_tmp_x953][lq_tmp_x964:=VV#F7][VV#1032:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       234;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       124;
+       13;
+       29;
+       77;
+       109;
+       125;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111]
+  grd true
+  lhs {VV#F23 : FAppTy Foo.RBTree  a_a18R | [k_782[VV#781:=VV#F23][lq_tmp_x777:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x784:=VV#F23][VV#1108:=VV#F23][VV#F:=VV#F23];
+                                             true]}
+  rhs {VV#F23 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F23]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 23 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       67;
+       4;
+       20;
+       36;
+       52;
+       68;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       294;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F39 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#F39]) = Set_cup([Set_sng([y#a17O]);
+                                                                         Set_cup([elems([lq_anf__d19D]);
+                                                                                  elems([lq_anf__d19E])])]));
+                                             true]}
+  rhs {VV#F39 : FAppTy Foo.RBTree  a_a18z | [(elems([VV#F39]) = Set_cup([Set_sng([x#a17K]);
+                                                                         Set_cup([elems([l#a17L]);
+                                                                                  elems([r#a17M])])]))]}
+  id 39 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       144;
+       1;
+       17;
+       33;
+       145;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       148;
+       5;
+       21;
+       133;
+       149;
+       6;
+       22;
+       134;
+       7;
+       23;
+       135;
+       8;
+       24;
+       184;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31;
+       143]
+  grd true
+  lhs {VV#F8 : GHC.Types.Bool | [(? Prop([VV#F8]));
+                                 (VV#F8 = GHC.Types.True#6u);
+                                 true]}
+  rhs {VV#F8 : GHC.Types.Bool | [k_888[VV#887:=VV#F8][VV#1039:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [3]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       115;
+       4;
+       20;
+       84;
+       116;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       105;
+       10;
+       26;
+       106;
+       11;
+       27;
+       75;
+       107;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111;
+       239]
+  grd true
+  lhs {VV#F24 : FAppTy Foo.RBTree  a_a18R | [k_737[VV#736:=VV#F24][lq_tmp_x732:=fix#lit#35#case#45#lambda#45#join.hs#58##40#12#44#17#41##45##40#14#44#69#41##124#case][lq_tmp_x739:=VV#F24][VV#1115:=VV#F24][VV#F:=VV#F24];
+                                             true]}
+  rhs {VV#F24 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F24]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 24 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       67;
+       4;
+       20;
+       36;
+       52;
+       68;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       298;
+       58;
+       11;
+       27;
+       43;
+       299;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F40 : a_a18z | [k_459[lq_tmp_x454:=Foo.B#r13a][lq_tmp_x455:=z#a17N][lq_tmp_x456:=c#a17Q][lq_tmp_x457:=d#a17R][lq_tmp_x449:=VV#1194][lq_tmp_x482:=VV#1194][VV#458:=VV#F40][VV#F:=VV#F40];
+                          true]}
+  rhs {VV#F40 : a_a18z | [k_478[lq_tmp_x473:=Foo.R#r139][lq_tmp_x474:=y#a17O][lq_tmp_x475:=lq_anf__d19D][lq_tmp_x467:=VV#1194][VV#477:=VV#F40][VV#F:=VV#F40]]}
+  id 40 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       144;
+       1;
+       17;
+       33;
+       145;
+       2;
+       18;
+       34;
+       146;
+       3;
+       19;
+       35;
+       147;
+       4;
+       20;
+       5;
+       21;
+       133;
+       6;
+       22;
+       134;
+       7;
+       23;
+       135;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       186;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31;
+       143]
+  grd true
+  lhs {VV#F9 : GHC.Types.Bool | [(~ ((? Prop([VV#F9]))));
+                                 (VV#F9 = GHC.Types.False#68);
+                                 true]}
+  rhs {VV#F9 : GHC.Types.Bool | [k_888[VV#887:=VV#F9][VV#1042:=VV#F9][VV#F:=VV#F9]]}
+  id 9 tag [3]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       244;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       104;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F25 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F25]) = Set_cup([Set_sng([y#a17G]);
+                                                                         Set_cup([elems([lq_anf__d19K]);
+                                                                                  elems([lq_anf__d19L])])]));
+                                             true]}
+  rhs {VV#F25 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F25]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 25 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       67;
+       4;
+       20;
+       36;
+       52;
+       68;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       301;
+       61;
+       14;
+       30;
+       46;
+       302;
+       62;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F41 : a_a18z | [k_440[lq_tmp_x435:=Foo.B#r13a][lq_tmp_x436:=x#a17K][lq_tmp_x437:=l#a17L][lq_tmp_x438:=b#a17P][lq_tmp_x430:=VV#1198][lq_tmp_x481:=VV#1198][VV#439:=VV#F41][VV#F:=VV#F41];
+                          true]}
+  rhs {VV#F41 : a_a18z | [k_478[lq_tmp_x473:=Foo.R#r139][lq_tmp_x474:=y#a17O][lq_tmp_x466:=VV#1198][VV#477:=VV#F41][VV#F:=VV#F41]]}
+  id 41 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       133;
+       6;
+       22;
+       134;
+       7;
+       23;
+       135;
+       8;
+       24;
+       136;
+       9;
+       25;
+       137;
+       10;
+       26;
+       138;
+       11;
+       27;
+       12;
+       28;
+       188;
+       13;
+       29;
+       141;
+       14;
+       30;
+       142;
+       15;
+       31]
+  grd true
+  lhs {VV#F10 : GHC.Types.Bool | [(~ ((? Prop([VV#F10]))));
+                                  (VV#F10 = GHC.Types.False#68);
+                                  true]}
+  rhs {VV#F10 : GHC.Types.Bool | [k_888[VV#887:=VV#F10][VV#1045:=VV#F10][VV#F:=VV#F10]]}
+  id 10 tag [3]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       104;
+       248;
+       9;
+       25;
+       89;
+       249;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F26 : a_a18R | [k_665[lq_tmp_x660:=Foo.B#r13a][lq_tmp_x661:=y#a17A][lq_tmp_x662:=c#a17I][lq_tmp_x663:=ds_d19l][lq_tmp_x655:=VV#1126][lq_tmp_x688:=VV#1126][VV#664:=VV#F26][VV#F:=VV#F26];
+                          true]}
+  rhs {VV#F26 : a_a18R | [k_684[lq_tmp_x679:=Foo.R#r139][lq_tmp_x680:=y#a17G][lq_tmp_x681:=lq_anf__d19K][lq_tmp_x673:=VV#1126][VV#683:=VV#F26][VV#F:=VV#F26]]}
+  id 26 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       67;
+       4;
+       20;
+       36;
+       52;
+       68;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47;
+       303]
+  grd true
+  lhs {VV#F42 : a_a18z | [(VV#F42 = y#a17O); true]}
+  rhs {VV#F42 : a_a18z | [k_478[lq_tmp_x473:=Foo.R#r139][VV#477:=VV#F42][VV#F:=VV#F42]]}
+  id 42 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       133;
+       6;
+       22;
+       134;
+       7;
+       23;
+       135;
+       8;
+       24;
+       136;
+       9;
+       25;
+       137;
+       10;
+       26;
+       138;
+       11;
+       27;
+       139;
+       12;
+       28;
+       140;
+       13;
+       29;
+       14;
+       30;
+       190;
+       15;
+       31]
+  grd true
+  lhs {VV#F11 : GHC.Types.Bool | [(? Prop([VV#F11]));
+                                  (VV#F11 = GHC.Types.True#6u);
+                                  true]}
+  rhs {VV#F11 : GHC.Types.Bool | [k_888[VV#887:=VV#F11][VV#1048:=VV#F11][VV#F:=VV#F11]]}
+  id 11 tag [3]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       104;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       251;
+       12;
+       28;
+       76;
+       92;
+       252;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F27 : a_a18R | [k_646[lq_tmp_x641:=Foo.B#r13a][lq_tmp_x642:=x#a17x][lq_tmp_x643:=l#a17y][lq_tmp_x644:=b#a17H][lq_tmp_x636:=VV#1130][lq_tmp_x687:=VV#1130][VV#645:=VV#F27][VV#F:=VV#F27];
+                          true]}
+  rhs {VV#F27 : a_a18R | [k_684[lq_tmp_x679:=Foo.R#r139][lq_tmp_x680:=y#a17G][lq_tmp_x672:=VV#1130][VV#683:=VV#F27][VV#F:=VV#F27]]}
+  id 27 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       307;
+       67;
+       4;
+       20;
+       36;
+       52;
+       308;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F43 : a_a18z | [true]}
+  rhs {VV#F43 : a_a18z | [k_459[lq_tmp_x454:=Foo.B#r13a][lq_tmp_x455:=z#a17N][lq_tmp_x456:=c#a17Q][lq_tmp_x448:=VV#1206][VV#458:=VV#F43][VV#F:=VV#F43]]}
+  id 43 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       192;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       130;
+       3;
+       19;
+       35;
+       131;
+       4;
+       20;
+       84;
+       132;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       105;
+       10;
+       26;
+       106;
+       11;
+       27;
+       75;
+       107;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111]
+  grd true
+  lhs {VV#F12 : FAppTy Foo.RBTree  a_a18R | [k_871[VV#870:=VV#F12][lq_tmp_x866:=lq_anf__d19R][lq_tmp_x873:=VV#F12][VV#1051:=VV#F12][VV#F:=VV#F12];
+                                             true]}
+  rhs {VV#F12 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F12]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 12 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       104;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       253;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F28 : a_a18R | [(VV#F28 = y#a17G); true]}
+  rhs {VV#F28 : a_a18R | [k_684[lq_tmp_x679:=Foo.R#r139][VV#683:=VV#F28][VV#F:=VV#F28]]}
+  id 28 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       67;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       310;
+       7;
+       23;
+       39;
+       311;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F44 : a_a18z | [true]}
+  rhs {VV#F44 : a_a18z | [k_459[lq_tmp_x454:=Foo.B#r13a][lq_tmp_x455:=z#a17N][lq_tmp_x447:=VV#1210][VV#458:=VV#F44][VV#F:=VV#F44]]}
+  id 44 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       1;
+       17;
+       33;
+       81;
+       113;
+       129;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       204;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F13 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F13]) = Set_cup([Set_sng([y#a17G]);
+                                                                         Set_cup([elems([lq_anf__d19P]);
+                                                                                  elems([lq_anf__d19Q])])]));
+                                             true]}
+  rhs {VV#F13 : FAppTy Foo.RBTree  a_a18R | [(elems([VV#F13]) = Set_cup([Set_sng([x#a17x]);
+                                                                         Set_cup([elems([l#a17y]);
+                                                                                  elems([r#a17z])])]))]}
+  id 13 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       257;
+       17;
+       33;
+       81;
+       97;
+       2;
+       258;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F29 : a_a18R | [true]}
+  rhs {VV#F29 : a_a18R | [k_665[lq_tmp_x660:=Foo.B#r13a][lq_tmp_x661:=y#a17A][lq_tmp_x662:=c#a17I][lq_tmp_x654:=VV#1138][VV#664:=VV#F29][VV#F:=VV#F29]]}
+  id 29 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       67;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       312;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F45 : a_a18z | [(VV#F45 = z#a17N); true]}
+  rhs {VV#F45 : a_a18z | [k_459[lq_tmp_x454:=Foo.B#r13a][VV#458:=VV#F45][VV#F:=VV#F45]]}
+  id 45 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       208;
+       1;
+       17;
+       33;
+       81;
+       113;
+       129;
+       209;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F14 : a_a18R | [k_823[lq_tmp_x818:=Foo.B#r13a][lq_tmp_x819:=y#a17A][lq_tmp_x820:=c#a17I][lq_tmp_x821:=ds_d19l][lq_tmp_x813:=VV#1072][lq_tmp_x846:=VV#1072][VV#822:=VV#F14][VV#F:=VV#F14];
+                          true]}
+  rhs {VV#F14 : a_a18R | [k_842[lq_tmp_x837:=Foo.R#r139][lq_tmp_x838:=y#a17G][lq_tmp_x839:=lq_anf__d19P][lq_tmp_x831:=VV#1072][VV#841:=VV#F14][VV#F:=VV#F14]]}
+  id 14 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       260;
+       20;
+       84;
+       5;
+       261;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F30 : a_a18R | [true]}
+  rhs {VV#F30 : a_a18R | [k_665[lq_tmp_x660:=Foo.B#r13a][lq_tmp_x661:=y#a17A][lq_tmp_x653:=VV#1142][VV#664:=VV#F30][VV#F:=VV#F30]]}
+  id 30 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       316;
+       13;
+       29;
+       45;
+       61;
+       317;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  grd true
+  lhs {VV#F46 : a_a18z | [true]}
+  rhs {VV#F46 : a_a18z | [k_440[lq_tmp_x435:=Foo.B#r13a][lq_tmp_x436:=x#a17K][lq_tmp_x437:=l#a17L][lq_tmp_x429:=VV#1218][VV#439:=VV#F46][VV#F:=VV#F46]]}
+  id 46 tag [1]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       1;
+       17;
+       33;
+       81;
+       113;
+       129;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       211;
+       4;
+       20;
+       84;
+       212;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  grd true
+  lhs {VV#F15 : a_a18R | [k_804[lq_tmp_x799:=Foo.B#r13a][lq_tmp_x800:=x#a17x][lq_tmp_x801:=l#a17y][lq_tmp_x802:=b#a17H][lq_tmp_x794:=VV#1076][lq_tmp_x845:=VV#1076][VV#803:=VV#F15][VV#F:=VV#F15];
+                          true]}
+  rhs {VV#F15 : a_a18R | [k_842[lq_tmp_x837:=Foo.R#r139][lq_tmp_x838:=y#a17G][lq_tmp_x830:=VV#1076][VV#841:=VV#F15][VV#F:=VV#F15]]}
+  id 15 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       262;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  grd true
+  lhs {VV#F31 : a_a18R | [(VV#F31 = y#a17A); true]}
+  rhs {VV#F31 : a_a18R | [k_665[lq_tmp_x660:=Foo.B#r13a][VV#664:=VV#F31][VV#F:=VV#F31]]}
+  id 31 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       48;
+       320;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47;
+       319]
+  grd true
+  lhs {VV#F47 : a_a18z | [true]}
+  rhs {VV#F47 : a_a18z | [k_440[lq_tmp_x435:=Foo.B#r13a][lq_tmp_x436:=x#a17K][lq_tmp_x428:=VV#1222][VV#439:=VV#F47][VV#F:=VV#F47]]}
+  id 47 tag [1]
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       8;
+       24;
+       152;
+       9;
+       25;
+       153;
+       10;
+       26;
+       154;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#987 : Foo.Color | [k_988]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       151;
+       8;
+       24;
+       152;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#959 : Foo.Color | [k_960]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#931 : Foo.Color | [k_932]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       347;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#934 : Foo.Color | [k_935]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       150;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       347;
+       12;
+       28;
+       13;
+       29;
+       349;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#937 : GHC.Types.Bool | [k_938]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#879 : Foo.Color | [k_880]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       133;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#883 : Foo.Color | [k_884]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       133;
+       6;
+       22;
+       134;
+       7;
+       23;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#887 : GHC.Types.Bool | [k_888]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       130;
+       3;
+       19;
+       35;
+       131;
+       4;
+       20;
+       84;
+       132;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       105;
+       10;
+       26;
+       106;
+       11;
+       27;
+       75;
+       107;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111]
+  reft {VV#870 : FAppTy Foo.RBTree  a_a18R | [k_871]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       354;
+       130;
+       3;
+       19;
+       35;
+       131;
+       4;
+       20;
+       84;
+       132;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       105;
+       10;
+       26;
+       106;
+       11;
+       27;
+       75;
+       107;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111]
+  reft {VV#867 : a_a18R | [k_868]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       1;
+       17;
+       33;
+       81;
+       113;
+       129;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  reft {VV#841 : a_a18R | [k_842]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       128;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  reft {VV#822 : a_a18R | [k_823]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       126;
+       15;
+       31;
+       79;
+       111;
+       127]
+  reft {VV#803 : a_a18R | [k_804]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       124;
+       13;
+       29;
+       77;
+       109;
+       125;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111]
+  reft {VV#781 : FAppTy Foo.RBTree  a_a18R | [k_782]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       355;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       117;
+       6;
+       22;
+       70;
+       86;
+       118;
+       7;
+       23;
+       71;
+       119;
+       8;
+       24;
+       72;
+       120;
+       9;
+       25;
+       105;
+       121;
+       10;
+       26;
+       106;
+       122;
+       11;
+       27;
+       75;
+       107;
+       123;
+       12;
+       28;
+       76;
+       108;
+       124;
+       13;
+       29;
+       77;
+       109;
+       125;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111]
+  reft {VV#778 : a_a18R | [k_779]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       115;
+       4;
+       20;
+       84;
+       116;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       105;
+       10;
+       26;
+       106;
+       11;
+       27;
+       75;
+       107;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111]
+  reft {VV#736 : FAppTy Foo.RBTree  a_a18R | [k_737]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       112;
+       1;
+       17;
+       33;
+       81;
+       113;
+       2;
+       18;
+       34;
+       114;
+       3;
+       19;
+       35;
+       115;
+       4;
+       20;
+       84;
+       356;
+       116;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       105;
+       10;
+       26;
+       106;
+       11;
+       27;
+       75;
+       107;
+       12;
+       28;
+       76;
+       108;
+       13;
+       29;
+       77;
+       109;
+       14;
+       30;
+       78;
+       110;
+       15;
+       31;
+       79;
+       111]
+  reft {VV#733 : a_a18R | [k_734]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       104;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  reft {VV#683 : a_a18R | [k_684]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       103;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  reft {VV#664 : a_a18R | [k_665]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       101;
+       6;
+       22;
+       70;
+       86;
+       102;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  reft {VV#645 : a_a18R | [k_646]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       99;
+       4;
+       20;
+       84;
+       100;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  reft {VV#623 : FAppTy Foo.RBTree  a_a18R | [k_624]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       96;
+       1;
+       17;
+       33;
+       81;
+       97;
+       2;
+       18;
+       34;
+       98;
+       3;
+       19;
+       35;
+       99;
+       4;
+       20;
+       84;
+       100;
+       5;
+       21;
+       69;
+       85;
+       357;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       92;
+       13;
+       29;
+       77;
+       93;
+       14;
+       30;
+       78;
+       94;
+       15;
+       31;
+       79;
+       95]
+  reft {VV#620 : a_a18R | [k_621]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       90;
+       11;
+       27;
+       75;
+       91;
+       12;
+       28;
+       76;
+       13;
+       29;
+       77;
+       14;
+       30;
+       78;
+       15;
+       31;
+       79]
+  reft {VV#578 : FAppTy Foo.RBTree  a_a18R | [k_579]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       84;
+       5;
+       21;
+       69;
+       85;
+       6;
+       22;
+       70;
+       86;
+       358;
+       7;
+       23;
+       71;
+       87;
+       8;
+       24;
+       72;
+       88;
+       9;
+       25;
+       89;
+       10;
+       26;
+       90;
+       11;
+       27;
+       75;
+       91;
+       12;
+       28;
+       76;
+       13;
+       29;
+       77;
+       14;
+       30;
+       78;
+       15;
+       31;
+       79]
+  reft {VV#575 : a_a18R | [k_576]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       82;
+       3;
+       19;
+       35;
+       83;
+       4;
+       20;
+       5;
+       21;
+       69;
+       6;
+       22;
+       70;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       13;
+       29;
+       77;
+       14;
+       30;
+       78;
+       15;
+       31;
+       79]
+  reft {VV#548 : FAppTy Foo.RBTree  a_a18R | [k_549]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       82;
+       3;
+       19;
+       35;
+       83;
+       4;
+       20;
+       5;
+       21;
+       69;
+       6;
+       22;
+       70;
+       7;
+       23;
+       71;
+       359;
+       8;
+       24;
+       72;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       13;
+       29;
+       77;
+       14;
+       30;
+       78;
+       15;
+       31;
+       79]
+  reft {VV#545 : a_a18R | [k_546]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       69;
+       6;
+       22;
+       70;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       9;
+       25;
+       73;
+       10;
+       26;
+       74;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#503 : FAppTy Foo.RBTree  a_a18R | [k_504]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       5;
+       21;
+       69;
+       6;
+       22;
+       70;
+       7;
+       23;
+       71;
+       8;
+       24;
+       72;
+       360;
+       9;
+       25;
+       73;
+       10;
+       26;
+       74;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#500 : a_a18R | [k_501]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       67;
+       4;
+       20;
+       36;
+       52;
+       68;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  reft {VV#477 : a_a18z | [k_478]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       67;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  reft {VV#458 : a_a18z | [k_459]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       65;
+       2;
+       18;
+       34;
+       66;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47]
+  reft {VV#439 : a_a18z | [k_440]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       64;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47;
+       63]
+  reft {VV#417 : FAppTy Foo.RBTree  a_a18z | [k_418]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       64;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       56;
+       9;
+       25;
+       57;
+       361;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       43;
+       59;
+       12;
+       28;
+       44;
+       60;
+       13;
+       29;
+       45;
+       61;
+       14;
+       30;
+       46;
+       62;
+       15;
+       31;
+       47;
+       63]
+  reft {VV#414 : a_a18z | [k_415]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       54;
+       7;
+       23;
+       39;
+       55;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       45;
+       14;
+       30;
+       46;
+       15;
+       31;
+       47]
+  reft {VV#372 : FAppTy Foo.RBTree  a_a18z | [k_373]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       54;
+       7;
+       23;
+       39;
+       55;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       42;
+       362;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       45;
+       14;
+       30;
+       46;
+       15;
+       31;
+       47]
+  reft {VV#369 : a_a18z | [k_370]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       49;
+       2;
+       18;
+       34;
+       50;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       45;
+       14;
+       30;
+       46;
+       15;
+       31;
+       47]
+  reft {VV#349 : FAppTy Foo.RBTree  a_a18z | [k_350]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       49;
+       2;
+       18;
+       34;
+       50;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       363;
+       12;
+       28;
+       44;
+       13;
+       29;
+       45;
+       14;
+       30;
+       46;
+       15;
+       31;
+       47]
+  reft {VV#346 : a_a18z | [k_347]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       40;
+       9;
+       25;
+       41;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#304 : FAppTy Foo.RBTree  a_a18z | [k_305]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       40;
+       9;
+       25;
+       41;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       364;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#301 : a_a18z | [k_302]}
+  

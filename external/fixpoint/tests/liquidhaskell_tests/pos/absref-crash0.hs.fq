@@ -1,0 +1,1200 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif CmpLen(v:[a], ~A:[b])  : len([v]) [= ; >=; >; <=; <] len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif Cmp(v:int,~A:int)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:GHC.Types.Bool)   : Prop(v)
+qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(1, [Pred @(0); @(0); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+qualif Papp3(v:a,~X:b, ~Y:c, ~P:Pred a b c) : papp3(~P, v, ~X, ~Y)
+constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
+
+// qualif Papp4(v:a,~X:b, ~Y:c, ~Z:d, ~P:Pred a b c d) : papp4(~P, v, ~X, ~Y, ~Z)
+constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool])
+
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+qualif Fst(v : a, fix##126#Y : b): (v = fst([fix##126#Y])) // "/Users/niki/.cabal/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 26, column 8)
+qualif Snd(v : a, fix##126#Y : b): (v = snd([fix##126#Y])) // "/Users/niki/.cabal/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 27, column 8)
+qualif Auto(VV : b_aM4, fix##126#A0 : FAppTy Foo.List  a_aM3): (? papp2([p;
+                                                                         VV;
+                                                                         fix##126#A0])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(vv : FAppTy Foo.List  a_aM3, fix##126#A0 : FAppTy Foo.List  a_aM3): (vv = fix##126#A0) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(VV : FAppTy Foo.List  a_aM3, fix##126#A0 : a_aM3, fix##126#A1 : FAppTy Foo.List  a_aM3): (VV = Foo.C#rpv([fix##126#A0;
+                                                                                                                      fix##126#A1])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(VV : b_aM4, fix##126#A0 : FAppTy Foo.List  a_aM3): (? papp2([p;
+                                                                         VV;
+                                                                         fix##126#A0])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(vv : FAppTy Foo.List  a_aM3, fix##126#A0 : FAppTy Foo.List  a_aM3): (vv = fix##126#A0) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(VV : FAppTy Foo.List  a_aM3): (VV = Foo.N#rpw([])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(VV : b_aM4, fix##126#A0 : FAppTy Foo.List  a_aM3): (? papp2([p;
+                                                                         VV;
+                                                                         fix##126#A0])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(vv : FAppTy Foo.List  a_aM3, fix##126#A0 : FAppTy Foo.List  a_aM3): (vv = fix##126#A0) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(VV : b_aM4, fix##126#A0 : FAppTy Foo.List  a_aM3): (? papp2([p;
+                                                                         VV;
+                                                                         fix##126#A0])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(vv : FAppTy Foo.List  a_aM3, fix##126#A0 : FAppTy Foo.List  a_aM3): (vv = fix##126#A0) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(v : b_aM4, fix##126#P : FAppTy (FAppTy Pred  b_aM4)  (FAppTy Foo.List  a_aM3), fix##126#A0 : FAppTy Foo.List  a_aM3): (? papp2([fix##126#P;
+                                                                                                                                            v;
+                                                                                                                                            fix##126#A0])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(v : b_aM4, fix##126#P : FAppTy (FAppTy Pred  b_aM4)  (FAppTy Foo.List  a_aM3), fix##126#A0 : FAppTy Foo.List  a_aM3): (? papp2([fix##126#P;
+                                                                                                                                            v;
+                                                                                                                                            fix##126#A0])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(v : b_aM4, fix##126#P : FAppTy (FAppTy Pred  b_aM4)  (FAppTy Foo.List  a_aM3)): (? papp2([fix##126#P;
+                                                                                                      v;
+                                                                                                      Foo.N#rpw([])])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(v : b_aM4, fix##126#P : FAppTy (FAppTy Pred  b_aM4)  (FAppTy Foo.List  a_aM3), fix##126#A0 : FAppTy Foo.List  a_aM3): (? papp2([fix##126#P;
+                                                                                                                                            v;
+                                                                                                                                            fix##126#A0])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(v : b_aM4, fix##126#P : FAppTy (FAppTy Pred  b_aM4)  (FAppTy Foo.List  a_aM3), fix##126#A0 : FAppTy Foo.List  a_aM3): (? papp2([fix##126#P;
+                                                                                                                                            v;
+                                                                                                                                            fix##126#A0])) // "absref-crash0.hs" (line 18, column 1)
+qualif Auto(VV : a_aLQ, fix##126#A0 : a_aLQ): (fix##126#A0 <= VV) // "absref-crash0.hs" (line 27, column 1)
+qualif Auto(VV : a_aLQ, fix##126#A0 : a_aLQ): (fix##126#A0 <= VV) // "absref-crash0.hs" (line 27, column 1)
+qualif Auto(VV : FAppTy Foo.List  a_aLG): true // "absref-crash0.hs" (line 31, column 1)
+qualif Auto(VV : a_aLG, fix##126#A0 : a_aLG): (fix##126#A0 <= VV) // "absref-crash0.hs" (line 31, column 1)
+qualif Auto(VV : a_apC, fix##126#A0 : a_apC): (? papp2([p;
+                                                        VV;
+                                                        fix##126#A0])) // "absref-crash0.hs" (line 8, column 19)
+qualif Auto(vv : a_apC, fix##126#A0 : a_apC): (vv = fix##126#A0) // "absref-crash0.hs" (line 8, column 19)
+qualif Auto(VV : FAppTy Foo.List  a_apC, fix##126#A0 : FAppTy Foo.List  a_apC): (xs([VV]) = fix##126#A0) // "absref-crash0.hs" (line 8, column 19)
+qualif Auto(VV : FAppTy Foo.List  a_apC, fix##126#A0 : a_apC): (x([VV]) = fix##126#A0) // "absref-crash0.hs" (line 8, column 19)
+qualif Auto(v : a_apC, fix##126#P : FAppTy (FAppTy Pred  a_apC)  a_apC, fix##126#A0 : a_apC): (? papp2([fix##126#P;
+                                                                                                        v;
+                                                                                                        fix##126#A0])) // "absref-crash0.hs" (line 8, column 19)
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+constant x_Tuple64 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(3)])
+constant x_Tuple54 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(3)])
+constant x_Tuple44 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(3)])
+constant xListSelector : func(1, [[@(0)]; @(0)])
+constant x_Tuple41 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(0)])
+constant x_Tuple76 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(5)])
+constant addrLen : func(0, [int; int])
+constant x_Tuple65 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(4)])
+constant x_Tuple52 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(1)])
+constant x_Tuple75 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(4)])
+constant x_Tuple33 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(2)])
+constant fst : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(0)])
+constant x_Tuple73 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(2)])
+constant x : func(1, [FAppTy Foo.List  @(0); @(0)])
+constant x_Tuple31 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(0)])
+constant x_Tuple43 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(2)])
+constant x_Tuple71 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(0)])
+constant xs : func(1, [FAppTy Foo.List  @(0);
+                       FAppTy Foo.List  @(0)])
+constant x_Tuple32 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(1)])
+constant x_Tuple72 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(1)])
+constant x_Tuple63 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(2)])
+constant x_Tuple51 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(0)])
+constant len : func(1, [[@(0)]; int])
+constant xsListSelector : func(1, [[@(0)]; [@(0)]])
+constant null : func(1, [[@(0)]; bool])
+constant x_Tuple53 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(2)])
+constant x_Tuple22 : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                              @(1)])
+constant fromJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); @(0)])
+constant snd : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(1)])
+constant x_Tuple62 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(1)])
+constant x_Tuple55 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(4)])
+constant x_Tuple74 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(3)])
+constant cmp : func(0, [GHC.Types.Ordering; GHC.Types.Ordering])
+constant x_Tuple42 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(1)])
+constant x_Tuple21 : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                              @(0)])
+constant x_Tuple61 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(0)])
+constant isJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); bool])
+constant x_Tuple66 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(5)])
+constant x_Tuple77 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(6)])
+constant Foo.N#rpw : func(1, [FAppTy Foo.List  @(0)])
+bind 0 GHC.Types.EQ#6U : {VV#122 : GHC.Types.Ordering | []}
+bind 1 GHC.Types.LT#6S : {VV#123 : GHC.Types.Ordering | []}
+bind 2 GHC.Types.GT#6W : {VV#124 : GHC.Types.Ordering | []}
+bind 3 GHC.Integer.Type.smallInteger#0Z : {VV : func(0, [int;
+                                                         int]) | []}
+bind 4 GHC.Types.I##6c : {VV : func(0, [int; int]) | []}
+bind 5 fix#GHC.Prim.#43##35##35#98 : {VV : func(0, [int;
+                                                    int;
+                                                    int]) | []}
+bind 6 fix#GHC.Prim.#45##35##35#99 : {VV : func(0, [int;
+                                                    int;
+                                                    int]) | []}
+bind 7 fix#GHC.Prim.#61##61##35##35#9o : {VV : func(0, [int;
+                                                        int;
+                                                        int]) | []}
+bind 8 fix#GHC.Prim.#62##61##35##35#9n : {VV : func(0, [int;
+                                                        int;
+                                                        int]) | []}
+bind 9 fix#GHC.Prim.#60##61##35##35#9r : {VV : func(0, [int;
+                                                        int;
+                                                        int]) | []}
+bind 10 fix#GHC.Prim.#60##35##35#9q : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 11 fix#GHC.Prim.#62##35##35#9m : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 12 GHC.Types.EQ#6U : {VV#143 : GHC.Types.Ordering | [(cmp([VV#143]) = GHC.Types.EQ#6U)]}
+bind 13 GHC.Types.LT#6S : {VV#146 : GHC.Types.Ordering | [(cmp([VV#146]) = GHC.Types.LT#6S)]}
+bind 14 GHC.Types.GT#6W : {VV#147 : GHC.Types.Ordering | [(cmp([VV#147]) = GHC.Types.GT#6W)]}
+bind 15 lq_tmp_x165 : {VV : a_aLw | []}
+bind 16 p : {VV#236 : FAppTy (FAppTy Pred  b_aM4)  (FAppTy Foo.List  a_aM3) | []}
+bind 17 lq_tmp_db0 : {VV#237 : FAppTy Foo.List  a_aM3 | []}
+bind 18 lq_tmp_x288 : {lq_tmp_x288 : func(0, [func(0, [FAppTy Foo.List  a_aM3;
+                                                       a_aM3;
+                                                       b_aM4;
+                                                       b_aM4]);
+                                              b_aM4;
+                                              FAppTy Foo.List  a_aM3;
+                                              b_aM4]) | []}
+bind 19 VV : {VV : func(0, [FAppTy Foo.List  a_aM3;
+                            a_aM3;
+                            b_aM4;
+                            b_aM4]) | []}
+bind 20 VV#292 : {VV#292 : FAppTy Foo.List  a_aM3 | [k_248[VV#247:=VV#292][lq_tmp_x280:=VV#292]]}
+bind 21 VV#292 : {VV#292 : FAppTy Foo.List  a_aM3 | [k_248[VV#247:=VV#292][lq_tmp_x280:=VV#292]]}
+bind 22 VV#240 : {VV#240 : a_aM3 | [k_241[VV#247:=VV#292][lq_tmp_x280:=VV#292]]}
+bind 23 lq_tmp_db5 : {VV : a_aM3 | []}
+bind 24 VV#244 : {VV#244 : a_aM3 | [k_245[lq_tmp_x243:=lq_tmp_db5][lq_tmp_x279:=lq_tmp_db5]]}
+bind 25 lq_tmp_x239 : {lq_tmp_x280 : FAppTy Foo.List  a_aM3 | [k_248[VV#247:=lq_tmp_x280]]}
+bind 26 VV : {VV : func(0, [a_aM3; b_aM4; b_aM4]) | []}
+bind 27 VV#251 : {VV#251 : a_aM3 | [k_252]}
+bind 28 lq_tmp_x250 : {VV#251 : a_aM3 | [k_252]}
+bind 29 VV : {VV : func(0, [b_aM4; b_aM4]) | []}
+bind 30 VV#255 : {VV#255 : b_aM4 | [k_256]}
+bind 31 lq_tmp_x254 : {VV#255 : b_aM4 | [k_256]}
+bind 32 ex#0 : {VV#305 : FAppTy Foo.List  a_aM3 | [(VV#305 = Foo.C#rpv([lq_tmp_x250;
+                                                                        lq_tmp_x239]));
+                                                   (xs([VV#305]) = lq_tmp_x239);
+                                                   (x([VV#305]) = lq_tmp_x250)]}
+bind 33 VV : {VV : b_aM4 | [(? papp2([p; VV; ex#0]))]}
+bind 34 lq_tmp_x233 : {VV : func(0, [FAppTy Foo.List  a_aM3;
+                                     a_aM3;
+                                     b_aM4;
+                                     b_aM4]) | []}
+bind 35 lq_tmp_x287 : {lq_tmp_x287 : func(0, [b_aM4;
+                                              FAppTy Foo.List  a_aM3;
+                                              b_aM4]) | []}
+bind 36 ex#1 : {VV#309 : FAppTy Foo.List  a_aM3 | [(VV#309 = Foo.N#rpw([]))]}
+bind 37 VV : {VV : b_aM4 | [(? papp2([p; VV; ex#1]))]}
+bind 38 lq_tmp_x311 : {VV#312 : FAppTy Foo.List  a_aM3 | [(VV#312 = Foo.N#rpw([]))]}
+bind 39 lq_tmp_x234 : {VV : b_aM4 | [(? papp2([p;
+                                               VV;
+                                               lq_tmp_x311]))]}
+bind 40 lq_tmp_x286 : {lq_tmp_x286 : func(0, [FAppTy Foo.List  a_aM3;
+                                              b_aM4]) | []}
+bind 41 VV#315 : {VV#315 : FAppTy Foo.List  a_aM3 | []}
+bind 42 VV#315 : {VV#315 : FAppTy Foo.List  a_aM3 | []}
+bind 43 VV : {VV : a_aM3 | []}
+bind 44 lq_tmp_x284 : {VV : a_aM3 | []}
+bind 45 VV : {VV : a_aM3 | []}
+bind 46 lq_tmp_x235 : {VV#321 : FAppTy Foo.List  a_aM3 | []}
+bind 47 VV#276 : {VV#276 : b_aM4 | [k_277[lq_tmp_x238:=lq_tmp_x233][lq_tmp_x261:=lq_tmp_x234][lq_tmp_x265:=lq_tmp_x235]]}
+bind 48 lq_tmp_x228 : {lq_tmp_x228 : func(0, [a_aLQ;
+                                              FAppTy Foo.List  a_aLQ;
+                                              FAppTy Foo.List  a_aLQ]) | []}
+bind 49 VV : {VV : a_aLQ | []}
+bind 50 lq_tmp_x196 : {VV : a_aLQ | []}
+bind 51 lq_tmp_x227 : {lq_tmp_x227 : func(0, [FAppTy Foo.List  a_aLQ;
+                                              FAppTy Foo.List  a_aLQ]) | []}
+bind 52 VV#327 : {VV#327 : FAppTy Foo.List  a_aLQ | []}
+bind 53 VV#327 : {VV#327 : FAppTy Foo.List  a_aLQ | []}
+bind 54 VV : {VV : a_aLQ | []}
+bind 55 lq_tmp_x223 : {VV : a_aLQ | []}
+bind 56 VV : {VV : a_aLQ | [(lq_tmp_x223 <= VV)]}
+bind 57 lq_tmp_x197 : {VV#333 : FAppTy Foo.List  a_aLQ | []}
+bind 58 VV#334 : {VV#334 : FAppTy Foo.List  a_aLQ | [k_221[VV#220:=VV#334][lq_tmp_x198:=lq_tmp_x196][lq_tmp_x202:=lq_tmp_x197][lq_tmp_x226:=VV#334]]}
+bind 59 VV#334 : {VV#334 : FAppTy Foo.List  a_aLQ | [k_221[VV#220:=VV#334][lq_tmp_x198:=lq_tmp_x196][lq_tmp_x202:=lq_tmp_x197][lq_tmp_x226:=VV#334]]}
+bind 60 VV#213 : {VV#213 : a_aLQ | [k_214[VV#220:=VV#334][lq_tmp_x198:=lq_tmp_x196][lq_tmp_x202:=lq_tmp_x197][lq_tmp_x226:=VV#334]]}
+bind 61 x7 : {VV : a_aLQ | []}
+bind 62 VV#217 : {VV#217 : a_aLQ | [k_218[lq_tmp_x216:=x7][lq_tmp_x198:=lq_tmp_x196][lq_tmp_x202:=lq_tmp_x197][lq_tmp_x225:=x7]]}
+bind 63 lq_tmp_x194 : {lq_tmp_x194 : func(0, [FAppTy Foo.List  a_aLG;
+                                              FAppTy Foo.List  a_aLG]) | []}
+bind 64 VV#341 : {VV#341 : FAppTy Foo.List  a_aLG | []}
+bind 65 VV#341 : {VV#341 : FAppTy Foo.List  a_aLG | []}
+bind 66 VV : {VV : a_aLG | []}
+bind 67 lq_tmp_x190 : {VV : a_aLG | []}
+bind 68 VV : {VV : a_aLG | []}
+bind 69 lq_tmp_x168 : {VV#347 : FAppTy Foo.List  a_aLG | []}
+bind 70 VV#348 : {VV#348 : FAppTy Foo.List  a_aLG | [k_188[VV#187:=VV#348][lq_tmp_x169:=lq_tmp_x168][lq_tmp_x193:=VV#348]]}
+bind 71 VV#348 : {VV#348 : FAppTy Foo.List  a_aLG | [k_188[VV#187:=VV#348][lq_tmp_x169:=lq_tmp_x168][lq_tmp_x193:=VV#348]]}
+bind 72 VV#180 : {VV#180 : a_aLG | [k_181[VV#187:=VV#348][lq_tmp_x169:=lq_tmp_x168][lq_tmp_x193:=VV#348]]}
+bind 73 x7 : {VV : a_aLG | []}
+bind 74 VV#184 : {VV#184 : a_aLG | [k_185[lq_tmp_x183:=x7][lq_tmp_x169:=lq_tmp_x168][lq_tmp_x192:=x7]]}
+bind 75 VV#25 : {VV#25 : FAppTy Foo.List  a_aM3 | [k_26]}
+bind 76 lq_tmp_db5 : {VV : a_aM3 | []}
+bind 77 lq_tmp_x230 : {VV#25 : FAppTy Foo.List  a_aM3 | [k_26]}
+bind 78 lq_tmp_x231 : {VV#28 : a_aM3 | [k_29]}
+bind 79 lq_tmp_x232 : {VV : b_aM4 | [(? papp2([p;
+                                               VV;
+                                               lq_tmp_x230]))]}
+bind 80 lq_tmp_db5 : {VV : a_aM3 | []}
+bind 81 ex#0 : {VV#360 : FAppTy Foo.List  a_aM3 | [(VV#360 = Foo.C#rpv([lq_tmp_x231;
+                                                                        lq_tmp_x230]))]}
+bind 82 lq_tmp_x233 : {VV : func(0, [FAppTy Foo.List  a_aM3;
+                                     a_aM3;
+                                     b_aM4;
+                                     b_aM4]) | []}
+bind 83 lq_tmp_db5 : {VV : a_aM3 | []}
+bind 84 ex#1 : {VV#363 : FAppTy Foo.List  a_aM3 | [(VV#363 = Foo.N#rpw([]))]}
+bind 85 lq_tmp_x364 : {VV#365 : FAppTy Foo.List  a_aM3 | [(VV#365 = Foo.N#rpw([]))]}
+bind 86 lq_tmp_x234 : {VV : b_aM4 | [(? papp2([p;
+                                               VV;
+                                               lq_tmp_x364]))]}
+bind 87 lq_tmp_db5 : {VV : a_aM3 | []}
+bind 88 lq_tmp_x235 : {VV#368 : FAppTy Foo.List  a_aM3 | []}
+bind 89 VV#247 : {VV#247 : FAppTy Foo.List  a_aM3 | [k_248]}
+bind 90 lq_tmp_x243 : {VV : a_aM3 | []}
+bind 91 lq_tmp_x239 : {VV#247 : FAppTy Foo.List  a_aM3 | [k_248]}
+bind 92 lq_tmp_x250 : {VV#251 : a_aM3 | [k_252]}
+bind 93 lq_tmp_x254 : {VV#255 : b_aM4 | [k_256]}
+bind 94 lq_tmp_x238 : {VV : func(0, [FAppTy Foo.List  a_aM3;
+                                     a_aM3;
+                                     b_aM4;
+                                     b_aM4]) | []}
+bind 95 lq_tmp_x261 : {VV#262 : b_aM4 | [k_263]}
+bind 96 VV#273 : {VV#273 : FAppTy Foo.List  a_aM3 | [k_274]}
+bind 97 lq_tmp_x269 : {VV : a_aM3 | []}
+bind 98 lq_tmp_x265 : {VV#273 : FAppTy Foo.List  a_aM3 | [k_274]}
+bind 99 lq_tmp_x198 : {VV#199 : a_aLQ | [k_200]}
+bind 100 VV#210 : {VV#210 : FAppTy Foo.List  a_aLQ | [k_211]}
+bind 101 lq_tmp_x206 : {VV : a_aLQ | []}
+bind 102 lq_tmp_x202 : {VV#210 : FAppTy Foo.List  a_aLQ | [k_211]}
+bind 103 VV#220 : {VV#220 : FAppTy Foo.List  a_aLQ | [k_221]}
+bind 104 lq_tmp_x216 : {VV : a_aLQ | []}
+bind 105 VV#177 : {VV#177 : FAppTy Foo.List  a_aLG | [k_178]}
+bind 106 lq_tmp_x173 : {VV : a_aLG | []}
+bind 107 lq_tmp_x169 : {VV#177 : FAppTy Foo.List  a_aLG | [k_178]}
+bind 108 VV#187 : {VV#187 : FAppTy Foo.List  a_aLG | [k_188]}
+bind 109 lq_tmp_x183 : {VV : a_aLG | []}
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       50;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       57;
+       10;
+       11;
+       59;
+       12;
+       13;
+       61;
+       14;
+       62]
+  grd true
+  lhs {VV#F16 : a_aLQ | [k_218[lq_tmp_x216:=x7][lq_tmp_x198:=lq_tmp_x196][lq_tmp_x202:=lq_tmp_x197][lq_tmp_x225:=x7][VV#217:=VV#F16][VV#F:=VV#F16];
+                         true]}
+  rhs {VV#F16 : a_aLQ | [(x7 <= VV#F16)]}
+  id 16 tag [3]
+
+
+constraint:
+  env [0; 16; 1; 17; 2; 3; 4; 20; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  grd true
+  lhs {VV#F1 : FAppTy Foo.List  a_aM3 | [k_248[VV#247:=VV#F1][lq_tmp_x280:=VV#F1][VV#292:=VV#F1][VV#F:=VV#F1];
+                                         true]}
+  rhs {VV#F1 : FAppTy Foo.List  a_aM3 | [k_26[VV#25:=VV#F1][VV#292:=VV#F1][VV#F:=VV#F1]]}
+  id 1 tag [4]
+
+
+constraint:
+  env [0; 64; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  grd true
+  lhs {VV#F17 : FAppTy Foo.List  a_aLG | [true]}
+  rhs {VV#F17 : FAppTy Foo.List  a_aLG | [k_178[VV#177:=VV#F17][lq_tmp_x191:=VV#F17][VV#341:=VV#F17][VV#F:=VV#F17]]}
+  id 17 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       21;
+       6;
+       22;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14]
+  grd true
+  lhs {VV#F2 : a_aM3 | [k_241[VV#247:=VV#292][lq_tmp_x280:=VV#292][VV#240:=VV#F2][VV#F:=VV#F2];
+                        true]}
+  rhs {VV#F2 : a_aM3 | [k_20[VV#19:=VV#F2][VV#25:=VV#292][VV:=VV#F2][VV#F:=VV#F2]]}
+  id 2 tag [4]
+
+
+constraint:
+  env [0; 1; 65; 2; 66; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  grd true
+  lhs {VV#F18 : a_aLG | [true]}
+  rhs {VV#F18 : a_aLG | [k_171[VV#177:=VV#341][lq_tmp_x191:=VV#341][VV#170:=VV#F18][VV#F:=VV#F18]]}
+  id 18 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       21;
+       6;
+       7;
+       23;
+       8;
+       24;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14]
+  grd true
+  lhs {VV#F3 : a_aM3 | [k_245[lq_tmp_x243:=lq_tmp_db5][lq_tmp_x279:=lq_tmp_db5][VV#244:=VV#F3][VV#F:=VV#F3];
+                        true]}
+  rhs {VV#F3 : a_aM3 | [k_23[VV#22:=VV#F3][VV:=VV#F3][VV#F:=VV#F3]]}
+  id 3 tag [4]
+
+
+constraint:
+  env [0; 1; 65; 2; 3; 67; 4; 68; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  grd true
+  lhs {VV#F19 : a_aLG | [true]}
+  rhs {VV#F19 : a_aLG | [k_175[lq_tmp_x173:=lq_tmp_x190][VV#174:=VV#F19][VV#F:=VV#F19]]}
+  id 19 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       25;
+       10;
+       11;
+       27;
+       12;
+       13;
+       14]
+  grd true
+  lhs {VV#F4 : a_aM3 | [k_252[VV#251:=VV#F4][VV#F:=VV#F4]; true]}
+  rhs {VV#F4 : a_aM3 | [k_29[xs:=lq_tmp_x239][VV#28:=VV#F4][lq_tmp_x230:=lq_tmp_x239][VV:=VV#F4][VV#F:=VV#F4]]}
+  id 4 tag [4]
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       3;
+       4;
+       5;
+       69;
+       6;
+       7;
+       71;
+       8;
+       9;
+       73;
+       10;
+       74;
+       11;
+       12;
+       13;
+       14]
+  grd true
+  lhs {VV#F20 : a_aLG | [k_185[lq_tmp_x183:=x7][lq_tmp_x169:=lq_tmp_x168][lq_tmp_x192:=x7][VV#184:=VV#F20][VV#F:=VV#F20];
+                         true]}
+  rhs {VV#F20 : a_aLG | [(x7 <= VV#F20)]}
+  id 20 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       25;
+       10;
+       11;
+       12;
+       28;
+       13;
+       14;
+       30]
+  grd true
+  lhs {VV#F5 : b_aM4 | [k_256[VV#255:=VV#F5][VV#F:=VV#F5]; true]}
+  rhs {VV#F5 : b_aM4 | [(? papp2([p; VV#F5; lq_tmp_x239]))]}
+  id 5 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       25;
+       10;
+       11;
+       12;
+       28;
+       13;
+       14;
+       31]
+  grd true
+  lhs {VV#F6 : b_aM4 | [(? papp2([p; VV#F6; ex#0])); true]}
+  rhs {VV#F6 : b_aM4 | [k_259[VV#258:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       34;
+       3;
+       4;
+       36;
+       5;
+       37;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14]
+  grd true
+  lhs {VV#F7 : b_aM4 | [(? papp2([p; VV#F7; ex#1])); true]}
+  rhs {VV#F7 : b_aM4 | [k_263[lq_tmp_x238:=lq_tmp_x233][VV#262:=VV#F7][VV#F:=VV#F7]]}
+  id 7 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       34;
+       3;
+       4;
+       5;
+       6;
+       38;
+       7;
+       39;
+       8;
+       9;
+       41;
+       10;
+       11;
+       12;
+       13;
+       14]
+  grd true
+  lhs {VV#F8 : FAppTy Foo.List  a_aM3 | [true]}
+  rhs {VV#F8 : FAppTy Foo.List  a_aM3 | [k_274[VV#273:=VV#F8][lq_tmp_x238:=lq_tmp_x233][lq_tmp_x261:=lq_tmp_x234][lq_tmp_x285:=VV#F8][VV#315:=VV#F8][VV#F:=VV#F8]]}
+  id 8 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       34;
+       3;
+       4;
+       5;
+       6;
+       38;
+       7;
+       39;
+       8;
+       9;
+       10;
+       42;
+       11;
+       43;
+       12;
+       13;
+       14]
+  grd true
+  lhs {VV#F9 : a_aM3 | [true]}
+  rhs {VV#F9 : a_aM3 | [k_267[VV#273:=VV#315][lq_tmp_x238:=lq_tmp_x233][lq_tmp_x261:=lq_tmp_x234][lq_tmp_x285:=VV#315][VV#266:=VV#F9][VV#F:=VV#F9]]}
+  id 9 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       34;
+       3;
+       4;
+       5;
+       6;
+       38;
+       7;
+       39;
+       8;
+       9;
+       10;
+       42;
+       11;
+       12;
+       44;
+       13;
+       45;
+       14]
+  grd true
+  lhs {VV#F10 : a_aM3 | [true]}
+  rhs {VV#F10 : a_aM3 | [k_271[lq_tmp_x269:=lq_tmp_x284][lq_tmp_x238:=lq_tmp_x233][lq_tmp_x261:=lq_tmp_x234][VV#270:=VV#F10][VV#F:=VV#F10]]}
+  id 10 tag [4]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       34;
+       3;
+       4;
+       5;
+       6;
+       38;
+       7;
+       39;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       46;
+       47]
+  grd true
+  lhs {VV#F11 : b_aM4 | [k_277[lq_tmp_x238:=lq_tmp_x233][lq_tmp_x261:=lq_tmp_x234][lq_tmp_x265:=lq_tmp_x235][VV#276:=VV#F11][VV#F:=VV#F11];
+                         true]}
+  rhs {VV#F11 : b_aM4 | [(? papp2([p; VV#F11; lq_tmp_x235]))]}
+  id 11 tag [4]
+
+
+constraint:
+  env [0; 1; 49; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  grd true
+  lhs {VV#F12 : a_aLQ | [true]}
+  rhs {VV#F12 : a_aLQ | [k_200[VV#199:=VV#F12][VV#F:=VV#F12]]}
+  id 12 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 50; 3; 4; 52; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  grd true
+  lhs {VV#F13 : FAppTy Foo.List  a_aLQ | [true]}
+  rhs {VV#F13 : FAppTy Foo.List  a_aLQ | [k_211[VV#210:=VV#F13][lq_tmp_x198:=lq_tmp_x196][lq_tmp_x224:=VV#F13][VV#327:=VV#F13][VV#F:=VV#F13]]}
+  id 13 tag [3]
+
+
+constraint:
+  env [0; 1; 2; 50; 3; 4; 5; 53; 6; 54; 7; 8; 9; 10; 11; 12; 13; 14]
+  grd true
+  lhs {VV#F14 : a_aLQ | [true]}
+  rhs {VV#F14 : a_aLQ | [k_204[VV#210:=VV#327][lq_tmp_x198:=lq_tmp_x196][lq_tmp_x224:=VV#327][VV#203:=VV#F14][VV#F:=VV#F14]]}
+  id 14 tag [3]
+
+
+constraint:
+  env [0;
+       1;
+       2;
+       50;
+       3;
+       4;
+       5;
+       53;
+       6;
+       7;
+       55;
+       8;
+       56;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14]
+  grd true
+  lhs {VV#F15 : a_aLQ | [(lq_tmp_x223 <= VV#F15); true]}
+  rhs {VV#F15 : a_aLQ | [k_208[lq_tmp_x206:=lq_tmp_x223][lq_tmp_x198:=lq_tmp_x196][VV#207:=VV#F15][VV#F:=VV#F15]]}
+  id 15 tag [3]
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#25 : FAppTy Foo.List  a_aM3 | [k_26]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 75; 12; 13; 14]
+  reft {VV#19 : a_aM3 | [k_20]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 76; 13; 14]
+  reft {VV#22 : a_aM3 | [k_23]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 77; 14]
+  reft {VV#28 : a_aM3 | [k_29]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       77;
+       14;
+       78]
+  reft {VV : b_aM4 | [(? papp2([p; VV; lq_tmp_x230]))]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       77;
+       14;
+       78;
+       79]
+  reft {VV : FAppTy Foo.List  a_aM3 | [(VV = Foo.C#rpv([lq_tmp_x231;
+                                                        lq_tmp_x230]))]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       81;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       77;
+       14;
+       78;
+       79]
+  reft {VV : b_aM4 | [(? papp2([p; VV; ex#0]))]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 82; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV : FAppTy Foo.List  a_aM3 | [(VV = Foo.N#rpw([]))]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       82;
+       3;
+       4;
+       84;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14]
+  reft {VV : b_aM4 | [(? papp2([p; VV; ex#1]))]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       82;
+       3;
+       4;
+       5;
+       85;
+       6;
+       86;
+       7;
+       8;
+       88;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14]
+  reft {VV : b_aM4 | [(? papp2([p; VV; lq_tmp_x235]))]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#247 : FAppTy Foo.List  a_aM3 | [k_248]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 89; 10; 11; 12; 13; 14]
+  reft {VV#240 : a_aM3 | [k_241]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 90; 11; 12; 13; 14]
+  reft {VV#244 : a_aM3 | [k_245]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 91; 12; 13; 14]
+  reft {VV#251 : a_aM3 | [k_252]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       91;
+       12;
+       92;
+       13;
+       14]
+  reft {VV#255 : b_aM4 | [k_256]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       91;
+       12;
+       92;
+       13;
+       93;
+       14]
+  reft {VV#258 : b_aM4 | [k_259]}
+  
+
+
+wf:
+  env [0; 16; 1; 17; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 94]
+  reft {VV#262 : b_aM4 | [k_263]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       94;
+       95]
+  reft {VV#273 : FAppTy Foo.List  a_aM3 | [k_274]}
+  
+
+
+wf:
+  env [0;
+       16;
+       96;
+       1;
+       17;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       94;
+       95]
+  reft {VV#266 : a_aM3 | [k_267]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       97;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       94;
+       95]
+  reft {VV#270 : a_aM3 | [k_271]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       98;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       94;
+       95]
+  reft {VV#276 : b_aM4 | [k_277]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#199 : a_aLQ | [k_200]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 99; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#210 : FAppTy Foo.List  a_aLQ | [k_211]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 99; 4; 100; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#203 : a_aLQ | [k_204]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 99; 4; 5; 101; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#207 : a_aLQ | [k_208]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 99; 4; 5; 6; 102; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#220 : FAppTy Foo.List  a_aLQ | [k_221]}
+  
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       99;
+       4;
+       5;
+       6;
+       102;
+       7;
+       103;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14]
+  reft {VV#213 : a_aLQ | [k_214]}
+  
+
+
+wf:
+  env [0;
+       1;
+       2;
+       3;
+       99;
+       4;
+       5;
+       6;
+       102;
+       7;
+       8;
+       104;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14]
+  reft {VV#217 : a_aLQ | [k_218]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#177 : FAppTy Foo.List  a_aLG | [k_178]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 105; 10; 11; 12; 13; 14]
+  reft {VV#170 : a_aLG | [k_171]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 106; 11; 12; 13; 14]
+  reft {VV#174 : a_aLG | [k_175]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 107; 12; 13; 14]
+  reft {VV#187 : FAppTy Foo.List  a_aLG | [k_188]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 107; 12; 108; 13; 14]
+  reft {VV#180 : a_aLG | [k_181]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 107; 12; 13; 109; 14]
+  reft {VV#184 : a_aLG | [k_185]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#162 : a_aLw | [k_163]}
+  
+
+
+wf:
+  env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14]
+  reft {VV#159 : a_aLw | [k_160]}
+  

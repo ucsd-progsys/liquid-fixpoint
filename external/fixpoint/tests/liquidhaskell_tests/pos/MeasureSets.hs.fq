@@ -1,0 +1,444 @@
+//qualif NonNull(v: [a])        : (? (nonnull([v])))
+//qualif Null(v: [a])           : (~ (? (nonnull([v]))))
+//qualif EqNull(v:Bool, ~A: [a]): (Prop(v) <=> (? (nonnull([~A]))))
+
+qualif IsEmp(v:GHC.Types.Bool, ~A: [a]) : (Prop(v) <=> len([~A]) [ > ;  = ] 0)
+qualif ListZ(v: [a])          : len([v]) [ = ; >= ; > ] 0 
+qualif CmpLen(v:[a], ~A:[b])  : len([v]) [= ; >=; >; <=; <] len([~A]) 
+qualif EqLen(v:int, ~A: [a])  : v = len([~A]) 
+qualif LenEq(v:[a], ~A: int)  : ~A = len([v]) 
+qualif LenAcc(v:int, ~A:[a], ~B: int): v = len([~A]) + ~B
+qualif LenDiff(v:[a], ~A:int): len([v]) = (~A [ +; - ] 1)
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif Cmp(v:int,~A:int)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:GHC.Types.Bool)   : Prop(v)
+qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(1, [Pred @(0); @(0); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+qualif Papp3(v:a,~X:b, ~Y:c, ~P:Pred a b c) : papp3(~P, v, ~X, ~Y)
+constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
+
+// qualif Papp4(v:a,~X:b, ~Y:c, ~Z:d, ~P:Pred a b c d) : papp4(~P, v, ~X, ~Y, ~Z)
+constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool])
+
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+qualif Fst(v : a, fix##126#Y : b): (v = fst([fix##126#Y])) // "/Users/niki/.cabal/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 26, column 8)
+qualif Snd(v : a, fix##126#Y : b): (v = snd([fix##126#Y])) // "/Users/niki/.cabal/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 27, column 8)
+qualif Auto(VV : FAppTy Set_Set  a_aTE, fix##126#A0 : FAppTy Measures.F  a_aTE): (VV = foo1([fix##126#A0])) // "MeasureSets.hs" (line 11, column 1)
+qualif Auto(VV : int, fix##126#A0 : FAppTy Measures.F  int): (VV = foo([fix##126#A0])) // "MeasureSets.hs" (line 16, column 1)
+qualif Auto(VV : FAppTy Measures.F  a_aTa, fix##126#A0 : a_aTa): (foo([VV]) = (fix##126#A0 + 1)) // "MeasureSets.hs" (line 8, column 12)
+qualif Auto(VV : FAppTy Measures.F  a_aTa, fix##126#A0 : a_aTa): (foo1([VV]) = Set_sng([fix##126#A0])) // "MeasureSets.hs" (line 8, column 12)
+qualif Auto(VV : FAppTy Measures.F  a_aTa): (foo([VV]) = 0) // "MeasureSets.hs" (line 8, column 18)
+qualif Auto(VV : FAppTy Measures.F  a_aTa): (foo1([VV]) = Set_empty([0])) // "MeasureSets.hs" (line 8, column 18)
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
+constant x_Tuple64 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(3)])
+constant x_Tuple54 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(3)])
+constant xListSelector : func(1, [[@(0)]; @(0)])
+constant foo1 : func(1, [FAppTy Measures.F  @(0);
+                         FAppTy Set_Set  @(0)])
+constant Set_emp : func(1, [FAppTy Set_Set  @(0); bool])
+constant Set_empty : func(1, [int; FAppTy Set_Set  @(0)])
+constant Set_cup : func(1, [FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0)])
+constant x_Tuple41 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(0)])
+constant x_Tuple76 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(5)])
+constant Set_sub : func(1, [FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0);
+                            bool])
+constant addrLen : func(0, [int; int])
+constant x_Tuple65 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(4)])
+constant Set_dif : func(1, [FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0)])
+constant Set_cap : func(1, [FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0);
+                            FAppTy Set_Set  @(0)])
+constant listElts : func(1, [[@(0)]; FAppTy Set_Set  @(0)])
+constant Set_sng : func(1, [@(0); FAppTy Set_Set  @(0)])
+constant Set_mem : func(1, [@(0); FAppTy Set_Set  @(0); bool])
+constant foo : func(0, [FAppTy Measures.F  int; int])
+constant x_Tuple52 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(1)])
+constant x_Tuple75 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(4)])
+constant x_Tuple44 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(3)])
+constant x_Tuple33 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(2)])
+constant fst : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(0)])
+constant x_Tuple73 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(2)])
+constant x_Tuple31 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(0)])
+constant x_Tuple43 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(2)])
+constant x_Tuple71 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(0)])
+constant x_Tuple32 : func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+                              @(1)])
+constant x_Tuple72 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(1)])
+constant x_Tuple63 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(2)])
+constant x_Tuple51 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(0)])
+constant len : func(1, [[@(0)]; int])
+constant xsListSelector : func(1, [[@(0)]; [@(0)]])
+constant null : func(1, [[@(0)]; bool])
+constant x_Tuple53 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(2)])
+constant x_Tuple22 : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                              @(1)])
+constant fromJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); @(0)])
+constant snd : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                        @(1)])
+constant x_Tuple62 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(1)])
+constant x_Tuple55 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+                              @(4)])
+constant x_Tuple74 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(3)])
+constant cmp : func(0, [GHC.Types.Ordering; GHC.Types.Ordering])
+constant x_Tuple42 : func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+                              @(1)])
+constant x_Tuple21 : func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+                              @(0)])
+constant x_Tuple61 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(0)])
+constant isJust : func(1, [FAppTy Data.Maybe.Maybe  @(0); bool])
+constant x_Tuple66 : func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                              @(5)])
+constant x_Tuple77 : func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                              @(6)])
+constant Measures.F#rqo : func(1, [@(0); FAppTy Measures.F  @(0)])
+constant Measures.E#rqn : func(1, [FAppTy Measures.F  @(0)])
+bind 0 GHC.Types.I##6c : {VV : func(0, [int; int]) | []}
+bind 1 fix#GHC.Num.#36#fNumInt#35#riq : {VV#128 : FAppTy GHC.Num.Num  int | []}
+bind 2 GHC.Types.EQ#6U : {VV#131 : GHC.Types.Ordering | []}
+bind 3 GHC.Types.LT#6S : {VV#132 : GHC.Types.Ordering | []}
+bind 4 GHC.Types.GT#6W : {VV#133 : GHC.Types.Ordering | []}
+bind 5 GHC.Integer.Type.smallInteger#0Z : {VV : func(0, [int;
+                                                         int]) | []}
+bind 6 GHC.Types.I##6c : {VV : func(0, [int; int]) | []}
+bind 7 fix#GHC.Prim.#43##35##35#98 : {VV : func(0, [int;
+                                                    int;
+                                                    int]) | []}
+bind 8 fix#GHC.Prim.#45##35##35#99 : {VV : func(0, [int;
+                                                    int;
+                                                    int]) | []}
+bind 9 fix#GHC.Prim.#61##61##35##35#9o : {VV : func(0, [int;
+                                                        int;
+                                                        int]) | []}
+bind 10 fix#GHC.Prim.#62##61##35##35#9n : {VV : func(0, [int;
+                                                         int;
+                                                         int]) | []}
+bind 11 fix#GHC.Prim.#60##61##35##35#9r : {VV : func(0, [int;
+                                                         int;
+                                                         int]) | []}
+bind 12 fix#GHC.Prim.#60##35##35#9q : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 13 fix#GHC.Prim.#62##35##35#9m : {VV : func(0, [int;
+                                                     int;
+                                                     int]) | []}
+bind 14 GHC.Types.EQ#6U : {VV#153 : GHC.Types.Ordering | [(cmp([VV#153]) = GHC.Types.EQ#6U)]}
+bind 15 GHC.Types.LT#6S : {VV#164 : GHC.Types.Ordering | [(cmp([VV#164]) = GHC.Types.LT#6S)]}
+bind 16 GHC.Types.GT#6W : {VV#165 : GHC.Types.Ordering | [(cmp([VV#165]) = GHC.Types.GT#6W)]}
+bind 17 ds_dU2 : {VV#175 : FAppTy Measures.F  a_aTE | []}
+bind 18 lq_anf__dU3 : {lq_tmp_x176 : FAppTy Measures.F  a_aTE | [(lq_tmp_x176 = ds_dU2)]}
+bind 19 lq_anf__dU3 : {lq_tmp_x178 : FAppTy Measures.F  a_aTE | [(lq_tmp_x178 = ds_dU2)]}
+bind 20 x#aTc : {VV : a_aTE | []}
+bind 21 lq_anf__dU3 : {lq_tmp_x178 : FAppTy Measures.F  a_aTE | [(lq_tmp_x178 = ds_dU2);
+                                                                 (lq_tmp_x178 = Measures.F#rqo([x#aTc]));
+                                                                 (foo1([lq_tmp_x178]) = Set_sng([x#aTc]))]}
+bind 22 lq_anf__dU3 : {lq_tmp_x193 : FAppTy Measures.F  a_aTE | [(lq_tmp_x193 = ds_dU2)]}
+bind 23 lq_anf__dU3 : {lq_tmp_x193 : FAppTy Measures.F  a_aTE | [(lq_tmp_x193 = ds_dU2);
+                                                                 (lq_tmp_x193 = Measures.E#rqn([]));
+                                                                 (foo1([lq_tmp_x193]) = Set_empty([0]))]}
+bind 24 ds_dU1 : {VV#204 : FAppTy Measures.F  int | []}
+bind 25 lq_anf__dU4 : {lq_tmp_x206 : FAppTy Measures.F  int | [(lq_tmp_x206 = ds_dU1)]}
+bind 26 lq_anf__dU4 : {lq_tmp_x209 : FAppTy Measures.F  int | [(lq_tmp_x209 = ds_dU1)]}
+bind 27 x#aTd : {lq_tmp_x208 : int | []}
+bind 28 lq_anf__dU4 : {lq_tmp_x209 : FAppTy Measures.F  int | [(lq_tmp_x209 = ds_dU1);
+                                                               (lq_tmp_x209 = Measures.F#rqo([x#aTd]));
+                                                               (foo([lq_tmp_x209]) = (x#aTd + 1));
+                                                               (foo1([lq_tmp_x209]) = Set_sng([x#aTd]))]}
+bind 29 lq_anf__dU5 : {lq_tmp_x219 : int | [(lq_tmp_x219 = (1  :  int))]}
+bind 30 lq_anf__dU4 : {lq_tmp_x238 : FAppTy Measures.F  int | [(lq_tmp_x238 = ds_dU1)]}
+bind 31 lq_anf__dU4 : {lq_tmp_x238 : FAppTy Measures.F  int | [(lq_tmp_x238 = ds_dU1);
+                                                               (lq_tmp_x238 = Measures.E#rqn([]));
+                                                               (foo([lq_tmp_x238]) = 0);
+                                                               (foo1([lq_tmp_x238]) = Set_empty([0]))]}
+bind 32 Measures.foo#rqq : {VV : func(0, [FAppTy Measures.F  int;
+                                          int]) | []}
+bind 33 VV#249 : {VV#249 : int | [(VV#249 = (0  :  int))]}
+bind 34 VV#249 : {VV#249 : int | [(VV#249 = (0  :  int))]}
+bind 35 VV#252 : {VV#252 : int | [(VV#252 = 0)]}
+bind 36 VV#252 : {VV#252 : int | [(VV#252 = 0)]}
+bind 37 VV#255 : {VV#255 : int | [(VV#255 = (x#aTd + lq_anf__dU5))]}
+bind 38 VV#255 : {VV#255 : int | [(VV#255 = (x#aTd + lq_anf__dU5))]}
+bind 39 VV#258 : {VV#258 : int | [(VV#258 = (1  :  int));
+                                  (VV#258 = lq_anf__dU5)]}
+bind 40 VV#258 : {VV#258 : int | [(VV#258 = (1  :  int));
+                                  (VV#258 = lq_anf__dU5)]}
+bind 41 VV#261 : {VV#261 : int | [(VV#261 = x#aTd)]}
+bind 42 VV#261 : {VV#261 : int | [(VV#261 = x#aTd)]}
+bind 43 VV#264 : {VV#264 : int | [(VV#264 = 1)]}
+bind 44 VV#264 : {VV#264 : int | [(VV#264 = 1)]}
+bind 45 VV#267 : {VV#267 : FAppTy Set_Set  a_aTE | [(? Set_emp([VV#267]))]}
+bind 46 VV#267 : {VV#267 : FAppTy Set_Set  a_aTE | [(? Set_emp([VV#267]))]}
+bind 47 VV#199 : {VV#199 : a_aTE | [k_200[lq_tmp_x198:=VV#267]]}
+bind 48 VV#271 : {VV#271 : FAppTy Set_Set  a_aTE | [(VV#271 = Set_sng([x#aTc]))]}
+bind 49 VV#271 : {VV#271 : FAppTy Set_Set  a_aTE | [(VV#271 = Set_sng([x#aTc]))]}
+bind 50 VV#190 : {VV#190 : a_aTE | [k_191[lq_tmp_x189:=x#aTc][lq_tmp_x187:=VV#271]]}
+bind 51 VV : {VV : a_aTE | [(VV = x#aTc)]}
+bind 52 lq_tmp_x168 : {lq_tmp_x168 : func(0, [a_aTK;
+                                              FAppTy Measures.F  a_aTK]) | []}
+bind 53 VV : {VV : a_aTK | []}
+bind 54 lq_tmp_x166 : {VV : a_aTK | []}
+bind 55 VV#279 : {VV#279 : FAppTy Measures.F  a_aTK | [(foo1([VV#279]) = Set_sng([lq_tmp_x166]))]}
+bind 56 VV#279 : {VV#279 : FAppTy Measures.F  a_aTK | [(foo1([VV#279]) = Set_sng([lq_tmp_x166]))]}
+bind 57 VV#170 : {VV#170 : a_aTK | [k_171[lq_tmp_x169:=lq_tmp_x166][lq_tmp_x167:=VV#279]]}
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       33;
+       2;
+       3;
+       4;
+       5;
+       6;
+       7;
+       8;
+       24;
+       9;
+       25;
+       10;
+       11;
+       12;
+       13;
+       14;
+       30;
+       15;
+       31]
+  grd true
+  lhs {VV#F1 : int | [(VV#F1 = (0  :  int)); true]}
+  rhs {VV#F1 : int | [(VV#F1 = foo([ds_dU1]))]}
+  id 1 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       2;
+       3;
+       4;
+       5;
+       37;
+       6;
+       7;
+       8;
+       24;
+       9;
+       25;
+       10;
+       26;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       15]
+  grd true
+  lhs {VV#F2 : int | [(VV#F2 = (x#aTd + lq_anf__dU5)); true]}
+  rhs {VV#F2 : int | [(VV#F2 = foo([ds_dU1]))]}
+  id 2 tag [2]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       18;
+       3;
+       4;
+       5;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       45;
+       14;
+       15]
+  grd true
+  lhs {VV#F3 : FAppTy Set_Set  a_aTE | [(? Set_emp([VV#F3])); true]}
+  rhs {VV#F3 : FAppTy Set_Set  a_aTE | [(VV#F3 = foo1([ds_dU2]))]}
+  id 3 tag [3]
+
+
+constraint:
+  env [0;
+       16;
+       48;
+       1;
+       17;
+       2;
+       18;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F4 : FAppTy Set_Set  a_aTE | [(VV#F4 = Set_sng([x#aTc]));
+                                        true]}
+  rhs {VV#F4 : FAppTy Set_Set  a_aTE | [(VV#F4 = foo1([ds_dU2]))]}
+  id 4 tag [3]
+
+
+constraint:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       18;
+       3;
+       19;
+       51;
+       4;
+       20;
+       5;
+       21;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  grd true
+  lhs {VV#F5 : a_aTE | [(VV#F5 = x#aTc); true]}
+  rhs {VV#F5 : a_aTE | [k_191[VV#190:=VV#F5][VV#F:=VV#F5]]}
+  id 5 tag [3]
+
+
+constraint:
+  env [0; 16; 1; 2; 3; 4; 5; 53; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  grd true
+  lhs {VV#F6 : a_aTK | [true]}
+  rhs {VV#F6 : a_aTK | [k_171[VV#170:=VV#F6][VV#F:=VV#F6]]}
+  id 6 tag [1]
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       18;
+       3;
+       4;
+       5;
+       6;
+       22;
+       7;
+       23;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#199 : a_aTE | [k_200]}
+  
+
+
+wf:
+  env [0;
+       16;
+       1;
+       17;
+       2;
+       18;
+       3;
+       19;
+       4;
+       20;
+       5;
+       21;
+       6;
+       7;
+       8;
+       9;
+       10;
+       11;
+       12;
+       13;
+       14;
+       15]
+  reft {VV#190 : a_aTE | [k_191]}
+  
+
+
+wf:
+  env [0; 16; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15]
+  reft {VV#170 : a_aTK | [k_171]}
+  
