@@ -121,6 +121,7 @@ constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (F
                                @(3)]))
 constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
 constant papp1 : (func(1, [FAppTy Pred  @(0); @(0); bool]))
+constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple32 : (func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
                                @(1)]))
 constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
@@ -129,7 +130,6 @@ constant x_Tuple21 : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
                                @(0)]))
 constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(0)]))
-constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(5)]))
 constant GHC.Types.True#6u : (GHC.Types.Bool)
@@ -262,28 +262,28 @@ bind 41 fix#GHC.Real.D#58#Fractional#35#rkT : {VV : func(1, [func(0, [@(0);
                                                                       @(0)]);
                                                              FAppTy GHC.Real.Fractional  @(0)]) | []}
 bind 42 x#aXv : {VV#172 : int | []}
-bind 43 lq_anf__dXN : {lq_tmp_x174 : int | [(lq_tmp_x174 = (0  :  int))]}
-bind 44 lq_anf__dXO : {lq_tmp_x180 : GHC.Types.Bool | [((? Prop([lq_tmp_x180])) <=> (x#aXv > lq_anf__dXN))]}
-bind 45 lq_anf__dXP : {lq_tmp_x196 : GHC.Types.Bool | [((? Prop([lq_tmp_x196])) <=> (x#aXv > lq_anf__dXN));
-                                                       (lq_tmp_x196 = lq_anf__dXO)]}
-bind 46 lq_anf__dXP : {lq_tmp_x198 : GHC.Types.Bool | [((? Prop([lq_tmp_x198])) <=> (x#aXv > lq_anf__dXN));
-                                                       (lq_tmp_x198 = lq_anf__dXO)]}
-bind 47 lq_anf__dXP : {lq_tmp_x198 : GHC.Types.Bool | [((? Prop([lq_tmp_x198])) <=> (x#aXv > lq_anf__dXN));
-                                                       (lq_tmp_x198 = lq_anf__dXO);
-                                                       (~ ((? Prop([lq_tmp_x198]))));
-                                                       (~ ((? Prop([lq_tmp_x198]))));
-                                                       (~ ((? Prop([lq_tmp_x198]))))]}
-bind 48 lq_anf__dXQ : {lq_tmp_x204 : int | [(lq_tmp_x204 = (0  :  int))]}
-bind 49 lq_anf__dXP : {lq_tmp_x222 : GHC.Types.Bool | [((? Prop([lq_tmp_x222])) <=> (x#aXv > lq_anf__dXN));
-                                                       (lq_tmp_x222 = lq_anf__dXO)]}
-bind 50 lq_anf__dXP : {lq_tmp_x222 : GHC.Types.Bool | [((? Prop([lq_tmp_x222])) <=> (x#aXv > lq_anf__dXN));
-                                                       (lq_tmp_x222 = lq_anf__dXO);
-                                                       (? Prop([lq_tmp_x222]));
-                                                       (? Prop([lq_tmp_x222]));
-                                                       (? Prop([lq_tmp_x222]))]}
+bind 43 lq_anf__dXN : {lq_tmp_x_174 : int | [(lq_tmp_x_174 = (0  :  int))]}
+bind 44 lq_anf__dXO : {lq_tmp_x_180 : GHC.Types.Bool | [((? Prop([lq_tmp_x_180])) <=> (x#aXv > lq_anf__dXN))]}
+bind 45 lq_anf__dXP : {lq_tmp_x_196 : GHC.Types.Bool | [((? Prop([lq_tmp_x_196])) <=> (x#aXv > lq_anf__dXN));
+                                                        (lq_tmp_x_196 = lq_anf__dXO)]}
+bind 46 lq_anf__dXP : {lq_tmp_x_198 : GHC.Types.Bool | [((? Prop([lq_tmp_x_198])) <=> (x#aXv > lq_anf__dXN));
+                                                        (lq_tmp_x_198 = lq_anf__dXO)]}
+bind 47 lq_anf__dXP : {lq_tmp_x_198 : GHC.Types.Bool | [((? Prop([lq_tmp_x_198])) <=> (x#aXv > lq_anf__dXN));
+                                                        (lq_tmp_x_198 = lq_anf__dXO);
+                                                        (~ ((? Prop([lq_tmp_x_198]))));
+                                                        (~ ((? Prop([lq_tmp_x_198]))));
+                                                        (~ ((? Prop([lq_tmp_x_198]))))]}
+bind 48 lq_anf__dXQ : {lq_tmp_x_204 : int | [(lq_tmp_x_204 = (0  :  int))]}
+bind 49 lq_anf__dXP : {lq_tmp_x_222 : GHC.Types.Bool | [((? Prop([lq_tmp_x_222])) <=> (x#aXv > lq_anf__dXN));
+                                                        (lq_tmp_x_222 = lq_anf__dXO)]}
+bind 50 lq_anf__dXP : {lq_tmp_x_222 : GHC.Types.Bool | [((? Prop([lq_tmp_x_222])) <=> (x#aXv > lq_anf__dXN));
+                                                        (lq_tmp_x_222 = lq_anf__dXO);
+                                                        (? Prop([lq_tmp_x_222]));
+                                                        (? Prop([lq_tmp_x_222]));
+                                                        (? Prop([lq_tmp_x_222]))]}
 bind 51 Test0.myabs#rou : {VV : func(0, [int; int]) | []}
 bind 52 x#aXw : {VV#230 : int | []}
-bind 53 lq_anf__dXR : {lq_tmp_x232 : int | [(lq_tmp_x232 = (1  :  int))]}
+bind 53 lq_anf__dXR : {lq_tmp_x_232 : int | [(lq_tmp_x_232 = (1  :  int))]}
 bind 54 Test0.incr#rpv : {VV : func(0, [int; int]) | []}
 bind 55 VV#251 : {VV#251 : int | [(VV#251 = (x#aXw + lq_anf__dXR))]}
 bind 56 VV#251 : {VV#251 : int | [(VV#251 = (x#aXw + lq_anf__dXR))]}
@@ -315,7 +315,7 @@ bind 75 VV#281 : {VV#281 : int | [(VV#281 = x#aXv)]}
 bind 76 VV#281 : {VV#281 : int | [(VV#281 = x#aXv)]}
 bind 77 VV#284 : {VV#284 : int | [(VV#284 = 0)]}
 bind 78 VV#284 : {VV#284 : int | [(VV#284 = 0)]}
-bind 79 VV#187 : {VV#187 : int | [$k_188]}
+bind 79 VV#187 : {VV#187 : int | [$k__188]}
 
 
 constraint:
@@ -532,7 +532,7 @@ constraint:
        31]
   grd true
   lhs {VV#F4 : int | [(VV#F4 = (0  :  int)); (VV#F4 = lq_anf__dXN)]}
-  rhs {VV#F4 : int | [$k_188[VV#187:=VV#F4][lq_tmp_x184:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x185:=x#aXv][lq_tmp_x190:=VV#F4][VV#278:=VV#F4][VV#F:=VV#F4]]}
+  rhs {VV#F4 : int | [$k__188[VV#187:=VV#F4][lq_tmp_x_184:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_185:=x#aXv][lq_tmp_x_190:=VV#F4][VV#278:=VV#F4][VV#F:=VV#F4]]}
   id 4 tag [2]
 
 
@@ -584,7 +584,7 @@ constraint:
        31]
   grd true
   lhs {VV#F5 : int | [(VV#F5 = x#aXv)]}
-  rhs {VV#F5 : int | [$k_188[VV#187:=VV#F5][lq_tmp_x184:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x190:=VV#F5][VV#281:=VV#F5][VV#F:=VV#F5]]}
+  rhs {VV#F5 : int | [$k__188[VV#187:=VV#F5][lq_tmp_x_184:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_190:=VV#F5][VV#281:=VV#F5][VV#F:=VV#F5]]}
   id 5 tag [2]
 
 
@@ -633,5 +633,5 @@ wf:
        30;
        15;
        31]
-  reft {VV#187 : int | [$k_188]}
+  reft {VV#187 : int | [$k__188]}
   

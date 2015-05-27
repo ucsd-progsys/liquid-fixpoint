@@ -126,13 +126,13 @@ constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (F
                                @(3)]))
 constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
 constant papp1 : (func(1, [FAppTy Pred  @(0); @(0); bool]))
+constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
                                @(1)]))
 constant x_Tuple21 : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
                                @(0)]))
 constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(0)]))
-constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(5)]))
 constant GHC.Types.True#6u : (GHC.Types.Bool)
@@ -306,7 +306,7 @@ bind 53 fix#GHC.Real.D#58#Fractional#35#rkT : {VV : func(1, [func(0, [@(0);
 bind 54 z#a13b : {VV : a_a13A | []}
 bind 55 Foo.poop#r12k : {VV : func(1, [@(0);
                                        FAppTy Foo.MaybeS  @(0)]) | []}
-bind 56 Foo.gloop#r12j : {lq_tmp_x189 : FAppTy Foo.MaybeS  GHC.Types.Bool | [(fromJustS([lq_tmp_x189]) = GHC.Types.True#6u)]}
+bind 56 Foo.gloop#r12j : {lq_tmp_x_189 : FAppTy Foo.MaybeS  GHC.Types.Bool | [(fromJustS([lq_tmp_x_189]) = GHC.Types.True#6u)]}
 bind 57 VV#198 : {VV#198 : GHC.Types.Bool | [(? Prop([VV#198]));
                                              (VV#198 = GHC.Types.True#6u)]}
 bind 58 VV#198 : {VV#198 : GHC.Types.Bool | [(? Prop([VV#198]));
@@ -317,9 +317,9 @@ bind 59 VV#201 : {VV#201 : FAppTy Foo.MaybeS  a_a13A | [(fromJustS([VV#201]) = z
 bind 60 VV#201 : {VV#201 : FAppTy Foo.MaybeS  a_a13A | [(fromJustS([VV#201]) = z#a13b);
                                                         ((? isJustS([VV#201])) <=> true);
                                                         (VV#201 = fix#Foo.#36#WJustS#35#r12h([z#a13b]))]}
-bind 61 VV#185 : {VV#185 : a_a13A | [$k_186[lq_tmp_x184:=z#a13b][lq_tmp_x182:=VV#201]]}
+bind 61 VV#185 : {VV#185 : a_a13A | [$k__186[lq_tmp_x_184:=z#a13b][lq_tmp_x_182:=VV#201]]}
 bind 62 VV : {VV : a_a13A | [(VV = z#a13b)]}
-bind 63 VV#192 : {VV#192 : GHC.Types.Bool | [$k_193]}
+bind 63 VV#192 : {VV#192 : GHC.Types.Bool | [$k__193]}
 
 
 constraint:
@@ -382,7 +382,7 @@ constraint:
   grd true
   lhs {VV#F1 : GHC.Types.Bool | [(? Prop([VV#F1]));
                                  (VV#F1 = GHC.Types.True#6u)]}
-  rhs {VV#F1 : GHC.Types.Bool | [$k_193[VV#192:=VV#F1][lq_tmp_x195:=VV#F1][VV#198:=VV#F1][VV#F:=VV#F1]]}
+  rhs {VV#F1 : GHC.Types.Bool | [$k__193[VV#192:=VV#F1][lq_tmp_x_195:=VV#F1][VV#198:=VV#F1][VV#F:=VV#F1]]}
   id 1 tag [2]
 
 
@@ -510,7 +510,7 @@ constraint:
        47]
   grd true
   lhs {VV#F3 : a_a13A | [(VV#F3 = z#a13b)]}
-  rhs {VV#F3 : a_a13A | [$k_186[VV#185:=VV#F3][VV#F:=VV#F3]]}
+  rhs {VV#F3 : a_a13A | [$k__186[VV#185:=VV#F3][VV#F:=VV#F3]]}
   id 3 tag [1]
 
 
@@ -570,7 +570,7 @@ wf:
        15;
        31;
        47]
-  reft {VV#192 : GHC.Types.Bool | [$k_193]}
+  reft {VV#192 : GHC.Types.Bool | [$k__193]}
   
 
 
@@ -630,5 +630,5 @@ wf:
        15;
        31;
        47]
-  reft {VV#185 : a_a13A | [$k_186]}
+  reft {VV#185 : a_a13A | [$k__186]}
   

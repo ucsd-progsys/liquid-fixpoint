@@ -141,13 +141,13 @@ constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (F
                                @(3)]))
 constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
 constant papp1 : (func(1, [FAppTy Pred  @(0); @(0); bool]))
+constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
                                @(1)]))
 constant x_Tuple21 : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
                                @(0)]))
 constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(0)]))
-constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(5)]))
 constant x_Tuple77 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
@@ -263,24 +263,24 @@ bind 32 GHC.Types.LT#6S : {VV#130 : GHC.Types.Ordering | [(cmp([VV#130]) = GHC.T
 bind 33 GHC.Types.GT#6W : {VV#131 : GHC.Types.Ordering | [(cmp([VV#131]) = GHC.Types.GT#6W);
                                                           (VV#131 = GHC.Types.GT#6W)]}
 bind 34 OverWrite.foo#rpm : {VV : func(1, [[@(0)]; [@(0)]]) | []}
-bind 35 lq_tmp_x137 : {lq_tmp_x137 : func(0, [[a_aMO];
-                                              [a_aMO]]) | []}
+bind 35 lq_tmp_x_137 : {lq_tmp_x_137 : func(0, [[a_aMO];
+                                                [a_aMO]]) | []}
 bind 36 VV#144 : {VV#144 : [a_aMO] | [(? Set_emp([listDup([VV#144])]));
                                       (len([VV#144]) >= 0)]}
 bind 37 VV#144 : {VV#144 : [a_aMO] | [(? Set_emp([listDup([VV#144])]));
                                       (len([VV#144]) >= 0)]}
 bind 38 VV : {VV : a_aMO | []}
-bind 39 lq_tmp_x133 : {VV : a_aMO | []}
+bind 39 lq_tmp_x_133 : {VV : a_aMO | []}
 bind 40 VV : {VV : a_aMO | []}
-bind 41 lq_tmp_x132 : {v : [a_aMO] | [(? Set_emp([listDup([v])]));
-                                      (len([v]) >= 0)]}
+bind 41 lq_tmp_x_132 : {v : [a_aMO] | [(? Set_emp([listDup([v])]));
+                                       (len([v]) >= 0)]}
 bind 42 VV#151 : {VV#151 : [a_aMO] | [(? Set_emp([listDup([VV#151])]));
-                                      (listElts([VV#151]) = listElts([lq_tmp_x132]));
+                                      (listElts([VV#151]) = listElts([lq_tmp_x_132]));
                                       (len([VV#151]) >= 0)]}
 bind 43 VV#151 : {VV#151 : [a_aMO] | [(? Set_emp([listDup([VV#151])]));
-                                      (listElts([VV#151]) = listElts([lq_tmp_x132]));
+                                      (listElts([VV#151]) = listElts([lq_tmp_x_132]));
                                       (len([VV#151]) >= 0)]}
-bind 44 VV#139 : {VV#139 : a_aMO | [$k_140[lq_tmp_x138:=lq_tmp_x132][lq_tmp_x136:=VV#151]]}
+bind 44 VV#139 : {VV#139 : a_aMO | [$k__140[lq_tmp_x_138:=lq_tmp_x_132][lq_tmp_x_136:=VV#151]]}
 bind 45 fldList : {VV : a_aMO | []}
 bind 46 VV#139 : {VV#139 : a_aMO | []}
 
@@ -367,7 +367,7 @@ constraint:
        31]
   grd true
   lhs {VV#F2 : a_aMO | []}
-  rhs {VV#F2 : a_aMO | [$k_140[lq_tmp_x134:=VV#144][VV#139:=VV#F2][VV#F:=VV#F2]]}
+  rhs {VV#F2 : a_aMO | [$k__140[lq_tmp_x_134:=VV#144][VV#139:=VV#F2][VV#F:=VV#F2]]}
   id 2 tag [1]
 
 
@@ -410,7 +410,7 @@ constraint:
        31]
   grd true
   lhs {VV#F3 : [a_aMO] | [(? Set_emp([listDup([VV#F3])]));
-                          (listElts([VV#F3]) = listElts([lq_tmp_x132]));
+                          (listElts([VV#F3]) = listElts([lq_tmp_x_132]));
                           (len([VV#F3]) >= 0)]}
   rhs {VV#F3 : [a_aMO] | [(? Set_emp([listDup([VV#F3])]))]}
   id 3 tag [1]
@@ -455,9 +455,9 @@ constraint:
        31]
   grd true
   lhs {VV#F4 : [a_aMO] | [(? Set_emp([listDup([VV#F4])]));
-                          (listElts([VV#F4]) = listElts([lq_tmp_x132]));
+                          (listElts([VV#F4]) = listElts([lq_tmp_x_132]));
                           (len([VV#F4]) >= 0)]}
-  rhs {VV#F4 : [a_aMO] | [(listElts([VV#F4]) = listElts([lq_tmp_x132]))]}
+  rhs {VV#F4 : [a_aMO] | [(listElts([VV#F4]) = listElts([lq_tmp_x_132]))]}
   id 4 tag [1]
 
 
@@ -496,5 +496,5 @@ wf:
        30;
        15;
        31]
-  reft {VV#139 : a_aMO | [$k_140]}
+  reft {VV#139 : a_aMO | [$k__140]}
   

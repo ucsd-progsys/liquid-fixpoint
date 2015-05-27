@@ -130,6 +130,7 @@ constant papp3 : (func(6, [FAppTy (FAppTy (FAppTy Pred  @(0))  @(1))  @(2);
 constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(3)]))
 constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
+constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
                                @(1)]))
 constant x_Tuple51 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
@@ -139,7 +140,6 @@ constant x_Tuple21 : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
 constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(0)]))
 constant papp1 : (func(1, [FAppTy Pred  @(0); @(0); bool]))
-constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(5)]))
 constant x_Tuple77 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
@@ -318,45 +318,45 @@ bind 54 fix#GHC.Real.D#58#Fractional#35#rkT : {VV : func(1, [func(0, [@(0);
                                                                       @(0)]);
                                                              FAppTy GHC.Real.Fractional  @(0)]) | []}
 bind 55 fix##36#dOrd_a16q : {VV#207 : FAppTy GHC.Classes.Ord  a_a16p | []}
-bind 56 ds_d16R : {VV#218 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k_219]}
-bind 57 lq_anf__d16S : {lq_tmp_x226 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k_219[VV#218:=lq_tmp_x226];
-                                                                                   (lq_tmp_x226 = ds_d16R)]}
-bind 58 lq_anf__d16S : {lq_tmp_x229 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k_219[VV#218:=lq_tmp_x229][lq_tmp_x226:=lq_tmp_x229];
-                                                                                   (lq_tmp_x229 = ds_d16R)]}
-bind 59 x#a15Y : {VV#208 : a_a16p | [$k_209[VV#218:=lq_anf__d16S][lq_tmp_x226:=lq_anf__d16S][lq_tmp_x229:=lq_anf__d16S]]}
-bind 60 y#a15Z : {VV#211 : a_a16p | [$k_212[VV#218:=lq_anf__d16S][lq_tmp_x226:=lq_anf__d16S][lq_tmp_x229:=lq_anf__d16S][lq_tmp_x234:=x#a15Y];
-                                     $k_216[lq_tmp_x214:=x#a15Y][lq_tmp_x225:=x#a15Y][lq_tmp_x228:=x#a15Y][VV#215:=VV#211][lq_tmp_x234:=x#a15Y]]}
-bind 61 lq_anf__d16S : {lq_tmp_x229 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k_219[VV#218:=lq_tmp_x229][lq_tmp_x226:=lq_tmp_x229];
-                                                                                   (lq_tmp_x229 = ds_d16R);
-                                                                                   (y([lq_tmp_x229]) = y#a15Z);
-                                                                                   (x([lq_tmp_x229]) = x#a15Y);
-                                                                                   (lq_tmp_x229 = Niki.P#r12h([x#a15Y;
-                                                                                                               y#a15Z]));
-                                                                                   (lq_tmp_x229 = Niki.P#r12h([x#a15Y;
-                                                                                                               y#a15Z]));
-                                                                                   (y([lq_tmp_x229]) = y#a15Z);
-                                                                                   (x([lq_tmp_x229]) = x#a15Y);
-                                                                                   (lq_tmp_x229 = Niki.P#r12h([x#a15Y;
-                                                                                                               y#a15Z]))]}
-bind 62 lq_anf__d16T : {lq_tmp_x245 : GHC.Types.Bool | [((? Prop([lq_tmp_x245])) <=> (x#a15Y <= y#a15Z))]}
+bind 56 ds_d16R : {VV#218 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k__219]}
+bind 57 lq_anf__d16S : {lq_tmp_x_226 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k__219[VV#218:=lq_tmp_x_226];
+                                                                                    (lq_tmp_x_226 = ds_d16R)]}
+bind 58 lq_anf__d16S : {lq_tmp_x_229 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k__219[VV#218:=lq_tmp_x_229][lq_tmp_x_226:=lq_tmp_x_229];
+                                                                                    (lq_tmp_x_229 = ds_d16R)]}
+bind 59 x#a15Y : {VV#208 : a_a16p | [$k__209[VV#218:=lq_anf__d16S][lq_tmp_x_226:=lq_anf__d16S][lq_tmp_x_229:=lq_anf__d16S]]}
+bind 60 y#a15Z : {VV#211 : a_a16p | [$k__212[VV#218:=lq_anf__d16S][lq_tmp_x_226:=lq_anf__d16S][lq_tmp_x_229:=lq_anf__d16S][lq_tmp_x_234:=x#a15Y];
+                                     $k__216[lq_tmp_x_214:=x#a15Y][lq_tmp_x_225:=x#a15Y][lq_tmp_x_228:=x#a15Y][VV#215:=VV#211][lq_tmp_x_234:=x#a15Y]]}
+bind 61 lq_anf__d16S : {lq_tmp_x_229 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k__219[VV#218:=lq_tmp_x_229][lq_tmp_x_226:=lq_tmp_x_229];
+                                                                                    (lq_tmp_x_229 = ds_d16R);
+                                                                                    (y([lq_tmp_x_229]) = y#a15Z);
+                                                                                    (x([lq_tmp_x_229]) = x#a15Y);
+                                                                                    (lq_tmp_x_229 = Niki.P#r12h([x#a15Y;
+                                                                                                                 y#a15Z]));
+                                                                                    (lq_tmp_x_229 = Niki.P#r12h([x#a15Y;
+                                                                                                                 y#a15Z]));
+                                                                                    (y([lq_tmp_x_229]) = y#a15Z);
+                                                                                    (x([lq_tmp_x_229]) = x#a15Y);
+                                                                                    (lq_tmp_x_229 = Niki.P#r12h([x#a15Y;
+                                                                                                                 y#a15Z]))]}
+bind 62 lq_anf__d16T : {lq_tmp_x_245 : GHC.Types.Bool | [((? Prop([lq_tmp_x_245])) <=> (x#a15Y <= y#a15Z))]}
 bind 63 Niki.chk#r12k : {VV : func(1, [FAppTy (FAppTy Niki.Pair  @(0))  @(0);
                                        GHC.Types.Bool]) | []}
-bind 64 lq_anf__d16U : {lq_tmp_x277 : int | [(lq_tmp_x277 = (0  :  int))]}
-bind 65 lq_anf__d16V : {lq_tmp_x283 : int | [(lq_tmp_x283 = (1  :  int))]}
-bind 66 lq_tmp_x305 : {VV#306 : int | []}
-bind 67 Niki.bar#r12i : {VV#273 : FAppTy (FAppTy Niki.Pair  int)  int | [$k_274]}
-bind 68 Niki.foo#r12j : {lq_tmp_x313 : GHC.Types.Bool | [$k_223[VV#222:=lq_tmp_x313][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][ds_d16R:=Niki.bar#r12i][lq_tmp_x316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x317:=Niki.bar#r12i]]}
-bind 69 VV#330 : {VV#330 : FAppTy (FAppTy Niki.Pair  int)  int | [$k_274[VV#273:=VV#330][lq_tmp_x328:=VV#330];
+bind 64 lq_anf__d16U : {lq_tmp_x_277 : int | [(lq_tmp_x_277 = (0  :  int))]}
+bind 65 lq_anf__d16V : {lq_tmp_x_283 : int | [(lq_tmp_x_283 = (1  :  int))]}
+bind 66 lq_tmp_x_305 : {VV#306 : int | []}
+bind 67 Niki.bar#r12i : {VV#273 : FAppTy (FAppTy Niki.Pair  int)  int | [$k__274]}
+bind 68 Niki.foo#r12j : {lq_tmp_x_313 : GHC.Types.Bool | [$k__223[VV#222:=lq_tmp_x_313][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][ds_d16R:=Niki.bar#r12i][lq_tmp_x_316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_317:=Niki.bar#r12i]]}
+bind 69 VV#330 : {VV#330 : FAppTy (FAppTy Niki.Pair  int)  int | [$k__274[VV#273:=VV#330][lq_tmp_x_328:=VV#330];
                                                                   (VV#330 = Niki.bar#r12i)]}
-bind 70 VV#330 : {VV#330 : FAppTy (FAppTy Niki.Pair  int)  int | [$k_274[VV#273:=VV#330][lq_tmp_x328:=VV#330];
+bind 70 VV#330 : {VV#330 : FAppTy (FAppTy Niki.Pair  int)  int | [$k__274[VV#273:=VV#330][lq_tmp_x_328:=VV#330];
                                                                   (VV#330 = Niki.bar#r12i)]}
-bind 71 VV#333 : {VV#333 : int | [$k_264[VV#263:=VV#333][VV#273:=VV#330][lq_tmp_x328:=VV#330][lq_tmp_x324:=VV#333]]}
-bind 72 VV#333 : {VV#333 : int | [$k_264[VV#263:=VV#333][VV#273:=VV#330][lq_tmp_x328:=VV#330][lq_tmp_x324:=VV#333]]}
-bind 73 VV#336 : {VV#336 : int | [$k_267[VV#266:=VV#336][VV#273:=VV#330][lq_tmp_x328:=VV#330][lq_tmp_x325:=VV#336]]}
-bind 74 VV#336 : {VV#336 : int | [$k_267[VV#266:=VV#336][VV#273:=VV#330][lq_tmp_x328:=VV#330][lq_tmp_x325:=VV#336]]}
-bind 75 lq_tmp_x311 : {VV#339 : int | []}
-bind 76 VV#340 : {VV#340 : int | [$k_271[VV#270:=VV#340][lq_tmp_x269:=lq_tmp_x311][lq_tmp_x326:=lq_tmp_x311][lq_tmp_x327:=VV#340]]}
-bind 77 VV#340 : {VV#340 : int | [$k_271[VV#270:=VV#340][lq_tmp_x269:=lq_tmp_x311][lq_tmp_x326:=lq_tmp_x311][lq_tmp_x327:=VV#340]]}
+bind 71 VV#333 : {VV#333 : int | [$k__264[VV#263:=VV#333][VV#273:=VV#330][lq_tmp_x_328:=VV#330][lq_tmp_x_324:=VV#333]]}
+bind 72 VV#333 : {VV#333 : int | [$k__264[VV#263:=VV#333][VV#273:=VV#330][lq_tmp_x_328:=VV#330][lq_tmp_x_324:=VV#333]]}
+bind 73 VV#336 : {VV#336 : int | [$k__267[VV#266:=VV#336][VV#273:=VV#330][lq_tmp_x_328:=VV#330][lq_tmp_x_325:=VV#336]]}
+bind 74 VV#336 : {VV#336 : int | [$k__267[VV#266:=VV#336][VV#273:=VV#330][lq_tmp_x_328:=VV#330][lq_tmp_x_325:=VV#336]]}
+bind 75 lq_tmp_x_311 : {VV#339 : int | []}
+bind 76 VV#340 : {VV#340 : int | [$k__271[VV#270:=VV#340][lq_tmp_x_269:=lq_tmp_x_311][lq_tmp_x_326:=lq_tmp_x_311][lq_tmp_x_327:=VV#340]]}
+bind 77 VV#340 : {VV#340 : int | [$k__271[VV#270:=VV#340][lq_tmp_x_269:=lq_tmp_x_311][lq_tmp_x_326:=lq_tmp_x_311][lq_tmp_x_327:=VV#340]]}
 bind 78 VV#343 : {VV#343 : FAppTy (FAppTy Niki.Pair  int)  int | [(y([VV#343]) = lq_anf__d16V);
                                                                   (x([VV#343]) = lq_anf__d16U);
                                                                   (VV#343 = Niki.P#r12h([lq_anf__d16U;
@@ -365,13 +365,13 @@ bind 79 VV#343 : {VV#343 : FAppTy (FAppTy Niki.Pair  int)  int | [(y([VV#343]) =
                                                                   (x([VV#343]) = lq_anf__d16U);
                                                                   (VV#343 = Niki.P#r12h([lq_anf__d16U;
                                                                                          lq_anf__d16V]))]}
-bind 80 VV#346 : {VV#346 : int | [$k_295[VV#294:=VV#346][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x289:=VV#343][lq_tmp_x297:=VV#346]]}
-bind 81 VV#346 : {VV#346 : int | [$k_295[VV#294:=VV#346][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x289:=VV#343][lq_tmp_x297:=VV#346]]}
-bind 82 VV#349 : {VV#349 : int | [$k_299[VV#298:=VV#349][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x289:=VV#343][lq_tmp_x301:=VV#349]]}
-bind 83 VV#349 : {VV#349 : int | [$k_299[VV#298:=VV#349][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x289:=VV#343][lq_tmp_x301:=VV#349]]}
-bind 84 lq_tmp_x269 : {VV#352 : int | []}
-bind 85 VV#353 : {VV#353 : int | [$k_303[lq_tmp_x305:=lq_tmp_x269][VV#302:=VV#353][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x288:=lq_tmp_x269][lq_tmp_x301:=VV#353]]}
-bind 86 VV#353 : {VV#353 : int | [$k_303[lq_tmp_x305:=lq_tmp_x269][VV#302:=VV#353][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x288:=lq_tmp_x269][lq_tmp_x301:=VV#353]]}
+bind 80 VV#346 : {VV#346 : int | [$k__295[VV#294:=VV#346][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_289:=VV#343][lq_tmp_x_297:=VV#346]]}
+bind 81 VV#346 : {VV#346 : int | [$k__295[VV#294:=VV#346][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_289:=VV#343][lq_tmp_x_297:=VV#346]]}
+bind 82 VV#349 : {VV#349 : int | [$k__299[VV#298:=VV#349][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_289:=VV#343][lq_tmp_x_301:=VV#349]]}
+bind 83 VV#349 : {VV#349 : int | [$k__299[VV#298:=VV#349][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_289:=VV#343][lq_tmp_x_301:=VV#349]]}
+bind 84 lq_tmp_x_269 : {VV#352 : int | []}
+bind 85 VV#353 : {VV#353 : int | [$k__303[lq_tmp_x_305:=lq_tmp_x_269][VV#302:=VV#353][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_288:=lq_tmp_x_269][lq_tmp_x_301:=VV#353]]}
+bind 86 VV#353 : {VV#353 : int | [$k__303[lq_tmp_x_305:=lq_tmp_x_269][VV#302:=VV#353][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_288:=lq_tmp_x_269][lq_tmp_x_301:=VV#353]]}
 bind 87 VV#356 : {VV#356 : int | [(VV#356 = (1  :  int));
                                   (VV#356 = lq_anf__d16V)]}
 bind 88 VV#356 : {VV#356 : int | [(VV#356 = (1  :  int));
@@ -390,23 +390,23 @@ bind 97 VV#371 : {VV#371 : GHC.Types.Bool | [((? Prop([VV#371])) <=> (x#a15Y <= 
                                              (VV#371 = lq_anf__d16T)]}
 bind 98 VV#371 : {VV#371 : GHC.Types.Bool | [((? Prop([VV#371])) <=> (x#a15Y <= y#a15Z));
                                              (VV#371 = lq_anf__d16T)]}
-bind 99 VV#211 : {VV#211 : a_a16p | [$k_212[VV#218:=lq_anf__d16S][lq_tmp_x226:=lq_anf__d16S][lq_tmp_x229:=lq_anf__d16S][lq_tmp_x234:=x#a15Y];
-                                     $k_216[lq_tmp_x214:=x#a15Y][lq_tmp_x225:=x#a15Y][lq_tmp_x228:=x#a15Y][VV#215:=VV#211][lq_tmp_x234:=x#a15Y];
+bind 99 VV#211 : {VV#211 : a_a16p | [$k__212[VV#218:=lq_anf__d16S][lq_tmp_x_226:=lq_anf__d16S][lq_tmp_x_229:=lq_anf__d16S][lq_tmp_x_234:=x#a15Y];
+                                     $k__216[lq_tmp_x_214:=x#a15Y][lq_tmp_x_225:=x#a15Y][lq_tmp_x_228:=x#a15Y][VV#215:=VV#211][lq_tmp_x_234:=x#a15Y];
                                      (VV#211 = y#a15Z)]}
-bind 100 VV#208 : {VV#208 : a_a16p | [$k_209[VV#218:=lq_anf__d16S][lq_tmp_x226:=lq_anf__d16S][lq_tmp_x229:=lq_anf__d16S];
+bind 100 VV#208 : {VV#208 : a_a16p | [$k__209[VV#218:=lq_anf__d16S][lq_tmp_x_226:=lq_anf__d16S][lq_tmp_x_229:=lq_anf__d16S];
                                       (VV#208 = x#a15Y)]}
-bind 101 VV#318 : {VV#318 : int | [$k_319]}
-bind 102 VV#302 : {VV#302 : int | [$k_303]}
-bind 103 VV#298 : {VV#298 : int | [$k_299]}
-bind 104 VV#294 : {VV#294 : int | [$k_295]}
-bind 105 VV#273 : {VV#273 : FAppTy (FAppTy Niki.Pair  int)  int | [$k_274]}
-bind 106 VV#263 : {VV#263 : int | [$k_264]}
-bind 107 VV#266 : {VV#266 : int | [$k_267]}
-bind 108 lq_tmp_x269 : {VV#383 : int | []}
-bind 109 VV#270 : {VV#270 : int | [$k_271]}
-bind 110 VV#218 : {VV#218 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k_219]}
-bind 111 lq_tmp_x214 : {VV : a_a16p | []}
-bind 112 VV#222 : {VV#222 : GHC.Types.Bool | [$k_223]}
+bind 101 VV#318 : {VV#318 : int | [$k__319]}
+bind 102 VV#302 : {VV#302 : int | [$k__303]}
+bind 103 VV#298 : {VV#298 : int | [$k__299]}
+bind 104 VV#294 : {VV#294 : int | [$k__295]}
+bind 105 VV#273 : {VV#273 : FAppTy (FAppTy Niki.Pair  int)  int | [$k__274]}
+bind 106 VV#263 : {VV#263 : int | [$k__264]}
+bind 107 VV#266 : {VV#266 : int | [$k__267]}
+bind 108 lq_tmp_x_269 : {VV#383 : int | []}
+bind 109 VV#270 : {VV#270 : int | [$k__271]}
+bind 110 VV#218 : {VV#218 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k__219]}
+bind 111 lq_tmp_x_214 : {VV : a_a16p | []}
+bind 112 VV#222 : {VV#222 : GHC.Types.Bool | [$k__223]}
 
 
 constraint:
@@ -474,10 +474,10 @@ constraint:
        31;
        47]
   grd true
-  lhs {VV#F16 : a_a16p | [$k_212[VV#218:=lq_anf__d16S][lq_tmp_x226:=lq_anf__d16S][lq_tmp_x229:=lq_anf__d16S][lq_tmp_x234:=x#a15Y][VV#211:=VV#F16][VV#F:=VV#F16];
-                          $k_216[lq_tmp_x214:=x#a15Y][lq_tmp_x225:=x#a15Y][lq_tmp_x228:=x#a15Y][VV#215:=VV#F16][lq_tmp_x234:=x#a15Y][VV#211:=VV#F16][VV#F:=VV#F16];
+  lhs {VV#F16 : a_a16p | [$k__212[VV#218:=lq_anf__d16S][lq_tmp_x_226:=lq_anf__d16S][lq_tmp_x_229:=lq_anf__d16S][lq_tmp_x_234:=x#a15Y][VV#211:=VV#F16][VV#F:=VV#F16];
+                          $k__216[lq_tmp_x_214:=x#a15Y][lq_tmp_x_225:=x#a15Y][lq_tmp_x_228:=x#a15Y][VV#215:=VV#F16][lq_tmp_x_234:=x#a15Y][VV#211:=VV#F16][VV#F:=VV#F16];
                           (VV#F16 = y#a15Z)]}
-  rhs {VV#F16 : a_a16p | [$k_253[lq_tmp_x249:=fix##36#dOrd_a16q][lq_tmp_x250:=x#a15Y][VV#252:=VV#F16][VV#F:=VV#F16]]}
+  rhs {VV#F16 : a_a16p | [$k__253[lq_tmp_x_249:=fix##36#dOrd_a16q][lq_tmp_x_250:=x#a15Y][VV#252:=VV#F16][VV#F:=VV#F16]]}
   id 16 tag [1]
 
 
@@ -541,9 +541,9 @@ constraint:
        47;
        63]
   grd true
-  lhs {VV#F1 : FAppTy (FAppTy Niki.Pair  int)  int | [$k_274[VV#273:=VV#F1][lq_tmp_x328:=VV#F1][VV#330:=VV#F1][VV#F:=VV#F1];
+  lhs {VV#F1 : FAppTy (FAppTy Niki.Pair  int)  int | [$k__274[VV#273:=VV#F1][lq_tmp_x_328:=VV#F1][VV#330:=VV#F1][VV#F:=VV#F1];
                                                       (VV#F1 = Niki.bar#r12i)]}
-  rhs {VV#F1 : FAppTy (FAppTy Niki.Pair  int)  int | [$k_219[VV#218:=VV#F1][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x312:=VV#F1][VV#330:=VV#F1][VV#F:=VV#F1]]}
+  rhs {VV#F1 : FAppTy (FAppTy Niki.Pair  int)  int | [$k__219[VV#218:=VV#F1][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_312:=VV#F1][VV#330:=VV#F1][VV#F:=VV#F1]]}
   id 1 tag [3]
 
 
@@ -612,9 +612,9 @@ constraint:
        31;
        47]
   grd true
-  lhs {VV#F17 : a_a16p | [$k_209[VV#218:=lq_anf__d16S][lq_tmp_x226:=lq_anf__d16S][lq_tmp_x229:=lq_anf__d16S][VV#208:=VV#F17][VV#F:=VV#F17];
+  lhs {VV#F17 : a_a16p | [$k__209[VV#218:=lq_anf__d16S][lq_tmp_x_226:=lq_anf__d16S][lq_tmp_x_229:=lq_anf__d16S][VV#208:=VV#F17][VV#F:=VV#F17];
                           (VV#F17 = x#a15Y)]}
-  rhs {VV#F17 : a_a16p | [$k_253[lq_tmp_x249:=fix##36#dOrd_a16q][VV#252:=VV#F17][VV#F:=VV#F17]]}
+  rhs {VV#F17 : a_a16p | [$k__253[lq_tmp_x_249:=fix##36#dOrd_a16q][VV#252:=VV#F17][VV#F:=VV#F17]]}
   id 17 tag [1]
 
 
@@ -679,8 +679,8 @@ constraint:
        47;
        63]
   grd true
-  lhs {VV#F2 : int | [$k_264[VV#263:=VV#F2][VV#273:=VV#330][lq_tmp_x328:=VV#330][lq_tmp_x324:=VV#F2][VV#333:=VV#F2][VV#F:=VV#F2]]}
-  rhs {VV#F2 : int | [$k_319[VV#318:=VV#F2][lq_tmp_x316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x312:=VV#330][lq_tmp_x321:=VV#F2][VV#333:=VV#F2][VV#F:=VV#F2]]}
+  lhs {VV#F2 : int | [$k__264[VV#263:=VV#F2][VV#273:=VV#330][lq_tmp_x_328:=VV#330][lq_tmp_x_324:=VV#F2][VV#333:=VV#F2][VV#F:=VV#F2]]}
+  rhs {VV#F2 : int | [$k__319[VV#318:=VV#F2][lq_tmp_x_316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_312:=VV#330][lq_tmp_x_321:=VV#F2][VV#333:=VV#F2][VV#F:=VV#F2]]}
   id 2 tag [3]
 
 
@@ -745,8 +745,8 @@ constraint:
        47;
        63]
   grd true
-  lhs {VV#F3 : int | [$k_264[VV#263:=VV#F3][VV#273:=VV#330][lq_tmp_x328:=VV#330][lq_tmp_x324:=VV#F3][VV#333:=VV#F3][VV#F:=VV#F3]]}
-  rhs {VV#F3 : int | [$k_209[VV#218:=VV#330][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][VV#208:=VV#F3][lq_tmp_x316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x312:=VV#330][lq_tmp_x321:=VV#F3][VV#333:=VV#F3][VV#F:=VV#F3]]}
+  lhs {VV#F3 : int | [$k__264[VV#263:=VV#F3][VV#273:=VV#330][lq_tmp_x_328:=VV#330][lq_tmp_x_324:=VV#F3][VV#333:=VV#F3][VV#F:=VV#F3]]}
+  rhs {VV#F3 : int | [$k__209[VV#218:=VV#330][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][VV#208:=VV#F3][lq_tmp_x_316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_312:=VV#330][lq_tmp_x_321:=VV#F3][VV#333:=VV#F3][VV#F:=VV#F3]]}
   id 3 tag [3]
 
 
@@ -811,8 +811,8 @@ constraint:
        47;
        63]
   grd true
-  lhs {VV#F4 : int | [$k_267[VV#266:=VV#F4][VV#273:=VV#330][lq_tmp_x328:=VV#330][lq_tmp_x325:=VV#F4][VV#336:=VV#F4][VV#F:=VV#F4]]}
-  rhs {VV#F4 : int | [$k_319[VV#318:=VV#F4][lq_tmp_x316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x312:=VV#330][lq_tmp_x321:=VV#F4][VV#336:=VV#F4][VV#F:=VV#F4]]}
+  lhs {VV#F4 : int | [$k__267[VV#266:=VV#F4][VV#273:=VV#330][lq_tmp_x_328:=VV#330][lq_tmp_x_325:=VV#F4][VV#336:=VV#F4][VV#F:=VV#F4]]}
+  rhs {VV#F4 : int | [$k__319[VV#318:=VV#F4][lq_tmp_x_316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_312:=VV#330][lq_tmp_x_321:=VV#F4][VV#336:=VV#F4][VV#F:=VV#F4]]}
   id 4 tag [3]
 
 
@@ -877,8 +877,8 @@ constraint:
        47;
        63]
   grd true
-  lhs {VV#F5 : int | [$k_267[VV#266:=VV#F5][VV#273:=VV#330][lq_tmp_x328:=VV#330][lq_tmp_x325:=VV#F5][VV#336:=VV#F5][VV#F:=VV#F5]]}
-  rhs {VV#F5 : int | [$k_212[VV#218:=VV#330][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][VV#211:=VV#F5][lq_tmp_x316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x312:=VV#330][lq_tmp_x321:=VV#F5][VV#336:=VV#F5][VV#F:=VV#F5]]}
+  lhs {VV#F5 : int | [$k__267[VV#266:=VV#F5][VV#273:=VV#330][lq_tmp_x_328:=VV#330][lq_tmp_x_325:=VV#F5][VV#336:=VV#F5][VV#F:=VV#F5]]}
+  rhs {VV#F5 : int | [$k__212[VV#218:=VV#330][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][VV#211:=VV#F5][lq_tmp_x_316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_312:=VV#330][lq_tmp_x_321:=VV#F5][VV#336:=VV#F5][VV#F:=VV#F5]]}
   id 5 tag [3]
 
 
@@ -944,8 +944,8 @@ constraint:
        47;
        63]
   grd true
-  lhs {VV#F6 : int | [$k_271[VV#270:=VV#F6][lq_tmp_x269:=lq_tmp_x311][lq_tmp_x326:=lq_tmp_x311][lq_tmp_x327:=VV#F6][VV#340:=VV#F6][VV#F:=VV#F6]]}
-  rhs {VV#F6 : int | [$k_216[lq_tmp_x214:=lq_tmp_x311][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][VV#215:=VV#F6][lq_tmp_x316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x321:=VV#F6][VV#340:=VV#F6][VV#F:=VV#F6]]}
+  lhs {VV#F6 : int | [$k__271[VV#270:=VV#F6][lq_tmp_x_269:=lq_tmp_x_311][lq_tmp_x_326:=lq_tmp_x_311][lq_tmp_x_327:=VV#F6][VV#340:=VV#F6][VV#F:=VV#F6]]}
+  rhs {VV#F6 : int | [$k__216[lq_tmp_x_214:=lq_tmp_x_311][fix##36#dOrd_a16q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][VV#215:=VV#F6][lq_tmp_x_316:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_321:=VV#F6][VV#340:=VV#F6][VV#F:=VV#F6]]}
   id 6 tag [3]
 
 
@@ -1014,7 +1014,7 @@ constraint:
                                                       (x([VV#F7]) = lq_anf__d16U);
                                                       (VV#F7 = Niki.P#r12h([lq_anf__d16U;
                                                                             lq_anf__d16V]))]}
-  rhs {VV#F7 : FAppTy (FAppTy Niki.Pair  int)  int | [$k_274[VV#273:=VV#F7][VV#343:=VV#F7][VV#F:=VV#F7]]}
+  rhs {VV#F7 : FAppTy (FAppTy Niki.Pair  int)  int | [$k__274[VV#273:=VV#F7][VV#343:=VV#F7][VV#F:=VV#F7]]}
   id 7 tag [2]
 
 
@@ -1080,8 +1080,8 @@ constraint:
        63;
        79]
   grd true
-  lhs {VV#F8 : int | [$k_295[VV#294:=VV#F8][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x289:=VV#343][lq_tmp_x297:=VV#F8][VV#346:=VV#F8][VV#F:=VV#F8]]}
-  rhs {VV#F8 : int | [$k_264[VV#273:=VV#343][VV#263:=VV#F8][VV#346:=VV#F8][VV#F:=VV#F8]]}
+  lhs {VV#F8 : int | [$k__295[VV#294:=VV#F8][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_289:=VV#343][lq_tmp_x_297:=VV#F8][VV#346:=VV#F8][VV#F:=VV#F8]]}
+  rhs {VV#F8 : int | [$k__264[VV#273:=VV#343][VV#263:=VV#F8][VV#346:=VV#F8][VV#F:=VV#F8]]}
   id 8 tag [2]
 
 
@@ -1147,8 +1147,8 @@ constraint:
        63;
        79]
   grd true
-  lhs {VV#F9 : int | [$k_299[VV#298:=VV#F9][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x289:=VV#343][lq_tmp_x301:=VV#F9][VV#349:=VV#F9][VV#F:=VV#F9]]}
-  rhs {VV#F9 : int | [$k_267[VV#273:=VV#343][VV#266:=VV#F9][VV#349:=VV#F9][VV#F:=VV#F9]]}
+  lhs {VV#F9 : int | [$k__299[VV#298:=VV#F9][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_289:=VV#343][lq_tmp_x_301:=VV#F9][VV#349:=VV#F9][VV#F:=VV#F9]]}
+  rhs {VV#F9 : int | [$k__267[VV#273:=VV#343][VV#266:=VV#F9][VV#349:=VV#F9][VV#F:=VV#F9]]}
   id 9 tag [2]
 
 
@@ -1215,8 +1215,8 @@ constraint:
        63;
        79]
   grd true
-  lhs {VV#F10 : int | [$k_303[lq_tmp_x305:=lq_tmp_x269][VV#302:=VV#F10][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x293:=lq_anf__d16V][lq_tmp_x288:=lq_tmp_x269][lq_tmp_x301:=VV#F10][VV#353:=VV#F10][VV#F:=VV#F10]]}
-  rhs {VV#F10 : int | [$k_271[VV#270:=VV#F10][VV#353:=VV#F10][VV#F:=VV#F10]]}
+  lhs {VV#F10 : int | [$k__303[lq_tmp_x_305:=lq_tmp_x_269][VV#302:=VV#F10][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_293:=lq_anf__d16V][lq_tmp_x_288:=lq_tmp_x_269][lq_tmp_x_301:=VV#F10][VV#353:=VV#F10][VV#F:=VV#F10]]}
+  rhs {VV#F10 : int | [$k__271[VV#270:=VV#F10][VV#353:=VV#F10][VV#F:=VV#F10]]}
   id 10 tag [2]
 
 
@@ -1283,7 +1283,7 @@ constraint:
   grd true
   lhs {VV#F11 : int | [(VV#F11 = (1  :  int));
                        (VV#F11 = lq_anf__d16V)]}
-  rhs {VV#F11 : int | [$k_299[VV#298:=VV#F11][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x301:=VV#F11][VV#356:=VV#F11][VV#F:=VV#F11]]}
+  rhs {VV#F11 : int | [$k__299[VV#298:=VV#F11][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_301:=VV#F11][VV#356:=VV#F11][VV#F:=VV#F11]]}
   id 11 tag [2]
 
 
@@ -1350,7 +1350,7 @@ constraint:
   grd true
   lhs {VV#F12 : int | [(VV#F12 = (1  :  int));
                        (VV#F12 = lq_anf__d16V)]}
-  rhs {VV#F12 : int | [$k_303[lq_tmp_x305:=lq_anf__d16U][VV#302:=VV#F12][lq_tmp_x292:=lq_anf__d16U][lq_tmp_x301:=VV#F12][VV#356:=VV#F12][VV#F:=VV#F12]]}
+  rhs {VV#F12 : int | [$k__303[lq_tmp_x_305:=lq_anf__d16U][VV#302:=VV#F12][lq_tmp_x_292:=lq_anf__d16U][lq_tmp_x_301:=VV#F12][VV#356:=VV#F12][VV#F:=VV#F12]]}
   id 12 tag [2]
 
 
@@ -1417,7 +1417,7 @@ constraint:
   grd true
   lhs {VV#F13 : int | [(VV#F13 = (0  :  int));
                        (VV#F13 = lq_anf__d16U)]}
-  rhs {VV#F13 : int | [$k_295[VV#294:=VV#F13][lq_tmp_x297:=VV#F13][VV#359:=VV#F13][VV#F:=VV#F13]]}
+  rhs {VV#F13 : int | [$k__295[VV#294:=VV#F13][lq_tmp_x_297:=VV#F13][VV#359:=VV#F13][VV#F:=VV#F13]]}
   id 13 tag [2]
 
 
@@ -1488,7 +1488,7 @@ constraint:
        95]
   grd true
   lhs {VV#F14 : GHC.Types.Bool | [(? Prop([VV#F14]))]}
-  rhs {VV#F14 : GHC.Types.Bool | [$k_223[VV#222:=VV#F14][VV#368:=VV#F14][VV#F:=VV#F14]]}
+  rhs {VV#F14 : GHC.Types.Bool | [$k__223[VV#222:=VV#F14][VV#368:=VV#F14][VV#F:=VV#F14]]}
   id 14 tag [1]
 
 
@@ -1622,7 +1622,7 @@ wf:
        31;
        47;
        63]
-  reft {VV#318 : int | [$k_319]}
+  reft {VV#318 : int | [$k__319]}
   
 
 
@@ -1686,7 +1686,7 @@ wf:
        31;
        47;
        63]
-  reft {VV#302 : int | [$k_303]}
+  reft {VV#302 : int | [$k__303]}
   
 
 
@@ -1749,7 +1749,7 @@ wf:
        31;
        47;
        63]
-  reft {VV#298 : int | [$k_299]}
+  reft {VV#298 : int | [$k__299]}
   
 
 
@@ -1812,7 +1812,7 @@ wf:
        31;
        47;
        63]
-  reft {VV#294 : int | [$k_295]}
+  reft {VV#294 : int | [$k__295]}
   
 
 
@@ -1873,69 +1873,7 @@ wf:
        31;
        47;
        63]
-  reft {VV#273 : FAppTy (FAppTy Niki.Pair  int)  int | [$k_274]}
-  
-
-
-wf:
-  env [0;
-       16;
-       32;
-       48;
-       1;
-       17;
-       33;
-       49;
-       2;
-       18;
-       34;
-       50;
-       3;
-       19;
-       35;
-       51;
-       4;
-       20;
-       36;
-       52;
-       5;
-       21;
-       37;
-       53;
-       6;
-       22;
-       38;
-       54;
-       7;
-       23;
-       39;
-       8;
-       24;
-       40;
-       9;
-       25;
-       41;
-       105;
-       10;
-       26;
-       42;
-       11;
-       27;
-       43;
-       12;
-       28;
-       44;
-       13;
-       29;
-       45;
-       14;
-       30;
-       46;
-       15;
-       31;
-       47;
-       63]
-  reft {VV#263 : int | [$k_264]}
+  reft {VV#273 : FAppTy (FAppTy Niki.Pair  int)  int | [$k__274]}
   
 
 
@@ -1997,7 +1935,69 @@ wf:
        31;
        47;
        63]
-  reft {VV#266 : int | [$k_267]}
+  reft {VV#263 : int | [$k__264]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       49;
+       2;
+       18;
+       34;
+       50;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       54;
+       7;
+       23;
+       39;
+       8;
+       24;
+       40;
+       9;
+       25;
+       41;
+       105;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       45;
+       14;
+       30;
+       46;
+       15;
+       31;
+       47;
+       63]
+  reft {VV#266 : int | [$k__267]}
   
 
 
@@ -2059,7 +2059,7 @@ wf:
        31;
        47;
        63]
-  reft {VV#270 : int | [$k_271]}
+  reft {VV#270 : int | [$k__271]}
   
 
 
@@ -2120,69 +2120,7 @@ wf:
        15;
        31;
        47]
-  reft {VV#218 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k_219]}
-  
-
-
-wf:
-  env [0;
-       16;
-       32;
-       48;
-       1;
-       17;
-       33;
-       49;
-       2;
-       18;
-       34;
-       50;
-       3;
-       19;
-       35;
-       51;
-       4;
-       20;
-       36;
-       52;
-       5;
-       21;
-       37;
-       53;
-       6;
-       22;
-       38;
-       54;
-       7;
-       23;
-       39;
-       55;
-       8;
-       24;
-       40;
-       9;
-       25;
-       41;
-       10;
-       26;
-       42;
-       11;
-       27;
-       43;
-       12;
-       28;
-       44;
-       13;
-       29;
-       45;
-       14;
-       30;
-       46;
-       110;
-       15;
-       31;
-       47]
-  reft {VV#208 : a_a16p | [$k_209]}
+  reft {VV#218 : FAppTy (FAppTy Niki.Pair  a_a16p)  a_a16p | [$k__219]}
   
 
 
@@ -2244,7 +2182,69 @@ wf:
        15;
        31;
        47]
-  reft {VV#211 : a_a16p | [$k_212]}
+  reft {VV#208 : a_a16p | [$k__209]}
+  
+
+
+wf:
+  env [0;
+       16;
+       32;
+       48;
+       1;
+       17;
+       33;
+       49;
+       2;
+       18;
+       34;
+       50;
+       3;
+       19;
+       35;
+       51;
+       4;
+       20;
+       36;
+       52;
+       5;
+       21;
+       37;
+       53;
+       6;
+       22;
+       38;
+       54;
+       7;
+       23;
+       39;
+       55;
+       8;
+       24;
+       40;
+       9;
+       25;
+       41;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       45;
+       14;
+       30;
+       46;
+       110;
+       15;
+       31;
+       47]
+  reft {VV#211 : a_a16p | [$k__212]}
   
 
 
@@ -2306,7 +2306,7 @@ wf:
        31;
        47;
        111]
-  reft {VV#215 : a_a16p | [$k_216]}
+  reft {VV#215 : a_a16p | [$k__216]}
   
 
 
@@ -2373,7 +2373,7 @@ wf:
        15;
        31;
        47]
-  reft {VV#252 : a_a16p | [$k_253]}
+  reft {VV#252 : a_a16p | [$k__253]}
   
 
 
@@ -2435,5 +2435,5 @@ wf:
        15;
        31;
        47]
-  reft {VV#222 : GHC.Types.Bool | [$k_223]}
+  reft {VV#222 : GHC.Types.Bool | [$k__223]}
   

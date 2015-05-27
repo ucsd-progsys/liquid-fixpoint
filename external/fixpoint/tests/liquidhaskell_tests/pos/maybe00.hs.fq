@@ -121,13 +121,13 @@ constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (F
                                @(3)]))
 constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
 constant papp1 : (func(1, [FAppTy Pred  @(0); @(0); bool]))
+constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
                                @(1)]))
 constant x_Tuple21 : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
                                @(0)]))
 constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(0)]))
-constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
 constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(5)]))
 constant GHC.Types.True#6u : (GHC.Types.Bool)
@@ -249,7 +249,7 @@ bind 33 fix#GHC.Real.D#58#Fractional#35#rkT : {VV : func(1, [func(0, [@(0);
 bind 34 z#aLd : {VV : a_aLl | []}
 bind 35 Foo.poop#rpv : {VV : func(1, [@(0);
                                       FAppTy Data.Maybe.Maybe  @(0)]) | []}
-bind 36 Foo.gloop#rou : {lq_tmp_x137 : FAppTy Data.Maybe.Maybe  GHC.Types.Bool | [(fromJust([lq_tmp_x137]) = GHC.Types.True#6u)]}
+bind 36 Foo.gloop#rou : {lq_tmp_x_137 : FAppTy Data.Maybe.Maybe  GHC.Types.Bool | [(fromJust([lq_tmp_x_137]) = GHC.Types.True#6u)]}
 bind 37 VV#146 : {VV#146 : GHC.Types.Bool | [(? Prop([VV#146]));
                                              (VV#146 = GHC.Types.True#6u)]}
 bind 38 VV#146 : {VV#146 : GHC.Types.Bool | [(? Prop([VV#146]));
@@ -260,9 +260,9 @@ bind 39 VV#149 : {VV#149 : FAppTy Data.Maybe.Maybe  a_aLl | [(fromJust([VV#149])
 bind 40 VV#149 : {VV#149 : FAppTy Data.Maybe.Maybe  a_aLl | [(fromJust([VV#149]) = z#aLd);
                                                              ((? isJust([VV#149])) <=> true);
                                                              (VV#149 = Data.Maybe.Just#r1a([z#aLd]))]}
-bind 41 VV#133 : {VV#133 : a_aLl | [$k_134[lq_tmp_x132:=z#aLd][lq_tmp_x130:=VV#149]]}
+bind 41 VV#133 : {VV#133 : a_aLl | [$k__134[lq_tmp_x_132:=z#aLd][lq_tmp_x_130:=VV#149]]}
 bind 42 VV : {VV : a_aLl | [(VV = z#aLd)]}
-bind 43 VV#140 : {VV#140 : GHC.Types.Bool | [$k_141]}
+bind 43 VV#140 : {VV#140 : GHC.Types.Bool | [$k__141]}
 
 
 constraint:
@@ -305,7 +305,7 @@ constraint:
   grd true
   lhs {VV#F1 : GHC.Types.Bool | [(? Prop([VV#F1]));
                                  (VV#F1 = GHC.Types.True#6u)]}
-  rhs {VV#F1 : GHC.Types.Bool | [$k_141[VV#140:=VV#F1][lq_tmp_x143:=VV#F1][VV#146:=VV#F1][VV#F:=VV#F1]]}
+  rhs {VV#F1 : GHC.Types.Bool | [$k__141[VV#140:=VV#F1][lq_tmp_x_143:=VV#F1][VV#146:=VV#F1][VV#F:=VV#F1]]}
   id 1 tag [2]
 
 
@@ -393,7 +393,7 @@ constraint:
        31]
   grd true
   lhs {VV#F3 : a_aLl | [(VV#F3 = z#aLd)]}
-  rhs {VV#F3 : a_aLl | [$k_134[VV#133:=VV#F3][VV#F:=VV#F3]]}
+  rhs {VV#F3 : a_aLl | [$k__134[VV#133:=VV#F3][VV#F:=VV#F3]]}
   id 3 tag [1]
 
 
@@ -433,7 +433,7 @@ wf:
        30;
        15;
        31]
-  reft {VV#140 : GHC.Types.Bool | [$k_141]}
+  reft {VV#140 : GHC.Types.Bool | [$k__141]}
   
 
 
@@ -473,5 +473,5 @@ wf:
        30;
        15;
        31]
-  reft {VV#133 : a_aLl | [$k_134]}
+  reft {VV#133 : a_aLl | [$k__134]}
   
