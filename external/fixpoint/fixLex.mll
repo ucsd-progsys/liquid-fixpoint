@@ -109,6 +109,10 @@ rule token = parse
   | '?'                 { QM }
   | '$'                 { DOL }
   | '.'                 { DOT }
+  | "iff"               { IFFWORD }
+  | "if"                { IFWORD  }
+  | "then"              { THENWORD } 
+  | "else"              { ELSEWORD } 
   | "not"               { NOTWORD }
   | "tag"               { TAG }
   | "id"                { ID }
@@ -118,8 +122,8 @@ rule token = parse
   | ":="                { ASGN }
   | "&&"                { AND }
   | "||"                { OR  }
+
   | "<=>"               { IFF }
-  | "iff"               { IFFWORD }
   | "=>"                { IMPL }
   | "!="		        { NE }
   | "="		            { EQ }

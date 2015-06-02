@@ -74,7 +74,7 @@ let env_of_ibindings is =
 %token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC LIT FRAC
 %token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
 %token ENV GRD LHS RHS REF
-
+%token IFWORD THENWORD ELSEWORD
 %right IFF IFFWORD
 %right IMPL
 %left PLUS
@@ -235,15 +235,15 @@ predsne:
 ;
 
 pred:
-    TRUE				{ A.pTrue }
-  | FALSE				{ A.pFalse }
+    TRUE                                { A.pTrue }
+  | FALSE                               { A.pFalse }
   | BEXP expr                           { A.pBexp $2 }
   | QM expr                             { A.pBexp $2 }
   | Id LPAREN argsne RPAREN             { A.pBexp (A.eApp ((Sy.of_string $1), $3)) }
-  | AND preds   			{ A.pAnd ($2) }
-  | OR  preds 	        		{ A.pOr  ($2) }
-  | NOT pred				{ A.pNot ($2) }
-  | NOTWORD pred			{ A.pNot ($2) }
+  | AND preds   			                  { A.pAnd ($2) }
+  | OR  preds 	        		            { A.pOr  ($2) }
+  | NOT pred				                    { A.pNot ($2) }
+  | NOTWORD pred			                  { A.pNot ($2) }
   | LPAREN pred AND pred RPAREN         { A.pAnd [$2; $4] }
   | LPAREN pred OR  pred RPAREN         { A.pOr  [$2; $4] }
   | expr rel expr                       { A.pAtom  ($1, $2, $3) }
@@ -283,6 +283,7 @@ expr:
   | Id LPAREN exprs RPAREN                { A.eApp ((Sy.of_string $1), $3) }
   | Id Id                                 { A.eApp ((Sy.of_string $1), [A.eVar (Sy.of_string $2)]) }
   | LPAREN pred QM expr COLON expr RPAREN { A.eIte ($2,$4,$6) }
+  | IFWORD pred THENWORD expr ELSEWORD expr { A.eIte ($2,$4,$6) }
   | expr DOT Id                           { A.eFld ((Sy.of_string $3), $1) }
   | LPAREN expr COLON sort RPAREN         { A.eCst ($2, $4) }
   | LPAREN expr RPAREN                    { $2 }
