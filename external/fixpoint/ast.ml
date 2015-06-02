@@ -238,6 +238,19 @@ module Sort =
 
     let rec unifyt s = function
       | Num,_ | _, Num -> None
+(* NIKI: Unifycation of two variables should always succeed, 
+but the bellow code crashes tests/zipper0.hs.fq
+*)
+(*
+      | (Var i), (Var j) -> 
+          begin match lookup_var s i with
+          | Some ct -> Some {s with vars = (j,ct) :: s.vars}
+          | None -> begin match lookup_var s j with
+                    | Some ct -> Some {s with vars = (i, ct)    :: s.vars}
+                    | None    -> Some {s with vars = (i, Var j) :: s.vars}
+                    end
+          end
+*)
       | ct, (Var i)
       | (Var i), ct
         (* when ct != Bool *) ->
@@ -318,8 +331,10 @@ module Sort =
     let sub_args s = List.sort compare s.vars
 
     (* API *)
-    let check_arity n s = s.vars |>: fst |> Misc.sort_and_compact |> List.length |> (=) n
-      (* if ... then s else assertf "Type Inst. With Wrong Arity!" *)
+    let check_arity n s = 
+      let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in 
+      n == n_vars
+
 
   end
 
@@ -1161,6 +1176,30 @@ let checkArity f uf = function
                          | _      -> None
                    end
 
+let unifiable t1 t2 = 
+  match Sort.unify [t1] [t2] with
+  | Some _ -> true 
+  | _ -> false
+
+
+(* added for sortcheck of Nothing([])
+ it used to fail, as (su, Some (Just @0)) = sortcheck_expr (Nothing ([]))
+ but su.vars is empty
+ *)
+let updateArity env f = function 
+  | None -> None 
+  | Some (su, t) -> begin match uf_arity f env with 
+    | Some n -> 
+     let rec go n 
+       = if n < 0 
+          then [] 
+          else match Sort.lookup_var su n with 
+                | Some _ -> go (n-1)
+                | None   -> (n, Sort.Var n) :: go (n-1)
+    in Some({su with Sort.vars = List.append su.Sort.vars (go n) }, t)
+    | None -> None
+ end 
+
 let rec sortcheck_expr g f e =
   match euw e with
   | Bot   ->
@@ -1178,10 +1217,14 @@ let rec sortcheck_expr g f e =
   | Ite (p, e1, e2) ->
       if sortcheck_pred g f p then
         match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
-        | (Some t1, Some t2) when t1 = t2 -> Some t1
+        | (Some t1, Some t2) -> 
+          begin 
+          match Sort.unify [t1] [t2] with 
+            | Some s -> Some (Sort.apply s t1) 
+            | None -> None
+          end 
         | _ -> None
       else None
-
   | Cst (e1, t) ->
       begin match euw e1 with
         | App (uf, es) -> sortcheck_app g f (Some t) uf es
@@ -1221,8 +1264,9 @@ and sortcheck_app_sub g f so_expected uf es =
                                   | Some s' -> Some (s', Sort.apply s' t)
 
 and sortcheck_app g f tExp uf es =
+
   sortcheck_app_sub g f tExp uf es
-  |> checkArity f uf  (* THIS CHECK IS NEW, but will it break a bunch of tests? *)
+  |> updateArity uf f  (* THIS CHECK IS NEW, but will it break a bunch of tests? *)
   |> Misc.maybe_map snd
                     (*
   >> begin function
@@ -1297,12 +1341,12 @@ and sortcheck_rel g f (e1, r, e2) =
     -> sortcheck_loc f l = Some Sort.Frac
   | Eq, Some t1, Some t2
   | Ne, Some t1, Some t2
-    -> t1 = t2
+    -> unifiable t1 t2
   | _ , Some (Sort.App (tc,_)), _
     when (g tc) (* tc is an interpreted tycon *)
     -> false
   | _ , Some t1, Some t2
-    -> t1 = t2 && t1 != Sort.Bool
+    -> unifiable t1 t2 && t1 != Sort.Bool
   | _ -> false
 
 and sortcheck_pred g f p =
@@ -1343,7 +1387,7 @@ and sortcheck_pred g f p =
       -> let t1o = solved_app f uf1 <| sortcheck_app_sub g f None uf1 e1s in
          let t2o = solved_app f uf2 <| sortcheck_app_sub g f None uf2 e2s in
          begin match t1o, t2o with
-               | (Some t1, Some t2) -> t1 = t2
+               | (Some t1, Some t2) -> unifiable t1 t2
                | (None, None)       -> false
                | (None, Some t2)    -> not (None = sortcheck_app g f (Some t2) uf1 e1s)
                | (Some t1, None)    -> not (None = sortcheck_app g f (Some t1) uf2 e2s)
