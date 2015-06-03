@@ -1,6 +1,6 @@
 qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 27, column 8)
 qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 28, column 8)
-qualif Auto(v : int, fix##126#A0 : int): (v = ((fix##126#A0 > 0) ? fix##126#A0 : (0 - fix##126#A0))) // "ite1.hs" (line 5, column 1)
+qualif Auto(v : int, fix##126#A0 : int): (v = (if (fix##126#A0 > 0) then fix##126#A0 else (0 - fix##126#A0))) // "ite1.hs" (line 5, column 1)
 qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) > 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 13, column 8)
 qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) = 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 14, column 8)
 qualif ListZ(v : [@(0)]): (len([v]) = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 16, column 8)
@@ -361,8 +361,11 @@ constraint:
        31]
   grd true
   lhs {VV#F1 : int | [(VV#F1 = x#aXq)]}
-  rhs {VV#F1 : int | [(VV#F1 = ((x#aXq > 0) ? x#aXq : (0 - x#aXq)))]}
+  rhs {VV#F1 : int | [(VV#F1 = (if (x#aXq > 0) then x#aXq else (0 - x#aXq)))]}
   id 1 tag [1]
+  // META constraint id 1 : ite1.hs:5:23
+  
+
 
 
 constraint:
@@ -417,8 +420,11 @@ constraint:
        47]
   grd true
   lhs {VV#F2 : int | [$k__199[ds_dXD:=GHC.Prim.void##0l][VV#198:=VV#F2][VV#231:=VV#F2][VV#F:=VV#F2]]}
-  rhs {VV#F2 : int | [(VV#F2 = ((x#aXq > 0) ? x#aXq : (0 - x#aXq)))]}
+  rhs {VV#F2 : int | [(VV#F2 = (if (x#aXq > 0) then x#aXq else (0 - x#aXq)))]}
   id 2 tag [1]
+  // META constraint id 2 : ite1.hs:5:1-5
+  
+
 
 
 constraint:
@@ -475,6 +481,9 @@ constraint:
   lhs {VV#F3 : GHC.Prim.Void# | [(VV#F3 = GHC.Prim.void##0l)]}
   rhs {VV#F3 : GHC.Prim.Void# | [$k__195[VV#194:=VV#F3][VV#234:=VV#F3][VV#F:=VV#F3]]}
   id 3 tag [1]
+  // META constraint id 3 : ite1.hs:5:1-5
+  
+
 
 
 constraint:
@@ -533,6 +542,9 @@ constraint:
   lhs {VV#F4 : int | [(VV#F4 = (lq_anf__dXH - x#aXq))]}
   rhs {VV#F4 : int | [$k__199[VV#198:=VV#F4][VV#237:=VV#F4][VV#F:=VV#F4]]}
   id 4 tag [1]
+  // META constraint id 4 : ite1.hs:6:24-28
+  
+
 
 
 constraint:
@@ -585,6 +597,9 @@ constraint:
   lhs {VV#F5 : int | [(VV#F5 = (0  :  int)); (VV#F5 = lq_anf__dXE)]}
   rhs {VV#F5 : int | [$k__179[VV#178:=VV#F5][lq_tmp_x_175:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_176:=x#aXq][lq_tmp_x_181:=VV#F5][VV#249:=VV#F5][VV#F:=VV#F5]]}
   id 5 tag [1]
+  // META constraint id 5 : ite1.hs:5:15
+  
+
 
 
 constraint:
@@ -637,6 +652,9 @@ constraint:
   lhs {VV#F6 : int | [(VV#F6 = x#aXq)]}
   rhs {VV#F6 : int | [$k__179[VV#178:=VV#F6][lq_tmp_x_175:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_181:=VV#F6][VV#252:=VV#F6][VV#F:=VV#F6]]}
   id 6 tag [1]
+  // META constraint id 6 : ite1.hs:5:11
+  
+
 
 
 wf:
@@ -690,6 +708,9 @@ wf:
        47]
   reft {VV#194 : GHC.Prim.Void# | [$k__195]}
   
+  // META wf  : ite1.hs:5:1-5
+  
+
 
 
 wf:
@@ -744,6 +765,9 @@ wf:
        47]
   reft {VV#198 : int | [$k__199]}
   
+  // META wf  : ite1.hs:5:1-5
+  
+
 
 
 wf:
@@ -793,3 +817,233 @@ wf:
        31]
   reft {VV#178 : int | [$k__179]}
   
+  // META wf  : ite1.hs:5:13
+  
+
+// META bind 0 : <no location info>
+
+
+// META bind 16 : <no location info>
+
+
+// META bind 32 : <no location info>
+
+
+// META bind 48 : ite1.hs:5:1-5
+
+
+// META bind 64 : ite1.hs:6:24
+
+
+// META bind 1 : <no location info>
+
+
+// META bind 17 : <no location info>
+
+
+// META bind 33 : <no location info>
+
+
+// META bind 49 : ite1.hs:5:1-5
+
+
+// META bind 65 : ite1.hs:5:1-5
+
+
+// META bind 2 : <no location info>
+
+
+// META bind 18 : <no location info>
+
+
+// META bind 34 : <no location info>
+
+
+// META bind 50 : ite1.hs:5:1-5
+
+
+// META bind 66 : ite1.hs:5:1-5
+
+
+// META bind 3 : <no location info>
+
+
+// META bind 19 : <no location info>
+
+
+// META bind 35 : <no location info>
+
+
+// META bind 51 : ite1.hs:5:1-5
+
+
+// META bind 67 : ite1.hs:5:15
+
+
+// META bind 4 : <no location info>
+
+
+// META bind 20 : <no location info>
+
+
+// META bind 36 : <no location info>
+
+
+// META bind 52 : <no location info>
+
+
+// META bind 68 : ite1.hs:5:15
+
+
+// META bind 5 : <no location info>
+
+
+// META bind 21 : <no location info>
+
+
+// META bind 37 : <no location info>
+
+
+// META bind 53 : ite1.hs:5:23
+
+
+// META bind 69 : ite1.hs:5:11
+
+
+// META bind 6 : <no location info>
+
+
+// META bind 22 : <no location info>
+
+
+// META bind 38 : <no location info>
+
+
+// META bind 54 : ite1.hs:5:23
+
+
+// META bind 70 : ite1.hs:5:11
+
+
+// META bind 7 : <no location info>
+
+
+// META bind 23 : <no location info>
+
+
+// META bind 39 : <no location info>
+
+
+// META bind 55 : ite1.hs:5:1-5
+
+
+// META bind 71 : ite1.hs:5:1-5
+
+
+// META bind 8 : <no location info>
+
+
+// META bind 24 : <no location info>
+
+
+// META bind 40 : <no location info>
+
+
+// META bind 56 : ite1.hs:5:1-5
+
+
+// META bind 72 : ite1.hs:5:1-5
+
+
+// META bind 9 : <no location info>
+
+
+// META bind 25 : <no location info>
+
+
+// META bind 41 : <no location info>
+
+
+// META bind 57 : ite1.hs:5:1-5
+
+
+// META bind 73 : ite1.hs:5:1-5
+
+
+// META bind 10 : <no location info>
+
+
+// META bind 26 : <no location info>
+
+
+// META bind 42 : ite1.hs:5:1-5
+
+
+// META bind 58 : ite1.hs:5:1-5
+
+
+// META bind 74 : ite1.hs:5:1-5
+
+
+// META bind 11 : <no location info>
+
+
+// META bind 27 : <no location info>
+
+
+// META bind 43 : ite1.hs:5:1-5
+
+
+// META bind 59 : ite1.hs:6:24-28
+
+
+// META bind 75 : ite1.hs:5:13
+
+
+// META bind 12 : <no location info>
+
+
+// META bind 28 : <no location info>
+
+
+// META bind 44 : ite1.hs:5:1-5
+
+
+// META bind 60 : ite1.hs:6:24-28
+
+
+// META bind 13 : <no location info>
+
+
+// META bind 29 : <no location info>
+
+
+// META bind 45 : ite1.hs:5:1-5
+
+
+// META bind 61 : ite1.hs:6:28
+
+
+// META bind 14 : <no location info>
+
+
+// META bind 30 : <no location info>
+
+
+// META bind 46 : ite1.hs:5:1-5
+
+
+// META bind 62 : ite1.hs:6:28
+
+
+// META bind 15 : <no location info>
+
+
+// META bind 31 : <no location info>
+
+
+// META bind 47 : ite1.hs:5:1-5
+
+
+// META bind 63 : ite1.hs:6:24
+

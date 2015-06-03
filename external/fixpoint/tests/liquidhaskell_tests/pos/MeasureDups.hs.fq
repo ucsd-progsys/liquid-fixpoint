@@ -5,9 +5,9 @@ qualif Auto(VV : FAppTy Set_Set  a_a17I, fix##126#A0 : FAppTy Measures.F  a_a17I
 qualif Auto(VV : FAppTy Set_Set  a_a17t, fix##126#A0 : FAppTy Measures.F  a_a17t): (VV = elements([fix##126#A0])) // "MeasureDups.hs" (line 17, column 1)
 qualif Auto(VV : FAppTy Measures.F  a_a16o, fix##126#A0 : a_a16o, fix##126#A1 : FAppTy Measures.F  a_a16o): (elements([VV]) = Set_cup([Set_sng([fix##126#A0]);
                                                                                                                                        elements([fix##126#A1])])) // "MeasureDups.hs" (line 9, column 19)
-qualif Auto(VV : FAppTy Measures.F  a_a16o, fix##126#A0 : a_a16o, fix##126#A1 : FAppTy Measures.F  a_a16o): (dups([VV]) = ((? Set_mem([fix##126#A0;
-                                                                                                                                       elements([fix##126#A1])])) ? Set_cup([Set_sng([fix##126#A0]);
-                                                                                                                                                                             dups([fix##126#A1])]) : dups([fix##126#A1]))) // "MeasureDups.hs" (line 9, column 19)
+qualif Auto(VV : FAppTy Measures.F  a_a16o, fix##126#A0 : a_a16o, fix##126#A1 : FAppTy Measures.F  a_a16o): (dups([VV]) = (if (? Set_mem([fix##126#A0;
+                                                                                                                                          elements([fix##126#A1])])) then Set_cup([Set_sng([fix##126#A0]);
+                                                                                                                                                                                   dups([fix##126#A1])]) else dups([fix##126#A1]))) // "MeasureDups.hs" (line 9, column 19)
 qualif Auto(VV : FAppTy Measures.F  a_a16o): (elements([VV]) = Set_empty([0])) // "MeasureDups.hs" (line 9, column 31)
 qualif Auto(VV : FAppTy Measures.F  a_a16o): (dups([VV]) = Set_empty([0])) // "MeasureDups.hs" (line 9, column 31)
 qualif Auto(VV : FAppTy Measures.F  a_a16o, fix##126#A0 : a_a16o): (elements([VV]) = Set_sng([fix##126#A0])) // "MeasureDups.hs" (line 9, column 12)
@@ -334,18 +334,18 @@ bind 58 xs#a16x : {lq_tmp_x_225 : FAppTy Measures.F  a_a17t | []}
 bind 59 lq_anf__d18x : {lq_tmp_x_218 : FAppTy Measures.F  a_a17t | [(lq_tmp_x_218 = ds_d18u);
                                                                     (elements([lq_tmp_x_218]) = Set_cup([Set_sng([x#a16w]);
                                                                                                          elements([xs#a16x])]));
-                                                                    (dups([lq_tmp_x_218]) = ((? Set_mem([x#a16w;
-                                                                                                         elements([xs#a16x])])) ? Set_cup([Set_sng([x#a16w]);
-                                                                                                                                           dups([xs#a16x])]) : dups([xs#a16x])));
+                                                                    (dups([lq_tmp_x_218]) = (if (? Set_mem([x#a16w;
+                                                                                                            elements([xs#a16x])])) then Set_cup([Set_sng([x#a16w]);
+                                                                                                                                                 dups([xs#a16x])]) else dups([xs#a16x])));
                                                                     (lq_tmp_x_218 = Measures.C#rqo([x#a16w;
                                                                                                     xs#a16x]));
                                                                     (lq_tmp_x_218 = Measures.C#rqo([x#a16w;
                                                                                                     xs#a16x]));
                                                                     (elements([lq_tmp_x_218]) = Set_cup([Set_sng([x#a16w]);
                                                                                                          elements([xs#a16x])]));
-                                                                    (dups([lq_tmp_x_218]) = ((? Set_mem([x#a16w;
-                                                                                                         elements([xs#a16x])])) ? Set_cup([Set_sng([x#a16w]);
-                                                                                                                                           dups([xs#a16x])]) : dups([xs#a16x])));
+                                                                    (dups([lq_tmp_x_218]) = (if (? Set_mem([x#a16w;
+                                                                                                            elements([xs#a16x])])) then Set_cup([Set_sng([x#a16w]);
+                                                                                                                                                 dups([xs#a16x])]) else dups([xs#a16x])));
                                                                     (lq_tmp_x_218 = Measures.C#rqo([x#a16w;
                                                                                                     xs#a16x]))]}
 bind 60 lq_anf__d18y : {lq_tmp_x_233 : FAppTy Set_Set  a_a17t | [(lq_tmp_x_233 = Set_sng([x#a16w]))]}
@@ -380,18 +380,18 @@ bind 73 xs#a16A : {lq_tmp_x_305 : FAppTy Measures.F  a_a17e | []}
 bind 74 lq_anf__d18A : {lq_tmp_x_298 : FAppTy Measures.F  a_a17e | [(lq_tmp_x_298 = ds_d18v);
                                                                     (elements([lq_tmp_x_298]) = Set_cup([Set_sng([x#a16z]);
                                                                                                          elements([xs#a16A])]));
-                                                                    (dups([lq_tmp_x_298]) = ((? Set_mem([x#a16z;
-                                                                                                         elements([xs#a16A])])) ? Set_cup([Set_sng([x#a16z]);
-                                                                                                                                           dups([xs#a16A])]) : dups([xs#a16A])));
+                                                                    (dups([lq_tmp_x_298]) = (if (? Set_mem([x#a16z;
+                                                                                                            elements([xs#a16A])])) then Set_cup([Set_sng([x#a16z]);
+                                                                                                                                                 dups([xs#a16A])]) else dups([xs#a16A])));
                                                                     (lq_tmp_x_298 = Measures.C#rqo([x#a16z;
                                                                                                     xs#a16A]));
                                                                     (lq_tmp_x_298 = Measures.C#rqo([x#a16z;
                                                                                                     xs#a16A]));
                                                                     (elements([lq_tmp_x_298]) = Set_cup([Set_sng([x#a16z]);
                                                                                                          elements([xs#a16A])]));
-                                                                    (dups([lq_tmp_x_298]) = ((? Set_mem([x#a16z;
-                                                                                                         elements([xs#a16A])])) ? Set_cup([Set_sng([x#a16z]);
-                                                                                                                                           dups([xs#a16A])]) : dups([xs#a16A])));
+                                                                    (dups([lq_tmp_x_298]) = (if (? Set_mem([x#a16z;
+                                                                                                            elements([xs#a16A])])) then Set_cup([Set_sng([x#a16z]);
+                                                                                                                                                 dups([xs#a16A])]) else dups([xs#a16A])));
                                                                     (lq_tmp_x_298 = Measures.C#rqo([x#a16z;
                                                                                                     xs#a16A]))]}
 bind 75 lq_anf__d18B : {lq_tmp_x_315 : FAppTy Set_Set  a_a17e | [(lq_tmp_x_315 = elements([xs#a16A]))]}
@@ -450,18 +450,18 @@ bind 95 xs#a16u : {lq_tmp_x_437 : FAppTy Measures.F  a_a17I | []}
 bind 96 lq_anf__d18G : {lq_tmp_x_430 : FAppTy Measures.F  a_a17I | [(lq_tmp_x_430 = ds_d18w);
                                                                     (elements([lq_tmp_x_430]) = Set_cup([Set_sng([x#a16t]);
                                                                                                          elements([xs#a16u])]));
-                                                                    (dups([lq_tmp_x_430]) = ((? Set_mem([x#a16t;
-                                                                                                         elements([xs#a16u])])) ? Set_cup([Set_sng([x#a16t]);
-                                                                                                                                           dups([xs#a16u])]) : dups([xs#a16u])));
+                                                                    (dups([lq_tmp_x_430]) = (if (? Set_mem([x#a16t;
+                                                                                                            elements([xs#a16u])])) then Set_cup([Set_sng([x#a16t]);
+                                                                                                                                                 dups([xs#a16u])]) else dups([xs#a16u])));
                                                                     (lq_tmp_x_430 = Measures.C#rqo([x#a16t;
                                                                                                     xs#a16u]));
                                                                     (lq_tmp_x_430 = Measures.C#rqo([x#a16t;
                                                                                                     xs#a16u]));
                                                                     (elements([lq_tmp_x_430]) = Set_cup([Set_sng([x#a16t]);
                                                                                                          elements([xs#a16u])]));
-                                                                    (dups([lq_tmp_x_430]) = ((? Set_mem([x#a16t;
-                                                                                                         elements([xs#a16u])])) ? Set_cup([Set_sng([x#a16t]);
-                                                                                                                                           dups([xs#a16u])]) : dups([xs#a16u])));
+                                                                    (dups([lq_tmp_x_430]) = (if (? Set_mem([x#a16t;
+                                                                                                            elements([xs#a16u])])) then Set_cup([Set_sng([x#a16t]);
+                                                                                                                                                 dups([xs#a16u])]) else dups([xs#a16u])));
                                                                     (lq_tmp_x_430 = Measures.C#rqo([x#a16t;
                                                                                                     xs#a16u]))]}
 bind 97 lq_anf__d18H : {lq_tmp_x_447 : FAppTy Set_Set  a_a17I | [(lq_tmp_x_447 = elements([xs#a16u]))]}
@@ -679,6 +679,9 @@ constraint:
   lhs {VV#F16 : a_a17e | [$k__369[lq_tmp_x_367:=x#a16z][lq_tmp_x_365:=VV#596][lq_tmp_x_399:=VV#596][VV#368:=VV#F16][VV#F:=VV#F16]]}
   rhs {VV#F16 : a_a17e | [$k__396[lq_tmp_x_392:=fix##36#dOrd_a17T][lq_tmp_x_386:=VV#596][VV#395:=VV#F16][VV#F:=VV#F16]]}
   id 16 tag [2]
+  // META constraint id 16 : MeasureDups.hs:27:47-57
+  
+
 
 
 constraint:
@@ -743,6 +746,9 @@ constraint:
   lhs {VV#F32 : a_a17t | [(VV#F32 = a#a16v)]}
   rhs {VV#F32 : a_a17t | [$k__216[VV#215:=VV#F32][VV#F:=VV#F32]]}
   id 32 tag [1]
+  // META constraint id 32 : MeasureDups.hs:18:31
+  
+
 
 
 constraint:
@@ -808,6 +814,9 @@ constraint:
   lhs {VV#F1 : FAppTy Set_Set  a_a17I | [(? Set_emp([VV#F1]))]}
   rhs {VV#F1 : FAppTy Set_Set  a_a17I | [(VV#F1 = dups([ds_d18w]))]}
   id 1 tag [3]
+  // META constraint id 1 : MeasureDups.hs:12:17-21
+  
+
 
 
 constraint:
@@ -881,6 +890,9 @@ constraint:
   lhs {VV#F17 : a_a17e | []}
   rhs {VV#F17 : a_a17e | [$k__380[lq_tmp_x_377:=fix##36#dOrd_a17T][lq_tmp_x_373:=VV#600][VV#379:=VV#F17][VV#F:=VV#F17]]}
   id 17 tag [2]
+  // META constraint id 17 : MeasureDups.hs:27:71-72
+  
+
 
 
 constraint:
@@ -956,6 +968,9 @@ constraint:
                                                            lq_anf__d18L]))]}
   rhs {VV#F2 : FAppTy Set_Set  a_a17I | [(VV#F2 = dups([ds_d18w]))]}
   id 2 tag [3]
+  // META constraint id 2 : MeasureDups.hs:14:48-74
+  
+
 
 
 constraint:
@@ -1027,6 +1042,9 @@ constraint:
   lhs {VV#F18 : a_a17e | [(VV#F18 = x#a16z)]}
   rhs {VV#F18 : a_a17e | [$k__369[VV#368:=VV#F18][VV#F:=VV#F18]]}
   id 18 tag [2]
+  // META constraint id 18 : MeasureDups.hs:27:57
+  
+
 
 
 constraint:
@@ -1102,6 +1120,9 @@ constraint:
   lhs {VV#F3 : a_a17I | [$k__512[lq_tmp_x_509:=fix##36#dOrd_a189][lq_tmp_x_510:=xs#a16u][lq_tmp_x_506:=VV#550][lq_tmp_x_532:=VV#550][VV#511:=VV#F3][VV#F:=VV#F3]]}
   rhs {VV#F3 : a_a17I | [$k__528[lq_tmp_x_524:=fix##36#dOrd_a189][lq_tmp_x_525:=lq_anf__d18K][lq_tmp_x_519:=VV#550][VV#527:=VV#F3][VV#F:=VV#F3]]}
   id 3 tag [3]
+  // META constraint id 3 : MeasureDups.hs:14:68-74
+  
+
 
 
 constraint:
@@ -1173,6 +1194,9 @@ constraint:
   lhs {VV#F19 : FAppTy Set_Set  a_a17e | [(dups([xs#a16A]) = VV#F19)]}
   rhs {VV#F19 : FAppTy Set_Set  a_a17e | [(dups([ds_d18v]) = VV#F19)]}
   id 19 tag [2]
+  // META constraint id 19 : MeasureDups.hs:27:79-84
+  
+
 
 
 constraint:
@@ -1248,6 +1272,9 @@ constraint:
   lhs {VV#F4 : a_a17I | [$k__501[lq_tmp_x_499:=x#a16t][lq_tmp_x_497:=VV#554][lq_tmp_x_531:=VV#554][VV#500:=VV#F4][VV#F:=VV#F4]]}
   rhs {VV#F4 : a_a17I | [$k__528[lq_tmp_x_524:=fix##36#dOrd_a189][lq_tmp_x_518:=VV#554][VV#527:=VV#F4][VV#F:=VV#F4]]}
   id 4 tag [3]
+  // META constraint id 4 : MeasureDups.hs:14:48-58
+  
+
 
 
 constraint:
@@ -1320,6 +1347,9 @@ constraint:
   lhs {VV#F20 : a_a17e | []}
   rhs {VV#F20 : a_a17e | [$k__356[lq_tmp_x_353:=fix##36#dOrd_a17T][lq_tmp_x_349:=VV#609][VV#355:=VV#F20][VV#F:=VV#F20]]}
   id 20 tag [2]
+  // META constraint id 20 : MeasureDups.hs:27:83-84
+  
+
 
 
 constraint:
@@ -1394,6 +1424,9 @@ constraint:
   lhs {VV#F5 : a_a17I | []}
   rhs {VV#F5 : a_a17I | [$k__512[lq_tmp_x_509:=fix##36#dOrd_a189][lq_tmp_x_505:=VV#558][VV#511:=VV#F5][VV#F:=VV#F5]]}
   id 5 tag [3]
+  // META constraint id 5 : MeasureDups.hs:14:73-74
+  
+
 
 
 constraint:
@@ -1462,6 +1495,9 @@ constraint:
   lhs {VV#F21 : a_a17e | [$k__321[lq_tmp_x_318:=fix##36#dOrd_a17T][lq_tmp_x_319:=xs#a16A][lq_tmp_x_315:=VV#613][lq_tmp_x_339:=VV#613][VV#320:=VV#F21][VV#F:=VV#F21]]}
   rhs {VV#F21 : a_a17e | [$k__336[lq_tmp_x_332:=fix##36#dOrd_a17T][lq_tmp_x_333:=x#a16z][lq_tmp_x_327:=VV#613][VV#335:=VV#F21][VV#F:=VV#F21]]}
   id 21 tag [2]
+  // META constraint id 21 : MeasureDups.hs:27:29-39
+  
+
 
 
 constraint:
@@ -1534,6 +1570,9 @@ constraint:
   lhs {VV#F6 : a_a17I | [(VV#F6 = x#a16t)]}
   rhs {VV#F6 : a_a17I | [$k__501[VV#500:=VV#F6][VV#F:=VV#F6]]}
   id 6 tag [3]
+  // META constraint id 6 : MeasureDups.hs:14:58
+  
+
 
 
 constraint:
@@ -1601,6 +1640,9 @@ constraint:
   lhs {VV#F22 : a_a17e | [(VV#F22 = x#a16z)]}
   rhs {VV#F22 : a_a17e | [$k__336[lq_tmp_x_332:=fix##36#dOrd_a17T][VV#335:=VV#F22][VV#F:=VV#F22]]}
   id 22 tag [2]
+  // META constraint id 22 : MeasureDups.hs:27:26
+  
+
 
 
 constraint:
@@ -1673,6 +1715,9 @@ constraint:
   lhs {VV#F7 : FAppTy Set_Set  a_a17I | [(VV#F7 = dups([xs#a16u]))]}
   rhs {VV#F7 : FAppTy Set_Set  a_a17I | [(VV#F7 = dups([ds_d18w]))]}
   id 7 tag [3]
+  // META constraint id 7 : MeasureDups.hs:14:81-87
+  
+
 
 
 constraint:
@@ -1740,6 +1785,9 @@ constraint:
   lhs {VV#F23 : a_a17e | []}
   rhs {VV#F23 : a_a17e | [$k__321[lq_tmp_x_318:=fix##36#dOrd_a17T][lq_tmp_x_314:=VV#618][VV#320:=VV#F23][VV#F:=VV#F23]]}
   id 23 tag [2]
+  // META constraint id 23 : MeasureDups.hs:27:38-39
+  
+
 
 
 constraint:
@@ -1813,6 +1861,9 @@ constraint:
   lhs {VV#F8 : a_a17I | []}
   rhs {VV#F8 : a_a17I | [$k__488[lq_tmp_x_485:=fix##36#dOrd_a189][lq_tmp_x_481:=VV#567][VV#487:=VV#F8][VV#F:=VV#F8]]}
   id 8 tag [3]
+  // META constraint id 8 : MeasureDups.hs:14:86-87
+  
+
 
 
 constraint:
@@ -1878,6 +1929,9 @@ constraint:
   lhs {VV#F24 : FAppTy Set_Set  a_a17e | [(? Set_emp([VV#F24]))]}
   rhs {VV#F24 : FAppTy Set_Set  a_a17e | [(dups([ds_d18v]) = VV#F24)]}
   id 24 tag [2]
+  // META constraint id 24 : MeasureDups.hs:26:16-20
+  
+
 
 
 constraint:
@@ -1947,6 +2001,9 @@ constraint:
   lhs {VV#F9 : a_a17I | [$k__453[lq_tmp_x_450:=fix##36#dOrd_a189][lq_tmp_x_451:=xs#a16u][lq_tmp_x_447:=VV#571][lq_tmp_x_471:=VV#571][VV#452:=VV#F9][VV#F:=VV#F9]]}
   rhs {VV#F9 : a_a17I | [$k__468[lq_tmp_x_464:=fix##36#dOrd_a189][lq_tmp_x_465:=x#a16t][lq_tmp_x_459:=VV#571][VV#467:=VV#F9][VV#F:=VV#F9]]}
   id 9 tag [3]
+  // META constraint id 9 : MeasureDups.hs:14:30-40
+  
+
 
 
 constraint:
@@ -2010,6 +2067,9 @@ constraint:
   lhs {VV#F25 : FAppTy Set_Set  a_a17t | [(? Set_emp([VV#F25]))]}
   rhs {VV#F25 : FAppTy Set_Set  a_a17t | [(VV#F25 = elements([ds_d18u]))]}
   id 25 tag [1]
+  // META constraint id 25 : MeasureDups.hs:17:21-25
+  
+
 
 
 constraint:
@@ -2078,6 +2138,9 @@ constraint:
   lhs {VV#F10 : a_a17I | [(VV#F10 = x#a16t)]}
   rhs {VV#F10 : a_a17I | [$k__468[lq_tmp_x_464:=fix##36#dOrd_a189][VV#467:=VV#F10][VV#F:=VV#F10]]}
   id 10 tag [3]
+  // META constraint id 10 : MeasureDups.hs:14:27
+  
+
 
 
 constraint:
@@ -2146,6 +2209,9 @@ constraint:
                                                              lq_anf__d18z]))]}
   rhs {VV#F26 : FAppTy Set_Set  a_a17t | [(VV#F26 = elements([ds_d18u]))]}
   id 26 tag [1]
+  // META constraint id 26 : MeasureDups.hs:19:21-51
+  
+
 
 
 constraint:
@@ -2214,6 +2280,9 @@ constraint:
   lhs {VV#F11 : a_a17I | []}
   rhs {VV#F11 : a_a17I | [$k__453[lq_tmp_x_450:=fix##36#dOrd_a189][lq_tmp_x_446:=VV#576][VV#452:=VV#F11][VV#F:=VV#F11]]}
   id 11 tag [3]
+  // META constraint id 11 : MeasureDups.hs:14:39-40
+  
+
 
 
 constraint:
@@ -2282,6 +2351,9 @@ constraint:
   lhs {VV#F27 : a_a17t | [$k__248[lq_tmp_x_245:=fix##36#dOrd_a17J][lq_tmp_x_246:=xs#a16x][lq_tmp_x_242:=VV#634][lq_tmp_x_268:=VV#634][VV#247:=VV#F27][VV#F:=VV#F27]]}
   rhs {VV#F27 : a_a17t | [$k__264[lq_tmp_x_260:=fix##36#dOrd_a17J][lq_tmp_x_261:=lq_anf__d18y][lq_tmp_x_255:=VV#634][VV#263:=VV#F27][VV#F:=VV#F27]]}
   id 27 tag [1]
+  // META constraint id 27 : MeasureDups.hs:19:41-51
+  
+
 
 
 constraint:
@@ -2348,6 +2420,9 @@ constraint:
   lhs {VV#F12 : FAppTy Set_Set  a_a17I | [(? Set_emp([VV#F12]))]}
   rhs {VV#F12 : FAppTy Set_Set  a_a17I | [(VV#F12 = dups([ds_d18w]))]}
   id 12 tag [3]
+  // META constraint id 12 : MeasureDups.hs:13:17-21
+  
+
 
 
 constraint:
@@ -2416,6 +2491,9 @@ constraint:
   lhs {VV#F28 : a_a17t | [$k__237[lq_tmp_x_235:=x#a16w][lq_tmp_x_233:=VV#638][lq_tmp_x_267:=VV#638][VV#236:=VV#F28][VV#F:=VV#F28]]}
   rhs {VV#F28 : a_a17t | [$k__264[lq_tmp_x_260:=fix##36#dOrd_a17J][lq_tmp_x_254:=VV#638][VV#263:=VV#F28][VV#F:=VV#F28]]}
   id 28 tag [1]
+  // META constraint id 28 : MeasureDups.hs:19:21-31
+  
+
 
 
 constraint:
@@ -2480,6 +2558,9 @@ constraint:
   lhs {VV#F13 : FAppTy Set_Set  a_a17e | [(? Set_emp([VV#F13]))]}
   rhs {VV#F13 : FAppTy Set_Set  a_a17e | [(dups([ds_d18v]) = VV#F13)]}
   id 13 tag [2]
+  // META constraint id 13 : MeasureDups.hs:25:16-20
+  
+
 
 
 constraint:
@@ -2547,6 +2628,9 @@ constraint:
   lhs {VV#F29 : a_a17t | []}
   rhs {VV#F29 : a_a17t | [$k__248[lq_tmp_x_245:=fix##36#dOrd_a17J][lq_tmp_x_241:=VV#642][VV#247:=VV#F29][VV#F:=VV#F29]]}
   id 29 tag [1]
+  // META constraint id 29 : MeasureDups.hs:19:50-51
+  
+
 
 
 constraint:
@@ -2621,6 +2705,9 @@ constraint:
                                                              lq_anf__d18F]))]}
   rhs {VV#F14 : FAppTy Set_Set  a_a17e | [(dups([ds_d18v]) = VV#F14)]}
   id 14 tag [2]
+  // META constraint id 14 : MeasureDups.hs:27:47-72
+  
+
 
 
 constraint:
@@ -2686,6 +2773,9 @@ constraint:
   lhs {VV#F30 : a_a17t | [(VV#F30 = x#a16w)]}
   rhs {VV#F30 : a_a17t | [$k__237[VV#236:=VV#F30][VV#F:=VV#F30]]}
   id 30 tag [1]
+  // META constraint id 30 : MeasureDups.hs:19:31
+  
+
 
 
 constraint:
@@ -2760,6 +2850,9 @@ constraint:
   lhs {VV#F15 : a_a17e | [$k__380[lq_tmp_x_377:=fix##36#dOrd_a17T][lq_tmp_x_378:=xs#a16A][lq_tmp_x_374:=VV#592][lq_tmp_x_400:=VV#592][VV#379:=VV#F15][VV#F:=VV#F15]]}
   rhs {VV#F15 : a_a17e | [$k__396[lq_tmp_x_392:=fix##36#dOrd_a17T][lq_tmp_x_393:=lq_anf__d18E][lq_tmp_x_387:=VV#592][VV#395:=VV#F15][VV#F:=VV#F15]]}
   id 15 tag [2]
+  // META constraint id 15 : MeasureDups.hs:27:67-72
+  
+
 
 
 constraint:
@@ -2824,6 +2917,9 @@ constraint:
   lhs {VV#F31 : FAppTy Set_Set  a_a17t | [(VV#F31 = Set_sng([a#a16v]))]}
   rhs {VV#F31 : FAppTy Set_Set  a_a17t | [(VV#F31 = elements([ds_d18u]))]}
   id 31 tag [1]
+  // META constraint id 31 : MeasureDups.hs:18:21-31
+  
+
 
 
 wf:
@@ -2886,6 +2982,9 @@ wf:
        47]
   reft {VV#539 : a_a17I | [$k__540]}
   
+  // META wf  : MeasureDups.hs:12:17-21
+  
+
 
 
 wf:
@@ -2957,6 +3056,9 @@ wf:
        95]
   reft {VV#527 : a_a17I | [$k__528]}
   
+  // META wf  : MeasureDups.hs:14:60-66
+  
+
 
 
 wf:
@@ -3027,6 +3129,9 @@ wf:
        95]
   reft {VV#511 : a_a17I | [$k__512]}
   
+  // META wf  : MeasureDups.hs:14:68-71
+  
+
 
 
 wf:
@@ -3096,6 +3201,9 @@ wf:
        95]
   reft {VV#500 : a_a17I | [$k__501]}
   
+  // META wf  : MeasureDups.hs:14:48-56
+  
+
 
 
 wf:
@@ -3165,6 +3273,9 @@ wf:
        95]
   reft {VV#487 : a_a17I | [$k__488]}
   
+  // META wf  : MeasureDups.hs:14:81-84
+  
+
 
 
 wf:
@@ -3230,6 +3341,9 @@ wf:
        95]
   reft {VV#467 : a_a17I | [$k__468]}
   
+  // META wf  : MeasureDups.hs:14:20-25
+  
+
 
 
 wf:
@@ -3294,6 +3408,9 @@ wf:
        95]
   reft {VV#452 : a_a17I | [$k__453]}
   
+  // META wf  : MeasureDups.hs:14:30-37
+  
+
 
 
 wf:
@@ -3357,6 +3474,9 @@ wf:
        47]
   reft {VV#427 : a_a17I | [$k__428]}
   
+  // META wf  : MeasureDups.hs:13:17-21
+  
+
 
 
 wf:
@@ -3418,6 +3538,9 @@ wf:
        47]
   reft {VV#407 : a_a17e | [$k__408]}
   
+  // META wf  : MeasureDups.hs:25:16-20
+  
+
 
 
 wf:
@@ -3488,6 +3611,9 @@ wf:
        47]
   reft {VV#395 : a_a17e | [$k__396]}
   
+  // META wf  : MeasureDups.hs:27:59-65
+  
+
 
 
 wf:
@@ -3557,6 +3683,9 @@ wf:
        47]
   reft {VV#379 : a_a17e | [$k__380]}
   
+  // META wf  : MeasureDups.hs:27:67-69
+  
+
 
 
 wf:
@@ -3625,6 +3754,9 @@ wf:
        47]
   reft {VV#368 : a_a17e | [$k__369]}
   
+  // META wf  : MeasureDups.hs:27:47-55
+  
+
 
 
 wf:
@@ -3693,6 +3825,9 @@ wf:
        79]
   reft {VV#355 : a_a17e | [$k__356]}
   
+  // META wf  : MeasureDups.hs:27:79-81
+  
+
 
 
 wf:
@@ -3757,6 +3892,9 @@ wf:
        47]
   reft {VV#335 : a_a17e | [$k__336]}
   
+  // META wf  : MeasureDups.hs:27:19-24
+  
+
 
 
 wf:
@@ -3820,6 +3958,9 @@ wf:
        47]
   reft {VV#320 : a_a17e | [$k__321]}
   
+  // META wf  : MeasureDups.hs:27:29-36
+  
+
 
 
 wf:
@@ -3882,6 +4023,9 @@ wf:
        47]
   reft {VV#295 : a_a17e | [$k__296]}
   
+  // META wf  : MeasureDups.hs:26:16-20
+  
+
 
 
 wf:
@@ -3942,6 +4086,9 @@ wf:
        63]
   reft {VV#275 : a_a17t | [$k__276]}
   
+  // META wf  : MeasureDups.hs:17:21-25
+  
+
 
 
 wf:
@@ -4006,6 +4153,9 @@ wf:
        47]
   reft {VV#263 : a_a17t | [$k__264]}
   
+  // META wf  : MeasureDups.hs:19:33-39
+  
+
 
 
 wf:
@@ -4069,6 +4219,9 @@ wf:
        47]
   reft {VV#247 : a_a17t | [$k__248]}
   
+  // META wf  : MeasureDups.hs:19:41-48
+  
+
 
 
 wf:
@@ -4131,6 +4284,9 @@ wf:
        47]
   reft {VV#236 : a_a17t | [$k__237]}
   
+  // META wf  : MeasureDups.hs:19:21-29
+  
+
 
 
 wf:
@@ -4192,3 +4348,581 @@ wf:
        47]
   reft {VV#215 : a_a17t | [$k__216]}
   
+  // META wf  : MeasureDups.hs:18:21-29
+  
+
+// META bind 0 : <no location info>
+
+
+// META bind 16 : <no location info>
+
+
+// META bind 32 : <no location info>
+
+
+// META bind 48 : <no location info>
+
+
+// META bind 64 : <no location info>
+
+
+// META bind 80 : MeasureDups.hs:27:16-84
+
+
+// META bind 96 : MeasureDups.hs:12:1-4
+
+
+// META bind 112 : MeasureDups.hs:14:48-74
+
+
+// META bind 128 : MeasureDups.hs:14:86-87
+
+
+// META bind 144 : MeasureDups.hs:27:47-72
+
+
+// META bind 160 : MeasureDups.hs:27:83-84
+
+
+// META bind 176 : MeasureDups.hs:19:21-51
+
+
+// META bind 1 : <no location info>
+
+
+// META bind 17 : <no location info>
+
+
+// META bind 33 : <no location info>
+
+
+// META bind 49 : <no location info>
+
+
+// META bind 65 : MeasureDups.hs:25:1-3
+
+
+// META bind 81 : MeasureDups.hs:27:16-84
+
+
+// META bind 97 : MeasureDups.hs:12:1-4
+
+
+// META bind 113 : MeasureDups.hs:14:48-74
+
+
+// META bind 129 : MeasureDups.hs:14:86-87
+
+
+// META bind 145 : MeasureDups.hs:27:47-72
+
+
+// META bind 161 : MeasureDups.hs:27:83-84
+
+
+// META bind 177 : MeasureDups.hs:19:21-51
+
+
+// META bind 2 : <no location info>
+
+
+// META bind 18 : <no location info>
+
+
+// META bind 34 : <no location info>
+
+
+// META bind 50 : MeasureDups.hs:17:1-8
+
+
+// META bind 66 : MeasureDups.hs:25:1-3
+
+
+// META bind 82 : MeasureDups.hs:27:16-84
+
+
+// META bind 98 : MeasureDups.hs:12:1-4
+
+
+// META bind 114 : MeasureDups.hs:14:68-74
+
+
+// META bind 130 : MeasureDups.hs:14:30-40
+
+
+// META bind 146 : MeasureDups.hs:27:67-72
+
+
+// META bind 162 : MeasureDups.hs:27:29-39
+
+
+// META bind 178 : MeasureDups.hs:19:41-51
+
+
+// META bind 3 : <no location info>
+
+
+// META bind 19 : <no location info>
+
+
+// META bind 35 : <no location info>
+
+
+// META bind 51 : MeasureDups.hs:17:1-8
+
+
+// META bind 67 : MeasureDups.hs:25:1-3
+
+
+// META bind 83 : MeasureDups.hs:27:16-84
+
+
+// META bind 99 : MeasureDups.hs:14:17-87
+
+
+// META bind 115 : MeasureDups.hs:14:68-74
+
+
+// META bind 131 : MeasureDups.hs:14:30-40
+
+
+// META bind 147 : MeasureDups.hs:27:67-72
+
+
+// META bind 163 : MeasureDups.hs:27:29-39
+
+
+// META bind 179 : MeasureDups.hs:19:41-51
+
+
+// META bind 4 : <no location info>
+
+
+// META bind 20 : <no location info>
+
+
+// META bind 36 : <no location info>
+
+
+// META bind 52 : MeasureDups.hs:17:1-8
+
+
+// META bind 68 : MeasureDups.hs:25:1-3
+
+
+// META bind 84 : MeasureDups.hs:25:1-3
+
+
+// META bind 100 : MeasureDups.hs:14:17-87
+
+
+// META bind 116 : MeasureDups.hs:14:68-74
+
+
+// META bind 132 : MeasureDups.hs:14:30-40
+
+
+// META bind 148 : MeasureDups.hs:27:67-72
+
+
+// META bind 164 : MeasureDups.hs:27:29-39
+
+
+// META bind 180 : MeasureDups.hs:19:41-51
+
+
+// META bind 5 : <no location info>
+
+
+// META bind 21 : <no location info>
+
+
+// META bind 37 : <no location info>
+
+
+// META bind 53 : MeasureDups.hs:17:1-8
+
+
+// META bind 69 : MeasureDups.hs:25:1-3
+
+
+// META bind 85 : MeasureDups.hs:25:1-3
+
+
+// META bind 101 : MeasureDups.hs:14:17-87
+
+
+// META bind 117 : MeasureDups.hs:14:48-58
+
+
+// META bind 133 : MeasureDups.hs:14:27
+
+
+// META bind 149 : MeasureDups.hs:27:47-57
+
+
+// META bind 165 : MeasureDups.hs:27:26
+
+
+// META bind 181 : MeasureDups.hs:19:21-31
+
+
+// META bind 6 : <no location info>
+
+
+// META bind 22 : <no location info>
+
+
+// META bind 38 : <no location info>
+
+
+// META bind 54 : MeasureDups.hs:17:1-8
+
+
+// META bind 70 : MeasureDups.hs:25:1-3
+
+
+// META bind 86 : <no location info>
+
+
+// META bind 102 : MeasureDups.hs:14:17-87
+
+
+// META bind 118 : MeasureDups.hs:14:48-58
+
+
+// META bind 134 : MeasureDups.hs:14:39-40
+
+
+// META bind 150 : MeasureDups.hs:27:47-57
+
+
+// META bind 166 : MeasureDups.hs:27:38-39
+
+
+// META bind 182 : MeasureDups.hs:19:21-31
+
+
+// META bind 7 : <no location info>
+
+
+// META bind 23 : <no location info>
+
+
+// META bind 39 : <no location info>
+
+
+// META bind 55 : MeasureDups.hs:17:1-8
+
+
+// META bind 71 : MeasureDups.hs:25:1-3
+
+
+// META bind 87 : MeasureDups.hs:12:1-4
+
+
+// META bind 103 : MeasureDups.hs:14:17-87
+
+
+// META bind 119 : MeasureDups.hs:14:48-58
+
+
+// META bind 135 : MeasureDups.hs:14:39-40
+
+
+// META bind 151 : MeasureDups.hs:27:47-57
+
+
+// META bind 167 : MeasureDups.hs:27:38-39
+
+
+// META bind 183 : MeasureDups.hs:19:21-31
+
+
+// META bind 8 : <no location info>
+
+
+// META bind 24 : <no location info>
+
+
+// META bind 40 : <no location info>
+
+
+// META bind 56 : MeasureDups.hs:17:1-8
+
+
+// META bind 72 : MeasureDups.hs:25:1-3
+
+
+// META bind 88 : MeasureDups.hs:12:1-4
+
+
+// META bind 104 : MeasureDups.hs:14:17-87
+
+
+// META bind 120 : MeasureDups.hs:14:73-74
+
+
+// META bind 136 : MeasureDups.hs:14:39-40
+
+
+// META bind 152 : MeasureDups.hs:27:71-72
+
+
+// META bind 168 : MeasureDups.hs:27:38-39
+
+
+// META bind 184 : MeasureDups.hs:19:50-51
+
+
+// META bind 9 : <no location info>
+
+
+// META bind 25 : <no location info>
+
+
+// META bind 41 : <no location info>
+
+
+// META bind 57 : MeasureDups.hs:17:1-8
+
+
+// META bind 73 : MeasureDups.hs:25:1-3
+
+
+// META bind 89 : MeasureDups.hs:12:1-4
+
+
+// META bind 105 : MeasureDups.hs:14:17-87
+
+
+// META bind 121 : MeasureDups.hs:14:73-74
+
+
+// META bind 137 : MeasureDups.hs:13:17-21
+
+
+// META bind 153 : MeasureDups.hs:27:71-72
+
+
+// META bind 169 : MeasureDups.hs:26:16-20
+
+
+// META bind 185 : MeasureDups.hs:19:50-51
+
+
+// META bind 10 : <no location info>
+
+
+// META bind 26 : <no location info>
+
+
+// META bind 42 : <no location info>
+
+
+// META bind 58 : MeasureDups.hs:17:1-8
+
+
+// META bind 74 : MeasureDups.hs:25:1-3
+
+
+// META bind 90 : MeasureDups.hs:12:1-4
+
+
+// META bind 106 : MeasureDups.hs:12:1-4
+
+
+// META bind 122 : MeasureDups.hs:14:73-74
+
+
+// META bind 138 : MeasureDups.hs:13:17-21
+
+
+// META bind 154 : MeasureDups.hs:27:71-72
+
+
+// META bind 170 : MeasureDups.hs:26:16-20
+
+
+// META bind 186 : MeasureDups.hs:19:50-51
+
+
+// META bind 11 : <no location info>
+
+
+// META bind 27 : <no location info>
+
+
+// META bind 43 : <no location info>
+
+
+// META bind 59 : MeasureDups.hs:17:1-8
+
+
+// META bind 75 : MeasureDups.hs:25:1-3
+
+
+// META bind 91 : MeasureDups.hs:12:1-4
+
+
+// META bind 107 : MeasureDups.hs:12:1-4
+
+
+// META bind 123 : MeasureDups.hs:14:58
+
+
+// META bind 139 : MeasureDups.hs:13:17-21
+
+
+// META bind 155 : MeasureDups.hs:27:57
+
+
+// META bind 171 : MeasureDups.hs:26:16-20
+
+
+// META bind 187 : MeasureDups.hs:19:31
+
+
+// META bind 12 : <no location info>
+
+
+// META bind 28 : <no location info>
+
+
+// META bind 44 : <no location info>
+
+
+// META bind 60 : MeasureDups.hs:17:1-8
+
+
+// META bind 76 : MeasureDups.hs:25:1-3
+
+
+// META bind 92 : MeasureDups.hs:12:1-4
+
+
+// META bind 108 : MeasureDups.hs:12:17-21
+
+
+// META bind 124 : MeasureDups.hs:14:81-87
+
+
+// META bind 140 : MeasureDups.hs:25:16-20
+
+
+// META bind 156 : MeasureDups.hs:27:79-84
+
+
+// META bind 172 : MeasureDups.hs:17:21-25
+
+
+// META bind 188 : MeasureDups.hs:18:21-31
+
+
+// META bind 13 : <no location info>
+
+
+// META bind 29 : <no location info>
+
+
+// META bind 45 : <no location info>
+
+
+// META bind 61 : MeasureDups.hs:17:1-8
+
+
+// META bind 77 : MeasureDups.hs:27:16-84
+
+
+// META bind 93 : MeasureDups.hs:12:1-4
+
+
+// META bind 109 : MeasureDups.hs:12:17-21
+
+
+// META bind 125 : MeasureDups.hs:14:81-87
+
+
+// META bind 141 : MeasureDups.hs:25:16-20
+
+
+// META bind 157 : MeasureDups.hs:27:79-84
+
+
+// META bind 173 : MeasureDups.hs:17:21-25
+
+
+// META bind 189 : MeasureDups.hs:18:21-31
+
+
+// META bind 14 : <no location info>
+
+
+// META bind 30 : <no location info>
+
+
+// META bind 46 : <no location info>
+
+
+// META bind 62 : MeasureDups.hs:17:1-8
+
+
+// META bind 78 : MeasureDups.hs:27:16-84
+
+
+// META bind 94 : MeasureDups.hs:12:1-4
+
+
+// META bind 110 : MeasureDups.hs:12:17-21
+
+
+// META bind 126 : MeasureDups.hs:14:81-87
+
+
+// META bind 142 : MeasureDups.hs:25:16-20
+
+
+// META bind 158 : MeasureDups.hs:27:79-84
+
+
+// META bind 174 : MeasureDups.hs:17:21-25
+
+
+// META bind 190 : MeasureDups.hs:18:21-31
+
+
+// META bind 15 : <no location info>
+
+
+// META bind 31 : <no location info>
+
+
+// META bind 47 : <no location info>
+
+
+// META bind 63 : MeasureDups.hs:17:1-8
+
+
+// META bind 79 : MeasureDups.hs:27:16-84
+
+
+// META bind 95 : MeasureDups.hs:12:1-4
+
+
+// META bind 111 : MeasureDups.hs:14:48-74
+
+
+// META bind 127 : MeasureDups.hs:14:86-87
+
+
+// META bind 143 : MeasureDups.hs:27:47-72
+
+
+// META bind 159 : MeasureDups.hs:27:83-84
+
+
+// META bind 175 : MeasureDups.hs:19:21-51
+
+
+// META bind 191 : MeasureDups.hs:18:31
+
