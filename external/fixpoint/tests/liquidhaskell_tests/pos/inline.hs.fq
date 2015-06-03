@@ -3,14 +3,14 @@ qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benj
 qualif Auto(VV : GHC.Types.Bool, fix##126#A0 : a_a12M, fix##126#A1 : a_a12M): ((? Prop([VV])) <=> (fix##126#A0 > fix##126#A1)) // "inline.hs" (line 5, column 1)
 qualif Auto(VV : a_a11U, fix##126#A0 : FAppTy Fixme.D  a_a11U): (VV = bar([fix##126#A0])) // "inline.hs" (line 28, column 1)
 qualif Auto(VV : a_a11G, fix##126#A0 : FAppTy Fixme.D  a_a11G): (VV = bar2([fix##126#A0])) // "inline.hs" (line 31, column 1)
-qualif Auto(VV : a_a11s, fix##126#A0 : a_a11s, fix##126#A1 : a_a11s): (VV = ((fix##126#A0 >= fix##126#A1) ? fix##126#A0 : fix##126#A1)) // "inline.hs" (line 52, column 1)
+qualif Auto(VV : a_a11s, fix##126#A0 : a_a11s, fix##126#A1 : a_a11s): (VV = (if (fix##126#A0 >= fix##126#A1) then fix##126#A0 else fix##126#A1)) // "inline.hs" (line 52, column 1)
 qualif Auto(v : GHC.Types.Bool, fix##126#A0 : a_a12z, fix##126#A1 : a_a12z): ((? Prop([v])) <=> (fix##126#A0 > fix##126#A1)) // "inline.hs" (line 9, column 1)
-qualif Auto(VV : a_a12l, fix##126#A0 : a_a12l, fix##126#A1 : a_a12l): (VV = ((fix##126#A0 >= fix##126#A1) ? fix##126#A0 : fix##126#A1)) // "inline.hs" (line 16, column 1)
-qualif Auto(VV : a_a12m, fix##126#A0 : a_a12m, fix##126#A1 : a_a12m): (VV = ((fix##126#A0 >= fix##126#A1) ? fix##126#A0 : fix##126#A1)) // "inline.hs" (line 19, column 1)
+qualif Auto(VV : a_a12l, fix##126#A0 : a_a12l, fix##126#A1 : a_a12l): (VV = (if (fix##126#A0 >= fix##126#A1) then fix##126#A0 else fix##126#A1)) // "inline.hs" (line 16, column 1)
+qualif Auto(VV : a_a12m, fix##126#A0 : a_a12m, fix##126#A1 : a_a12m): (VV = (if (fix##126#A0 >= fix##126#A1) then fix##126#A0 else fix##126#A1)) // "inline.hs" (line 19, column 1)
 qualif Auto(VV : a_a128, fix##126#A0 : FAppTy Fixme.D  a_a128): (VV = foo([fix##126#A0])) // "inline.hs" (line 23, column 1)
-qualif Auto(VV : FAppTy Fixme.D  a_apH, fix##126#A0 : a_apH, fix##126#A1 : a_apH): (bar2([VV]) = ((fix##126#A0 >= fix##126#A1) ? fix##126#A0 : fix##126#A1)) // "inline.hs" (line 47, column 12)
-qualif Auto(VV : FAppTy Fixme.D  a_apH, fix##126#A0 : a_apH, fix##126#A1 : a_apH): (bar([VV]) = ((fix##126#A0 >= fix##126#A1) ? fix##126#A0 : fix##126#A1)) // "inline.hs" (line 47, column 12)
-qualif Auto(VV : FAppTy Fixme.D  a_apH, fix##126#A0 : a_apH, fix##126#A1 : a_apH): (foo([VV]) = ((fix##126#A0 >= fix##126#A1) ? fix##126#A0 : fix##126#A1)) // "inline.hs" (line 47, column 12)
+qualif Auto(VV : FAppTy Fixme.D  a_apH, fix##126#A0 : a_apH, fix##126#A1 : a_apH): (bar2([VV]) = (if (fix##126#A0 >= fix##126#A1) then fix##126#A0 else fix##126#A1)) // "inline.hs" (line 47, column 12)
+qualif Auto(VV : FAppTy Fixme.D  a_apH, fix##126#A0 : a_apH, fix##126#A1 : a_apH): (bar([VV]) = (if (fix##126#A0 >= fix##126#A1) then fix##126#A0 else fix##126#A1)) // "inline.hs" (line 47, column 12)
+qualif Auto(VV : FAppTy Fixme.D  a_apH, fix##126#A0 : a_apH, fix##126#A1 : a_apH): (foo([VV]) = (if (fix##126#A0 >= fix##126#A1) then fix##126#A0 else fix##126#A1)) // "inline.hs" (line 47, column 12)
 qualif Auto(VV : FAppTy Fixme.D  a_a10B, fix##126#A0 : a_a10B): (foo([VV]) = fix##126#A0) // "inline.hs" (line 47, column 20)
 qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) > 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 13, column 8)
 qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) = 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 14, column 8)
@@ -346,16 +346,16 @@ bind 73 lq_anf__d13Y : {lq_tmp_x_289 : FAppTy Fixme.D  a_a11G | [(lq_tmp_x_289 =
 bind 74 x#a10W : {VV : a_a11G | []}
 bind 75 y#a10X : {VV : a_a11G | []}
 bind 76 lq_anf__d13Y : {lq_tmp_x_289 : FAppTy Fixme.D  a_a11G | [(lq_tmp_x_289 = ds_d13N);
-                                                                 (bar2([lq_tmp_x_289]) = ((y#a10X >= x#a10W) ? y#a10X : x#a10W));
-                                                                 (bar([lq_tmp_x_289]) = ((x#a10W >= y#a10X) ? x#a10W : y#a10X));
-                                                                 (foo([lq_tmp_x_289]) = ((x#a10W >= y#a10X) ? x#a10W : y#a10X));
+                                                                 (bar2([lq_tmp_x_289]) = (if (y#a10X >= x#a10W) then y#a10X else x#a10W));
+                                                                 (bar([lq_tmp_x_289]) = (if (x#a10W >= y#a10X) then x#a10W else y#a10X));
+                                                                 (foo([lq_tmp_x_289]) = (if (x#a10W >= y#a10X) then x#a10W else y#a10X));
                                                                  (lq_tmp_x_289 = Fixme.D#rpw([x#a10W;
                                                                                               y#a10X]));
                                                                  (lq_tmp_x_289 = Fixme.D#rpw([x#a10W;
                                                                                               y#a10X]));
-                                                                 (bar2([lq_tmp_x_289]) = ((y#a10X >= x#a10W) ? y#a10X : x#a10W));
-                                                                 (bar([lq_tmp_x_289]) = ((x#a10W >= y#a10X) ? x#a10W : y#a10X));
-                                                                 (foo([lq_tmp_x_289]) = ((x#a10W >= y#a10X) ? x#a10W : y#a10X));
+                                                                 (bar2([lq_tmp_x_289]) = (if (y#a10X >= x#a10W) then y#a10X else x#a10W));
+                                                                 (bar([lq_tmp_x_289]) = (if (x#a10W >= y#a10X) then x#a10W else y#a10X));
+                                                                 (foo([lq_tmp_x_289]) = (if (x#a10W >= y#a10X) then x#a10W else y#a10X));
                                                                  (lq_tmp_x_289 = Fixme.D#rpw([x#a10W;
                                                                                               y#a10X]))]}
 bind 77 lq_anf__d13Y : {lq_tmp_x_313 : FAppTy Fixme.D  a_a11G | [(lq_tmp_x_313 = ds_d13N)]}
@@ -376,16 +376,16 @@ bind 85 lq_anf__d140 : {lq_tmp_x_341 : FAppTy Fixme.D  a_a128 | [(lq_tmp_x_341 =
 bind 86 x#a10R : {VV : a_a128 | []}
 bind 87 y#a10S : {VV : a_a128 | []}
 bind 88 lq_anf__d140 : {lq_tmp_x_341 : FAppTy Fixme.D  a_a128 | [(lq_tmp_x_341 = ds_d13Q);
-                                                                 (bar2([lq_tmp_x_341]) = ((y#a10S >= x#a10R) ? y#a10S : x#a10R));
-                                                                 (bar([lq_tmp_x_341]) = ((x#a10R >= y#a10S) ? x#a10R : y#a10S));
-                                                                 (foo([lq_tmp_x_341]) = ((x#a10R >= y#a10S) ? x#a10R : y#a10S));
+                                                                 (bar2([lq_tmp_x_341]) = (if (y#a10S >= x#a10R) then y#a10S else x#a10R));
+                                                                 (bar([lq_tmp_x_341]) = (if (x#a10R >= y#a10S) then x#a10R else y#a10S));
+                                                                 (foo([lq_tmp_x_341]) = (if (x#a10R >= y#a10S) then x#a10R else y#a10S));
                                                                  (lq_tmp_x_341 = Fixme.D#rpw([x#a10R;
                                                                                               y#a10S]));
                                                                  (lq_tmp_x_341 = Fixme.D#rpw([x#a10R;
                                                                                               y#a10S]));
-                                                                 (bar2([lq_tmp_x_341]) = ((y#a10S >= x#a10R) ? y#a10S : x#a10R));
-                                                                 (bar([lq_tmp_x_341]) = ((x#a10R >= y#a10S) ? x#a10R : y#a10S));
-                                                                 (foo([lq_tmp_x_341]) = ((x#a10R >= y#a10S) ? x#a10R : y#a10S));
+                                                                 (bar2([lq_tmp_x_341]) = (if (y#a10S >= x#a10R) then y#a10S else x#a10R));
+                                                                 (bar([lq_tmp_x_341]) = (if (x#a10R >= y#a10S) then x#a10R else y#a10S));
+                                                                 (foo([lq_tmp_x_341]) = (if (x#a10R >= y#a10S) then x#a10R else y#a10S));
                                                                  (lq_tmp_x_341 = Fixme.D#rpw([x#a10R;
                                                                                               y#a10S]))]}
 bind 89 lq_anf__d140 : {lq_tmp_x_365 : FAppTy Fixme.D  a_a128 | [(lq_tmp_x_365 = ds_d13Q)]}
@@ -405,16 +405,16 @@ bind 96 lq_anf__d141 : {lq_tmp_x_381 : FAppTy Fixme.D  a_a11U | [(lq_tmp_x_381 =
 bind 97 x#a10U : {VV : a_a11U | []}
 bind 98 y#a10V : {VV : a_a11U | []}
 bind 99 lq_anf__d141 : {lq_tmp_x_381 : FAppTy Fixme.D  a_a11U | [(lq_tmp_x_381 = ds_d13R);
-                                                                 (bar2([lq_tmp_x_381]) = ((y#a10V >= x#a10U) ? y#a10V : x#a10U));
-                                                                 (bar([lq_tmp_x_381]) = ((x#a10U >= y#a10V) ? x#a10U : y#a10V));
-                                                                 (foo([lq_tmp_x_381]) = ((x#a10U >= y#a10V) ? x#a10U : y#a10V));
+                                                                 (bar2([lq_tmp_x_381]) = (if (y#a10V >= x#a10U) then y#a10V else x#a10U));
+                                                                 (bar([lq_tmp_x_381]) = (if (x#a10U >= y#a10V) then x#a10U else y#a10V));
+                                                                 (foo([lq_tmp_x_381]) = (if (x#a10U >= y#a10V) then x#a10U else y#a10V));
                                                                  (lq_tmp_x_381 = Fixme.D#rpw([x#a10U;
                                                                                               y#a10V]));
                                                                  (lq_tmp_x_381 = Fixme.D#rpw([x#a10U;
                                                                                               y#a10V]));
-                                                                 (bar2([lq_tmp_x_381]) = ((y#a10V >= x#a10U) ? y#a10V : x#a10U));
-                                                                 (bar([lq_tmp_x_381]) = ((x#a10U >= y#a10V) ? x#a10U : y#a10V));
-                                                                 (foo([lq_tmp_x_381]) = ((x#a10U >= y#a10V) ? x#a10U : y#a10V));
+                                                                 (bar2([lq_tmp_x_381]) = (if (y#a10V >= x#a10U) then y#a10V else x#a10U));
+                                                                 (bar([lq_tmp_x_381]) = (if (x#a10U >= y#a10V) then x#a10U else y#a10V));
+                                                                 (foo([lq_tmp_x_381]) = (if (x#a10U >= y#a10V) then x#a10U else y#a10V));
                                                                  (lq_tmp_x_381 = Fixme.D#rpw([x#a10U;
                                                                                               y#a10V]))]}
 bind 100 lq_anf__d141 : {lq_tmp_x_405 : FAppTy Fixme.D  a_a11U | [(lq_tmp_x_405 = ds_d13R)]}
@@ -454,12 +454,12 @@ bind 123 VV#476 : {VV#476 : GHC.Prim.Void# | [(VV#476 = GHC.Prim.void##0l)]}
 bind 124 VV#479 : {VV#479 : int | []}
 bind 125 VV#479 : {VV#479 : int | []}
 bind 126 VV#401 : {VV#401 : a_a11U | [$k__402[lq_tmp_x_398:=fix##36#dOrd_a13m][lq_tmp_x_399:=x#a10U][lq_tmp_x_400:=y#a10V];
-                                      (VV#401 = ((x#a10U >= y#a10V) ? x#a10U : y#a10V))]}
+                                      (VV#401 = (if (x#a10U >= y#a10V) then x#a10U else y#a10V))]}
 bind 127 VV : {VV : a_a11U | [(VV = y#a10V)]}
 bind 128 VV : {VV : a_a11U | [(VV = x#a10U)]}
 bind 129 VV : {VV : a_a128 | [(VV = x#a10T)]}
 bind 130 VV#361 : {VV#361 : a_a128 | [$k__362[lq_tmp_x_358:=fix##36#dOrd_a13h][lq_tmp_x_359:=x#a10R][lq_tmp_x_360:=y#a10S];
-                                      (VV#361 = ((x#a10R >= y#a10S) ? x#a10R : y#a10S))]}
+                                      (VV#361 = (if (x#a10R >= y#a10S) then x#a10R else y#a10S))]}
 bind 131 VV : {VV : a_a128 | [(VV = y#a10S)]}
 bind 132 VV : {VV : a_a128 | [(VV = x#a10R)]}
 bind 133 VV#329 : {VV#329 : a_a11G | [$k__330[lq_tmp_x_328:=fix#lit#35#inline.hs#58#31#58#1#45#24#124#function#32#bar2][ds_d13P:=GHC.Prim.void##0l]]}
@@ -468,11 +468,11 @@ bind 135 VV#490 : {VV#490 : GHC.Prim.Void# | [(VV#490 = GHC.Prim.void##0l)]}
 bind 136 VV#493 : {VV#493 : int | []}
 bind 137 VV#493 : {VV#493 : int | []}
 bind 138 VV#309 : {VV#309 : a_a11G | [$k__310[lq_tmp_x_306:=fix##36#dOrd_a13c][lq_tmp_x_307:=y#a10X][lq_tmp_x_308:=x#a10W];
-                                      (VV#309 = ((x#a10W >= y#a10X) ? x#a10W : y#a10X))]}
+                                      (VV#309 = (if (x#a10W >= y#a10X) then x#a10W else y#a10X))]}
 bind 139 VV : {VV : a_a11G | [(VV = x#a10W)]}
 bind 140 VV : {VV : a_a11G | [(VV = y#a10X)]}
 bind 141 VV#278 : {VV#278 : a_a12m | [$k__279[lq_tmp_x_275:=fix##36#dOrd_a137][lq_tmp_x_276:=y#a10Q][lq_tmp_x_277:=x#a10P];
-                                      (VV#278 = ((y#a10Q >= x#a10P) ? y#a10Q : x#a10P))]}
+                                      (VV#278 = (if (y#a10Q >= x#a10P) then y#a10Q else x#a10P))]}
 bind 142 VV : {VV : a_a12m | [(VV = x#a10P)]}
 bind 143 VV : {VV : a_a12m | [(VV = y#a10Q)]}
 bind 144 VV : {VV : a_a12l | [(VV = x#a10N)]}
@@ -488,14 +488,14 @@ bind 151 lq_tmp_x_225 : {lq_tmp_x_225 : func(0, [a_a12X;
                                                  FAppTy Fixme.D  a_a12X]) | []}
 bind 152 VV : {VV : a_a12X | []}
 bind 153 lq_tmp_x_223 : {VV : a_a12X | []}
-bind 154 VV#512 : {VV#512 : FAppTy Fixme.D  a_a12X | [(bar2([VV#512]) = ((lq_tmp_x_223 >= lq_tmp_x_222) ? lq_tmp_x_223 : lq_tmp_x_222));
-                                                      (bar([VV#512]) = ((lq_tmp_x_222 >= lq_tmp_x_223) ? lq_tmp_x_222 : lq_tmp_x_223));
-                                                      (foo([VV#512]) = ((lq_tmp_x_222 >= lq_tmp_x_223) ? lq_tmp_x_222 : lq_tmp_x_223));
+bind 154 VV#512 : {VV#512 : FAppTy Fixme.D  a_a12X | [(bar2([VV#512]) = (if (lq_tmp_x_223 >= lq_tmp_x_222) then lq_tmp_x_223 else lq_tmp_x_222));
+                                                      (bar([VV#512]) = (if (lq_tmp_x_222 >= lq_tmp_x_223) then lq_tmp_x_222 else lq_tmp_x_223));
+                                                      (foo([VV#512]) = (if (lq_tmp_x_222 >= lq_tmp_x_223) then lq_tmp_x_222 else lq_tmp_x_223));
                                                       (VV#512 = Fixme.D#rpw([lq_tmp_x_222;
                                                                              lq_tmp_x_223]))]}
-bind 155 VV#512 : {VV#512 : FAppTy Fixme.D  a_a12X | [(bar2([VV#512]) = ((lq_tmp_x_223 >= lq_tmp_x_222) ? lq_tmp_x_223 : lq_tmp_x_222));
-                                                      (bar([VV#512]) = ((lq_tmp_x_222 >= lq_tmp_x_223) ? lq_tmp_x_222 : lq_tmp_x_223));
-                                                      (foo([VV#512]) = ((lq_tmp_x_222 >= lq_tmp_x_223) ? lq_tmp_x_222 : lq_tmp_x_223));
+bind 155 VV#512 : {VV#512 : FAppTy Fixme.D  a_a12X | [(bar2([VV#512]) = (if (lq_tmp_x_223 >= lq_tmp_x_222) then lq_tmp_x_223 else lq_tmp_x_222));
+                                                      (bar([VV#512]) = (if (lq_tmp_x_222 >= lq_tmp_x_223) then lq_tmp_x_222 else lq_tmp_x_223));
+                                                      (foo([VV#512]) = (if (lq_tmp_x_222 >= lq_tmp_x_223) then lq_tmp_x_222 else lq_tmp_x_223));
                                                       (VV#512 = Fixme.D#rpw([lq_tmp_x_222;
                                                                              lq_tmp_x_223]))]}
 bind 156 VV#229 : {VV#229 : a_a12X | [$k__230[lq_tmp_x_227:=lq_tmp_x_222][lq_tmp_x_228:=lq_tmp_x_223][lq_tmp_x_224:=VV#512]]}
@@ -568,6 +568,9 @@ constraint:
   lhs {VV#F16 : a_a11G | [$k__330[lq_tmp_x_328:=fix#lit#35#inline.hs#58#31#58#1#45#24#124#function#32#bar2][ds_d13P:=GHC.Prim.void##0l][VV#329:=VV#F16][VV#F:=VV#F16]]}
   rhs {VV#F16 : a_a11G | [(VV#F16 = bar2([ds_d13N]))]}
   id 16 tag [5]
+  // META constraint id 16 : inline.hs:31:1-4
+  
+
 
 
 constraint:
@@ -624,6 +627,9 @@ constraint:
   lhs {VV#F32 : a_a11s | [(VV#F32 = y#a10Z)]}
   rhs {VV#F32 : a_a11s | [$k__205[lq_tmp_x_201:=fix##36#dOrd_a12N][lq_tmp_x_202:=x#a10Y][VV#204:=VV#F32][VV#F:=VV#F32]]}
   id 32 tag [1]
+  // META constraint id 32 : inline.hs:52:22
+  
+
 
 
 constraint:
@@ -688,6 +694,9 @@ constraint:
   lhs {VV#F1 : GHC.Types.Bool | [((? Prop([VV#F1])) <=> (x#a10J > y#a10K))]}
   rhs {VV#F1 : GHC.Types.Bool | [((? Prop([VV#F1])) <=> (x#a10J > y#a10K))]}
   id 1 tag [9]
+  // META constraint id 1 : inline.hs:5:11-15
+  
+
 
 
 constraint:
@@ -751,6 +760,9 @@ constraint:
   lhs {VV#F17 : GHC.Prim.Void# | [(VV#F17 = GHC.Prim.void##0l)]}
   rhs {VV#F17 : GHC.Prim.Void# | [$k__323[VV#322:=VV#F17][VV#490:=VV#F17][VV#F:=VV#F17]]}
   id 17 tag [5]
+  // META constraint id 17 : inline.hs:31:1-4
+  
+
 
 
 constraint:
@@ -807,6 +819,9 @@ constraint:
   lhs {VV#F33 : a_a11s | [(VV#F33 = x#a10Y)]}
   rhs {VV#F33 : a_a11s | [$k__205[lq_tmp_x_201:=fix##36#dOrd_a12N][VV#204:=VV#F33][VV#F:=VV#F33]]}
   id 33 tag [1]
+  // META constraint id 33 : inline.hs:52:17
+  
+
 
 
 constraint:
@@ -871,6 +886,9 @@ constraint:
   lhs {VV#F2 : a_a12M | [(VV#F2 = y#a10K)]}
   rhs {VV#F2 : a_a12M | [$k__461[lq_tmp_x_457:=fix##36#dOrd_a13w][lq_tmp_x_458:=x#a10J][VV#460:=VV#F2][VV#F:=VV#F2]]}
   id 2 tag [9]
+  // META constraint id 2 : inline.hs:5:15
+  
+
 
 
 constraint:
@@ -933,9 +951,12 @@ constraint:
        31]
   grd true
   lhs {VV#F18 : a_a11G | [$k__310[lq_tmp_x_306:=fix##36#dOrd_a13c][lq_tmp_x_307:=y#a10X][lq_tmp_x_308:=x#a10W][VV#309:=VV#F18][VV#F:=VV#F18];
-                          (VV#F18 = ((x#a10W >= y#a10X) ? x#a10W : y#a10X))]}
+                          (VV#F18 = (if (x#a10W >= y#a10X) then x#a10W else y#a10X))]}
   rhs {VV#F18 : a_a11G | [(VV#F18 = bar2([ds_d13N]))]}
   id 18 tag [5]
+  // META constraint id 18 : inline.hs:31:16-24
+  
+
 
 
 constraint:
@@ -1000,6 +1021,9 @@ constraint:
   lhs {VV#F3 : a_a12M | [(VV#F3 = x#a10J)]}
   rhs {VV#F3 : a_a12M | [$k__461[lq_tmp_x_457:=fix##36#dOrd_a13w][VV#460:=VV#F3][VV#F:=VV#F3]]}
   id 3 tag [9]
+  // META constraint id 3 : inline.hs:5:11
+  
+
 
 
 constraint:
@@ -1064,6 +1088,9 @@ constraint:
   lhs {VV#F19 : a_a11G | [(VV#F19 = x#a10W)]}
   rhs {VV#F19 : a_a11G | [$k__310[lq_tmp_x_306:=fix##36#dOrd_a13c][lq_tmp_x_307:=y#a10X][VV#309:=VV#F19][VV#F:=VV#F19]]}
   id 19 tag [5]
+  // META constraint id 19 : inline.hs:31:24
+  
+
 
 
 constraint:
@@ -1127,6 +1154,9 @@ constraint:
   lhs {VV#F4 : GHC.Types.Bool | [((? Prop([VV#F4])) <=> (x#a10L > y#a10M))]}
   rhs {VV#F4 : GHC.Types.Bool | [((? Prop([VV#F4])) <=> (x#a10L > y#a10M))]}
   id 4 tag [8]
+  // META constraint id 4 : inline.hs:9:15-19
+  
+
 
 
 constraint:
@@ -1191,6 +1221,9 @@ constraint:
   lhs {VV#F20 : a_a11G | [(VV#F20 = y#a10X)]}
   rhs {VV#F20 : a_a11G | [$k__310[lq_tmp_x_306:=fix##36#dOrd_a13c][VV#309:=VV#F20][VV#F:=VV#F20]]}
   id 20 tag [5]
+  // META constraint id 20 : inline.hs:31:22
+  
+
 
 
 constraint:
@@ -1254,6 +1287,9 @@ constraint:
   lhs {VV#F5 : a_a12z | [(VV#F5 = y#a10M)]}
   rhs {VV#F5 : a_a12z | [$k__442[lq_tmp_x_438:=fix##36#dOrd_a13r][lq_tmp_x_439:=x#a10L][VV#441:=VV#F5][VV#F:=VV#F5]]}
   id 5 tag [8]
+  // META constraint id 5 : inline.hs:9:19
+  
+
 
 
 constraint:
@@ -1311,9 +1347,12 @@ constraint:
        31]
   grd true
   lhs {VV#F21 : a_a12m | [$k__279[lq_tmp_x_275:=fix##36#dOrd_a137][lq_tmp_x_276:=y#a10Q][lq_tmp_x_277:=x#a10P][VV#278:=VV#F21][VV#F:=VV#F21];
-                          (VV#F21 = ((y#a10Q >= x#a10P) ? y#a10Q : x#a10P))]}
-  rhs {VV#F21 : a_a12m | [(VV#F21 = ((y#a10Q >= x#a10P) ? y#a10Q : x#a10P))]}
+                          (VV#F21 = (if (y#a10Q >= x#a10P) then y#a10Q else x#a10P))]}
+  rhs {VV#F21 : a_a12m | [(VV#F21 = (if (y#a10Q >= x#a10P) then y#a10Q else x#a10P))]}
   id 21 tag [4]
+  // META constraint id 21 : inline.hs:19:13-21
+  
+
 
 
 constraint:
@@ -1377,6 +1416,9 @@ constraint:
   lhs {VV#F6 : a_a12z | [(VV#F6 = x#a10L)]}
   rhs {VV#F6 : a_a12z | [$k__442[lq_tmp_x_438:=fix##36#dOrd_a13r][VV#441:=VV#F6][VV#F:=VV#F6]]}
   id 6 tag [8]
+  // META constraint id 6 : inline.hs:9:15
+  
+
 
 
 constraint:
@@ -1436,6 +1478,9 @@ constraint:
   lhs {VV#F22 : a_a12m | [(VV#F22 = x#a10P)]}
   rhs {VV#F22 : a_a12m | [$k__279[lq_tmp_x_275:=fix##36#dOrd_a137][lq_tmp_x_276:=y#a10Q][VV#278:=VV#F22][VV#F:=VV#F22]]}
   id 22 tag [4]
+  // META constraint id 22 : inline.hs:19:21
+  
+
 
 
 constraint:
@@ -1501,6 +1546,9 @@ constraint:
   lhs {VV#F7 : a_a11U | [$k__422[lq_tmp_x_420:=fix#lit#35#inline.hs#58#28#58#1#45#23#124#function#32#bar][ds_d13T:=GHC.Prim.void##0l][VV#421:=VV#F7][VV#F:=VV#F7]]}
   rhs {VV#F7 : a_a11U | [(VV#F7 = bar([ds_d13R]))]}
   id 7 tag [7]
+  // META constraint id 7 : inline.hs:28:1-3
+  
+
 
 
 constraint:
@@ -1560,6 +1608,9 @@ constraint:
   lhs {VV#F23 : a_a12m | [(VV#F23 = y#a10Q)]}
   rhs {VV#F23 : a_a12m | [$k__279[lq_tmp_x_275:=fix##36#dOrd_a137][VV#278:=VV#F23][VV#F:=VV#F23]]}
   id 23 tag [4]
+  // META constraint id 23 : inline.hs:19:19
+  
+
 
 
 constraint:
@@ -1625,6 +1676,9 @@ constraint:
   lhs {VV#F8 : GHC.Prim.Void# | [(VV#F8 = GHC.Prim.void##0l)]}
   rhs {VV#F8 : GHC.Prim.Void# | [$k__415[VV#414:=VV#F8][VV#476:=VV#F8][VV#F:=VV#F8]]}
   id 8 tag [7]
+  // META constraint id 8 : inline.hs:28:1-3
+  
+
 
 
 constraint:
@@ -1685,8 +1739,11 @@ constraint:
        63]
   grd true
   lhs {VV#F24 : a_a12l | [(VV#F24 = x#a10N)]}
-  rhs {VV#F24 : a_a12l | [(VV#F24 = ((x#a10N >= y#a10O) ? x#a10N : y#a10O))]}
+  rhs {VV#F24 : a_a12l | [(VV#F24 = (if (x#a10N >= y#a10O) then x#a10N else y#a10O))]}
   id 24 tag [3]
+  // META constraint id 24 : inline.hs:16:28
+  
+
 
 
 constraint:
@@ -1751,9 +1808,12 @@ constraint:
        95]
   grd true
   lhs {VV#F9 : a_a11U | [$k__402[lq_tmp_x_398:=fix##36#dOrd_a13m][lq_tmp_x_399:=x#a10U][lq_tmp_x_400:=y#a10V][VV#401:=VV#F9][VV#F:=VV#F9];
-                         (VV#F9 = ((x#a10U >= y#a10V) ? x#a10U : y#a10V))]}
+                         (VV#F9 = (if (x#a10U >= y#a10V) then x#a10U else y#a10V))]}
   rhs {VV#F9 : a_a11U | [(VV#F9 = bar([ds_d13R]))]}
   id 9 tag [7]
+  // META constraint id 9 : inline.hs:28:15-23
+  
+
 
 
 constraint:
@@ -1814,8 +1874,11 @@ constraint:
        31]
   grd true
   lhs {VV#F25 : a_a12l | [(VV#F25 = y#a10O)]}
-  rhs {VV#F25 : a_a12l | [(VV#F25 = ((x#a10N >= y#a10O) ? x#a10N : y#a10O))]}
+  rhs {VV#F25 : a_a12l | [(VV#F25 = (if (x#a10N >= y#a10O) then x#a10N else y#a10O))]}
   id 25 tag [3]
+  // META constraint id 25 : inline.hs:16:35
+  
+
 
 
 constraint:
@@ -1882,6 +1945,9 @@ constraint:
   lhs {VV#F10 : a_a11U | [(VV#F10 = y#a10V)]}
   rhs {VV#F10 : a_a11U | [$k__402[lq_tmp_x_398:=fix##36#dOrd_a13m][lq_tmp_x_399:=x#a10U][VV#401:=VV#F10][VV#F:=VV#F10]]}
   id 10 tag [7]
+  // META constraint id 10 : inline.hs:28:23
+  
+
 
 
 constraint:
@@ -1940,6 +2006,9 @@ constraint:
   lhs {VV#F26 : a_a12l | [(VV#F26 = y#a10O)]}
   rhs {VV#F26 : a_a12l | [$k__248[lq_tmp_x_244:=fix##36#dOrd_a132][lq_tmp_x_245:=x#a10N][VV#247:=VV#F26][VV#F:=VV#F26]]}
   id 26 tag [3]
+  // META constraint id 26 : inline.hs:16:21
+  
+
 
 
 constraint:
@@ -2006,6 +2075,9 @@ constraint:
   lhs {VV#F11 : a_a11U | [(VV#F11 = x#a10U)]}
   rhs {VV#F11 : a_a11U | [$k__402[lq_tmp_x_398:=fix##36#dOrd_a13m][VV#401:=VV#F11][VV#F:=VV#F11]]}
   id 11 tag [7]
+  // META constraint id 11 : inline.hs:28:21
+  
+
 
 
 constraint:
@@ -2064,6 +2136,9 @@ constraint:
   lhs {VV#F27 : a_a12l | [(VV#F27 = x#a10N)]}
   rhs {VV#F27 : a_a12l | [$k__248[lq_tmp_x_244:=fix##36#dOrd_a132][VV#247:=VV#F27][VV#F:=VV#F27]]}
   id 27 tag [3]
+  // META constraint id 27 : inline.hs:16:16
+  
+
 
 
 constraint:
@@ -2128,6 +2203,9 @@ constraint:
   lhs {VV#F12 : a_a128 | [(VV#F12 = x#a10T)]}
   rhs {VV#F12 : a_a128 | [(VV#F12 = foo([ds_d13Q]))]}
   id 12 tag [6]
+  // META constraint id 12 : inline.hs:24:15
+  
+
 
 
 constraint:
@@ -2182,6 +2260,9 @@ constraint:
   lhs {VV#F28 : a_a12X | []}
   rhs {VV#F28 : a_a12X | [$k__230[VV#229:=VV#F28][VV#F:=VV#F28]]}
   id 28 tag [2]
+  // META constraint id 28 : inline.hs:36:9
+  
+
 
 
 constraint:
@@ -2245,9 +2326,12 @@ constraint:
        31]
   grd true
   lhs {VV#F13 : a_a128 | [$k__362[lq_tmp_x_358:=fix##36#dOrd_a13h][lq_tmp_x_359:=x#a10R][lq_tmp_x_360:=y#a10S][VV#361:=VV#F13][VV#F:=VV#F13];
-                          (VV#F13 = ((x#a10R >= y#a10S) ? x#a10R : y#a10S))]}
+                          (VV#F13 = (if (x#a10R >= y#a10S) then x#a10R else y#a10S))]}
   rhs {VV#F13 : a_a128 | [(VV#F13 = foo([ds_d13Q]))]}
   id 13 tag [6]
+  // META constraint id 13 : inline.hs:23:15-23
+  
+
 
 
 constraint:
@@ -2303,6 +2387,9 @@ constraint:
   lhs {VV#F29 : a_a12X | []}
   rhs {VV#F29 : a_a12X | [$k__230[lq_tmp_x_227:=lq_tmp_x_222][VV#229:=VV#F29][VV#F:=VV#F29]]}
   id 29 tag [2]
+  // META constraint id 29 : inline.hs:36:9
+  
+
 
 
 constraint:
@@ -2368,6 +2455,9 @@ constraint:
   lhs {VV#F14 : a_a128 | [(VV#F14 = y#a10S)]}
   rhs {VV#F14 : a_a128 | [$k__362[lq_tmp_x_358:=fix##36#dOrd_a13h][lq_tmp_x_359:=x#a10R][VV#361:=VV#F14][VV#F:=VV#F14]]}
   id 14 tag [6]
+  // META constraint id 14 : inline.hs:23:23
+  
+
 
 
 constraint:
@@ -2426,8 +2516,11 @@ constraint:
        47]
   grd true
   lhs {VV#F30 : a_a11s | [(VV#F30 = x#a10Y)]}
-  rhs {VV#F30 : a_a11s | [(VV#F30 = ((x#a10Y >= y#a10Z) ? x#a10Y : y#a10Z))]}
+  rhs {VV#F30 : a_a11s | [(VV#F30 = (if (x#a10Y >= y#a10Z) then x#a10Y else y#a10Z))]}
   id 30 tag [1]
+  // META constraint id 30 : inline.hs:52:29
+  
+
 
 
 constraint:
@@ -2493,6 +2586,9 @@ constraint:
   lhs {VV#F15 : a_a128 | [(VV#F15 = x#a10R)]}
   rhs {VV#F15 : a_a128 | [$k__362[lq_tmp_x_358:=fix##36#dOrd_a13h][VV#361:=VV#F15][VV#F:=VV#F15]]}
   id 15 tag [6]
+  // META constraint id 15 : inline.hs:23:21
+  
+
 
 
 constraint:
@@ -2551,8 +2647,11 @@ constraint:
        47]
   grd true
   lhs {VV#F31 : a_a11s | [(VV#F31 = y#a10Z)]}
-  rhs {VV#F31 : a_a11s | [(VV#F31 = ((x#a10Y >= y#a10Z) ? x#a10Y : y#a10Z))]}
+  rhs {VV#F31 : a_a11s | [(VV#F31 = (if (x#a10Y >= y#a10Z) then x#a10Y else y#a10Z))]}
   id 31 tag [1]
+  // META constraint id 31 : inline.hs:52:36
+  
+
 
 
 wf:
@@ -2614,6 +2713,9 @@ wf:
        111]
   reft {VV#460 : a_a12M | [$k__461]}
   
+  // META wf  : inline.hs:5:13
+  
+
 
 
 wf:
@@ -2674,6 +2776,9 @@ wf:
        31]
   reft {VV#441 : a_a12z | [$k__442]}
   
+  // META wf  : inline.hs:9:17
+  
+
 
 
 wf:
@@ -2736,6 +2841,9 @@ wf:
        95]
   reft {VV#414 : GHC.Prim.Void# | [$k__415]}
   
+  // META wf  : inline.hs:28:1-3
+  
+
 
 
 wf:
@@ -2799,6 +2907,9 @@ wf:
        95]
   reft {VV#421 : a_a11U | [$k__422]}
   
+  // META wf  : inline.hs:28:1-3
+  
+
 
 
 wf:
@@ -2862,6 +2973,9 @@ wf:
        95]
   reft {VV#401 : a_a11U | [$k__402]}
   
+  // META wf  : inline.hs:28:15-19
+  
+
 
 
 wf:
@@ -2924,6 +3038,9 @@ wf:
        31]
   reft {VV#361 : a_a128 | [$k__362]}
   
+  // META wf  : inline.hs:23:15-19
+  
+
 
 
 wf:
@@ -2984,6 +3101,9 @@ wf:
        79]
   reft {VV#322 : GHC.Prim.Void# | [$k__323]}
   
+  // META wf  : inline.hs:31:1-4
+  
+
 
 
 wf:
@@ -3045,6 +3165,9 @@ wf:
        79]
   reft {VV#329 : a_a11G | [$k__330]}
   
+  // META wf  : inline.hs:31:1-4
+  
+
 
 
 wf:
@@ -3106,6 +3229,9 @@ wf:
        31]
   reft {VV#309 : a_a11G | [$k__310]}
   
+  // META wf  : inline.hs:31:16-20
+  
+
 
 
 wf:
@@ -3162,6 +3288,9 @@ wf:
        31]
   reft {VV#278 : a_a12m | [$k__279]}
   
+  // META wf  : inline.hs:19:13-17
+  
+
 
 
 wf:
@@ -3217,6 +3346,9 @@ wf:
        31]
   reft {VV#247 : a_a12l | [$k__248]}
   
+  // META wf  : inline.hs:16:18-19
+  
+
 
 
 wf:
@@ -3268,6 +3400,9 @@ wf:
        31]
   reft {VV#229 : a_a12X | [$k__230]}
   
+  // META wf  : inline.hs:36:9
+  
+
 
 
 wf:
@@ -3321,3 +3456,494 @@ wf:
        47]
   reft {VV#204 : a_a11s | [$k__205]}
   
+  // META wf  : inline.hs:52:19-20
+  
+
+// META bind 0 : <no location info>
+
+
+// META bind 16 : <no location info>
+
+
+// META bind 32 : <no location info>
+
+
+// META bind 48 : inline.hs:52:1-6
+
+
+// META bind 64 : inline.hs:16:13-35
+
+
+// META bind 80 : inline.hs:31:1-4
+
+
+// META bind 96 : inline.hs:28:1-3
+
+
+// META bind 112 : <no location info>
+
+
+// META bind 128 : inline.hs:28:21
+
+
+// META bind 144 : inline.hs:16:28
+
+
+// META bind 160 : inline.hs:52:17
+
+
+// META bind 1 : <no location info>
+
+
+// META bind 17 : <no location info>
+
+
+// META bind 33 : <no location info>
+
+
+// META bind 49 : inline.hs:52:14-36
+
+
+// META bind 65 : <no location info>
+
+
+// META bind 81 : <no location info>
+
+
+// META bind 97 : inline.hs:28:1-3
+
+
+// META bind 113 : inline.hs:5:11-15
+
+
+// META bind 129 : inline.hs:24:15
+
+
+// META bind 145 : inline.hs:16:35
+
+
+// META bind 161 : inline.hs:28:1-3
+
+
+// META bind 2 : <no location info>
+
+
+// META bind 18 : <no location info>
+
+
+// META bind 34 : <no location info>
+
+
+// META bind 50 : inline.hs:52:14-36
+
+
+// META bind 66 : inline.hs:19:1-5
+
+
+// META bind 82 : inline.hs:23:1-3
+
+
+// META bind 98 : inline.hs:28:1-3
+
+
+// META bind 114 : inline.hs:5:11-15
+
+
+// META bind 130 : inline.hs:23:15-23
+
+
+// META bind 146 : inline.hs:16:21
+
+
+// META bind 162 : inline.hs:31:1-4
+
+
+// META bind 3 : <no location info>
+
+
+// META bind 19 : <no location info>
+
+
+// META bind 35 : <no location info>
+
+
+// META bind 51 : inline.hs:52:14-36
+
+
+// META bind 67 : inline.hs:19:1-5
+
+
+// META bind 83 : inline.hs:23:1-3
+
+
+// META bind 99 : inline.hs:28:1-3
+
+
+// META bind 115 : inline.hs:5:15
+
+
+// META bind 131 : inline.hs:23:23
+
+
+// META bind 147 : inline.hs:16:16
+
+
+// META bind 4 : <no location info>
+
+
+// META bind 20 : <no location info>
+
+
+// META bind 36 : <no location info>
+
+
+// META bind 52 : inline.hs:52:14-36
+
+
+// META bind 68 : inline.hs:19:1-5
+
+
+// META bind 84 : inline.hs:23:1-3
+
+
+// META bind 100 : inline.hs:28:1-3
+
+
+// META bind 116 : inline.hs:5:11
+
+
+// META bind 132 : inline.hs:23:21
+
+
+// META bind 148 : inline.hs:36:9
+
+
+// META bind 5 : <no location info>
+
+
+// META bind 21 : <no location info>
+
+
+// META bind 37 : <no location info>
+
+
+// META bind 53 : inline.hs:52:14-36
+
+
+// META bind 69 : <no location info>
+
+
+// META bind 85 : inline.hs:23:1-3
+
+
+// META bind 101 : inline.hs:28:1-3
+
+
+// META bind 117 : inline.hs:9:15-19
+
+
+// META bind 133 : inline.hs:31:1-4
+
+
+// META bind 149 : inline.hs:36:9
+
+
+// META bind 6 : <no location info>
+
+
+// META bind 22 : <no location info>
+
+
+// META bind 38 : <no location info>
+
+
+// META bind 54 : <no location info>
+
+
+// META bind 70 : inline.hs:31:1-4
+
+
+// META bind 86 : inline.hs:23:1-3
+
+
+// META bind 102 : inline.hs:28:1-3
+
+
+// META bind 118 : inline.hs:9:15-19
+
+
+// META bind 134 : inline.hs:31:1-4
+
+
+// META bind 150 : inline.hs:36:9
+
+
+// META bind 7 : <no location info>
+
+
+// META bind 23 : <no location info>
+
+
+// META bind 39 : <no location info>
+
+
+// META bind 55 : <no location info>
+
+
+// META bind 71 : inline.hs:31:1-4
+
+
+// META bind 87 : inline.hs:23:1-3
+
+
+// META bind 103 : inline.hs:28:1-3
+
+
+// META bind 119 : inline.hs:9:19
+
+
+// META bind 135 : inline.hs:31:1-4
+
+
+// META bind 151 : inline.hs:36:9
+
+
+// META bind 8 : <no location info>
+
+
+// META bind 24 : <no location info>
+
+
+// META bind 40 : <no location info>
+
+
+// META bind 56 : inline.hs:16:1-5
+
+
+// META bind 72 : inline.hs:31:1-4
+
+
+// META bind 88 : inline.hs:23:1-3
+
+
+// META bind 104 : <no location info>
+
+
+// META bind 120 : inline.hs:9:15
+
+
+// META bind 136 : inline.hs:31:1-4
+
+
+// META bind 152 : inline.hs:36:9
+
+
+// META bind 9 : <no location info>
+
+
+// META bind 25 : <no location info>
+
+
+// META bind 41 : <no location info>
+
+
+// META bind 57 : inline.hs:16:1-5
+
+
+// META bind 73 : inline.hs:31:1-4
+
+
+// META bind 89 : inline.hs:23:1-3
+
+
+// META bind 105 : inline.hs:9:1-7
+
+
+// META bind 121 : inline.hs:28:1-3
+
+
+// META bind 137 : inline.hs:31:1-4
+
+
+// META bind 153 : inline.hs:36:9
+
+
+// META bind 10 : <no location info>
+
+
+// META bind 26 : <no location info>
+
+
+// META bind 42 : <no location info>
+
+
+// META bind 58 : inline.hs:16:1-5
+
+
+// META bind 74 : inline.hs:31:1-4
+
+
+// META bind 90 : inline.hs:23:1-3
+
+
+// META bind 106 : inline.hs:9:1-7
+
+
+// META bind 122 : inline.hs:28:1-3
+
+
+// META bind 138 : inline.hs:31:16-24
+
+
+// META bind 154 : inline.hs:36:9
+
+
+// META bind 11 : <no location info>
+
+
+// META bind 27 : <no location info>
+
+
+// META bind 43 : <no location info>
+
+
+// META bind 59 : inline.hs:16:1-5
+
+
+// META bind 75 : inline.hs:31:1-4
+
+
+// META bind 91 : inline.hs:23:1-3
+
+
+// META bind 107 : inline.hs:9:1-7
+
+
+// META bind 123 : inline.hs:28:1-3
+
+
+// META bind 139 : inline.hs:31:24
+
+
+// META bind 155 : inline.hs:36:9
+
+
+// META bind 12 : <no location info>
+
+
+// META bind 28 : <no location info>
+
+
+// META bind 44 : <no location info>
+
+
+// META bind 60 : inline.hs:16:13-35
+
+
+// META bind 76 : inline.hs:31:1-4
+
+
+// META bind 92 : <no location info>
+
+
+// META bind 108 : <no location info>
+
+
+// META bind 124 : inline.hs:28:1-3
+
+
+// META bind 140 : inline.hs:31:22
+
+
+// META bind 156 : inline.hs:36:9
+
+
+// META bind 13 : <no location info>
+
+
+// META bind 29 : <no location info>
+
+
+// META bind 45 : inline.hs:52:1-6
+
+
+// META bind 61 : inline.hs:16:13-35
+
+
+// META bind 77 : inline.hs:31:1-4
+
+
+// META bind 93 : inline.hs:28:1-3
+
+
+// META bind 109 : inline.hs:5:1-3
+
+
+// META bind 125 : inline.hs:28:1-3
+
+
+// META bind 141 : inline.hs:19:13-21
+
+
+// META bind 157 : inline.hs:52:29
+
+
+// META bind 14 : <no location info>
+
+
+// META bind 30 : <no location info>
+
+
+// META bind 46 : inline.hs:52:1-6
+
+
+// META bind 62 : inline.hs:16:13-35
+
+
+// META bind 78 : inline.hs:31:1-4
+
+
+// META bind 94 : inline.hs:28:1-3
+
+
+// META bind 110 : inline.hs:5:1-3
+
+
+// META bind 126 : inline.hs:28:15-23
+
+
+// META bind 142 : inline.hs:19:21
+
+
+// META bind 158 : inline.hs:52:36
+
+
+// META bind 15 : <no location info>
+
+
+// META bind 31 : <no location info>
+
+
+// META bind 47 : inline.hs:52:1-6
+
+
+// META bind 63 : inline.hs:16:13-35
+
+
+// META bind 79 : inline.hs:31:1-4
+
+
+// META bind 95 : inline.hs:28:1-3
+
+
+// META bind 111 : inline.hs:5:1-3
+
+
+// META bind 127 : inline.hs:28:23
+
+
+// META bind 143 : inline.hs:19:19
+
+
+// META bind 159 : inline.hs:52:22
+
