@@ -1414,9 +1414,7 @@ let opt_to_string p = function
 (* API *)
 let sortcheck_app g f tExp uf es =
   sortcheck_app_sub g f tExp uf es
-  (* |> checkArity f uf *) (* This check is wrong. See liquidHaskell tests/pos/Solver.hs 
-                              Unification may appear because *argument types* has type variables
-                            *)
+  |> checkArity f uf 
 
                 (*
   match uf_arity f uf, sortcheck_app_sub g f tExp uf es with
