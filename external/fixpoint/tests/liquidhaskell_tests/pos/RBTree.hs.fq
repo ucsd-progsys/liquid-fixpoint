@@ -82,7 +82,7 @@ qualif Auto(VV : a_a1RQ, fix##126#A0 : a_a1RQ): (VV < fix##126#A0) // "RBTree.hs
 qualif Auto(VV : a_a1RQ, fix##126#A0 : a_a1RQ): (VV > fix##126#A0) // "RBTree.hs" (line 44, column 1)
 qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ): (? isARB([VV])) // "RBTree.hs" (line 44, column 1)
 qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ): (? isBH([VV])) // "RBTree.hs" (line 44, column 1)
-qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ, fix##126#A0 : FAppTy Foo.RBTree  a_a1RQ): (bh([VV]) = ((? isB([fix##126#A0])) ? (bh([fix##126#A0]) - 1) : bh([fix##126#A0]))) // "RBTree.hs" (line 44, column 1)
+qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ, fix##126#A0 : FAppTy Foo.RBTree  a_a1RQ): (bh([VV]) = (if (? isB([fix##126#A0])) then (bh([fix##126#A0]) - 1) else bh([fix##126#A0]))) // "RBTree.hs" (line 44, column 1)
 qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ, fix##126#A0 : FAppTy Foo.RBTree  a_a1RQ): || [(? isB([fix##126#A0]));
                                                                                           (? isRB([VV]))] // "RBTree.hs" (line 44, column 1)
 qualif Auto(VV : a_a1RQ, fix##126#A0 : a_a1RQ): (VV < fix##126#A0) // "RBTree.hs" (line 44, column 1)
@@ -256,7 +256,7 @@ qualif Auto(VV : a_a1RQ, fix##126#A0 : a_a1RQ): (VV < fix##126#A0) // "RBTree.hs
 qualif Auto(VV : a_a1RQ, fix##126#A0 : a_a1RQ): (VV > fix##126#A0) // "RBTree.hs" (line 44, column 1)
 qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ): (? isARB([VV])) // "RBTree.hs" (line 44, column 1)
 qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ): (? isBH([VV])) // "RBTree.hs" (line 44, column 1)
-qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ, fix##126#A0 : FAppTy Foo.RBTree  a_a1RQ): (bh([VV]) = ((? isB([fix##126#A0])) ? (bh([fix##126#A0]) - 1) : bh([fix##126#A0]))) // "RBTree.hs" (line 44, column 1)
+qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ, fix##126#A0 : FAppTy Foo.RBTree  a_a1RQ): (bh([VV]) = (if (? isB([fix##126#A0])) then (bh([fix##126#A0]) - 1) else bh([fix##126#A0]))) // "RBTree.hs" (line 44, column 1)
 qualif Auto(VV : FAppTy Foo.RBTree  a_a1RQ, fix##126#A0 : FAppTy Foo.RBTree  a_a1RQ): || [(? isB([fix##126#A0]));
                                                                                           (? isRB([VV]))] // "RBTree.hs" (line 44, column 1)
 qualif Auto(VV : a_a1RQ, fix##126#A0 : a_a1RQ): (VV < fix##126#A0) // "RBTree.hs" (line 44, column 1)
@@ -299,7 +299,7 @@ qualif Auto(VV : a_a1aI, fix##126#A0 : a_a1aI): (? papp2([r;
                                                           VV;
                                                           fix##126#A0])) // "RBTree.hs" (line 9, column 17)
 qualif Auto(vv : a_a1aI, fix##126#A0 : a_a1aI): (vv = fix##126#A0) // "RBTree.hs" (line 9, column 17)
-qualif Auto(VV : FAppTy Foo.RBTree  a_a1aI, fix##126#A0 : FAppTy Foo.RBTree  a_a1aI, fix##126#A1 : Foo.Color): (bh([VV]) = (bh([fix##126#A0]) + ((fix##126#A1 = Foo.R#r12h) ? 0 : 1))) // "RBTree.hs" (line 9, column 17)
+qualif Auto(VV : FAppTy Foo.RBTree  a_a1aI, fix##126#A0 : FAppTy Foo.RBTree  a_a1aI, fix##126#A1 : Foo.Color): (bh([VV]) = (bh([fix##126#A0]) + (if (fix##126#A1 = Foo.R#r12h) then 0 else 1))) // "RBTree.hs" (line 9, column 17)
 qualif Auto(VV : FAppTy Foo.RBTree  a_a1aI, fix##126#A0 : FAppTy Foo.RBTree  a_a1aI, fix##126#A1 : FAppTy Foo.RBTree  a_a1aI): ((? isBH([VV])) <=> && [(? isBH([fix##126#A0]));
                                                                                                                                                        && [(? isBH([fix##126#A1]));
                                                                                                                                                            (bh([fix##126#A0]) = bh([fix##126#A1]))]]) // "RBTree.hs" (line 9, column 17)
@@ -394,7 +394,7 @@ qualif Auto(VV : a_a1aI, fix##126#A0 : a_a1aI): (? papp2([r;
                                                           VV;
                                                           fix##126#A0])) // "RBTree.hs" (line 9, column 17)
 qualif Auto(vv : a_a1aI, fix##126#A0 : a_a1aI): (vv = fix##126#A0) // "RBTree.hs" (line 9, column 17)
-qualif Auto(VV : FAppTy Foo.RBTree  a_a1aI, fix##126#A0 : FAppTy Foo.RBTree  a_a1aI, fix##126#A1 : Foo.Color): (bh([VV]) = (bh([fix##126#A0]) + ((fix##126#A1 = Foo.R#r12h) ? 0 : 1))) // "RBTree.hs" (line 9, column 17)
+qualif Auto(VV : FAppTy Foo.RBTree  a_a1aI, fix##126#A0 : FAppTy Foo.RBTree  a_a1aI, fix##126#A1 : Foo.Color): (bh([VV]) = (bh([fix##126#A0]) + (if (fix##126#A1 = Foo.R#r12h) then 0 else 1))) // "RBTree.hs" (line 9, column 17)
 qualif Auto(VV : FAppTy Foo.RBTree  a_a1aI, fix##126#A0 : FAppTy Foo.RBTree  a_a1aI, fix##126#A1 : FAppTy Foo.RBTree  a_a1aI): ((? isBH([VV])) <=> && [(? isBH([fix##126#A0]));
                                                                                                                                                        && [(? isBH([fix##126#A1]));
                                                                                                                                                            (bh([fix##126#A0]) = bh([fix##126#A1]))]]) // "RBTree.hs" (line 9, column 17)
@@ -1187,3 +1187,584 @@ bind 193 fix#GHC.Real.D#58#Fractional#35#rkT : {VV : func(1, [func(0, [@(0);
                                                               func(0, [FAppTy GHC.Real.Ratio  int;
                                                                        @(0)]);
                                                               FAppTy GHC.Real.Fractional  @(0)]) | []}
+// META bind 0 : <no location info>
+
+
+// META bind 16 : <no location info>
+
+
+// META bind 32 : <no location info>
+
+
+// META bind 48 : <no location info>
+
+
+// META bind 64 : <no location info>
+
+
+// META bind 80 : <no location info>
+
+
+// META bind 96 : <no location info>
+
+
+// META bind 112 : <no location info>
+
+
+// META bind 128 : <no location info>
+
+
+// META bind 144 : <no location info>
+
+
+// META bind 160 : <no location info>
+
+
+// META bind 176 : <no location info>
+
+
+// META bind 192 : <no location info>
+
+
+// META bind 1 : <no location info>
+
+
+// META bind 17 : <no location info>
+
+
+// META bind 33 : <no location info>
+
+
+// META bind 49 : <no location info>
+
+
+// META bind 65 : <no location info>
+
+
+// META bind 81 : <no location info>
+
+
+// META bind 97 : <no location info>
+
+
+// META bind 113 : <no location info>
+
+
+// META bind 129 : <no location info>
+
+
+// META bind 145 : <no location info>
+
+
+// META bind 161 : <no location info>
+
+
+// META bind 177 : <no location info>
+
+
+// META bind 193 : <no location info>
+
+
+// META bind 2 : <no location info>
+
+
+// META bind 18 : <no location info>
+
+
+// META bind 34 : <no location info>
+
+
+// META bind 50 : <no location info>
+
+
+// META bind 66 : <no location info>
+
+
+// META bind 82 : <no location info>
+
+
+// META bind 98 : <no location info>
+
+
+// META bind 114 : <no location info>
+
+
+// META bind 130 : <no location info>
+
+
+// META bind 146 : <no location info>
+
+
+// META bind 162 : <no location info>
+
+
+// META bind 178 : <no location info>
+
+
+// META bind 3 : <no location info>
+
+
+// META bind 19 : <no location info>
+
+
+// META bind 35 : <no location info>
+
+
+// META bind 51 : <no location info>
+
+
+// META bind 67 : <no location info>
+
+
+// META bind 83 : <no location info>
+
+
+// META bind 99 : <no location info>
+
+
+// META bind 115 : <no location info>
+
+
+// META bind 131 : <no location info>
+
+
+// META bind 147 : <no location info>
+
+
+// META bind 163 : <no location info>
+
+
+// META bind 179 : <no location info>
+
+
+// META bind 4 : <no location info>
+
+
+// META bind 20 : <no location info>
+
+
+// META bind 36 : <no location info>
+
+
+// META bind 52 : <no location info>
+
+
+// META bind 68 : <no location info>
+
+
+// META bind 84 : <no location info>
+
+
+// META bind 100 : <no location info>
+
+
+// META bind 116 : <no location info>
+
+
+// META bind 132 : <no location info>
+
+
+// META bind 148 : <no location info>
+
+
+// META bind 164 : <no location info>
+
+
+// META bind 180 : <no location info>
+
+
+// META bind 5 : <no location info>
+
+
+// META bind 21 : <no location info>
+
+
+// META bind 37 : <no location info>
+
+
+// META bind 53 : <no location info>
+
+
+// META bind 69 : <no location info>
+
+
+// META bind 85 : <no location info>
+
+
+// META bind 101 : <no location info>
+
+
+// META bind 117 : <no location info>
+
+
+// META bind 133 : <no location info>
+
+
+// META bind 149 : <no location info>
+
+
+// META bind 165 : <no location info>
+
+
+// META bind 181 : <no location info>
+
+
+// META bind 6 : <no location info>
+
+
+// META bind 22 : <no location info>
+
+
+// META bind 38 : <no location info>
+
+
+// META bind 54 : <no location info>
+
+
+// META bind 70 : <no location info>
+
+
+// META bind 86 : <no location info>
+
+
+// META bind 102 : <no location info>
+
+
+// META bind 118 : <no location info>
+
+
+// META bind 134 : <no location info>
+
+
+// META bind 150 : <no location info>
+
+
+// META bind 166 : <no location info>
+
+
+// META bind 182 : <no location info>
+
+
+// META bind 7 : <no location info>
+
+
+// META bind 23 : <no location info>
+
+
+// META bind 39 : <no location info>
+
+
+// META bind 55 : <no location info>
+
+
+// META bind 71 : <no location info>
+
+
+// META bind 87 : <no location info>
+
+
+// META bind 103 : <no location info>
+
+
+// META bind 119 : <no location info>
+
+
+// META bind 135 : <no location info>
+
+
+// META bind 151 : <no location info>
+
+
+// META bind 167 : <no location info>
+
+
+// META bind 183 : <no location info>
+
+
+// META bind 8 : <no location info>
+
+
+// META bind 24 : <no location info>
+
+
+// META bind 40 : <no location info>
+
+
+// META bind 56 : <no location info>
+
+
+// META bind 72 : <no location info>
+
+
+// META bind 88 : <no location info>
+
+
+// META bind 104 : <no location info>
+
+
+// META bind 120 : <no location info>
+
+
+// META bind 136 : <no location info>
+
+
+// META bind 152 : <no location info>
+
+
+// META bind 168 : <no location info>
+
+
+// META bind 184 : <no location info>
+
+
+// META bind 9 : <no location info>
+
+
+// META bind 25 : <no location info>
+
+
+// META bind 41 : <no location info>
+
+
+// META bind 57 : <no location info>
+
+
+// META bind 73 : <no location info>
+
+
+// META bind 89 : <no location info>
+
+
+// META bind 105 : <no location info>
+
+
+// META bind 121 : <no location info>
+
+
+// META bind 137 : <no location info>
+
+
+// META bind 153 : <no location info>
+
+
+// META bind 169 : <no location info>
+
+
+// META bind 185 : <no location info>
+
+
+// META bind 10 : <no location info>
+
+
+// META bind 26 : <no location info>
+
+
+// META bind 42 : <no location info>
+
+
+// META bind 58 : <no location info>
+
+
+// META bind 74 : <no location info>
+
+
+// META bind 90 : <no location info>
+
+
+// META bind 106 : <no location info>
+
+
+// META bind 122 : <no location info>
+
+
+// META bind 138 : <no location info>
+
+
+// META bind 154 : <no location info>
+
+
+// META bind 170 : <no location info>
+
+
+// META bind 186 : <no location info>
+
+
+// META bind 11 : <no location info>
+
+
+// META bind 27 : <no location info>
+
+
+// META bind 43 : <no location info>
+
+
+// META bind 59 : <no location info>
+
+
+// META bind 75 : <no location info>
+
+
+// META bind 91 : <no location info>
+
+
+// META bind 107 : <no location info>
+
+
+// META bind 123 : <no location info>
+
+
+// META bind 139 : <no location info>
+
+
+// META bind 155 : <no location info>
+
+
+// META bind 171 : <no location info>
+
+
+// META bind 187 : <no location info>
+
+
+// META bind 12 : <no location info>
+
+
+// META bind 28 : <no location info>
+
+
+// META bind 44 : <no location info>
+
+
+// META bind 60 : <no location info>
+
+
+// META bind 76 : <no location info>
+
+
+// META bind 92 : <no location info>
+
+
+// META bind 108 : <no location info>
+
+
+// META bind 124 : <no location info>
+
+
+// META bind 140 : <no location info>
+
+
+// META bind 156 : <no location info>
+
+
+// META bind 172 : <no location info>
+
+
+// META bind 188 : <no location info>
+
+
+// META bind 13 : <no location info>
+
+
+// META bind 29 : <no location info>
+
+
+// META bind 45 : <no location info>
+
+
+// META bind 61 : <no location info>
+
+
+// META bind 77 : <no location info>
+
+
+// META bind 93 : <no location info>
+
+
+// META bind 109 : <no location info>
+
+
+// META bind 125 : <no location info>
+
+
+// META bind 141 : <no location info>
+
+
+// META bind 157 : <no location info>
+
+
+// META bind 173 : <no location info>
+
+
+// META bind 189 : <no location info>
+
+
+// META bind 14 : <no location info>
+
+
+// META bind 30 : <no location info>
+
+
+// META bind 46 : <no location info>
+
+
+// META bind 62 : <no location info>
+
+
+// META bind 78 : <no location info>
+
+
+// META bind 94 : <no location info>
+
+
+// META bind 110 : <no location info>
+
+
+// META bind 126 : <no location info>
+
+
+// META bind 142 : <no location info>
+
+
+// META bind 158 : <no location info>
+
+
+// META bind 174 : <no location info>
+
+
+// META bind 190 : <no location info>
+
+
+// META bind 15 : <no location info>
+
+
+// META bind 31 : <no location info>
+
+
+// META bind 47 : <no location info>
+
+
+// META bind 63 : <no location info>
+
+
+// META bind 79 : <no location info>
+
+
+// META bind 95 : <no location info>
+
+
+// META bind 111 : <no location info>
+
+
+// META bind 127 : <no location info>
+
+
+// META bind 143 : <no location info>
+
+
+// META bind 159 : <no location info>
+
+
+// META bind 175 : <no location info>
+
+
+// META bind 191 : <no location info>
+

@@ -3,7 +3,7 @@ qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benj
 qualif Auto(v : int): (0 <= v) // "take.hs" (line 18, column 1)
 qualif Auto(v : [a_a16P], fix##126#A0 : int): (len([v]) = fix##126#A0) // "take.hs" (line 18, column 1)
 qualif Auto(v : int): (v >= 0) // "take.hs" (line 26, column 1)
-qualif Auto(v : [a_a174], fix##126#A0 : [a_a174], fix##126#A1 : int): (len([v]) = ((len([fix##126#A0]) < fix##126#A1) ? len([fix##126#A0]) : fix##126#A1)) // "take.hs" (line 26, column 1)
+qualif Auto(v : [a_a174], fix##126#A0 : [a_a174], fix##126#A1 : int): (len([v]) = (if (len([fix##126#A0]) < fix##126#A1) then len([fix##126#A0]) else fix##126#A1)) // "take.hs" (line 26, column 1)
 qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) > 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 13, column 8)
 qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) = 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 14, column 8)
 qualif ListZ(v : [@(0)]): (len([v]) = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 16, column 8)
@@ -1031,6 +1031,9 @@ constraint:
   lhs {VV#F16 : a_a16H | [$k__760[lq_tmp_x_762:=lq_tmp_x_611][VV#759:=VV#F16][lq_tmp_x_754:=x#a16a][lq_tmp_x_755:=lq_anf__d17O][lq_tmp_x_750:=lq_tmp_x_611][VV#756:=VV#F16][VV#F:=VV#F16]]}
   rhs {VV#F16 : a_a16H | [$k__613[VV#612:=VV#F16][VV#F:=VV#F16]]}
   id 16 tag [4]
+  // META constraint id 16 : take.hs:22:31-64
+  
+
 
 
 constraint:
@@ -1122,6 +1125,9 @@ constraint:
                        (VV#F32 = lq_anf__d17N)]}
   rhs {VV#F32 : int | [(VV#F32 < ds_d17r)]}
   id 32 tag [4]
+  // META constraint id 32 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -1204,6 +1210,9 @@ constraint:
                           $k__254[ds_d17k:=n#a16e][ds_d17l:=xs#a16f][lq_tmp_x_263:=n#a16e][lq_tmp_x_264:=xs#a16f][VV#260:=VV#927][lq_tmp_x_265:=n#a16e][lq_tmp_x_266:=xs#a16f][VV#253:=VV#F48][lq_tmp_x_528:=n#a16e][lq_tmp_x_529:=xs#a16f][lq_tmp_x_525:=VV#927][VV#530:=VV#F48][VV#F:=VV#F48]]}
   rhs {VV#F48 : a_a16z | [$k__429[VV#435:=VV#927][VV#428:=VV#F48][VV#F:=VV#F48]]}
   id 48 tag [2]
+  // META constraint id 48 : take.hs:31:27-47
+  
+
 
 
 constraint:
@@ -1288,6 +1297,9 @@ constraint:
   lhs {VV#F64 : a_a16z | [$k__490[lq_tmp_x_492:=lq_tmp_x_510][VV#489:=VV#F64][lq_tmp_x_484:=lq_tmp_x_510][lq_tmp_x_513:=lq_tmp_x_510][VV#486:=VV#F64][VV#F:=VV#F64]]}
   rhs {VV#F64 : a_a16z | [$k__505[lq_tmp_x_503:=lq_tmp_x_510][lq_tmp_x_498:=GHC.Types.False#68][VV#504:=VV#F64][VV#F:=VV#F64]]}
   id 64 tag [2]
+  // META constraint id 64 : take.hs:32:46-47
+  
+
 
 
 constraint:
@@ -1374,6 +1386,9 @@ constraint:
                           (VV#F80 = x#a16i)]}
   rhs {VV#F80 : a_a16r | [$k__391[VV#390:=VV#F80][VV#F:=VV#F80]]}
   id 80 tag [1]
+  // META constraint id 80 : take.hs:39:15
+  
+
 
 
 constraint:
@@ -1456,6 +1471,9 @@ constraint:
   lhs {VV#F96 : a_a16r | [$k__305[lq_tmp_x_307:=lq_tmp_x_281][VV#304:=VV#F96][lq_tmp_x_299:=lq_tmp_x_281][VV#301:=VV#F96][VV#F:=VV#F96]]}
   rhs {VV#F96 : a_a16r | [$k__283[VV#282:=VV#F96][VV#F:=VV#F96]]}
   id 96 tag [1]
+  // META constraint id 96 : take.hs:38:15-16
+  
+
 
 
 constraint:
@@ -1538,6 +1556,9 @@ constraint:
                            (len([VV#F1]) >= 0)]}
   rhs {VV#F1 : [a_a16P] | [(len([VV#F1]) = ds_d17x)]}
   id 1 tag [5]
+  // META constraint id 1 : take.hs:18:20-42
+  
+
 
 
 constraint:
@@ -1627,6 +1648,9 @@ constraint:
   lhs {VV#F17 : a_a16H | [$k__719[lq_tmp_x_707:=xs#a16b][VV#725:=VV#848][lq_tmp_x_765:=VV#848][VV#718:=VV#F17][VV#F:=VV#F17]]}
   rhs {VV#F17 : a_a16H | [$k__757[lq_tmp_x_754:=x#a16a][lq_tmp_x_749:=VV#848][VV#756:=VV#F17][VV#F:=VV#F17]]}
   id 17 tag [4]
+  // META constraint id 17 : take.hs:22:35-64
+  
+
 
 
 constraint:
@@ -1718,6 +1742,9 @@ constraint:
                        (VV#F33 = lq_anf__d17N)]}
   rhs {VV#F33 : int | [(VV#F33 >= 0)]}
   id 33 tag [4]
+  // META constraint id 33 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -1800,6 +1827,9 @@ constraint:
   lhs {VV#F49 : a_a16z | [$k__258[ds_d17k:=n#a16e][ds_d17l:=xs#a16f][lq_tmp_x_263:=n#a16e][lq_tmp_x_264:=xs#a16f][lq_tmp_x_256:=lq_tmp_x_431][lq_tmp_x_265:=n#a16e][lq_tmp_x_266:=xs#a16f][VV#257:=VV#F49][lq_tmp_x_528:=n#a16e][lq_tmp_x_529:=xs#a16f][lq_tmp_x_524:=lq_tmp_x_431][VV#530:=VV#F49][VV#F:=VV#F49]]}
   rhs {VV#F49 : a_a16z | [$k__433[VV#432:=VV#F49][VV#F:=VV#F49]]}
   id 49 tag [2]
+  // META constraint id 49 : take.hs:31:27-47
+  
+
 
 
 constraint:
@@ -1883,6 +1913,9 @@ constraint:
                                   (VV#F65 = GHC.Types.False#68)]}
   rhs {VV#F65 : GHC.Types.Bool | [(? Prop([VV#F65]))]}
   id 65 tag [2]
+  // META constraint id 65 : take.hs:32:40-44
+  
+
 
 
 constraint:
@@ -1969,6 +2002,9 @@ constraint:
                             (len([VV#F81]) >= 0)]}
   rhs {VV#F81 : [a_a16r] | [$k__350[VV#349:=VV#F81][VV#1006:=VV#F81][VV#F:=VV#F81]]}
   id 81 tag [1]
+  // META constraint id 81 : take.hs:39:46-47
+  
+
 
 
 constraint:
@@ -2052,6 +2088,9 @@ constraint:
                            (len([VV#F2]) >= 0)]}
   rhs {VV#F2 : [a_a16P] | [$k__581[ds_d17r:=n##a167][lq_tmp_x_593:=n##a167][VV#580:=VV#F2][lq_tmp_x_595:=n##a167][lq_tmp_x_803:=n##a167][lq_tmp_x_798:=VV#F2][VV#818:=VV#F2][VV#F:=VV#F2]]}
   id 2 tag [5]
+  // META constraint id 2 : take.hs:18:41-42
+  
+
 
 
 constraint:
@@ -2141,6 +2180,9 @@ constraint:
   lhs {VV#F18 : a_a16H | [$k__719[lq_tmp_x_707:=xs#a16b][VV#725:=VV#848][lq_tmp_x_765:=VV#848][VV#718:=VV#F18][VV#F:=VV#F18]]}
   rhs {VV#F18 : a_a16H | [$k__760[lq_tmp_x_762:=x#a16a][VV#759:=VV#F18][lq_tmp_x_754:=x#a16a][lq_tmp_x_749:=VV#848][VV#756:=VV#F18][VV#F:=VV#F18]]}
   id 18 tag [4]
+  // META constraint id 18 : take.hs:22:35-64
+  
+
 
 
 constraint:
@@ -2225,6 +2267,9 @@ constraint:
                             (len([VV#F34]) >= 0)]}
   rhs {VV#F34 : [a_a16H] | [$k__616[VV#615:=VV#F34][VV#884:=VV#F34][VV#F:=VV#F34]]}
   id 34 tag [4]
+  // META constraint id 34 : take.hs:21:1-17
+  
+
 
 
 constraint:
@@ -2308,6 +2353,9 @@ constraint:
                             (len([VV#F50]) >= 0)]}
   rhs {VV#F50 : [a_a16z] | [$k__251[ds_d17k:=n#a16e][lq_tmp_x_263:=n#a16e][VV#250:=VV#F50][lq_tmp_x_265:=n#a16e][lq_tmp_x_528:=n#a16e][lq_tmp_x_523:=VV#F50][VV#933:=VV#F50][VV#F:=VV#F50]]}
   id 50 tag [2]
+  // META constraint id 50 : take.hs:31:46-47
+  
+
 
 
 constraint:
@@ -2386,6 +2434,9 @@ constraint:
   lhs {VV#F66 : GHC.Types.Bool | [((lq_anf__d17E = 1) <=> (? Prop([VV#F66])))]}
   rhs {VV#F66 : GHC.Types.Bool | [$k__451[VV#450:=VV#F66][VV#966:=VV#F66][VV#F:=VV#F66]]}
   id 66 tag [2]
+  // META constraint id 66 : <no location info>
+  
+
 
 
 constraint:
@@ -2472,6 +2523,9 @@ constraint:
                           $k__248[ds_d17k:=ds_d17k][lq_tmp_x_263:=ds_d17k][VV#247:=VV#F82][lq_tmp_x_265:=ds_d17k][lq_tmp_x_246:=x#a16i][lq_tmp_x_288:=x#a16i][lq_tmp_x_309:=x#a16i][lq_tmp_x_317:=x#a16i][lq_tmp_x_320:=VV#1006][lq_tmp_x_380:=VV#1006][VV:=VV#F82][VV#F:=VV#F82]]}
   rhs {VV#F82 : a_a16r | [$k__343[VV#349:=VV#1006][VV#342:=VV#F82][VV#F:=VV#F82]]}
   id 82 tag [1]
+  // META constraint id 82 : take.hs:39:46-47
+  
+
 
 
 constraint:
@@ -2554,6 +2608,9 @@ constraint:
   lhs {VV#F3 : a_a16P | []}
   rhs {VV#F3 : a_a16P | [$k__806[lq_tmp_x_803:=n##a167][lq_tmp_x_798:=VV#818][VV#805:=VV#F3][VV#F:=VV#F3]]}
   id 3 tag [5]
+  // META constraint id 3 : take.hs:18:41-42
+  
+
 
 
 constraint:
@@ -2644,6 +2701,9 @@ constraint:
   lhs {VV#F19 : a_a16H | [$k__723[lq_tmp_x_707:=xs#a16b][lq_tmp_x_721:=lq_tmp_x_748][lq_tmp_x_764:=lq_tmp_x_748][VV#722:=VV#F19][VV#F:=VV#F19]]}
   rhs {VV#F19 : a_a16H | [$k__760[lq_tmp_x_762:=lq_tmp_x_748][VV#759:=VV#F19][lq_tmp_x_754:=x#a16a][VV#756:=VV#F19][VV#F:=VV#F19]]}
   id 19 tag [4]
+  // META constraint id 19 : take.hs:22:35-64
+  
+
 
 
 constraint:
@@ -2728,6 +2788,9 @@ constraint:
   lhs {VV#F35 : a_a16H | [$k__634[ds_d17u:=GHC.Prim.void##0l][VV#640:=VV#884][VV#633:=VV#F35][VV#F:=VV#F35]]}
   rhs {VV#F35 : a_a16H | [$k__609[VV#615:=VV#884][VV#608:=VV#F35][VV#F:=VV#F35]]}
   id 35 tag [4]
+  // META constraint id 35 : take.hs:21:1-17
+  
+
 
 
 constraint:
@@ -2809,6 +2872,9 @@ constraint:
   lhs {VV#F51 : a_a16z | [$k__418[VV#424:=VV#933][lq_tmp_x_535:=VV#933][VV#417:=VV#F51][VV#F:=VV#F51]]}
   rhs {VV#F51 : a_a16z | [$k__531[lq_tmp_x_528:=n#a16e][lq_tmp_x_523:=VV#933][VV#530:=VV#F51][VV#F:=VV#F51]]}
   id 51 tag [2]
+  // META constraint id 51 : take.hs:31:46-47
+  
+
 
 
 constraint:
@@ -2888,6 +2954,9 @@ constraint:
                             (len([VV#F67]) >= 0)]}
   rhs {VV#F67 : [a_a16r] | [$k__261[ds_d17k:=ds_d17k][ds_d17l:=ds_d17l][lq_tmp_x_263:=ds_d17k][lq_tmp_x_264:=ds_d17l][lq_tmp_x_265:=ds_d17k][lq_tmp_x_266:=ds_d17l][VV#260:=VV#F67][VV#978:=VV#F67][VV#F:=VV#F67]]}
   id 67 tag [1]
+  // META constraint id 67 : take.hs:35:30-31
+  
+
 
 
 constraint:
@@ -2974,6 +3043,9 @@ constraint:
   lhs {VV#F83 : a_a16r | [$k__248[ds_d17k:=ds_d17k][lq_tmp_x_263:=ds_d17k][VV#247:=VV#F83][lq_tmp_x_265:=ds_d17k][lq_tmp_x_246:=lq_tmp_x_345][lq_tmp_x_288:=lq_tmp_x_345][lq_tmp_x_309:=lq_tmp_x_345][lq_tmp_x_317:=x#a16i][lq_tmp_x_319:=lq_tmp_x_345][lq_tmp_x_379:=lq_tmp_x_345][VV:=VV#F83][VV#F:=VV#F83]]}
   rhs {VV#F83 : a_a16r | [$k__347[VV#346:=VV#F83][VV#F:=VV#F83]]}
   id 83 tag [1]
+  // META constraint id 83 : take.hs:39:46-47
+  
+
 
 
 constraint:
@@ -3056,6 +3128,9 @@ constraint:
   lhs {VV#F4 : a_a16P | []}
   rhs {VV#F4 : a_a16P | [$k__574[ds_d17r:=n##a167][lq_tmp_x_593:=n##a167][VV#580:=VV#818][lq_tmp_x_595:=n##a167][VV#573:=VV#F4][lq_tmp_x_803:=n##a167][lq_tmp_x_798:=VV#818][VV#805:=VV#F4][VV#F:=VV#F4]]}
   id 4 tag [5]
+  // META constraint id 4 : take.hs:18:41-42
+  
+
 
 
 constraint:
@@ -3145,6 +3220,9 @@ constraint:
                           (VV#F20 = x#a16a)]}
   rhs {VV#F20 : a_a16H | [$k__757[VV#756:=VV#F20][VV#F:=VV#F20]]}
   id 20 tag [4]
+  // META constraint id 20 : take.hs:22:31
+  
+
 
 
 constraint:
@@ -3230,6 +3308,9 @@ constraint:
   lhs {VV#F36 : a_a16H | [$k__638[ds_d17u:=GHC.Prim.void##0l][lq_tmp_x_636:=lq_tmp_x_611][VV#637:=VV#F36][VV#F:=VV#F36]]}
   rhs {VV#F36 : a_a16H | [$k__613[VV#612:=VV#F36][VV#F:=VV#F36]]}
   id 36 tag [4]
+  // META constraint id 36 : take.hs:21:1-17
+  
+
 
 
 constraint:
@@ -3311,6 +3392,9 @@ constraint:
   lhs {VV#F52 : a_a16z | [$k__418[VV#424:=VV#933][lq_tmp_x_535:=VV#933][VV#417:=VV#F52][VV#F:=VV#F52]]}
   rhs {VV#F52 : a_a16z | [$k__244[ds_d17k:=n#a16e][lq_tmp_x_263:=n#a16e][VV#250:=VV#933][lq_tmp_x_265:=n#a16e][VV#243:=VV#F52][lq_tmp_x_528:=n#a16e][lq_tmp_x_523:=VV#933][VV#530:=VV#F52][VV#F:=VV#F52]]}
   id 52 tag [2]
+  // META constraint id 52 : take.hs:31:46-47
+  
+
 
 
 constraint:
@@ -3388,6 +3472,9 @@ constraint:
   lhs {VV#F68 : a_a16r | [$k__406[lq_tmp_x_404:=VV#978][VV#405:=VV#F68][VV#F:=VV#F68]]}
   rhs {VV#F68 : a_a16r | [$k__254[ds_d17k:=ds_d17k][ds_d17l:=ds_d17l][lq_tmp_x_263:=ds_d17k][lq_tmp_x_264:=ds_d17l][VV#253:=VV#F68][lq_tmp_x_265:=ds_d17k][lq_tmp_x_266:=ds_d17l][VV#260:=VV#978][VV:=VV#F68][VV#F:=VV#F68]]}
   id 68 tag [1]
+  // META constraint id 68 : take.hs:35:30-31
+  
+
 
 
 constraint:
@@ -3475,6 +3562,9 @@ constraint:
                             (len([VV#F84]) >= 0)]}
   rhs {VV#F84 : [a_a16r] | [$k__251[ds_d17k:=lq_anf__d17B][lq_tmp_x_263:=lq_anf__d17B][lq_tmp_x_265:=lq_anf__d17B][VV#250:=VV#F84][VV#1013:=VV#F84][VV#F:=VV#F84]]}
   id 84 tag [1]
+  // META constraint id 84 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -3558,6 +3648,9 @@ constraint:
   lhs {VV#F5 : a_a16P | []}
   rhs {VV#F5 : a_a16P | [$k__578[ds_d17r:=n##a167][lq_tmp_x_593:=n##a167][lq_tmp_x_576:=lq_tmp_x_797][lq_tmp_x_595:=n##a167][VV#577:=VV#F5][lq_tmp_x_803:=n##a167][VV#805:=VV#F5][VV#F:=VV#F5]]}
   id 5 tag [5]
+  // META constraint id 5 : take.hs:18:41-42
+  
+
 
 
 constraint:
@@ -3647,6 +3740,9 @@ constraint:
                             (len([VV#F21]) >= 0)]}
   rhs {VV#F21 : [a_a16H] | [$k__716[VV#715:=VV#F21][VV#855:=VV#F21][VV#F:=VV#F21]]}
   id 21 tag [4]
+  // META constraint id 21 : take.hs:22:63-64
+  
+
 
 
 constraint:
@@ -3730,6 +3826,9 @@ constraint:
   lhs {VV#F37 : GHC.Prim.Void# | [(VV#F37 = GHC.Prim.void##0l)]}
   rhs {VV#F37 : GHC.Prim.Void# | [$k__630[VV#629:=VV#F37][VV#890:=VV#F37][VV#F:=VV#F37]]}
   id 37 tag [4]
+  // META constraint id 37 : take.hs:21:1-17
+  
+
 
 
 constraint:
@@ -3812,6 +3911,9 @@ constraint:
   lhs {VV#F53 : a_a16z | [$k__422[lq_tmp_x_420:=lq_tmp_x_522][lq_tmp_x_534:=lq_tmp_x_522][VV#421:=VV#F53][VV#F:=VV#F53]]}
   rhs {VV#F53 : a_a16z | [$k__248[ds_d17k:=n#a16e][lq_tmp_x_263:=n#a16e][lq_tmp_x_246:=lq_tmp_x_522][lq_tmp_x_265:=n#a16e][VV#247:=VV#F53][lq_tmp_x_528:=n#a16e][VV#530:=VV#F53][VV#F:=VV#F53]]}
   id 53 tag [2]
+  // META constraint id 53 : take.hs:31:46-47
+  
+
 
 
 constraint:
@@ -3890,6 +3992,9 @@ constraint:
   lhs {VV#F69 : a_a16r | [$k__409[lq_tmp_x_411:=lq_tmp_x_256][VV#408:=VV#F69][lq_tmp_x_403:=lq_tmp_x_256][VV#405:=VV#F69][VV#F:=VV#F69]]}
   rhs {VV#F69 : a_a16r | [$k__258[ds_d17k:=ds_d17k][ds_d17l:=ds_d17l][lq_tmp_x_263:=ds_d17k][lq_tmp_x_264:=ds_d17l][VV#257:=VV#F69][lq_tmp_x_265:=ds_d17k][lq_tmp_x_266:=ds_d17l][VV:=VV#F69][VV#F:=VV#F69]]}
   id 69 tag [1]
+  // META constraint id 69 : take.hs:35:30-31
+  
+
 
 
 constraint:
@@ -3977,6 +4082,9 @@ constraint:
   lhs {VV#F85 : a_a16r | [$k__343[VV#349:=VV#1013][VV#342:=VV#F85][VV#F:=VV#F85]]}
   rhs {VV#F85 : a_a16r | [$k__376[lq_tmp_x_265:=lq_anf__d17B][VV#250:=VV#1013][VV#375:=VV#F85][VV#F:=VV#F85]]}
   id 85 tag [1]
+  // META constraint id 85 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -4058,6 +4166,9 @@ constraint:
   lhs {VV#F6 : int | [(VV#F6 = n##a167)]}
   rhs {VV#F6 : int | [$k__571[VV#570:=VV#F6][lq_tmp_x_796:=VV#F6][VV#824:=VV#F6][VV#F:=VV#F6]]}
   id 6 tag [5]
+  // META constraint id 6 : take.hs:18:38-39
+  
+
 
 
 constraint:
@@ -4147,6 +4258,9 @@ constraint:
                           $k__578[ds_d17r:=ds_d17r][lq_tmp_x_593:=ds_d17r][VV#577:=VV#F22][lq_tmp_x_595:=ds_d17r][lq_tmp_x_576:=x#a16a][lq_tmp_x_618:=x#a16a][lq_tmp_x_675:=x#a16a][lq_tmp_x_683:=x#a16a][lq_tmp_x_686:=VV#855][lq_tmp_x_746:=VV#855][VV:=VV#F22][VV#F:=VV#F22]]}
   rhs {VV#F22 : a_a16H | [$k__709[VV#715:=VV#855][VV#708:=VV#F22][VV#F:=VV#F22]]}
   id 22 tag [4]
+  // META constraint id 22 : take.hs:22:63-64
+  
+
 
 
 constraint:
@@ -4233,6 +4347,9 @@ constraint:
                             (len([VV#F38]) >= 0)]}
   rhs {VV#F38 : [a_a16H] | [$k__641[VV#640:=VV#F38][VV#893:=VV#F38][VV#F:=VV#F38]]}
   id 38 tag [4]
+  // META constraint id 38 : take.hs:23:31-49
+  
+
 
 
 constraint:
@@ -4314,6 +4431,9 @@ constraint:
                        (VV#F54 = n#a16e)]}
   rhs {VV#F54 : int | [$k__241[VV#240:=VV#F54][lq_tmp_x_521:=VV#F54][VV#939:=VV#F54][VV#F:=VV#F54]]}
   id 54 tag [2]
+  // META constraint id 54 : take.hs:31:44
+  
+
 
 
 constraint:
@@ -4391,6 +4511,9 @@ constraint:
                             (len([VV#F70]) >= 0)]}
   rhs {VV#F70 : [a_a16r] | [$k__261[ds_d17k:=ds_d17k][ds_d17l:=ds_d17l][lq_tmp_x_263:=ds_d17k][lq_tmp_x_264:=ds_d17l][lq_tmp_x_265:=ds_d17k][lq_tmp_x_266:=ds_d17l][VV#260:=VV#F70][VV#984:=VV#F70][VV#F:=VV#F70]]}
   id 70 tag [1]
+  // META constraint id 70 : take.hs:35:1-16
+  
+
 
 
 constraint:
@@ -4478,6 +4601,9 @@ constraint:
   lhs {VV#F86 : a_a16r | [$k__343[VV#349:=VV#1013][VV#342:=VV#F86][VV#F:=VV#F86]]}
   rhs {VV#F86 : a_a16r | [$k__244[ds_d17k:=lq_anf__d17B][lq_tmp_x_263:=lq_anf__d17B][VV#243:=VV#F86][lq_tmp_x_265:=lq_anf__d17B][VV#250:=VV#1013][VV#375:=VV#F86][VV#F:=VV#F86]]}
   id 86 tag [1]
+  // META constraint id 86 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -4560,6 +4686,9 @@ constraint:
                            (len([VV#F7]) >= 0)]}
   rhs {VV#F7 : [a_a16H] | [$k__591[ds_d17r:=ds_d17r][ds_d17s:=ds_d17s][lq_tmp_x_593:=ds_d17r][lq_tmp_x_594:=ds_d17s][lq_tmp_x_595:=ds_d17r][lq_tmp_x_596:=ds_d17s][VV#590:=VV#F7][VV#827:=VV#F7][VV#F:=VV#F7]]}
   id 7 tag [4]
+  // META constraint id 7 : take.hs:21:31-32
+  
+
 
 
 constraint:
@@ -4649,6 +4778,9 @@ constraint:
   lhs {VV#F23 : a_a16H | [$k__578[ds_d17r:=ds_d17r][lq_tmp_x_593:=ds_d17r][VV#577:=VV#F23][lq_tmp_x_595:=ds_d17r][lq_tmp_x_576:=lq_tmp_x_711][lq_tmp_x_618:=lq_tmp_x_711][lq_tmp_x_675:=lq_tmp_x_711][lq_tmp_x_683:=x#a16a][lq_tmp_x_685:=lq_tmp_x_711][lq_tmp_x_745:=lq_tmp_x_711][VV:=VV#F23][VV#F:=VV#F23]]}
   rhs {VV#F23 : a_a16H | [$k__713[VV#712:=VV#F23][VV#F:=VV#F23]]}
   id 23 tag [4]
+  // META constraint id 23 : take.hs:22:63-64
+  
+
 
 
 constraint:
@@ -4735,6 +4867,9 @@ constraint:
   lhs {VV#F39 : a_a16H | [$k__659[VV#665:=VV#893][lq_tmp_x_657:=lq_anf__d17L][lq_tmp_x_669:=VV#893][VV#658:=VV#F39][VV#F:=VV#F39]]}
   rhs {VV#F39 : a_a16H | [$k__634[VV#640:=VV#893][VV#633:=VV#F39][VV#F:=VV#F39]]}
   id 39 tag [4]
+  // META constraint id 39 : take.hs:23:31-49
+  
+
 
 
 constraint:
@@ -4816,6 +4951,9 @@ constraint:
                             (len([VV#F55]) >= 0)]}
   rhs {VV#F55 : [a_a16z] | [$k__436[VV#435:=VV#F55][VV#942:=VV#F55][VV#F:=VV#F55]]}
   id 55 tag [2]
+  // META constraint id 55 : <no location info>
+  
+
 
 
 constraint:
@@ -4893,6 +5031,9 @@ constraint:
   lhs {VV#F71 : a_a16r | [$k__279[ds_d17n:=GHC.Prim.void##0l][VV#285:=VV#984][VV#278:=VV#F71][VV#F:=VV#F71]]}
   rhs {VV#F71 : a_a16r | [$k__254[ds_d17k:=ds_d17k][ds_d17l:=ds_d17l][lq_tmp_x_263:=ds_d17k][lq_tmp_x_264:=ds_d17l][VV#253:=VV#F71][lq_tmp_x_265:=ds_d17k][lq_tmp_x_266:=ds_d17l][VV#260:=VV#984][VV:=VV#F71][VV#F:=VV#F71]]}
   id 71 tag [1]
+  // META constraint id 71 : take.hs:35:1-16
+  
+
 
 
 constraint:
@@ -4981,6 +5122,9 @@ constraint:
   lhs {VV#F87 : a_a16r | [$k__347[lq_tmp_x_345:=lq_tmp_x_246][VV#346:=VV#F87][VV#F:=VV#F87]]}
   rhs {VV#F87 : a_a16r | [$k__248[ds_d17k:=lq_anf__d17B][lq_tmp_x_263:=lq_anf__d17B][VV#247:=VV#F87][lq_tmp_x_265:=lq_anf__d17B][VV#375:=VV#F87][VV#F:=VV#F87]]}
   id 87 tag [1]
+  // META constraint id 87 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -5061,6 +5205,9 @@ constraint:
   lhs {VV#F8 : a_a16H | [$k__772[lq_tmp_x_770:=VV#827][VV#771:=VV#F8][VV#F:=VV#F8]]}
   rhs {VV#F8 : a_a16H | [$k__584[ds_d17r:=ds_d17r][ds_d17s:=ds_d17s][lq_tmp_x_593:=ds_d17r][lq_tmp_x_594:=ds_d17s][VV#583:=VV#F8][lq_tmp_x_595:=ds_d17r][lq_tmp_x_596:=ds_d17s][VV#590:=VV#827][VV:=VV#F8][VV#F:=VV#F8]]}
   id 8 tag [4]
+  // META constraint id 8 : take.hs:21:31-32
+  
+
 
 
 constraint:
@@ -5151,6 +5298,9 @@ constraint:
                             (len([VV#F24]) >= 0)]}
   rhs {VV#F24 : [a_a16H] | [$k__581[ds_d17r:=lq_anf__d17N][lq_tmp_x_593:=lq_anf__d17N][lq_tmp_x_595:=lq_anf__d17N][VV#580:=VV#F24][VV#862:=VV#F24][VV#F:=VV#F24]]}
   id 24 tag [4]
+  // META constraint id 24 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -5238,6 +5388,9 @@ constraint:
   lhs {VV#F40 : a_a16H | [$k__663[lq_tmp_x_661:=lq_tmp_x_636][lq_tmp_x_657:=lq_anf__d17L][lq_tmp_x_668:=lq_tmp_x_636][VV#662:=VV#F40][VV#F:=VV#F40]]}
   rhs {VV#F40 : a_a16H | [$k__638[VV#637:=VV#F40][VV#F:=VV#F40]]}
   id 40 tag [4]
+  // META constraint id 40 : take.hs:23:31-49
+  
+
 
 
 constraint:
@@ -5319,6 +5472,9 @@ constraint:
   lhs {VV#F56 : a_a16z | [$k__475[ds_d17p:=GHC.Prim.void##0l][VV#481:=VV#942][VV#474:=VV#F56][VV#F:=VV#F56]]}
   rhs {VV#F56 : a_a16z | [$k__429[VV#435:=VV#942][VV#428:=VV#F56][VV#F:=VV#F56]]}
   id 56 tag [2]
+  // META constraint id 56 : <no location info>
+  
+
 
 
 constraint:
@@ -5397,6 +5553,9 @@ constraint:
   lhs {VV#F72 : a_a16r | [$k__283[ds_d17n:=GHC.Prim.void##0l][lq_tmp_x_281:=lq_tmp_x_256][VV#282:=VV#F72][VV#F:=VV#F72]]}
   rhs {VV#F72 : a_a16r | [$k__258[ds_d17k:=ds_d17k][ds_d17l:=ds_d17l][lq_tmp_x_263:=ds_d17k][lq_tmp_x_264:=ds_d17l][VV#257:=VV#F72][lq_tmp_x_265:=ds_d17k][lq_tmp_x_266:=ds_d17l][VV:=VV#F72][VV#F:=VV#F72]]}
   id 72 tag [1]
+  // META constraint id 72 : take.hs:35:1-16
+  
+
 
 
 constraint:
@@ -5485,6 +5644,9 @@ constraint:
                             (len([VV#F88]) >= 0)]}
   rhs {VV#F88 : [a_a16r] | [$k__360[VV#359:=VV#F88][VV#1020:=VV#F88][VV#F:=VV#F88]]}
   id 88 tag [1]
+  // META constraint id 88 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -5566,6 +5728,9 @@ constraint:
   lhs {VV#F9 : a_a16H | [$k__775[lq_tmp_x_777:=lq_tmp_x_586][VV#774:=VV#F9][lq_tmp_x_769:=lq_tmp_x_586][VV#771:=VV#F9][VV#F:=VV#F9]]}
   rhs {VV#F9 : a_a16H | [$k__588[ds_d17r:=ds_d17r][ds_d17s:=ds_d17s][lq_tmp_x_593:=ds_d17r][lq_tmp_x_594:=ds_d17s][VV#587:=VV#F9][lq_tmp_x_595:=ds_d17r][lq_tmp_x_596:=ds_d17s][VV:=VV#F9][VV#F:=VV#F9]]}
   id 9 tag [4]
+  // META constraint id 9 : take.hs:21:31-32
+  
+
 
 
 constraint:
@@ -5656,6 +5821,9 @@ constraint:
   lhs {VV#F25 : a_a16H | [$k__709[VV#715:=VV#862][VV#708:=VV#F25][VV#F:=VV#F25]]}
   rhs {VV#F25 : a_a16H | [$k__742[lq_tmp_x_595:=lq_anf__d17N][VV#580:=VV#862][VV#741:=VV#F25][VV#F:=VV#F25]]}
   id 25 tag [4]
+  // META constraint id 25 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -5734,8 +5902,11 @@ constraint:
   grd true
   lhs {VV#F41 : [a_a174] | [$k__436[VV#435:=VV#F41][n#a16e:=n##a16c][xs#a16f:=xs#a16d][lq_tmp_x_561:=n##a16c][lq_tmp_x_562:=xs#a16d][lq_tmp_x_558:=VV#F41][VV#912:=VV#F41][VV#F:=VV#F41];
                             (len([VV#F41]) >= 0)]}
-  rhs {VV#F41 : [a_a174] | [(len([VV#F41]) = ((len([xs#a16d]) < ds_d17q) ? len([xs#a16d]) : ds_d17q))]}
+  rhs {VV#F41 : [a_a174] | [(len([VV#F41]) = (if (len([xs#a16d]) < ds_d17q) then len([xs#a16d]) else ds_d17q))]}
   id 41 tag [3]
+  // META constraint id 41 : take.hs:26:19-32
+  
+
 
 
 constraint:
@@ -5818,6 +5989,9 @@ constraint:
   lhs {VV#F57 : a_a16z | [$k__479[ds_d17p:=GHC.Prim.void##0l][lq_tmp_x_477:=lq_tmp_x_431][VV#478:=VV#F57][VV#F:=VV#F57]]}
   rhs {VV#F57 : a_a16z | [$k__433[VV#432:=VV#F57][VV#F:=VV#F57]]}
   id 57 tag [2]
+  // META constraint id 57 : <no location info>
+  
+
 
 
 constraint:
@@ -5894,6 +6068,9 @@ constraint:
   lhs {VV#F73 : GHC.Prim.Void# | [(VV#F73 = GHC.Prim.void##0l)]}
   rhs {VV#F73 : GHC.Prim.Void# | [$k__275[VV#274:=VV#F73][VV#990:=VV#F73][VV#F:=VV#F73]]}
   id 73 tag [1]
+  // META constraint id 73 : take.hs:35:1-16
+  
+
 
 
 constraint:
@@ -5983,6 +6160,9 @@ constraint:
                           $k__254[ds_d17k:=lq_anf__d17B][ds_d17l:=lq_tmp_x_341][lq_tmp_x_263:=lq_anf__d17B][lq_tmp_x_264:=lq_tmp_x_341][VV#253:=VV#F89][lq_tmp_x_265:=lq_anf__d17B][lq_tmp_x_266:=lq_tmp_x_341][VV#260:=VV#1020][VV#375:=VV#F89][VV#F:=VV#F89]]}
   rhs {VV#F89 : a_a16r | [$k__353[VV#359:=VV#1020][VV#352:=VV#F89][VV#F:=VV#F89]]}
   id 89 tag [1]
+  // META constraint id 89 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -6063,6 +6243,9 @@ constraint:
                             (len([VV#F10]) >= 0)]}
   rhs {VV#F10 : [a_a16H] | [$k__591[ds_d17r:=ds_d17r][ds_d17s:=ds_d17s][lq_tmp_x_593:=ds_d17r][lq_tmp_x_594:=ds_d17s][lq_tmp_x_595:=ds_d17r][lq_tmp_x_596:=ds_d17s][VV#590:=VV#F10][VV#833:=VV#F10][VV#F:=VV#F10]]}
   id 10 tag [4]
+  // META constraint id 10 : take.hs:21:1-17
+  
+
 
 
 constraint:
@@ -6153,6 +6336,9 @@ constraint:
   lhs {VV#F26 : a_a16H | [$k__709[VV#715:=VV#862][VV#708:=VV#F26][VV#F:=VV#F26]]}
   rhs {VV#F26 : a_a16H | [$k__574[ds_d17r:=lq_anf__d17N][lq_tmp_x_593:=lq_anf__d17N][VV#573:=VV#F26][lq_tmp_x_595:=lq_anf__d17N][VV#580:=VV#862][VV#741:=VV#F26][VV#F:=VV#F26]]}
   id 26 tag [4]
+  // META constraint id 26 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -6234,6 +6420,9 @@ constraint:
                             (len([VV#F42]) >= 0)]}
   rhs {VV#F42 : [a_a174] | [$k__425[VV#424:=VV#F42][n#a16e:=n##a16c][lq_tmp_x_561:=n##a16c][lq_tmp_x_556:=VV#F42][VV#918:=VV#F42][VV#F:=VV#F42]]}
   id 42 tag [3]
+  // META constraint id 42 : take.hs:26:31-32
+  
+
 
 
 constraint:
@@ -6314,6 +6503,9 @@ constraint:
   lhs {VV#F58 : GHC.Prim.Void# | [(VV#F58 = GHC.Prim.void##0l)]}
   rhs {VV#F58 : GHC.Prim.Void# | [$k__471[VV#470:=VV#F58][VV#948:=VV#F58][VV#F:=VV#F58]]}
   id 58 tag [2]
+  // META constraint id 58 : <no location info>
+  
+
 
 
 constraint:
@@ -6404,6 +6596,9 @@ constraint:
                             (len([VV#F74]) >= 0)]}
   rhs {VV#F74 : [a_a16r] | [$k__286[VV#285:=VV#F74][VV#993:=VV#F74][VV#F:=VV#F74]]}
   id 74 tag [1]
+  // META constraint id 74 : take.hs:39:15-47
+  
+
 
 
 constraint:
@@ -6493,6 +6688,9 @@ constraint:
   lhs {VV#F90 : a_a16r | [$k__258[ds_d17k:=lq_anf__d17B][ds_d17l:=lq_tmp_x_341][lq_tmp_x_263:=lq_anf__d17B][lq_tmp_x_264:=lq_tmp_x_341][VV#257:=VV#F90][lq_tmp_x_265:=lq_anf__d17B][lq_tmp_x_266:=lq_tmp_x_341][lq_tmp_x_256:=lq_tmp_x_355][VV#375:=VV#F90][VV#F:=VV#F90]]}
   rhs {VV#F90 : a_a16r | [$k__357[VV#356:=VV#F90][VV#F:=VV#F90]]}
   id 90 tag [1]
+  // META constraint id 90 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -6573,6 +6771,9 @@ constraint:
   lhs {VV#F11 : a_a16H | [$k__609[ds_d17w:=GHC.Prim.void##0l][VV#615:=VV#833][VV#608:=VV#F11][VV#F:=VV#F11]]}
   rhs {VV#F11 : a_a16H | [$k__584[ds_d17r:=ds_d17r][ds_d17s:=ds_d17s][lq_tmp_x_593:=ds_d17r][lq_tmp_x_594:=ds_d17s][VV#583:=VV#F11][lq_tmp_x_595:=ds_d17r][lq_tmp_x_596:=ds_d17s][VV#590:=VV#833][VV:=VV#F11][VV#F:=VV#F11]]}
   id 11 tag [4]
+  // META constraint id 11 : take.hs:21:1-17
+  
+
 
 
 constraint:
@@ -6664,6 +6865,9 @@ constraint:
   lhs {VV#F27 : a_a16H | [$k__713[lq_tmp_x_711:=lq_tmp_x_576][VV#712:=VV#F27][VV#F:=VV#F27]]}
   rhs {VV#F27 : a_a16H | [$k__578[ds_d17r:=lq_anf__d17N][lq_tmp_x_593:=lq_anf__d17N][VV#577:=VV#F27][lq_tmp_x_595:=lq_anf__d17N][VV#741:=VV#F27][VV#F:=VV#F27]]}
   id 27 tag [4]
+  // META constraint id 27 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -6744,6 +6948,9 @@ constraint:
   lhs {VV#F43 : a_a174 | []}
   rhs {VV#F43 : a_a174 | [$k__564[lq_tmp_x_561:=n##a16c][lq_tmp_x_556:=VV#918][VV#563:=VV#F43][VV#F:=VV#F43]]}
   id 43 tag [3]
+  // META constraint id 43 : take.hs:26:31-32
+  
+
 
 
 constraint:
@@ -6827,6 +7034,9 @@ constraint:
                             (len([VV#F59]) >= 0)]}
   rhs {VV#F59 : [a_a16z] | [$k__482[VV#481:=VV#F59][VV#951:=VV#F59][VV#F:=VV#F59]]}
   id 59 tag [2]
+  // META constraint id 59 : take.hs:32:27-47
+  
+
 
 
 constraint:
@@ -6913,6 +7123,9 @@ constraint:
   lhs {VV#F75 : a_a16r | [$k__391[lq_tmp_x_388:=x#a16i][lq_tmp_x_389:=lq_anf__d17C][lq_tmp_x_385:=VV#993][VV#390:=VV#F75][VV#F:=VV#F75]]}
   rhs {VV#F75 : a_a16r | [$k__279[VV#285:=VV#993][VV#278:=VV#F75][VV#F:=VV#F75]]}
   id 75 tag [1]
+  // META constraint id 75 : take.hs:39:15-47
+  
+
 
 
 constraint:
@@ -7001,6 +7214,9 @@ constraint:
                        (VV#F91 = lq_anf__d17B)]}
   rhs {VV#F91 : int | [$k__241[VV#240:=VV#F91][VV#1026:=VV#F91][VV#F:=VV#F91]]}
   id 91 tag [1]
+  // META constraint id 91 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -7082,6 +7298,9 @@ constraint:
   lhs {VV#F12 : a_a16H | [$k__613[ds_d17w:=GHC.Prim.void##0l][lq_tmp_x_611:=lq_tmp_x_586][VV#612:=VV#F12][VV#F:=VV#F12]]}
   rhs {VV#F12 : a_a16H | [$k__588[ds_d17r:=ds_d17r][ds_d17s:=ds_d17s][lq_tmp_x_593:=ds_d17r][lq_tmp_x_594:=ds_d17s][VV#587:=VV#F12][lq_tmp_x_595:=ds_d17r][lq_tmp_x_596:=ds_d17s][VV:=VV#F12][VV#F:=VV#F12]]}
   id 12 tag [4]
+  // META constraint id 12 : take.hs:21:1-17
+  
+
 
 
 constraint:
@@ -7173,6 +7392,9 @@ constraint:
                             (len([VV#F28]) >= 0)]}
   rhs {VV#F28 : [a_a16H] | [$k__726[VV#725:=VV#F28][VV#869:=VV#F28][VV#F:=VV#F28]]}
   id 28 tag [4]
+  // META constraint id 28 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -7253,6 +7475,9 @@ constraint:
   lhs {VV#F44 : a_a174 | []}
   rhs {VV#F44 : a_a174 | [$k__418[VV#424:=VV#918][n#a16e:=n##a16c][VV#417:=VV#F44][lq_tmp_x_561:=n##a16c][lq_tmp_x_556:=VV#918][VV#563:=VV#F44][VV#F:=VV#F44]]}
   id 44 tag [3]
+  // META constraint id 44 : take.hs:26:31-32
+  
+
 
 
 constraint:
@@ -7336,6 +7561,9 @@ constraint:
   lhs {VV#F60 : a_a16z | [$k__501[VV#507:=VV#951][lq_tmp_x_498:=GHC.Types.False#68][lq_tmp_x_499:=lq_anf__d17H][lq_tmp_x_511:=VV#951][VV#500:=VV#F60][VV#F:=VV#F60]]}
   rhs {VV#F60 : a_a16z | [$k__475[VV#481:=VV#951][VV#474:=VV#F60][VV#F:=VV#F60]]}
   id 60 tag [2]
+  // META constraint id 60 : take.hs:32:27-47
+  
+
 
 
 constraint:
@@ -7423,6 +7651,9 @@ constraint:
   lhs {VV#F76 : a_a16r | [$k__394[lq_tmp_x_396:=lq_tmp_x_281][VV#393:=VV#F76][lq_tmp_x_388:=x#a16i][lq_tmp_x_389:=lq_anf__d17C][lq_tmp_x_384:=lq_tmp_x_281][VV#390:=VV#F76][VV#F:=VV#F76]]}
   rhs {VV#F76 : a_a16r | [$k__283[VV#282:=VV#F76][VV#F:=VV#F76]]}
   id 76 tag [1]
+  // META constraint id 76 : take.hs:39:15-47
+  
+
 
 
 constraint:
@@ -7511,6 +7742,9 @@ constraint:
                        (VV#F92 = lq_anf__d17B)]}
   rhs {VV#F92 : int | [(VV#F92 < ds_d17k)]}
   id 92 tag [1]
+  // META constraint id 92 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -7590,6 +7824,9 @@ constraint:
   lhs {VV#F13 : GHC.Prim.Void# | [(VV#F13 = GHC.Prim.void##0l)]}
   rhs {VV#F13 : GHC.Prim.Void# | [$k__605[VV#604:=VV#F13][VV#839:=VV#F13][VV#F:=VV#F13]]}
   id 13 tag [4]
+  // META constraint id 13 : take.hs:21:1-17
+  
+
 
 
 constraint:
@@ -7682,6 +7919,9 @@ constraint:
                           $k__584[ds_d17r:=lq_anf__d17N][ds_d17s:=lq_tmp_x_707][lq_tmp_x_593:=lq_anf__d17N][lq_tmp_x_594:=lq_tmp_x_707][VV#583:=VV#F29][lq_tmp_x_595:=lq_anf__d17N][lq_tmp_x_596:=lq_tmp_x_707][VV#590:=VV#869][VV#741:=VV#F29][VV#F:=VV#F29]]}
   rhs {VV#F29 : a_a16H | [$k__719[VV#725:=VV#869][VV#718:=VV#F29][VV#F:=VV#F29]]}
   id 29 tag [4]
+  // META constraint id 29 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -7763,6 +8003,9 @@ constraint:
   lhs {VV#F45 : a_a174 | []}
   rhs {VV#F45 : a_a174 | [$k__422[lq_tmp_x_420:=lq_tmp_x_555][n#a16e:=n##a16c][VV#421:=VV#F45][lq_tmp_x_561:=n##a16c][VV#563:=VV#F45][VV#F:=VV#F45]]}
   id 45 tag [3]
+  // META constraint id 45 : take.hs:26:31-32
+  
+
 
 
 constraint:
@@ -7847,6 +8090,9 @@ constraint:
   lhs {VV#F61 : a_a16z | [$k__505[lq_tmp_x_503:=lq_tmp_x_477][lq_tmp_x_498:=GHC.Types.False#68][lq_tmp_x_499:=lq_anf__d17H][lq_tmp_x_510:=lq_tmp_x_477][VV#504:=VV#F61][VV#F:=VV#F61]]}
   rhs {VV#F61 : a_a16z | [$k__479[VV#478:=VV#F61][VV#F:=VV#F61]]}
   id 61 tag [2]
+  // META constraint id 61 : take.hs:32:27-47
+  
+
 
 
 constraint:
@@ -7933,6 +8179,9 @@ constraint:
   lhs {VV#F77 : a_a16r | [$k__353[lq_tmp_x_341:=xs#a16j][VV#359:=VV#999][lq_tmp_x_399:=VV#999][VV#352:=VV#F77][VV#F:=VV#F77]]}
   rhs {VV#F77 : a_a16r | [$k__391[lq_tmp_x_388:=x#a16i][lq_tmp_x_383:=VV#999][VV#390:=VV#F77][VV#F:=VV#F77]]}
   id 77 tag [1]
+  // META constraint id 77 : take.hs:39:19-47
+  
+
 
 
 constraint:
@@ -8021,6 +8270,9 @@ constraint:
                        (VV#F93 = lq_anf__d17B)]}
   rhs {VV#F93 : int | [(VV#F93 >= 0)]}
   id 93 tag [1]
+  // META constraint id 93 : take.hs:39:19-44
+  
+
 
 
 constraint:
@@ -8114,6 +8366,9 @@ constraint:
                             (len([VV#F14]) >= 0)]}
   rhs {VV#F14 : [a_a16H] | [$k__616[VV#615:=VV#F14][VV#842:=VV#F14][VV#F:=VV#F14]]}
   id 14 tag [4]
+  // META constraint id 14 : take.hs:22:31-64
+  
+
 
 
 constraint:
@@ -8206,6 +8461,9 @@ constraint:
   lhs {VV#F30 : a_a16H | [$k__588[ds_d17r:=lq_anf__d17N][ds_d17s:=lq_tmp_x_707][lq_tmp_x_593:=lq_anf__d17N][lq_tmp_x_594:=lq_tmp_x_707][VV#587:=VV#F30][lq_tmp_x_595:=lq_anf__d17N][lq_tmp_x_596:=lq_tmp_x_707][lq_tmp_x_586:=lq_tmp_x_721][VV#741:=VV#F30][VV#F:=VV#F30]]}
   rhs {VV#F30 : a_a16H | [$k__723[VV#722:=VV#F30][VV#F:=VV#F30]]}
   id 30 tag [4]
+  // META constraint id 30 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -8285,6 +8543,9 @@ constraint:
   lhs {VV#F46 : int | [(VV#F46 = n##a16c)]}
   rhs {VV#F46 : int | [$k__414[VV#413:=VV#F46][lq_tmp_x_554:=VV#F46][VV#924:=VV#F46][VV#F:=VV#F46]]}
   id 46 tag [3]
+  // META constraint id 46 : take.hs:26:28-29
+  
+
 
 
 constraint:
@@ -8372,6 +8633,9 @@ constraint:
                             (len([VV#F62]) >= 0)]}
   rhs {VV#F62 : [a_a16z] | [$k__508[VV#507:=VV#F62][lq_tmp_x_498:=GHC.Types.False#68][lq_tmp_x_511:=VV#F62][VV#957:=VV#F62][VV#F:=VV#F62]]}
   id 62 tag [2]
+  // META constraint id 62 : take.hs:32:46-47
+  
+
 
 
 constraint:
@@ -8458,6 +8722,9 @@ constraint:
   lhs {VV#F78 : a_a16r | [$k__353[lq_tmp_x_341:=xs#a16j][VV#359:=VV#999][lq_tmp_x_399:=VV#999][VV#352:=VV#F78][VV#F:=VV#F78]]}
   rhs {VV#F78 : a_a16r | [$k__394[lq_tmp_x_396:=x#a16i][VV#393:=VV#F78][lq_tmp_x_388:=x#a16i][lq_tmp_x_383:=VV#999][VV#390:=VV#F78][VV#F:=VV#F78]]}
   id 78 tag [1]
+  // META constraint id 78 : take.hs:39:19-47
+  
+
 
 
 constraint:
@@ -8541,6 +8808,9 @@ constraint:
                             (len([VV#F94]) >= 0)]}
   rhs {VV#F94 : [a_a16r] | [$k__286[VV#285:=VV#F94][VV#1035:=VV#F94][VV#F:=VV#F94]]}
   id 94 tag [1]
+  // META constraint id 94 : take.hs:38:15-16
+  
+
 
 
 constraint:
@@ -8630,6 +8900,9 @@ constraint:
   lhs {VV#F15 : a_a16H | [$k__757[lq_tmp_x_754:=x#a16a][lq_tmp_x_755:=lq_anf__d17O][lq_tmp_x_751:=VV#842][VV#756:=VV#F15][VV#F:=VV#F15]]}
   rhs {VV#F15 : a_a16H | [$k__609[VV#615:=VV#842][VV#608:=VV#F15][VV#F:=VV#F15]]}
   id 15 tag [4]
+  // META constraint id 15 : take.hs:22:31-64
+  
+
 
 
 constraint:
@@ -8721,6 +8994,9 @@ constraint:
                        (VV#F31 = lq_anf__d17N)]}
   rhs {VV#F31 : int | [$k__571[VV#570:=VV#F31][VV#875:=VV#F31][VV#F:=VV#F31]]}
   id 31 tag [4]
+  // META constraint id 31 : take.hs:22:35-61
+  
+
 
 
 constraint:
@@ -8802,6 +9078,9 @@ constraint:
                             (len([VV#F47]) >= 0)]}
   rhs {VV#F47 : [a_a16z] | [$k__436[VV#435:=VV#F47][VV#927:=VV#F47][VV#F:=VV#F47]]}
   id 47 tag [2]
+  // META constraint id 47 : take.hs:31:27-47
+  
+
 
 
 constraint:
@@ -8885,6 +9164,9 @@ constraint:
   lhs {VV#F63 : a_a16z | [$k__487[lq_tmp_x_485:=VV#957][lq_tmp_x_514:=VV#957][VV#486:=VV#F63][VV#F:=VV#F63]]}
   rhs {VV#F63 : a_a16z | [$k__501[VV#507:=VV#957][lq_tmp_x_498:=GHC.Types.False#68][lq_tmp_x_511:=VV#957][VV#500:=VV#F63][VV#F:=VV#F63]]}
   id 63 tag [2]
+  // META constraint id 63 : take.hs:32:46-47
+  
+
 
 
 constraint:
@@ -8972,6 +9254,9 @@ constraint:
   lhs {VV#F79 : a_a16r | [$k__357[lq_tmp_x_341:=xs#a16j][lq_tmp_x_355:=lq_tmp_x_382][lq_tmp_x_398:=lq_tmp_x_382][VV#356:=VV#F79][VV#F:=VV#F79]]}
   rhs {VV#F79 : a_a16r | [$k__394[lq_tmp_x_396:=lq_tmp_x_382][VV#393:=VV#F79][lq_tmp_x_388:=x#a16i][VV#390:=VV#F79][VV#F:=VV#F79]]}
   id 79 tag [1]
+  // META constraint id 79 : take.hs:39:19-47
+  
+
 
 
 constraint:
@@ -9053,6 +9338,9 @@ constraint:
   lhs {VV#F95 : a_a16r | [$k__302[lq_tmp_x_300:=VV#1035][VV#301:=VV#F95][VV#F:=VV#F95]]}
   rhs {VV#F95 : a_a16r | [$k__279[VV#285:=VV#1035][VV#278:=VV#F95][VV#F:=VV#F95]]}
   id 95 tag [1]
+  // META constraint id 95 : take.hs:38:15-16
+  
+
 
 
 wf:
@@ -9131,6 +9419,9 @@ wf:
        63]
   reft {VV#805 : a_a16P | [$k__806]}
   
+  // META wf  : take.hs:18:20-36
+  
+
 
 
 wf:
@@ -9208,6 +9499,9 @@ wf:
        111]
   reft {VV#774 : a_a16H | [$k__775]}
   
+  // META wf  : take.hs:21:31-32
+  
+
 
 
 wf:
@@ -9284,6 +9578,9 @@ wf:
        111]
   reft {VV#771 : a_a16H | [$k__772]}
   
+  // META wf  : take.hs:21:31-32
+  
+
 
 
 wf:
@@ -9360,6 +9657,9 @@ wf:
        111]
   reft {VV#604 : GHC.Prim.Void# | [$k__605]}
   
+  // META wf  : take.hs:21:1-17
+  
+
 
 
 wf:
@@ -9446,6 +9746,9 @@ wf:
        127]
   reft {VV#759 : a_a16H | [$k__760]}
   
+  // META wf  : take.hs:22:33
+  
+
 
 
 wf:
@@ -9531,6 +9834,9 @@ wf:
        127]
   reft {VV#756 : a_a16H | [$k__757]}
   
+  // META wf  : take.hs:22:33
+  
+
 
 
 wf:
@@ -9617,6 +9923,9 @@ wf:
        111]
   reft {VV#741 : a_a16H | [$k__742]}
   
+  // META wf  : take.hs:22:35-51
+  
+
 
 
 wf:
@@ -9701,6 +10010,9 @@ wf:
        111]
   reft {VV#715 : [a_a16H] | [$k__716]}
   
+  // META wf  : take.hs:22:35-61
+  
+
 
 
 wf:
@@ -9786,6 +10098,9 @@ wf:
        111]
   reft {VV#708 : a_a16H | [$k__709]}
   
+  // META wf  : take.hs:22:35-61
+  
+
 
 
 wf:
@@ -9871,6 +10186,9 @@ wf:
        111]
   reft {VV#712 : a_a16H | [$k__713]}
   
+  // META wf  : take.hs:22:35-61
+  
+
 
 
 wf:
@@ -9956,6 +10274,9 @@ wf:
        111]
   reft {VV#725 : [a_a16H] | [$k__726]}
   
+  // META wf  : take.hs:22:35-61
+  
+
 
 
 wf:
@@ -10042,6 +10363,9 @@ wf:
        111]
   reft {VV#718 : a_a16H | [$k__719]}
   
+  // META wf  : take.hs:22:35-61
+  
+
 
 
 wf:
@@ -10128,6 +10452,9 @@ wf:
        111]
   reft {VV#722 : a_a16H | [$k__723]}
   
+  // META wf  : take.hs:22:35-61
+  
+
 
 
 wf:
@@ -10208,6 +10535,9 @@ wf:
        111]
   reft {VV#629 : GHC.Prim.Void# | [$k__630]}
   
+  // META wf  : take.hs:21:1-17
+  
+
 
 
 wf:
@@ -10290,6 +10620,9 @@ wf:
        111]
   reft {VV#665 : [a_a16H] | [$k__666]}
   
+  // META wf  : take.hs:23:31-35
+  
+
 
 
 wf:
@@ -10373,6 +10706,9 @@ wf:
        111]
   reft {VV#658 : a_a16H | [$k__659]}
   
+  // META wf  : take.hs:23:31-35
+  
+
 
 
 wf:
@@ -10456,6 +10792,9 @@ wf:
        111]
   reft {VV#662 : a_a16H | [$k__663]}
   
+  // META wf  : take.hs:23:31-35
+  
+
 
 
 wf:
@@ -10537,6 +10876,9 @@ wf:
        111]
   reft {VV#640 : [a_a16H] | [$k__641]}
   
+  // META wf  : take.hs:21:1-17
+  
+
 
 
 wf:
@@ -10619,6 +10961,9 @@ wf:
        111]
   reft {VV#633 : a_a16H | [$k__634]}
   
+  // META wf  : take.hs:21:1-17
+  
+
 
 
 wf:
@@ -10701,6 +11046,9 @@ wf:
        111]
   reft {VV#637 : a_a16H | [$k__638]}
   
+  // META wf  : take.hs:21:1-17
+  
+
 
 
 wf:
@@ -10778,6 +11126,9 @@ wf:
        111]
   reft {VV#615 : [a_a16H] | [$k__616]}
   
+  // META wf  : take.hs:21:1-17
+  
+
 
 
 wf:
@@ -10856,6 +11207,9 @@ wf:
        111]
   reft {VV#608 : a_a16H | [$k__609]}
   
+  // META wf  : take.hs:21:1-17
+  
+
 
 
 wf:
@@ -10934,6 +11288,9 @@ wf:
        111]
   reft {VV#612 : a_a16H | [$k__613]}
   
+  // META wf  : take.hs:21:1-17
+  
+
 
 
 wf:
@@ -11005,6 +11362,9 @@ wf:
        63]
   reft {VV#570 : int | [$k__571]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11077,6 +11437,9 @@ wf:
        63]
   reft {VV#580 : [a_a16H] | [$k__581]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11150,6 +11513,9 @@ wf:
        63]
   reft {VV#573 : a_a16H | [$k__574]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11223,6 +11589,9 @@ wf:
        335]
   reft {VV#577 : a_a16H | [$k__578]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11296,6 +11665,9 @@ wf:
        63]
   reft {VV#590 : [a_a16H] | [$k__591]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11370,6 +11742,9 @@ wf:
        63]
   reft {VV#583 : a_a16H | [$k__584]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11444,6 +11819,9 @@ wf:
        63]
   reft {VV#587 : a_a16H | [$k__588]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11520,6 +11898,9 @@ wf:
        63]
   reft {VV#563 : a_a174 | [$k__564]}
   
+  // META wf  : take.hs:26:19-26
+  
+
 
 
 wf:
@@ -11589,6 +11970,9 @@ wf:
        63]
   reft {VV#413 : int | [$k__414]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11659,6 +12043,9 @@ wf:
        63]
   reft {VV#424 : [a_a16z] | [$k__425]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11730,6 +12117,9 @@ wf:
        63]
   reft {VV#417 : a_a16z | [$k__418]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11801,6 +12191,9 @@ wf:
        63]
   reft {VV#421 : a_a16z | [$k__422]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -11878,6 +12271,9 @@ wf:
        63]
   reft {VV#530 : a_a16z | [$k__531]}
   
+  // META wf  : take.hs:31:27-42
+  
+
 
 
 wf:
@@ -11955,6 +12351,9 @@ wf:
        63]
   reft {VV#470 : GHC.Prim.Void# | [$k__471]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12034,6 +12433,9 @@ wf:
        95]
   reft {VV#507 : [a_a16z] | [$k__508]}
   
+  // META wf  : take.hs:32:27-38
+  
+
 
 
 wf:
@@ -12114,6 +12516,9 @@ wf:
        95]
   reft {VV#500 : a_a16z | [$k__501]}
   
+  // META wf  : take.hs:32:27-38
+  
+
 
 
 wf:
@@ -12194,6 +12599,9 @@ wf:
        95]
   reft {VV#504 : a_a16z | [$k__505]}
   
+  // META wf  : take.hs:32:27-38
+  
+
 
 
 wf:
@@ -12273,6 +12681,9 @@ wf:
        95]
   reft {VV#489 : a_a16z | [$k__490]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12351,6 +12762,9 @@ wf:
        95]
   reft {VV#486 : a_a16z | [$k__487]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12429,6 +12843,9 @@ wf:
        95]
   reft {VV#481 : [a_a16z] | [$k__482]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12508,6 +12925,9 @@ wf:
        95]
   reft {VV#474 : a_a16z | [$k__475]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12587,6 +13007,9 @@ wf:
        95]
   reft {VV#478 : a_a16z | [$k__479]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12660,6 +13083,9 @@ wf:
        63]
   reft {VV#450 : GHC.Types.Bool | [$k__451]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12731,6 +13157,9 @@ wf:
        63]
   reft {VV#435 : [a_a16z] | [$k__436]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12803,6 +13232,9 @@ wf:
        63]
   reft {VV#428 : a_a16z | [$k__429]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12875,6 +13307,9 @@ wf:
        63]
   reft {VV#432 : a_a16z | [$k__433]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -12949,6 +13384,9 @@ wf:
        63]
   reft {VV#408 : a_a16r | [$k__409]}
   
+  // META wf  : take.hs:35:30-31
+  
+
 
 
 wf:
@@ -13022,6 +13460,9 @@ wf:
        63]
   reft {VV#405 : a_a16r | [$k__406]}
   
+  // META wf  : take.hs:35:30-31
+  
+
 
 
 wf:
@@ -13095,6 +13536,9 @@ wf:
        63]
   reft {VV#274 : GHC.Prim.Void# | [$k__275]}
   
+  // META wf  : take.hs:35:1-16
+  
+
 
 
 wf:
@@ -13178,6 +13622,9 @@ wf:
        63]
   reft {VV#393 : a_a16r | [$k__394]}
   
+  // META wf  : take.hs:39:17
+  
+
 
 
 wf:
@@ -13260,6 +13707,9 @@ wf:
        63]
   reft {VV#390 : a_a16r | [$k__391]}
   
+  // META wf  : take.hs:39:17
+  
+
 
 
 wf:
@@ -13343,6 +13793,9 @@ wf:
        79]
   reft {VV#375 : a_a16r | [$k__376]}
   
+  // META wf  : take.hs:39:19-34
+  
+
 
 
 wf:
@@ -13424,6 +13877,9 @@ wf:
        63]
   reft {VV#349 : [a_a16r] | [$k__350]}
   
+  // META wf  : take.hs:39:19-44
+  
+
 
 
 wf:
@@ -13506,6 +13962,9 @@ wf:
        351]
   reft {VV#342 : a_a16r | [$k__343]}
   
+  // META wf  : take.hs:39:19-44
+  
+
 
 
 wf:
@@ -13588,6 +14047,9 @@ wf:
        63]
   reft {VV#346 : a_a16r | [$k__347]}
   
+  // META wf  : take.hs:39:19-44
+  
+
 
 
 wf:
@@ -13670,6 +14132,9 @@ wf:
        63]
   reft {VV#359 : [a_a16r] | [$k__360]}
   
+  // META wf  : take.hs:39:19-44
+  
+
 
 
 wf:
@@ -13753,6 +14218,9 @@ wf:
        63]
   reft {VV#352 : a_a16r | [$k__353]}
   
+  // META wf  : take.hs:39:19-44
+  
+
 
 
 wf:
@@ -13836,6 +14304,9 @@ wf:
        63]
   reft {VV#356 : a_a16r | [$k__357]}
   
+  // META wf  : take.hs:39:19-44
+  
+
 
 
 wf:
@@ -13914,6 +14385,9 @@ wf:
        63]
   reft {VV#304 : a_a16r | [$k__305]}
   
+  // META wf  : take.hs:38:15-16
+  
+
 
 
 wf:
@@ -13991,6 +14465,9 @@ wf:
        63]
   reft {VV#301 : a_a16r | [$k__302]}
   
+  // META wf  : take.hs:38:15-16
+  
+
 
 
 wf:
@@ -14065,6 +14542,9 @@ wf:
        63]
   reft {VV#285 : [a_a16r] | [$k__286]}
   
+  // META wf  : take.hs:(37,3)-(39,47)
+  
+
 
 
 wf:
@@ -14140,6 +14620,9 @@ wf:
        63]
   reft {VV#278 : a_a16r | [$k__279]}
   
+  // META wf  : take.hs:(37,3)-(39,47)
+  
+
 
 
 wf:
@@ -14215,6 +14698,9 @@ wf:
        63]
   reft {VV#282 : a_a16r | [$k__283]}
   
+  // META wf  : take.hs:(37,3)-(39,47)
+  
+
 
 
 wf:
@@ -14283,6 +14769,9 @@ wf:
        47]
   reft {VV#240 : int | [$k__241]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -14352,6 +14841,9 @@ wf:
        47]
   reft {VV#250 : [a_a16r] | [$k__251]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -14422,6 +14914,9 @@ wf:
        47]
   reft {VV#243 : a_a16r | [$k__244]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -14492,6 +14987,9 @@ wf:
        47]
   reft {VV#247 : a_a16r | [$k__248]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -14562,6 +15060,9 @@ wf:
        47]
   reft {VV#260 : [a_a16r] | [$k__261]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -14633,6 +15134,9 @@ wf:
        47]
   reft {VV#253 : a_a16r | [$k__254]}
   
+  // META wf  : <no location info>
+  
+
 
 
 wf:
@@ -14704,3 +15208,1100 @@ wf:
        47]
   reft {VV#257 : a_a16r | [$k__258]}
   
+  // META wf  : <no location info>
+  
+
+// META bind 0 : <no location info>
+
+
+// META bind 256 : take.hs:32:46-47
+
+
+// META bind 16 : <no location info>
+
+
+// META bind 272 : take.hs:35:30-31
+
+
+// META bind 32 : <no location info>
+
+
+// META bind 288 : take.hs:39:19-47
+
+
+// META bind 48 : <no location info>
+
+
+// META bind 304 : take.hs:39:19-44
+
+
+// META bind 64 : take.hs:35:1-16
+
+
+// META bind 320 : take.hs:22:35-61
+
+
+// META bind 80 : take.hs:39:19-44
+
+
+// META bind 336 : <no location info>
+
+
+// META bind 96 : <no location info>
+
+
+// META bind 352 : take.hs:39:19-44
+
+
+// META bind 112 : take.hs:21:1-17
+
+
+// META bind 128 : take.hs:22:33
+
+
+// META bind 144 : take.hs:18:41-42
+
+
+// META bind 160 : take.hs:21:1-17
+
+
+// META bind 176 : take.hs:22:63-64
+
+
+// META bind 192 : take.hs:22:59-60
+
+
+// META bind 208 : take.hs:23:37-49
+
+
+// META bind 224 : take.hs:26:31-32
+
+
+// META bind 240 : take.hs:31:44
+
+
+// META bind 1 : <no location info>
+
+
+// META bind 257 : take.hs:32:46-47
+
+
+// META bind 17 : <no location info>
+
+
+// META bind 273 : take.hs:35:1-16
+
+
+// META bind 33 : <no location info>
+
+
+// META bind 289 : take.hs:39:19-47
+
+
+// META bind 49 : <no location info>
+
+
+// META bind 305 : take.hs:39:19-44
+
+
+// META bind 65 : take.hs:35:1-16
+
+
+// META bind 321 : take.hs:22:35-61
+
+
+// META bind 81 : take.hs:(37,3)-(39,47)
+
+
+// META bind 337 : <no location info>
+
+
+// META bind 97 : <no location info>
+
+
+// META bind 353 : take.hs:39:19-44
+
+
+// META bind 113 : take.hs:21:1-17
+
+
+// META bind 129 : take.hs:21:1-17
+
+
+// META bind 145 : take.hs:18:41-42
+
+
+// META bind 161 : take.hs:21:1-17
+
+
+// META bind 177 : take.hs:22:63-64
+
+
+// META bind 193 : take.hs:22:59-60
+
+
+// META bind 209 : take.hs:23:37-49
+
+
+// META bind 225 : take.hs:26:31-32
+
+
+// META bind 241 : <no location info>
+
+
+// META bind 2 : <no location info>
+
+
+// META bind 258 : take.hs:32:40-44
+
+
+// META bind 18 : <no location info>
+
+
+// META bind 274 : take.hs:35:1-16
+
+
+// META bind 34 : <no location info>
+
+
+// META bind 290 : take.hs:39:15
+
+
+// META bind 50 : <no location info>
+
+
+// META bind 306 : take.hs:39:19-44
+
+
+// META bind 66 : take.hs:35:1-16
+
+
+// META bind 322 : take.hs:22:35-61
+
+
+// META bind 82 : take.hs:39:17
+
+
+// META bind 338 : <no location info>
+
+
+// META bind 98 : <no location info>
+
+
+// META bind 354 : take.hs:39:19-44
+
+
+// META bind 114 : take.hs:21:1-17
+
+
+// META bind 130 : take.hs:21:31-32
+
+
+// META bind 146 : take.hs:18:41-42
+
+
+// META bind 162 : take.hs:22:31-64
+
+
+// META bind 178 : take.hs:22:35-61
+
+
+// META bind 194 : take.hs:22:54
+
+
+// META bind 210 : take.hs:23:37-49
+
+
+// META bind 226 : take.hs:26:31-32
+
+
+// META bind 242 : <no location info>
+
+
+// META bind 3 : <no location info>
+
+
+// META bind 259 : take.hs:32:40-44
+
+
+// META bind 19 : <no location info>
+
+
+// META bind 275 : take.hs:35:1-16
+
+
+// META bind 35 : <no location info>
+
+
+// META bind 291 : take.hs:39:46-47
+
+
+// META bind 51 : <no location info>
+
+
+// META bind 307 : take.hs:39:19-44
+
+
+// META bind 67 : take.hs:35:1-16
+
+
+// META bind 323 : take.hs:22:35-61
+
+
+// META bind 83 : take.hs:35:1-16
+
+
+// META bind 339 : <no location info>
+
+
+// META bind 99 : <no location info>
+
+
+// META bind 355 : take.hs:39:19-44
+
+
+// META bind 115 : take.hs:21:1-17
+
+
+// META bind 131 : take.hs:18:1-5
+
+
+// META bind 147 : take.hs:18:41-42
+
+
+// META bind 163 : take.hs:22:31-64
+
+
+// META bind 179 : take.hs:22:35-61
+
+
+// META bind 195 : take.hs:22:54
+
+
+// META bind 211 : take.hs:23:37-49
+
+
+// META bind 227 : take.hs:26:28-29
+
+
+// META bind 243 : <no location info>
+
+
+// META bind 4 : <no location info>
+
+
+// META bind 260 : <no location info>
+
+
+// META bind 20 : <no location info>
+
+
+// META bind 276 : take.hs:35:1-16
+
+
+// META bind 36 : <no location info>
+
+
+// META bind 292 : take.hs:39:46-47
+
+
+// META bind 52 : <no location info>
+
+
+// META bind 308 : take.hs:39:19-44
+
+
+// META bind 68 : take.hs:35:1-16
+
+
+// META bind 324 : take.hs:22:35-61
+
+
+// META bind 84 : take.hs:35:30-31
+
+
+// META bind 340 : <no location info>
+
+
+// META bind 100 : <no location info>
+
+
+// META bind 356 : take.hs:(37,3)-(39,47)
+
+
+// META bind 116 : take.hs:21:1-17
+
+
+// META bind 132 : take.hs:18:1-5
+
+
+// META bind 148 : take.hs:18:38-39
+
+
+// META bind 164 : take.hs:22:31-64
+
+
+// META bind 180 : take.hs:22:35-61
+
+
+// META bind 196 : take.hs:21:1-17
+
+
+// META bind 212 : take.hs:23:37-49
+
+
+// META bind 228 : take.hs:26:28-29
+
+
+// META bind 244 : <no location info>
+
+
+// META bind 5 : <no location info>
+
+
+// META bind 261 : <no location info>
+
+
+// META bind 21 : <no location info>
+
+
+// META bind 277 : take.hs:35:1-16
+
+
+// META bind 37 : <no location info>
+
+
+// META bind 293 : take.hs:39:46-47
+
+
+// META bind 53 : <no location info>
+
+
+// META bind 309 : take.hs:39:19-44
+
+
+// META bind 69 : take.hs:(37,3)-(39,47)
+
+
+// META bind 325 : take.hs:21:1-17
+
+
+// META bind 85 : <no location info>
+
+
+// META bind 341 : <no location info>
+
+
+// META bind 101 : take.hs:26:1-4
+
+
+// META bind 357 : take.hs:(37,3)-(39,47)
+
+
+// META bind 117 : take.hs:21:1-17
+
+
+// META bind 133 : take.hs:18:1-5
+
+
+// META bind 149 : take.hs:18:38-39
+
+
+// META bind 165 : take.hs:22:31-64
+
+
+// META bind 181 : take.hs:22:35-61
+
+
+// META bind 197 : take.hs:21:1-17
+
+
+// META bind 213 : take.hs:23:37-49
+
+
+// META bind 229 : take.hs:31:27-47
+
+
+// META bind 245 : <no location info>
+
+
+// META bind 6 : <no location info>
+
+
+// META bind 262 : <no location info>
+
+
+// META bind 22 : <no location info>
+
+
+// META bind 278 : take.hs:35:1-16
+
+
+// META bind 38 : <no location info>
+
+
+// META bind 294 : take.hs:39:46-47
+
+
+// META bind 54 : <no location info>
+
+
+// META bind 310 : take.hs:39:42-43
+
+
+// META bind 70 : take.hs:(37,3)-(39,47)
+
+
+// META bind 326 : take.hs:23:31-35
+
+
+// META bind 86 : <no location info>
+
+
+// META bind 342 : <no location info>
+
+
+// META bind 102 : take.hs:26:1-4
+
+
+// META bind 358 : <no location info>
+
+
+// META bind 118 : take.hs:21:1-17
+
+
+// META bind 134 : take.hs:18:1-5
+
+
+// META bind 150 : take.hs:21:31-32
+
+
+// META bind 166 : take.hs:22:31-64
+
+
+// META bind 182 : take.hs:22:35-61
+
+
+// META bind 198 : take.hs:21:1-17
+
+
+// META bind 214 : take.hs:23:37-49
+
+
+// META bind 230 : take.hs:31:27-47
+
+
+// META bind 246 : <no location info>
+
+
+// META bind 7 : <no location info>
+
+
+// META bind 263 : <no location info>
+
+
+// META bind 23 : <no location info>
+
+
+// META bind 279 : take.hs:35:1-16
+
+
+// META bind 39 : <no location info>
+
+
+// META bind 295 : take.hs:39:46-47
+
+
+// META bind 55 : <no location info>
+
+
+// META bind 311 : take.hs:39:42-43
+
+
+// META bind 71 : take.hs:(37,3)-(39,47)
+
+
+// META bind 327 : take.hs:23:31-35
+
+
+// META bind 87 : <no location info>
+
+
+// META bind 343 : take.hs:32:27-38
+
+
+// META bind 103 : take.hs:26:1-4
+
+
+// META bind 359 : <no location info>
+
+
+// META bind 119 : take.hs:21:1-17
+
+
+// META bind 135 : take.hs:18:1-5
+
+
+// META bind 151 : take.hs:21:31-32
+
+
+// META bind 167 : take.hs:22:35-64
+
+
+// META bind 183 : take.hs:22:35-61
+
+
+// META bind 199 : take.hs:21:1-17
+
+
+// META bind 215 : take.hs:21:1-17
+
+
+// META bind 231 : take.hs:31:27-47
+
+
+// META bind 247 : <no location info>
+
+
+// META bind 8 : <no location info>
+
+
+// META bind 264 : take.hs:31:20-21
+
+
+// META bind 24 : <no location info>
+
+
+// META bind 280 : take.hs:39:15-47
+
+
+// META bind 40 : <no location info>
+
+
+// META bind 296 : take.hs:39:19-44
+
+
+// META bind 56 : <no location info>
+
+
+// META bind 312 : take.hs:39:37
+
+
+// META bind 72 : take.hs:38:15-16
+
+
+// META bind 328 : take.hs:21:1-17
+
+
+// META bind 88 : <no location info>
+
+
+// META bind 344 : take.hs:32:27-38
+
+
+// META bind 104 : take.hs:26:1-4
+
+
+// META bind 360 : <no location info>
+
+
+// META bind 120 : take.hs:21:1-17
+
+
+// META bind 136 : take.hs:18:1-5
+
+
+// META bind 152 : take.hs:21:31-32
+
+
+// META bind 168 : take.hs:22:35-64
+
+
+// META bind 184 : take.hs:22:35-61
+
+
+// META bind 200 : take.hs:21:1-17
+
+
+// META bind 216 : take.hs:21:1-17
+
+
+// META bind 232 : take.hs:31:27-47
+
+
+// META bind 248 : take.hs:32:27-47
+
+
+// META bind 9 : <no location info>
+
+
+// META bind 265 : take.hs:31:20-21
+
+
+// META bind 25 : <no location info>
+
+
+// META bind 281 : take.hs:39:15-47
+
+
+// META bind 41 : <no location info>
+
+
+// META bind 297 : take.hs:39:19-44
+
+
+// META bind 57 : <no location info>
+
+
+// META bind 313 : take.hs:39:37
+
+
+// META bind 73 : take.hs:(37,3)-(39,47)
+
+
+// META bind 329 : take.hs:21:1-17
+
+
+// META bind 89 : <no location info>
+
+
+// META bind 345 : <no location info>
+
+
+// META bind 105 : take.hs:26:1-4
+
+
+// META bind 361 : <no location info>
+
+
+// META bind 121 : take.hs:21:1-17
+
+
+// META bind 137 : <no location info>
+
+
+// META bind 153 : take.hs:21:31-32
+
+
+// META bind 169 : take.hs:22:35-64
+
+
+// META bind 185 : take.hs:22:35-61
+
+
+// META bind 201 : take.hs:21:1-17
+
+
+// META bind 217 : take.hs:26:19-32
+
+
+// META bind 233 : take.hs:31:27-47
+
+
+// META bind 249 : take.hs:32:27-47
+
+
+// META bind 10 : <no location info>
+
+
+// META bind 266 : take.hs:31:14
+
+
+// META bind 26 : <no location info>
+
+
+// META bind 282 : take.hs:39:15-47
+
+
+// META bind 42 : <no location info>
+
+
+// META bind 298 : take.hs:39:19-44
+
+
+// META bind 58 : <no location info>
+
+
+// META bind 314 : take.hs:38:15-16
+
+
+// META bind 74 : take.hs:(37,3)-(39,47)
+
+
+// META bind 330 : take.hs:21:1-17
+
+
+// META bind 90 : <no location info>
+
+
+// META bind 346 : <no location info>
+
+
+// META bind 106 : take.hs:26:1-4
+
+
+// META bind 362 : <no location info>
+
+
+// META bind 122 : take.hs:21:1-17
+
+
+// META bind 138 : take.hs:18:20-42
+
+
+// META bind 154 : take.hs:21:31-32
+
+
+// META bind 170 : take.hs:22:35-64
+
+
+// META bind 186 : take.hs:22:35-61
+
+
+// META bind 202 : take.hs:21:1-17
+
+
+// META bind 218 : take.hs:26:19-32
+
+
+// META bind 234 : take.hs:31:46-47
+
+
+// META bind 250 : take.hs:32:27-47
+
+
+// META bind 11 : <no location info>
+
+
+// META bind 267 : take.hs:31:14
+
+
+// META bind 27 : <no location info>
+
+
+// META bind 283 : take.hs:39:15-47
+
+
+// META bind 43 : <no location info>
+
+
+// META bind 299 : take.hs:39:19-44
+
+
+// META bind 59 : <no location info>
+
+
+// META bind 315 : take.hs:38:15-16
+
+
+// META bind 75 : take.hs:(37,3)-(39,47)
+
+
+// META bind 331 : take.hs:21:1-17
+
+
+// META bind 91 : <no location info>
+
+
+// META bind 347 : <no location info>
+
+
+// META bind 107 : <no location info>
+
+
+// META bind 363 : <no location info>
+
+
+// META bind 123 : take.hs:21:1-17
+
+
+// META bind 139 : take.hs:18:20-42
+
+
+// META bind 155 : take.hs:21:1-17
+
+
+// META bind 171 : take.hs:22:35-64
+
+
+// META bind 187 : take.hs:22:35-61
+
+
+// META bind 203 : take.hs:23:31-49
+
+
+// META bind 219 : take.hs:26:19-32
+
+
+// META bind 235 : take.hs:31:46-47
+
+
+// META bind 251 : take.hs:32:27-47
+
+
+// META bind 12 : <no location info>
+
+
+// META bind 268 : take.hs:35:30-31
+
+
+// META bind 28 : <no location info>
+
+
+// META bind 284 : take.hs:39:15-47
+
+
+// META bind 44 : <no location info>
+
+
+// META bind 300 : take.hs:39:19-44
+
+
+// META bind 60 : <no location info>
+
+
+// META bind 316 : take.hs:38:15-16
+
+
+// META bind 76 : take.hs:(37,3)-(39,47)
+
+
+// META bind 332 : <no location info>
+
+
+// META bind 92 : <no location info>
+
+
+// META bind 348 : <no location info>
+
+
+// META bind 108 : <no location info>
+
+
+// META bind 364 : <no location info>
+
+
+// META bind 124 : take.hs:21:1-17
+
+
+// META bind 140 : take.hs:18:20-42
+
+
+// META bind 156 : take.hs:21:1-17
+
+
+// META bind 172 : take.hs:22:31
+
+
+// META bind 188 : take.hs:22:35-61
+
+
+// META bind 204 : take.hs:23:31-49
+
+
+// META bind 220 : take.hs:26:19-32
+
+
+// META bind 236 : take.hs:31:46-47
+
+
+// META bind 252 : take.hs:32:27-47
+
+
+// META bind 13 : <no location info>
+
+
+// META bind 269 : take.hs:35:30-31
+
+
+// META bind 29 : <no location info>
+
+
+// META bind 285 : take.hs:39:19-47
+
+
+// META bind 45 : <no location info>
+
+
+// META bind 301 : take.hs:39:19-44
+
+
+// META bind 61 : <no location info>
+
+
+// META bind 317 : take.hs:38:15-16
+
+
+// META bind 77 : take.hs:(37,3)-(39,47)
+
+
+// META bind 333 : <no location info>
+
+
+// META bind 93 : <no location info>
+
+
+// META bind 349 : <no location info>
+
+
+// META bind 109 : take.hs:21:1-17
+
+
+// META bind 125 : take.hs:22:35-61
+
+
+// META bind 141 : take.hs:18:20-42
+
+
+// META bind 157 : take.hs:21:1-17
+
+
+// META bind 173 : take.hs:22:63-64
+
+
+// META bind 189 : take.hs:22:35-61
+
+
+// META bind 205 : take.hs:23:31-49
+
+
+// META bind 221 : take.hs:26:19-32
+
+
+// META bind 237 : take.hs:31:46-47
+
+
+// META bind 253 : take.hs:32:46-47
+
+
+// META bind 14 : <no location info>
+
+
+// META bind 270 : take.hs:35:30-31
+
+
+// META bind 30 : <no location info>
+
+
+// META bind 286 : take.hs:39:19-47
+
+
+// META bind 46 : <no location info>
+
+
+// META bind 302 : take.hs:39:19-44
+
+
+// META bind 62 : <no location info>
+
+
+// META bind 318 : take.hs:38:15-16
+
+
+// META bind 78 : take.hs:(37,3)-(39,47)
+
+
+// META bind 334 : <no location info>
+
+
+// META bind 94 : <no location info>
+
+
+// META bind 350 : take.hs:35:1-16
+
+
+// META bind 110 : take.hs:21:1-17
+
+
+// META bind 126 : take.hs:22:35-61
+
+
+// META bind 142 : take.hs:18:20-42
+
+
+// META bind 158 : take.hs:21:1-17
+
+
+// META bind 174 : take.hs:22:63-64
+
+
+// META bind 190 : take.hs:22:35-61
+
+
+// META bind 206 : take.hs:23:31-49
+
+
+// META bind 222 : take.hs:26:31-32
+
+
+// META bind 238 : take.hs:31:46-47
+
+
+// META bind 254 : take.hs:32:46-47
+
+
+// META bind 15 : <no location info>
+
+
+// META bind 271 : take.hs:35:30-31
+
+
+// META bind 31 : <no location info>
+
+
+// META bind 287 : take.hs:39:19-47
+
+
+// META bind 47 : <no location info>
+
+
+// META bind 303 : take.hs:39:19-44
+
+
+// META bind 63 : <no location info>
+
+
+// META bind 319 : take.hs:21:1-17
+
+
+// META bind 79 : take.hs:39:19-44
+
+
+// META bind 335 : <no location info>
+
+
+// META bind 95 : <no location info>
+
+
+// META bind 351 : take.hs:39:19-44
+
+
+// META bind 111 : take.hs:21:1-17
+
+
+// META bind 127 : take.hs:21:1-17
+
+
+// META bind 143 : take.hs:18:41-42
+
+
+// META bind 159 : take.hs:21:1-17
+
+
+// META bind 175 : take.hs:22:63-64
+
+
+// META bind 191 : take.hs:22:35-61
+
+
+// META bind 207 : take.hs:23:31-49
+
+
+// META bind 223 : take.hs:26:31-32
+
+
+// META bind 239 : take.hs:31:44
+
+
+// META bind 255 : take.hs:32:46-47
+
