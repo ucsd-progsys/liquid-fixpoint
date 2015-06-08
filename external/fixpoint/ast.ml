@@ -1200,7 +1200,7 @@ let updateArity env f = function
     | None -> None
  end 
 
-let rec sortcheck_expr g f e =
+let rec sortcheck_expr g f expected_t e =
   match euw e with
   | Bot   ->
       None
@@ -1216,7 +1216,7 @@ let rec sortcheck_expr g f e =
       sortcheck_op g f (e1, op, e2)
   | Ite (p, e1, e2) ->
       if sortcheck_pred g f p then
-        match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
+        match Misc.map_pair (sortcheck_expr g f None) (e1, e2) with
         | (Some t1, Some t2) -> 
           begin 
           match Sort.unify [t1] [t2] with 
@@ -1229,13 +1229,13 @@ let rec sortcheck_expr g f e =
       begin match euw e1 with
         | App (uf, es) -> sortcheck_app g f (Some t) uf es
         | _            ->
-            match sortcheck_expr g f e1 with
+            match sortcheck_expr g f None e1 with
               | Some t1 when Sort.compat t t1 -> Some t
               | _                             -> None
       end
 
   | App (uf, es) ->
-      sortcheck_app g f None uf es
+      sortcheck_app g f expected_t uf es
 
   | _ -> assertf "Ast.sortcheck_expr: unhandled expr = %s" (Expression.to_string e)
 
@@ -1248,7 +1248,7 @@ and sortcheck_app_sub g f so_expected uf es =
        |> function None -> None | Some (tyArity, i_ts, o_t) ->
               let _  = asserts (List.length es = List.length i_ts)
                          "ERROR: uf arg-arity error: uf=%s" uf in
-              let e_ts = es |> List.map (sortcheck_expr g f) |> Misc.map_partial id in
+              let e_ts = (List.map (fun x -> Some x) i_ts, es) |> Misc.zipWith (sortcheck_expr g f) |> Misc.map_partial id in
                 if List.length e_ts <> List.length i_ts then
                   None
                 else
@@ -1286,7 +1286,7 @@ and sortcheck_op g f (e1, op, e2) =
     | (Some t1, _) -> F.printf "sortcheck_op2 : \n%s \n" (Sort.to_string t1)
     | (_, _) -> F.printf "sortcheck_op3 : \n"
     in *)
-  match Misc.map_pair (sortcheck_expr g f) (e1, e2) with
+  match Misc.map_pair (sortcheck_expr g f None) (e1, e2) with
   | (Some Sort.Int, Some Sort.Int)
   -> Some Sort.Int
 
@@ -1319,7 +1319,7 @@ and sortcheck_op g f (e1, op, e2) =
 
 
 and sortcheck_rel g f (e1, r, e2) =
-  let t1o, t2o = (e1,e2) |> Misc.map_pair (sortcheck_expr g f) in
+  let t1o, t2o = (e1,e2) |> Misc.map_pair (sortcheck_expr g f None) in
   match r, t1o, t2o with
   | Ueq, Some (_), Some (_)
   | Une, Some (_), Some (_)
@@ -1355,7 +1355,7 @@ and sortcheck_pred g f p =
     | False ->
         true
     | Bexp e ->
-        sortcheck_expr g f e = Some Sort.Bool
+        sortcheck_expr g f (Some Sort.Bool) e = Some Sort.Bool
     | Not p ->
         sortcheck_pred g f p
     | Imp (p1, p2) | Iff (p1, p2) ->
@@ -1365,20 +1365,20 @@ and sortcheck_pred g f p =
         List.for_all (sortcheck_pred g f) ps
     | Atom (e1, Ueq, e2)
       when !Constants.ueq_all_sorts
-      -> (not (None = sortcheck_expr g f e1)) &&
-         (not (None = sortcheck_expr g f e2))
+      -> (not (None = sortcheck_expr g f None e1)) &&
+         (not (None = sortcheck_expr g f None e2))
 
     | Atom ((Con (Constant.Int(0)),_), _, e)
     | Atom (e, _, (Con (Constant.Int(0)),_))
       when not (!Constants.strictsortcheck)
-      -> not (None = sortcheck_expr g f e)
+      -> not (None = sortcheck_expr g f None e)
 
     | Atom (((Con _, _) as e), Eq, (App (uf, es), _))
     | Atom ((App (uf, es), _), Eq, ((Con _, _) as e))
     | Atom (((Var _, _) as e), Eq, (App (uf, es), _))
     | Atom ((App (uf, es), _), Eq, ((Var _, _) as e))
            (* -> begin match sortcheck_sym f x with *)
-      -> begin match sortcheck_expr g f e with
+      -> begin match sortcheck_expr g f None e with
          | None   -> false
          | Some t -> not (None = sortcheck_app g f (Some t) uf es)
          end
@@ -1415,6 +1415,8 @@ let opt_to_string p = function
 let sortcheck_app g f tExp uf es =
   sortcheck_app_sub g f tExp uf es
   |> checkArity f uf 
+
+let sortcheck_expr g f e = sortcheck_expr g f None e
 
                 (*
   match uf_arity f uf, sortcheck_app_sub g f tExp uf es with
