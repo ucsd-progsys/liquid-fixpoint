@@ -81,6 +81,8 @@ module Sort :
     val generalize  : t list -> t list
     val sub_args    : sub -> (int * t) list
     (* val check_arity : int -> sub -> bool *)
+    val makeFresh : int -> (int * int) list
+    val refresh   : (int * int) list -> t -> t 
   end
 
 module Symbol :
@@ -250,3 +252,4 @@ val sortcheck_pred : (Sort.tycon -> bool)  -> (Symbol.t -> Sort.t option) -> pre
 val sortcheck_app  : (Sort.tycon -> bool)  -> (Symbol.t -> Sort.t option) -> Sort.t option -> Symbol.t -> expr list -> (Sort.sub * Sort.t) option
 
 val into_of_expr   : expr -> int option
+

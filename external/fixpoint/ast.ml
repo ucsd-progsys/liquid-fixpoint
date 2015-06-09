@@ -255,9 +255,9 @@ but the bellow code crashes tests/zipper0.hs.fq
       | (Var i), ct
         (* when ct != Bool *) ->
           begin match lookup_var s i with
-          | Some ct' when ct = ct' -> Some s
-          | Some _                 -> None
-          | None                   -> Some {s with vars = (i,ct) :: s.vars}
+          | Some ct' when ct = ct' -> (*let _ = F.printf "\nUnify YES! %s \t - \t  %s" (to_string ct) (to_string (Var i)) in *) Some s
+          | Some ct''              -> (*let _ = F.printf "\nUnify No! %s \t /= %s \t - \t  %s"  (to_string ct) (to_string ct'') (to_string (Var i)) in *) None
+          | None                   -> (*let _ = F.printf "\nUnify Add! %s \t - \t  %s" (to_string ct) (to_string (Var i)) in *) Some {s with vars = (i,ct) :: s.vars}
           end
 
       | Ptr LFun, Ptr _
@@ -335,6 +335,25 @@ but the bellow code crashes tests/zipper0.hs.fq
       let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in 
       n == n_vars
 
+    let index = ref 0   
+
+    let makeFresh n =
+      let rec go i = 
+        if i < n then (let x = !index in incr index; (i,x)::go (i+1)) else [] in 
+      go 0 
+    
+    let rec refresh su = function 
+      | Int -> Int
+      | Real -> Real 
+      | Bool -> Bool 
+      | Obj  -> Obj 
+      | Var i -> (try (Var (snd (List.find (fun (j, _) -> j == i) su))) 
+                 with Not_found -> Var i)
+      | Ptr l -> Ptr l 
+      | Func(n, ts) ->  let su' = List.filter (fun (i,_) -> i>= n) su in  Func(n, List.map (refresh su') ts)
+      | Num  -> Num 
+      | Frac -> Frac 
+      | App(tc, ts) -> App(tc, List.map (refresh su) ts)
 
   end
 
@@ -1245,12 +1264,19 @@ and sortcheck_app_sub g f so_expected uf es =
   sortcheck_sym f uf
   |> function None -> (* yikes uf; *) None | Some t ->
        Sort.func_of_t t
-       |> function None -> None | Some (tyArity, i_ts, o_t) ->
+       |> function None -> None | Some (tyArity, i_ts', o_t') ->
+              let freshMap = Sort.makeFresh tyArity in 
+              let i_ts = List.map (Sort.refresh freshMap) i_ts' in 
+              let o_t  = Sort.refresh freshMap o_t' in 
               let _  = asserts (List.length es = List.length i_ts)
                          "ERROR: uf arg-arity error: uf=%s" uf in
               let e_ts = (List.map (fun x -> Some x) i_ts, es) |> Misc.zipWith (sortcheck_expr g f) |> Misc.map_partial id in
                 if List.length e_ts <> List.length i_ts then
-                  None
+                   (* let _ = F.printf "OUT2 \n es = %s \n e_ts = %s \n i_ts = %s" 
+                           (String.concat "\t" (List.map Expression.to_string es))  
+                           (String.concat "\t" (List.map Sort.to_string e_ts))  
+                           (String.concat "\t" (List.map Sort.to_string i_ts))  
+                   in*) None
                 else
                   match Sort.unify e_ts i_ts with
                     | None   -> None
@@ -1260,7 +1286,8 @@ and sortcheck_app_sub g f so_expected uf es =
                             | None    -> Some (s, t)
                             | Some t' ->
                                 match Sort.unifyWith s [t] [t'] with
-                                  | None    -> None
+                                  | None    -> (*let _ = F.printf "\nOUT5 Cannot unify: %s \t\t with \t\t %s" (Sort.to_string t) (Sort.to_string t') in *)
+                                               None
                                   | Some s' -> Some (s', Sort.apply s' t)
 
 and sortcheck_app g f tExp uf es =
@@ -1387,10 +1414,12 @@ and sortcheck_pred g f p =
       -> let t1o = solved_app f uf1 <| sortcheck_app_sub g f None uf1 e1s in
          let t2o = solved_app f uf2 <| sortcheck_app_sub g f None uf2 e2s in
          begin match t1o, t2o with
-               | (Some t1, Some t2) -> unifiable t1 t2
-               | (None, None)       -> false
-               | (None, Some t2)    -> not (None = sortcheck_app g f (Some t2) uf1 e1s)
-               | (Some t1, None)    -> not (None = sortcheck_app g f (Some t1) uf2 e2s)
+               | (Some t1, Some t2) -> (* let _ = F.printf "sortcheck Eq App1 %s" (Predicate.to_string p) in *) unifiable t1 t2
+               | (None, None)       -> (* let _ = F.printf "sortcheck Eq App2 %s" (Predicate.to_string p) in *) false
+               | (None, Some t2)    -> (* let _ = F.printf "sortcheck Eq App3 %s" (Predicate.to_string p) in *) not (None = sortcheck_app g f (Some t2) uf1 e1s)
+               | (Some t1, None)    -> (* let _ = F.printf "sortcheck Eq App4 %s :: %s" 
+                   (Predicate.to_string p) (Sort.to_string t1) in *)
+                   not (None = sortcheck_app g f (Some t1) uf2 e2s) 
          end
 
     | Atom (e1, r, e2) ->
