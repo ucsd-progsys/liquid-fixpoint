@@ -1414,7 +1414,7 @@ let opt_to_string p = function
 (* API *)
 let sortcheck_app g f tExp uf es =
   sortcheck_app_sub g f tExp uf es
-  |> checkArity f uf
+  |> checkArity f uf 
 
                 (*
   match uf_arity f uf, sortcheck_app_sub g f tExp uf es with

@@ -1,0 +1,24 @@
+// The following crashes with 
+// 
+// ./fixpoint.native   -notruekvars -refinesort -nosimple -strictsortcheck -no-gen-qual-sorts  tests/fixme.fq
+// 
+// 
+// z3Pred: error converting (foo([Nil([])]) = Nothing([]))
+
+constant Nothing : func(1, [FAppTy Maybe  @(0)])
+constant Nil     : func(1, [FAppTy List  @(0)])
+constant foo     : func(0, [FAppTy List  int; FAppTy Maybe (FAppTy List int)])
+
+qualif Bad(v:Bool) : (foo([Nil([])]) = Nothing([]))
+
+constraint:
+  env []
+  grd true 
+  lhs {VV#F1 : a_aL9 | [true]}
+  rhs {VV#F1 : a_aL9 | [foo([Nil([])]) = Nothing([])]}
+  id 1 tag [1]
+ 
+
+
+ 
+
