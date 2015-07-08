@@ -1360,4 +1360,6 @@ let stringIsLower = function
   | s  -> let c = s.[0] in c = Char.lowercase c
 
 
-
+let rec zipWith f = function
+  | (x::xs, y::ys) -> f x y::zipWith f (xs, ys)
+  | _ -> []
