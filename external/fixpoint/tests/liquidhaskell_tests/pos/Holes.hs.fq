@@ -1,5 +1,5 @@
-qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 27, column 8)
-qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 28, column 8)
+qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 28, column 8)
+qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 29, column 8)
 qualif Auto(y : int): (y > 0) // "Holes.hs" (line 5, column 1)
 qualif Auto(v0 : int): (v0 > 0) // "Holes.hs" (line 27, column 1)
 qualif Auto(v : a_aPw, fix##126#A0 : a_aPw, fix##126#A1 : a_aPw): (v = (fix##126#A0 + fix##126#A1)) // "Holes.hs" (line 32, column 1)
@@ -41,100 +41,154 @@ qualif True(v : bool): (? v) // "/Users/benjamin/refscript/liquidhaskell/.cabal-
 qualif False(v : bool): (~ ((? v))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 30, column 8)
 qualif True1(v : GHC.Types.Bool): (? Prop([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 31, column 8)
 qualif False1(v : GHC.Types.Bool): (~ ((? Prop([v])))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 32, column 8)
-qualif Papp(v : @(0), fix##126#P : FAppTy Pred  @(0)): (? papp1([fix##126#P;
-                                                                 v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 35, column 8)
-qualif Papp2(v : @(1), fix##126#X : @(0), fix##126#P : FAppTy (FAppTy Pred  @(1))  @(0)): (? papp2([fix##126#P;
-                                                                                                    v;
-                                                                                                    fix##126#X])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 38, column 8)
-qualif Papp3(v : @(2), fix##126#X : @(0), fix##126#Y : @(1), fix##126#P : FAppTy (FAppTy (FAppTy Pred  @(2))  @(0))  @(1)): (? papp3([fix##126#P;
-                                                                                                                                      v;
-                                                                                                                                      fix##126#X;
-                                                                                                                                      fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 41, column 8)
+qualif Papp(v : @(0), fix##126#P : Pred @(0)): (? papp1([fix##126#P;
+                                                         v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 35, column 8)
+qualif Papp2(v : @(1), fix##126#X : @(0), fix##126#P : FAppTy (Pred @(1))  @(0)): (? papp2([fix##126#P;
+                                                                                            v;
+                                                                                            fix##126#X])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 38, column 8)
+qualif Papp3(v : @(2), fix##126#X : @(0), fix##126#Y : @(1), fix##126#P : FAppTy (FAppTy (Pred @(2))  @(0))  @(1)): (? papp3([fix##126#P;
+                                                                                                                              v;
+                                                                                                                              fix##126#X;
+                                                                                                                              fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 41, column 8)
+
+qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 28, column 8)
+qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 29, column 8)
+qualif Auto(y : int): (y > 0) // "Holes.hs" (line 5, column 1)
+qualif Auto(v0 : int): (v0 > 0) // "Holes.hs" (line 27, column 1)
+qualif Auto(v : a_aPw, fix##126#A0 : a_aPw, fix##126#A1 : a_aPw): (v = (fix##126#A0 + fix##126#A1)) // "Holes.hs" (line 32, column 1)
+qualif Auto(v : int): (v >= 0) // "Holes.hs" (line 38, column 1)
+qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) > 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 13, column 8)
+qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) = 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 14, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 16, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 17, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 18, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 20, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) >= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 21, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) > len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 22, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) <= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 23, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) < len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 24, column 8)
+qualif EqLen(v : int, fix##126#Xs : [@(0)]): (v = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 26, column 8)
+qualif LenEq(v : [@(0)], fix##126#X : int): (fix##126#X = len([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 27, column 8)
+qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X + 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 28, column 8)
+qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X - 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 29, column 8)
+qualif LenAcc(v : int, fix##126#Xs : [@(0)], fix##126#N : int): (v = (len([fix##126#Xs]) + fix##126#N)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 30, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 3, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 4, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 5, column 8)
+qualif Bot(v : bool): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 6, column 8)
+qualif Bot(v : int): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 7, column 8)
+qualif CmpZ(v : @(0)): (v < 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 9, column 8)
+qualif CmpZ(v : @(0)): (v <= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 10, column 8)
+qualif CmpZ(v : @(0)): (v > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 11, column 8)
+qualif CmpZ(v : @(0)): (v >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 12, column 8)
+qualif CmpZ(v : @(0)): (v = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 13, column 8)
+qualif CmpZ(v : @(0)): (v != 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 14, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v < fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 16, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v <= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 17, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v > fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 18, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v >= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 19, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v = fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 20, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v != fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 21, column 8)
+qualif One(v : int): (v = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 28, column 8)
+qualif True(v : bool): (? v) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 29, column 8)
+qualif False(v : bool): (~ ((? v))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 30, column 8)
+qualif True1(v : GHC.Types.Bool): (? Prop([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 31, column 8)
+qualif False1(v : GHC.Types.Bool): (~ ((? Prop([v])))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 32, column 8)
+qualif Papp(v : @(0), fix##126#P : Pred @(0)): (? papp1([fix##126#P;
+                                                         v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 35, column 8)
+qualif Papp2(v : @(1), fix##126#X : @(0), fix##126#P : FAppTy (Pred @(1))  @(0)): (? papp2([fix##126#P;
+                                                                                            v;
+                                                                                            fix##126#X])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 38, column 8)
+qualif Papp3(v : @(2), fix##126#X : @(0), fix##126#Y : @(1), fix##126#P : FAppTy (FAppTy (Pred @(2))  @(0))  @(1)): (? papp3([fix##126#P;
+                                                                                                                              v;
+                                                                                                                              fix##126#X;
+                                                                                                                              fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 41, column 8)
+
+
+
 
 constant Prop : (func(0, [GHC.Types.Bool; bool]))
-constant x_Tuple64 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple64 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(3)]))
-constant x_Tuple54 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple54 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
                                @(3)]))
-constant x_Tuple44 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+constant x_Tuple44 : (func(4, [FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3);
                                @(3)]))
 constant xListSelector : (func(1, [[@(0)]; @(0)]))
-constant x_Tuple41 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+constant x_Tuple41 : (func(4, [FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3);
                                @(0)]))
-constant x_Tuple76 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple76 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(5)]))
+constant autolen : (func(1, [@(0); int]))
 constant addrLen : (func(0, [int; int]))
-constant x_Tuple65 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple65 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(4)]))
-constant x_Tuple52 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple52 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
                                @(1)]))
-constant x_Tuple75 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple75 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(4)]))
-constant x_Tuple33 : (func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+constant x_Tuple33 : (func(3, [FAppTy (FAppTy (Tuple @(0))  @(1))  @(2);
                                @(2)]))
-constant fst : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
-                         @(0)]))
-constant x_Tuple73 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant fst : (func(2, [FAppTy (Tuple @(0))  @(1); @(0)]))
+constant x_Tuple73 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(2)]))
-constant x_Tuple31 : (func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+constant x_Tuple31 : (func(3, [FAppTy (FAppTy (Tuple @(0))  @(1))  @(2);
                                @(0)]))
-constant x_Tuple43 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+constant x_Tuple43 : (func(4, [FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3);
                                @(2)]))
-constant papp4 : (func(8, [FAppTy (FAppTy (FAppTy (FAppTy Pred  @(0))  @(1))  @(2))  @(6);
+constant papp4 : (func(8, [FAppTy (FAppTy (FAppTy (Pred @(0))  @(1))  @(2))  @(6);
                            @(3);
                            @(4);
                            @(5);
                            @(7);
                            bool]))
-constant x_Tuple71 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple71 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(0)]))
-constant papp2 : (func(4, [FAppTy (FAppTy Pred  @(0))  @(1);
+constant papp2 : (func(4, [FAppTy (Pred @(0))  @(1);
                            @(2);
                            @(3);
                            bool]))
-constant x_Tuple32 : (func(3, [FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2);
+constant x_Tuple32 : (func(3, [FAppTy (FAppTy (Tuple @(0))  @(1))  @(2);
                                @(1)]))
-constant x_Tuple72 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple72 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(1)]))
-constant x_Tuple63 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple63 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(2)]))
-constant x_Tuple51 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple51 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
                                @(0)]))
 constant len : (func(2, [FAppTy @(0)  @(1); int]))
 constant xsListSelector : (func(1, [[@(0)]; [@(0)]]))
 constant null : (func(1, [[@(0)]; bool]))
-constant x_Tuple53 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple53 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
                                @(2)]))
-constant x_Tuple22 : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+constant x_Tuple22 : (func(2, [FAppTy (Tuple @(0))  @(1); @(1)]))
+constant fromJust : (func(1, [Data.Maybe.Maybe @(0); @(0)]))
+constant snd : (func(2, [FAppTy (Tuple @(0))  @(1); @(1)]))
+constant x_Tuple62 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(1)]))
-constant fromJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0);
-                              @(0)]))
-constant snd : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
-                         @(1)]))
-constant x_Tuple62 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
-                               @(1)]))
-constant x_Tuple55 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple55 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
                                @(4)]))
-constant papp3 : (func(6, [FAppTy (FAppTy (FAppTy Pred  @(0))  @(1))  @(2);
+constant papp3 : (func(6, [FAppTy (FAppTy (Pred @(0))  @(1))  @(2);
                            @(3);
                            @(4);
                            @(5);
                            bool]))
-constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(3)]))
 constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
-constant papp1 : (func(1, [FAppTy Pred  @(0); @(0); bool]))
-constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
-constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3);
+constant papp1 : (func(1, [Pred @(0); @(0); bool]))
+constant isJust : (func(1, [Data.Maybe.Maybe @(0); bool]))
+constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3);
                                @(1)]))
-constant x_Tuple21 : (func(2, [FAppTy (FAppTy fix##40##41#  @(0))  @(1);
+constant x_Tuple21 : (func(2, [FAppTy (Tuple @(0))  @(1); @(0)]))
+constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(0)]))
-constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
-                               @(0)]))
-constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(5)]))
-constant x_Tuple77 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple77 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(6)]))
+
+
 constant fix#GHC.Types.#58##35#64 : (func(1, [@(0);
                                               [@(0)];
                                               [@(0)]]))
@@ -142,7 +196,9 @@ constant fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar : (Str)
 constant fix#GHC.Types.#91##93##35#6m : (func(1, [[@(0)]]))
 constant Holes.P#rpv : (func(2, [@(0);
                                  @(1);
-                                 FAppTy (FAppTy Holes.P  @(0))  @(1)]))
+                                 FAppTy (Holes.P @(0))  @(1)]))
+
+
 bind 0 Control.Exception.Base.patError#0e : {VV : func(1, [int;
                                                            @(0)]) | []}
 bind 1 fix#GHC.Types.#58##35#64 : {VV : func(1, [@(0);
@@ -155,10 +211,10 @@ bind 4 fix#GHC.Num.#43##35#rt : {VV : func(1, [@(0);
                                                @(0)]) | []}
 bind 5 Holes.P#rpv : {VV : func(2, [@(0);
                                     @(1);
-                                    FAppTy (FAppTy Holes.P  @(0))  @(1)]) | []}
-bind 6 GHC.Types.EQ#6U : {VV#162 : GHC.Types.Ordering | [(VV#162 = GHC.Types.EQ#6U)]}
-bind 7 GHC.Types.LT#6S : {VV#163 : GHC.Types.Ordering | [(VV#163 = GHC.Types.LT#6S)]}
-bind 8 GHC.Types.GT#6W : {VV#164 : GHC.Types.Ordering | [(VV#164 = GHC.Types.GT#6W)]}
+                                    FAppTy (Holes.P @(0))  @(1)]) | []}
+bind 6 GHC.Types.EQ#6U : {VV#184 : GHC.Types.Ordering | [(VV#184 = GHC.Types.EQ#6U)]}
+bind 7 GHC.Types.LT#6S : {VV#185 : GHC.Types.Ordering | [(VV#185 = GHC.Types.LT#6S)]}
+bind 8 GHC.Types.GT#6W : {VV#186 : GHC.Types.Ordering | [(VV#186 = GHC.Types.GT#6W)]}
 bind 9 fix#GHC.Num.#42##35#ru : {VV : func(1, [@(0);
                                                @(0);
                                                @(0)]) | []}
@@ -196,41 +252,54 @@ bind 20 fix#GHC.Prim.#60##35##35#9q : {VV : func(0, [int;
 bind 21 fix#GHC.Prim.#62##35##35#9m : {VV : func(0, [int;
                                                      int;
                                                      int]) | []}
-bind 22 fix#GHC.Tuple.#40##44##44##44##44##44##41##35#7c : {VV : func(6, [@(0);
+bind 22 fix#GHC.Types.#58##35#64 : {VV : func(1, [@(0);
+                                                  [@(0)];
+                                                  [@(0)]]) | []}
+bind 23 fix#GHC.Types.#91##93##35#6m : {VV : func(1, [[@(0)]]) | []}
+bind 24 fix#GHC.Tuple.#40##44##41##35#74 : {VV : func(2, [@(0);
+                                                          @(1);
+                                                          FAppTy (Tuple @(0))  @(1)]) | []}
+bind 25 fix#GHC.Tuple.#40##44##44##41##35#76 : {VV : func(3, [@(0);
+                                                              @(1);
+                                                              @(2);
+                                                              FAppTy (FAppTy (Tuple @(0))  @(1))  @(2)]) | []}
+bind 26 fix#GHC.Tuple.#40##44##44##44##41##35#78 : {VV : func(4, [@(0);
+                                                                  @(1);
+                                                                  @(2);
+                                                                  @(3);
+                                                                  FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3)]) | []}
+bind 27 fix#GHC.Tuple.#40##44##44##44##44##41##35#7a : {VV : func(5, [@(0);
+                                                                      @(1);
+                                                                      @(2);
+                                                                      @(3);
+                                                                      @(4);
+                                                                      FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4)]) | []}
+bind 28 fix#GHC.Tuple.#40##44##44##44##44##44##41##35#7c : {VV : func(6, [@(0);
                                                                           @(1);
                                                                           @(2);
                                                                           @(3);
                                                                           @(4);
                                                                           @(5);
-                                                                          FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5)]) | []}
-bind 23 fix#GHC.Tuple.#40##44##44##44##44##44##44##41##35#7e : {VV : func(7, [@(0);
+                                                                          FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5)]) | []}
+bind 29 fix#GHC.Tuple.#40##44##44##44##44##44##44##41##35#7e : {VV : func(7, [@(0);
                                                                               @(1);
                                                                               @(2);
                                                                               @(3);
                                                                               @(4);
                                                                               @(5);
                                                                               @(6);
-                                                                              FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6)]) | []}
-bind 24 Data.Maybe.Just#r1a : {VV : func(1, [@(0);
-                                             FAppTy Data.Maybe.Maybe  @(0)]) | []}
-bind 25 GHC.Types.EQ#6U : {VV#181 : GHC.Types.Ordering | [(cmp([VV#181]) = GHC.Types.EQ#6U);
-                                                          (VV#181 = GHC.Types.EQ#6U)]}
-bind 26 fix#GHC.Tuple.#40##44##44##44##41##35#78 : {VV : func(4, [@(0);
-                                                                  @(1);
-                                                                  @(2);
-                                                                  @(3);
-                                                                  FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3)]) | []}
-bind 27 GHC.Types.LT#6S : {VV#183 : GHC.Types.Ordering | [(cmp([VV#183]) = GHC.Types.LT#6S);
-                                                          (VV#183 = GHC.Types.LT#6S)]}
-bind 28 GHC.Types.GT#6W : {VV#184 : GHC.Types.Ordering | [(cmp([VV#184]) = GHC.Types.GT#6W);
-                                                          (VV#184 = GHC.Types.GT#6W)]}
-bind 29 fix#GHC.Tuple.#40##44##44##44##44##41##35#7a : {VV : func(5, [@(0);
-                                                                      @(1);
-                                                                      @(2);
-                                                                      @(3);
-                                                                      @(4);
-                                                                      FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4)]) | []}
-bind 30 fix#GHC.Real.D#58#Integral#35#r6o : {VV : func(1, [func(0, [@(0);
+                                                                              FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6)]) | []}
+bind 30 Data.Maybe.Nothing#r19 : {VV : func(1, [Data.Maybe.Maybe @(0)]) | []}
+bind 31 GHC.Types.EQ#6U : {VV#209 : GHC.Types.Ordering | [(cmp([VV#209]) = GHC.Types.EQ#6U)]}
+bind 32 GHC.Types.LT#6S : {VV#210 : GHC.Types.Ordering | [(cmp([VV#210]) = GHC.Types.LT#6S)]}
+bind 33 GHC.Types.GT#6W : {VV#211 : GHC.Types.Ordering | [(cmp([VV#211]) = GHC.Types.GT#6W)]}
+bind 34 fix#GHC.Real.D#58#Fractional#35#rkT : {VV : func(1, [func(0, [@(0);
+                                                                      @(0);
+                                                                      @(0)]);
+                                                             func(0, [@(0); @(0)]);
+                                                             func(0, [GHC.Real.Ratio int; @(0)]);
+                                                             GHC.Real.Fractional @(0)]) | []}
+bind 35 fix#GHC.Real.D#58#Integral#35#r6o : {VV : func(1, [func(0, [@(0);
                                                                     @(0);
                                                                     @(0)]);
                                                            func(0, [@(0); @(0); @(0)]);
@@ -238,323 +307,233 @@ bind 30 fix#GHC.Real.D#58#Integral#35#r6o : {VV : func(1, [func(0, [@(0);
                                                            func(0, [@(0); @(0); @(0)]);
                                                            func(0, [@(0);
                                                                     @(0);
-                                                                    FAppTy (FAppTy fix##40##41#  @(0))  @(0)]);
+                                                                    FAppTy (Tuple @(0))  @(0)]);
                                                            func(0, [@(0);
                                                                     @(0);
-                                                                    FAppTy (FAppTy fix##40##41#  @(0))  @(0)]);
+                                                                    FAppTy (Tuple @(0))  @(0)]);
                                                            func(0, [@(0); int]);
-                                                           FAppTy GHC.Real.Integral  @(0)]) | []}
-bind 31 fix#GHC.Tuple.#40##44##41##35#74 : {VV : func(2, [@(0);
-                                                          @(1);
-                                                          FAppTy (FAppTy fix##40##41#  @(0))  @(1)]) | []}
-bind 32 fix#GHC.Types.#58##35#64 : {VV : func(1, [@(0);
-                                                  [@(0)];
-                                                  [@(0)]]) | []}
-bind 33 fix#GHC.Tuple.#40##44##44##41##35#76 : {VV : func(3, [@(0);
-                                                              @(1);
-                                                              @(2);
-                                                              FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2)]) | []}
-bind 34 fix#GHC.Types.#91##93##35#6m : {VV : func(1, [[@(0)]]) | []}
-bind 35 Data.Maybe.Nothing#r19 : {VV : func(1, [FAppTy Data.Maybe.Maybe  @(0)]) | []}
-bind 36 fix#GHC.Real.D#58#Fractional#35#rkT : {VV : func(1, [func(0, [@(0);
-                                                                      @(0);
-                                                                      @(0)]);
-                                                             func(0, [@(0); @(0)]);
-                                                             func(0, [FAppTy GHC.Real.Ratio  int;
-                                                                      @(0)]);
-                                                             FAppTy GHC.Real.Fractional  @(0)]) | []}
+                                                           GHC.Real.Integral @(0)]) | []}
+bind 36 Data.Maybe.Just#r1a : {VV : func(1, [@(0);
+                                             Data.Maybe.Maybe @(0)]) | []}
 bind 37 Holes.zoo#rpF : {v : int | [(v >= 0)]}
-bind 38 fix##36#dNum_aPx : {VV#198 : FAppTy GHC.Num.Num  a_aPw | []}
+bind 38 fix##36#dNum_aPx : {VV#220 : GHC.Num.Num a_aPw | []}
 bind 39 a_aPw : {VV : num | []}
 bind 40 x#aOz : {VV : a_aPw | []}
 bind 41 y#aOA : {VV : a_aPw | []}
 bind 42 Holes.plus#rpE : {VV : func(1, [@(0); @(0); @(0)]) | []}
-bind 43 ds_dQr : {VV#41 : [int] | [$k__42; (len([VV#41]) >= 0)]}
-bind 44 lq_anf__dQv : {lq_tmp_x_216 : [int] | [$k__42[VV#41:=lq_tmp_x_216];
-                                               (len([lq_tmp_x_216]) >= 0);
-                                               (lq_tmp_x_216 = ds_dQr);
-                                               (len([lq_tmp_x_216]) >= 0)]}
-bind 45 lq_anf__dQv : {lq_tmp_x_221 : [int] | [$k__42[VV#41:=lq_tmp_x_221][lq_tmp_x_216:=lq_tmp_x_221];
-                                               (len([lq_tmp_x_221]) >= 0);
-                                               (lq_tmp_x_221 = ds_dQr);
-                                               (len([lq_tmp_x_221]) >= 0);
-                                               (len([lq_tmp_x_221]) >= 0)]}
-bind 46 lq_anf__dQv : {lq_tmp_x_221 : [int] | [$k__42[VV#41:=lq_tmp_x_221][lq_tmp_x_216:=lq_tmp_x_221];
-                                               (len([lq_tmp_x_221]) >= 0);
-                                               (lq_tmp_x_221 = ds_dQr);
-                                               (len([lq_tmp_x_221]) >= 0);
-                                               (len([lq_tmp_x_221]) = 0);
-                                               ((? null([lq_tmp_x_221])) <=> true);
-                                               (lq_tmp_x_221 = fix#GHC.Types.#91##93##35#6m([]));
-                                               (lq_tmp_x_221 = fix#GHC.Types.#91##93##35#6m([]));
-                                               (len([lq_tmp_x_221]) = 0);
-                                               ((? null([lq_tmp_x_221])) <=> true);
-                                               (lq_tmp_x_221 = fix#GHC.Types.#91##93##35#6m([]));
-                                               (len([lq_tmp_x_221]) >= 0)]}
-bind 47 lq_anf__dQv : {lq_tmp_x_239 : [int] | [$k__42[VV#41:=lq_tmp_x_239][lq_tmp_x_216:=lq_tmp_x_239];
-                                               (len([lq_tmp_x_239]) >= 0);
-                                               (lq_tmp_x_239 = ds_dQr);
-                                               (len([lq_tmp_x_239]) >= 0);
-                                               (len([lq_tmp_x_239]) >= 0)]}
-bind 48 x#aOy : {lq_tmp_x_236 : int | [(lq_tmp_x_236 > 0)]}
-bind 49 ds_dQs : {lq_tmp_x_249 : [int] | [(len([lq_tmp_x_249]) >= 0)]}
-bind 50 lq_anf__dQv : {lq_tmp_x_239 : [int] | [$k__42[VV#41:=lq_tmp_x_239][lq_tmp_x_216:=lq_tmp_x_239];
-                                               (len([lq_tmp_x_239]) >= 0);
-                                               (lq_tmp_x_239 = ds_dQr);
-                                               (len([lq_tmp_x_239]) >= 0);
-                                               (len([lq_tmp_x_239]) = (1 + len([ds_dQs])));
-                                               ((? null([lq_tmp_x_239])) <=> false);
-                                               (xsListSelector([lq_tmp_x_239]) = ds_dQs);
-                                               (xListSelector([lq_tmp_x_239]) = x#aOy);
-                                               (lq_tmp_x_239 = fix#GHC.Types.#58##35#64([x#aOy;
-                                                                                         ds_dQs]));
-                                               (lq_tmp_x_239 = fix#GHC.Types.#58##35#64([x#aOy;
-                                                                                         ds_dQs]));
-                                               (len([lq_tmp_x_239]) = (1 + len([ds_dQs])));
-                                               ((? null([lq_tmp_x_239])) <=> false);
-                                               (xsListSelector([lq_tmp_x_239]) = ds_dQs);
-                                               (xListSelector([lq_tmp_x_239]) = x#aOy);
-                                               (lq_tmp_x_239 = fix#GHC.Types.#58##35#64([x#aOy;
-                                                                                         ds_dQs]));
-                                               (len([lq_tmp_x_239]) >= 0)]}
-bind 51 lq_anf__dQw : {lq_tmp_x_261 : [int] | [(len([lq_tmp_x_261]) >= 0);
-                                               (lq_tmp_x_261 = ds_dQs);
+bind 43 ds_dQr : {VV#63 : [int] | [$k__64; (len([VV#63]) >= 0)]}
+bind 44 lq_anf__dQv : {lq_tmp_x_238 : [int] | [(lq_tmp_x_238 = ds_dQr);
+                                               (len([lq_tmp_x_238]) >= 0)]}
+bind 45 lq_anf__dQv : {lq_tmp_x_243 : [int] | [(lq_tmp_x_243 = ds_dQr);
+                                               (len([lq_tmp_x_243]) >= 0);
+                                               (len([lq_tmp_x_243]) >= 0)]}
+bind 46 lq_anf__dQv : {lq_tmp_x_243 : [int] | [(lq_tmp_x_243 = ds_dQr);
+                                               (len([lq_tmp_x_243]) >= 0);
+                                               (len([lq_tmp_x_243]) = 0);
+                                               ((? null([lq_tmp_x_243])) <=> true);
+                                               (lq_tmp_x_243 = fix#GHC.Types.#91##93##35#6m([]));
+                                               (len([lq_tmp_x_243]) = 0);
+                                               ((? null([lq_tmp_x_243])) <=> true);
+                                               (len([lq_tmp_x_243]) >= 0)]}
+bind 47 lq_anf__dQv : {lq_tmp_x_261 : [int] | [(lq_tmp_x_261 = ds_dQr);
+                                               (len([lq_tmp_x_261]) >= 0);
                                                (len([lq_tmp_x_261]) >= 0)]}
-bind 52 lq_anf__dQw : {lq_tmp_x_266 : [int] | [(len([lq_tmp_x_266]) >= 0);
-                                               (lq_tmp_x_266 = ds_dQs);
-                                               (len([lq_tmp_x_266]) >= 0);
-                                               (len([lq_tmp_x_266]) >= 0)]}
-bind 53 lq_anf__dQw : {lq_tmp_x_266 : [int] | [(len([lq_tmp_x_266]) >= 0);
-                                               (lq_tmp_x_266 = ds_dQs);
-                                               (len([lq_tmp_x_266]) >= 0);
-                                               (len([lq_tmp_x_266]) = 0);
-                                               ((? null([lq_tmp_x_266])) <=> true);
-                                               (lq_tmp_x_266 = fix#GHC.Types.#91##93##35#6m([]));
-                                               (lq_tmp_x_266 = fix#GHC.Types.#91##93##35#6m([]));
-                                               (len([lq_tmp_x_266]) = 0);
-                                               ((? null([lq_tmp_x_266])) <=> true);
-                                               (lq_tmp_x_266 = fix#GHC.Types.#91##93##35#6m([]));
-                                               (len([lq_tmp_x_266]) >= 0)]}
-bind 54 lq_anf__dQw : {lq_tmp_x_277 : [int] | [(len([lq_tmp_x_277]) >= 0);
-                                               (lq_tmp_x_277 = ds_dQs);
-                                               (len([lq_tmp_x_277]) >= 0);
-                                               (len([lq_tmp_x_277]) >= 0)]}
-bind 55 lq_anf__dQx : {lq_tmp_x_274 : int | [(lq_tmp_x_274 > 0)]}
-bind 56 lq_anf__dQy : {lq_tmp_x_287 : [int] | [(len([lq_tmp_x_287]) >= 0)]}
-bind 57 lq_anf__dQw : {lq_tmp_x_277 : [int] | [(len([lq_tmp_x_277]) >= 0);
-                                               (lq_tmp_x_277 = ds_dQs);
-                                               (len([lq_tmp_x_277]) >= 0);
-                                               (len([lq_tmp_x_277]) = (1 + len([lq_anf__dQy])));
-                                               ((? null([lq_tmp_x_277])) <=> false);
-                                               (xsListSelector([lq_tmp_x_277]) = lq_anf__dQy);
-                                               (xListSelector([lq_tmp_x_277]) = lq_anf__dQx);
-                                               (lq_tmp_x_277 = fix#GHC.Types.#58##35#64([lq_anf__dQx;
+bind 48 x#aOy : {lq_tmp_x_258 : int | [(lq_tmp_x_258 > 0)]}
+bind 49 ds_dQs : {lq_tmp_x_271 : [int] | [(len([lq_tmp_x_271]) >= 0)]}
+bind 50 lq_anf__dQv : {lq_tmp_x_261 : [int] | [(lq_tmp_x_261 = ds_dQr);
+                                               (len([lq_tmp_x_261]) >= 0);
+                                               (len([lq_tmp_x_261]) = (1 + len([ds_dQs])));
+                                               ((? null([lq_tmp_x_261])) <=> false);
+                                               (xsListSelector([lq_tmp_x_261]) = ds_dQs);
+                                               (xListSelector([lq_tmp_x_261]) = x#aOy);
+                                               (lq_tmp_x_261 = fix#GHC.Types.#58##35#64([x#aOy;
+                                                                                         ds_dQs]));
+                                               (len([lq_tmp_x_261]) = (1 + len([ds_dQs])));
+                                               ((? null([lq_tmp_x_261])) <=> false);
+                                               (xsListSelector([lq_tmp_x_261]) = ds_dQs);
+                                               (xListSelector([lq_tmp_x_261]) = x#aOy);
+                                               (len([lq_tmp_x_261]) >= 0)]}
+bind 51 lq_anf__dQw : {lq_tmp_x_283 : [int] | [(lq_tmp_x_283 = ds_dQs);
+                                               (len([lq_tmp_x_283]) >= 0)]}
+bind 52 lq_anf__dQw : {lq_tmp_x_288 : [int] | [(lq_tmp_x_288 = ds_dQs);
+                                               (len([lq_tmp_x_288]) >= 0);
+                                               (len([lq_tmp_x_288]) >= 0)]}
+bind 53 lq_anf__dQw : {lq_tmp_x_288 : [int] | [(lq_tmp_x_288 = ds_dQs);
+                                               (len([lq_tmp_x_288]) >= 0);
+                                               (len([lq_tmp_x_288]) = 0);
+                                               ((? null([lq_tmp_x_288])) <=> true);
+                                               (lq_tmp_x_288 = fix#GHC.Types.#91##93##35#6m([]));
+                                               (len([lq_tmp_x_288]) = 0);
+                                               ((? null([lq_tmp_x_288])) <=> true);
+                                               (len([lq_tmp_x_288]) >= 0)]}
+bind 54 lq_anf__dQw : {lq_tmp_x_299 : [int] | [(lq_tmp_x_299 = ds_dQs);
+                                               (len([lq_tmp_x_299]) >= 0);
+                                               (len([lq_tmp_x_299]) >= 0)]}
+bind 55 lq_anf__dQx : {lq_tmp_x_296 : int | [(lq_tmp_x_296 > 0)]}
+bind 56 lq_anf__dQy : {lq_tmp_x_309 : [int] | [(len([lq_tmp_x_309]) >= 0)]}
+bind 57 lq_anf__dQw : {lq_tmp_x_299 : [int] | [(lq_tmp_x_299 = ds_dQs);
+                                               (len([lq_tmp_x_299]) >= 0);
+                                               (len([lq_tmp_x_299]) = (1 + len([lq_anf__dQy])));
+                                               ((? null([lq_tmp_x_299])) <=> false);
+                                               (xsListSelector([lq_tmp_x_299]) = lq_anf__dQy);
+                                               (xListSelector([lq_tmp_x_299]) = lq_anf__dQx);
+                                               (lq_tmp_x_299 = fix#GHC.Types.#58##35#64([lq_anf__dQx;
                                                                                          lq_anf__dQy]));
-                                               (lq_tmp_x_277 = fix#GHC.Types.#58##35#64([lq_anf__dQx;
-                                                                                         lq_anf__dQy]));
-                                               (len([lq_tmp_x_277]) = (1 + len([lq_anf__dQy])));
-                                               ((? null([lq_tmp_x_277])) <=> false);
-                                               (xsListSelector([lq_tmp_x_277]) = lq_anf__dQy);
-                                               (xListSelector([lq_tmp_x_277]) = lq_anf__dQx);
-                                               (lq_tmp_x_277 = fix#GHC.Types.#58##35#64([lq_anf__dQx;
-                                                                                         lq_anf__dQy]));
-                                               (len([lq_tmp_x_277]) >= 0)]}
+                                               (len([lq_tmp_x_299]) = (1 + len([lq_anf__dQy])));
+                                               ((? null([lq_tmp_x_299])) <=> false);
+                                               (xsListSelector([lq_tmp_x_299]) = lq_anf__dQy);
+                                               (xListSelector([lq_tmp_x_299]) = lq_anf__dQx);
+                                               (len([lq_tmp_x_299]) >= 0)]}
 bind 58 Holes.bar#rpC : {VV : func(0, [[int]; int]) | []}
-bind 59 lq_anf__dQz : {lq_tmp_x_309 : int | [(lq_tmp_x_309 = (1  :  int))]}
-bind 60 lq_tmp_x_323 : {VV#324 : int | []}
-bind 61 lq_anf__dQA : {lq_tmp_x_315 : [int] | [(len([lq_tmp_x_315]) = 0);
-                                               ((? null([lq_tmp_x_315])) <=> true);
-                                               (lq_tmp_x_315 = fix#GHC.Types.#91##93##35#6m([]));
-                                               (len([lq_tmp_x_315]) >= 0)]}
-bind 62 lq_tmp_x_341 : {VV#342 : int | []}
-bind 63 lq_anf__dQB : {lq_tmp_x_329 : [int] | [(len([lq_tmp_x_329]) = (1 + len([lq_anf__dQA])));
-                                               ((? null([lq_tmp_x_329])) <=> false);
-                                               (xsListSelector([lq_tmp_x_329]) = lq_anf__dQA);
-                                               (xListSelector([lq_tmp_x_329]) = lq_anf__dQz);
-                                               (lq_tmp_x_329 = fix#GHC.Types.#58##35#64([lq_anf__dQz;
-                                                                                         lq_anf__dQA]));
-                                               (len([lq_tmp_x_329]) >= 0)]}
-bind 64 Holes.x#rpD : {VV#305 : int | [$k__306]}
-bind 65 p#aOu : {VV#56 : FAppTy (FAppTy Holes.P  a_aOY)  b_aOZ | [$k__57]}
+bind 59 lq_anf__dQz : {lq_tmp_x_331 : int | [(lq_tmp_x_331 = (1  :  int))]}
+bind 60 lq_tmp_x_345 : {VV#346 : int | []}
+bind 61 lq_anf__dQA : {lq_tmp_x_337 : [int] | [(len([lq_tmp_x_337]) = 0);
+                                               ((? null([lq_tmp_x_337])) <=> true);
+                                               (len([lq_tmp_x_337]) >= 0)]}
+bind 62 lq_tmp_x_363 : {VV#364 : int | []}
+bind 63 lq_anf__dQB : {lq_tmp_x_351 : [int] | [(len([lq_tmp_x_351]) = (1 + len([lq_anf__dQA])));
+                                               ((? null([lq_tmp_x_351])) <=> false);
+                                               (xsListSelector([lq_tmp_x_351]) = lq_anf__dQA);
+                                               (xListSelector([lq_tmp_x_351]) = lq_anf__dQz);
+                                               (len([lq_tmp_x_351]) >= 0)]}
+bind 64 Holes.x#rpD : {VV#327 : int | [$k__328]}
+bind 65 p#aOu : {VV#78 : FAppTy (Holes.P a_aOY)  b_aOZ | [$k__79]}
 bind 66 x#aOx : {VV : b_aOZ | []}
-bind 67 lq_anf__dQC : {lq_tmp_x_365 : FAppTy (FAppTy Holes.P  a_aOY)  b_aOZ | [$k__57[VV#56:=lq_tmp_x_365];
-                                                                               (lq_tmp_x_365 = p#aOu)]}
-bind 68 lq_anf__dQC : {lq_tmp_x_367 : FAppTy (FAppTy Holes.P  a_aOY)  b_aOZ | [$k__57[VV#56:=lq_tmp_x_367][lq_tmp_x_365:=lq_tmp_x_367];
-                                                                               (lq_tmp_x_367 = p#aOu)]}
-bind 69 a#aOv : {VV : a_aOY | [$k__51[VV#50:=VV][VV#56:=lq_anf__dQC][lq_tmp_x_365:=lq_anf__dQC][lq_tmp_x_367:=lq_anf__dQC]]}
-bind 70 b#aOw : {VV : b_aOZ | [$k__54[VV#53:=VV][VV#56:=lq_anf__dQC][lq_tmp_x_365:=lq_anf__dQC][lq_tmp_x_367:=lq_anf__dQC][lq_tmp_x_371:=a#aOv]]}
-bind 71 lq_anf__dQC : {lq_tmp_x_367 : FAppTy (FAppTy Holes.P  a_aOY)  b_aOZ | [$k__57[VV#56:=lq_tmp_x_367][lq_tmp_x_365:=lq_tmp_x_367];
-                                                                               (lq_tmp_x_367 = p#aOu);
-                                                                               (lq_tmp_x_367 = Holes.P#rpv([a#aOv;
-                                                                                                            b#aOw]))]}
-bind 72 Holes.goo#rpA : {VV : func(2, [FAppTy (FAppTy Holes.P  @(0))  @(1);
+bind 67 lq_anf__dQC : {lq_tmp_x_387 : FAppTy (Holes.P a_aOY)  b_aOZ | [(lq_tmp_x_387 = p#aOu)]}
+bind 68 lq_anf__dQC : {lq_tmp_x_389 : FAppTy (Holes.P a_aOY)  b_aOZ | [(lq_tmp_x_389 = p#aOu)]}
+bind 69 a#aOv : {VV : a_aOY | [$k__73[VV#72:=VV][VV#78:=lq_anf__dQC][lq_tmp_x_387:=lq_anf__dQC][lq_tmp_x_389:=lq_anf__dQC]]}
+bind 70 b#aOw : {VV : b_aOZ | [$k__76[VV#75:=VV][VV#78:=lq_anf__dQC][lq_tmp_x_387:=lq_anf__dQC][lq_tmp_x_389:=lq_anf__dQC][lq_tmp_x_393:=a#aOv]]}
+bind 71 lq_anf__dQC : {lq_tmp_x_389 : FAppTy (Holes.P a_aOY)  b_aOZ | [(lq_tmp_x_389 = p#aOu);
+                                                                       (lq_tmp_x_389 = Holes.P#rpv([a#aOv;
+                                                                                                    b#aOw]))]}
+bind 72 Holes.goo#rpA : {VV : func(2, [FAppTy (Holes.P @(0))  @(1);
                                        @(1);
                                        @(0)]) | []}
-bind 73 lq_anf__dQD : {lq_tmp_x_384 : int | [(lq_tmp_x_384 = 1)]}
-bind 74 lq_anf__dQE : {lq_tmp_x_386 : int | [(lq_tmp_x_386 = 1)]}
-bind 75 lq_anf__dQF : {lq_tmp_x_388 : FAppTy (FAppTy Holes.P  int)  int | []}
-bind 76 lq_anf__dQG : {lq_tmp_x_404 : int | [(lq_tmp_x_404 = 2)]}
-bind 77 Holes.y#rpB : {VV#381 : int | [$k__382]}
-bind 78 x#aOs : {VV : a_aPa | [$k__45[VV#44:=VV]]}
-bind 79 y#aOt : {VV : b_aPb | [$k__48[lq_tmp_db_0:=x#aOs][VV#47:=VV][lq_tmp_x_424:=x#aOs]]}
+bind 73 lq_anf__dQD : {lq_tmp_x_406 : int | [(lq_tmp_x_406 = 1)]}
+bind 74 lq_anf__dQE : {lq_tmp_x_408 : int | [(lq_tmp_x_408 = 1)]}
+bind 75 lq_anf__dQF : {lq_tmp_x_410 : FAppTy (Holes.P int)  int | []}
+bind 76 lq_anf__dQG : {lq_tmp_x_426 : int | [(lq_tmp_x_426 = 2)]}
+bind 77 Holes.y#rpB : {VV#403 : int | [$k__404]}
+bind 78 x#aOs : {VV : a_aPa | [$k__67[VV#66:=VV]]}
+bind 79 y#aOt : {VV : b_aPb | [$k__70[lq_tmp_db_0:=x#aOs][VV#69:=VV][lq_tmp_x_446:=x#aOs]]}
 bind 80 Holes.baz#rpy : {VV : func(2, [@(0); @(1); @(1)]) | []}
-bind 81 lq_anf__dQH : {lq_tmp_x_432 : int | [(lq_tmp_x_432 = 1)]}
-bind 82 lq_anf__dQI : {lq_tmp_x_434 : int | [(lq_tmp_x_434 = 2)]}
-bind 83 fix#Holes.baz#39##35#rpz : {VV#429 : int | [$k__430]}
-bind 84 x#aOq : {VV#35 : int | [$k__36]}
+bind 81 lq_anf__dQH : {lq_tmp_x_454 : int | [(lq_tmp_x_454 = 1)]}
+bind 82 lq_anf__dQI : {lq_tmp_x_456 : int | [(lq_tmp_x_456 = 2)]}
+bind 83 fix#Holes.baz#39##35#rpz : {VV#451 : int | [$k__452]}
+bind 84 x#aOq : {VV#57 : int | [$k__58]}
 bind 85 y#aOr : {y : int | [(y > 0)]}
 bind 86 Holes.foo#rpw : {VV : func(0, [int; int; int]) | []}
-bind 87 lq_anf__dQJ : {lq_tmp_x_461 : int | [(lq_tmp_x_461 = (0  :  int))]}
-bind 88 lq_anf__dQK : {lq_tmp_x_467 : int | [(lq_tmp_x_467 = (1  :  int))]}
-bind 89 Holes.zero#rpx : {VV#457 : int | [$k__458]}
-bind 90 VV#482 : {VV#482 : int | [$k__39[x:=lq_anf__dQJ][y:=lq_anf__dQK][VV#38:=VV#482][lq_tmp_x_451:=lq_anf__dQJ][lq_tmp_x_452:=lq_anf__dQK][lq_tmp_x_477:=lq_anf__dQJ][lq_tmp_x_478:=lq_anf__dQK][lq_tmp_x_474:=VV#482]]}
-bind 91 VV#482 : {VV#482 : int | [$k__39[x:=lq_anf__dQJ][y:=lq_anf__dQK][VV#38:=VV#482][lq_tmp_x_451:=lq_anf__dQJ][lq_tmp_x_452:=lq_anf__dQK][lq_tmp_x_477:=lq_anf__dQJ][lq_tmp_x_478:=lq_anf__dQK][lq_tmp_x_474:=VV#482]]}
-bind 92 VV#485 : {VV#485 : int | [(VV#485 = (1  :  int));
-                                  (VV#485 = lq_anf__dQK)]}
-bind 93 VV#485 : {VV#485 : int | [(VV#485 = (1  :  int));
-                                  (VV#485 = lq_anf__dQK)]}
-bind 94 VV#488 : {VV#488 : int | [(VV#488 = (0  :  int));
-                                  (VV#488 = lq_anf__dQJ)]}
-bind 95 VV#488 : {VV#488 : int | [(VV#488 = (0  :  int));
-                                  (VV#488 = lq_anf__dQJ)]}
-bind 96 VV#491 : {VV#491 : int | [(VV#491 = 1)]}
-bind 97 VV#491 : {VV#491 : int | [(VV#491 = 1)]}
-bind 98 VV#494 : {VV#494 : int | [(VV#494 = 0)]}
-bind 99 VV#494 : {VV#494 : int | [(VV#494 = 0)]}
-bind 100 VV#497 : {VV#497 : int | [$k__36[VV#35:=VV#497][lq_tmp_x_455:=VV#497];
-                                   (VV#497 = x#aOq)]}
-bind 101 VV#497 : {VV#497 : int | [$k__36[VV#35:=VV#497][lq_tmp_x_455:=VV#497];
-                                   (VV#497 = x#aOq)]}
-bind 102 VV#500 : {VV#500 : int | [$k__445[VV#444:=VV#500][lq_tmp_x_438:=lq_anf__dQH][lq_tmp_x_439:=lq_anf__dQI][lq_tmp_x_447:=VV#500]]}
-bind 103 VV#500 : {VV#500 : int | [$k__445[VV#444:=VV#500][lq_tmp_x_438:=lq_anf__dQH][lq_tmp_x_439:=lq_anf__dQI][lq_tmp_x_447:=VV#500]]}
-bind 104 VV#503 : {VV#503 : int | [(VV#503 = 2);
-                                   (VV#503 = lq_anf__dQI)]}
-bind 105 VV#503 : {VV#503 : int | [(VV#503 = 2);
-                                   (VV#503 = lq_anf__dQI)]}
-bind 106 VV#506 : {VV#506 : int | [(VV#506 = 1);
-                                   (VV#506 = lq_anf__dQH)]}
-bind 107 VV#506 : {VV#506 : int | [(VV#506 = 1);
-                                   (VV#506 = lq_anf__dQH)]}
-bind 108 VV : {VV : b_aPb | [$k__48[lq_tmp_db_0:=x#aOs][VV#47:=VV][lq_tmp_x_424:=x#aOs];
-                             (VV = y#aOt)]}
-bind 109 VV#510 : {VV#510 : int | [$k__412[VV#411:=VV#510][lq_tmp_x_409:=lq_anf__dQF][lq_tmp_x_410:=lq_anf__dQG][lq_tmp_x_414:=VV#510];
-                                   $k__60[lq_tmp_db_2:=lq_anf__dQF][lq_tmp_db_3:=lq_anf__dQG][lq_tmp_x_361:=lq_anf__dQF][lq_tmp_x_362:=lq_anf__dQG][VV#59:=VV#510][lq_tmp_x_409:=lq_anf__dQF][lq_tmp_x_410:=lq_anf__dQG][lq_tmp_x_414:=VV#510]]}
-bind 110 VV#510 : {VV#510 : int | [$k__412[VV#411:=VV#510][lq_tmp_x_409:=lq_anf__dQF][lq_tmp_x_410:=lq_anf__dQG][lq_tmp_x_414:=VV#510];
-                                   $k__60[lq_tmp_db_2:=lq_anf__dQF][lq_tmp_db_3:=lq_anf__dQG][lq_tmp_x_361:=lq_anf__dQF][lq_tmp_x_362:=lq_anf__dQG][VV#59:=VV#510][lq_tmp_x_409:=lq_anf__dQF][lq_tmp_x_410:=lq_anf__dQG][lq_tmp_x_414:=VV#510]]}
-bind 111 VV#513 : {VV#513 : int | [(VV#513 = 2);
-                                   (VV#513 = lq_anf__dQG)]}
-bind 112 VV#513 : {VV#513 : int | [(VV#513 = 2);
-                                   (VV#513 = lq_anf__dQG)]}
-bind 113 VV#516 : {VV#516 : FAppTy (FAppTy Holes.P  int)  int | [(VV#516 = lq_anf__dQF)]}
-bind 114 VV#516 : {VV#516 : FAppTy (FAppTy Holes.P  int)  int | [(VV#516 = lq_anf__dQF)]}
-bind 115 VV#519 : {VV#519 : int | [$k__394[VV#393:=VV#519][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_392:=lq_anf__dQE][lq_tmp_x_396:=VV#519][lq_tmp_x_388:=VV#516][lq_tmp_x_421:=VV#516][lq_tmp_x_419:=VV#519]]}
-bind 116 VV#519 : {VV#519 : int | [$k__394[VV#393:=VV#519][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_392:=lq_anf__dQE][lq_tmp_x_396:=VV#519][lq_tmp_x_388:=VV#516][lq_tmp_x_421:=VV#516][lq_tmp_x_419:=VV#519]]}
-bind 117 VV#522 : {VV#522 : int | [$k__398[VV#397:=VV#522][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_392:=lq_anf__dQE][lq_tmp_x_400:=VV#522][lq_tmp_x_388:=VV#516][lq_tmp_x_421:=VV#516][lq_tmp_x_420:=VV#522]]}
-bind 118 VV#522 : {VV#522 : int | [$k__398[VV#397:=VV#522][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_392:=lq_anf__dQE][lq_tmp_x_400:=VV#522][lq_tmp_x_388:=VV#516][lq_tmp_x_421:=VV#516][lq_tmp_x_420:=VV#522]]}
-bind 119 VV#525 : {VV#525 : int | [(VV#525 = 1);
-                                   (VV#525 = lq_anf__dQE)]}
-bind 120 VV#525 : {VV#525 : int | [(VV#525 = 1);
-                                   (VV#525 = lq_anf__dQE)]}
-bind 121 VV#528 : {VV#528 : int | [(VV#528 = 1);
-                                   (VV#528 = lq_anf__dQD)]}
-bind 122 VV#528 : {VV#528 : int | [(VV#528 = 1);
-                                   (VV#528 = lq_anf__dQD)]}
-bind 123 VV : {VV : a_aOY | [$k__51[VV#50:=VV][VV#56:=lq_anf__dQC][lq_tmp_x_365:=lq_anf__dQC][lq_tmp_x_367:=lq_anf__dQC];
-                             (VV = a#aOv)]}
-bind 124 VV#532 : {VV#532 : int | []}
-bind 125 VV#532 : {VV#532 : int | []}
-bind 126 VV#535 : {VV#535 : [int] | [(len([VV#535]) = (1 + len([lq_anf__dQA])));
-                                     ((? null([VV#535])) <=> false);
-                                     (xsListSelector([VV#535]) = lq_anf__dQA);
-                                     (xListSelector([VV#535]) = lq_anf__dQz);
-                                     (VV#535 = fix#GHC.Types.#58##35#64([lq_anf__dQz;
-                                                                         lq_anf__dQA]));
-                                     (len([VV#535]) >= 0);
-                                     (VV#535 = lq_anf__dQB);
-                                     (len([VV#535]) >= 0)]}
-bind 127 VV#535 : {VV#535 : [int] | [(len([VV#535]) = (1 + len([lq_anf__dQA])));
-                                     ((? null([VV#535])) <=> false);
-                                     (xsListSelector([VV#535]) = lq_anf__dQA);
-                                     (xListSelector([VV#535]) = lq_anf__dQz);
-                                     (VV#535 = fix#GHC.Types.#58##35#64([lq_anf__dQz;
-                                                                         lq_anf__dQA]));
-                                     (len([VV#535]) >= 0);
-                                     (VV#535 = lq_anf__dQB);
-                                     (len([VV#535]) >= 0)]}
-bind 128 VV#538 : {VV#538 : int | [$k__335[VV#334:=VV#538][lq_tmp_x_332:=lq_anf__dQz][lq_tmp_x_333:=lq_anf__dQA][lq_tmp_x_337:=VV#538][lq_tmp_x_329:=VV#535][lq_tmp_x_359:=VV#535][lq_tmp_x_356:=VV#538]]}
-bind 129 VV#538 : {VV#538 : int | [$k__335[VV#334:=VV#538][lq_tmp_x_332:=lq_anf__dQz][lq_tmp_x_333:=lq_anf__dQA][lq_tmp_x_337:=VV#538][lq_tmp_x_329:=VV#535][lq_tmp_x_359:=VV#535][lq_tmp_x_356:=VV#538]]}
-bind 130 lq_tmp_x_350 : {VV#541 : int | []}
-bind 131 VV#542 : {VV#542 : int | [$k__339[lq_tmp_x_341:=lq_tmp_x_350][VV#338:=VV#542][lq_tmp_x_332:=lq_anf__dQz][lq_tmp_x_333:=lq_anf__dQA][lq_tmp_x_337:=VV#542][lq_tmp_x_328:=lq_tmp_x_350][lq_tmp_x_357:=lq_tmp_x_350][lq_tmp_x_358:=VV#542]]}
-bind 132 VV#542 : {VV#542 : int | [$k__339[lq_tmp_x_341:=lq_tmp_x_350][VV#338:=VV#542][lq_tmp_x_332:=lq_anf__dQz][lq_tmp_x_333:=lq_anf__dQA][lq_tmp_x_337:=VV#542][lq_tmp_x_328:=lq_tmp_x_350][lq_tmp_x_357:=lq_tmp_x_350][lq_tmp_x_358:=VV#542]]}
-bind 133 VV#545 : {VV#545 : [int] | [(len([VV#545]) = 0);
-                                     ((? null([VV#545])) <=> true);
-                                     (VV#545 = fix#GHC.Types.#91##93##35#6m([]));
-                                     (len([VV#545]) >= 0);
-                                     (VV#545 = lq_anf__dQA);
-                                     (len([VV#545]) >= 0)]}
-bind 134 VV#545 : {VV#545 : [int] | [(len([VV#545]) = 0);
-                                     ((? null([VV#545])) <=> true);
-                                     (VV#545 = fix#GHC.Types.#91##93##35#6m([]));
-                                     (len([VV#545]) >= 0);
-                                     (VV#545 = lq_anf__dQA);
-                                     (len([VV#545]) >= 0)]}
-bind 135 VV#548 : {VV#548 : int | [$k__317[VV#316:=VV#548][lq_tmp_x_319:=VV#548][lq_tmp_x_315:=VV#545][lq_tmp_x_347:=VV#545][lq_tmp_x_344:=VV#548]]}
-bind 136 VV#548 : {VV#548 : int | [$k__317[VV#316:=VV#548][lq_tmp_x_319:=VV#548][lq_tmp_x_315:=VV#545][lq_tmp_x_347:=VV#545][lq_tmp_x_344:=VV#548]]}
-bind 137 lq_tmp_x_326 : {VV#551 : int | []}
-bind 138 VV#552 : {VV#552 : int | [$k__321[lq_tmp_x_323:=lq_tmp_x_326][VV#320:=VV#552][lq_tmp_x_319:=VV#552][lq_tmp_x_314:=lq_tmp_x_326][lq_tmp_x_345:=lq_tmp_x_326][lq_tmp_x_346:=VV#552]]}
-bind 139 VV#552 : {VV#552 : int | [$k__321[lq_tmp_x_323:=lq_tmp_x_326][VV#320:=VV#552][lq_tmp_x_319:=VV#552][lq_tmp_x_314:=lq_tmp_x_326][lq_tmp_x_345:=lq_tmp_x_326][lq_tmp_x_346:=VV#552]]}
-bind 140 VV#555 : {VV#555 : int | [(VV#555 = (1  :  int));
-                                   (VV#555 = lq_anf__dQz)]}
-bind 141 VV#555 : {VV#555 : int | [(VV#555 = (1  :  int));
-                                   (VV#555 = lq_anf__dQz)]}
-bind 142 VV#558 : {VV#558 : int | [(VV#558 = 1)]}
-bind 143 VV#558 : {VV#558 : int | [(VV#558 = 1)]}
-bind 144 VV#561 : {VV#561 : int | [$k__300[VV#299:=VV#561][lq_tmp_x_298:=fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar][lq_tmp_x_302:=VV#561]]}
-bind 145 VV#561 : {VV#561 : int | [$k__300[VV#299:=VV#561][lq_tmp_x_298:=fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar][lq_tmp_x_302:=VV#561]]}
-bind 146 VV#564 : {VV#564 : int | []}
-bind 147 VV#564 : {VV#564 : int | []}
-bind 148 VV#567 : {VV#567 : int | [(VV#567 > 0); (VV#567 = x#aOy)]}
-bind 149 VV#567 : {VV#567 : int | [(VV#567 > 0); (VV#567 = x#aOy)]}
-bind 150 VV#570 : {VV#570 : int | [$k__232[VV#231:=VV#570][lq_tmp_x_230:=fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar][lq_tmp_x_234:=VV#570]]}
-bind 151 VV#570 : {VV#570 : int | [$k__232[VV#231:=VV#570][lq_tmp_x_230:=fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar][lq_tmp_x_234:=VV#570]]}
-bind 152 VV#573 : {VV#573 : int | []}
-bind 153 VV#573 : {VV#573 : int | []}
+bind 87 lq_anf__dQJ : {lq_tmp_x_483 : int | [(lq_tmp_x_483 = (0  :  int))]}
+bind 88 lq_anf__dQK : {lq_tmp_x_489 : int | [(lq_tmp_x_489 = (1  :  int))]}
+bind 89 Holes.zero#rpx : {VV#479 : int | [$k__480]}
+bind 90 VV#504 : {VV#504 : int | [$k__61[x:=lq_anf__dQJ][y:=lq_anf__dQK][VV#60:=VV#504][lq_tmp_x_473:=lq_anf__dQJ][lq_tmp_x_474:=lq_anf__dQK][lq_tmp_x_499:=lq_anf__dQJ][lq_tmp_x_500:=lq_anf__dQK][lq_tmp_x_496:=VV#504]]}
+bind 91 VV#504 : {VV#504 : int | [$k__61[x:=lq_anf__dQJ][y:=lq_anf__dQK][VV#60:=VV#504][lq_tmp_x_473:=lq_anf__dQJ][lq_tmp_x_474:=lq_anf__dQK][lq_tmp_x_499:=lq_anf__dQJ][lq_tmp_x_500:=lq_anf__dQK][lq_tmp_x_496:=VV#504]]}
+bind 92 VV#507 : {VV#507 : int | [(VV#507 = lq_anf__dQK)]}
+bind 93 VV#507 : {VV#507 : int | [(VV#507 = lq_anf__dQK)]}
+bind 94 VV#510 : {VV#510 : int | [(VV#510 = lq_anf__dQJ)]}
+bind 95 VV#510 : {VV#510 : int | [(VV#510 = lq_anf__dQJ)]}
+bind 96 VV#513 : {VV#513 : int | [(VV#513 = 1)]}
+bind 97 VV#513 : {VV#513 : int | [(VV#513 = 1)]}
+bind 98 VV#516 : {VV#516 : int | [(VV#516 = 0)]}
+bind 99 VV#516 : {VV#516 : int | [(VV#516 = 0)]}
+bind 100 VV#519 : {VV#519 : int | [(VV#519 = x#aOq)]}
+bind 101 VV#519 : {VV#519 : int | [(VV#519 = x#aOq)]}
+bind 102 VV#522 : {VV#522 : int | [$k__467[VV#466:=VV#522][lq_tmp_x_460:=lq_anf__dQH][lq_tmp_x_461:=lq_anf__dQI][lq_tmp_x_469:=VV#522]]}
+bind 103 VV#522 : {VV#522 : int | [$k__467[VV#466:=VV#522][lq_tmp_x_460:=lq_anf__dQH][lq_tmp_x_461:=lq_anf__dQI][lq_tmp_x_469:=VV#522]]}
+bind 104 VV#525 : {VV#525 : int | [(VV#525 = lq_anf__dQI)]}
+bind 105 VV#525 : {VV#525 : int | [(VV#525 = lq_anf__dQI)]}
+bind 106 VV#528 : {VV#528 : int | [(VV#528 = lq_anf__dQH)]}
+bind 107 VV#528 : {VV#528 : int | [(VV#528 = lq_anf__dQH)]}
+bind 108 VV : {VV : b_aPb | [(VV = y#aOt)]}
+bind 109 VV#532 : {VV#532 : int | [$k__434[VV#433:=VV#532][lq_tmp_x_431:=lq_anf__dQF][lq_tmp_x_432:=lq_anf__dQG][lq_tmp_x_436:=VV#532];
+                                   $k__82[lq_tmp_db_2:=lq_anf__dQF][lq_tmp_db_3:=lq_anf__dQG][lq_tmp_x_383:=lq_anf__dQF][lq_tmp_x_384:=lq_anf__dQG][VV#81:=VV#532][lq_tmp_x_431:=lq_anf__dQF][lq_tmp_x_432:=lq_anf__dQG][lq_tmp_x_436:=VV#532]]}
+bind 110 VV#532 : {VV#532 : int | [$k__434[VV#433:=VV#532][lq_tmp_x_431:=lq_anf__dQF][lq_tmp_x_432:=lq_anf__dQG][lq_tmp_x_436:=VV#532];
+                                   $k__82[lq_tmp_db_2:=lq_anf__dQF][lq_tmp_db_3:=lq_anf__dQG][lq_tmp_x_383:=lq_anf__dQF][lq_tmp_x_384:=lq_anf__dQG][VV#81:=VV#532][lq_tmp_x_431:=lq_anf__dQF][lq_tmp_x_432:=lq_anf__dQG][lq_tmp_x_436:=VV#532]]}
+bind 111 VV#535 : {VV#535 : int | [(VV#535 = lq_anf__dQG)]}
+bind 112 VV#535 : {VV#535 : int | [(VV#535 = lq_anf__dQG)]}
+bind 113 VV#538 : {VV#538 : FAppTy (Holes.P int)  int | [(VV#538 = lq_anf__dQF)]}
+bind 114 VV#538 : {VV#538 : FAppTy (Holes.P int)  int | [(VV#538 = lq_anf__dQF)]}
+bind 115 VV#541 : {VV#541 : int | [$k__416[VV#415:=VV#541][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_414:=lq_anf__dQE][lq_tmp_x_418:=VV#541][lq_tmp_x_410:=VV#538][lq_tmp_x_443:=VV#538][lq_tmp_x_441:=VV#541]]}
+bind 116 VV#541 : {VV#541 : int | [$k__416[VV#415:=VV#541][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_414:=lq_anf__dQE][lq_tmp_x_418:=VV#541][lq_tmp_x_410:=VV#538][lq_tmp_x_443:=VV#538][lq_tmp_x_441:=VV#541]]}
+bind 117 VV#544 : {VV#544 : int | [$k__420[VV#419:=VV#544][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_414:=lq_anf__dQE][lq_tmp_x_422:=VV#544][lq_tmp_x_410:=VV#538][lq_tmp_x_443:=VV#538][lq_tmp_x_442:=VV#544]]}
+bind 118 VV#544 : {VV#544 : int | [$k__420[VV#419:=VV#544][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_414:=lq_anf__dQE][lq_tmp_x_422:=VV#544][lq_tmp_x_410:=VV#538][lq_tmp_x_443:=VV#538][lq_tmp_x_442:=VV#544]]}
+bind 119 VV#547 : {VV#547 : int | [(VV#547 = lq_anf__dQE)]}
+bind 120 VV#547 : {VV#547 : int | [(VV#547 = lq_anf__dQE)]}
+bind 121 VV#550 : {VV#550 : int | [(VV#550 = lq_anf__dQD)]}
+bind 122 VV#550 : {VV#550 : int | [(VV#550 = lq_anf__dQD)]}
+bind 123 VV : {VV : a_aOY | [(VV = a#aOv)]}
+bind 124 VV#554 : {VV#554 : int | []}
+bind 125 VV#554 : {VV#554 : int | []}
+bind 126 VV#557 : {VV#557 : [int] | [(VV#557 = lq_anf__dQB);
+                                     (len([VV#557]) >= 0)]}
+bind 127 VV#557 : {VV#557 : [int] | [(VV#557 = lq_anf__dQB);
+                                     (len([VV#557]) >= 0)]}
+bind 128 VV#560 : {VV#560 : int | [$k__357[VV#356:=VV#560][lq_tmp_x_354:=lq_anf__dQz][lq_tmp_x_355:=lq_anf__dQA][lq_tmp_x_359:=VV#560][lq_tmp_x_351:=VV#557][lq_tmp_x_381:=VV#557][lq_tmp_x_378:=VV#560]]}
+bind 129 VV#560 : {VV#560 : int | [$k__357[VV#356:=VV#560][lq_tmp_x_354:=lq_anf__dQz][lq_tmp_x_355:=lq_anf__dQA][lq_tmp_x_359:=VV#560][lq_tmp_x_351:=VV#557][lq_tmp_x_381:=VV#557][lq_tmp_x_378:=VV#560]]}
+bind 130 lq_tmp_x_372 : {VV#563 : int | []}
+bind 131 VV#564 : {VV#564 : int | [$k__361[lq_tmp_x_363:=lq_tmp_x_372][VV#360:=VV#564][lq_tmp_x_354:=lq_anf__dQz][lq_tmp_x_355:=lq_anf__dQA][lq_tmp_x_359:=VV#564][lq_tmp_x_350:=lq_tmp_x_372][lq_tmp_x_379:=lq_tmp_x_372][lq_tmp_x_380:=VV#564]]}
+bind 132 VV#564 : {VV#564 : int | [$k__361[lq_tmp_x_363:=lq_tmp_x_372][VV#360:=VV#564][lq_tmp_x_354:=lq_anf__dQz][lq_tmp_x_355:=lq_anf__dQA][lq_tmp_x_359:=VV#564][lq_tmp_x_350:=lq_tmp_x_372][lq_tmp_x_379:=lq_tmp_x_372][lq_tmp_x_380:=VV#564]]}
+bind 133 VV#567 : {VV#567 : [int] | [(VV#567 = lq_anf__dQA);
+                                     (len([VV#567]) >= 0)]}
+bind 134 VV#567 : {VV#567 : [int] | [(VV#567 = lq_anf__dQA);
+                                     (len([VV#567]) >= 0)]}
+bind 135 VV#570 : {VV#570 : int | [$k__339[VV#338:=VV#570][lq_tmp_x_341:=VV#570][lq_tmp_x_337:=VV#567][lq_tmp_x_369:=VV#567][lq_tmp_x_366:=VV#570]]}
+bind 136 VV#570 : {VV#570 : int | [$k__339[VV#338:=VV#570][lq_tmp_x_341:=VV#570][lq_tmp_x_337:=VV#567][lq_tmp_x_369:=VV#567][lq_tmp_x_366:=VV#570]]}
+bind 137 lq_tmp_x_348 : {VV#573 : int | []}
+bind 138 VV#574 : {VV#574 : int | [$k__343[lq_tmp_x_345:=lq_tmp_x_348][VV#342:=VV#574][lq_tmp_x_341:=VV#574][lq_tmp_x_336:=lq_tmp_x_348][lq_tmp_x_367:=lq_tmp_x_348][lq_tmp_x_368:=VV#574]]}
+bind 139 VV#574 : {VV#574 : int | [$k__343[lq_tmp_x_345:=lq_tmp_x_348][VV#342:=VV#574][lq_tmp_x_341:=VV#574][lq_tmp_x_336:=lq_tmp_x_348][lq_tmp_x_367:=lq_tmp_x_348][lq_tmp_x_368:=VV#574]]}
+bind 140 VV#577 : {VV#577 : int | [(VV#577 = lq_anf__dQz)]}
+bind 141 VV#577 : {VV#577 : int | [(VV#577 = lq_anf__dQz)]}
+bind 142 VV#580 : {VV#580 : int | [(VV#580 = 1)]}
+bind 143 VV#580 : {VV#580 : int | [(VV#580 = 1)]}
+bind 144 VV#583 : {VV#583 : int | [$k__322[VV#321:=VV#583][lq_tmp_x_320:=fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar][lq_tmp_x_324:=VV#583]]}
+bind 145 VV#583 : {VV#583 : int | [$k__322[VV#321:=VV#583][lq_tmp_x_320:=fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar][lq_tmp_x_324:=VV#583]]}
+bind 146 VV#586 : {VV#586 : int | []}
+bind 147 VV#586 : {VV#586 : int | []}
+bind 148 VV#589 : {VV#589 : int | [(VV#589 = x#aOy)]}
+bind 149 VV#589 : {VV#589 : int | [(VV#589 = x#aOy)]}
+bind 150 VV#592 : {VV#592 : int | [$k__254[VV#253:=VV#592][lq_tmp_x_252:=fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar][lq_tmp_x_256:=VV#592]]}
+bind 151 VV#592 : {VV#592 : int | [$k__254[VV#253:=VV#592][lq_tmp_x_252:=fix#lit#35#Holes.hs#58#27#58#1#45#11#124#function#32#bar][lq_tmp_x_256:=VV#592]]}
+bind 152 VV#595 : {VV#595 : int | []}
+bind 153 VV#595 : {VV#595 : int | []}
 bind 154 VV : {VV : a_aPw | [(VV = (x#aOz + y#aOA))]}
 bind 155 VV : {VV : a_aPw | [(VV = y#aOA)]}
 bind 156 VV : {VV : a_aPw | [(VV = x#aOz)]}
-bind 157 VV#579 : {VV#579 : int | [(VV#579 = 1)]}
-bind 158 VV#579 : {VV#579 : int | [(VV#579 = 1)]}
-bind 159 VV#457 : {VV#457 : int | [$k__458]}
-bind 160 VV#35 : {VV#35 : int | [$k__36]}
-bind 161 lq_tmp_x_451 : {VV#35 : int | [$k__36]}
+bind 157 VV#601 : {VV#601 : int | [(VV#601 = 1)]}
+bind 158 VV#601 : {VV#601 : int | [(VV#601 = 1)]}
+bind 159 VV#479 : {VV#479 : int | [$k__480]}
+bind 160 VV#57 : {VV#57 : int | [$k__58]}
+bind 161 lq_tmp_x_473 : {VV#57 : int | [$k__58]}
 bind 162 y : {y : int | [(y > 0)]}
-bind 163 lq_tmp_x_452 : {y : int | [(y > 0)]}
-bind 164 VV#38 : {VV#38 : int | [$k__39]}
-bind 165 VV#444 : {VV#444 : int | [$k__445]}
-bind 166 VV#440 : {VV#440 : int | [$k__441]}
-bind 167 VV#429 : {VV#429 : int | [$k__430]}
-bind 168 lq_tmp_x_424 : {VV#44 : a_aPa | [$k__45]}
-bind 169 lq_tmp_x_425 : {VV#47 : b_aPb | [$k__48]}
-bind 170 VV#415 : {VV#415 : int | [$k__416]}
-bind 171 VV#411 : {VV#411 : int | [$k__412]}
-bind 172 VV#397 : {VV#397 : int | [$k__398]}
-bind 173 VV#393 : {VV#393 : int | [$k__394]}
-bind 174 VV#381 : {VV#381 : int | [$k__382]}
-bind 175 VV#56 : {VV#56 : FAppTy (FAppTy Holes.P  a_aOY)  b_aOZ | [$k__57]}
-bind 176 lq_tmp_x_361 : {VV#56 : FAppTy (FAppTy Holes.P  a_aOY)  b_aOZ | [$k__57]}
-bind 177 lq_tmp_x_362 : {VV : b_aOZ | []}
-bind 178 VV#338 : {VV#338 : int | [$k__339]}
-bind 179 VV#334 : {VV#334 : int | [$k__335]}
-bind 180 VV#320 : {VV#320 : int | [$k__321]}
-bind 181 VV#316 : {VV#316 : int | [$k__317]}
-bind 182 VV#305 : {VV#305 : int | [$k__306]}
-bind 183 VV#41 : {VV#41 : [int] | [$k__42; (len([VV#41]) >= 0)]}
+bind 163 lq_tmp_x_474 : {y : int | [(y > 0)]}
+bind 164 VV#60 : {VV#60 : int | [$k__61]}
+bind 165 VV#466 : {VV#466 : int | [$k__467]}
+bind 166 VV#462 : {VV#462 : int | [$k__463]}
+bind 167 VV#451 : {VV#451 : int | [$k__452]}
+bind 168 lq_tmp_x_446 : {VV#66 : a_aPa | [$k__67]}
+bind 169 lq_tmp_x_447 : {VV#69 : b_aPb | [$k__70]}
+bind 170 VV#437 : {VV#437 : int | [$k__438]}
+bind 171 VV#433 : {VV#433 : int | [$k__434]}
+bind 172 VV#419 : {VV#419 : int | [$k__420]}
+bind 173 VV#415 : {VV#415 : int | [$k__416]}
+bind 174 VV#403 : {VV#403 : int | [$k__404]}
+bind 175 VV#78 : {VV#78 : FAppTy (Holes.P a_aOY)  b_aOZ | [$k__79]}
+bind 176 lq_tmp_x_383 : {VV#78 : FAppTy (Holes.P a_aOY)  b_aOZ | [$k__79]}
+bind 177 lq_tmp_x_384 : {VV : b_aOZ | []}
+bind 178 VV#360 : {VV#360 : int | [$k__361]}
+bind 179 VV#356 : {VV#356 : int | [$k__357]}
+bind 180 VV#342 : {VV#342 : int | [$k__343]}
+bind 181 VV#338 : {VV#338 : int | [$k__339]}
+bind 182 VV#327 : {VV#327 : int | [$k__328]}
+bind 183 VV#63 : {VV#63 : [int] | [$k__64; (len([VV#63]) >= 0)]}
 bind 184 v0 : {v0 : int | [(v0 > 0)]}
-bind 185 fldList : {VV#608 : int | []}
-bind 186 lq_tmp_x_211 : {VV#41 : [int] | [$k__42;
-                                          (len([VV#41]) >= 0)]}
-bind 187 VV#299 : {VV#299 : int | [$k__300]}
-bind 188 VV#231 : {VV#231 : int | [$k__232]}
+bind 185 fldList : {VV#630 : int | []}
+bind 186 lq_tmp_x_233 : {VV#63 : [int] | [$k__64;
+                                          (len([VV#63]) >= 0)]}
+bind 187 VV#321 : {VV#321 : int | [$k__322]}
+bind 188 VV#253 : {VV#253 : int | [$k__254]}
+
+
 
 
 constraint:
@@ -607,12 +586,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F16 : int | [$k__398[VV#397:=VV#F16][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_392:=lq_anf__dQE][lq_tmp_x_400:=VV#F16][lq_tmp_x_388:=VV#516][lq_tmp_x_421:=VV#516][lq_tmp_x_420:=VV#F16][VV#522:=VV#F16][VV#F:=VV#F16]]}
-  rhs {VV#F16 : int | [$k__54[VV#56:=VV#516][VV#53:=VV#F16][lq_tmp_x_406:=VV#516][lq_tmp_x_418:=VV#F16][VV#522:=VV#F16][VV#F:=VV#F16]]}
+  lhs {VV#F16 : int | [$k__420[VV#419:=VV#F16][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_414:=lq_anf__dQE][lq_tmp_x_422:=VV#F16][lq_tmp_x_410:=VV#538][lq_tmp_x_443:=VV#538][lq_tmp_x_442:=VV#F16][VV#544:=VV#F16][VV#F:=VV#F16]]}
+  rhs {VV#F16 : int | [$k__76[VV#78:=VV#538][VV#75:=VV#F16][lq_tmp_x_428:=VV#538][lq_tmp_x_440:=VV#F16][VV#544:=VV#F16][VV#F:=VV#F16]]}
   id 16 tag [6]
   // META constraint id 16 : Holes.hs:22:10-14
-  
-
 
 
 constraint:
@@ -666,12 +643,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F1 : int | [$k__39[x:=lq_anf__dQJ][y:=lq_anf__dQK][VV#38:=VV#F1][lq_tmp_x_451:=lq_anf__dQJ][lq_tmp_x_452:=lq_anf__dQK][lq_tmp_x_477:=lq_anf__dQJ][lq_tmp_x_478:=lq_anf__dQK][lq_tmp_x_474:=VV#F1][VV#482:=VV#F1][VV#F:=VV#F1]]}
-  rhs {VV#F1 : int | [$k__458[VV#457:=VV#F1][VV#482:=VV#F1][VV#F:=VV#F1]]}
+  lhs {VV#F1 : int | [$k__61[x:=lq_anf__dQJ][y:=lq_anf__dQK][VV#60:=VV#F1][lq_tmp_x_473:=lq_anf__dQJ][lq_tmp_x_474:=lq_anf__dQK][lq_tmp_x_499:=lq_anf__dQJ][lq_tmp_x_500:=lq_anf__dQK][lq_tmp_x_496:=VV#F1][VV#504:=VV#F1][VV#F:=VV#F1]]}
+  rhs {VV#F1 : int | [$k__480[VV#479:=VV#F1][VV#504:=VV#F1][VV#F:=VV#F1]]}
   id 1 tag [10]
   // META constraint id 1 : Holes.hs:7:8-14
-  
-
 
 
 constraint:
@@ -721,12 +696,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F17 : int | [(VV#F17 = 1); (VV#F17 = lq_anf__dQE)]}
-  rhs {VV#F17 : int | [$k__398[VV#397:=VV#F17][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_400:=VV#F17][VV#525:=VV#F17][VV#F:=VV#F17]]}
+  lhs {VV#F17 : int | [(VV#F17 = lq_anf__dQE)]}
+  rhs {VV#F17 : int | [$k__420[VV#419:=VV#F17][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_422:=VV#F17][VV#547:=VV#F17][VV#F:=VV#F17]]}
   id 17 tag [6]
   // META constraint id 17 : <no location info>
-  
-
 
 
 constraint:
@@ -780,12 +753,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F2 : int | [(VV#F2 = (1  :  int)); (VV#F2 = lq_anf__dQK)]}
+  lhs {VV#F2 : int | [(VV#F2 = lq_anf__dQK)]}
   rhs {VV#F2 : int | [(VV#F2 > 0)]}
   id 2 tag [10]
   // META constraint id 2 : Holes.hs:7:14
-  
-
 
 
 constraint:
@@ -835,12 +806,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F18 : int | [(VV#F18 = 1); (VV#F18 = lq_anf__dQD)]}
-  rhs {VV#F18 : int | [$k__394[VV#393:=VV#F18][lq_tmp_x_396:=VV#F18][VV#528:=VV#F18][VV#F:=VV#F18]]}
+  lhs {VV#F18 : int | [(VV#F18 = lq_anf__dQD)]}
+  rhs {VV#F18 : int | [$k__416[VV#415:=VV#F18][lq_tmp_x_418:=VV#F18][VV#550:=VV#F18][VV#F:=VV#F18]]}
   id 18 tag [6]
   // META constraint id 18 : Holes.hs:22:10-12
-  
-
 
 
 constraint:
@@ -894,12 +863,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F3 : int | [(VV#F3 = (0  :  int)); (VV#F3 = lq_anf__dQJ)]}
-  rhs {VV#F3 : int | [$k__36[VV#35:=VV#F3][lq_tmp_x_472:=VV#F3][VV#488:=VV#F3][VV#F:=VV#F3]]}
+  lhs {VV#F3 : int | [(VV#F3 = lq_anf__dQJ)]}
+  rhs {VV#F3 : int | [$k__58[VV#57:=VV#F3][lq_tmp_x_494:=VV#F3][VV#510:=VV#F3][VV#F:=VV#F3]]}
   id 3 tag [10]
   // META constraint id 3 : Holes.hs:7:12
-  
-
 
 
 constraint:
@@ -953,13 +920,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F19 : a_aOY | [$k__51[VV#50:=VV#F19][VV#56:=lq_anf__dQC][lq_tmp_x_365:=lq_anf__dQC][lq_tmp_x_367:=lq_anf__dQC][VV:=VV#F19][VV#F:=VV#F19];
-                         (VV#F19 = a#aOv)]}
-  rhs {VV#F19 : a_aOY | [$k__60[lq_tmp_db_2:=p#aOu][lq_tmp_db_3:=x#aOx][VV#59:=VV#F19][lq_tmp_x_361:=p#aOu][lq_tmp_x_362:=x#aOx][VV:=VV#F19][VV#F:=VV#F19]]}
+  lhs {VV#F19 : a_aOY | [(VV#F19 = a#aOv)]}
+  rhs {VV#F19 : a_aOY | [$k__82[lq_tmp_db_2:=p#aOu][lq_tmp_db_3:=x#aOx][VV#81:=VV#F19][lq_tmp_x_383:=p#aOu][lq_tmp_x_384:=x#aOx][VV:=VV#F19][VV#F:=VV#F19]]}
   id 19 tag [5]
   // META constraint id 19 : Holes.hs:20:19
-  
-
 
 
 constraint:
@@ -1012,13 +976,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F4 : int | [$k__36[VV#35:=VV#F4][lq_tmp_x_455:=VV#F4][VV#497:=VV#F4][VV#F:=VV#F4];
-                      (VV#F4 = x#aOq)]}
-  rhs {VV#F4 : int | [$k__39[x:=x#aOq][y:=y#aOr][lq_tmp_x_451:=x#aOq][lq_tmp_x_452:=y#aOr][VV#38:=VV#F4][VV#497:=VV#F4][VV#F:=VV#F4]]}
+  lhs {VV#F4 : int | [(VV#F4 = x#aOq)]}
+  rhs {VV#F4 : int | [$k__61[x:=x#aOq][y:=y#aOr][lq_tmp_x_473:=x#aOq][lq_tmp_x_474:=y#aOr][VV#60:=VV#F4][VV#519:=VV#F4][VV#F:=VV#F4]]}
   id 4 tag [9]
   // META constraint id 4 : Holes.hs:5:11
-  
-
 
 
 constraint:
@@ -1068,11 +1029,9 @@ constraint:
        63]
   grd true
   lhs {VV#F20 : int | []}
-  rhs {VV#F20 : int | [$k__306[VV#305:=VV#F20][VV#532:=VV#F20][VV#F:=VV#F20]]}
+  rhs {VV#F20 : int | [$k__328[VV#327:=VV#F20][VV#554:=VV#F20][VV#F:=VV#F20]]}
   id 20 tag [4]
   // META constraint id 20 : Holes.hs:29:6-12
-  
-
 
 
 constraint:
@@ -1124,12 +1083,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F5 : int | [$k__445[VV#444:=VV#F5][lq_tmp_x_438:=lq_anf__dQH][lq_tmp_x_439:=lq_anf__dQI][lq_tmp_x_447:=VV#F5][VV#500:=VV#F5][VV#F:=VV#F5]]}
-  rhs {VV#F5 : int | [$k__430[VV#429:=VV#F5][VV#500:=VV#F5][VV#F:=VV#F5]]}
+  lhs {VV#F5 : int | [$k__467[VV#466:=VV#F5][lq_tmp_x_460:=lq_anf__dQH][lq_tmp_x_461:=lq_anf__dQI][lq_tmp_x_469:=VV#F5][VV#522:=VV#F5][VV#F:=VV#F5]]}
+  rhs {VV#F5 : int | [$k__452[VV#451:=VV#F5][VV#522:=VV#F5][VV#F:=VV#F5]]}
   id 5 tag [8]
   // META constraint id 5 : Holes.hs:14:8-14
-  
-
 
 
 constraint:
@@ -1178,19 +1135,11 @@ constraint:
        31;
        63]
   grd true
-  lhs {VV#F21 : [int] | [(len([VV#F21]) = (1 + len([lq_anf__dQA])));
-                         ((? null([VV#F21])) <=> false);
-                         (xsListSelector([VV#F21]) = lq_anf__dQA);
-                         (xListSelector([VV#F21]) = lq_anf__dQz);
-                         (VV#F21 = fix#GHC.Types.#58##35#64([lq_anf__dQz; lq_anf__dQA]));
-                         (len([VV#F21]) >= 0);
-                         (VV#F21 = lq_anf__dQB);
+  lhs {VV#F21 : [int] | [(VV#F21 = lq_anf__dQB);
                          (len([VV#F21]) >= 0)]}
-  rhs {VV#F21 : [int] | [$k__42[VV#41:=VV#F21][lq_tmp_x_352:=VV#F21][VV#535:=VV#F21][VV#F:=VV#F21]]}
+  rhs {VV#F21 : [int] | [$k__64[VV#63:=VV#F21][lq_tmp_x_374:=VV#F21][VV#557:=VV#F21][VV#F:=VV#F21]]}
   id 21 tag [4]
   // META constraint id 21 : Holes.hs:29:10-12
-  
-
 
 
 constraint:
@@ -1242,12 +1191,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F6 : int | [(VV#F6 = 2); (VV#F6 = lq_anf__dQI)]}
-  rhs {VV#F6 : int | [$k__445[VV#444:=VV#F6][lq_tmp_x_438:=lq_anf__dQH][lq_tmp_x_447:=VV#F6][VV#503:=VV#F6][VV#F:=VV#F6]]}
+  lhs {VV#F6 : int | [(VV#F6 = lq_anf__dQI)]}
+  rhs {VV#F6 : int | [$k__467[VV#466:=VV#F6][lq_tmp_x_460:=lq_anf__dQH][lq_tmp_x_469:=VV#F6][VV#525:=VV#F6][VV#F:=VV#F6]]}
   id 6 tag [8]
   // META constraint id 6 : Holes.hs:14:8-14
-  
-
 
 
 constraint:
@@ -1297,12 +1244,10 @@ constraint:
        63;
        127]
   grd true
-  lhs {VV#F22 : int | [$k__335[VV#334:=VV#F22][lq_tmp_x_332:=lq_anf__dQz][lq_tmp_x_333:=lq_anf__dQA][lq_tmp_x_337:=VV#F22][lq_tmp_x_329:=VV#535][lq_tmp_x_359:=VV#535][lq_tmp_x_356:=VV#F22][VV#538:=VV#F22][VV#F:=VV#F22]]}
+  lhs {VV#F22 : int | [$k__357[VV#356:=VV#F22][lq_tmp_x_354:=lq_anf__dQz][lq_tmp_x_355:=lq_anf__dQA][lq_tmp_x_359:=VV#F22][lq_tmp_x_351:=VV#557][lq_tmp_x_381:=VV#557][lq_tmp_x_378:=VV#F22][VV#560:=VV#F22][VV#F:=VV#F22]]}
   rhs {VV#F22 : int | [(VV#F22 > 0)]}
   id 22 tag [4]
   // META constraint id 22 : Holes.hs:29:10-12
-  
-
 
 
 constraint:
@@ -1354,12 +1299,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F7 : int | [(VV#F7 = 2); (VV#F7 = lq_anf__dQI)]}
-  rhs {VV#F7 : int | [$k__48[lq_tmp_db_0:=lq_anf__dQH][lq_tmp_x_424:=lq_anf__dQH][VV#47:=VV#F7][lq_tmp_x_438:=lq_anf__dQH][lq_tmp_x_447:=VV#F7][VV#503:=VV#F7][VV#F:=VV#F7]]}
+  lhs {VV#F7 : int | [(VV#F7 = lq_anf__dQI)]}
+  rhs {VV#F7 : int | [$k__70[lq_tmp_db_0:=lq_anf__dQH][lq_tmp_x_446:=lq_anf__dQH][VV#69:=VV#F7][lq_tmp_x_460:=lq_anf__dQH][lq_tmp_x_469:=VV#F7][VV#525:=VV#F7][VV#F:=VV#F7]]}
   id 7 tag [8]
   // META constraint id 7 : Holes.hs:14:8-14
-  
-
 
 
 constraint:
@@ -1408,12 +1351,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F23 : int | [$k__317[VV#316:=VV#F23][lq_tmp_x_319:=VV#F23][lq_tmp_x_315:=VV#545][lq_tmp_x_347:=VV#545][lq_tmp_x_344:=VV#F23][VV#548:=VV#F23][VV#F:=VV#F23]]}
-  rhs {VV#F23 : int | [$k__335[VV#334:=VV#F23][lq_tmp_x_332:=lq_anf__dQz][lq_tmp_x_327:=VV#545][lq_tmp_x_337:=VV#F23][VV#548:=VV#F23][VV#F:=VV#F23]]}
+  lhs {VV#F23 : int | [$k__339[VV#338:=VV#F23][lq_tmp_x_341:=VV#F23][lq_tmp_x_337:=VV#567][lq_tmp_x_369:=VV#567][lq_tmp_x_366:=VV#F23][VV#570:=VV#F23][VV#F:=VV#F23]]}
+  rhs {VV#F23 : int | [$k__357[VV#356:=VV#F23][lq_tmp_x_354:=lq_anf__dQz][lq_tmp_x_349:=VV#567][lq_tmp_x_359:=VV#F23][VV#570:=VV#F23][VV#F:=VV#F23]]}
   id 23 tag [4]
   // META constraint id 23 : <no location info>
-  
-
 
 
 constraint:
@@ -1465,12 +1406,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F8 : int | [(VV#F8 = 1); (VV#F8 = lq_anf__dQH)]}
-  rhs {VV#F8 : int | [$k__441[VV#440:=VV#F8][lq_tmp_x_443:=VV#F8][VV#506:=VV#F8][VV#F:=VV#F8]]}
+  lhs {VV#F8 : int | [(VV#F8 = lq_anf__dQH)]}
+  rhs {VV#F8 : int | [$k__463[VV#462:=VV#F8][lq_tmp_x_465:=VV#F8][VV#528:=VV#F8][VV#F:=VV#F8]]}
   id 8 tag [8]
   // META constraint id 8 : Holes.hs:14:8-12
-  
-
 
 
 constraint:
@@ -1519,12 +1458,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F24 : int | [$k__317[VV#316:=VV#F24][lq_tmp_x_319:=VV#F24][lq_tmp_x_315:=VV#545][lq_tmp_x_347:=VV#545][lq_tmp_x_344:=VV#F24][VV#548:=VV#F24][VV#F:=VV#F24]]}
-  rhs {VV#F24 : int | [$k__339[lq_tmp_x_341:=lq_anf__dQz][VV#338:=VV#F24][lq_tmp_x_332:=lq_anf__dQz][lq_tmp_x_327:=VV#545][lq_tmp_x_337:=VV#F24][VV#548:=VV#F24][VV#F:=VV#F24]]}
+  lhs {VV#F24 : int | [$k__339[VV#338:=VV#F24][lq_tmp_x_341:=VV#F24][lq_tmp_x_337:=VV#567][lq_tmp_x_369:=VV#567][lq_tmp_x_366:=VV#F24][VV#570:=VV#F24][VV#F:=VV#F24]]}
+  rhs {VV#F24 : int | [$k__361[lq_tmp_x_363:=lq_anf__dQz][VV#360:=VV#F24][lq_tmp_x_354:=lq_anf__dQz][lq_tmp_x_349:=VV#567][lq_tmp_x_359:=VV#F24][VV#570:=VV#F24][VV#F:=VV#F24]]}
   id 24 tag [4]
   // META constraint id 24 : <no location info>
-  
-
 
 
 constraint:
@@ -1576,12 +1513,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F9 : int | [(VV#F9 = 1); (VV#F9 = lq_anf__dQH)]}
-  rhs {VV#F9 : int | [$k__45[VV#44:=VV#F9][lq_tmp_x_443:=VV#F9][VV#506:=VV#F9][VV#F:=VV#F9]]}
+  lhs {VV#F9 : int | [(VV#F9 = lq_anf__dQH)]}
+  rhs {VV#F9 : int | [$k__67[VV#66:=VV#F9][lq_tmp_x_465:=VV#F9][VV#528:=VV#F9][VV#F:=VV#F9]]}
   id 9 tag [8]
   // META constraint id 9 : Holes.hs:14:8-12
-  
-
 
 
 constraint:
@@ -1631,12 +1566,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F25 : int | [$k__321[lq_tmp_x_323:=lq_tmp_x_326][VV#320:=VV#F25][lq_tmp_x_319:=VV#F25][lq_tmp_x_314:=lq_tmp_x_326][lq_tmp_x_345:=lq_tmp_x_326][lq_tmp_x_346:=VV#F25][VV#552:=VV#F25][VV#F:=VV#F25]]}
-  rhs {VV#F25 : int | [$k__339[lq_tmp_x_341:=lq_tmp_x_326][VV#338:=VV#F25][lq_tmp_x_332:=lq_anf__dQz][lq_tmp_x_337:=VV#F25][VV#552:=VV#F25][VV#F:=VV#F25]]}
+  lhs {VV#F25 : int | [$k__343[lq_tmp_x_345:=lq_tmp_x_348][VV#342:=VV#F25][lq_tmp_x_341:=VV#F25][lq_tmp_x_336:=lq_tmp_x_348][lq_tmp_x_367:=lq_tmp_x_348][lq_tmp_x_368:=VV#F25][VV#574:=VV#F25][VV#F:=VV#F25]]}
+  rhs {VV#F25 : int | [$k__361[lq_tmp_x_363:=lq_tmp_x_348][VV#360:=VV#F25][lq_tmp_x_354:=lq_anf__dQz][lq_tmp_x_359:=VV#F25][VV#574:=VV#F25][VV#F:=VV#F25]]}
   id 25 tag [4]
   // META constraint id 25 : <no location info>
-  
-
 
 
 constraint:
@@ -1688,13 +1621,11 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F10 : int | [$k__412[VV#411:=VV#F10][lq_tmp_x_409:=lq_anf__dQF][lq_tmp_x_410:=lq_anf__dQG][lq_tmp_x_414:=VV#F10][VV#510:=VV#F10][VV#F:=VV#F10];
-                       $k__60[lq_tmp_db_2:=lq_anf__dQF][lq_tmp_db_3:=lq_anf__dQG][lq_tmp_x_361:=lq_anf__dQF][lq_tmp_x_362:=lq_anf__dQG][VV#59:=VV#F10][lq_tmp_x_409:=lq_anf__dQF][lq_tmp_x_410:=lq_anf__dQG][lq_tmp_x_414:=VV#F10][VV#510:=VV#F10][VV#F:=VV#F10]]}
-  rhs {VV#F10 : int | [$k__382[VV#381:=VV#F10][VV#510:=VV#F10][VV#F:=VV#F10]]}
+  lhs {VV#F10 : int | [$k__434[VV#433:=VV#F10][lq_tmp_x_431:=lq_anf__dQF][lq_tmp_x_432:=lq_anf__dQG][lq_tmp_x_436:=VV#F10][VV#532:=VV#F10][VV#F:=VV#F10];
+                       $k__82[lq_tmp_db_2:=lq_anf__dQF][lq_tmp_db_3:=lq_anf__dQG][lq_tmp_x_383:=lq_anf__dQF][lq_tmp_x_384:=lq_anf__dQG][VV#81:=VV#F10][lq_tmp_x_431:=lq_anf__dQF][lq_tmp_x_432:=lq_anf__dQG][lq_tmp_x_436:=VV#F10][VV#532:=VV#F10][VV#F:=VV#F10]]}
+  rhs {VV#F10 : int | [$k__404[VV#403:=VV#F10][VV#532:=VV#F10][VV#F:=VV#F10]]}
   id 10 tag [6]
   // META constraint id 10 : Holes.hs:22:5-17
-  
-
 
 
 constraint:
@@ -1742,13 +1673,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F26 : int | [(VV#F26 = (1  :  int));
-                       (VV#F26 = lq_anf__dQz)]}
-  rhs {VV#F26 : int | [$k__335[VV#334:=VV#F26][lq_tmp_x_337:=VV#F26][VV#555:=VV#F26][VV#F:=VV#F26]]}
+  lhs {VV#F26 : int | [(VV#F26 = lq_anf__dQz)]}
+  rhs {VV#F26 : int | [$k__357[VV#356:=VV#F26][lq_tmp_x_359:=VV#F26][VV#577:=VV#F26][VV#F:=VV#F26]]}
   id 26 tag [4]
   // META constraint id 26 : Holes.hs:29:11
-  
-
 
 
 constraint:
@@ -1800,12 +1728,10 @@ constraint:
        31;
        111]
   grd true
-  lhs {VV#F11 : int | [(VV#F11 = 2); (VV#F11 = lq_anf__dQG)]}
-  rhs {VV#F11 : int | [$k__416[VV#415:=VV#F11][lq_tmp_x_409:=lq_anf__dQF][lq_tmp_x_418:=VV#F11][VV#513:=VV#F11][VV#F:=VV#F11]]}
+  lhs {VV#F11 : int | [(VV#F11 = lq_anf__dQG)]}
+  rhs {VV#F11 : int | [$k__438[VV#437:=VV#F11][lq_tmp_x_431:=lq_anf__dQF][lq_tmp_x_440:=VV#F11][VV#535:=VV#F11][VV#F:=VV#F11]]}
   id 11 tag [6]
   // META constraint id 11 : Holes.hs:22:5-17
-  
-
 
 
 constraint:
@@ -1857,8 +1783,6 @@ constraint:
   rhs {VV#F27 : a_aPw | [(VV#F27 = (x#aOz + y#aOA))]}
   id 27 tag [2]
   // META constraint id 27 : Holes.hs:32:12-16
-  
-
 
 
 constraint:
@@ -1910,12 +1834,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F12 : FAppTy (FAppTy Holes.P  int)  int | [(VV#F12 = lq_anf__dQF)]}
-  rhs {VV#F12 : FAppTy (FAppTy Holes.P  int)  int | [$k__57[VV#56:=VV#F12][lq_tmp_x_406:=VV#F12][VV#516:=VV#F12][VV#F:=VV#F12]]}
+  lhs {VV#F12 : FAppTy (Holes.P int)  int | [(VV#F12 = lq_anf__dQF)]}
+  rhs {VV#F12 : FAppTy (Holes.P int)  int | [$k__79[VV#78:=VV#F12][lq_tmp_x_428:=VV#F12][VV#538:=VV#F12][VV#F:=VV#F12]]}
   id 12 tag [6]
   // META constraint id 12 : Holes.hs:22:10-14
-  
-
 
 
 constraint:
@@ -1962,8 +1884,6 @@ constraint:
   rhs {VV#F28 : int | [(VV#F28 >= 0)]}
   id 28 tag [1]
   // META constraint id 28 : Holes.hs:38:7
-  
-
 
 
 constraint:
@@ -2016,12 +1936,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F13 : int | [$k__394[VV#393:=VV#F13][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_392:=lq_anf__dQE][lq_tmp_x_396:=VV#F13][lq_tmp_x_388:=VV#516][lq_tmp_x_421:=VV#516][lq_tmp_x_419:=VV#F13][VV#519:=VV#F13][VV#F:=VV#F13]]}
-  rhs {VV#F13 : int | [$k__412[VV#411:=VV#F13][lq_tmp_x_406:=VV#516][lq_tmp_x_414:=VV#F13][VV#519:=VV#F13][VV#F:=VV#F13]]}
+  lhs {VV#F13 : int | [$k__416[VV#415:=VV#F13][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_414:=lq_anf__dQE][lq_tmp_x_418:=VV#F13][lq_tmp_x_410:=VV#538][lq_tmp_x_443:=VV#538][lq_tmp_x_441:=VV#F13][VV#541:=VV#F13][VV#F:=VV#F13]]}
+  rhs {VV#F13 : int | [$k__434[VV#433:=VV#F13][lq_tmp_x_428:=VV#538][lq_tmp_x_436:=VV#F13][VV#541:=VV#F13][VV#F:=VV#F13]]}
   id 13 tag [6]
   // META constraint id 13 : Holes.hs:22:10-14
-  
-
 
 
 constraint:
@@ -2074,12 +1992,10 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F14 : int | [$k__394[VV#393:=VV#F14][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_392:=lq_anf__dQE][lq_tmp_x_396:=VV#F14][lq_tmp_x_388:=VV#516][lq_tmp_x_421:=VV#516][lq_tmp_x_419:=VV#F14][VV#519:=VV#F14][VV#F:=VV#F14]]}
-  rhs {VV#F14 : int | [$k__51[VV#56:=VV#516][VV#50:=VV#F14][lq_tmp_x_406:=VV#516][lq_tmp_x_414:=VV#F14][VV#519:=VV#F14][VV#F:=VV#F14]]}
+  lhs {VV#F14 : int | [$k__416[VV#415:=VV#F14][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_414:=lq_anf__dQE][lq_tmp_x_418:=VV#F14][lq_tmp_x_410:=VV#538][lq_tmp_x_443:=VV#538][lq_tmp_x_441:=VV#F14][VV#541:=VV#F14][VV#F:=VV#F14]]}
+  rhs {VV#F14 : int | [$k__73[VV#78:=VV#538][VV#72:=VV#F14][lq_tmp_x_428:=VV#538][lq_tmp_x_436:=VV#F14][VV#541:=VV#F14][VV#F:=VV#F14]]}
   id 14 tag [6]
   // META constraint id 14 : Holes.hs:22:10-14
-  
-
 
 
 constraint:
@@ -2132,11 +2048,11 @@ constraint:
        15;
        31]
   grd true
-  lhs {VV#F15 : int | [$k__398[VV#397:=VV#F15][lq_tmp_x_391:=lq_anf__dQD][lq_tmp_x_392:=lq_anf__dQE][lq_tmp_x_400:=VV#F15][lq_tmp_x_388:=VV#516][lq_tmp_x_421:=VV#516][lq_tmp_x_420:=VV#F15][VV#522:=VV#F15][VV#F:=VV#F15]]}
-  rhs {VV#F15 : int | [$k__416[VV#415:=VV#F15][lq_tmp_x_406:=VV#516][lq_tmp_x_418:=VV#F15][VV#522:=VV#F15][VV#F:=VV#F15]]}
+  lhs {VV#F15 : int | [$k__420[VV#419:=VV#F15][lq_tmp_x_413:=lq_anf__dQD][lq_tmp_x_414:=lq_anf__dQE][lq_tmp_x_422:=VV#F15][lq_tmp_x_410:=VV#538][lq_tmp_x_443:=VV#538][lq_tmp_x_442:=VV#F15][VV#544:=VV#F15][VV#F:=VV#F15]]}
+  rhs {VV#F15 : int | [$k__438[VV#437:=VV#F15][lq_tmp_x_428:=VV#538][lq_tmp_x_440:=VV#F15][VV#544:=VV#F15][VV#F:=VV#F15]]}
   id 15 tag [6]
   // META constraint id 15 : Holes.hs:22:10-14
-  
+
 
 
 
@@ -2187,11 +2103,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#457 : int | [$k__458]}
+  reft {VV#479 : int | [$k__480]}
   
   // META wf  : <no location info>
-  
-
 
 
 wf:
@@ -2240,11 +2154,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#35 : int | [$k__36]}
+  reft {VV#57 : int | [$k__58]}
   
   // META wf  : Holes.hs:5:1-3
-  
-
 
 
 wf:
@@ -2297,8 +2209,6 @@ wf:
   reft {y : int | [(y > 0)]}
   
   // META wf  : Holes.hs:5:1-3
-  
-
 
 
 wf:
@@ -2349,65 +2259,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#38 : int | [$k__39]}
+  reft {VV#60 : int | [$k__61]}
   
   // META wf  : Holes.hs:5:1-3
-  
-
-
-
-wf:
-  env [0;
-       16;
-       32;
-       64;
-       80;
-       1;
-       17;
-       33;
-       81;
-       2;
-       18;
-       34;
-       82;
-       3;
-       19;
-       35;
-       4;
-       20;
-       36;
-       5;
-       21;
-       37;
-       6;
-       22;
-       7;
-       23;
-       8;
-       24;
-       72;
-       9;
-       25;
-       10;
-       26;
-       42;
-       58;
-       11;
-       27;
-       12;
-       28;
-       13;
-       29;
-       77;
-       14;
-       30;
-       15;
-       31]
-  reft {VV#444 : int | [$k__445]}
-  
-  // META wf  : Holes.hs:14:8-10
-  
-
 
 
 wf:
@@ -2457,11 +2311,61 @@ wf:
        30;
        15;
        31]
-  reft {VV#440 : int | [$k__441]}
+  reft {VV#466 : int | [$k__467]}
   
   // META wf  : Holes.hs:14:8-10
-  
 
+
+wf:
+  env [0;
+       16;
+       32;
+       64;
+       80;
+       1;
+       17;
+       33;
+       81;
+       2;
+       18;
+       34;
+       82;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       72;
+       9;
+       25;
+       10;
+       26;
+       42;
+       58;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       77;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#462 : int | [$k__463]}
+  
+  // META wf  : Holes.hs:14:8-10
 
 
 wf:
@@ -2509,11 +2413,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#429 : int | [$k__430]}
+  reft {VV#451 : int | [$k__452]}
   
   // META wf  : <no location info>
-  
-
 
 
 wf:
@@ -2560,11 +2462,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#44 : a_aPa | [$k__45]}
+  reft {VV#66 : a_aPa | [$k__67]}
   
   // META wf  : Holes.hs:12:1-3
-  
-
 
 
 wf:
@@ -2612,11 +2512,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#47 : b_aPb | [$k__48]}
+  reft {VV#69 : b_aPb | [$k__70]}
   
   // META wf  : Holes.hs:12:1-3
-  
-
 
 
 wf:
@@ -2660,6 +2558,158 @@ wf:
        12;
        28;
        76;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#437 : int | [$k__438]}
+  
+  // META wf  : Holes.hs:22:5-7
+
+
+wf:
+  env [0;
+       16;
+       32;
+       64;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       72;
+       9;
+       25;
+       73;
+       10;
+       26;
+       42;
+       58;
+       74;
+       11;
+       27;
+       75;
+       12;
+       28;
+       76;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#433 : int | [$k__434]}
+  
+  // META wf  : Holes.hs:22:5-7
+
+
+wf:
+  env [0;
+       16;
+       32;
+       64;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       72;
+       9;
+       25;
+       73;
+       10;
+       26;
+       42;
+       58;
+       74;
+       11;
+       27;
+       12;
+       28;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  reft {VV#419 : int | [$k__420]}
+  
+  // META wf  : Holes.hs:22:10
+
+
+wf:
+  env [0;
+       16;
+       32;
+       64;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       7;
+       23;
+       8;
+       24;
+       72;
+       9;
+       25;
+       73;
+       10;
+       26;
+       42;
+       58;
+       74;
+       11;
+       27;
+       12;
+       28;
        13;
        29;
        14;
@@ -2668,167 +2718,7 @@ wf:
        31]
   reft {VV#415 : int | [$k__416]}
   
-  // META wf  : Holes.hs:22:5-7
-  
-
-
-
-wf:
-  env [0;
-       16;
-       32;
-       64;
-       1;
-       17;
-       33;
-       2;
-       18;
-       34;
-       3;
-       19;
-       35;
-       4;
-       20;
-       36;
-       5;
-       21;
-       37;
-       6;
-       22;
-       7;
-       23;
-       8;
-       24;
-       72;
-       9;
-       25;
-       73;
-       10;
-       26;
-       42;
-       58;
-       74;
-       11;
-       27;
-       75;
-       12;
-       28;
-       76;
-       13;
-       29;
-       14;
-       30;
-       15;
-       31]
-  reft {VV#411 : int | [$k__412]}
-  
-  // META wf  : Holes.hs:22:5-7
-  
-
-
-
-wf:
-  env [0;
-       16;
-       32;
-       64;
-       1;
-       17;
-       33;
-       2;
-       18;
-       34;
-       3;
-       19;
-       35;
-       4;
-       20;
-       36;
-       5;
-       21;
-       37;
-       6;
-       22;
-       7;
-       23;
-       8;
-       24;
-       72;
-       9;
-       25;
-       73;
-       10;
-       26;
-       42;
-       58;
-       74;
-       11;
-       27;
-       12;
-       28;
-       13;
-       29;
-       14;
-       30;
-       15;
-       31]
-  reft {VV#397 : int | [$k__398]}
-  
   // META wf  : Holes.hs:22:10
-  
-
-
-
-wf:
-  env [0;
-       16;
-       32;
-       64;
-       1;
-       17;
-       33;
-       2;
-       18;
-       34;
-       3;
-       19;
-       35;
-       4;
-       20;
-       36;
-       5;
-       21;
-       37;
-       6;
-       22;
-       7;
-       23;
-       8;
-       24;
-       72;
-       9;
-       25;
-       73;
-       10;
-       26;
-       42;
-       58;
-       74;
-       11;
-       27;
-       12;
-       28;
-       13;
-       29;
-       14;
-       30;
-       15;
-       31]
-  reft {VV#393 : int | [$k__394]}
-  
-  // META wf  : Holes.hs:22:10
-  
-
 
 
 wf:
@@ -2874,11 +2764,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#381 : int | [$k__382]}
+  reft {VV#403 : int | [$k__404]}
   
   // META wf  : <no location info>
-  
-
 
 
 wf:
@@ -2923,11 +2811,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#56 : FAppTy (FAppTy Holes.P  a_aOY)  b_aOZ | [$k__57]}
+  reft {VV#78 : FAppTy (Holes.P a_aOY)  b_aOZ | [$k__79]}
   
   // META wf  : Holes.hs:20:1-3
-  
-
 
 
 wf:
@@ -2973,11 +2859,9 @@ wf:
        15;
        31;
        175]
-  reft {VV#50 : a_aOY | [$k__51]}
+  reft {VV#72 : a_aOY | [$k__73]}
   
   // META wf  : Holes.hs:20:1-3
-  
-
 
 
 wf:
@@ -3023,11 +2907,9 @@ wf:
        15;
        31;
        175]
-  reft {VV#53 : b_aOZ | [$k__54]}
+  reft {VV#75 : b_aOZ | [$k__76]}
   
   // META wf  : Holes.hs:20:1-3
-  
-
 
 
 wf:
@@ -3074,11 +2956,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#59 : a_aOY | [$k__60]}
+  reft {VV#81 : a_aOY | [$k__82]}
   
   // META wf  : Holes.hs:20:1-3
-  
-
 
 
 wf:
@@ -3125,11 +3005,9 @@ wf:
        62;
        15;
        31]
-  reft {VV#338 : int | [$k__339]}
+  reft {VV#360 : int | [$k__361]}
   
   // META wf  : <no location info>
-  
-
 
 
 wf:
@@ -3175,11 +3053,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#334 : int | [$k__335]}
+  reft {VV#356 : int | [$k__357]}
   
   // META wf  : <no location info>
-  
-
 
 
 wf:
@@ -3225,11 +3101,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#320 : int | [$k__321]}
+  reft {VV#342 : int | [$k__343]}
   
   // META wf  : <no location info>
-  
-
 
 
 wf:
@@ -3274,11 +3148,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#316 : int | [$k__317]}
+  reft {VV#338 : int | [$k__339]}
   
   // META wf  : <no location info>
-  
-
 
 
 wf:
@@ -3322,11 +3194,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#305 : int | [$k__306]}
+  reft {VV#327 : int | [$k__328]}
   
   // META wf  : <no location info>
-  
-
 
 
 wf:
@@ -3369,11 +3239,9 @@ wf:
        30;
        15;
        31]
-  reft {VV#41 : [int] | [$k__42]}
+  reft {VV#63 : [int] | [$k__64]}
   
   // META wf  : Holes.hs:27:1-3
-  
-
 
 
 wf:
@@ -3420,8 +3288,6 @@ wf:
   reft {v0 : int | [(v0 > 0)]}
   
   // META wf  : Holes.hs:27:1-3
-  
-
 
 
 wf:
@@ -3475,11 +3341,9 @@ wf:
        15;
        31;
        47]
-  reft {VV#299 : int | [$k__300]}
+  reft {VV#321 : int | [$k__322]}
   
   // META wf  : Holes.hs:27:1-3
-  
-
 
 
 wf:
@@ -3526,574 +3390,13 @@ wf:
        46;
        15;
        31]
-  reft {VV#231 : int | [$k__232]}
+  reft {VV#253 : int | [$k__254]}
   
   // META wf  : Holes.hs:27:1-3
-  
 
-// META bind 0 : <no location info>
 
 
-// META bind 16 : <no location info>
 
 
-// META bind 32 : <no location info>
 
-
-// META bind 48 : Holes.hs:27:1-3
-
-
-// META bind 64 : <no location info>
-
-
-// META bind 80 : <no location info>
-
-
-// META bind 96 : <no location info>
-
-
-// META bind 112 : Holes.hs:22:5-17
-
-
-// META bind 128 : Holes.hs:29:10-12
-
-
-// META bind 144 : Holes.hs:27:1-3
-
-
-// META bind 160 : Holes.hs:5:1-3
-
-
-// META bind 176 : Holes.hs:20:1-3
-
-
-// META bind 1 : <no location info>
-
-
-// META bind 17 : <no location info>
-
-
-// META bind 33 : <no location info>
-
-
-// META bind 49 : Holes.hs:27:1-3
-
-
-// META bind 65 : Holes.hs:20:1-3
-
-
-// META bind 81 : <no location info>
-
-
-// META bind 97 : <no location info>
-
-
-// META bind 113 : Holes.hs:22:10-14
-
-
-// META bind 129 : Holes.hs:29:10-12
-
-
-// META bind 145 : Holes.hs:27:1-3
-
-
-// META bind 161 : Holes.hs:5:1-3
-
-
-// META bind 177 : Holes.hs:20:1-3
-
-
-// META bind 2 : <no location info>
-
-
-// META bind 18 : <no location info>
-
-
-// META bind 34 : <no location info>
-
-
-// META bind 50 : Holes.hs:27:1-3
-
-
-// META bind 66 : Holes.hs:20:1-3
-
-
-// META bind 82 : <no location info>
-
-
-// META bind 98 : <no location info>
-
-
-// META bind 114 : Holes.hs:22:10-14
-
-
-// META bind 130 : Holes.hs:29:10-12
-
-
-// META bind 146 : Holes.hs:27:1-3
-
-
-// META bind 162 : Holes.hs:5:1-3
-
-
-// META bind 178 : <no location info>
-
-
-// META bind 3 : <no location info>
-
-
-// META bind 19 : <no location info>
-
-
-// META bind 35 : <no location info>
-
-
-// META bind 51 : Holes.hs:27:1-3
-
-
-// META bind 67 : Holes.hs:20:1-3
-
-
-// META bind 83 : <no location info>
-
-
-// META bind 99 : <no location info>
-
-
-// META bind 115 : Holes.hs:22:10-14
-
-
-// META bind 131 : Holes.hs:29:10-12
-
-
-// META bind 147 : Holes.hs:27:1-3
-
-
-// META bind 163 : Holes.hs:5:1-3
-
-
-// META bind 179 : <no location info>
-
-
-// META bind 4 : <no location info>
-
-
-// META bind 20 : <no location info>
-
-
-// META bind 36 : <no location info>
-
-
-// META bind 52 : Holes.hs:27:1-3
-
-
-// META bind 68 : Holes.hs:20:1-3
-
-
-// META bind 84 : Holes.hs:5:1-3
-
-
-// META bind 100 : Holes.hs:5:11
-
-
-// META bind 116 : Holes.hs:22:10-14
-
-
-// META bind 132 : Holes.hs:29:10-12
-
-
-// META bind 148 : Holes.hs:27:11
-
-
-// META bind 164 : Holes.hs:5:1-3
-
-
-// META bind 180 : <no location info>
-
-
-// META bind 5 : <no location info>
-
-
-// META bind 21 : <no location info>
-
-
-// META bind 37 : <no location info>
-
-
-// META bind 53 : Holes.hs:27:1-3
-
-
-// META bind 69 : Holes.hs:20:1-3
-
-
-// META bind 85 : Holes.hs:5:1-3
-
-
-// META bind 101 : Holes.hs:5:11
-
-
-// META bind 117 : Holes.hs:22:10-14
-
-
-// META bind 133 : <no location info>
-
-
-// META bind 149 : Holes.hs:27:11
-
-
-// META bind 165 : Holes.hs:14:8-10
-
-
-// META bind 181 : <no location info>
-
-
-// META bind 6 : <no location info>
-
-
-// META bind 22 : <no location info>
-
-
-// META bind 38 : Holes.hs:32:1-4
-
-
-// META bind 54 : Holes.hs:27:1-3
-
-
-// META bind 70 : Holes.hs:20:1-3
-
-
-// META bind 86 : <no location info>
-
-
-// META bind 102 : Holes.hs:14:8-14
-
-
-// META bind 118 : Holes.hs:22:10-14
-
-
-// META bind 134 : <no location info>
-
-
-// META bind 150 : Holes.hs:27:1-3
-
-
-// META bind 166 : Holes.hs:14:8-10
-
-
-// META bind 182 : <no location info>
-
-
-// META bind 7 : <no location info>
-
-
-// META bind 23 : <no location info>
-
-
-// META bind 39 : Holes.hs:32:1-4
-
-
-// META bind 55 : Holes.hs:27:1-3
-
-
-// META bind 71 : Holes.hs:20:1-3
-
-
-// META bind 87 : <no location info>
-
-
-// META bind 103 : Holes.hs:14:8-14
-
-
-// META bind 119 : <no location info>
-
-
-// META bind 135 : <no location info>
-
-
-// META bind 151 : Holes.hs:27:1-3
-
-
-// META bind 167 : <no location info>
-
-
-// META bind 183 : Holes.hs:27:1-3
-
-
-// META bind 8 : <no location info>
-
-
-// META bind 24 : <no location info>
-
-
-// META bind 40 : Holes.hs:32:1-4
-
-
-// META bind 56 : Holes.hs:27:1-3
-
-
-// META bind 72 : <no location info>
-
-
-// META bind 88 : <no location info>
-
-
-// META bind 104 : Holes.hs:14:8-14
-
-
-// META bind 120 : <no location info>
-
-
-// META bind 136 : <no location info>
-
-
-// META bind 152 : Holes.hs:27:1-3
-
-
-// META bind 168 : Holes.hs:12:1-3
-
-
-// META bind 184 : Holes.hs:27:1-3
-
-
-// META bind 9 : <no location info>
-
-
-// META bind 25 : <no location info>
-
-
-// META bind 41 : Holes.hs:32:1-4
-
-
-// META bind 57 : Holes.hs:27:1-3
-
-
-// META bind 73 : <no location info>
-
-
-// META bind 89 : <no location info>
-
-
-// META bind 105 : Holes.hs:14:8-14
-
-
-// META bind 121 : Holes.hs:22:10-12
-
-
-// META bind 137 : <no location info>
-
-
-// META bind 153 : Holes.hs:27:1-3
-
-
-// META bind 169 : Holes.hs:12:1-3
-
-
-// META bind 185 : Holes.hs:27:1-3
-
-
-// META bind 10 : <no location info>
-
-
-// META bind 26 : <no location info>
-
-
-// META bind 42 : <no location info>
-
-
-// META bind 58 : <no location info>
-
-
-// META bind 74 : <no location info>
-
-
-// META bind 90 : Holes.hs:7:8-14
-
-
-// META bind 106 : Holes.hs:14:8-12
-
-
-// META bind 122 : Holes.hs:22:10-12
-
-
-// META bind 138 : <no location info>
-
-
-// META bind 154 : Holes.hs:32:12-16
-
-
-// META bind 170 : Holes.hs:22:5-7
-
-
-// META bind 186 : Holes.hs:27:1-3
-
-
-// META bind 11 : <no location info>
-
-
-// META bind 27 : <no location info>
-
-
-// META bind 43 : Holes.hs:27:1-3
-
-
-// META bind 59 : <no location info>
-
-
-// META bind 75 : <no location info>
-
-
-// META bind 91 : Holes.hs:7:8-14
-
-
-// META bind 107 : Holes.hs:14:8-12
-
-
-// META bind 123 : Holes.hs:20:19
-
-
-// META bind 139 : <no location info>
-
-
-// META bind 155 : Holes.hs:32:16
-
-
-// META bind 171 : Holes.hs:22:5-7
-
-
-// META bind 187 : Holes.hs:27:1-3
-
-
-// META bind 12 : <no location info>
-
-
-// META bind 28 : <no location info>
-
-
-// META bind 44 : Holes.hs:27:1-3
-
-
-// META bind 60 : <no location info>
-
-
-// META bind 76 : <no location info>
-
-
-// META bind 92 : Holes.hs:7:14
-
-
-// META bind 108 : Holes.hs:12:11
-
-
-// META bind 124 : Holes.hs:29:6-12
-
-
-// META bind 140 : Holes.hs:29:11
-
-
-// META bind 156 : Holes.hs:32:12
-
-
-// META bind 172 : Holes.hs:22:10
-
-
-// META bind 188 : Holes.hs:27:1-3
-
-
-// META bind 13 : <no location info>
-
-
-// META bind 29 : <no location info>
-
-
-// META bind 45 : Holes.hs:27:1-3
-
-
-// META bind 61 : <no location info>
-
-
-// META bind 77 : <no location info>
-
-
-// META bind 93 : Holes.hs:7:14
-
-
-// META bind 109 : Holes.hs:22:5-17
-
-
-// META bind 125 : Holes.hs:29:6-12
-
-
-// META bind 141 : Holes.hs:29:11
-
-
-// META bind 157 : Holes.hs:38:7
-
-
-// META bind 173 : Holes.hs:22:10
-
-
-// META bind 14 : <no location info>
-
-
-// META bind 30 : <no location info>
-
-
-// META bind 46 : Holes.hs:27:1-3
-
-
-// META bind 62 : <no location info>
-
-
-// META bind 78 : Holes.hs:12:1-3
-
-
-// META bind 94 : Holes.hs:7:12
-
-
-// META bind 110 : Holes.hs:22:5-17
-
-
-// META bind 126 : Holes.hs:29:10-12
-
-
-// META bind 142 : <no location info>
-
-
-// META bind 158 : Holes.hs:38:7
-
-
-// META bind 174 : <no location info>
-
-
-// META bind 15 : <no location info>
-
-
-// META bind 31 : <no location info>
-
-
-// META bind 47 : Holes.hs:27:1-3
-
-
-// META bind 63 : <no location info>
-
-
-// META bind 79 : Holes.hs:12:1-3
-
-
-// META bind 95 : Holes.hs:7:12
-
-
-// META bind 111 : Holes.hs:22:5-17
-
-
-// META bind 127 : Holes.hs:29:10-12
-
-
-// META bind 143 : <no location info>
-
-
-// META bind 159 : <no location info>
-
-
-// META bind 175 : Holes.hs:20:1-3
 
