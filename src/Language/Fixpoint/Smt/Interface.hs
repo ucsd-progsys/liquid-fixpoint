@@ -5,6 +5,7 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE LambdaCase                #-}
 
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
@@ -101,6 +102,9 @@ command me !cmd      = {-# SCC "command" #-} say me cmd >> hear me cmd
     say me               = smtWrite me . smt2
     hear me CheckSat     = smtRead me
     hear me (GetValue _) = smtRead me
+    hear me (Interpolate _ _) = smtRead me >>= \case
+      Unsat -> smtPred me
+      _ -> error "Not UNSAT. No interpolation needed. Why did you call upon me?"
     hear me _            = return Ok
 
 
@@ -108,17 +112,28 @@ command me !cmd      = {-# SCC "command" #-} say me cmd >> hear me cmd
 smtWrite :: Context -> LT.Text -> IO ()
 smtWrite me !s = smtWriteRaw me s
 
+smtRes :: Context -> A.IResult T.Text Response -> IO Response
+smtRes me res = case A.eitherResult res of
+  Left e  -> error e
+  Right r -> do
+    maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (cLog me)
+    when (verbose me) $
+      LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
+    return r
+
+smtParse me parserP = smtReadRaw me >>= A.parseWith (smtReadRaw me) parserP >>= smtRes me
+
 smtRead :: Context -> IO Response
-smtRead me = {-# SCC "smtRead" #-}
-    do ln  <- smtReadRaw me
-       res <- A.parseWith (smtReadRaw me) responseP ln
-       case A.eitherResult res of
-         Left e  -> error e
-         Right r -> do
-           maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (cLog me)
-           when (verbose me) $
-             LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
-           return r
+smtRead me = {-# SCC "smtRead" #-} smtParse me responseP
+
+smtPred :: Context -> IO Response
+smtPred me = {-# SCC "smtPred" #-} Interpolant <$> smtParse me predP
+
+predP = {-# SCC "predP" #-} A.char '(' *> listP <* A.char '('
+listP = topred <$> A.many' $ (Evar <$> symbolP) <|> predP
+-- @TODO write this
+toPred = undefined
+
 
 responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
          <|> A.string "sat"     *> return Sat

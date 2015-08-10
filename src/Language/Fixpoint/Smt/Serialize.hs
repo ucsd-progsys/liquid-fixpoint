@@ -118,6 +118,7 @@ instance SMTLIB2 Command where
   smt2 (Pop)               = "(pop 1)"
   smt2 (CheckSat)          = "(check-sat)"
   smt2 (GetValue xs)       = LT.unwords $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
+  smt2 (Interpolate p q)   = format "(compute-interpolant {} {})"  (smt2 p, smt2 q)
 
 smt2s :: SMTLIB2 a => [a] -> LT.Text
 smt2s = LT.intercalate " " . fmap smt2
