@@ -127,11 +127,13 @@ smtRead :: Context -> IO Response
 smtRead me = {-# SCC "smtRead" #-} smtParse me responseP
 
 smtPred :: Context -> IO Response
-smtPred me = {-# SCC "smtPred" #-} Interpolant <$> smtParse me predP
+smtPred me = {-# SCC "smtPred" #-} smtParse me (Interpolant <$> toPred <$> predP)
 
-predP = {-# SCC "predP" #-} A.char '(' *> listP <* A.char '('
-listP = topred <$> A.many' $ (Evar <$> symbolP) <|> predP
+data Lisp = Sym Symbol | Lisp [Lisp]
+predP = {-# SCC "predP" #-} Lisp <$> (A.char '(' *> listP <* A.char '(')
+listP = A.many' $ (Sym <$> symbolP) <|> predP
 -- @TODO write this
+toPred :: Lisp -> Pred
 toPred = undefined
 
 
