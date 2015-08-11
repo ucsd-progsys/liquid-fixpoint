@@ -129,12 +129,60 @@ smtRead me = {-# SCC "smtRead" #-} smtParse me responseP
 smtPred :: Context -> IO Response
 smtPred me = {-# SCC "smtPred" #-} smtParse me (Interpolant <$> toPred <$> predP)
 
-data Lisp = Sym Symbol | Lisp [Lisp]
+data Lisp = Sym Symbol | Lisp [Lisp] deriving (Eq,Show)
 predP = {-# SCC "predP" #-} Lisp <$> (A.char '(' *> listP <* A.char '(')
 listP = A.many' $ (Sym <$> symbolP) <|> predP
--- @TODO write this
+
 toPred :: Lisp -> Pred
-toPred = undefined
+-- We never read in:
+-- - PKVar
+-- - PAll
+-- - PTop
+toPred (Sym s)
+  | symbolText s == "true" = PTrue
+  | symbolText s == "false" = PFalse
+toPred (Lisp (Sym s:xs))
+  | symbolText s == "and" = PAnd $ L.map toPred xs
+  | symbolText s == "or" = POr $ L.map toPred xs
+toPred (Lisp [Sym s,x])
+  | symbolText s == "not" = PNot $ toPred x
+toPred (Lisp [Sym s,x,y])
+  | symbolText s == "=>" = PImp (toPred x) (toPred y)
+toPred (Lisp [Sym s,x,y])
+  | symbolText s == "=" = undefined -- @TODO from symbol table
+-- @TODO  Which is which here depends on the types of the symbols we put in.
+-- PIff!
+-- PBexp!
+-- PAtom!
+toPred x = error $ show x ++ "Nonsense Lisp Predicate!"
+
+binOpStrings :: [T.Text]
+binOpStrings = [ "+", "-", "*", "/", "mod"]
+
+strToOp :: T.Text -> Bop
+strToOp "+" = Plus
+strToOp "-" = Minus
+strToOp "*" = Times
+strToOp "/" = Div
+strToOp "mod" = Mod
+
+toExpr :: Lisp -> Expr
+-- We never read in: EBot
+toExpr (Lisp [Sym s,x])
+  | symbolText s == "-" = ENeg $ toExpr x
+toExpr (Lisp [Sym s,x,y])
+  | symbolText s `elem` binOpStrings = EBin (strToOp $ symbolText s) (toExpr x) (toExpr y)
+toExpr (Lisp (Sym s:xs)) = EApp (dummyLoc s) $ L.map toExpr xs
+toExpr (Lisp [Sym s,x]) = ELit (dummyLoc s) undefined -- @TODO need to thread through symbol table and lookup
+-- Redundant: (?)
+-- ECst !Expr !Sort
+-- ECon !Constant
+toExpr (Lisp [Sym s, x, y, z])
+  | symbolText s == "ite" = EIte (toPred x) (toExpr y) (toExpr z)
+toExpr (Sym s) = EVar s
+toExpr x = error $ show x ++ " : nonsense lisp expression!"
+-- Redundant: (?)
+-- ESym !SymConst
 
 
 responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
