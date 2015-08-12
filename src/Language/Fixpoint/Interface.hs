@@ -49,6 +49,7 @@ import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp)
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
+import           Control.Arrow
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -90,6 +91,7 @@ solveNativeWithFInfo cfg fi = do
   whenLoud  $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
   donePhase Loud "Uniqify"
   fi''     <- elim cfg fi'
+  _ <- interp cfg fi'
   Result stat soln <- S.solve cfg fi''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
@@ -105,6 +107,38 @@ elim cfg fi
                        donePhase Loud "Eliminate"
                        return fi'
   | otherwise     = return fi
+
+
+interpSym = symbol "InterpolatedQu"
+
+interp :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
+interp cfg fi
+  | interpolate cfg = do let fi' = unroll fi
+                         whenLoud $ putStrLn $ "fq file after unrolling: \n" ++ render (toFixpoint cfg fi')
+                         let fi'' = eliminateAll fi'
+                         whenLoud $ putStrLn $ "fq file after unrolled elimination: \n" ++ render (toFixpoint cfg fi'')
+                         donePhase Loud "Unroll"
+                         q <- buildQual cfg fi'' $ mlookup (cm fi'') (failCons cfg)
+                         return fi'' { quals = q:quals fi'' }
+  | otherwise     = return fi
+
+buildQual :: Config -> FInfo a -> SubC a -> IO Qualifier
+buildQual cfg fi c = qualify <$> S.interpolation cfg fi env p q
+  where env  = envCs (bs fi) $ senv c
+        qenv = map (second sr_sort) $ predSorts env p
+        p = prop $ slhs c
+        q = PNot $ prop $ srhs c
+        qualify p = Q interpSym qenv p (dummyPos "interp")
+
+predSorts :: [(Symbol,SortedReft)] -> Pred -> [(Symbol,SortedReft)]
+predSorts env p = filter ((`elem` ss).fst) env
+  where ss = predSymbols p
+
+unroll :: FInfo a -> FInfo a
+-- unrolling is currently unimplemented, so we can just test the loop-free case
+-- not that that's very useful in practice: we shouldn't need _any_ qualifiers
+-- after eliminating the loop-free case, but this is good for testing.
+unroll = id
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver

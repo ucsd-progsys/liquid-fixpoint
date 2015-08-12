@@ -42,6 +42,8 @@ module Language.Fixpoint.Smt.Interface (
     , smtCheckUnsat
     , smtBracket
     , smtDistinct
+    , smtDoInterpolate
+    , smtInterpolate
 
     -- * Theory Symbols
     , theorySymbols
@@ -61,6 +63,7 @@ import           Language.Fixpoint.Smt.Serialize()
 
 import           Control.Applicative      ((*>), (<$>), (<*), (<|>))
 import           Control.Monad
+import           Control.Arrow
 import           Data.Char
 import qualified Data.List                as L
 import           Data.Monoid
@@ -327,6 +330,20 @@ smtBracket me a   = do smtPush me
                        r <- a
                        smtPop me
                        return r
+
+smtDoInterpolate :: Context -> [(Symbol, SortedReft)] -> Pred -> Pred -> IO Pred
+smtDoInterpolate me env p q = smtLoadEnv me env >>
+                                  respInterp <$> command me (Interpolate p q)
+
+smtLoadEnv :: Context -> [(Symbol, SortedReft)] -> IO ()
+smtLoadEnv me env = mapM_ smtDecl' $ L.map (second sr_sort) env
+  where smtDecl' = uncurry $ smtDecl me
+
+smtInterpolate :: Context -> Pred -> Pred -> IO Pred
+smtInterpolate me p q = respInterp <$> command me (Interpolate p q)
+
+respInterp (Interpolant p') = p'
+respInterp r = die $ err dummySpan $ "crash: SMTLIB2 respInterp = " ++ show r
 
 respSat Unsat   = True
 respSat Sat     = False

@@ -34,12 +34,14 @@ data Config
       inFile      :: FilePath         -- ^ target fq-file
     , outFile     :: FilePath         -- ^ output file
     , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
+    , failCons    :: Integer          -- ^ the failing constraint to interpolate
     , solver      :: SMTSolver        -- ^ which SMT solver to use
     , genSorts    :: GenQualifierSort -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
     , native      :: Bool             -- ^ use haskell solver
     , real        :: Bool             -- ^ interpret div and mul in SMT
     , eliminate   :: Bool             -- ^ eliminate non-cut KVars
+    , interpolate :: Bool             -- ^ use interpolation and BMC to find qualifiers
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
     , parts       :: Bool             -- ^ partition FInfo into separate fq files
@@ -47,7 +49,7 @@ data Config
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def def def def def
+  def = Config "" def def def def def def def def def def def def def
 
 instance Command Config where
   command c =  command (genSorts c)
@@ -109,12 +111,14 @@ config = Config {
     inFile      = def   &= typ "TARGET"       &= args    &= typFile
   , outFile     = "out" &= help "Output file"
   , srcFile     = def   &= help "Source File from which FQ is generated"
+  , failCons    = def   &= help "Failing constriant to interpolate"
   , solver      = def   &= help "Name of SMT Solver"
   , genSorts    = def   &= help "Generalize qualifier sorts"
   , ueqAllSorts = def   &= help "Use UEq on all sorts"
   , native      = False &= help "(alpha) Haskell Solver"
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
+  , interpolate = False &= help "(incomplete) Perform interpolation to get qualifier"
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
