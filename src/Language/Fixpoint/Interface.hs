@@ -22,7 +22,9 @@ module Language.Fixpoint.Interface (
 ) where
 
 import qualified Data.HashMap.Strict              as M
+import           Data.Hashable
 import           Data.List hiding (partition)
+import           Data.Maybe
 
 #if __GLASGOW_HASKELL__ < 710
 import           Data.Functor
@@ -49,6 +51,7 @@ import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp)
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
+import           Control.Monad
 import           Control.Arrow
 
 ---------------------------------------------------------------------------
@@ -139,6 +142,37 @@ unroll :: FInfo a -> FInfo a
 -- not that that's very useful in practice: we shouldn't need _any_ qualifiers
 -- after eliminating the loop-free case, but this is good for testing.
 unroll = id
+
+-- to fix:
+-- - check edges not verticies
+-- - only track edges against dfs order
+-- - keep track of contraints
+-- - accept FInfo -> Integer -> FInfo
+-- - depth
+type Graph a = [(a, a)]
+type ConsGraph = Graph Integer
+data RoseTree a = RoseTree a [RoseTree a]
+type Mii = M.HashMap Integer Integer
+unroll' :: ConsGraph -> Integer -> RoseTree (Integer,Integer)
+unroll' g v = (unroll_ M.empty v 0)
+  where unroll_ visited start n = root $ catMaybes shallowkids
+          where root kids = RoseTree (start,n) $ map (uncurry $ unroll_ (visited' kids)) kids
+                visited' kids = update kids visited
+                children = map snd $ filter ((==start).fst) g
+                shallowkids = map join $ (flip map) children $ \c ->
+                  let d = M.lookupDefault 0 c visited in
+                  if d < depth
+                     then return $ Just (c,d)
+                     else return Nothing
+
+inc :: (Eq k, Num v, Hashable k) => k -> M.HashMap k v -> M.HashMap k v
+inc k m = M.insertWith (+) k 1 m
+
+update :: (Eq a, Hashable a) => [(a,b)] -> M.HashMap a Integer -> M.HashMap a Integer
+update cs v = foldl (flip inc) v $ map fst cs
+
+depth :: Integer
+depth = undefined
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
