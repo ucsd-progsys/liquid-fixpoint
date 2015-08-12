@@ -41,13 +41,17 @@ import           System.Process
 type Raw          = T.Text
 
 -- | Commands issued to SMT engine
+instance Eq (FInfo ())
+instance Eq (WfC ())
+instance Eq (SubC ())
+
 data Command      = Push
                   | Pop
                   | CheckSat
                   | Declare   Symbol [Sort] Sort
                   | Define    Sort
                   | Assert    (Maybe Int) Pred
-                  | Interpolate Pred Pred
+                  | Interpolate (FInfo ()) Pred Pred
                   | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
                   deriving (Eq, Show)

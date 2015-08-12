@@ -118,4 +118,6 @@ rhsPred s c = S.apply s $ F.rhsCs c
 ---------------------------------------------------------------------------
 interpolation :: Config -> F.FInfo a -> [(F.Symbol,F.SortedReft)] -> F.Pred -> F.Pred -> IO F.Pred
 ---------------------------------------------------------------------------
-interpolation cfg fi env p q = runSolverM cfg fi $ interpolationSolver env p q
+interpolation cfg fi env p q = runSolverM cfg fi $ interpolationSolver (const () <$> fi) env p q
+
+instance Functor F.FInfo

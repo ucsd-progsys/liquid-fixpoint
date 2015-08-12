@@ -113,6 +113,6 @@ declSymbols = fmap dropThy . symbolSorts
     isThy   = (`M.member` theorySymbols)
 
 ---------------------------------------------------------------------------
-interpolationSolver :: [(F.Symbol,F.SortedReft)] -> F.Pred -> F.Pred -> SolveM F.Pred
+interpolationSolver :: F.FInfo () -> [(F.Symbol,F.SortedReft)] -> F.Pred -> F.Pred -> SolveM F.Pred
 ---------------------------------------------------------------------------
-interpolationSolver env p q = withContext $ \me -> smtDoInterpolate me env p q
+interpolationSolver fi env p q = withContext $ \me -> smtDoInterpolate me fi env p q

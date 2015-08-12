@@ -67,6 +67,7 @@ import           Control.Arrow
 import           Data.Char
 import qualified Data.List                as L
 import           Data.Monoid
+import           Data.Maybe
 import qualified Data.Text                as T
 import           Data.Text.Format
 import qualified Data.Text.IO             as TIO
@@ -105,8 +106,8 @@ command me !cmd      = {-# SCC "command" #-} say me cmd >> hear me cmd
     say me               = smtWrite me . smt2
     hear me CheckSat     = smtRead me
     hear me (GetValue _) = smtRead me
-    hear me (Interpolate _ _) = smtRead me >>= \case
-      Unsat -> smtPred me
+    hear me (Interpolate fi _ _) = smtRead me >>= \case
+      Unsat -> smtPred fi me
       _ -> error "Not UNSAT. No interpolation needed. Why did you call upon me?"
     hear me _            = return Ok
 
@@ -129,34 +130,14 @@ smtParse me parserP = smtReadRaw me >>= A.parseWith (smtReadRaw me) parserP >>= 
 smtRead :: Context -> IO Response
 smtRead me = {-# SCC "smtRead" #-} smtParse me responseP
 
-smtPred :: Context -> IO Response
-smtPred me = {-# SCC "smtPred" #-} smtParse me (Interpolant <$> toPred <$> predP)
+smtPred :: FInfo () -> Context -> IO Response
+smtPred fi me = {-# SCC "smtPred" #-} smtParse me (Interpolant <$> parseLisp' fi <$> predP)
 
-data Lisp = Sym Symbol | Lisp [Lisp] deriving (Eq,Show)
 predP = {-# SCC "predP" #-} Lisp <$> (A.char '(' *> listP <* A.char '(')
 listP = A.many' $ (Sym <$> symbolP) <|> predP
 
-toPred :: Lisp -> Pred
--- We never read in:
--- - PKVar
--- - PAll
--- - PTop
-toPred (Sym s)
-  | symbolText s == "true" = PTrue
-  | symbolText s == "false" = PFalse
-toPred (Lisp (Sym s:xs))
-  | symbolText s == "and" = PAnd $ L.map toPred xs
-  | symbolText s == "or" = POr $ L.map toPred xs
-toPred (Lisp [Sym s,x])
-  | symbolText s == "not" = PNot $ toPred x
-toPred (Lisp [Sym s,x,y])
-  | symbolText s == "=>" = PImp (toPred x) (toPred y)
-  | symbolText s == "=" = undefined -- @TODO from symbol table
--- @TODO  Which is which here depends on the types of the symbols we put in.
--- PIff!
--- PBexp!
--- PAtom!
-toPred x = error $ show x ++ "Nonsense Lisp Predicate!"
+data Lisp = Sym Symbol | Lisp [Lisp] deriving (Eq,Show)
+type PorE = Either Pred Expr
 
 binOpStrings :: [T.Text]
 binOpStrings = [ "+", "-", "*", "/", "mod"]
@@ -168,23 +149,51 @@ strToOp "*" = Times
 strToOp "/" = Div
 strToOp "mod" = Mod
 
-toExpr :: Lisp -> Expr
--- We never read in: EBot
--- Redundant: (?)
--- ECst !Expr !Sort
--- ECon !Constant
--- ESym !SymConst
-toExpr (Lisp [Sym s,x])
-  | symbolText s == "-" = ENeg $ toExpr x
-  | otherwise           = ELit (dummyLoc s) undefined -- @TODO need to thread through symbol table and lookup
-toExpr (Lisp [Sym s,x,y])
-  | symbolText s `elem` binOpStrings = EBin (strToOp $ symbolText s) (toExpr x) (toExpr y)
-toExpr (Lisp [Sym s, x, y, z])
-  | symbolText s == "ite" = EIte (toPred x) (toExpr y) (toExpr z)
-toExpr (Lisp (Sym s:xs)) = EApp (dummyLoc s) $ L.map toExpr xs
-toExpr (Sym s) = EVar s
-toExpr x = error $ show x ++ " : nonsense lisp expression!"
+binRelStrings :: [T.Text]
+binRelStrings = [ ">", "<", "<=", ">="]
 
+strToRel :: T.Text -> Brel
+strToRel ">" = Gt
+strToRel ">=" = Ge
+strToRel "<" = Lt
+strToRel "<=" = Le
+-- Do I need Ne Une Ueq?
+
+parseLisp' :: FInfo a -> Lisp -> Pred
+parseLisp' fi = toPred
+  where toPred :: Lisp -> Pred
+        toPred x = case parseLisp x of
+                     Left p -> p
+                     Right e -> error $ "expected Pred, got Expr: " ++ show e
+        toExpr :: Lisp -> Expr
+        toExpr x = case parseLisp x of
+                     Left p -> error $ "expected Expr, got Pred: " ++ show p
+                     Right e -> e
+        parseLisp :: Lisp -> PorE
+        parseLisp (Sym s)
+          | symbolText s == "true" = Left PTrue
+          | symbolText s == "false" = Left PFalse
+          | otherwise = Right $ EVar s
+        parseLisp (Lisp (Sym s:xs))
+          | symbolText s == "and" = Left $ PAnd $ L.map toPred xs
+          | symbolText s == "or" = Left $ POr $ L.map toPred xs
+        parseLisp (Lisp [Sym s,x])
+          | symbolText s == "not" = Left $ PNot $ toPred x
+          | symbolText s == "-" = Right $ ENeg $ toExpr x
+          | otherwise           = Right $ ELit (dummyLoc s) $ fromJust $ lookup s (lits fi)
+        parseLisp (Lisp [Sym s,x,y])
+          | symbolText s == "=>" = Left $ PImp (toPred x) (toPred y)
+          | symbolText s `elem` binOpStrings = Right $ EBin (strToOp $ symbolText s) (toExpr x) (toExpr y)
+          | symbolText s `elem` binRelStrings = Left $ PAtom (strToRel $ symbolText s) (toExpr x) (toExpr y)
+          | symbolText s == "=" = Left $ case (parseLisp x, parseLisp y) of
+                                    (Left p, Left q) -> PIff p q
+                                    (Right p, Right q) -> PAtom Eq p q
+                                    _ -> error $ "Can't compare `" ++ show x ++ "` with`" ++ show y ++ "`. Kind Error."
+        parseLisp (Lisp [Sym s, x, y, z])
+          | symbolText s == "ite" = Right $ EIte (toPred x) (toExpr y) (toExpr z)
+        parseLisp (Lisp (Sym s:xs)) = Right $ EApp (dummyLoc s) $ L.map toExpr xs
+        parseLisp x = error $ show x ++ "is Nonsense Lisp!"
+        -- PBexp? When do I know to read one of these in?
 
 responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
          <|> A.string "sat"     *> return Sat
@@ -331,16 +340,16 @@ smtBracket me a   = do smtPush me
                        smtPop me
                        return r
 
-smtDoInterpolate :: Context -> [(Symbol, SortedReft)] -> Pred -> Pred -> IO Pred
-smtDoInterpolate me env p q = smtLoadEnv me env >>
-                                  respInterp <$> command me (Interpolate p q)
+smtDoInterpolate :: Context -> FInfo () -> [(Symbol, SortedReft)] -> Pred -> Pred -> IO Pred
+smtDoInterpolate me fi env p q = smtLoadEnv me env >>
+                                  respInterp <$> command me (Interpolate fi p q)
 
 smtLoadEnv :: Context -> [(Symbol, SortedReft)] -> IO ()
 smtLoadEnv me env = mapM_ smtDecl' $ L.map (second sr_sort) env
   where smtDecl' = uncurry $ smtDecl me
 
-smtInterpolate :: Context -> Pred -> Pred -> IO Pred
-smtInterpolate me p q = respInterp <$> command me (Interpolate p q)
+smtInterpolate :: Context -> FInfo () -> Pred -> Pred -> IO Pred
+smtInterpolate me fi p q = respInterp <$> command me (Interpolate fi p q)
 
 respInterp (Interpolant p') = p'
 respInterp r = die $ err dummySpan $ "crash: SMTLIB2 respInterp = " ++ show r
