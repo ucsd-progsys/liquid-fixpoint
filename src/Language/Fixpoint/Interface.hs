@@ -38,6 +38,7 @@ import           Text.Printf
 
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
+import           Language.Fixpoint.Solver.Deps
 import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
@@ -49,10 +50,13 @@ import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp)
+import           Language.Fixpoint.Names (renameSymbol)
+import           Language.Fixpoint.Visitor (lhsKVars, rhsKVars)
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
 import           Control.Monad
 import           Control.Arrow
+import           GHC.Exts (groupWith)
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -116,7 +120,8 @@ interpSym = symbol "InterpolatedQu"
 
 interp :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 interp cfg fi
-  | interpolate cfg = do let fi' = unroll fi
+  | interpolate cfg = do let fc = failCons cfg
+                         let fi' = unroll fi fc
                          whenLoud $ putStrLn $ "fq file after unrolling: \n" ++ render (toFixpoint cfg fi')
                          let fi'' = eliminateAll fi'
                          whenLoud $ putStrLn $ "fq file after unrolled elimination: \n" ++ render (toFixpoint cfg fi'')
@@ -137,42 +142,53 @@ predSorts :: [(Symbol,SortedReft)] -> Pred -> [(Symbol,SortedReft)]
 predSorts env p = filter ((`elem` ss).fst) env
   where ss = predSymbols p
 
-unroll :: FInfo a -> FInfo a
--- unrolling is currently unimplemented, so we can just test the loop-free case
--- not that that's very useful in practice: we shouldn't need _any_ qualifiers
--- after eliminating the loop-free case, but this is good for testing.
-unroll = id
+data Node a b = Node a [(b,[Node a b])]
 
--- to fix:
--- - check edges not verticies
--- - only track edges against dfs order
--- - keep track of contraints
--- - accept FInfo -> Integer -> FInfo
--- - depth
-type Graph a = [(a, a)]
-type ConsGraph = Graph Integer
-data RoseTree a = RoseTree a [RoseTree a]
-type Mii = M.HashMap Integer Integer
-unroll' :: ConsGraph -> Integer -> RoseTree (Integer,Integer)
-unroll' g v = (unroll_ M.empty v 0)
-  where unroll_ visited start n = root $ catMaybes shallowkids
-          where root kids = RoseTree (start,n) $ map (uncurry $ unroll_ (visited' kids)) kids
-                visited' kids = update kids visited
-                children = map snd $ filter ((==start).fst) g
-                shallowkids = map join $ (flip map) children $ \c ->
-                  let d = M.lookupDefault 0 c visited in
-                  if d < depth
-                     then return $ Just (c,d)
-                     else return Nothing
+unroll :: FInfo a -> Integer -> FInfo a
+unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
+  where m = cm fi
+        mlookup v = M.lookupDefault (error $"cons # "++show v++" not found") v m
+        kidsm = M.fromList $ (fst.head &&& (snd <$>)) <$> groupWith fst pairs
+          where pairs = [(k,i)|(i,ks) <- second rhs <$> M.toList m, k<-ks]
+        klookup k = M.lookupDefault (error $"kids for "++show k++" not found") k kidsm
 
-inc :: (Eq k, Num v, Hashable k) => k -> M.HashMap k v -> M.HashMap k v
-inc k m = M.insertWith (+) k 1 m
+        rhs, lhs :: SubC a -> [KVar]
+        rhs = rhsKVars
+        lhs = lhsKVars (bs fi)
 
-update :: (Eq a, Hashable a) => [(a,b)] -> M.HashMap a Integer -> M.HashMap a Integer
-update cs v = foldl (flip inc) v $ map fst cs
+        cons' = hylo (prune . index (M.empty)) =<< lhs (mlookup start)
+        extras = M.toList $ M.filter ((==[]).lhs) m
 
-depth :: Integer
-depth = undefined
+        hylo f = cata.f.ana
+        ana k = Node k [(v,ana <$> (rhs $ mlookup v)) | v <- klookup k]
+        cata (Node _ bs) = join $ join $ [[b]:(cata<$>ns) | (b,ns) <- bs]
+
+        prune (Node (a,i) l) = Node (renameKv a i) $
+          if i>depth
+             then []
+             else ((rename a i) *** (fmap prune)) <$> l
+        rename a i v = (num v i, undefined) --, subst (mkSubst [(a, renameKv a i)]) (mlookup v))
+        num a i = cantor a i $ M.size m
+
+renameKv :: Integral i => KVar -> i -> KVar
+renameKv a i = KV $ renameSymbol (kv a) $ fromIntegral i
+
+cantor :: Integer -> Int -> Int -> Integer
+-- The Cantor pairing function, offset by s when i/=0
+cantor v i' s' = if i==0
+                  then v
+                  else s + i + (quot ((v+i)*(v+i+1)) 2)
+  where s = fromIntegral s'
+        i = fromIntegral i'
+
+index :: (Eq a, Hashable a) => M.HashMap a Int -> Node a b -> Node (a,Int) b
+index m (Node a bs) = Node (a,i) $ second (fmap $ index m') <$> bs
+  where i = M.lookupDefault 0 a m
+        m' = M.insertWith (+) a 1 m
+
+depth :: Int
+-- @TODO justify me
+depth = 4
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
