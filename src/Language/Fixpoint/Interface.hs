@@ -2,6 +2,7 @@
 --   In particular it exports the functions that solve constraints supplied
 --   either as .fq files or as FInfo.
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 
 module Language.Fixpoint.Interface (
 
@@ -163,15 +164,24 @@ unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
         ana k = Node k [(v,ana <$> (rhs $ mlookup v)) | v <- klookup k]
         cata (Node _ bs) = join $ join $ [[b]:(cata<$>ns) | (b,ns) <- bs]
 
+        prune :: Node (KVar, Int) Integer -> Node KVar (Integer, SubC _)
         prune (Node (a,i) l) = Node (renameKv a i) $
           if i>depth
              then []
              else ((rename a i) *** (fmap prune)) <$> l
+
+        rename :: KVar -> Int -> Integer -> (Integer, SubC _)
+        -- adds `i` primes to the kvar `a`
+        -- then subsitutes the new kvar for the old in the SubC #`v`
+        -- also gives us a new number for `v`, since it's now a different SubC
         rename a i v = (num v i, undefined) --, subst (mkSubst [(a, renameKv a i)]) (mlookup v))
         num a i = cantor a i $ M.size m
 
 renameKv :: Integral i => KVar -> i -> KVar
 renameKv a i = KV $ renameSymbol (kv a) $ fromIntegral i
+
+substKV :: KVar -> KVar -> SubC a
+substKV = undefined
 
 cantor :: Integer -> Int -> Int -> Integer
 -- The Cantor pairing function, offset by s when i/=0
