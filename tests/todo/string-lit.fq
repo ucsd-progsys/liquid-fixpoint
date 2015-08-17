@@ -1,0 +1,19 @@
+//adapted from LH test StringLit.hs.fq
+
+constant strLen : (func(0, [int; int]))
+
+constant len : (func(2, [FAppTy @(0)  @(1); int]))
+
+constant lit#foo : (Str)
+
+bind 33 lq_anf__dJQ : {lq_tmp_x_128 : int | [(lq_tmp_x_128 ~~ lit#foo);
+                                             (strLen([lq_tmp_x_128]) = 3)]}
+
+constraint:
+  env [33]
+  grd true
+  lhs {VV#F1 : [GHC.Types.Char] | [(VV#F1 ~~ lq_anf__dJQ);
+                                   (len([VV#F1]) = strLen([lq_anf__dJQ]));
+                                   (len([VV#F1]) >= 0)]}
+  rhs {VV#F1 : [GHC.Types.Char] | [(len([VV#F1]) = 3)]}
+  id 1 tag [1]
