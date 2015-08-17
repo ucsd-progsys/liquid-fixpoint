@@ -1,203 +1,209 @@
-qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 28, column 8)
-qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 29, column 8)
+qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.spec" (line 29, column 8)
+qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.spec" (line 30, column 8)
 qualif Auto(VV : b_a12t, fix##126#A0 : a_a12s): (? papp2([p;
                                                           VV;
                                                           fix##126#A0])) // "deptup.hs" (line 6, column 17)
 qualif Auto(vv : a_a12s, fix##126#A0 : a_a12s): (vv = fix##126#A0) // "deptup.hs" (line 6, column 17)
-qualif Auto(VV : FAppTy (Deptup0.Pair a_a12s)  b_a12t, fix##126#A0 : b_a12t): (y([VV]) = fix##126#A0) // "deptup.hs" (line 6, column 17)
-qualif Auto(VV : FAppTy (Deptup0.Pair a_a12s)  b_a12t, fix##126#A0 : a_a12s): (x([VV]) = fix##126#A0) // "deptup.hs" (line 6, column 17)
-qualif Auto(v : b_a12t, fix##126#P : FAppTy (Pred b_a12t)  a_a12s, fix##126#A0 : a_a12s): (? papp2([fix##126#P;
+qualif Auto(VV : FAppTy (FAppTy Deptup0.Pair  a_a12s)  b_a12t, fix##126#A0 : b_a12t): (y([VV]) = fix##126#A0) // "deptup.hs" (line 6, column 17)
+qualif Auto(VV : FAppTy (FAppTy Deptup0.Pair  a_a12s)  b_a12t, fix##126#A0 : a_a12s): (x([VV]) = fix##126#A0) // "deptup.hs" (line 6, column 17)
+qualif Auto(v : b_a12t, fix##126#P : FAppTy (FAppTy Pred  b_a12t)  a_a12s, fix##126#A0 : a_a12s): (? papp2([fix##126#P;
+                                                                                                            v;
+                                                                                                            fix##126#A0])) // "deptup.hs" (line 6, column 17)
+qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) > 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 13, column 8)
+qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) = 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 14, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 16, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 17, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 18, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 20, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) >= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 21, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) > len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 22, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) <= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 23, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) < len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 24, column 8)
+qualif EqLen(v : int, fix##126#Xs : [@(0)]): (v = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 26, column 8)
+qualif LenEq(v : [@(0)], fix##126#X : int): (fix##126#X = len([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 27, column 8)
+qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X + 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 28, column 8)
+qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X - 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 29, column 8)
+qualif LenAcc(v : int, fix##126#Xs : [@(0)], fix##126#N : int): (v = (len([fix##126#Xs]) + fix##126#N)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 30, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 3, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 4, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 5, column 8)
+qualif Bot(v : bool): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 6, column 8)
+qualif Bot(v : int): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 7, column 8)
+qualif CmpZ(v : @(0)): (v < 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 9, column 8)
+qualif CmpZ(v : @(0)): (v <= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 10, column 8)
+qualif CmpZ(v : @(0)): (v > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 11, column 8)
+qualif CmpZ(v : @(0)): (v >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 12, column 8)
+qualif CmpZ(v : @(0)): (v = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 13, column 8)
+qualif CmpZ(v : @(0)): (v != 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 14, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v < fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 16, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v <= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 17, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v > fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 18, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v >= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 19, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v = fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 20, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v != fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 21, column 8)
+qualif One(v : int): (v = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 28, column 8)
+qualif True(v : bool): (? v) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 29, column 8)
+qualif False(v : bool): (~ ((? v))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 30, column 8)
+qualif True1(v : GHC.Types.Bool): (? Prop([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 31, column 8)
+qualif False1(v : GHC.Types.Bool): (~ ((? Prop([v])))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 32, column 8)
+qualif Papp(v : @(0), fix##126#P : FAppTy Pred  @(0)): (? papp1([fix##126#P;
+                                                                 v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 35, column 8)
+qualif Papp2(v : @(1), fix##126#X : @(0), fix##126#P : FAppTy (FAppTy Pred  @(1))  @(0)): (? papp2([fix##126#P;
                                                                                                     v;
-                                                                                                    fix##126#A0])) // "deptup.hs" (line 6, column 17)
-qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) > 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 13, column 8)
-qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) = 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 14, column 8)
-qualif ListZ(v : [@(0)]): (len([v]) = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 16, column 8)
-qualif ListZ(v : [@(0)]): (len([v]) >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 17, column 8)
-qualif ListZ(v : [@(0)]): (len([v]) > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 18, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 20, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) >= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 21, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) > len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 22, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) <= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 23, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) < len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 24, column 8)
-qualif EqLen(v : int, fix##126#Xs : [@(0)]): (v = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 26, column 8)
-qualif LenEq(v : [@(0)], fix##126#X : int): (fix##126#X = len([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 27, column 8)
-qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X + 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 28, column 8)
-qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X - 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 29, column 8)
-qualif LenAcc(v : int, fix##126#Xs : [@(0)], fix##126#N : int): (v = (len([fix##126#Xs]) + fix##126#N)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 30, column 8)
-qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 3, column 8)
-qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 4, column 8)
-qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 5, column 8)
-qualif Bot(v : bool): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 6, column 8)
-qualif Bot(v : int): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 7, column 8)
-qualif CmpZ(v : @(0)): (v < 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 9, column 8)
-qualif CmpZ(v : @(0)): (v <= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 10, column 8)
-qualif CmpZ(v : @(0)): (v > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 11, column 8)
-qualif CmpZ(v : @(0)): (v >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 12, column 8)
-qualif CmpZ(v : @(0)): (v = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 13, column 8)
-qualif CmpZ(v : @(0)): (v != 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 14, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v < fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 16, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v <= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 17, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v > fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 18, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v >= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 19, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v = fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 20, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v != fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 21, column 8)
-qualif One(v : int): (v = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 28, column 8)
-qualif True(v : bool): (? v) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 29, column 8)
-qualif False(v : bool): (~ ((? v))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 30, column 8)
-qualif True1(v : GHC.Types.Bool): (? Prop([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 31, column 8)
-qualif False1(v : GHC.Types.Bool): (~ ((? Prop([v])))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 32, column 8)
-qualif Papp(v : @(0), fix##126#P : Pred @(0)): (? papp1([fix##126#P;
-                                                         v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 35, column 8)
-qualif Papp2(v : @(1), fix##126#X : @(0), fix##126#P : FAppTy (Pred @(1))  @(0)): (? papp2([fix##126#P;
-                                                                                            v;
-                                                                                            fix##126#X])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 38, column 8)
-qualif Papp3(v : @(2), fix##126#X : @(0), fix##126#Y : @(1), fix##126#P : FAppTy (FAppTy (Pred @(2))  @(0))  @(1)): (? papp3([fix##126#P;
-                                                                                                                              v;
-                                                                                                                              fix##126#X;
-                                                                                                                              fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 41, column 8)
+                                                                                                    fix##126#X])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 38, column 8)
+qualif Papp3(v : @(2), fix##126#X : @(0), fix##126#Y : @(1), fix##126#P : FAppTy (FAppTy (FAppTy Pred  @(2))  @(0))  @(1)): (? papp3([fix##126#P;
+                                                                                                                                      v;
+                                                                                                                                      fix##126#X;
+                                                                                                                                      fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 41, column 8)
 
-qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 28, column 8)
-qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.spec" (line 29, column 8)
+qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.spec" (line 29, column 8)
+qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.spec" (line 30, column 8)
 qualif Auto(VV : b_a12t, fix##126#A0 : a_a12s): (? papp2([p;
                                                           VV;
                                                           fix##126#A0])) // "deptup.hs" (line 6, column 17)
 qualif Auto(vv : a_a12s, fix##126#A0 : a_a12s): (vv = fix##126#A0) // "deptup.hs" (line 6, column 17)
-qualif Auto(VV : FAppTy (Deptup0.Pair a_a12s)  b_a12t, fix##126#A0 : b_a12t): (y([VV]) = fix##126#A0) // "deptup.hs" (line 6, column 17)
-qualif Auto(VV : FAppTy (Deptup0.Pair a_a12s)  b_a12t, fix##126#A0 : a_a12s): (x([VV]) = fix##126#A0) // "deptup.hs" (line 6, column 17)
-qualif Auto(v : b_a12t, fix##126#P : FAppTy (Pred b_a12t)  a_a12s, fix##126#A0 : a_a12s): (? papp2([fix##126#P;
+qualif Auto(VV : FAppTy (FAppTy Deptup0.Pair  a_a12s)  b_a12t, fix##126#A0 : b_a12t): (y([VV]) = fix##126#A0) // "deptup.hs" (line 6, column 17)
+qualif Auto(VV : FAppTy (FAppTy Deptup0.Pair  a_a12s)  b_a12t, fix##126#A0 : a_a12s): (x([VV]) = fix##126#A0) // "deptup.hs" (line 6, column 17)
+qualif Auto(v : b_a12t, fix##126#P : FAppTy (FAppTy Pred  b_a12t)  a_a12s, fix##126#A0 : a_a12s): (? papp2([fix##126#P;
+                                                                                                            v;
+                                                                                                            fix##126#A0])) // "deptup.hs" (line 6, column 17)
+qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) > 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 13, column 8)
+qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) = 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 14, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 16, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 17, column 8)
+qualif ListZ(v : [@(0)]): (len([v]) > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 18, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 20, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) >= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 21, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) > len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 22, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) <= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 23, column 8)
+qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) < len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 24, column 8)
+qualif EqLen(v : int, fix##126#Xs : [@(0)]): (v = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 26, column 8)
+qualif LenEq(v : [@(0)], fix##126#X : int): (fix##126#X = len([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 27, column 8)
+qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X + 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 28, column 8)
+qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X - 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 29, column 8)
+qualif LenAcc(v : int, fix##126#Xs : [@(0)], fix##126#N : int): (v = (len([fix##126#Xs]) + fix##126#N)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/GHC/Base.hquals" (line 30, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 3, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 4, column 8)
+qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 5, column 8)
+qualif Bot(v : bool): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 6, column 8)
+qualif Bot(v : int): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 7, column 8)
+qualif CmpZ(v : @(0)): (v < 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 9, column 8)
+qualif CmpZ(v : @(0)): (v <= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 10, column 8)
+qualif CmpZ(v : @(0)): (v > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 11, column 8)
+qualif CmpZ(v : @(0)): (v >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 12, column 8)
+qualif CmpZ(v : @(0)): (v = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 13, column 8)
+qualif CmpZ(v : @(0)): (v != 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 14, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v < fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 16, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v <= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 17, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v > fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 18, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v >= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 19, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v = fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 20, column 8)
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v != fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 21, column 8)
+qualif One(v : int): (v = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 28, column 8)
+qualif True(v : bool): (? v) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 29, column 8)
+qualif False(v : bool): (~ ((? v))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 30, column 8)
+qualif True1(v : GHC.Types.Bool): (? Prop([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 31, column 8)
+qualif False1(v : GHC.Types.Bool): (~ ((? Prop([v])))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 32, column 8)
+qualif Papp(v : @(0), fix##126#P : FAppTy Pred  @(0)): (? papp1([fix##126#P;
+                                                                 v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 35, column 8)
+qualif Papp2(v : @(1), fix##126#X : @(0), fix##126#P : FAppTy (FAppTy Pred  @(1))  @(0)): (? papp2([fix##126#P;
                                                                                                     v;
-                                                                                                    fix##126#A0])) // "deptup.hs" (line 6, column 17)
-qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) > 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 13, column 8)
-qualif IsEmp(v : GHC.Types.Bool, fix##126#Xs : [@(0)]): ((? Prop([v])) <=> (len([fix##126#Xs]) = 0)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 14, column 8)
-qualif ListZ(v : [@(0)]): (len([v]) = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 16, column 8)
-qualif ListZ(v : [@(0)]): (len([v]) >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 17, column 8)
-qualif ListZ(v : [@(0)]): (len([v]) > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 18, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 20, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) >= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 21, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) > len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 22, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) <= len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 23, column 8)
-qualif CmpLen(v : [@(1)], fix##126#Xs : [@(0)]): (len([v]) < len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 24, column 8)
-qualif EqLen(v : int, fix##126#Xs : [@(0)]): (v = len([fix##126#Xs])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 26, column 8)
-qualif LenEq(v : [@(0)], fix##126#X : int): (fix##126#X = len([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 27, column 8)
-qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X + 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 28, column 8)
-qualif LenDiff(v : [@(0)], fix##126#X : int): (len([v]) = (fix##126#X - 1)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 29, column 8)
-qualif LenAcc(v : int, fix##126#Xs : [@(0)], fix##126#N : int): (v = (len([fix##126#Xs]) + fix##126#N)) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/GHC/Base.hquals" (line 30, column 8)
-qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 3, column 8)
-qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 4, column 8)
-qualif Bot(v : @(0)): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 5, column 8)
-qualif Bot(v : bool): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 6, column 8)
-qualif Bot(v : int): (0 = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 7, column 8)
-qualif CmpZ(v : @(0)): (v < 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 9, column 8)
-qualif CmpZ(v : @(0)): (v <= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 10, column 8)
-qualif CmpZ(v : @(0)): (v > 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 11, column 8)
-qualif CmpZ(v : @(0)): (v >= 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 12, column 8)
-qualif CmpZ(v : @(0)): (v = 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 13, column 8)
-qualif CmpZ(v : @(0)): (v != 0) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 14, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v < fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 16, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v <= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 17, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v > fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 18, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v >= fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 19, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v = fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 20, column 8)
-qualif Cmp(v : @(0), fix##126#X : @(0)): (v != fix##126#X) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 21, column 8)
-qualif One(v : int): (v = 1) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 28, column 8)
-qualif True(v : bool): (? v) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 29, column 8)
-qualif False(v : bool): (~ ((? v))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 30, column 8)
-qualif True1(v : GHC.Types.Bool): (? Prop([v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 31, column 8)
-qualif False1(v : GHC.Types.Bool): (~ ((? Prop([v])))) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 32, column 8)
-qualif Papp(v : @(0), fix##126#P : Pred @(0)): (? papp1([fix##126#P;
-                                                         v])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 35, column 8)
-qualif Papp2(v : @(1), fix##126#X : @(0), fix##126#P : FAppTy (Pred @(1))  @(0)): (? papp2([fix##126#P;
-                                                                                            v;
-                                                                                            fix##126#X])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 38, column 8)
-qualif Papp3(v : @(2), fix##126#X : @(0), fix##126#Y : @(1), fix##126#P : FAppTy (FAppTy (Pred @(2))  @(0))  @(1)): (? papp3([fix##126#P;
-                                                                                                                              v;
-                                                                                                                              fix##126#X;
-                                                                                                                              fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.4.1.1/include/Prelude.hquals" (line 41, column 8)
+                                                                                                    fix##126#X])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 38, column 8)
+qualif Papp3(v : @(2), fix##126#X : @(0), fix##126#Y : @(1), fix##126#P : FAppTy (FAppTy (FAppTy Pred  @(2))  @(0))  @(1)): (? papp3([fix##126#P;
+                                                                                                                                      v;
+                                                                                                                                      fix##126#X;
+                                                                                                                                      fix##126#Y])) // "/Users/benjamin/refscript/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.5.0.1/include/Prelude.hquals" (line 41, column 8)
 
 
 
 
 constant Prop : (func(0, [GHC.Types.Bool; bool]))
-constant x_Tuple54 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple54 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4);
                                @(3)]))
-constant x_Tuple44 : (func(4, [FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3);
+constant x_Tuple44 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3);
                                @(3)]))
 constant xListSelector : (func(1, [[@(0)]; @(0)]))
-constant x_Tuple41 : (func(4, [FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3);
+constant x_Tuple41 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3);
                                @(0)]))
-constant x_Tuple76 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple76 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(5)]))
 constant autolen : (func(1, [@(0); int]))
 constant addrLen : (func(0, [int; int]))
-constant x_Tuple65 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple65 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(4)]))
-constant y : (func(2, [FAppTy (Deptup0.Pair @(0))  @(1); @(1)]))
-constant x_Tuple64 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant strLen : (func(0, [int; int]))
+constant y : (func(2, [FAppTy (FAppTy Deptup0.Pair  @(0))  @(1);
+                       @(1)]))
+constant x_Tuple64 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(3)]))
-constant x_Tuple33 : (func(3, [FAppTy (FAppTy (Tuple @(0))  @(1))  @(2);
+constant x_Tuple33 : (func(3, [FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2);
                                @(2)]))
-constant fst : (func(2, [FAppTy (Tuple @(0))  @(1); @(0)]))
-constant x : (func(2, [FAppTy (Deptup0.Pair @(0))  @(1); @(0)]))
-constant x_Tuple31 : (func(3, [FAppTy (FAppTy (Tuple @(0))  @(1))  @(2);
+constant fst : (func(2, [FAppTy (FAppTy Tuple  @(0))  @(1); @(0)]))
+constant x : (func(2, [FAppTy (FAppTy Deptup0.Pair  @(0))  @(1);
+                       @(0)]))
+constant x_Tuple31 : (func(3, [FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2);
                                @(0)]))
-constant x_Tuple43 : (func(4, [FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3);
+constant x_Tuple43 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3);
                                @(2)]))
-constant papp4 : (func(8, [FAppTy (FAppTy (FAppTy (Pred @(0))  @(1))  @(2))  @(6);
+constant papp4 : (func(8, [FAppTy (FAppTy (FAppTy (FAppTy Pred  @(0))  @(1))  @(2))  @(6);
                            @(3);
                            @(4);
                            @(5);
                            @(7);
                            bool]))
-constant x_Tuple71 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple71 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(0)]))
-constant x_Tuple52 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple52 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4);
                                @(1)]))
-constant papp2 : (func(4, [FAppTy (Pred @(0))  @(1);
+constant papp2 : (func(4, [FAppTy (FAppTy Pred  @(0))  @(1);
                            @(2);
                            @(3);
                            bool]))
-constant x_Tuple32 : (func(3, [FAppTy (FAppTy (Tuple @(0))  @(1))  @(2);
+constant x_Tuple32 : (func(3, [FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2);
                                @(1)]))
-constant x_Tuple72 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple72 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(1)]))
-constant x_Tuple63 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple63 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(2)]))
-constant x_Tuple75 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple75 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(4)]))
-constant x_Tuple51 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple51 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4);
                                @(0)]))
 constant len : (func(2, [FAppTy @(0)  @(1); int]))
 constant xsListSelector : (func(1, [[@(0)]; [@(0)]]))
 constant null : (func(1, [[@(0)]; bool]))
-constant x_Tuple53 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
+constant x_Tuple53 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4);
                                @(2)]))
-constant x_Tuple22 : (func(2, [FAppTy (Tuple @(0))  @(1); @(1)]))
-constant fromJust : (func(1, [Data.Maybe.Maybe @(0); @(0)]))
-constant snd : (func(2, [FAppTy (Tuple @(0))  @(1); @(1)]))
-constant x_Tuple73 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
-                               @(2)]))
-constant x_Tuple62 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple22 : (func(2, [FAppTy (FAppTy Tuple  @(0))  @(1);
                                @(1)]))
-constant x_Tuple55 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4);
+constant fromJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0);
+                              @(0)]))
+constant snd : (func(2, [FAppTy (FAppTy Tuple  @(0))  @(1); @(1)]))
+constant x_Tuple73 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+                               @(2)]))
+constant x_Tuple62 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                               @(1)]))
+constant x_Tuple55 : (func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4);
                                @(4)]))
-constant papp3 : (func(6, [FAppTy (FAppTy (Pred @(0))  @(1))  @(2);
+constant papp3 : (func(6, [FAppTy (FAppTy (FAppTy Pred  @(0))  @(1))  @(2);
                            @(3);
                            @(4);
                            @(5);
                            bool]))
-constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple74 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(3)]))
 constant cmp : (func(0, [GHC.Types.Ordering; GHC.Types.Ordering]))
-constant isJust : (func(1, [Data.Maybe.Maybe @(0); bool]))
-constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3);
+constant isJust : (func(1, [FAppTy Data.Maybe.Maybe  @(0); bool]))
+constant x_Tuple42 : (func(4, [FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3);
                                @(1)]))
-constant x_Tuple21 : (func(2, [FAppTy (Tuple @(0))  @(1); @(0)]))
-constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple21 : (func(2, [FAppTy (FAppTy Tuple  @(0))  @(1);
                                @(0)]))
-constant papp1 : (func(1, [Pred @(0); @(0); bool]))
-constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+constant x_Tuple61 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
+                               @(0)]))
+constant papp1 : (func(1, [FAppTy Pred  @(0); @(0); bool]))
+constant x_Tuple66 : (func(6, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5);
                                @(5)]))
-constant x_Tuple77 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
+constant x_Tuple77 : (func(7, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6);
                                @(6)]))
 
 
@@ -207,7 +213,7 @@ constant fix#GHC.Types.#58##35#64 : (func(1, [@(0);
 constant fix#GHC.Types.#91##93##35#6m : (func(1, [[@(0)]]))
 constant Deptup0.P#r12h : (func(2, [@(0);
                                     @(1);
-                                    FAppTy (Deptup0.Pair @(0))  @(1)]))
+                                    FAppTy (FAppTy Deptup0.Pair  @(0))  @(1)]))
 
 
 bind 0 GHC.Base.map#01X : {VV : func(2, [func(0, [@(0); @(1)]);
@@ -229,17 +235,17 @@ bind 6 fix#GHC.Classes.#60##35#r5 : {VV : func(1, [@(0);
 bind 7 fix#GHC.Num.#43##35#rt : {VV : func(1, [@(0);
                                                @(0);
                                                @(0)]) | []}
-bind 8 fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv : {VV#253 : GHC.Classes.Ord int | []}
-bind 9 fix#GHC.Num.#36#fNumInteger#35#rhw : {VV#254 : GHC.Num.Num int | []}
-bind 10 fix#GHC.Classes.#36#fOrdInt#35#rhx : {VV#255 : GHC.Classes.Ord int | []}
-bind 11 fix#GHC.Num.#36#fNumInt#35#rhy : {VV#256 : GHC.Num.Num int | []}
+bind 8 fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv : {VV#253 : FAppTy GHC.Classes.Ord  int | []}
+bind 9 fix#GHC.Num.#36#fNumInteger#35#rhw : {VV#254 : FAppTy GHC.Num.Num  int | []}
+bind 10 fix#GHC.Classes.#36#fOrdInt#35#rhx : {VV#255 : FAppTy GHC.Classes.Ord  int | []}
+bind 11 fix#GHC.Num.#36#fNumInt#35#rhy : {VV#256 : FAppTy GHC.Num.Num  int | []}
 bind 12 Language.Haskell.Liquid.Prelude.liquidAssertB#rpD : {VV : func(0, [GHC.Types.Bool;
                                                                            GHC.Types.Bool]) | []}
 bind 13 Language.Haskell.Liquid.Prelude.choose#rpK : {VV : func(0, [int;
                                                                     int]) | []}
 bind 14 Deptup0.P#r12h : {VV : func(2, [@(0);
                                         @(1);
-                                        FAppTy (Deptup0.Pair @(0))  @(1)]) | []}
+                                        FAppTy (FAppTy Deptup0.Pair  @(0))  @(1)]) | []}
 bind 15 GHC.Types.EQ#6U : {VV#260 : GHC.Types.Ordering | [(VV#260 = GHC.Types.EQ#6U)]}
 bind 16 GHC.Types.LT#6S : {VV#261 : GHC.Types.Ordering | [(VV#261 = GHC.Types.LT#6S)]}
 bind 17 GHC.Types.GT#6W : {VV#262 : GHC.Types.Ordering | [(VV#262 = GHC.Types.GT#6W)]}
@@ -344,29 +350,29 @@ bind 52 fix#GHC.Types.#58##35#64 : {VV : func(1, [@(0);
 bind 53 fix#GHC.Types.#91##93##35#6m : {VV : func(1, [[@(0)]]) | []}
 bind 54 fix#GHC.Tuple.#40##44##41##35#74 : {VV : func(2, [@(0);
                                                           @(1);
-                                                          FAppTy (Tuple @(0))  @(1)]) | []}
+                                                          FAppTy (FAppTy Tuple  @(0))  @(1)]) | []}
 bind 55 fix#GHC.Tuple.#40##44##44##41##35#76 : {VV : func(3, [@(0);
                                                               @(1);
                                                               @(2);
-                                                              FAppTy (FAppTy (Tuple @(0))  @(1))  @(2)]) | []}
+                                                              FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2)]) | []}
 bind 56 fix#GHC.Tuple.#40##44##44##44##41##35#78 : {VV : func(4, [@(0);
                                                                   @(1);
                                                                   @(2);
                                                                   @(3);
-                                                                  FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3)]) | []}
+                                                                  FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3)]) | []}
 bind 57 fix#GHC.Tuple.#40##44##44##44##44##41##35#7a : {VV : func(5, [@(0);
                                                                       @(1);
                                                                       @(2);
                                                                       @(3);
                                                                       @(4);
-                                                                      FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4)]) | []}
+                                                                      FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4)]) | []}
 bind 58 fix#GHC.Tuple.#40##44##44##44##44##44##41##35#7c : {VV : func(6, [@(0);
                                                                           @(1);
                                                                           @(2);
                                                                           @(3);
                                                                           @(4);
                                                                           @(5);
-                                                                          FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5)]) | []}
+                                                                          FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5)]) | []}
 bind 59 fix#GHC.Tuple.#40##44##44##44##44##44##44##41##35#7e : {VV : func(7, [@(0);
                                                                               @(1);
                                                                               @(2);
@@ -374,8 +380,8 @@ bind 59 fix#GHC.Tuple.#40##44##44##44##44##44##44##41##35#7e : {VV : func(7, [@(
                                                                               @(4);
                                                                               @(5);
                                                                               @(6);
-                                                                              FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (Tuple @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6)]) | []}
-bind 60 Data.Maybe.Nothing#r19 : {VV : func(1, [Data.Maybe.Maybe @(0)]) | []}
+                                                                              FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy (FAppTy Tuple  @(0))  @(1))  @(2))  @(3))  @(4))  @(5))  @(6)]) | []}
+bind 60 Data.Maybe.Nothing#r19 : {VV : func(1, [FAppTy Data.Maybe.Maybe  @(0)]) | []}
 bind 61 GHC.Types.EQ#6U : {VV#306 : GHC.Types.Ordering | [(cmp([VV#306]) = GHC.Types.EQ#6U)]}
 bind 62 GHC.Types.LT#6S : {VV#307 : GHC.Types.Ordering | [(cmp([VV#307]) = GHC.Types.LT#6S)]}
 bind 63 GHC.Types.GT#6W : {VV#308 : GHC.Types.Ordering | [(cmp([VV#308]) = GHC.Types.GT#6W)]}
@@ -383,8 +389,9 @@ bind 64 fix#GHC.Real.D#58#Fractional#35#rkT : {VV : func(1, [func(0, [@(0);
                                                                       @(0);
                                                                       @(0)]);
                                                              func(0, [@(0); @(0)]);
-                                                             func(0, [GHC.Real.Ratio int; @(0)]);
-                                                             GHC.Real.Fractional @(0)]) | []}
+                                                             func(0, [FAppTy GHC.Real.Ratio  int;
+                                                                      @(0)]);
+                                                             FAppTy GHC.Real.Fractional  @(0)]) | []}
 bind 65 fix#GHC.Real.D#58#Integral#35#r6o : {VV : func(1, [func(0, [@(0);
                                                                     @(0);
                                                                     @(0)]);
@@ -393,17 +400,17 @@ bind 65 fix#GHC.Real.D#58#Integral#35#r6o : {VV : func(1, [func(0, [@(0);
                                                            func(0, [@(0); @(0); @(0)]);
                                                            func(0, [@(0);
                                                                     @(0);
-                                                                    FAppTy (Tuple @(0))  @(0)]);
+                                                                    FAppTy (FAppTy Tuple  @(0))  @(0)]);
                                                            func(0, [@(0);
                                                                     @(0);
-                                                                    FAppTy (Tuple @(0))  @(0)]);
+                                                                    FAppTy (FAppTy Tuple  @(0))  @(0)]);
                                                            func(0, [@(0); int]);
-                                                           GHC.Real.Integral @(0)]) | []}
+                                                           FAppTy GHC.Real.Integral  @(0)]) | []}
 bind 66 Data.Maybe.Just#r1a : {VV : func(1, [@(0);
-                                             Data.Maybe.Maybe @(0)]) | []}
+                                             FAppTy Data.Maybe.Maybe  @(0)]) | []}
 bind 67 Deptup0.P#r12h : {VV : func(2, [@(0);
                                         @(1);
-                                        FAppTy (Deptup0.Pair @(0))  @(1)]) | []}
+                                        FAppTy (FAppTy Deptup0.Pair  @(0))  @(1)]) | []}
 bind 68 lq_anf__d1bG : {lq_tmp_x_323 : int | [(lq_tmp_x_323 = 0)]}
 bind 69 lq_anf__d1bH : {lq_tmp_x_325 : int | [(lq_tmp_x_325 = 1)]}
 bind 70 lq_anf__d1bI : {lq_tmp_x_327 : int | [(lq_tmp_x_327 = 2)]}
@@ -442,24 +449,24 @@ bind 84 Deptup0.xs#r12p : {VV#320 : [int] | [$k__321;
                                              (len([VV#320]) >= 0)]}
 bind 85 lq_anf__d1bQ : {lq_tmp_x_464 : int | [(lq_tmp_x_464 = (0  :  int))]}
 bind 86 Deptup0.n#r12o : {VV#460 : int | [$k__461]}
-bind 87 fix##36#dOrd_a19Q : {VV#475 : GHC.Classes.Ord a_a19P | []}
-bind 88 ds_d1bF : {VV#486 : FAppTy (Deptup0.Pair a_a19P)  a_a19P | [$k__487]}
-bind 89 lq_anf__d1bR : {lq_tmp_x_494 : FAppTy (Deptup0.Pair a_a19P)  a_a19P | [(lq_tmp_x_494 = ds_d1bF)]}
-bind 90 lq_anf__d1bR : {lq_tmp_x_497 : FAppTy (Deptup0.Pair a_a19P)  a_a19P | [(lq_tmp_x_497 = ds_d1bF)]}
+bind 87 fix##36#dOrd_a19Q : {VV#475 : FAppTy GHC.Classes.Ord  a_a19P | []}
+bind 88 ds_d1bF : {VV#486 : FAppTy (FAppTy Deptup0.Pair  a_a19P)  a_a19P | [$k__487]}
+bind 89 lq_anf__d1bR : {lq_tmp_x_494 : FAppTy (FAppTy Deptup0.Pair  a_a19P)  a_a19P | [(lq_tmp_x_494 = ds_d1bF)]}
+bind 90 lq_anf__d1bR : {lq_tmp_x_497 : FAppTy (FAppTy Deptup0.Pair  a_a19P)  a_a19P | [(lq_tmp_x_497 = ds_d1bF)]}
 bind 91 x#a18S : {VV#476 : a_a19P | [$k__477[VV#486:=lq_anf__d1bR][lq_tmp_x_494:=lq_anf__d1bR][lq_tmp_x_497:=lq_anf__d1bR]]}
 bind 92 y#a18T : {VV#479 : a_a19P | [$k__480[VV#486:=lq_anf__d1bR][lq_tmp_x_494:=lq_anf__d1bR][lq_tmp_x_497:=lq_anf__d1bR][lq_tmp_x_502:=x#a18S];
                                      $k__484[lq_tmp_x_482:=x#a18S][lq_tmp_x_493:=x#a18S][lq_tmp_x_496:=x#a18S][VV#483:=VV#479][lq_tmp_x_502:=x#a18S]]}
-bind 93 lq_anf__d1bR : {lq_tmp_x_497 : FAppTy (Deptup0.Pair a_a19P)  a_a19P | [(lq_tmp_x_497 = ds_d1bF);
-                                                                               (y([lq_tmp_x_497]) = y#a18T);
-                                                                               (x([lq_tmp_x_497]) = x#a18S);
-                                                                               (lq_tmp_x_497 = Deptup0.P#r12h([x#a18S;
-                                                                                                               y#a18T]));
-                                                                               (y([lq_tmp_x_497]) = y#a18T);
-                                                                               (x([lq_tmp_x_497]) = x#a18S)]}
+bind 93 lq_anf__d1bR : {lq_tmp_x_497 : FAppTy (FAppTy Deptup0.Pair  a_a19P)  a_a19P | [(lq_tmp_x_497 = ds_d1bF);
+                                                                                       (y([lq_tmp_x_497]) = y#a18T);
+                                                                                       (x([lq_tmp_x_497]) = x#a18S);
+                                                                                       (lq_tmp_x_497 = Deptup0.P#r12h([x#a18S;
+                                                                                                                       y#a18T]));
+                                                                                       (y([lq_tmp_x_497]) = y#a18T);
+                                                                                       (x([lq_tmp_x_497]) = x#a18S)]}
 bind 94 lq_anf__d1bS : {lq_tmp_x_513 : GHC.Types.Bool | [((? Prop([lq_tmp_x_513])) <=> (x#a18S < y#a18T))]}
-bind 95 Deptup0.chk#r12l : {VV : func(1, [FAppTy (Deptup0.Pair @(0))  @(0);
+bind 95 Deptup0.chk#r12l : {VV : func(1, [FAppTy (FAppTy Deptup0.Pair  @(0))  @(0);
                                           GHC.Types.Bool]) | []}
-bind 96 fix##36#dNum_a1ac : {VV#531 : GHC.Num.Num a_a1ab | []}
+bind 96 fix##36#dNum_a1ac : {VV#531 : FAppTy GHC.Num.Num  a_a1ab | []}
 bind 97 a_a1ab : {VV : num | []}
 bind 98 x#a18Q : {VV#532 : a_a1ab | [$k__533]}
 bind 99 lq_anf__d1bT : {lq_tmp_x_539 : int | [(lq_tmp_x_539 = 1)]}
@@ -470,33 +477,33 @@ bind 103 y#a18P : {VV#565 : a_a19g | [$k__566]}
 bind 104 lq_tmp_x_584 : {VV : a_a19g | []}
 bind 105 Deptup0.mkP#r12i : {VV : func(1, [@(0);
                                            @(0);
-                                           FAppTy (Deptup0.Pair @(0))  @(0)]) | []}
-bind 106 fix##36#dNum_a1az : {VV#587 : GHC.Num.Num a_a1ay | []}
+                                           FAppTy (FAppTy Deptup0.Pair  @(0))  @(0)]) | []}
+bind 106 fix##36#dNum_a1az : {VV#587 : FAppTy GHC.Num.Num  a_a1ay | []}
 bind 107 a_a1ay : {VV : num | []}
 bind 108 x#a18R : {VV#588 : a_a1ay | [$k__589]}
 bind 109 lq_anf__d1bV : {VV : a_a1ay | [$k__537[fix##36#dNum_a1ac:=fix##36#dNum_a1az][x#a18Q:=x#a18R][VV#536:=VV][lq_tmp_x_608:=fix##36#dNum_a1az][lq_tmp_x_609:=x#a18R]]}
 bind 110 Deptup0.baz#r12k : {VV : func(1, [@(0);
-                                           FAppTy (Deptup0.Pair @(0))  @(0)]) | []}
+                                           FAppTy (FAppTy Deptup0.Pair  @(0))  @(0)]) | []}
 bind 111 lq_anf__d1bW : {lq_tmp_x_627 : int | [(lq_tmp_x_627 = (100  :  int))]}
 bind 112 n#a18U : {lq_tmp_x_633 : int | []}
-bind 113 lq_anf__d1bX : {lq_tmp_x_642 : func(0, [FAppTy (Deptup0.Pair int)  int;
+bind 113 lq_anf__d1bX : {lq_tmp_x_642 : func(0, [FAppTy (FAppTy Deptup0.Pair  int)  int;
                                                  GHC.Types.Bool]) | []}
-bind 114 lq_anf__d1bY : {lq_tmp_x_655 : FAppTy (Deptup0.Pair int)  int | [$k__603[VV#602:=lq_tmp_x_655][fix##36#dNum_a1az:=fix#GHC.Num.#36#fNumInt#35#rhy][x#a18R:=n#a18U][lq_tmp_x_658:=fix#GHC.Num.#36#fNumInt#35#rhy][lq_tmp_x_659:=n#a18U]]}
+bind 114 lq_anf__d1bY : {lq_tmp_x_655 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__603[VV#602:=lq_tmp_x_655][fix##36#dNum_a1az:=fix#GHC.Num.#36#fNumInt#35#rhy][x#a18R:=n#a18U][lq_tmp_x_658:=fix#GHC.Num.#36#fNumInt#35#rhy][lq_tmp_x_659:=n#a18U]]}
 bind 115 Deptup0.prop#r12m : {VV#623 : GHC.Types.Bool | [$k__624]}
-bind 116 fix##36#dNum_a1b9 : {VV#708 : GHC.Num.Num a_a1b8 | []}
+bind 116 fix##36#dNum_a1b9 : {VV#708 : FAppTy GHC.Num.Num  a_a1b8 | []}
 bind 117 a_a1b8 : {VV : num | []}
 bind 118 xs#a18V : {VV#716 : [a_a1b8] | [$k__717;
                                          (len([VV#716]) >= 0)]}
 bind 119 lq_anf__d1bZ : {lq_tmp_x_753 : func(0, [a_a1b8;
-                                                 FAppTy (Deptup0.Pair a_a1b8)  a_a1b8]) | []}
+                                                 FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8]) | []}
 bind 120 Deptup0.bazList#r12n : {VV : func(1, [[@(0)];
-                                               [FAppTy (Deptup0.Pair @(0))  @(0)]]) | []}
-bind 121 lq_anf__d1c0 : {lq_tmp_x_809 : func(0, [FAppTy (Deptup0.Pair int)  int;
+                                               [FAppTy (FAppTy Deptup0.Pair  @(0))  @(0)]]) | []}
+bind 121 lq_anf__d1c0 : {lq_tmp_x_809 : func(0, [FAppTy (FAppTy Deptup0.Pair  int)  int;
                                                  GHC.Types.Bool]) | []}
-bind 122 lq_anf__d1c1 : {lq_tmp_x_825 : func(0, [[FAppTy (Deptup0.Pair int)  int];
+bind 122 lq_anf__d1c1 : {lq_tmp_x_825 : func(0, [[FAppTy (FAppTy Deptup0.Pair  int)  int];
                                                  [GHC.Types.Bool]]) | []}
-bind 123 lq_anf__d1c2 : {lq_tmp_x_869 : [FAppTy (Deptup0.Pair int)  int] | [$k__748[VV#747:=lq_tmp_x_869][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p];
-                                                                            (len([lq_tmp_x_869]) >= 0)]}
+bind 123 lq_anf__d1c2 : {lq_tmp_x_869 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [$k__748[VV#747:=lq_tmp_x_869][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p];
+                                                                                    (len([lq_tmp_x_869]) >= 0)]}
 bind 124 Deptup0.prop_baz#r12q : {VV#802 : [GHC.Types.Bool] | [$k__803;
                                                                (len([VV#802]) >= 0)]}
 bind 125 VV#976 : {VV#976 : [GHC.Types.Bool] | [$k__939[VV#938:=VV#976][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_888:=lq_anf__d1c2][lq_tmp_x_944:=VV#976];
@@ -508,12 +515,12 @@ bind 128 VV#979 : {VV#979 : GHC.Types.Bool | [$k__932[VV#931:=VV#979][VV#938:=VV
 bind 129 lq_tmp_x_798 : {VV#982 : GHC.Types.Bool | []}
 bind 130 VV#983 : {VV#983 : GHC.Types.Bool | [$k__936[VV#935:=VV#983][lq_tmp_x_934:=lq_tmp_x_798][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_888:=lq_anf__d1c2][lq_tmp_x_942:=lq_tmp_x_798][lq_tmp_x_943:=VV#983]]}
 bind 131 VV#983 : {VV#983 : GHC.Types.Bool | [$k__936[VV#935:=VV#983][lq_tmp_x_934:=lq_tmp_x_798][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_888:=lq_anf__d1c2][lq_tmp_x_942:=lq_tmp_x_798][lq_tmp_x_943:=VV#983]]}
-bind 132 VV#986 : {VV#986 : [FAppTy (Deptup0.Pair int)  int] | [(VV#986 = lq_anf__d1c2);
-                                                                (len([VV#986]) >= 0)]}
-bind 133 VV#986 : {VV#986 : [FAppTy (Deptup0.Pair int)  int] | [(VV#986 = lq_anf__d1c2);
-                                                                (len([VV#986]) >= 0)]}
-bind 134 VV#989 : {VV#989 : FAppTy (Deptup0.Pair int)  int | [$k__731[VV#730:=VV#989][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_865:=VV#989][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#989]]}
-bind 135 VV#989 : {VV#989 : FAppTy (Deptup0.Pair int)  int | [$k__731[VV#730:=VV#989][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_865:=VV#989][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#989]]}
+bind 132 VV#986 : {VV#986 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [(VV#986 = lq_anf__d1c2);
+                                                                        (len([VV#986]) >= 0)]}
+bind 133 VV#986 : {VV#986 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [(VV#986 = lq_anf__d1c2);
+                                                                        (len([VV#986]) >= 0)]}
+bind 134 VV#989 : {VV#989 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__731[VV#730:=VV#989][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_865:=VV#989][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#989]]}
+bind 135 VV#989 : {VV#989 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__731[VV#730:=VV#989][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_865:=VV#989][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#989]]}
 bind 136 VV#992 : {VV#992 : int | [$k__721[VV#730:=VV#989][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#720:=VV#992][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#992][lq_tmp_x_865:=VV#989][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#989][lq_tmp_x_963:=VV#992]]}
 bind 137 VV#992 : {VV#992 : int | [$k__721[VV#730:=VV#989][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#720:=VV#992][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#992][lq_tmp_x_865:=VV#989][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#989][lq_tmp_x_963:=VV#992]]}
 bind 138 VV#995 : {VV#995 : int | [$k__724[VV#730:=VV#989][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#723:=VV#995][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#995][lq_tmp_x_865:=VV#989][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#989][lq_tmp_x_964:=VV#995]]}
@@ -521,9 +528,9 @@ bind 139 VV#995 : {VV#995 : int | [$k__724[VV#730:=VV#989][VV#747:=VV#986][fix##
 bind 140 lq_tmp_x_921 : {VV#998 : int | []}
 bind 141 VV#999 : {VV#999 : int | [$k__728[lq_tmp_x_726:=lq_tmp_x_921][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#727:=VV#999][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#999][lq_tmp_x_864:=lq_tmp_x_921][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_965:=lq_tmp_x_921][lq_tmp_x_966:=VV#999]]}
 bind 142 VV#999 : {VV#999 : int | [$k__728[lq_tmp_x_726:=lq_tmp_x_921][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#727:=VV#999][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#999][lq_tmp_x_864:=lq_tmp_x_921][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_965:=lq_tmp_x_921][lq_tmp_x_966:=VV#999]]}
-bind 143 lq_tmp_x_924 : {VV#1002 : FAppTy (Deptup0.Pair int)  int | []}
-bind 144 VV#1003 : {VV#1003 : FAppTy (Deptup0.Pair int)  int | [$k__745[VV#744:=VV#1003][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_868:=VV#1003][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#1003]]}
-bind 145 VV#1003 : {VV#1003 : FAppTy (Deptup0.Pair int)  int | [$k__745[VV#744:=VV#1003][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_868:=VV#1003][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#1003]]}
+bind 143 lq_tmp_x_924 : {VV#1002 : FAppTy (FAppTy Deptup0.Pair  int)  int | []}
+bind 144 VV#1003 : {VV#1003 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__745[VV#744:=VV#1003][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_868:=VV#1003][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#1003]]}
+bind 145 VV#1003 : {VV#1003 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__745[VV#744:=VV#1003][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_868:=VV#1003][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#1003]]}
 bind 146 VV#1006 : {VV#1006 : int | [$k__735[VV#744:=VV#1003][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#734:=VV#1006][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#1006][lq_tmp_x_868:=VV#1003][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#1003][lq_tmp_x_969:=VV#1006]]}
 bind 147 VV#1006 : {VV#1006 : int | [$k__735[VV#744:=VV#1003][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#734:=VV#1006][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#1006][lq_tmp_x_868:=VV#1003][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#1003][lq_tmp_x_969:=VV#1006]]}
 bind 148 VV#1009 : {VV#1009 : int | [$k__738[VV#744:=VV#1003][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#737:=VV#1009][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#1009][lq_tmp_x_868:=VV#1003][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#1003][lq_tmp_x_970:=VV#1009]]}
@@ -531,14 +538,14 @@ bind 149 VV#1009 : {VV#1009 : int | [$k__738[VV#744:=VV#1003][lq_tmp_x_733:=lq_t
 bind 150 lq_tmp_x_927 : {VV#1012 : int | []}
 bind 151 VV#1013 : {VV#1013 : int | [$k__742[lq_tmp_x_740:=lq_tmp_x_927][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#741:=VV#1013][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#1013][lq_tmp_x_867:=lq_tmp_x_927][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_971:=lq_tmp_x_927][lq_tmp_x_972:=VV#1013]]}
 bind 152 VV#1013 : {VV#1013 : int | [$k__742[lq_tmp_x_740:=lq_tmp_x_927][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][VV#741:=VV#1013][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_875:=VV#1013][lq_tmp_x_867:=lq_tmp_x_927][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_971:=lq_tmp_x_927][lq_tmp_x_972:=VV#1013]]}
-bind 153 lq_tmp_x_961 : {lq_tmp_x_961 : func(0, [[FAppTy (Deptup0.Pair int)  int];
+bind 153 lq_tmp_x_961 : {lq_tmp_x_961 : func(0, [[FAppTy (FAppTy Deptup0.Pair  int)  int];
                                                  [GHC.Types.Bool]]) | [(lq_tmp_x_961 = lq_anf__d1c1)]}
-bind 154 VV#1017 : {VV#1017 : [FAppTy (Deptup0.Pair int)  int] | [$k__917[VV#916:=VV#1017][lq_tmp_x_930:=VV#1017];
-                                                                  (len([VV#1017]) >= 0)]}
-bind 155 VV#1017 : {VV#1017 : [FAppTy (Deptup0.Pair int)  int] | [$k__917[VV#916:=VV#1017][lq_tmp_x_930:=VV#1017];
-                                                                  (len([VV#1017]) >= 0)]}
-bind 156 VV#1020 : {VV#1020 : FAppTy (Deptup0.Pair int)  int | [$k__900[VV#899:=VV#1020][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#1020]]}
-bind 157 VV#1020 : {VV#1020 : FAppTy (Deptup0.Pair int)  int | [$k__900[VV#899:=VV#1020][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#1020]]}
+bind 154 VV#1017 : {VV#1017 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [$k__917[VV#916:=VV#1017][lq_tmp_x_930:=VV#1017];
+                                                                          (len([VV#1017]) >= 0)]}
+bind 155 VV#1017 : {VV#1017 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [$k__917[VV#916:=VV#1017][lq_tmp_x_930:=VV#1017];
+                                                                          (len([VV#1017]) >= 0)]}
+bind 156 VV#1020 : {VV#1020 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__900[VV#899:=VV#1020][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#1020]]}
+bind 157 VV#1020 : {VV#1020 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__900[VV#899:=VV#1020][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#1020]]}
 bind 158 VV#1023 : {VV#1023 : int | [$k__890[VV#889:=VV#1023][VV#899:=VV#1020][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#1020][lq_tmp_x_919:=VV#1023]]}
 bind 159 VV#1023 : {VV#1023 : int | [$k__890[VV#889:=VV#1023][VV#899:=VV#1020][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#1020][lq_tmp_x_919:=VV#1023]]}
 bind 160 VV#1026 : {VV#1026 : int | [$k__893[VV#892:=VV#1026][VV#899:=VV#1020][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#1020][lq_tmp_x_920:=VV#1026]]}
@@ -546,9 +553,9 @@ bind 161 VV#1026 : {VV#1026 : int | [$k__893[VV#892:=VV#1026][VV#899:=VV#1020][V
 bind 162 lq_tmp_x_947 : {VV#1029 : int | []}
 bind 163 VV#1030 : {VV#1030 : int | [$k__897[VV#896:=VV#1030][lq_tmp_x_895:=lq_tmp_x_947][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_921:=lq_tmp_x_947][lq_tmp_x_922:=VV#1030]]}
 bind 164 VV#1030 : {VV#1030 : int | [$k__897[VV#896:=VV#1030][lq_tmp_x_895:=lq_tmp_x_947][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_921:=lq_tmp_x_947][lq_tmp_x_922:=VV#1030]]}
-bind 165 lq_tmp_x_950 : {VV#1033 : FAppTy (Deptup0.Pair int)  int | []}
-bind 166 VV#1034 : {VV#1034 : FAppTy (Deptup0.Pair int)  int | [$k__914[VV#913:=VV#1034][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_929:=VV#1034]]}
-bind 167 VV#1034 : {VV#1034 : FAppTy (Deptup0.Pair int)  int | [$k__914[VV#913:=VV#1034][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_929:=VV#1034]]}
+bind 165 lq_tmp_x_950 : {VV#1033 : FAppTy (FAppTy Deptup0.Pair  int)  int | []}
+bind 166 VV#1034 : {VV#1034 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__914[VV#913:=VV#1034][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_929:=VV#1034]]}
+bind 167 VV#1034 : {VV#1034 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__914[VV#913:=VV#1034][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_929:=VV#1034]]}
 bind 168 VV#1037 : {VV#1037 : int | [$k__904[VV#903:=VV#1037][VV#913:=VV#1034][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_929:=VV#1034][lq_tmp_x_925:=VV#1037]]}
 bind 169 VV#1037 : {VV#1037 : int | [$k__904[VV#903:=VV#1037][VV#913:=VV#1034][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_929:=VV#1034][lq_tmp_x_925:=VV#1037]]}
 bind 170 VV#1040 : {VV#1040 : int | [$k__907[VV#906:=VV#1040][VV#913:=VV#1034][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_929:=VV#1034][lq_tmp_x_926:=VV#1040]]}
@@ -556,8 +563,8 @@ bind 171 VV#1040 : {VV#1040 : int | [$k__907[VV#906:=VV#1040][VV#913:=VV#1034][l
 bind 172 lq_tmp_x_953 : {VV#1043 : int | []}
 bind 173 VV#1044 : {VV#1044 : int | [$k__911[VV#910:=VV#1044][lq_tmp_x_909:=lq_tmp_x_953][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_927:=lq_tmp_x_953][lq_tmp_x_928:=VV#1044]]}
 bind 174 VV#1044 : {VV#1044 : int | [$k__911[VV#910:=VV#1044][lq_tmp_x_909:=lq_tmp_x_953][lq_tmp_x_902:=lq_tmp_x_950][lq_tmp_x_924:=lq_tmp_x_950][lq_tmp_x_927:=lq_tmp_x_953][lq_tmp_x_928:=VV#1044]]}
-bind 175 lq_tmp_x_886 : {lq_tmp_x_930 : [FAppTy (Deptup0.Pair int)  int] | [$k__917[VV#916:=lq_tmp_x_930];
-                                                                            (len([lq_tmp_x_930]) >= 0)]}
+bind 175 lq_tmp_x_886 : {lq_tmp_x_930 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [$k__917[VV#916:=lq_tmp_x_930];
+                                                                                    (len([lq_tmp_x_930]) >= 0)]}
 bind 176 VV#1048 : {VV#1048 : [GHC.Types.Bool] | [(len([VV#1048]) = len([lq_tmp_x_886]));
                                                   (len([VV#1048]) >= 0)]}
 bind 177 VV#1048 : {VV#1048 : [GHC.Types.Bool] | [(len([VV#1048]) = len([lq_tmp_x_886]));
@@ -576,10 +583,10 @@ bind 186 VV#1061 : {VV#1061 : int | [$k__314[VV#313:=VV#1061][VV#320:=VV#1058][l
 bind 187 lq_tmp_x_862 : {VV#1064 : int | []}
 bind 188 VV#1065 : {VV#1065 : int | [$k__318[VV#317:=VV#1065][lq_tmp_x_316:=lq_tmp_x_862][lq_tmp_x_879:=lq_tmp_x_862][lq_tmp_x_880:=VV#1065]]}
 bind 189 VV#1065 : {VV#1065 : int | [$k__318[VV#317:=VV#1065][lq_tmp_x_316:=lq_tmp_x_862][lq_tmp_x_879:=lq_tmp_x_862][lq_tmp_x_880:=VV#1065]]}
-bind 190 lq_tmp_x_858 : {lq_tmp_x_858 : func(0, [FAppTy (Deptup0.Pair int)  int;
+bind 190 lq_tmp_x_858 : {lq_tmp_x_858 : func(0, [FAppTy (FAppTy Deptup0.Pair  int)  int;
                                                  GHC.Types.Bool]) | [(lq_tmp_x_858 = lq_anf__d1c0)]}
-bind 191 VV#1069 : {VV#1069 : FAppTy (Deptup0.Pair int)  int | [$k__841[VV#840:=VV#1069][lq_tmp_x_847:=VV#1069]]}
-bind 192 VV#1069 : {VV#1069 : FAppTy (Deptup0.Pair int)  int | [$k__841[VV#840:=VV#1069][lq_tmp_x_847:=VV#1069]]}
+bind 191 VV#1069 : {VV#1069 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__841[VV#840:=VV#1069][lq_tmp_x_847:=VV#1069]]}
+bind 192 VV#1069 : {VV#1069 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__841[VV#840:=VV#1069][lq_tmp_x_847:=VV#1069]]}
 bind 193 VV#1072 : {VV#1072 : int | [$k__831[VV#830:=VV#1072][VV#840:=VV#1069][lq_tmp_x_847:=VV#1069][lq_tmp_x_843:=VV#1072]]}
 bind 194 VV#1072 : {VV#1072 : int | [$k__831[VV#830:=VV#1072][VV#840:=VV#1069][lq_tmp_x_847:=VV#1069][lq_tmp_x_843:=VV#1072]]}
 bind 195 VV#1075 : {VV#1075 : int | [$k__834[VV#833:=VV#1075][VV#840:=VV#1069][lq_tmp_x_847:=VV#1069][lq_tmp_x_844:=VV#1075]]}
@@ -587,22 +594,22 @@ bind 196 VV#1075 : {VV#1075 : int | [$k__834[VV#833:=VV#1075][VV#840:=VV#1069][l
 bind 197 lq_tmp_x_854 : {VV#1078 : int | []}
 bind 198 VV#1079 : {VV#1079 : int | [$k__838[VV#837:=VV#1079][lq_tmp_x_836:=lq_tmp_x_854][lq_tmp_x_845:=lq_tmp_x_854][lq_tmp_x_846:=VV#1079]]}
 bind 199 VV#1079 : {VV#1079 : int | [$k__838[VV#837:=VV#1079][lq_tmp_x_836:=lq_tmp_x_854][lq_tmp_x_845:=lq_tmp_x_854][lq_tmp_x_846:=VV#1079]]}
-bind 200 lq_tmp_x_827 : {lq_tmp_x_847 : FAppTy (Deptup0.Pair int)  int | [$k__841[VV#840:=lq_tmp_x_847]]}
+bind 200 lq_tmp_x_827 : {lq_tmp_x_847 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__841[VV#840:=lq_tmp_x_847]]}
 bind 201 VV#1083 : {VV#1083 : GHC.Types.Bool | [$k__491[VV#490:=VV#1083][fix##36#dOrd_a19Q:=fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv][ds_d1bF:=lq_tmp_x_827][lq_tmp_x_811:=fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv][lq_tmp_x_808:=VV#1083][lq_tmp_x_812:=lq_tmp_x_827][lq_tmp_x_859:=lq_tmp_x_827][lq_tmp_x_857:=VV#1083]]}
 bind 202 VV#1083 : {VV#1083 : GHC.Types.Bool | [$k__491[VV#490:=VV#1083][fix##36#dOrd_a19Q:=fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv][ds_d1bF:=lq_tmp_x_827][lq_tmp_x_811:=fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv][lq_tmp_x_808:=VV#1083][lq_tmp_x_812:=lq_tmp_x_827][lq_tmp_x_859:=lq_tmp_x_827][lq_tmp_x_857:=VV#1083]]}
-bind 203 VV#1086 : {VV#1086 : [FAppTy (Deptup0.Pair a_a1b8)  a_a1b8] | [(len([VV#1086]) = len([xs#a18V]));
-                                                                        (len([VV#1086]) >= 0)]}
-bind 204 VV#1086 : {VV#1086 : [FAppTy (Deptup0.Pair a_a1b8)  a_a1b8] | [(len([VV#1086]) = len([xs#a18V]));
-                                                                        (len([VV#1086]) >= 0)]}
-bind 205 VV#1089 : {VV#1089 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__784[VV#783:=VV#1089][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_787:=VV#1089]]}
-bind 206 VV#1089 : {VV#1089 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__784[VV#783:=VV#1089][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_787:=VV#1089]]}
+bind 203 VV#1086 : {VV#1086 : [FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8] | [(len([VV#1086]) = len([xs#a18V]));
+                                                                                (len([VV#1086]) >= 0)]}
+bind 204 VV#1086 : {VV#1086 : [FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8] | [(len([VV#1086]) = len([xs#a18V]));
+                                                                                (len([VV#1086]) >= 0)]}
+bind 205 VV#1089 : {VV#1089 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__784[VV#783:=VV#1089][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_787:=VV#1089]]}
+bind 206 VV#1089 : {VV#1089 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__784[VV#783:=VV#1089][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_787:=VV#1089]]}
 bind 207 VV#773 : {VV#773 : a_a1b8 | [$k__774[VV#783:=VV#1089][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_787:=VV#1089]]}
 bind 208 VV#776 : {VV#776 : a_a1b8 | [$k__777[VV#783:=VV#1089][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_787:=VV#1089]]}
 bind 209 lq_tmp_x_726 : {VV : a_a1b8 | []}
 bind 210 VV#780 : {VV#780 : a_a1b8 | [$k__781[lq_tmp_x_779:=lq_tmp_x_726][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_786:=lq_tmp_x_726]]}
-bind 211 lq_tmp_x_733 : {VV#1096 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | []}
-bind 212 VV#1097 : {VV#1097 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | []}
-bind 213 VV#1097 : {VV#1097 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | []}
+bind 211 lq_tmp_x_733 : {VV#1096 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | []}
+bind 212 VV#1097 : {VV#1097 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | []}
+bind 213 VV#1097 : {VV#1097 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | []}
 bind 214 VV#773 : {VV#773 : a_a1b8 | []}
 bind 215 VV#776 : {VV#776 : a_a1b8 | []}
 bind 216 lq_tmp_x_740 : {VV : a_a1b8 | []}
@@ -615,19 +622,19 @@ bind 220 VV#709 : {VV#709 : a_a1b8 | [$k__710[VV#716:=VV#1104][lq_tmp_x_793:=VV#
 bind 221 lq_tmp_x_761 : {VV : a_a1b8 | []}
 bind 222 VV#713 : {VV#713 : a_a1b8 | [$k__714[lq_tmp_x_712:=lq_tmp_x_761][lq_tmp_x_792:=lq_tmp_x_761]]}
 bind 223 lq_tmp_x_790 : {lq_tmp_x_790 : func(0, [a_a1b8;
-                                                 FAppTy (Deptup0.Pair a_a1b8)  a_a1b8]) | [(lq_tmp_x_790 = lq_anf__d1bZ)]}
+                                                 FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8]) | [(lq_tmp_x_790 = lq_anf__d1bZ)]}
 bind 224 VV#770 : {VV#770 : a_a1b8 | [$k__771]}
 bind 225 lq_tmp_x_767 : {VV#770 : a_a1b8 | [$k__771]}
-bind 226 VV#1113 : {VV#1113 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__603[VV#602:=VV#1113][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_752:=VV#1113][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_789:=VV#1113]]}
-bind 227 VV#1113 : {VV#1113 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__603[VV#602:=VV#1113][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_752:=VV#1113][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_789:=VV#1113]]}
+bind 226 VV#1113 : {VV#1113 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__603[VV#602:=VV#1113][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_752:=VV#1113][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_789:=VV#1113]]}
+bind 227 VV#1113 : {VV#1113 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__603[VV#602:=VV#1113][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_752:=VV#1113][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_789:=VV#1113]]}
 bind 228 VV : {VV : a_a1b8 | [$k__593[VV#602:=VV#1113][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][VV#592:=VV][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_752:=VV#1113][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_789:=VV#1113]]}
 bind 229 VV : {VV : a_a1b8 | [$k__596[VV#602:=VV#1113][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][VV#595:=VV][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_752:=VV#1113][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_789:=VV#1113]]}
 bind 230 lq_tmp_x_786 : {VV : a_a1b8 | []}
 bind 231 VV : {VV : a_a1b8 | [$k__600[lq_tmp_x_598:=lq_tmp_x_786][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][VV#599:=VV][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_751:=lq_tmp_x_786][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_788:=lq_tmp_x_786]]}
 bind 232 VV#1120 : {VV#1120 : GHC.Types.Bool | [$k__691[VV#690:=VV#1120][lq_tmp_x_670:=lq_anf__d1bX][lq_tmp_x_671:=lq_anf__d1bY][lq_tmp_x_693:=VV#1120]]}
 bind 233 VV#1120 : {VV#1120 : GHC.Types.Bool | [$k__691[VV#690:=VV#1120][lq_tmp_x_670:=lq_anf__d1bX][lq_tmp_x_671:=lq_anf__d1bY][lq_tmp_x_693:=VV#1120]]}
-bind 234 VV#1123 : {VV#1123 : FAppTy (Deptup0.Pair int)  int | [(VV#1123 = lq_anf__d1bY)]}
-bind 235 VV#1123 : {VV#1123 : FAppTy (Deptup0.Pair int)  int | [(VV#1123 = lq_anf__d1bY)]}
+bind 234 VV#1123 : {VV#1123 : FAppTy (FAppTy Deptup0.Pair  int)  int | [(VV#1123 = lq_anf__d1bY)]}
+bind 235 VV#1123 : {VV#1123 : FAppTy (FAppTy Deptup0.Pair  int)  int | [(VV#1123 = lq_anf__d1bY)]}
 bind 236 VV#1126 : {VV#1126 : int | [$k__593[VV#602:=VV#1123][fix##36#dNum_a1az:=fix#GHC.Num.#36#fNumInt#35#rhy][x#a18R:=n#a18U][VV#592:=VV#1126][lq_tmp_x_658:=fix#GHC.Num.#36#fNumInt#35#rhy][lq_tmp_x_659:=n#a18U][lq_tmp_x_661:=VV#1126][lq_tmp_x_655:=VV#1123][lq_tmp_x_706:=VV#1123][lq_tmp_x_702:=VV#1126]]}
 bind 237 VV#1126 : {VV#1126 : int | [$k__593[VV#602:=VV#1123][fix##36#dNum_a1az:=fix#GHC.Num.#36#fNumInt#35#rhy][x#a18R:=n#a18U][VV#592:=VV#1126][lq_tmp_x_658:=fix#GHC.Num.#36#fNumInt#35#rhy][lq_tmp_x_659:=n#a18U][lq_tmp_x_661:=VV#1126][lq_tmp_x_655:=VV#1123][lq_tmp_x_706:=VV#1123][lq_tmp_x_702:=VV#1126]]}
 bind 238 VV#1129 : {VV#1129 : int | [$k__596[VV#602:=VV#1123][fix##36#dNum_a1az:=fix#GHC.Num.#36#fNumInt#35#rhy][x#a18R:=n#a18U][VV#595:=VV#1129][lq_tmp_x_658:=fix#GHC.Num.#36#fNumInt#35#rhy][lq_tmp_x_659:=n#a18U][lq_tmp_x_661:=VV#1129][lq_tmp_x_655:=VV#1123][lq_tmp_x_706:=VV#1123][lq_tmp_x_703:=VV#1129]]}
@@ -635,10 +642,10 @@ bind 239 VV#1129 : {VV#1129 : int | [$k__596[VV#602:=VV#1123][fix##36#dNum_a1az:
 bind 240 lq_tmp_x_687 : {VV#1132 : int | []}
 bind 241 VV#1133 : {VV#1133 : int | [$k__600[lq_tmp_x_598:=lq_tmp_x_687][fix##36#dNum_a1az:=fix#GHC.Num.#36#fNumInt#35#rhy][x#a18R:=n#a18U][VV#599:=VV#1133][lq_tmp_x_658:=fix#GHC.Num.#36#fNumInt#35#rhy][lq_tmp_x_659:=n#a18U][lq_tmp_x_661:=VV#1133][lq_tmp_x_654:=lq_tmp_x_687][lq_tmp_x_704:=lq_tmp_x_687][lq_tmp_x_705:=VV#1133]]}
 bind 242 VV#1133 : {VV#1133 : int | [$k__600[lq_tmp_x_598:=lq_tmp_x_687][fix##36#dNum_a1az:=fix#GHC.Num.#36#fNumInt#35#rhy][x#a18R:=n#a18U][VV#599:=VV#1133][lq_tmp_x_658:=fix#GHC.Num.#36#fNumInt#35#rhy][lq_tmp_x_659:=n#a18U][lq_tmp_x_661:=VV#1133][lq_tmp_x_654:=lq_tmp_x_687][lq_tmp_x_704:=lq_tmp_x_687][lq_tmp_x_705:=VV#1133]]}
-bind 243 lq_tmp_x_700 : {lq_tmp_x_700 : func(0, [FAppTy (Deptup0.Pair int)  int;
+bind 243 lq_tmp_x_700 : {lq_tmp_x_700 : func(0, [FAppTy (FAppTy Deptup0.Pair  int)  int;
                                                  GHC.Types.Bool]) | [(lq_tmp_x_700 = lq_anf__d1bX)]}
-bind 244 VV#1137 : {VV#1137 : FAppTy (Deptup0.Pair int)  int | [$k__683[VV#682:=VV#1137][lq_tmp_x_689:=VV#1137]]}
-bind 245 VV#1137 : {VV#1137 : FAppTy (Deptup0.Pair int)  int | [$k__683[VV#682:=VV#1137][lq_tmp_x_689:=VV#1137]]}
+bind 244 VV#1137 : {VV#1137 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__683[VV#682:=VV#1137][lq_tmp_x_689:=VV#1137]]}
+bind 245 VV#1137 : {VV#1137 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__683[VV#682:=VV#1137][lq_tmp_x_689:=VV#1137]]}
 bind 246 VV#1140 : {VV#1140 : int | [$k__673[VV#672:=VV#1140][VV#682:=VV#1137][lq_tmp_x_689:=VV#1137][lq_tmp_x_685:=VV#1140]]}
 bind 247 VV#1140 : {VV#1140 : int | [$k__673[VV#672:=VV#1140][VV#682:=VV#1137][lq_tmp_x_689:=VV#1137][lq_tmp_x_685:=VV#1140]]}
 bind 248 VV#1143 : {VV#1143 : int | [$k__676[VV#675:=VV#1143][VV#682:=VV#1137][lq_tmp_x_689:=VV#1137][lq_tmp_x_686:=VV#1143]]}
@@ -646,7 +653,7 @@ bind 249 VV#1143 : {VV#1143 : int | [$k__676[VV#675:=VV#1143][VV#682:=VV#1137][l
 bind 250 lq_tmp_x_696 : {VV#1146 : int | []}
 bind 251 VV#1147 : {VV#1147 : int | [$k__680[VV#679:=VV#1147][lq_tmp_x_678:=lq_tmp_x_696][lq_tmp_x_687:=lq_tmp_x_696][lq_tmp_x_688:=VV#1147]]}
 bind 252 VV#1147 : {VV#1147 : int | [$k__680[VV#679:=VV#1147][lq_tmp_x_678:=lq_tmp_x_696][lq_tmp_x_687:=lq_tmp_x_696][lq_tmp_x_688:=VV#1147]]}
-bind 253 lq_tmp_x_669 : {lq_tmp_x_689 : FAppTy (Deptup0.Pair int)  int | [$k__683[VV#682:=lq_tmp_x_689]]}
+bind 253 lq_tmp_x_669 : {lq_tmp_x_689 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__683[VV#682:=lq_tmp_x_689]]}
 bind 254 VV#1151 : {VV#1151 : GHC.Types.Bool | [$k__491[VV#490:=VV#1151][fix##36#dOrd_a19Q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][ds_d1bF:=lq_tmp_x_669][lq_tmp_x_644:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_641:=VV#1151][lq_tmp_x_645:=lq_tmp_x_669][lq_tmp_x_701:=lq_tmp_x_669][lq_tmp_x_699:=VV#1151]]}
 bind 255 VV#1151 : {VV#1151 : GHC.Types.Bool | [$k__491[VV#490:=VV#1151][fix##36#dOrd_a19Q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][ds_d1bF:=lq_tmp_x_669][lq_tmp_x_644:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_641:=VV#1151][lq_tmp_x_645:=lq_tmp_x_669][lq_tmp_x_701:=lq_tmp_x_669][lq_tmp_x_699:=VV#1151]]}
 bind 256 VV#1154 : {VV#1154 : int | [(VV#1154 = n#a18U)]}
@@ -655,10 +662,10 @@ bind 258 VV#1157 : {VV#1157 : int | [(VV#1157 = lq_anf__d1bW)]}
 bind 259 VV#1157 : {VV#1157 : int | [(VV#1157 = lq_anf__d1bW)]}
 bind 260 VV#1160 : {VV#1160 : int | [(VV#1160 = 100)]}
 bind 261 VV#1160 : {VV#1160 : int | [(VV#1160 = 100)]}
-bind 262 VV#1163 : {VV#1163 : FAppTy (Deptup0.Pair a_a1ay)  a_a1ay | [(y([VV#1163]) = lq_anf__d1bV);
-                                                                      (x([VV#1163]) = x#a18R)]}
-bind 263 VV#1163 : {VV#1163 : FAppTy (Deptup0.Pair a_a1ay)  a_a1ay | [(y([VV#1163]) = lq_anf__d1bV);
-                                                                      (x([VV#1163]) = x#a18R)]}
+bind 262 VV#1163 : {VV#1163 : FAppTy (FAppTy Deptup0.Pair  a_a1ay)  a_a1ay | [(y([VV#1163]) = lq_anf__d1bV);
+                                                                              (x([VV#1163]) = x#a18R)]}
+bind 263 VV#1163 : {VV#1163 : FAppTy (FAppTy Deptup0.Pair  a_a1ay)  a_a1ay | [(y([VV#1163]) = lq_anf__d1bV);
+                                                                              (x([VV#1163]) = x#a18R)]}
 bind 264 VV#619 : {VV#619 : a_a1ay | [$k__620[lq_tmp_x_617:=x#a18R][lq_tmp_x_618:=lq_anf__d1bV][lq_tmp_x_614:=VV#1163];
                                       $k__576[lq_tmp_x_573:=x#a18R][lq_tmp_x_574:=lq_anf__d1bV][lq_tmp_x_570:=VV#1163][x#a18O:=x#a18R][y#a18P:=lq_anf__d1bV][VV#575:=VV#619][lq_tmp_x_617:=x#a18R][lq_tmp_x_618:=lq_anf__d1bV][lq_tmp_x_614:=VV#1163]]}
 bind 265 VV#619 : {VV#619 : a_a1ay | [$k__620[lq_tmp_x_617:=x#a18R][lq_tmp_x_618:=lq_anf__d1bV][lq_tmp_x_614:=VV#1163];
@@ -762,21 +769,21 @@ bind 342 VV#938 : {VV#938 : [GHC.Types.Bool] | [$k__939;
 bind 343 VV#931 : {VV#931 : GHC.Types.Bool | [$k__932]}
 bind 344 lq_tmp_x_934 : {VV#1275 : GHC.Types.Bool | []}
 bind 345 VV#935 : {VV#935 : GHC.Types.Bool | [$k__936]}
-bind 346 VV#916 : {VV#916 : [FAppTy (Deptup0.Pair int)  int] | [$k__917;
-                                                                (len([VV#916]) >= 0)]}
-bind 347 VV#899 : {VV#899 : FAppTy (Deptup0.Pair int)  int | [$k__900]}
+bind 346 VV#916 : {VV#916 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [$k__917;
+                                                                        (len([VV#916]) >= 0)]}
+bind 347 VV#899 : {VV#899 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__900]}
 bind 348 VV#889 : {VV#889 : int | [$k__890]}
 bind 349 VV#892 : {VV#892 : int | [$k__893]}
 bind 350 lq_tmp_x_895 : {VV#1281 : int | []}
 bind 351 VV#896 : {VV#896 : int | [$k__897]}
-bind 352 lq_tmp_x_902 : {VV#1283 : FAppTy (Deptup0.Pair int)  int | []}
-bind 353 VV#913 : {VV#913 : FAppTy (Deptup0.Pair int)  int | [$k__914]}
+bind 352 lq_tmp_x_902 : {VV#1283 : FAppTy (FAppTy Deptup0.Pair  int)  int | []}
+bind 353 VV#913 : {VV#913 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__914]}
 bind 354 VV#903 : {VV#903 : int | [$k__904]}
 bind 355 VV#906 : {VV#906 : int | [$k__907]}
 bind 356 lq_tmp_x_909 : {VV#1287 : int | []}
 bind 357 VV#910 : {VV#910 : int | [$k__911]}
 bind 358 VV#848 : {VV#848 : GHC.Types.Bool | [$k__849]}
-bind 359 VV#840 : {VV#840 : FAppTy (Deptup0.Pair int)  int | [$k__841]}
+bind 359 VV#840 : {VV#840 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__841]}
 bind 360 VV#830 : {VV#830 : int | [$k__831]}
 bind 361 VV#833 : {VV#833 : int | [$k__834]}
 bind 362 lq_tmp_x_836 : {VV#1293 : int | []}
@@ -790,26 +797,26 @@ bind 368 VV#799 : {VV#799 : GHC.Types.Bool | [$k__800]}
 bind 369 VV#716 : {VV#716 : [a_a1b8] | [$k__717;
                                         (len([VV#716]) >= 0)]}
 bind 370 lq_tmp_x_712 : {VV : a_a1b8 | []}
-bind 371 VV#783 : {VV#783 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__784]}
+bind 371 VV#783 : {VV#783 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__784]}
 bind 372 lq_tmp_x_779 : {VV : a_a1b8 | []}
-bind 373 VV#747 : {VV#747 : [FAppTy (Deptup0.Pair a_a1b8)  a_a1b8] | [$k__748;
-                                                                      (len([VV#747]) >= 0)]}
-bind 374 VV#730 : {VV#730 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__731]}
+bind 373 VV#747 : {VV#747 : [FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8] | [$k__748;
+                                                                              (len([VV#747]) >= 0)]}
+bind 374 VV#730 : {VV#730 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__731]}
 bind 375 lq_tmp_x_726 : {VV : a_a1b8 | []}
-bind 376 lq_tmp_x_733 : {VV#1307 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | []}
-bind 377 VV#744 : {VV#744 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__745]}
+bind 376 lq_tmp_x_733 : {VV#1307 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | []}
+bind 377 VV#744 : {VV#744 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__745]}
 bind 378 lq_tmp_x_740 : {VV : a_a1b8 | []}
 bind 379 VV#690 : {VV#690 : GHC.Types.Bool | [$k__691]}
-bind 380 VV#682 : {VV#682 : FAppTy (Deptup0.Pair int)  int | [$k__683]}
+bind 380 VV#682 : {VV#682 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__683]}
 bind 381 VV#672 : {VV#672 : int | [$k__673]}
 bind 382 VV#675 : {VV#675 : int | [$k__676]}
 bind 383 lq_tmp_x_678 : {VV#1314 : int | []}
 bind 384 VV#679 : {VV#679 : int | [$k__680]}
 bind 385 VV#646 : {VV#646 : int | [$k__647]}
 bind 386 VV#623 : {VV#623 : GHC.Types.Bool | [$k__624]}
-bind 387 VV#602 : {VV#602 : FAppTy (Deptup0.Pair a_a1ay)  a_a1ay | [$k__603]}
+bind 387 VV#602 : {VV#602 : FAppTy (FAppTy Deptup0.Pair  a_a1ay)  a_a1ay | [$k__603]}
 bind 388 lq_tmp_x_598 : {VV : a_a1ay | []}
-bind 389 VV#486 : {VV#486 : FAppTy (Deptup0.Pair a_a19P)  a_a19P | [$k__487]}
+bind 389 VV#486 : {VV#486 : FAppTy (FAppTy Deptup0.Pair  a_a19P)  a_a19P | [$k__487]}
 bind 390 lq_tmp_x_482 : {VV : a_a19P | []}
 bind 391 VV#490 : {VV#490 : GHC.Types.Bool | [$k__491]}
 bind 392 VV#460 : {VV#460 : int | [$k__461]}
@@ -2330,8 +2337,8 @@ constraint:
        95;
        111]
   grd true
-  lhs {VV#F50 : FAppTy (Deptup0.Pair int)  int | [$k__683[VV#682:=VV#F50][lq_tmp_x_689:=VV#F50][VV#1137:=VV#F50][VV#F:=VV#F50]]}
-  rhs {VV#F50 : FAppTy (Deptup0.Pair int)  int | [$k__487[VV#486:=VV#F50][fix##36#dOrd_a19Q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_644:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_640:=VV#F50][lq_tmp_x_698:=VV#F50][VV#1137:=VV#F50][VV#F:=VV#F50]]}
+  lhs {VV#F50 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__683[VV#682:=VV#F50][lq_tmp_x_689:=VV#F50][VV#1137:=VV#F50][VV#F:=VV#F50]]}
+  rhs {VV#F50 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__487[VV#486:=VV#F50][fix##36#dOrd_a19Q:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_644:=fix#GHC.Classes.#36#fOrdInt#35#rhx][lq_tmp_x_640:=VV#F50][lq_tmp_x_698:=VV#F50][VV#1137:=VV#F50][VV#F:=VV#F50]]}
   id 50 tag [7]
   // META constraint id 50 : deptup.hs:20:8-10
 
@@ -2505,7 +2512,7 @@ constraint:
   lhs {VV#F82 : int | [(VV#F82 = lq_anf__d1bG)]}
   rhs {VV#F82 : int | [$k__446[VV#445:=VV#F82][lq_tmp_x_448:=VV#F82][VV#1218:=VV#F82][VV#F:=VV#F82]]}
   id 82 tag [1]
-  // META constraint id 82 : deptup.hs:27:15-25
+  // META constraint id 82 : deptup.hs:27:16
 
 
 constraint:
@@ -2588,7 +2595,7 @@ constraint:
   lhs {VV#F98 : int | [(VV#F98 = lq_anf__d1bK)]}
   rhs {VV#F98 : int | [$k__354[VV#353:=VV#F98][lq_tmp_x_356:=VV#F98][VV#1270:=VV#F98][VV#F:=VV#F98]]}
   id 98 tag [1]
-  // META constraint id 98 : <no location info>
+  // META constraint id 98 : deptup.hs:27:24
 
 
 constraint:
@@ -2856,8 +2863,8 @@ constraint:
        63;
        95]
   grd true
-  lhs {VV#F35 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | []}
-  rhs {VV#F35 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__745[VV#744:=VV#F35][VV#1097:=VV#F35][VV#F:=VV#F35]]}
+  lhs {VV#F35 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | []}
+  rhs {VV#F35 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__745[VV#744:=VV#F35][VV#1097:=VV#F35][VV#F:=VV#F35]]}
   id 35 tag [8]
   // META constraint id 35 : deptup.hs:23:15-24
 
@@ -3202,9 +3209,9 @@ constraint:
        63;
        95]
   grd true
-  lhs {VV#F4 : [FAppTy (Deptup0.Pair int)  int] | [(VV#F4 = lq_anf__d1c2);
-                                                   (len([VV#F4]) >= 0)]}
-  rhs {VV#F4 : [FAppTy (Deptup0.Pair int)  int] | [$k__917[VV#916:=VV#F4][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_930:=VV#F4][VV#986:=VV#F4][VV#F:=VV#F4]]}
+  lhs {VV#F4 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [(VV#F4 = lq_anf__d1c2);
+                                                           (len([VV#F4]) >= 0)]}
+  rhs {VV#F4 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [$k__917[VV#916:=VV#F4][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_930:=VV#F4][VV#986:=VV#F4][VV#F:=VV#F4]]}
   id 4 tag [9]
   // META constraint id 4 : deptup.hs:29:25-34
 
@@ -3729,8 +3736,8 @@ constraint:
        63;
        95]
   grd true
-  lhs {VV#F5 : FAppTy (Deptup0.Pair int)  int | [$k__731[VV#730:=VV#F5][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_865:=VV#F5][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#F5][VV#989:=VV#F5][VV#F:=VV#F5]]}
-  rhs {VV#F5 : FAppTy (Deptup0.Pair int)  int | [$k__900[VV#899:=VV#F5][VV#916:=VV#986][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_930:=VV#986][lq_tmp_x_923:=VV#F5][VV#989:=VV#F5][VV#F:=VV#F5]]}
+  lhs {VV#F5 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__731[VV#730:=VV#F5][VV#747:=VV#986][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_865:=VV#F5][lq_tmp_x_869:=VV#986][lq_tmp_x_974:=VV#986][lq_tmp_x_967:=VV#F5][VV#989:=VV#F5][VV#F:=VV#F5]]}
+  rhs {VV#F5 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__900[VV#899:=VV#F5][VV#916:=VV#986][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_930:=VV#986][lq_tmp_x_923:=VV#F5][VV#989:=VV#F5][VV#F:=VV#F5]]}
   id 5 tag [9]
   // META constraint id 5 : deptup.hs:29:25-34
 
@@ -4700,7 +4707,7 @@ constraint:
   lhs {VV#F86 : int | [(VV#F86 = lq_anf__d1bH)]}
   rhs {VV#F86 : int | [$k__423[VV#422:=VV#F86][lq_tmp_x_425:=VV#F86][VV#1231:=VV#F86][VV#F:=VV#F86]]}
   id 86 tag [1]
-  // META constraint id 86 : <no location info>
+  // META constraint id 86 : deptup.hs:27:18
 
 
 constraint:
@@ -4873,8 +4880,8 @@ constraint:
        95;
        191]
   grd true
-  lhs {VV#F23 : FAppTy (Deptup0.Pair int)  int | [$k__841[VV#840:=VV#F23][lq_tmp_x_847:=VV#F23][VV#1069:=VV#F23][VV#F:=VV#F23]]}
-  rhs {VV#F23 : FAppTy (Deptup0.Pair int)  int | [$k__487[VV#486:=VV#F23][fix##36#dOrd_a19Q:=fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv][lq_tmp_x_811:=fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv][lq_tmp_x_807:=VV#F23][lq_tmp_x_856:=VV#F23][VV#1069:=VV#F23][VV#F:=VV#F23]]}
+  lhs {VV#F23 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__841[VV#840:=VV#F23][lq_tmp_x_847:=VV#F23][VV#1069:=VV#F23][VV#F:=VV#F23]]}
+  rhs {VV#F23 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__487[VV#486:=VV#F23][fix##36#dOrd_a19Q:=fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv][lq_tmp_x_811:=fix#GHC.Integer.Type.#36#fOrdInteger#35#rhv][lq_tmp_x_807:=VV#F23][lq_tmp_x_856:=VV#F23][VV#1069:=VV#F23][VV#F:=VV#F23]]}
   id 23 tag [9]
   // META constraint id 23 : deptup.hs:29:19-21
 
@@ -5841,8 +5848,8 @@ constraint:
        95;
        143]
   grd true
-  lhs {VV#F9 : FAppTy (Deptup0.Pair int)  int | [$k__745[VV#744:=VV#F9][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_868:=VV#F9][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#F9][VV#1003:=VV#F9][VV#F:=VV#F9]]}
-  rhs {VV#F9 : FAppTy (Deptup0.Pair int)  int | [$k__914[VV#913:=VV#F9][lq_tmp_x_902:=lq_tmp_x_924][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_929:=VV#F9][VV#1003:=VV#F9][VV#F:=VV#F9]]}
+  lhs {VV#F9 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__745[VV#744:=VV#F9][lq_tmp_x_733:=lq_tmp_x_924][fix##36#dNum_a1b9:=fix#GHC.Num.#36#fNumInteger#35#rhw][xs#a18V:=Deptup0.xs#r12p][lq_tmp_x_872:=fix#GHC.Num.#36#fNumInteger#35#rhw][lq_tmp_x_873:=Deptup0.xs#r12p][lq_tmp_x_868:=VV#F9][lq_tmp_x_866:=lq_tmp_x_924][lq_tmp_x_968:=lq_tmp_x_924][lq_tmp_x_973:=VV#F9][VV#1003:=VV#F9][VV#F:=VV#F9]]}
+  rhs {VV#F9 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__914[VV#913:=VV#F9][lq_tmp_x_902:=lq_tmp_x_924][lq_tmp_x_887:=lq_anf__d1c1][lq_tmp_x_929:=VV#F9][VV#1003:=VV#F9][VV#F:=VV#F9]]}
   id 9 tag [9]
   // META constraint id 9 : deptup.hs:29:25-34
 
@@ -6017,8 +6024,8 @@ constraint:
        63;
        95]
   grd true
-  lhs {VV#F41 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__603[VV#602:=VV#F41][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_752:=VV#F41][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_789:=VV#F41][VV#1113:=VV#F41][VV#F:=VV#F41]]}
-  rhs {VV#F41 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__784[VV#783:=VV#F41][lq_tmp_x_787:=VV#F41][VV#1113:=VV#F41][VV#F:=VV#F41]]}
+  lhs {VV#F41 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__603[VV#602:=VV#F41][fix##36#dNum_a1az:=fix##36#dNum_a1b9][x#a18R:=lq_tmp_x_767][lq_tmp_x_755:=fix##36#dNum_a1b9][lq_tmp_x_752:=VV#F41][lq_tmp_x_756:=lq_tmp_x_767][lq_tmp_x_791:=lq_tmp_x_767][lq_tmp_x_789:=VV#F41][VV#1113:=VV#F41][VV#F:=VV#F41]]}
+  rhs {VV#F41 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__784[VV#783:=VV#F41][lq_tmp_x_787:=VV#F41][VV#1113:=VV#F41][VV#F:=VV#F41]]}
   id 41 tag [8]
   // META constraint id 41 : deptup.hs:23:19-21
 
@@ -6630,9 +6637,9 @@ constraint:
        63;
        95]
   grd true
-  lhs {VV#F58 : FAppTy (Deptup0.Pair a_a1ay)  a_a1ay | [(y([VV#F58]) = lq_anf__d1bV);
-                                                        (x([VV#F58]) = x#a18R)]}
-  rhs {VV#F58 : FAppTy (Deptup0.Pair a_a1ay)  a_a1ay | [$k__603[VV#602:=VV#F58][VV#1163:=VV#F58][VV#F:=VV#F58]]}
+  lhs {VV#F58 : FAppTy (FAppTy Deptup0.Pair  a_a1ay)  a_a1ay | [(y([VV#F58]) = lq_anf__d1bV);
+                                                                (x([VV#F58]) = x#a18R)]}
+  rhs {VV#F58 : FAppTy (FAppTy Deptup0.Pair  a_a1ay)  a_a1ay | [$k__603[VV#602:=VV#F58][VV#1163:=VV#F58][VV#F:=VV#F58]]}
   id 58 tag [6]
   // META constraint id 58 : deptup.hs:16:10-23
 
@@ -6805,7 +6812,7 @@ constraint:
   lhs {VV#F90 : int | [(VV#F90 = lq_anf__d1bI)]}
   rhs {VV#F90 : int | [$k__400[VV#399:=VV#F90][lq_tmp_x_402:=VV#F90][VV#1244:=VV#F90][VV#F:=VV#F90]]}
   id 90 tag [1]
-  // META constraint id 90 : <no location info>
+  // META constraint id 90 : deptup.hs:27:20
 
 
 constraint:
@@ -7946,8 +7953,8 @@ constraint:
        63;
        95]
   grd true
-  lhs {VV#F13 : FAppTy (Deptup0.Pair int)  int | [$k__900[VV#899:=VV#F13][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#F13][VV#1020:=VV#F13][VV#F:=VV#F13]]}
-  rhs {VV#F13 : FAppTy (Deptup0.Pair int)  int | [$k__841[VV#840:=VV#F13][lq_tmp_x_828:=lq_anf__d1c0][lq_tmp_x_847:=VV#F13][lq_tmp_x_822:=VV#1017][lq_tmp_x_956:=VV#1017][lq_tmp_x_949:=VV#F13][VV#1020:=VV#F13][VV#F:=VV#F13]]}
+  lhs {VV#F13 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__900[VV#899:=VV#F13][VV#916:=VV#1017][lq_tmp_x_930:=VV#1017][lq_tmp_x_923:=VV#F13][VV#1020:=VV#F13][VV#F:=VV#F13]]}
+  rhs {VV#F13 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__841[VV#840:=VV#F13][lq_tmp_x_828:=lq_anf__d1c0][lq_tmp_x_847:=VV#F13][lq_tmp_x_822:=VV#1017][lq_tmp_x_956:=VV#1017][lq_tmp_x_949:=VV#F13][VV#1020:=VV#F13][VV#F:=VV#F13]]}
   id 13 tag [9]
   // META constraint id 13 : deptup.hs:29:15-21
 
@@ -8560,9 +8567,9 @@ constraint:
        63;
        95]
   grd true
-  lhs {VV#F30 : [FAppTy (Deptup0.Pair a_a1b8)  a_a1b8] | [(len([VV#F30]) = len([xs#a18V]));
-                                                          (len([VV#F30]) >= 0)]}
-  rhs {VV#F30 : [FAppTy (Deptup0.Pair a_a1b8)  a_a1b8] | [$k__748[VV#747:=VV#F30][VV#1086:=VV#F30][VV#F:=VV#F30]]}
+  lhs {VV#F30 : [FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8] | [(len([VV#F30]) = len([xs#a18V]));
+                                                                  (len([VV#F30]) >= 0)]}
+  rhs {VV#F30 : [FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8] | [$k__748[VV#747:=VV#F30][VV#1086:=VV#F30][VV#F:=VV#F30]]}
   id 30 tag [8]
   // META constraint id 30 : deptup.hs:23:15-24
 
@@ -8648,8 +8655,8 @@ constraint:
        95;
        111]
   grd true
-  lhs {VV#F46 : FAppTy (Deptup0.Pair int)  int | [(VV#F46 = lq_anf__d1bY)]}
-  rhs {VV#F46 : FAppTy (Deptup0.Pair int)  int | [$k__683[VV#682:=VV#F46][lq_tmp_x_670:=lq_anf__d1bX][lq_tmp_x_689:=VV#F46][VV#1123:=VV#F46][VV#F:=VV#F46]]}
+  lhs {VV#F46 : FAppTy (FAppTy Deptup0.Pair  int)  int | [(VV#F46 = lq_anf__d1bY)]}
+  rhs {VV#F46 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__683[VV#682:=VV#F46][lq_tmp_x_670:=lq_anf__d1bX][lq_tmp_x_689:=VV#F46][VV#1123:=VV#F46][VV#F:=VV#F46]]}
   id 46 tag [7]
   // META constraint id 46 : deptup.hs:20:14-18
 
@@ -8910,7 +8917,7 @@ constraint:
   lhs {VV#F94 : int | [(VV#F94 = lq_anf__d1bJ)]}
   rhs {VV#F94 : int | [$k__377[VV#376:=VV#F94][lq_tmp_x_379:=VV#F94][VV#1257:=VV#F94][VV#F:=VV#F94]]}
   id 94 tag [1]
-  // META constraint id 94 : <no location info>
+  // META constraint id 94 : deptup.hs:27:22
 
 
 constraint:
@@ -9086,8 +9093,8 @@ constraint:
        63;
        95]
   grd true
-  lhs {VV#F31 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__784[VV#783:=VV#F31][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_787:=VV#F31][VV#1089:=VV#F31][VV#F:=VV#F31]]}
-  rhs {VV#F31 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__731[VV#747:=VV#1086][VV#730:=VV#F31][VV#1089:=VV#F31][VV#F:=VV#F31]]}
+  lhs {VV#F31 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__784[VV#783:=VV#F31][lq_tmp_x_768:=lq_anf__d1bZ][lq_tmp_x_769:=xs#a18V][lq_tmp_x_764:=VV#1086][lq_tmp_x_787:=VV#F31][VV#1089:=VV#F31][VV#F:=VV#F31]]}
+  rhs {VV#F31 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__731[VV#747:=VV#1086][VV#730:=VV#F31][VV#1089:=VV#F31][VV#F:=VV#F31]]}
   id 31 tag [8]
   // META constraint id 31 : deptup.hs:23:15-24
 
@@ -9777,7 +9784,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#916 : [FAppTy (Deptup0.Pair int)  int] | [$k__917]}
+  reft {VV#916 : [FAppTy (FAppTy Deptup0.Pair  int)  int] | [$k__917]}
   
   // META wf  : deptup.hs:29:23
 
@@ -9863,7 +9870,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#899 : FAppTy (Deptup0.Pair int)  int | [$k__900]}
+  reft {VV#899 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__900]}
   
   // META wf  : deptup.hs:29:23
 
@@ -10210,7 +10217,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#913 : FAppTy (Deptup0.Pair int)  int | [$k__914]}
+  reft {VV#913 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__914]}
   
   // META wf  : deptup.hs:29:23
 
@@ -10637,7 +10644,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#840 : FAppTy (Deptup0.Pair int)  int | [$k__841]}
+  reft {VV#840 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__841]}
   
   // META wf  : deptup.hs:29:15-17
 
@@ -11555,7 +11562,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#783 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__784]}
+  reft {VV#783 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__784]}
   
   // META wf  : deptup.hs:23:15-17
 
@@ -11982,7 +11989,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#747 : [FAppTy (Deptup0.Pair a_a1b8)  a_a1b8] | [$k__748]}
+  reft {VV#747 : [FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8] | [$k__748]}
   
   // META wf  : <no location info>
 
@@ -12067,7 +12074,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#730 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__731]}
+  reft {VV#730 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__731]}
   
   // META wf  : <no location info>
 
@@ -12410,7 +12417,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#744 : FAppTy (Deptup0.Pair a_a1b8)  a_a1b8 | [$k__745]}
+  reft {VV#744 : FAppTy (FAppTy Deptup0.Pair  a_a1b8)  a_a1b8 | [$k__745]}
   
   // META wf  : <no location info>
 
@@ -12836,7 +12843,7 @@ wf:
        63;
        95;
        111]
-  reft {VV#682 : FAppTy (Deptup0.Pair int)  int | [$k__683]}
+  reft {VV#682 : FAppTy (FAppTy Deptup0.Pair  int)  int | [$k__683]}
   
   // META wf  : deptup.hs:20:12
 
@@ -13499,7 +13506,7 @@ wf:
        47;
        63;
        95]
-  reft {VV#602 : FAppTy (Deptup0.Pair a_a1ay)  a_a1ay | [$k__603]}
+  reft {VV#602 : FAppTy (FAppTy Deptup0.Pair  a_a1ay)  a_a1ay | [$k__603]}
   
   // META wf  : <no location info>
 
@@ -14382,7 +14389,7 @@ wf:
        31;
        47;
        63]
-  reft {VV#486 : FAppTy (Deptup0.Pair a_a19P)  a_a19P | [$k__487]}
+  reft {VV#486 : FAppTy (FAppTy Deptup0.Pair  a_a19P)  a_a19P | [$k__487]}
   
   // META wf  : <no location info>
 
