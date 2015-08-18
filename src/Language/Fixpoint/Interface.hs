@@ -57,6 +57,7 @@ import           Language.Fixpoint.Visitor (lhsKVars, rhsKVars)
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
 import           Control.Monad
+import           Control.Comonad
 import qualified Control.Arrow as A
 import           GHC.Exts (groupWith)
 
@@ -144,10 +145,17 @@ predSorts :: [(Symbol,SortedReft)] -> Pred -> [(Symbol,SortedReft)]
 predSorts env p = filter ((`elem` ss).fst) env
   where ss = predSymbols p
 
-data Node a b = Node a [Node b a]
+data Node b a = Node a [Node a b]
 
 instance Bifunctor Node where
-  bimap f g (Node a bs) = Node (f a) [Node (g b) (bimap f g <$> as) | Node b as <- bs]
+  bimap f g (Node a bs) = Node (g a) [Node (f b) (bimap f g <$> as) | Node b as <- bs]
+
+instance Functor (Node b) where
+  fmap f = bimap id f
+
+instance Comonad (Node b) where
+  extract (Node a _) = a 
+  duplicate t@(Node _ bs) = Node t [Node b (duplicate <$> as) | Node b as <- bs]
 
 unroll :: FInfo a -> Integer -> FInfo a
 unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
@@ -168,13 +176,13 @@ unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
         ana k = Node k [Node v $ ana <$> rhs (mlookup v) | v <- klookup k]
         cata (Node _ bs) = join $ join [[b]:(cata<$>ns) | Node b ns <- bs]
 
-        prune :: Node (KVar, Int) Integer -> Node (KVar, Int) Integer
+        prune :: Node Integer (KVar, Int) -> Node Integer (KVar, Int)
         prune (Node (a,i) l) = Node (a,i) $
           if i>depth
              then []
              else [Node v (fmap prune ns) | Node v ns <- l]
 
-        prime :: Node (KVar, Int) Integer -> Node KVar (Integer, SubC _)
+        prime :: Node Integer (KVar, Int) -> Node (Integer, SubC _) KVar
         prime (Node (a,i) bs) = Node (renameKv a i) [Node (rename a i b) (prime <$> as) | Node b as <- bs]
 
         rename :: KVar -> Int -> Integer -> (Integer, SubC _)
@@ -198,7 +206,7 @@ cantor v i' s' = if i==0
   where s = fromIntegral s'
         i = fromIntegral i'
 
-index :: (Eq a, Hashable a) => M.HashMap a Int -> Node a b -> Node (a,Int) b
+index :: (Eq a, Hashable a) => M.HashMap a Int -> Node b a -> Node b (a,Int)
 index m (Node a bs) = Node (a,i) [Node b (index m' <$> ns) | Node b ns <- bs]
   where i = M.lookupDefault 0 a m
         m' = M.insertWith (+) a 1 m
