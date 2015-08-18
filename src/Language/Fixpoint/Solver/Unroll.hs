@@ -16,13 +16,16 @@ import           Language.Fixpoint.Config
 import           Language.Fixpoint.Types
 import qualified Data.HashMap.Strict              as M
 
-data Node b a = Node a [Node a b]
+data Node b a = Node { me :: a, kids :: [Node a b] }
 
 instance Bifunctor Node where
   bimap f g (Node a bs) = Node (g a) [Node (f b) (bimap f g <$> as) | Node b as <- bs]
 
 instance Functor (Node b) where
-  fmap f = bimap id f
+  fmap = bimap id
+
+gmap :: (b -> c) -> Node b a -> Node c a
+gmap = flip bimap id
 
 instance Comonad (Node b) where
   extract (Node a _) = a 
@@ -47,28 +50,30 @@ unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
         ana k = Node k [Node v $ ana <$> rhs (mlookup v) | v <- klookup k]
         cata (Node _ bs) = join $ join [[b]:(cata<$>ns) | Node b ns <- bs]
 
-        prune :: Node Integer (KVar, Int) -> Node Integer (KVar, Int)
         prune (Node (a,i) l) = Node (a,i) $
           if i>depth
              then []
              else [Node v (fmap prune ns) | Node v ns <- l]
 
-        prime :: Node Integer (KVar, Int) -> Node (Integer, SubC _) KVar
-        prime (Node (a,i) bs) = Node (renameKv a i) [Node (rename a i b) (prime <$> as) | Node b as <- bs]
+        kvarSubs :: Node b (KVar, Int) -> [(KVar,KVar)]
+        kvarSubs t@(Node (k,i) _) = cata $ Node (error "Unroll.cata: :/")
+                                                [(\(k,i) -> (k,renameKv k i)) <$> t]
 
-        rename :: KVar -> Int -> Integer -> (Integer, SubC _)
-        -- adds `i` primes to the kvar `a`
-        -- then subsitutes the new kvar for the old in the SubC #`v`
-        -- also gives us a new number for `v`, since it's now a different SubC
-        rename a i v = (num v i, substKVar a (renameKv a i) (mlookup v))
-        substKVar :: KVar -> KVar -> SubC a -> SubC a
-        substKVar k k' c = undefined
+        numadd :: Node Integer (KVar, Int) -> Node (Integer, Int) (KVar, Int)
+        numadd (Node (k,i) vs) = Node (k,i) [Node (v,i) (numadd <$> as) | Node v as <- vs]
+
+        prime :: Node Integer (KVar, Int) -> Node (Integer, SubC _) [(KVar,KVar)]
+        prime node = prime' $ kvarSubs <<= numadd node
+
+        prime' :: Node (Integer, Int) [(KVar, KVar)] -> Node (Integer, SubC _) [(KVar, KVar)]
+        prime' (Node subs vs)  = Node subs [Node (num v i, substKV subs $ mlookup v) (prime' <$> ns) | Node (v,i) ns <- vs]
+
         num a i = cantor a i $ M.size m
 
 renameKv :: Integral i => KVar -> i -> KVar
 renameKv a i = KV $ renameSymbol (kv a) $ fromIntegral i
 
-substKV :: KVar -> KVar -> SubC a
+substKV :: [(KVar, KVar)] -> SubC a -> SubC a
 substKV = undefined
 
 cantor :: Integer -> Int -> Int -> Integer
