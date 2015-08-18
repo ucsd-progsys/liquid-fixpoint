@@ -43,53 +43,52 @@ unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
         rhs = rhsKVars
         lhs = lhsKVars (bs fi)
 
-        cons' = hylo (prime . prune . index M.empty) =<< lhs (mlookup start)
+        cons' = hylo (prime . (kvarSubs <<=) . prune . index M.empty) =<< lhs (mlookup start)
         extras = M.toList $ M.filter ((==[]).lhs) m
 
         hylo f = cata.f.ana
         ana k = Node k [Node v $ ana <$> rhs (mlookup v) | v <- klookup k]
         cata (Node _ bs) = join $ join [[b]:(cata<$>ns) | Node b ns <- bs]
 
+        -- Removes all nodes numbered higher than `depth`
         prune (Node (a,i) l) = Node (a,i) $
           if i>depth
              then []
              else [Node v (fmap prune ns) | Node v ns <- l]
 
+        -- Lists all the subsitutions that are to made
         kvarSubs :: Node b (KVar, Int) -> [(KVar,KVar)]
         kvarSubs t@(Node (k,i) _) = cata $ Node (error "Unroll.cata: :/")
                                                 [(\(k,i) -> (k,renameKv k i)) <$> t]
 
-        numadd :: Node Integer (KVar, Int) -> Node (Integer, Int) (KVar, Int)
-        numadd (Node (k,i) vs) = Node (k,i) [Node (v,i) (numadd <$> as) | Node v as <- vs]
+        -- Builds our new constraint graph, now knowing the substitutions.
+        prime :: Node (Integer, Int) [(KVar, KVar)] -> Node (Integer, SubC _) [(KVar, KVar)]
+        prime (Node subs vs) = Node subs [Node (num v i, substKV subs $ mlookup v) (prime <$> ns) | Node (v,i) ns <- vs]
 
-        prime :: Node Integer (KVar, Int) -> Node (Integer, SubC _) [(KVar,KVar)]
-        prime node = prime' $ kvarSubs <<= numadd node
-
-        prime' :: Node (Integer, Int) [(KVar, KVar)] -> Node (Integer, SubC _) [(KVar, KVar)]
-        prime' (Node subs vs)  = Node subs [Node (num v i, substKV subs $ mlookup v) (prime' <$> ns) | Node (v,i) ns <- vs]
-
+        -- renumber constraint #a
         num a i = cantor a i $ M.size m
 
 renameKv :: Integral i => KVar -> i -> KVar
+-- "k" -> n -> "k_n"
 renameKv a i = KV $ renameSymbol (kv a) $ fromIntegral i
 
 substKV :: [(KVar, KVar)] -> SubC a -> SubC a
-substKV = undefined
+substKV = undefined -- obviously, @TODO
 
 cantor :: Integer -> Int -> Int -> Integer
--- The Cantor pairing function, offset by s when i/=0
+-- ^The Cantor pairing function when `i/=0`, offset by `s`. Otherwise, just `v`
 cantor v i' s' = if i==0
                   then v
                   else s + i + quot ((v+i)*(v+i+1)) 2
   where s = fromIntegral s'
         i = fromIntegral i'
 
-index :: (Eq a, Hashable a) => M.HashMap a Int -> Node b a -> Node b (a,Int)
-index m (Node a bs) = Node (a,i) [Node b (index m' <$> ns) | Node b ns <- bs]
+index :: (Eq a, Hashable a) => M.HashMap a Int -> Node b a -> Node (b,Int) (a,Int)
+-- |Number each node by the number of ancestors it has that hae the same label
+index m (Node a bs) = Node (a,i) [Node (b,i) (index m' <$> ns) | Node b ns <- bs]
   where i = M.lookupDefault 0 a m
         m' = M.insertWith (+) a 1 m
 
 depth :: Int
--- @TODO justify me
+-- |Equals 4 @TODO justify me
 depth = 4
-
