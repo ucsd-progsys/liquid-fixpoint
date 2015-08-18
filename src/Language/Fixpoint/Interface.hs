@@ -26,6 +26,7 @@ import qualified Data.HashMap.Strict              as M
 import           Data.Hashable
 import           Data.List hiding (partition)
 import           Data.Maybe
+import           Data.Bifunctor
 
 #if __GLASGOW_HASKELL__ < 710
 import           Data.Functor
@@ -56,7 +57,7 @@ import           Language.Fixpoint.Visitor (lhsKVars, rhsKVars)
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
 import           Control.Monad
-import           Control.Arrow
+import qualified Control.Arrow as A
 import           GHC.Exts (groupWith)
 
 ---------------------------------------------------------------------------
@@ -134,7 +135,7 @@ interp cfg fi
 buildQual :: Config -> FInfo a -> SubC a -> IO Qualifier
 buildQual cfg fi c = qualify <$> S.interpolation cfg fi env p q
   where env  = envCs (bs fi) $ senv c
-        qenv = map (second sr_sort) $ predSorts env p
+        qenv = map (A.second sr_sort) $ predSorts env p
         p = prop $ slhs c
         q = PNot $ prop $ srhs c
         qualify p = Q interpSym qenv p (dummyPos "interp")
@@ -145,12 +146,15 @@ predSorts env p = filter ((`elem` ss).fst) env
 
 data Node a b = Node a [Node b a]
 
+instance Bifunctor Node where
+  bimap f g (Node a bs) = Node (f a) [Node (g b) (bimap f g <$> as) | Node b as <- bs]
+
 unroll :: FInfo a -> Integer -> FInfo a
 unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
   where m = cm fi
         mlookup v = M.lookupDefault (error $"cons # "++show v++" not found") v m
-        kidsm = M.fromList $ (fst.head &&& (snd <$>)) <$> groupWith fst pairs
-          where pairs = [(k,i)|(i,ks) <- second rhs <$> M.toList m, k<-ks]
+        kidsm = M.fromList $ (fst.head A.&&& (snd <$>)) <$> groupWith fst pairs
+          where pairs = [(k,i)|(i,ks) <- A.second rhs <$> M.toList m, k<-ks]
         klookup k = M.lookupDefault (error $"kids for "++show k++" not found") k kidsm
 
         rhs, lhs :: SubC a -> [KVar]
