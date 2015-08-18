@@ -143,7 +143,7 @@ predSorts :: [(Symbol,SortedReft)] -> Pred -> [(Symbol,SortedReft)]
 predSorts env p = filter ((`elem` ss).fst) env
   where ss = predSymbols p
 
-data Node a b = Node a [(b,[Node a b])]
+data Node a b = Node a [Node b a]
 
 unroll :: FInfo a -> Integer -> FInfo a
 unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
@@ -161,14 +161,14 @@ unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
         extras = M.toList $ M.filter ((==[]).lhs) m
 
         hylo f = cata.f.ana
-        ana k = Node k [(v,ana <$> (rhs $ mlookup v)) | v <- klookup k]
-        cata (Node _ bs) = join $ join $ [[b]:(cata<$>ns) | (b,ns) <- bs]
+        ana k = Node k [Node v $ ana <$> rhs (mlookup v) | v <- klookup k]
+        cata (Node _ bs) = join $ join [[b]:(cata<$>ns) | Node b ns <- bs]
 
         prune :: Node (KVar, Int) Integer -> Node KVar (Integer, SubC _)
         prune (Node (a,i) l) = Node (renameKv a i) $
           if i>depth
              then []
-             else ((rename a i) *** (fmap prune)) <$> l
+             else [Node (rename a i v) (fmap prune ns) | Node v ns <- l]
 
         rename :: KVar -> Int -> Integer -> (Integer, SubC _)
         -- adds `i` primes to the kvar `a`
@@ -187,12 +187,12 @@ cantor :: Integer -> Int -> Int -> Integer
 -- The Cantor pairing function, offset by s when i/=0
 cantor v i' s' = if i==0
                   then v
-                  else s + i + (quot ((v+i)*(v+i+1)) 2)
+                  else s + i + quot ((v+i)*(v+i+1)) 2
   where s = fromIntegral s'
         i = fromIntegral i'
 
 index :: (Eq a, Hashable a) => M.HashMap a Int -> Node a b -> Node (a,Int) b
-index m (Node a bs) = Node (a,i) $ second (fmap $ index m') <$> bs
+index m (Node a bs) = Node (a,i) [Node b (index m' <$> ns) | Node b ns <- bs]
   where i = M.lookupDefault 0 a m
         m' = M.insertWith (+) a 1 m
 
