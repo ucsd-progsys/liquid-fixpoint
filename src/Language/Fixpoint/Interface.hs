@@ -157,18 +157,21 @@ unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
         rhs = rhsKVars
         lhs = lhsKVars (bs fi)
 
-        cons' = hylo (prune . index (M.empty)) =<< lhs (mlookup start)
+        cons' = hylo (prime . prune . index M.empty) =<< lhs (mlookup start)
         extras = M.toList $ M.filter ((==[]).lhs) m
 
         hylo f = cata.f.ana
         ana k = Node k [Node v $ ana <$> rhs (mlookup v) | v <- klookup k]
         cata (Node _ bs) = join $ join [[b]:(cata<$>ns) | Node b ns <- bs]
 
-        prune :: Node (KVar, Int) Integer -> Node KVar (Integer, SubC _)
-        prune (Node (a,i) l) = Node (renameKv a i) $
+        prune :: Node (KVar, Int) Integer -> Node (KVar, Int) Integer
+        prune (Node (a,i) l) = Node (a,i) $
           if i>depth
              then []
-             else [Node (rename a i v) (fmap prune ns) | Node v ns <- l]
+             else [Node v (fmap prune ns) | Node v ns <- l]
+
+        prime :: Node (KVar, Int) Integer -> Node KVar (Integer, SubC _)
+        prime (Node (a,i) bs) = Node (renameKv a i) [Node (rename a i b) (prime <$> as) | Node b as <- bs]
 
         rename :: KVar -> Int -> Integer -> (Integer, SubC _)
         -- adds `i` primes to the kvar `a`
