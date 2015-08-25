@@ -32,7 +32,7 @@ instance Comonad (Node b) where
   duplicate t@(Node _ bs) = Node t [Node b (duplicate <$> as) | Node b as <- bs]
 
 unroll :: FInfo a -> Integer -> FInfo a
-unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
+unroll fi start = fi -- {cm = M.fromList $ extras ++ map reid cons'}
   where m = cm fi
         mlookup v = M.lookupDefault (error $"cons # "++show v++" not found") v m
         kidsm = M.fromList $ (fst.head A.&&& (snd <$>)) <$> groupWith fst pairs
@@ -45,6 +45,8 @@ unroll fi start = fi -- {cm = M.fromList $ extras ++ cons'}
 
         cons' = hylo (prime . (kvarSubs <<=) . prune . index M.empty) =<< lhs (mlookup start)
         extras = M.toList $ M.filter ((==[]).lhs) m
+        reid :: (Integer, SubC a) -> (Integer, SubC a)
+        reid (b,a) = (b, a { sid = Just b })
 
         hylo f = cata.f.ana
         ana k = Node k [Node v $ ana <$> rhs (mlookup v) | v <- klookup k]
