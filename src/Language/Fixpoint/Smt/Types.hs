@@ -2,6 +2,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 -- | This module contains the types defining an SMTLIB2 interface.
 
@@ -51,10 +52,20 @@ data Command      = Push
                   | Declare   Symbol [Sort] Sort
                   | Define    Sort
                   | Assert    (Maybe Int) Pred
-                  | Interpolate (FInfo ()) Pred Pred
+                  | forall a. Interpolate (FInfo a) Pred Pred
                   | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
-                  deriving (Eq, Show)
+
+instance Show Command where
+  show Push = "Push"
+  show Pop = "Pop"
+  show CheckSat = "CheckSat"
+  show (Declare a b c) = "Declare " ++ show a ++ " " ++ show b ++ " " ++ show c
+  show (Define a) = "Define " ++ show a
+  show (Assert a b) = "Assert " ++ show a ++ " " ++ show b
+  show (Interpolate _ b c) = "Interpolate fi " ++ show b ++ show c
+  show (Distinct a) = "Distinct " ++ show a
+  show (GetValue a) = "GetValue " ++ show a
 
 -- | Responses received from SMT engine
 data Response     = Ok

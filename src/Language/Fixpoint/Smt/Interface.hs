@@ -130,7 +130,7 @@ smtParse me parserP = smtReadRaw me >>= A.parseWith (smtReadRaw me) parserP >>= 
 smtRead :: Context -> IO Response
 smtRead me = {-# SCC "smtRead" #-} smtParse me responseP
 
-smtPred :: FInfo () -> Context -> IO Response
+smtPred :: FInfo a -> Context -> IO Response
 smtPred fi me = {-# SCC "smtPred" #-} smtParse me (Interpolant <$> parseLisp' fi <$> predP)
 
 predP = {-# SCC "predP" #-} Lisp <$> (A.char '(' *> listP <* A.char '(')
@@ -340,7 +340,7 @@ smtBracket me a   = do smtPush me
                        smtPop me
                        return r
 
-smtDoInterpolate :: Context -> FInfo () -> [(Symbol, SortedReft)] -> Pred -> Pred -> IO Pred
+smtDoInterpolate :: Context -> FInfo a -> [(Symbol, SortedReft)] -> Pred -> Pred -> IO Pred
 smtDoInterpolate me fi env p q = smtLoadEnv me env >>
                                   respInterp <$> command me (Interpolate fi p q)
 
