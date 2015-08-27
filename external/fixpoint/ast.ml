@@ -1,5 +1,5 @@
 (*
- * Copyright © 2009 The Regents of the University of California. All rights reserved.
+ * Copyright ï¿½ 2009 The Regents of the University of California. All rights reserved.
  *
  * Permission is hereby granted, without written agreement and without
  * license or royalty fees, to use, copy, modify, and distribute this
@@ -181,9 +181,11 @@ module Sort =
       | Num    -> true
       | _      -> false
 
+    (* DELETE THIS
     let app_of_t = function
       | App (c, ts) -> Some (c, ts)
       | _           -> None
+    *)
 
     (* (L t1 t2 t3) is now encoded as
         ---> (((L @ t1) @ t2) @ t3)
@@ -238,11 +240,11 @@ module Sort =
 
     let rec unifyt s = function
       | Num,_ | _, Num -> None
-(* NIKI: Unifycation of two variables should always succeed, 
+(* NIKI: Unifycation of two variables should always succeed,
 but the bellow code crashes tests/zipper0.hs.fq
 *)
 (*
-      | (Var i), (Var j) -> 
+      | (Var i), (Var j) ->
           begin match lookup_var s i with
           | Some ct -> Some {s with vars = (j,ct) :: s.vars}
           | None -> begin match lookup_var s j with
@@ -331,28 +333,28 @@ but the bellow code crashes tests/zipper0.hs.fq
     let sub_args s = List.sort compare s.vars
 
     (* API *)
-    let check_arity n s = 
-      let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in 
+    let check_arity n s =
+      let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in
       n == n_vars
 
-    let index = ref 0   
+    let index = ref 0
 
     let makeFresh n =
-      let rec go i = 
-        if i < n then (let x = !index in incr index; (i,x)::go (i+1)) else [] in 
-      go 0 
-    
-    let rec refresh su = function 
+      let rec go i =
+        if i < n then (let x = !index in incr index; (i,x)::go (i+1)) else [] in
+      go 0
+
+    let rec refresh su = function
       | Int -> Int
-      | Real -> Real 
-      | Bool -> Bool 
-      | Obj  -> Obj 
-      | Var i -> (try (Var (snd (List.find (fun (j, _) -> j == i) su))) 
+      | Real -> Real
+      | Bool -> Bool
+      | Obj  -> Obj
+      | Var i -> (try (Var (snd (List.find (fun (j, _) -> j == i) su)))
                  with Not_found -> Var i)
-      | Ptr l -> Ptr l 
+      | Ptr l -> Ptr l
       | Func(n, ts) ->  let su' = List.filter (fun (i,_) -> i>= n) su in  Func(n, List.map (refresh su') ts)
-      | Num  -> Num 
-      | Frac -> Frac 
+      | Num  -> Num
+      | Frac -> Frac
       | App(tc, ts) -> App(tc, List.map (refresh su) ts)
 
   end
@@ -1195,9 +1197,9 @@ let checkArity f uf = function
                          | _      -> None
                    end
 
-let unifiable t1 t2 = 
+let unifiable t1 t2 =
   match Sort.unify [t1] [t2] with
-  | Some _ -> true 
+  | Some _ -> true
   | _ -> false
 
 
@@ -1205,19 +1207,19 @@ let unifiable t1 t2 =
  it used to fail, as (su, Some (Just @0)) = sortcheck_expr (Nothing ([]))
  but su.vars is empty
  *)
-let updateArity env f = function 
-  | None -> None 
-  | Some (su, t) -> begin match uf_arity f env with 
-    | Some n -> 
-     let rec go n 
-       = if n < 0 
-          then [] 
-          else match Sort.lookup_var su n with 
+let updateArity env f = function
+  | None -> None
+  | Some (su, t) -> begin match uf_arity f env with
+    | Some n ->
+     let rec go n
+       = if n < 0
+          then []
+          else match Sort.lookup_var su n with
                 | Some _ -> go (n-1)
                 | None   -> (n, Sort.Var n) :: go (n-1)
     in Some({su with Sort.vars = List.append su.Sort.vars (go n) }, t)
     | None -> None
- end 
+ end
 
 let rec sortcheck_expr g f expected_t e =
   match euw e with
@@ -1236,12 +1238,12 @@ let rec sortcheck_expr g f expected_t e =
   | Ite (p, e1, e2) ->
       if sortcheck_pred g f p then
         match Misc.map_pair (sortcheck_expr g f None) (e1, e2) with
-        | (Some t1, Some t2) -> 
-          begin 
-          match Sort.unify [t1] [t2] with 
-            | Some s -> Some (Sort.apply s t1) 
+        | (Some t1, Some t2) ->
+          begin
+          match Sort.unify [t1] [t2] with
+            | Some s -> Some (Sort.apply s t1)
             | None -> None
-          end 
+          end
         | _ -> None
       else None
   | Cst (e1, t) ->
@@ -1265,17 +1267,17 @@ and sortcheck_app_sub g f so_expected uf es =
   |> function None -> (* yikes uf; *) None | Some t ->
        Sort.func_of_t t
        |> function None -> None | Some (tyArity, i_ts', o_t') ->
-              let freshMap = Sort.makeFresh tyArity in 
-              let i_ts = List.map (Sort.refresh freshMap) i_ts' in 
-              let o_t  = Sort.refresh freshMap o_t' in 
+              let freshMap = Sort.makeFresh tyArity in
+              let i_ts = List.map (Sort.refresh freshMap) i_ts' in
+              let o_t  = Sort.refresh freshMap o_t' in
               let _  = asserts (List.length es = List.length i_ts)
                          "ERROR: uf arg-arity error: uf=%s" uf in
               let e_ts = (List.map (fun x -> Some x) i_ts, es) |> Misc.zipWith (sortcheck_expr g f) |> Misc.map_partial id in
                 if List.length e_ts <> List.length i_ts then
-                   (* let _ = F.printf "OUT2 \n es = %s \n e_ts = %s \n i_ts = %s" 
-                           (String.concat "\t" (List.map Expression.to_string es))  
-                           (String.concat "\t" (List.map Sort.to_string e_ts))  
-                           (String.concat "\t" (List.map Sort.to_string i_ts))  
+                   (* let _ = F.printf "OUT2 \n es = %s \n e_ts = %s \n i_ts = %s"
+                           (String.concat "\t" (List.map Expression.to_string es))
+                           (String.concat "\t" (List.map Sort.to_string e_ts))
+                           (String.concat "\t" (List.map Sort.to_string i_ts))
                    in*) None
                 else
                   match Sort.unify e_ts i_ts with
@@ -1417,9 +1419,9 @@ and sortcheck_pred g f p =
                | (Some t1, Some t2) -> (* let _ = F.printf "sortcheck Eq App1 %s" (Predicate.to_string p) in *) unifiable t1 t2
                | (None, None)       -> (* let _ = F.printf "sortcheck Eq App2 %s" (Predicate.to_string p) in *) false
                | (None, Some t2)    -> (* let _ = F.printf "sortcheck Eq App3 %s" (Predicate.to_string p) in *) not (None = sortcheck_app g f (Some t2) uf1 e1s)
-               | (Some t1, None)    -> (* let _ = F.printf "sortcheck Eq App4 %s :: %s" 
+               | (Some t1, None)    -> (* let _ = F.printf "sortcheck Eq App4 %s :: %s"
                    (Predicate.to_string p) (Sort.to_string t1) in *)
-                   not (None = sortcheck_app g f (Some t1) uf2 e2s) 
+                   not (None = sortcheck_app g f (Some t1) uf2 e2s)
          end
 
     | Atom (e1, r, e2) ->
@@ -1443,7 +1445,7 @@ let opt_to_string p = function
 (* API *)
 let sortcheck_app g f tExp uf es =
   sortcheck_app_sub g f tExp uf es
-  |> checkArity f uf 
+  |> checkArity f uf
 
 let sortcheck_expr g f e = sortcheck_expr g f None e
 
