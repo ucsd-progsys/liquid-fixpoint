@@ -99,10 +99,12 @@ module Sort =
                 | s -> assertf "Error: Invalid tycon: %s" s
      *)
 
-    let t_app c ts  = if c = tc_app then App (c, ts) else
-                        List.fold_left (fun t1 t2 -> App (tc_app, [t1; t2])) (App (c, [])) ts
-    (* let t_app c ts  = List.fold_left (fun t1 t2 -> App ("FAppTy", [t1; t2])) (App (c, [])) ts *)
-    (* let t_app c ts  = App (c, ts) *)
+    let t_app = List.fold_left (fun t1 t2 -> App (tc_app, [t1; t2]))
+
+    let t_app_tc c ts = if c = tc_app then
+                          (App (c, ts))
+                        else
+                          t_app (App (c, [])) ts
 
     let loc_to_string = function
       | Loc s  -> s
