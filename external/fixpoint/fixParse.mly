@@ -157,7 +157,9 @@ tyconargsne:
 
 sort:
   | bsort                               { $1 }
-  | Id tyconargsne                      { So.t_app_tc (So.tycon $1) $2 }
+  | bsort tyconargsne                   { So.t_app $1 $2
+                                          (*  | Id tyconargsne { So.t_app_tc (So.tycon $1) $2 } *)
+                                        }
   | LB sort RB                          { So.t_app_tc (So.tycon "List") [$2] }
 
   ;
@@ -180,7 +182,7 @@ bsort:
                                           if !Co.gen_qual_sorts || FixMisc.stringIsLower s then
                                             So.t_ptr (So.Loc s)       (* tyvar *)
                                           else
-                                            So.t_app_tc (So.tycon s) []  (* tycon *) 
+                                            So.t_app_tc (So.tycon s) []  (* tycon *)
                                         }
   | LPAREN sort RPAREN                  { $2 }
   | LB RB                               { So.t_app_tc (So.tycon "List") [] }
