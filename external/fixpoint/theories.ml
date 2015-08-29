@@ -1,22 +1,22 @@
 (*
- * Copyright © 2009 The Regents of the University of California. All rights reserved. 
+ * Copyright © 2009 The Regents of the University of California. All rights reserved.
  *
- * Permission is hereby granted, without written agreement and without 
- * license or royalty fees, to use, copy, modify, and distribute this 
- * software and its documentation for any purpose, provided that the 
- * above copyright notice and the following two paragraphs appear in 
- * all copies of this software. 
- * 
- * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY 
- * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES 
- * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN 
- * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY 
- * OF SUCH DAMAGE. 
- * 
- * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
- * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
- * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
+ * Permission is hereby granted, without written agreement and without
+ * license or royalty fees, to use, copy, modify, and distribute this
+ * software and its documentation for any purpose, provided that the
+ * above copyright notice and the following two paragraphs appear in
+ * all copies of this software.
+ *
+ * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY
+ * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
+ * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN
+ * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ *
+ * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
+ * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
@@ -33,7 +33,7 @@ open FixMisc.Ops
 (********************* Sets ************************************************)
 
 let set_tycon  = So.tycon "Set_Set"
-let t_set a    = So.t_app set_tycon [a]
+let t_set a    = So.t_app_tc set_tycon [a]
 
 (* API *)
 let emp0 = ( Sy.of_string "Set_empty"
@@ -57,14 +57,14 @@ let cap = ( Sy.of_string "Set_cap"
 let dif = ( Sy.of_string "Set_dif"
           , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); t_set (So.t_generic 0)])
 
-let sub = ( Sy.of_string "Set_sub" 
+let sub = ( Sy.of_string "Set_sub"
           , So.t_func 1 [t_set (So.t_generic 0); t_set (So.t_generic 0); So.t_bool] )
 
 (********************* Maps ************************************************)
 
 let map_tycon  = So.tycon "Map_t"
 
-let t_map k v  = So.t_app map_tycon [k; v]
+let t_map k v  = So.t_app_tc map_tycon [k; v]
 
 let select     = let k = So.t_generic 0 in
                  let v = So.t_generic 1 in
@@ -83,16 +83,16 @@ let store      = let k = So.t_generic 0 in
 let bv_tycon     = So.tycon "BitVec"
 let sz32_tycon   = So.tycon "Size32"
 let sz64_tycon   = So.tycon "Size64"
-let t_bv a       = So.t_app bv_tycon [a]
+let t_bv a       = So.t_app_tc bv_tycon [a]
 
 let bv_binop op  = let k = So.t_generic 0 in
-                   ( Sy.of_string op 
-                   , So.t_func 1 [t_bv k; t_bv k; t_bv k] ) 
+                   ( Sy.of_string op
+                   , So.t_func 1 [t_bv k; t_bv k; t_bv k] )
 
 let bvand        = bv_binop "bvand"
 let bvor         = bv_binop "bvor"
 
-                 
+
 (********************* All Theories ****************************************)
 (** WARNING: DO NOT PUT INSIDE MakeTheory; adds SMT dependency *************)
 (***************************************************************************)
@@ -101,7 +101,7 @@ let bvor         = bv_binop "bvor"
 let is_interp t = List.mem t [set_tycon; map_tycon; sz32_tycon; sz64_tycon; bv_tycon]
 
 (* API *)
-let interp_syms _ 
+let interp_syms _
   = []
     |> (!Constants.set_theory <?> (++) [emp0  ; emp; sng; mem; cup; cap; dif; sub])
     |> (!Constants.map_theory <?> (++) [select; store])
@@ -112,11 +112,11 @@ let interp_syms _
 (***************************************************************************)
 (***************************************************************************)
 
-module MakeTheory(SMT : SMTSOLVER): 
-  (THEORY with type context = SMT.context 
+module MakeTheory(SMT : SMTSOLVER):
+  (THEORY with type context = SMT.context
           and  type sort    = SMT.sort
-          and  type ast     = SMT.ast) 
-  = struct 
+          and  type ast     = SMT.ast)
+  = struct
 
 type context = SMT.context
 type sort    = SMT.sort
@@ -130,7 +130,7 @@ type appDef  = { sy_name  : Sy.t
 
 type sortDef = { so_name  : Ast.Sort.tycon
                ; so_arity : int
-               ; so_emb   : SMT.context -> SMT.sort list -> SMT.sort 
+               ; so_emb   : SMT.context -> SMT.sort list -> SMT.sort
                }
 
 (* API *)
@@ -144,143 +144,143 @@ let sym_sort d  = d.sy_sort
 
 let app_sort_arity def = match So.func_of_t def.sy_sort with
   | Some (n,_,_) -> n
-  | None         -> assertf "Theories: app with non-function symbol %s" 
+  | None         -> assertf "Theories: app with non-function symbol %s"
                     (Sy.to_string def.sy_name)
 
 let check_app_arities def tArgs eArgs = match So.func_of_t def.sy_sort with
-  | Some (n, ts,_) 
-     -> asserts (n = List.length tArgs)  
+  | Some (n, ts,_)
+     -> asserts (n = List.length tArgs)
           "Theories: app with mismatched sorts %s" (Sy.to_string def.sy_name);
-        asserts (List.length ts = List.length eArgs) 
-          "Theories: app with mismatched args %s" (Sy.to_string def.sy_name) 
-  | None         
-     -> assertf "Theories: app with non-function symbol %s" 
+        asserts (List.length ts = List.length eArgs)
+          "Theories: app with mismatched args %s" (Sy.to_string def.sy_name)
+  | None
+     -> assertf "Theories: app with non-function symbol %s"
           (Sy.to_string def.sy_name)
 
 
 (* API *)
-let mk_thy_app def c ts es = 
+let mk_thy_app def c ts es =
   check_app_arities def ts es;
   def.sy_emb c ts es
 
 (* API *)
-let mk_thy_sort def c ts = 
-  asserts (List.length ts = def.so_arity) 
+let mk_thy_sort def c ts =
+  asserts (List.length ts = def.so_arity)
     "Theories: app with mismatched sorts %s" (So.tycon_string def.so_name);
-  def.so_emb c ts 
+  def.so_emb c ts
 
 
 (** Theory of Sets *********************************************************)
 
 
-let set_t : sortDef = 
-  { so_name  = set_tycon 
-  ; so_arity = 1 
-  ; so_emb   = fun c -> function 
+let set_t : sortDef =
+  { so_name  = set_tycon
+  ; so_arity = 1
+  ; so_emb   = fun c -> function
                  [t] -> SMT.mkSetSort c t
                  | _ -> assertf "Set_set: type mismatch"
-  }  
+  }
 
-let set_empty : appDef  = 
+let set_empty : appDef  =
   { sy_name  = fst emp0
-  ; sy_sort  = snd emp0 
+  ; sy_sort  = snd emp0
   ; sy_emb   = fun c ts es -> match ts, es with
                  | [t], [_] -> SMT.mkEmptySet c t
                  | _        -> assertf "Set_empty: type mismatch"
   }
 
-let set_emp : appDef  = 
-  { sy_name  = fst emp 
-  ; sy_sort  = snd emp 
+let set_emp : appDef  =
+  { sy_name  = fst emp
+  ; sy_sort  = snd emp
   ; sy_emb   = fun c ts es -> match ts, es with
                  | [t], [e] -> SMT.mkRel c Ast.Eq e (SMT.mkEmptySet c t)
                  | _        -> assertf "Set_emp: type mismatch"
   }
 
-let set_sng : appDef  = 
-  { sy_name = fst sng 
-  ; sy_sort = snd sng  
+let set_sng : appDef  =
+  { sy_name = fst sng
+  ; sy_sort = snd sng
   ; sy_emb  = fun c ts es -> match ts, es with
                  | [t], [e] -> SMT.mkSetAdd c (SMT.mkEmptySet c t) e
                  | _        -> assertf "Set_sng: type mismatch"
   }
 
 
-let set_mem : appDef  = 
-  { sy_name = fst mem 
+let set_mem : appDef  =
+  { sy_name = fst mem
   ; sy_sort = snd mem
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [_], [e;es] -> SMT.mkSetMem c e es 
+                 | [_], [e;es] -> SMT.mkSetMem c e es
                  | _           -> assertf "Set_mem: type mismatch"
   }
 
-let set_cup : appDef  = 
-  { sy_name = fst cup 
+let set_cup : appDef  =
+  { sy_name = fst cup
   ; sy_sort = snd cup
   ; sy_emb  = fun c ts es -> match ts, es with
                  | [t], [e1;e2] -> SMT.mkSetCup c e1 e2
                  | _            -> assertf "Set_cup: type mismatch"
   }
 
-let set_cap : appDef  = 
-  { sy_name = fst cap 
-  ; sy_sort = snd cap 
+let set_cap : appDef  =
+  { sy_name = fst cap
+  ; sy_sort = snd cap
   ; sy_emb  = fun c ts es -> match ts, es with
                  | [t], [e1;e2] -> SMT.mkSetCap  c e1 e2
                  | _            -> assertf "Set_cap: type mismatch"
   }
 
-let set_dif : appDef  = 
-  { sy_name = fst dif 
+let set_dif : appDef  =
+  { sy_name = fst dif
   ; sy_sort = snd dif
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e1;e2] -> SMT.mkSetDif c e1 e2 
+                 | [t], [e1;e2] -> SMT.mkSetDif c e1 e2
                  | _            -> assertf "Set_dif: type mismatch"
   }
 
 let set_sub : appDef =
-  { sy_name = fst sub 
+  { sy_name = fst sub
   ; sy_sort = snd sub
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [t], [e1;e2] -> SMT.mkSetSub c e1 e2 
+                 | [t], [e1;e2] -> SMT.mkSetSub c e1 e2
                  | _            -> assertf "Set_dif: type mismatch"
   }
 
 (* API *)
-let theory_set 
+let theory_set
   = ([ set_t ]
-    ,[ set_emp 
-     ; set_empty 
-     ; set_sng 
-     ; set_mem 
-     ; set_cup 
-     ; set_cap 
-     ; set_dif 
+    ,[ set_emp
+     ; set_empty
+     ; set_sng
+     ; set_mem
+     ; set_cup
+     ; set_cap
+     ; set_dif
      ; set_sub ])
 
 (** Theory of Maps *********************************************************)
 
-let map_t : sortDef = 
-  { so_name  = map_tycon 
-  ; so_arity = 2 
-  ; so_emb   = fun c -> function 
-                 | [k; v] -> SMT.mkMapSort c k v 
+let map_t : sortDef =
+  { so_name  = map_tycon
+  ; so_arity = 2
+  ; so_emb   = fun c -> function
+                 | [k; v] -> SMT.mkMapSort c k v
                  | _      -> assertf "Map_t: type mismatch"
-  }  
+  }
 
-let map_select : appDef  = 
-  { sy_name = fst select 
-  ; sy_sort = snd select 
+let map_select : appDef  =
+  { sy_name = fst select
+  ; sy_sort = snd select
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [_; _], [m; k] -> SMT.mkMapSelect c m k 
+                 | [_; _], [m; k] -> SMT.mkMapSelect c m k
                  | _           -> assertf "Map_select: type mismatch"
   }
 
-let map_store : appDef  = 
-  { sy_name = fst store 
-  ; sy_sort = snd store 
+let map_store : appDef  =
+  { sy_name = fst store
+  ; sy_sort = snd store
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [_; _], [m; k; v] -> SMT.mkMapStore c m k v 
+                 | [_; _], [m; k; v] -> SMT.mkMapStore c m k v
                  | _           -> assertf "Map_store: type mismatch"
   }
 
@@ -291,53 +291,53 @@ let theory_map
 (** Theory of Bitvectors ***************************************************)
 
 let size32_t : sortDef =
-  { so_name  = sz32_tycon 
-  ; so_arity = 1 
-  ; so_emb   = fun c -> function 
-                 | [_] -> SMT.mkSizeSort c 32 
+  { so_name  = sz32_tycon
+  ; so_arity = 1
+  ; so_emb   = fun c -> function
+                 | [_] -> SMT.mkSizeSort c 32
                  | _   -> assertf "Map_t: type mismatch"
-  }  
+  }
 
 let size64_t : sortDef =
-  { so_name  = sz64_tycon 
-  ; so_arity = 1 
-  ; so_emb   = fun c   -> function 
-                 | [_] -> SMT.mkSizeSort c 64 
+  { so_name  = sz64_tycon
+  ; so_arity = 1
+  ; so_emb   = fun c   -> function
+                 | [_] -> SMT.mkSizeSort c 64
                  | _   -> assertf "Map_t: type mismatch"
-  }  
-    
-let bit_t : sortDef =
-  { so_name  = bv_tycon 
-  ; so_arity = 1 
-  ; so_emb   = fun c -> function 
-                 | [n] -> SMT.mkBitSort c n 
-                 | _   -> assertf "BitVector: type mismatch"
-  }  
+  }
 
-let bit_and : appDef  = 
-  { sy_name = fst bvand 
-  ; sy_sort = snd bvand  
+let bit_t : sortDef =
+  { so_name  = bv_tycon
+  ; so_arity = 1
+  ; so_emb   = fun c -> function
+                 | [n] -> SMT.mkBitSort c n
+                 | _   -> assertf "BitVector: type mismatch"
+  }
+
+let bit_and : appDef  =
+  { sy_name = fst bvand
+  ; sy_sort = snd bvand
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [_], [x; y] -> SMT.mkBitAnd c x y 
+                 | [_], [x; y] -> SMT.mkBitAnd c x y
                  | _           -> assertf "bit_and: type mismatch"
   }
 
-let bit_or : appDef  = 
+let bit_or : appDef  =
   { sy_name = fst bvor
   ; sy_sort = snd bvor
   ; sy_emb  = fun c ts es -> match ts, es with
-                 | [_], [x; y] -> SMT.mkBitOr c x y 
+                 | [_], [x; y] -> SMT.mkBitOr c x y
                  | _           -> assertf "bit_or: type mismatch"
   }
 
 (* API *)
 let theory_bit
   = ([size32_t; size64_t; bit_t], [bit_and; bit_or])
-    
+
 (** Theory Composition *****************************************************)
 
 (* API *)
-let theories () = 
+let theories () =
   let add_thy (t1,s1) (t2,s2) = (t1 ++ t2, s1 ++ s2) in
   ([], [])
   |> (!Constants.set_theory <?> add_thy theory_set)

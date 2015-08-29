@@ -11,10 +11,10 @@ module C  = FixConstraint
 module Co = Constants
 open FixMisc.Ops
 
-(* 
+(*
  *
   %token <string> Tycon
-  | (capital)letdig*    { Tycon (Lexing.lexeme lexbuf) }          
+  | (capital)letdig*    { Tycon (Lexing.lexeme lexbuf) }
   | Tycon                               { So.t_app (So.tycon $1) [] }
   | Tycon tyconargsne                   { So.t_app (So.tycon $1) $2 }
    *)
@@ -30,23 +30,23 @@ pExprs:
 exprsCommaNe:
     expr                                { [$1] }
   | expr COMMA exprsCommaNe             { $1 :: $3 }
-  ; 
+  ;
   *)
 
 *)
 let parse_error msg =
   Errorline.error (symbol_start ()) msg
 
-let create_qual name vv = Qualifier.create (Sy.of_string name) (Sy.of_string vv) 
+let create_qual name vv = Qualifier.create (Sy.of_string name) (Sy.of_string vv)
 
 let set_ibind, get_ibind =
   let bindt = Hashtbl.create 37 in
   ( (fun (i, x, t) -> Hashtbl.replace bindt i (x, t))
-  , (fun i         -> try Hashtbl.find bindt i with Not_found -> assertf "Unknown binding: %d\n" i) 
+  , (fun i         -> try Hashtbl.find bindt i with Not_found -> assertf "Unknown binding: %d\n" i)
   )
 
-let env_of_ibindings is = 
-  is |> FixMisc.sort_and_compact 
+let env_of_ibindings is =
+  is |> FixMisc.sort_and_compact
      |> FixMisc.map get_ibind
      |> C.env_of_ordered_bindings
 
@@ -55,21 +55,21 @@ let env_of_ibindings is =
 %token <string> Id
 %token <int>    Num
 %token <float>  Real
-%token <string> StringLit 
-%token TVAR 
-%token TAG ID 
+%token <string> StringLit
+%token TVAR
+%token TAG ID
 %token BEXP
 %token TRUE FALSE
-%token UNDERSCORE 
+%token UNDERSCORE
 %token LPAREN  RPAREN LB RB LC RC
 %token EQ NE GT GE LT LE UEQ UNE
 %token AND OR NOT NOTWORD IMPL IFF IFFWORD FORALL SEMI COMMA COLON MID
 %token EOF
-%token MOD 
+%token MOD
 %token PLUS
 %token MINUS
-%token TIMES 
-%token DIV 
+%token TIMES
+%token DIV
 %token DOL QM DOT ASGN
 %token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC LIT FRAC
 %token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
@@ -84,16 +84,16 @@ let env_of_ibindings is =
 %left DOT
 %right NOT
 
-%start defs 
+%start defs
 %start sols
-%start reft 
+%start reft
 
 %type <FixConfig.deft list>     defs
 %type <FixConfig.deft>          def
 %type <FixConfig.solbind list>  sols
-%type <So.t list>               sorts, sortsne 
+%type <So.t list>               sorts, sortsne
 %type <So.t>                    sort
-%type <(Sy.t * So.t) list>      binds, bindsne 
+%type <(Sy.t * So.t) list>      binds, bindsne
 %type <A.pred list>             preds, predsne
 %type <A.pred>                  pred
 %type <A.expr list>             exprs, exprsne
@@ -107,7 +107,7 @@ let env_of_ibindings is =
 
 %%
 defs:
-                                        { [] } 
+                                        { [] }
   | def defs                            { $1 :: $2 }
   ;
 
@@ -130,13 +130,13 @@ def:
   | CST COLON cstr                      { FixConfig.Cst $3 }
   | CON Id COLON sort                   { FixConfig.Con (Sy.of_string $2, $4) }
   | WF  COLON wf                        { FixConfig.Wfc $3 }
-  | sol                                 { FixConfig.Sol $1 } 
+  | sol                                 { FixConfig.Sol $1 }
   | QUL qual                            { FixConfig.Qul $2 }
   | KUT kvid                            { FixConfig.Kut $2 }
   | dep                                 { FixConfig.Dep $1 }
-  | BIND Num Id COLON reft              { let (i, x, r) = ($2, Sy.of_string $3, $5) 
-                                                          >> set_ibind 
-                                          in FixConfig.IBind (i,x,r)              } 
+  | BIND Num Id COLON reft              { let (i, x, r) = ($2, Sy.of_string $3, $5)
+                                                          >> set_ibind
+                                          in FixConfig.IBind (i,x,r)              }
   ;
 
 
@@ -150,16 +150,17 @@ sortsne:
   | sort SEMI sortsne                   { $1 :: $3 }
   ;
 
-tyconargsne: 
+tyconargsne:
   | bsort                               { [$1] }
   | bsort tyconargsne                   { $1 :: $2 }
   ;
 
 sort:
   | bsort                               { $1 }
-  | Id tyconargsne                      { So.t_app (So.tycon $1) $2 }
-  | LB sort RB                          { So.t_app (So.tycon "List") [$2] }
- 
+  | bsort tyconargsne                   { So.t_app $1 $2
+                                          (*  | Id tyconargsne { So.t_app_tc (So.tycon $1) $2 } *)
+                                        }
+
   ;
 
 bsort:
@@ -170,21 +171,24 @@ bsort:
   | PTR LPAREN LFUN RPAREN              { So.t_ptr (So.LFun) }
   | PTR LPAREN Num RPAREN               { So.t_ptr (So.Lvar $3) }
   | PTR LPAREN Id RPAREN                { So.t_ptr (So.Loc $3) }
-  | OBJ                                 { So.t_obj } 
-  | NUM                                 { So.t_num } 
-  | FRAC                                { So.t_frac } 
+  | OBJ                                 { So.t_obj }
+  | NUM                                 { So.t_num }
+  | FRAC                                { So.t_frac }
   | TVAR LPAREN Num RPAREN              { So.t_generic $3 }
   | FUNC LPAREN sorts RPAREN            { So.t_func 0 $3  }
   | FUNC LPAREN Num COMMA sorts RPAREN  { So.t_func $3 $5 }
-  | Id                                  { let s = $1 in 
-                                          if !Co.gen_qual_sorts || FixMisc.stringIsLower s then 
-                                            So.t_ptr (So.Loc s)       (* tyvar *) 
-                                          else 
-                                            So.t_app (So.tycon s) []  (* tycon *) 
+  | Id                                  { let s = $1 in
+                                          if !Co.gen_qual_sorts || FixMisc.stringIsLower s then
+                                            So.t_ptr (So.Loc s)       (* tyvar *)
+                                          else
+                                            So.t_app_tc (So.tycon s) []  (* tycon *)
                                         }
   | LPAREN sort RPAREN                  { $2 }
-  | LB RB                               { So.t_app (So.tycon "List") [] }
-  ; 
+  | LB RB                               { So.t_app_tc (So.tycon "List") [] }
+  | LB sort RB                          { So.t_app_tc (So.tycon "List") [$2] }
+  ;
+
+
 
 
 binds:
@@ -207,16 +211,16 @@ rels:
   | LB relsne RB                        { $2 }
   ;
 
-relsne: 
+relsne:
     rel                                 { [$1]}
   | rel SEMI relsne                     { $1 :: $3}
   ;
 
 rel:
    EQ                                   { A.Eq  }
- | NE                                   { A.Ne  }    
- | UEQ                                  { A.Ueq }    
- | UNE                                  { A.Une }    
+ | NE                                   { A.Ne  }
+ | UEQ                                  { A.Ueq }
+ | UNE                                  { A.Une }
  | GT                                   { A.Gt  }
  | GE                                   { A.Ge  }
  | LT                                   { A.Lt  }
@@ -256,7 +260,7 @@ pred:
   ;
 
 argsne:
-    expr                                { [$1] } 
+    expr                                { [$1] }
   | expr COMMA argsne                   { $1::$3 }
   ;
 
@@ -275,7 +279,7 @@ exprsne:
 expr:
     Id                                    { A.eVar (Sy.of_string $1) }
   | con                                   { A.eCon $1  }
-  | exprs                                 { A.eMExp $1 } 
+  | exprs                                 { A.eMExp $1 }
   | LPAREN expr MOD expr RPAREN           { A.eMod ($2, $4) }
   | MINUS expr                            { A.eBin (A.zero, A.Minus, $2) }
   | expr op expr                          { A.eBin ($1, $2, $3) }
@@ -294,12 +298,12 @@ op:
   | MINUS                                 { A.Minus }
   | TIMES                                 { A.Times }
   | DIV                                   { A.Div   }
-  ; 
+  ;
 
 ops:
     LB RB                                 { [] }
   | LB opsne RB                           { $2 }
-  ; 
+  ;
 
 opsne:
     op                                    { [$1] }
@@ -336,7 +340,7 @@ tagsne:
   | Num SEMI tagsne                       { $1 :: $3 }
   ;
 
-tag: 
+tag:
   | LB tagsne RB                                  { ($2, "") }
   ;
 
@@ -349,7 +353,7 @@ dep:
 
 info:
   ID Num                                        { ((Some $2), ([],"")) }
-  | TAG tag                                     { (None     , $2)} 
+  | TAG tag                                     { (None     , $2)}
   | ID Num TAG tag                              { ((Some $2), $4) }
   ;
 
@@ -375,15 +379,15 @@ envne:
   ;
 
 
-rbind: 
+rbind:
   Id COLON reft                         { (Sy.of_string $1, $3) }
   ;
 
 ibind:
-  Num Id COLON reft                     { ($1, Sy.of_string $2, $4) }    
+  Num Id COLON reft                     { ($1, Sy.of_string $2, $4) }
   ;
 
-reft: 
+reft:
   LC Id COLON sort MID refas RC         { ((Sy.of_string $2), $4, $6) }
   ;
 
@@ -409,10 +413,10 @@ refa:
 
 subs:
                                         { Su.empty }
-  | LB Id ASGN expr RB subs             { Su.extend $6 ((Sy.of_string $2), $4) } 
+  | LB Id ASGN expr RB subs             { Su.extend $6 ((Sy.of_string $2), $4) }
   ;
 
-npred: 
+npred:
   LPAREN pred COMMA Id LPAREN argsne RPAREN RPAREN      { ((* $2, *) (Sy.of_string $4, $6)) }
   ;
 
@@ -432,4 +436,3 @@ sol:
 sols:
              { [] }
   | sol sols { $1 :: $2 }
-
