@@ -157,10 +157,14 @@ tyconargsne:
 
 sort:
   | bsort                               { $1 }
-  | bsort tyconargsne                   { So.t_app $1 $2
+  | bsort tyconargsne                   { let t  = $1            in
+                                          let ts = $2            in
+                                          let r  = So.t_app t ts in
+                                          let _  = Printf.printf "sortp: t = %s, r = %s \n" (So.to_string t) (So.to_string r)
+                                          in r
+
                                           (*  | Id tyconargsne { So.t_app_tc (So.tycon $1) $2 } *)
-                                        }
-  | LB sort RB                          { So.t_app_tc (So.tycon "List") [$2] }
+                                          }
 
   ;
 
@@ -186,7 +190,10 @@ bsort:
                                         }
   | LPAREN sort RPAREN                  { $2 }
   | LB RB                               { So.t_app_tc (So.tycon "List") [] }
+  | LB sort RB                          { So.t_app_tc (So.tycon "List") [$2] }
   ;
+
+
 
 
 binds:
