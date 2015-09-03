@@ -1,12 +1,31 @@
 // adapted from LH test vector2.hs
 
-bind 72 foo : {VV : func(0, [int; int]) | []}
-bind 100 z : {v2 : int | [(v2 = foo([42]))]}
+// constant fix#GHC.Types.#58##35#64 : func(0, [int; int])
+
+constant fix#GHC.Types.#58##35#64 : (func(1, [@(0);
+                                              [@(0)];
+                                              [@(0)]]))
+
+bind 6 fix#GHC.Types.#58##35#64 : {VV : func(1, [@(0);
+                                                 [@(0)];
+                                                 [@(0)]]) | []}
+
+bind 72 fix#GHC.Types.#58##35#64 : {VV : func(1, [@(0);
+                                                  [@(0)];
+                                                  [@(0)]]) | []}
+
+
+// bind 72 fix#GHC.Types.#58##35#64 : {VV : func(0, [int; int]) | []}
+// bind 73 fix#GHC.Types.#58##35#64 : {VV : func(0, [int; int]) | []}
+// bind 100 z : {v2 : int | [(v2 = fix#GHC.Types.#58##35#64([42]))]}
+
+bind 1001 ds_d2OO : {v : (Tuple  int  a_a2Lp) | true}
+bind 1002 fix#y#39##35#a2KJ : {v : [(Tuple  int  a_a2Lp)] | true }
+bind 1003 lq_tmp_x_498 : {v: [(Tuple  int  a_a2Lp)] | (v = fix#GHC.Types.#58##35#64([ds_d2OO; fix#y#39##35#a2KJ]))}
 
 constraint:
-  env [100;
-       72]
+  env [1001; 1002; 1003]
   grd true
-  lhs {VV#F107 : int | [(VV#F107 >= 0)]}
-  rhs {VV#F107 : int | [(VV#F107 >= 0)]}
+  lhs {VV : int | [(VV >= 0)]}
+  rhs {VV : int | [(VV >= 0)]}
   id 107 tag [1]
