@@ -134,9 +134,6 @@ let rec z3Type me t =
       if So.is_int t then me.tint else
         if So.is_real t then me.treal else
           Misc.maybe_default (z3TypeThy me t) me.tint
-          (* match z3TypeThy me t with
-              | Some t' -> t'
-              | None    -> me.tint *)
   end t t
 
 and z3TypeThy me t =
