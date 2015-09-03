@@ -1,0 +1,12 @@
+// adapted from LH test vector2.hs
+
+bind 72 foo : {VV : func(0, [int; int]) | []}
+bind 100 z : {v2 : int | [(v2 = foo([42]))]}
+
+constraint:
+  env [100;
+       72]
+  grd true
+  lhs {VV#F107 : int | [(VV#F107 >= 0)]}
+  rhs {VV#F107 : int | [(VV#F107 >= 0)]}
+  id 107 tag [1]
