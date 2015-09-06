@@ -669,25 +669,28 @@ let refine_tp me c lps x2 =
     let t    = C.sort_of_t c in
     BS.time "check tp" (check_tp me senv vv t lps) x2
 
+let refine_update me c kqs1 kqs2 =
+  let ks = C.rhs_of_t c |> C.kvars_of_reft |>: snd in
+  p_update me ks (kqs1 ++ kqs2)
+
 let refine me c =
-  if is_trivial_c me c then
+  if BS.time "is_triv" (is_trivial_c me) c then
     (false, me)
   else
-    let (ch, me, lps, rcs) = refine_sort me c                             in
-    if BS.time "lhs_contra" (List.exists P.is_contra) lps then
+    let (ch, me, lps, rcs) = BS.time "refine-sort" (refine_sort me) c     in
+    if BS.time "refine-lhs-contra" (List.exists P.is_contra) lps then
       let _          = me.stat_unsatLHS += 1                              in
       let _          = me.stat_umatches += List.length rcs                in
       (ch, me)
     else
-      let rcs        = List.filter (fun (_,p) -> not (P.is_contra p)) rcs in
-      let (kqs1, x2) = refine_match me lps rcs                            in
-      let kqs2       = refine_tp me c lps x2                              in
-      let ks         = C.rhs_of_t c |> C.kvars_of_reft |>: snd            in
-      let (ch', me)  = p_update me ks (kqs1 ++ kqs2)                      in
+      let rcs        = BS.time "refine-cands"  (List.filter (fun (_,p) -> not (P.is_contra p))) rcs in
+      let (kqs1, x2) = BS.time "refine-match"  (refine_match me lps) rcs                            in
+      let kqs2       = BS.time "refine-tp"     (refine_tp me c lps) x2                              in
+      let (ch', me)  = BS.time "refine-update" (refine_update me c kqs1) kqs2                       in
       (ch || ch', me)
 
 let refine me c =
-  let (ch, me) = refine me c in
+  let (ch, me) = BS.time "PA.refine" (refine me) c in
   (ch, {me with seen = IS.add (C.id_of_t c) me.seen})
 
 let refine me c =
