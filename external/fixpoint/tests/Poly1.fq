@@ -1,0 +1,10 @@
+constant Nil : func(1, [L @(0)])
+constant append : func(1, [L @(0); L @(0); L @(0) ])
+
+constraint: 
+  env []
+  grd true
+  lhs {v : L a | []}
+  rhs {v : L a | [ (v = append([Nil; v])) ]}
+  id 1 
+
