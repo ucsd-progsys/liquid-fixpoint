@@ -1,0 +1,24 @@
+// adapted from LH test ResolvePred.hs
+
+qualif Cmp(v : @(0), other : @(0)): (v = other)
+
+bind 0 ds_dL3 : {VV#161 : t_aKU | []}
+bind 3 ds_dL3 : {VV#161 : t_aKU | []}
+
+constraint:
+  env [0]
+  grd true
+  lhs {VV#1 : t_aKU | [(VV#1 = ds_dL3)]}
+  rhs {VV#1 : t_aKU | [$k__165[VV#164:=VV#1]]}
+  id 1 tag [1]
+
+constraint:
+  env [0]
+  grd true
+  lhs {VV#2 : t_aKU | [$k__165[VV#164:=VV#2]]}
+  rhs {VV#2 : t_aKU | [(VV#2 = ds_dL3)]}
+  id 2 tag [1]
+
+wf:
+  env [3]
+  reft {VV#164 : t_aKU | [$k__165]}
