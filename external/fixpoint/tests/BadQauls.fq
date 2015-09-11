@@ -1,0 +1,22 @@
+constant foo : func(0, [A; B; B    ])
+constant bar : func(0, [A; B; bool ])
+
+qualif Bad(v:A, x:B):((? foo([v; x])) )
+
+constraint: 
+  env [x:{v:B|[]}]
+  grd true
+  lhs {v : A | [ ]}
+  rhs {v : A | [k_0]} 
+  id 1 
+
+constraint: 
+  env [x:{v:B|[]}]
+  grd true
+  lhs {v : A | [k_0]}
+  rhs {v : A | [ (? foo([v; x])) ]}
+  id 2 
+
+wf:
+  env [x:{v:B|[]}]
+  reft {v:A | [k_0]}
