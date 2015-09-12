@@ -274,7 +274,6 @@ end
 module type ESetType = sig
   include Set.S
   val of_list : elt list -> t
-  val find    : elt -> t -> elt 
 end
 
 module ESet (K: Set.OrderedType) = 
