@@ -1239,7 +1239,7 @@ let rec free_vars = function
                         |> List.fold_left IS.union IS.empty
   | _ -> IS.empty 
 
-let is_free i t = try IS.find i (free_vars t); true with Not_found -> false 
+let is_free i t = IS.exists (fun j -> j == i) (free_vars t)
 
 let var_asgn i t = 
   if (Sort.Var i) == t 
@@ -1333,8 +1333,27 @@ let check_pred g f p =
   let t = Misc.uncurry apply_ty (ti_pred g f p) in 
   unifiable t Sort.Bool  
 
-let rec check_expr g f tExp e  = None
-and check_app g f tExp uf es   = None 
+let check_expr g f tExp e  = 
+  init_ti (); 
+  try 
+    let t = ti_expr g f e |> Misc.uncurry apply_ty in 
+    match tExp with 
+     | None -> Some t 
+     | Some t' ->  if unifiable t t' then Some t else None 
+  with 
+    UnificationError _ -> None 
+
+let check_app g f tExp uf es = 
+  let sub = Sort.empty_sub in 
+  init_ti (); 
+  try 
+    let t = ti_expr g f (App (uf, es), 0) |> Misc.uncurry apply_ty in 
+    match tExp with 
+     | None -> Some (sub, t) 
+     | Some t' when unifiable t t' -> Some (sub, t)
+     |_ -> None
+  with 
+    UnificationError _ -> None 
 
 
 (***************************************************************************)
