@@ -1323,7 +1323,6 @@ and ti_brel g f brel (s1, t1) (s2, t2) =
 
 
 (* HERE! *)
-(* TODO *)
 and ti_expr g f e = (sub_empty, Sort.Bool)
 
 

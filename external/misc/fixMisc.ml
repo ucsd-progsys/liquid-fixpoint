@@ -281,7 +281,6 @@ module ESet (K: Set.OrderedType) =
   struct
     include Set.Make(K)
     let of_list = List.fold_left (flip add) empty
-    let find    = find   
 end
 
 module type EOrderedType = sig
