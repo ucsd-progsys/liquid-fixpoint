@@ -274,12 +274,14 @@ end
 module type ESetType = sig
   include Set.S
   val of_list : elt list -> t
+  val find    : elt -> t -> elt 
 end
 
 module ESet (K: Set.OrderedType) = 
   struct
     include Set.Make(K)
-    let of_list = List.fold_left (flip add) empty  
+    let of_list = List.fold_left (flip add) empty
+    let find    = find   
 end
 
 module type EOrderedType = sig
@@ -398,8 +400,7 @@ module IntSet =
   ESet
   (struct
     type t = int
-    let compare i1 i2 =
-      compare i1 i2
+    let compare i1 i2 = compare i1 i2
   end)
 
 module IntIntMap = 
