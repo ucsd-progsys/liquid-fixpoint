@@ -1212,6 +1212,15 @@ let rec sub_find_with_default t i = function
 
 let sub_singleton i t = [(i, t)]
 
+let vindex = ref 0 
+let init_ti _ = vindex := 42
+
+let rec sub_fresh i = 
+  if i == 0 
+    then []
+    else let j = !vindex in 
+         incr vindex;  
+         (i, Sort.Var j) :: sub_fresh (i-1)  
 
 (* application of subtitutions *)
 
@@ -1221,11 +1230,15 @@ let rec apply_ty s = function
   | Sort.App (tc, ts) -> Sort.App  (tc, List.map (apply_ty s) ts)
   | t                 -> t 
 
+
+let instantiate_ty = function 
+  | Sort.Func (n ,ts) -> let s = sub_fresh n in 
+                          Sort.Func(0, List.map (apply_ty s) ts)
+  | t                 -> t
+
 let sub_apply s1 s2 = List.map (fun (i, t) -> (i, apply_ty s1 t)) s2
 
 
-let vindex = ref 0 
-let init_ti _ = vindex := 42
 
 let sub_compose s1 s2 = sub_apply s2 s1 ++ s2  
 
@@ -1249,6 +1262,10 @@ let var_asgn i t =
 
 let rec mgu t1 t2 = match (t1, t2) with
   | Sort.Int, Sort.Int 
+  (* Some pointer casting *)
+  | Sort.Int, Sort.Ptr _
+  | Sort.Ptr _, Sort.Int
+
   | Sort.Real, Sort.Real
   | Sort.Bool, Sort.Bool
   | Sort.Obj, Sort.Obj 
@@ -1323,7 +1340,59 @@ and ti_brel g f brel (s1, t1) (s2, t2) =
 
 
 (* HERE! *)
-and ti_expr g f e = (sub_empty, Sort.Bool)
+and ti_expr g f e = 
+  match euw e with
+  | Bot -> 
+      UnificationError "ti on Bot" |> raise
+  | Con (Constant.Int _) ->
+      (sub_empty, Sort.Int)
+  | Con (Constant.Real _) ->
+      (sub_empty, Sort.Real)
+  | Con (Constant.Lit (_, t)) ->
+      (sub_empty, t)
+  | Var x -> 
+      begin
+        match f x with 
+        | Some t -> (sub_empty, instantiate_ty t)
+        | None -> UnificationError (String.concat " " ["unbound variable"; Symbol.to_string x])
+                  |> raise 
+      end
+  | Ite (p, e1, e2) -> 
+       begin
+         let (s1, tp) = ti_pred g f p in 
+         let s2       = mgu (apply_ty s1 tp) Sort.Bool in 
+         let (s3, t1) = ti_expr g f e1 in 
+         let (s4, t2) = ti_expr g f e2 in 
+         let s   = sub_compose s1 s2 |> sub_compose s3 |> sub_compose s4 in 
+         let t1' = apply_ty s t1 in 
+         let t2' = apply_ty s t1 in 
+         let s5 = mgu t1' t2'    in 
+         (sub_compose s s5, t1')
+       end
+   | Fld (x, e) -> raise (UnificationError "ti_expr on Fld")
+   | Cst (e, t') -> 
+        let (s1, t) = ti_expr g f e in 
+        let s2 = mgu t' (apply_ty s1 t) in 
+        (sub_compose s1 s2, t') 
+   | MExp [] -> raise (UnificationError "ti_expr on empty expression")
+   | MExp (e::es) ->
+        let st = ti_expr g f e in  
+        List.fold_left (fun (s1, _) e -> 
+          let (s2, t) = ti_expr g f e in 
+          let s = sub_compose s1 s2 in 
+          (s, apply_ty s t)
+        ) st es  
+   | Bin (e1, op, e2) -> ti_op g f (ti_expr g f e1) (ti_expr g f e2) op
+   | MBin (e1, ops, e2) -> ti_op_list g f (ti_expr g f e1) (ti_expr g f e2) ops
+   | App (uf, es) -> ti_app g f uf es 
+
+(* TODO HERE*)
+and ti_op g f st1 st2 op
+  = (sub_empty, Sort.Int)
+and ti_op_list g f st1 st2 ops
+  = (sub_empty, Sort.Int)
+and ti_app g f uf es 
+  = (sub_empty, Sort.Int)
 
 
 (* Interface *)
