@@ -1222,6 +1222,11 @@ let rec sub_fresh i =
          incr vindex;  
          (i, Sort.Var j) :: sub_fresh (i-1)  
 
+let fresh_var _ = 
+  let j = !vindex in 
+  incr vindex; 
+  Sort.Var j 
+
 (* application of subtitutions *)
 
 let rec apply_ty s = function
@@ -1235,6 +1240,10 @@ let instantiate_ty = function
   | Sort.Func (n ,ts) -> let s = sub_fresh n in 
                           Sort.Func(0, List.map (apply_ty s) ts)
   | t                 -> t
+
+let splitArgs = function
+  | Sort.Func (_, ts) -> List.rev ts |> fun xs -> (List.tl xs |> List.rev, List.hd xs)
+  | t -> ([], t)
 
 let sub_apply s1 s2 = List.map (fun (i, t) -> (i, apply_ty s1 t)) s2
 
@@ -1288,7 +1297,8 @@ let rec mgu t1 t2 = match (t1, t2) with
           let s' = mgu (apply_ty s t1) (apply_ty s t2) in 
           sub_compose s s'
        ) sub_empty
-  | _ -> UnificationError "mgu fails" |> raise 
+  | t1, t2 -> UnificationError (String.concat "\t" ("mgu fails on :":: List.map Sort.to_string [t1; t2]))
+              |> raise 
 
 
 let unifiable t1 t2 = try mgu t1 t2; true with UnificationError _ -> false  
@@ -1338,8 +1348,6 @@ and ti_brel g f brel (s1, t1) (s2, t2) =
               then raise (UnificationError "ti_brel on bool")
               else (s, Sort.Bool) 
 
-
-(* HERE! *)
 and ti_expr g f e = 
   match euw e with
   | Bot -> 
@@ -1386,14 +1394,27 @@ and ti_expr g f e =
    | MBin (e1, ops, e2) -> ti_op_list g f (ti_expr g f e1) (ti_expr g f e2) ops
    | App (uf, es) -> ti_app g f uf es 
 
-(* TODO HERE*)
-and ti_op g f st1 st2 op
-  = (sub_empty, Sort.Int)
-and ti_op_list g f st1 st2 ops
-  = (sub_empty, Sort.Int)
-and ti_app g f uf es 
-  = (sub_empty, Sort.Int)
+and ti_op g f (s1, t1) (s2, t2) op
+  = let s12 = sub_compose s1 s2 in
+    let s3 = mgu (apply_ty s12 t1) (apply_ty s12 t2) in
+    let s  = sub_compose s3 s12 in
+    (s, apply_ty s t1)
 
+and ti_op_list g f st1 st2 ops
+  = match ops with
+  | [] -> UnificationError "ti_op_list: empty list" |>  raise
+  | (op::_) -> ti_op g f st1 st2 op
+
+and ti_app g f uf es 
+  = let tf = match f uf with | None -> raise (UnificationError "unfound") |  Some t -> t in  
+    let (t_is, t_o) = tf |> instantiate_ty |> splitArgs in 
+    let sts = Misc.zipWith (fun x y -> (x, y)) (es, t_is) |>
+             List.fold_left (fun s0 (e, t) -> 
+             let (s1, t1) = ti_expr g f e in 
+             let s12 = sub_compose s1 s0 in 
+             let s3 = mgu t (apply_ty s12 t1) in
+             sub_compose s3 s12) sub_empty in 
+    (sts, apply_ty sts t_o)
 
 (* Interface *)
 let check_pred g f p = 
