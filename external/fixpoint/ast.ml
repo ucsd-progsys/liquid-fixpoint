@@ -1196,6 +1196,8 @@ let rec fixdiv = function
 (*********** New Type Checking Expressions and Predicates ******************)
 (***************************************************************************)
 
+let logf s = print_string s
+(* let logf s = () *)
 
 exception UnificationError of string 
 
@@ -1216,7 +1218,7 @@ let vindex = ref 0
 let init_ti _ = vindex := 42
 
 let rec sub_fresh i = 
-  if i == 0 
+  if i < 0 
     then []
     else let j = !vindex in 
          incr vindex;  
@@ -1235,11 +1237,12 @@ let rec apply_ty s = function
   | Sort.App (tc, ts) -> Sort.App  (tc, List.map (apply_ty s) ts)
   | t                 -> t 
 
-
-let instantiate_ty = function 
+let instantiate_ty t = match t with  
   | Sort.Func (n ,ts) -> let s = sub_fresh n in 
-                          Sort.Func(0, List.map (apply_ty s) ts)
-  | t                 -> t
+                         let r = Sort.Func(0, List.map (apply_ty s) ts) in
+                         let _ = logf ("\n\ninstantiate_ty: " ^ (Sort.to_string t) ^ " is " ^ (Sort.to_string r)) in 
+                         r 
+  | _                 -> t
 
 let splitArgs = function
   | Sort.Func (_, ts) -> List.rev ts |> fun xs -> (List.tl xs |> List.rev, List.hd xs)
@@ -1297,7 +1300,7 @@ let rec mgu t1 t2 = match (t1, t2) with
           let s' = mgu (apply_ty s t1) (apply_ty s t2) in 
           sub_compose s s'
        ) sub_empty
-  | t1, t2 -> UnificationError (String.concat "\t" ("mgu fails on :":: List.map Sort.to_string [t1; t2]))
+  | t1, t2 -> UnificationError (String.concat " " ("mgu fails on :":: List.map Sort.to_string [t1; t2]))
               |> raise 
 
 
