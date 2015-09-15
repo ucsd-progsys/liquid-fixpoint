@@ -1303,8 +1303,8 @@ let rec mgu i t1 t2 =
        ) sub_empty
 
       (* Adding code for polymorphic arguments *)
-  | Func (i,[t1]), t2  
-  | t1, Func (i,[t2]) when i=0 -> mgu i t1 t2 
+  | Sort.Func (i,[t1]), t2  
+  | t1, Sort.Func (i,[t2]) when i=0 -> mgu i t1 t2 
   | t1, t2 -> UnificationError (String.concat " " ("mgu fails on :":: List.map Sort.to_string [t1; t2]))
               |> raise 
 
