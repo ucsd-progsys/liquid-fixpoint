@@ -36,6 +36,7 @@ module F  = Format
 module Misc = FixMisc
 open Misc.Ops
 module SM = Misc.StringMap
+module IS   = Misc.IntSet
 
 let mydebug = false
 
@@ -240,6 +241,32 @@ module Sort =
     let lookup_var = fun s i -> try Some (List.assoc i s.vars) with Not_found -> None
     let lookup_loc = fun s j -> try Some (List.assoc j s.locs) with Not_found -> None
 
+    let index = ref 0
+
+    let makeFresh n =
+      let rec go i =
+        if i < n then (let x = !index in incr index; (i,x)::go (i+1)) else [] in
+      go 0
+
+    let rec refresh su = function
+      | Int -> Int
+      | Real -> Real
+      | Bool -> Bool
+      | Obj  -> Obj
+      | Var i -> (try (Var (snd (List.find (fun (j, _) -> j == i) su)))
+                 with Not_found -> Var i)
+      | Ptr l -> Ptr l
+      | Func(n, ts) ->  let su' = List.filter (fun (i,_) -> i>= n) su in  Func(n, List.map (refresh su') ts)
+      | Num  -> Num
+      | Frac -> Frac
+      | App(tc, ts) -> App(tc, List.map (refresh su) ts)
+
+    let refresh_tfun (tyArity, i_ts', o_t') = 
+      let freshMap = makeFresh tyArity in
+      let i_ts = List.map (refresh freshMap) i_ts' in
+      let o_t  = refresh freshMap o_t' in (tyArity, i_ts, o_t)
+
+
     let rec unifyt s = function
       | Num,_ | _, Num -> None
 (* NIKI: Unifycation of two variables should always succeed,
@@ -279,7 +306,20 @@ but the bellow code crashes tests/zipper0.hs.fq
           Misc.maybe_fold unifyt s (List.combine t1s t2s)
 
       | (t1, t2) when t1 = t2 ->
-          Some s
+         Some s
+      (* Adding code for polymorphic arguments *)
+      | Func (i,[t1]), t2 -> 
+        begin
+          let freshMap = makeFresh i in
+          let t1'      = refresh freshMap t1 in
+          unifyt s (t1', t2)
+        end
+      | t1, Func (i,[t2]) -> 
+        begin
+          let freshMap = makeFresh i in
+          let t2'      = refresh freshMap t2 in
+          unifyt s (t1, t2')
+        end
       | _        -> None
 
     let empty_sub = {vars = []; locs = []}
@@ -288,11 +328,12 @@ but the bellow code crashes tests/zipper0.hs.fq
       let _ = asserts (List.length ats = List.length cts) "ERROR: unify sorts" in
       List.combine ats cts
       |> Misc.maybe_fold unifyt s
-      (* >> (fun so -> Printf.printf "unify: [%s] ~ [%s] = %s \n"
+
+(*      >> (fun so -> Printf.printf "unify: [%s] ~ [%s] = %s \n"
                       (String.concat "; " (List.map to_string ats))
                       (String.concat "; " (List.map to_string cts))
                       (match so with None -> "NONE" | Some s -> sub_to_string s))
-       *)
+*)      
 
     let unify = unifyWith empty_sub
 
@@ -338,26 +379,6 @@ but the bellow code crashes tests/zipper0.hs.fq
     let check_arity n s =
       let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in
       n == n_vars
-
-    let index = ref 0
-
-    let makeFresh n =
-      let rec go i =
-        if i < n then (let x = !index in incr index; (i,x)::go (i+1)) else [] in
-      go 0
-
-    let rec refresh su = function
-      | Int -> Int
-      | Real -> Real
-      | Bool -> Bool
-      | Obj  -> Obj
-      | Var i -> (try (Var (snd (List.find (fun (j, _) -> j == i) su)))
-                 with Not_found -> Var i)
-      | Ptr l -> Ptr l
-      | Func(n, ts) ->  let su' = List.filter (fun (i,_) -> i>= n) su in  Func(n, List.map (refresh su') ts)
-      | Num  -> Num
-      | Frac -> Frac
-      | App(tc, ts) -> App(tc, List.map (refresh su) ts)
 
   end
 
@@ -1168,6 +1189,265 @@ let rec fixdiv = function
       pNot (fixdiv p)
   | p -> p
 
+
+
+
+(***************************************************************************)
+(*********** New Type Checking Expressions and Predicates ******************)
+(***************************************************************************)
+
+let logf s = print_string s
+(* let logf s = () *)
+
+exception UnificationError of string 
+
+(* Substitutions *)
+
+
+(* TODO: turn them into a map *)
+let sub_empty = [] 
+
+let rec sub_find_with_default t i = function
+  | [] -> t
+  | ((j,tj)::s) when i = j -> tj 
+  | (_::s) -> sub_find_with_default t i s 
+
+let sub_singleton i t = [(i, t)]
+
+let vindex = ref 0 
+let init_ti _ = vindex := 42
+
+let rec sub_fresh i = 
+  if i < 0 
+    then []
+    else let j = !vindex in 
+         incr vindex;  
+         (i, Sort.Var j) :: sub_fresh (i-1)  
+
+let fresh_var _ = 
+  let j = !vindex in 
+  incr vindex; 
+  Sort.Var j 
+
+(* application of subtitutions *)
+
+let rec apply_ty s = function
+  | Sort.Var i        -> sub_find_with_default (Sort.Var i) i s  
+  | Sort.Func (n, ts) -> Sort.Func (n,  List.map (apply_ty s) ts)
+  | Sort.App (tc, ts) -> Sort.App  (tc, List.map (apply_ty s) ts)
+  | t                 -> t 
+
+let instantiate_ty t = match t with  
+  | Sort.Func (n ,ts) -> let s = sub_fresh n in 
+                         let r = Sort.Func(0, List.map (apply_ty s) ts) in
+                         let _ = logf ("\n\ninstantiate_ty: " ^ (Sort.to_string t) ^ " is " ^ (Sort.to_string r)) in 
+                         r 
+  | _                 -> t
+
+let splitArgs = function
+  | Sort.Func (_, ts) -> List.rev ts |> fun xs -> (List.tl xs |> List.rev, List.hd xs)
+  | t -> ([], t)
+
+let sub_apply s1 s2 = List.map (fun (i, t) -> (i, apply_ty s1 t)) s2
+
+
+
+let sub_compose s1 s2 = sub_apply s2 s1 ++ s2  
+
+let rec free_vars = function
+  | Sort.Var i -> IS.singleton i
+  | Sort.Func(n, ts) -> List.map (fun t -> 
+                                   free_vars t |> IS.filter (fun i -> i>=n)
+                                 ) ts 
+                        |> List.fold_left IS.union IS.empty
+  | Sort.App (_, ts) -> List.map free_vars ts 
+                        |> List.fold_left IS.union IS.empty
+  | _ -> IS.empty 
+
+let is_free i t = IS.exists (fun j -> j == i) (free_vars t)
+
+let var_asgn i t = 
+  if (Sort.Var i) == t 
+    then sub_empty
+    else if is_free i t then raise (UnificationError "var_asgn")
+    else sub_singleton i t  
+
+let rec mgu t1 t2 = match (t1, t2) with
+  | Sort.Int, Sort.Int 
+  (* Some pointer casting *)
+  | Sort.Int, Sort.Ptr _
+  | Sort.Ptr _, Sort.Int
+
+  | Sort.Real, Sort.Real
+  | Sort.Bool, Sort.Bool
+  | Sort.Obj, Sort.Obj 
+  | Sort.Num, Sort.Num
+  | Sort.Frac, Sort.Frac -> sub_empty
+  | Sort.Ptr l1, Sort.Ptr l2 when l1 == l2  -> sub_empty
+  | Sort.Var i, t 
+  | t, Sort.Var i -> var_asgn i t 
+  | Sort.Func (n1, ts1), Sort.Func (n2, ts2)  when n1 == n2 -> 
+     Misc.zipWith (fun x y -> (x, y)) (ts1, ts2) |> 
+     List.fold_left 
+       (fun s (t1, t2) -> 
+          let s' = mgu (apply_ty s t1) (apply_ty s t2) in 
+          sub_compose s s'
+       ) sub_empty 
+  | Sort.App  (tc1, ts1), Sort.App (tc2, ts2) when tc1 == tc2 -> 
+     Misc.zipWith (fun x y -> (x, y)) (ts1, ts2) |> 
+     List.fold_left 
+       (fun s (t1, t2) -> 
+          let s' = mgu (apply_ty s t1) (apply_ty s t2) in 
+          sub_compose s s'
+       ) sub_empty
+  | t1, t2 -> UnificationError (String.concat " " ("mgu fails on :":: List.map Sort.to_string [t1; t2]))
+              |> raise 
+
+
+let unifiable t1 t2 = try mgu t1 t2; true with UnificationError _ -> false  
+
+let rec ti_pred_list g f = 
+  List.fold_left (fun (s, t) p ->
+    let (s1, t1) = ti_pred g f p in 
+    let s2       = mgu (apply_ty s1 t1) Sort.Bool in  
+    (sub_compose s2 (sub_compose s1 s), Sort.Bool)
+  ) (sub_empty, Sort.Bool)
+
+and ti_pred g f p = 
+ match puw p with 
+  | True    
+  | False  -> (sub_empty, Sort.Bool) 
+  | And ps
+  | Or  ps -> ti_pred_list g f ps   
+  | Not p  -> ti_pred g f p
+  | Imp (p1, p2)
+  | Iff (p1, p2) -> ti_pred_list g f [p1; p2]
+  | Bexp e       -> let (s1, t) = ti_expr g f e in 
+                    let s2      = mgu (apply_ty s1 t) Sort.Bool in 
+                    (sub_compose s2 s1, Sort.Bool)
+  | Atom (e1, brel, e2) -> ti_brel g f brel (ti_expr g f e1) (ti_expr g f e2) 
+  | MAtom (e1, brels, e2) -> ti_brel_list g f brels (ti_expr g f e1) (ti_expr g f e2)
+  | Forall (qs, p) -> 
+     let f' = fun x -> match Misc.list_assoc_maybe x qs with None -> f x | y -> y
+     in ti_pred g f' p
+
+and ti_brel_list g f brels st1 st2 = 
+  List.fold_left (fun (s, t) brel ->
+    let (s1, t1) = ti_brel g f brel st1 st2 in 
+    let s2       = mgu (apply_ty s1 t1) Sort.Bool in  
+    (sub_compose s1 s |> sub_compose s2, Sort.Bool)
+  ) (sub_empty, Sort.Bool) brels 
+
+(* NIKI TODO: check old implementation for pointer manipulation etc. *)
+and ti_brel g f brel (s1, t1) (s2, t2) = 
+  match brel with 
+   | Ueq 
+   | Une -> (sub_compose s1 s2, Sort.Bool)
+   | Eq 
+   | Ne -> let s3 = mgu t1 t2 in (sub_compose s3 s2 |> sub_compose s1, Sort.Bool)
+   | _  -> let s3 = mgu t1 t2 in 
+           let s = sub_compose s3 (sub_compose s2 s1) in 
+            if unifiable (apply_ty s t1) Sort.Bool 
+              then raise (UnificationError "ti_brel on bool")
+              else (s, Sort.Bool) 
+
+and ti_expr g f e = 
+  match euw e with
+  | Bot -> 
+      UnificationError "ti on Bot" |> raise
+  | Con (Constant.Int _) ->
+      (sub_empty, Sort.Int)
+  | Con (Constant.Real _) ->
+      (sub_empty, Sort.Real)
+  | Con (Constant.Lit (_, t)) ->
+      (sub_empty, t)
+  | Var x -> 
+      begin
+        match f x with 
+        | Some t -> (sub_empty, instantiate_ty t)
+        | None -> UnificationError (String.concat " " ["unbound variable"; Symbol.to_string x])
+                  |> raise 
+      end
+  | Ite (p, e1, e2) -> 
+       begin
+         let (s1, tp) = ti_pred g f p in 
+         let s2       = mgu (apply_ty s1 tp) Sort.Bool in 
+         let (s3, t1) = ti_expr g f e1 in 
+         let (s4, t2) = ti_expr g f e2 in 
+         let s   = sub_compose s1 s2 |> sub_compose s3 |> sub_compose s4 in 
+         let t1' = apply_ty s t1 in 
+         let t2' = apply_ty s t1 in 
+         let s5 = mgu t1' t2'    in 
+         (sub_compose s s5, t1')
+       end
+   | Fld (x, e) -> raise (UnificationError "ti_expr on Fld")
+   | Cst (e, t') -> 
+        let (s1, t) = ti_expr g f e in 
+        let s2 = mgu t' (apply_ty s1 t) in 
+        (sub_compose s1 s2, t') 
+   | MExp [] -> raise (UnificationError "ti_expr on empty expression")
+   | MExp (e::es) ->
+        let st = ti_expr g f e in  
+        List.fold_left (fun (s1, _) e -> 
+          let (s2, t) = ti_expr g f e in 
+          let s = sub_compose s1 s2 in 
+          (s, apply_ty s t)
+        ) st es  
+   | Bin (e1, op, e2) -> ti_op g f (ti_expr g f e1) (ti_expr g f e2) op
+   | MBin (e1, ops, e2) -> ti_op_list g f (ti_expr g f e1) (ti_expr g f e2) ops
+   | App (uf, es) -> ti_app g f uf es 
+
+and ti_op g f (s1, t1) (s2, t2) op
+  = let s12 = sub_compose s1 s2 in
+    let s3 = mgu (apply_ty s12 t1) (apply_ty s12 t2) in
+    let s  = sub_compose s3 s12 in
+    (s, apply_ty s t1)
+
+and ti_op_list g f st1 st2 ops
+  = match ops with
+  | [] -> UnificationError "ti_op_list: empty list" |>  raise
+  | (op::_) -> ti_op g f st1 st2 op
+
+and ti_app g f uf es 
+  = let tf = match f uf with | None -> raise (UnificationError "unfound") |  Some t -> t in  
+    let (t_is, t_o) = tf |> instantiate_ty |> splitArgs in 
+    let sts = Misc.zipWith (fun x y -> (x, y)) (es, t_is) |>
+             List.fold_left (fun s0 (e, t) -> 
+             let (s1, t1) = ti_expr g f e in 
+             let s12 = sub_compose s1 s0 in 
+             let s3 = mgu t (apply_ty s12 t1) in
+             sub_compose s3 s12) sub_empty in 
+    (sts, apply_ty sts t_o)
+
+(* Interface *)
+let check_pred g f p = 
+  init_ti (); 
+  let t = Misc.uncurry apply_ty (ti_pred g f p) in 
+  unifiable t Sort.Bool  
+
+let check_expr g f tExp e  = 
+  init_ti (); 
+  try 
+    let t = ti_expr g f e |> Misc.uncurry apply_ty in 
+    match tExp with 
+     | None -> Some t 
+     | Some t' ->  if unifiable t t' then Some t else None 
+  with 
+    UnificationError _ -> None 
+
+let check_app g f tExp uf es = 
+  let sub = Sort.empty_sub in 
+  init_ti (); 
+  try 
+    let t = ti_expr g f (App (uf, es), 0) |> Misc.uncurry apply_ty in 
+    match tExp with 
+     | None -> Some (sub, t) 
+     | Some t' when unifiable t t' -> Some (sub, t)
+     |_ -> None
+  with 
+    UnificationError _ -> None 
+
+
 (***************************************************************************)
 (************* Type Checking Expressions and Predicates ********************)
 (***************************************************************************)
@@ -1199,29 +1479,12 @@ let checkArity f uf = function
                          | _      -> None
                    end
 
+
 let unifiable t1 t2 =
   match Sort.unify [t1] [t2] with
   | Some _ -> true
-  | _ -> false
+  | _      -> false
 
-
-(* added for sortcheck of Nothing([])
- it used to fail, as (su, Some (Just @0)) = sortcheck_expr (Nothing ([]))
- but su.vars is empty
- *)
-let updateArity env f = function
-  | None -> None
-  | Some (su, t) -> begin match uf_arity f env with
-    | Some n ->
-     let rec go n
-       = if n < 0
-          then []
-          else match Sort.lookup_var su n with
-                | Some _ -> go (n-1)
-                | None   -> (n, Sort.Var n) :: go (n-1)
-    in Some({su with Sort.vars = List.append su.Sort.vars (go n) }, t)
-    | None -> None
- end
 
 let rec sortcheck_expr g f expected_t e =
   match euw e with
@@ -1262,42 +1525,33 @@ let rec sortcheck_expr g f expected_t e =
 
   | _ -> assertf "Ast.sortcheck_expr: unhandled expr = %s" (Expression.to_string e)
 
-(* TODO: OMG! 5 levels of matching!!!!! *)
+
 and sortcheck_app_sub g f so_expected uf es =
-  let yikes uf = F.printf "sortcheck_app_sub: unknown sym = %s \n" (Symbol.to_string uf) in
   sortcheck_sym f uf
-  |> function None -> (* yikes uf; *) None | Some t ->
+  |> function None -> None | Some t ->
        Sort.func_of_t t
-       |> function None -> None | Some (tyArity, i_ts', o_t') ->
-              let freshMap = Sort.makeFresh tyArity in
-              let i_ts = List.map (Sort.refresh freshMap) i_ts' in
-              let o_t  = Sort.refresh freshMap o_t' in
+       |> function None -> None | Some tfun  ->
+              let (tyArity, i_ts, o_t) = Sort.refresh_tfun tfun in 
               let _  = asserts (List.length es = List.length i_ts)
                          "ERROR: uf arg-arity error: uf=%s" uf in
               let e_ts = (List.map (fun x -> Some x) i_ts, es) |> Misc.zipWith (sortcheck_expr g f) |> Misc.map_partial id in
                 if List.length e_ts <> List.length i_ts then
-                   (* let _ = F.printf "OUT2 \n es = %s \n e_ts = %s \n i_ts = %s"
-                           (String.concat "\t" (List.map Expression.to_string es))
-                           (String.concat "\t" (List.map Sort.to_string e_ts))
-                           (String.concat "\t" (List.map Sort.to_string i_ts))
-                   in*) None
+                  None
                 else
                   match Sort.unify e_ts i_ts with
-                    | None   -> None
+                    | None   -> None              
                     | Some s ->
                         let t = Sort.apply s o_t in
                           match so_expected with
                             | None    -> Some (s, t)
                             | Some t' ->
                                 match Sort.unifyWith s [t] [t'] with
-                                  | None    -> (*let _ = F.printf "\nOUT5 Cannot unify: %s \t\t with \t\t %s" (Sort.to_string t) (Sort.to_string t') in *)
-                                               None
+                                  | None    -> None
                                   | Some s' -> Some (s', Sort.apply s' t)
 
 and sortcheck_app g f tExp uf es =
 
   sortcheck_app_sub g f tExp uf es
-  |> updateArity uf f  (* THIS CHECK IS NEW, but will it break a bunch of tests? *)
   |> Misc.maybe_map snd
                     (*
   >> begin function
@@ -1309,14 +1563,6 @@ and sortcheck_app g f tExp uf es =
                      *)
 
 and sortcheck_op g f (e1, op, e2) =
-(* DEBUGGING
-  let (s1, s2) = Misc.map_pair (sortcheck_expr g f) (e1, e2) in
-  let _ = match (s1, s2) with
-    | (Some t1, Some t2) -> F.printf "sortcheck_op : \n%s - %s\n" (Sort.to_string t1) (Sort.to_string t2)
-    | (_, Some t2) -> F.printf "sortcheck_op1 : \n - %s\n" (Sort.to_string t2)
-    | (Some t1, _) -> F.printf "sortcheck_op2 : \n%s \n" (Sort.to_string t1)
-    | (_, _) -> F.printf "sortcheck_op3 : \n"
-    in *)
   match Misc.map_pair (sortcheck_expr g f None) (e1, e2) with
   | (Some Sort.Int, Some Sort.Int)
   -> Some Sort.Int
@@ -1380,7 +1626,7 @@ and sortcheck_rel g f (e1, r, e2) =
     -> unifiable t1 t2 && t1 != Sort.Bool
   | _ -> false
 
-and sortcheck_pred g f p =
+and sortcheck_pred g f p = 
   match puw p with
     | True
     | False ->
@@ -1446,10 +1692,15 @@ let opt_to_string p = function
 
 (* API *)
 let sortcheck_app g f tExp uf es =
-  sortcheck_app_sub g f tExp uf es
-  |> checkArity f uf
+  if (!Constants.newcheck) 
+   then (sortcheck_app_sub g f tExp uf es
+         |> checkArity f uf)
+   else check_app g f tExp uf es 
 
-let sortcheck_expr g f e = sortcheck_expr g f None e
+let sortcheck_expr g f e 
+  = if (!Constants.newcheck) 
+     then sortcheck_expr g f None e
+     else check_expr g f None e 
 
                 (*
   match uf_arity f uf, sortcheck_app_sub g f tExp uf es with
@@ -1473,7 +1724,10 @@ let sortcheck_expr g f e = sortcheck_expr g f None e
 
 
 let sortcheck_pred g f p =
-  sortcheck_pred g f p
+  if (!Constants.newcheck) 
+   then sortcheck_pred g f p
+   else check_pred g f p 
+
 (*   >> (fun b -> ignore <| F.printf "DEBUG: sortcheck_pred: p = %a, res = %b\n" Predicate.print p b)
 *)
 
@@ -1575,6 +1829,7 @@ let rec simplify_pred ((p, _) as pred) =
                              | ps when List.exists Predicate.is_tauto ps -> pTrue
                              | ps  -> pOr ps)
     | _ -> pred
+
 
 (**************************************************************************)
 (*************************** Substitutions ********************************)
