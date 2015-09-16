@@ -1,0 +1,18 @@
+// adapted from LH test maps1.hs
+
+constant Map_select : (func(2, [(Map_t  @(0)  @(1)); @(0); @(1)]))
+constant Map_store : (func(2, [(Map_t  @(0)  @(1));
+                               @(0);
+                               @(1);
+                               (Map_t  @(0)  @(1))]))
+
+bind 31 m#a1f2 : {VV#387 : (Map_t  int  int) | []}
+bind 35 m1#a1f5 : {v : (Map_t  int  int) | [(v = Map_store([m#a1f2; 0; 42]))]}
+
+constraint:
+  env [35;
+       31]
+  grd true
+  lhs {VV#F1 : GHC.Types.Bool | []}
+  rhs {VV#F1 : GHC.Types.Bool | [(Map_select([m1#a1f5; 0]) = 42)]}
+  id 1 tag [2]
