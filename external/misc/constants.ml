@@ -63,7 +63,7 @@ let simplify_t                  = ref false (* simplify and prune vacuous FixCon
 let copyprop                    = ref true  (* perform copyprop to eliminate tempvars *)
 let root                        = ref ""    (* root function *)
 let refine_sort                 = ref false (* -refinesort *)
-let newcheck                    = ref true  (* -newcheck *)
+let newcheck                    = ref false (* -newcheck  *)
 let sorted_quals                = ref false (* -sortedquals *)
 let true_unconstrained          = ref true  (* -true_unconstrained *)
 let do_nothing                  = ref false (* -nop *)
@@ -170,6 +170,9 @@ let get_smt2_file = fun () -> (!out_file_name ^ ".smt2")
 
 (* taken from dsolve/liquid/liquid.ml *)
 
+(* set   turns arg in true  *)
+(* clear turns arg in false *)
+
 let arg_spec = 
   [("-out", 
     Arg.String (fun s -> out_file_name := s), 
@@ -270,8 +273,11 @@ let arg_spec =
     Arg.Set refine_sort,
     " use sortchecking to refine constraints -- and toss out badly instantiated quals. 
       Shouldn't need except for backward compatibility with dsolve constraints, DONT USE!");
-   ("-newcheck",
+   ("-oldcheck",
     Arg.Clear newcheck,
+    "using the new checking algorithm, still at testing stage");
+   ("-newcheck",
+    Arg.Set newcheck,
     "using the new checking algorithm, still at testing stage");
    ("-notruekvars",
     Arg.Clear true_unconstrained,
