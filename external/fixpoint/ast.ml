@@ -36,7 +36,8 @@ module F  = Format
 module Misc = FixMisc
 open Misc.Ops
 module SM = Misc.StringMap
-module IS   = Misc.IntSet
+module IS = Misc.IntSet
+module IM = Misc.IntMap 
 
 let mydebug = false
 
@@ -1188,28 +1189,25 @@ let logf s = ()
 
 exception UnificationError of string 
 
+
+
+let sub_empty = IM.empty 
+let sub_find_with_default = IM.find_default
+let sub_singleton = IM.singleton
+
 (* Substitutions *)
-
-
-(* TODO: turn them into a map *)
-let sub_empty = [] 
-
-let rec sub_find_with_default t i = function
-  | [] -> t
-  | ((j,tj)::s) when i = j -> tj 
-  | (_::s) -> sub_find_with_default t i s 
-
-let sub_singleton i t = [(i, t)]
 
 let vindex = ref 0 
 let init_ti _ = vindex := 42
 
-let rec sub_fresh i = 
-  if i == 0 
-    then []
-    else let j = !vindex in 
-         incr vindex;  
-         (i-1, Sort.Var j) :: sub_fresh (i-1)  
+let sub_fresh i = 
+  let rec go i = 
+   if i == 0 
+     then []
+     else let j = !vindex in 
+          incr vindex;  
+          (i-1, Sort.Var j) :: go (i-1)  
+   in IM.of_list (go i)
 
 let fresh_var _ = 
   let j = !vindex in 
@@ -1223,8 +1221,6 @@ let rec apply_ty s = function
   | Sort.Func (n, ts) -> Sort.Func (n,  List.map (apply_ty s) ts)
   | Sort.App (tc, ts) -> Sort.App  (tc, List.map (apply_ty s) ts)
   | t                 -> t 
-
-
 
 let rec free_vars = function
   | Sort.Var i -> IS.singleton i
@@ -1253,12 +1249,9 @@ let splitArgs = function
   | Sort.Func (_, ts) -> List.rev ts |> fun xs -> (List.tl xs |> List.rev, List.hd xs)
   | t -> ([], t)
 
-let sub_apply s1 s2 = List.map (fun (i, t) -> (i, apply_ty s1 t)) s2
+let sub_apply s1 s2 = IM.map (apply_ty s1) s2
 
-
-
-let sub_compose s1 s2 = sub_apply s2 s1 ++ s2  
-
+let sub_compose s1 s2 = IM.merge (fun k l r -> l) (sub_apply s2 s1) s2
 
 let is_free i t = IS.exists (fun j -> j == i) (free_vars t)
 
@@ -1295,13 +1288,12 @@ let rec mgu i t1 t2 =
           sub_compose s s'
        ) sub_empty 
   | Sort.App  (tc1, ts1), Sort.App (tc2, ts2) when tc1 = tc2 -> 
-     Misc.zipWith (fun x y -> (x, y)) (ts1, ts2) |> 
-     List.fold_left 
+     Misc.zipWith (fun x y -> (x, y)) (ts1, ts2) |>  
+      List.fold_left 
        (fun s (t1, t2) -> 
           let s' = mgu i (apply_ty s t1) (apply_ty s t2) in 
           sub_compose s s'
        ) sub_empty
-
       (* Adding code for polymorphic arguments *)
   | Sort.Func (i,[t1]), t2  
   | t1, Sort.Func (i,[t2]) when i=0 -> mgu i t1 t2 
@@ -1359,7 +1351,6 @@ and ti_brel_list g f brels p e1 e2 st1 st2 =
     (sub_compose s1 s |> sub_compose s2, Sort.Bool)
   ) (sub_empty, Sort.Bool) brels 
 
-(* NIKI TODO: check old implementation for pointer manipulation etc. *)
 and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) = 
   logf ("ti_brel " ^ pred_to_string p) ; 
   match brel, e1, e2, t1, t2 with 
@@ -1502,7 +1493,7 @@ let check_app g f tExp uf es =
   init_ti (); 
   try 
     let (s, (ss, t)) = ti_app g f uf es in 
-    let sub = {Sort.empty_sub with Sort.vars = s} in 
+    let sub = {Sort.empty_sub with Sort.vars = (IM.to_list s)} in 
     match tExp with 
      | None -> Some (sub, t) 
      | Some t' when unifiable t t' -> Some (sub, t)

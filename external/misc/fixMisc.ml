@@ -269,6 +269,9 @@ module type EMapType = sig
   val maybe_find   : key -> 'a t -> 'a option
   val find_default : 'a -> key -> 'a t -> 'a
   val frequency    : key list -> int t
+  val merge        : (key -> 'a option -> 'b option -> 'c option) ->
+                    'a t -> 'b t -> 'c t
+  val map          : ('a -> 'b) -> 'a t -> 'b t
 end
 
 module type ESetType = sig
