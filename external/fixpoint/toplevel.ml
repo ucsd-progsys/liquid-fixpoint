@@ -36,10 +36,10 @@ let parse f =
 
 let read_inputs usage = 
   Co.bprintflush true "\n\n";
-  Co.bprintflush true "========================================================\n";
-  Co.bprintflush true "© Copyright 2009 Regents of the University of California.\n";
+  Co.bprintflush true "=========================================================================================\n";
+  Co.bprintflush true "© Copyright 2009-15 Regents of the University of California.\n";
   Co.bprintflush true "All Rights Reserved.\n";
-  Co.bprintflush true "========================================================\n";
+  Co.bprintflush true "=========================================================================================\n";
   Co.bprintflush false (Sys.argv |> Array.to_list |> String.concat " ");
   Co.bprintflush false "\n========================================================\n";
   let fs = ref [] in

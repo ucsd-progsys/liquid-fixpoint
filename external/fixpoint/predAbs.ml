@@ -471,13 +471,13 @@ let inst_ext env vv t qs =
 
 let ext_bindings yts wkl (x, tx) =
   let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
-  Misc.tr_rev_flap (fun (su, xys) ->
-    Misc.map_partial (fun (y, ty) ->
+  Misc.tr_rev_flap begin fun (su, xys) ->
+    Misc.map_partial begin fun (y, ty) ->
       match A.Sort.unifyWith su [tx] [ty] with
         | None     -> None
         | Some su' -> Some (su', (x,y) :: xys)
-    ) yts
-  ) wkl
+    end yts
+  end wkl
 
 let inst_qual_sorted yts vv t q =
   let (qvv0, t0) :: xts = Q.all_params_of_t q     in
@@ -487,12 +487,15 @@ let inst_qual_sorted yts vv t q =
             |> List.rev_map (List.rev <.> snd)                          (* extract sorted bindings  *)
             |> List.rev_map (List.map (Misc.app_snd A.eVar))            (* instantiations           *)
             |> List.rev_map (Q.inst q)                                  (* quals *)
+            (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
+
     | None    -> []
 
 let inst_ext_sorted env vv t qs =
-  let _    = Misc.display_tick ()                      in
-  let yts  = inst_binds env                            in
-  Misc.flap (inst_qual_sorted yts vv t) qs
+  let _    = Misc.display_tick () in
+  let yts  = inst_binds env       in
+  let r    = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted yts vv t)) qs in
+  r
 
 (***************************************************************)
 (**************** Lazy Instantiation ***************************)
@@ -504,19 +507,10 @@ let inst_ext qs ckEnv env v t  : Q.t list =
   qs |> instf env v t
      |> Misc.filter (wellformed_qual env')
 
-
-(*
-let is_non_trivial_var me lps su =
-  let cxs  = SS.of_list <| Misc.flap P.support lps in
-  let ok z = SS.mem z cxs                          in
-  fun y _ -> valid_after_substitution ok su y
-*)
-
 let is_non_trivial_var me c su =
   let senv = C.senv_of_t c in
   let ok z = SM.mem z senv in
   fun y _ -> valid_after_substitution ok su y
-
 
 (* RJ: DO NOT DELETE EVER! *)
 let ppBinding k zs =
@@ -525,10 +519,10 @@ let ppBinding k zs =
     (Misc.pprint_many false ", " Q.print) zs
 
 (* API *)
-let lazy_instantiate_with me c lps k su : Q.t list =
+let lazy_instantiate_with me c k su : Q.t list =
   let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
-  let env'      = SM.filter (is_non_trivial_var me c (* lps *) su) env in
-  inst_ext me.qs env env' v t
+  let env'      = SM.filter (is_non_trivial_var me c su) env in
+  (BS.time "inst_ext" (inst_ext me.qs env env' v) t)
   (* >> ppBinding k *)
   |> ((++) (SM.find_default [] k me.om))
 
@@ -571,11 +565,11 @@ let make_cand k su q =
   let qp' = A.substs_pred qp su in
   ((k, q), qp')
 
-let quals_of_bind me c lhs k su = function
+let quals_of_bind me c k su = function
   | NonBot qs ->
       (qs, me)
   | Bot       ->
-      let qs      = lazy_instantiate_with me c lhs k su       in
+      let qs      = BS.time "lazy-inst" (lazy_instantiate_with me c k) su       in
       let (_, me) = p_update me [k] (qs |>: (fun q -> (k,q))) in
       (qs, me)
 
@@ -593,16 +587,16 @@ let rhs_cands_noinst me c =
     |> BS.time "rhs_cands" (Misc.flap (rhs_cands_noinst me))
 
 (* only called when SOME RHS k is BOT *)
-let rhs_cands_inst c lhs me = function
+let rhs_cands_inst c me = function
   | C.Conc _ ->
       (me, [])
   | C.Kvar (su, k) ->
-      let (qs, me) = SM.safeFind k me.m "rhs_cands" |> quals_of_bind me c lhs k su  in
+      let (qs, me) = SM.safeFind k me.m "rhs_cands" |> quals_of_bind me c k su  in
       (me, qs |>: make_cand k su)
 
-let rhs_cands_inst me c lps =
+let rhs_cands_inst me c =
   let (_, _, ras) = C.rhs_of_t c                               in
-  let (me, zs)    = Misc.mapfold (rhs_cands_inst c lps) me ras in
+  let (me, zs)    = Misc.mapfold (rhs_cands_inst c) me ras in
   (Misc.flatten zs, me)
 
 let lhs_preds me c =
@@ -610,10 +604,10 @@ let lhs_preds me c =
   (lps, me)
 
 let refine_sort_bot_rhs me c =
-  let (lps, me) = lhs_preds me c                                          in
-  let (rcs, me) = rhs_cands_inst me c lps                                 in
-  let senv      = C.senv_of_t c                                           in
-  let rcs       = Misc.filter (fun (_,p) -> C.wellformed_pred senv p) rcs in
+  let (lps, me) = BS.time "rsb 1" (lhs_preds me) c                                          in
+  let (rcs, me) = BS.time "rsb 2" (rhs_cands_inst me) c                                     in
+  let senv      = BS.time "rsb 3" (C.senv_of_t) c                                           in
+  let rcs       = BS.time "rsb 4" (Misc.filter (fun (_,p) -> C.wellformed_pred senv p)) rcs in
   (true, me, lps, rcs)
 
 let refine_sort_first_time me c =
@@ -630,11 +624,11 @@ let refine_sort_default me c =
 
 let refine_sort me c =
   if is_bot_rhs me c then
-    refine_sort_bot_rhs me c
+    BS.time "refine-sort-bot" (refine_sort_bot_rhs me) c
   else if not (IS.mem (C.id_of_t c) (me.seen)) then
-    refine_sort_first_time me c
+    BS.time "refine-sort-first" (refine_sort_first_time me) c
   else
-    refine_sort_default me c
+    BS.time "refine-sort-default" (refine_sort_default me) c
 
 let is_trivial_rhs me c =
   let is_trivial_refa me = function
@@ -669,25 +663,28 @@ let refine_tp me c lps x2 =
     let t    = C.sort_of_t c in
     BS.time "check tp" (check_tp me senv vv t lps) x2
 
+let refine_update me c kqs1 kqs2 =
+  let ks = C.rhs_of_t c |> C.kvars_of_reft |>: snd in
+  p_update me ks (kqs1 ++ kqs2)
+
 let refine me c =
-  if is_trivial_c me c then
+  if BS.time "is_triv" (is_trivial_c me) c then
     (false, me)
   else
-    let (ch, me, lps, rcs) = refine_sort me c                             in
-    if BS.time "lhs_contra" (List.exists P.is_contra) lps then
+    let (ch, me, lps, rcs) = BS.time "refine-sort" (refine_sort me) c     in
+    if BS.time "refine-lhs-contra" (List.exists P.is_contra) lps then
       let _          = me.stat_unsatLHS += 1                              in
       let _          = me.stat_umatches += List.length rcs                in
       (ch, me)
     else
-      let rcs        = List.filter (fun (_,p) -> not (P.is_contra p)) rcs in
-      let (kqs1, x2) = refine_match me lps rcs                            in
-      let kqs2       = refine_tp me c lps x2                              in
-      let ks         = C.rhs_of_t c |> C.kvars_of_reft |>: snd            in
-      let (ch', me)  = p_update me ks (kqs1 ++ kqs2)                      in
+      let rcs        = BS.time "refine-cands"  (List.filter (fun (_,p) -> not (P.is_contra p))) rcs in
+      let (kqs1, x2) = BS.time "refine-match"  (refine_match me lps) rcs                            in
+      let kqs2       = BS.time "refine-tp"     (refine_tp me c lps) x2                              in
+      let (ch', me)  = BS.time "refine-update" (refine_update me c kqs1) kqs2                       in
       (ch || ch', me)
 
 let refine me c =
-  let (ch, me) = refine me c in
+  let (ch, me) = BS.time "PA.refine" (refine me) c in
   (ch, {me with seen = IS.add (C.id_of_t c) me.seen})
 
 let refine me c =
