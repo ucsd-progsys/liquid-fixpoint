@@ -21,37 +21,37 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
-import qualified Data.HashMap.Strict              as M
-import           Data.List hiding (partition)
-
 #if __GLASGOW_HASKELL__ < 710
-import           Data.Functor
+import           Data.Functor ((<$>))
 import           Data.Monoid (mconcat, mempty)
 #endif
 
-import           System.Exit
-import           System.IO                        (IOMode (..), hPutStr, withFile)
-import           System.Console.CmdArgs.Verbosity hiding (Loud)
-import           Text.PrettyPrint.HughesPJ
-import           Text.Printf
-import           Control.Monad (liftM)
 
-import           Language.Fixpoint.Solver.Validate
+import qualified Data.HashMap.Strict                as M
+import           Data.List                          hiding (partition)
+import           System.Exit                        (ExitCode (..))
+import           System.IO                          (IOMode (..), hPutStr, withFile)
+import           System.Console.CmdArgs.Verbosity   hiding (Loud)
+import           Text.PrettyPrint.HughesPJ          (render)
+import           Text.Printf                        (printf)
+import           Control.Monad                      (liftM)
+
+import           Language.Fixpoint.Solver.Validate  (validate)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
-import qualified Language.Fixpoint.Solver.Solve  as S
-import           Language.Fixpoint.Config          hiding (solver)
-import           Language.Fixpoint.Files           hiding (Result)
+import qualified Language.Fixpoint.Solver.Solve     as S
+import           Language.Fixpoint.Config           (Config (..), command, withTarget)
+import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Statistics     (statistics)
-import           Language.Fixpoint.Partition      (partition, partition')
-import           Language.Fixpoint.Parse          (rr, rr')
-import           Language.Fixpoint.Types          hiding (kuts, lits)
-import           Language.Fixpoint.Errors (exit)
-import           Language.Fixpoint.PrettyPrint (showpp, pprintKVs)
-import           Language.Fixpoint.Parallel
+import           Language.Fixpoint.Statistics       (statistics)
+import           Language.Fixpoint.Partition        (partition, partition')
+import           Language.Fixpoint.Parse            (rr, rr')
+import           Language.Fixpoint.Types
+import           Language.Fixpoint.Errors           (exit)
+import           Language.Fixpoint.PrettyPrint      (showpp, pprintKVs)
+import           Language.Fixpoint.Parallel         (inParallelUsing)
 
-import           Debug.Trace
+import           Debug.Trace                        (trace)
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -93,7 +93,11 @@ solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
-  let si = convertFormat fi
+  --FIXME: inefficient since toFixpoint and rr are mostly inverses - better to
+  -- replace this by the net effect of rr . toFixpoint (cf simulatePrintAndParse),
+  -- and the correct solution is to make toFixpoint and rr actually inverses.
+  let fi' = rr $ render $ toFixpoint cfg fi :: FInfo () --simulatePrintAndParse fi
+  let si = convertFormat fi'
   writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   donePhase Loud "Format Conversion"
   let Right si' = validate cfg si
@@ -109,8 +113,14 @@ solveNativeWithFInfo cfg fi = do
   putStrLn  $ "Solution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
-  return    $ Result (WrapC <$> stat) soln
+  return    $ Result (WrapC . (\i -> M.lookupDefault (error "blah") (mfromJust "" i) (cm fi)) <$> stat') soln
 
+--simulatePrintAndParse :: (Fixpoint a) => FInfo a -> FInfo ()
+--simulatePrintAndParse fi = fi { gs = gs', lits = lits' }
+--  where
+--    notFun = not . isFunctionSortedReft
+--    gs' = fromListSEnv $ toListSEnv (gs fi) ++ ((second (`RR` mempty)) <$> lits fi)
+--    lits' = second sr_sort <$> (filter (snd . second notFun) $ toListSEnv gs')
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
 elim cfg fi
@@ -146,13 +156,11 @@ solvePar c fi = do
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
-  = do writeFile fq qstr
-       withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
+  = do withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
        solveFile $ cfg `withTarget` fq
     where
        fq   = extFileName Fq fn
        d    = {-# SCC "FixPointify" #-} toFixpoint cfg fi
-       qstr = render (vcat (toFix <$> quals fi) $$ text "\n")
 
 solveFile :: Config -> IO ExitCode
 solveFile cfg

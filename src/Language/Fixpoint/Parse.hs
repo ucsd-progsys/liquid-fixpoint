@@ -6,6 +6,7 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE CPP                       #-}
 
 module Language.Fixpoint.Parse (
 
@@ -66,13 +67,17 @@ module Language.Fixpoint.Parse (
   , remainderP
   ) where
 
+#if __GLASGOW_HASKELL__ < 710
 import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
+#endif
+
+import           Control.Arrow               (first)
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
 import           Text.Parsec
 import           Text.Parsec.Expr
-import           Text.Parsec.Language
+import           Text.Parsec.Language        (emptyDef)
 import qualified Text.Parsec.Token           as Token
 import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
@@ -80,7 +85,7 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower, toUpper)
 import           Language.Fixpoint.Bitvector
 import           Language.Fixpoint.Errors
-import           Language.Fixpoint.Misc      hiding (dcolon)
+import           Language.Fixpoint.Misc      (single, sortNub)
 import           Language.Fixpoint.Smt.Types
 
 import           Language.Fixpoint.Types
@@ -463,7 +468,7 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
   where
     (vv,t):zts = gSorts xts
-    yts        = mapFst mkParam <$> zts
+    yts        = first mkParam <$> zts
     su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
 
 gSorts :: [(a, Sort)] -> [(a, Sort)]
