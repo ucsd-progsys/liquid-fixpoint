@@ -506,7 +506,7 @@ let t_to_horn_clause t =
       (fun bv reft (ps, ks) -> 
 	 let ps', ks' = preds_kvars_of_reft (C.theta (Su.of_list [(C.vv_of_reft reft, Ast.eVar bv)]) reft) in
 	   List.rev_append ps' ps, List.rev_append ks' ks
-      ) (C.env_of_t t) (C.grd_of_t t :: lhs_ps, lhs_ks) in
+      ) (C.env_of_t t) (lhs_ps, lhs_ks) in
   let head_ps, head_ks = C.rhs_of_t t |> preds_kvars_of_reft in
     {
       body_pred = Ast.pAnd body_ps |> simplify_tauto; 
@@ -540,7 +540,6 @@ let print_horn_clause hc =
 let t_to_armc state t = 
   t_to_horn_clause t |> simplify_horn_clause |> print_horn_clause;
   let env = C.env_of_t t in
-  let grd = C.grd_of_t t in
   let lhs = C.lhs_of_t t in
   let rhs = C.rhs_of_t t in
   let rhs_s = C.reft_to_string rhs in
@@ -556,8 +555,7 @@ let t_to_armc state t =
 	 else
 	   None
       ) (env |> C.bindings_of_env)
-    ++ [(pred_to_armc grd, P.to_string grd); 
-	(reft_to_armc state lhs, "|- " ^ (C.reft_to_string lhs))] in
+    ++ [(reft_to_armc state lhs, "|- " ^ (C.reft_to_string lhs))] in
   let ps, kvs =  
     List.fold_left (fun (ps', kvs') refa ->
 		      match refa with

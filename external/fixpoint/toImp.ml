@@ -360,9 +360,9 @@ let envt_to_instrs decls envt =
   Misc.flap (binding_to_instrs decls) (C.bindings_of_env envt)
 
 let constraint_to_block decls c =
-  let (env, grd, lhs, rhs) =
-    (C.env_of_t c, C.grd_of_t c, C.lhs_of_t c, C.rhs_of_t c) in
-  Assm [grd] ::
+  let (env, lhs, rhs) =
+    (C.env_of_t c, C.lhs_of_t c, C.rhs_of_t c) in
+  Assm [A.pTrue] ::
   envt_to_instrs decls env @
   reft_to_get_instrs decls lhs @
   reft_to_set_instrs decls rhs

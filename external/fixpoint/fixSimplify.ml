@@ -191,17 +191,6 @@ let simplify_env em pm ks_env =
     ks |> List.map (simplify_kvar em pm) |> C.make_reft vv t
   end ks_env
 
-let simplify_grd em pm vv t p =
-  let _  = Co.bprintf mydebug "simplify_grd [1]: %a \n" P.print p in
-  let p  = pred_apply_defs em pm p in
-  let _  = Co.bprintf mydebug "simplify_grd [2]: %a \n" P.print p in
-  begin try 
-    Sy.SMap.find vv em 
-    |> expr_apply_defs em pm
-    |> (fun vve -> pAnd [p; pAtom (eVar vv, Eq, vve)])
-  with Not_found -> p end
-  >> Co.bprintf mydebug "simplify_grd [3]: %a \n" P.print
-
 let simplify_refa em pm = function 
   | C.Conc p          -> C.Conc (pred_apply_defs em pm p) 
   | C.Kvar (xes, sym) -> simplify_kvar em pm (xes, sym)
@@ -213,17 +202,16 @@ let simplify_t c =
   let env_ps, ks_env = c |> C.env_of_t |> preds_kvars_of_env in
   let l_ps, l_ks     = c |> C.lhs_of_t |> C.preds_kvars_of_reft in
   let vv, t          = c |> C.lhs_of_t |> Misc.tmap2 (C.vv_of_reft, C.sort_of_reft) in
-  let bodyp          = Ast.pAnd ([C.grd_of_t c] ++ l_ps ++ env_ps) 
+  let bodyp          = Ast.pAnd (l_ps ++ env_ps) 
                        >> Co.bprintf mydebug "body_pred: %a \n" P.print in
   let em, pm         = defs_of_pred bodyp                          
                        >> print_em_pm c in
 
   let senv           = simplify_env em pm ks_env in
-  let sgrd           = simplify_grd em pm vv t bodyp in
   let slhs           = l_ks |> List.map (simplify_kvar em pm) |> C.make_reft vv t in
   let srhs           = c |> C.rhs_of_t |> C.ras_of_reft |> List.map (simplify_refa em pm) |> C.make_reft vv t in
   
-  C.make_t senv sgrd slhs srhs (C.ido_of_t c) (C.tag_of_t c)
+  C.make_t senv slhs srhs (C.ido_of_t c) (C.tag_of_t c)
 
 (* API *)
 let simplify_ts cs = 
@@ -252,7 +240,7 @@ module WeakFixpoint : SIMPLIFIER = struct
  
   let weaken_env c e = 
     C.make_t e 
-      (C.grd_of_t c) (C.lhs_of_t c) (C.rhs_of_t c) 
+      (C.lhs_of_t c) (C.rhs_of_t c) 
       (C.ido_of_t c) (C.tag_of_t c)
 
   let support_of_refa = function 
@@ -271,7 +259,7 @@ module WeakFixpoint : SIMPLIFIER = struct
     | []   -> m
   
   let data_cone c = 
-    (P.support (C.grd_of_t c)) 
+    (P.support Ast.pTrue) 
     |> (++) (support_of_reft (C.lhs_of_t c))
     |> data_cone (C.env_of_t c) Sy.SMap.empty 0
 
@@ -353,7 +341,6 @@ module EliminateK : SIMPLIFIER = struct
 
   let merge_one me k (wc, rc) =
     let env1, env2       = Misc.map_pair C.env_of_t (wc, rc) in 
-    let g1, g2           = Misc.map_pair C.grd_of_t (wc, rc) in
     let l1               = C.lhs_of_t wc in
     let [C.Kvar(su1, k)] = C.rhs_of_t wc |> thd3 in
     let su2, yr', l'     = match Kg.k_reads me.g (C.id_of_t rc) (C.Kvar (Su.empty, k)) with 
@@ -361,9 +348,8 @@ module EliminateK : SIMPLIFIER = struct
                            | [Kg.Lhs su2]      -> su2, [], l1 
                            | _ -> assertf "EliminateK.merge_one (k=%s, id=%d)" (Sy.to_string k) (C.id_of_t rc) in
     let env'             = meet_env env1 env2 yr'          in
-    let g'               = pAnd [g1; g2; meet_sub su1 su2] in
     let r'               = C.rhs_of_t rc                   in
-    C.make_t env' g' l' r' None (C.tag_of_t rc)
+    C.make_t env' l' r' None (C.tag_of_t rc)
     
   let eliminate me (k, wcs, rcs)  =
     me >> (fun _ -> Format.printf "EliminateK.eliminate %s \n" (C.refa_to_string k))  
@@ -402,10 +388,9 @@ module CopyProp : SIMPLIFIER = struct
   let subst_cstr (x, e) c =
     let su    = Su.of_list [(x, e)]                         in
     let env'  = C.env_of_t c |> C.map_env (subst_bind su x) in
-    let grd'  = C.grd_of_t c |> (fun p -> P.subst p x e)    in
     let lhs'  = C.lhs_of_t c |> C.theta su                  in
     let rhs'  = C.rhs_of_t c |> C.theta su                  in
-    C.make_t env' grd' lhs' rhs' (C.ido_of_t c) (C.tag_of_t c)
+    C.make_t env' lhs' rhs' (C.ido_of_t c) (C.tag_of_t c)
   
   let rec eliminate c = function 
       | (x, e) :: theta' when List.mem x (E.support e)

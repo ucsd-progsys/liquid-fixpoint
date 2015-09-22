@@ -33,14 +33,13 @@ A subtyping constraint has the form
 
   constraint:
     env[BINDINGS]
-    grd PREDICATE
     lhs REFTYPE
     rhs REFTYPE
     id INT tag INT_LIST
     
 The BINDINGS are a list of semicolon-separated name, REFTYPE
-pairs. The guard PREDICATE is a standard predicate. The integer ID is
-used to identify this constraint in error messages, etc.  
+pairs. The integer ID is used to identify this constraint in 
+error messages, etc.  
 
 The `INT_LIST` is used as a hook into constraint ordering: 
 if two constraints are equal according to the predicate 

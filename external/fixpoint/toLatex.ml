@@ -101,13 +101,12 @@ let c_to_latex out c =
   Printf.fprintf out
     "\\begin{displaymath}
   \\begin{array}[t]{l}
-  %s %s\\ \\deriv\\\\ %s\\ <:\\\\ %s\\qquad %s
+  %s\\ \\deriv\\\\ %s\\ <:\\\\ %s\\qquad %s
   \\end{array}
 \\end{displaymath}
 \\hrule
 " 
     (C.env_of_t c |> envt_to_latex)  
-    (C.grd_of_t c |> pred_to_latex)
     (C.lhs_of_t c |> reft_to_latex) 
     (C.rhs_of_t c |> reft_to_latex)
     (try string_of_int (C.id_of_t c) with _ -> "")

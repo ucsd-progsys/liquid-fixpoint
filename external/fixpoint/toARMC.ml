@@ -235,7 +235,6 @@ r(p(pc(%s), data(%s)),
       id
 
 let t_to_armc from_data to_data state t = 
-  let grd = C.grd_of_t t in
   let lhs = C.lhs_of_t t in
   let rhs = C.rhs_of_t t in
   let rhs_s = C.reft_to_string rhs in
@@ -247,8 +246,7 @@ let t_to_armc from_data to_data state t =
 	 reft_to_armc state (C.theta [(C.vv_of_reft reft, Ast.eVar bv)] reft),
 	 C.binding_to_string (bv, reft)
       ) (C.env_of_t t |> C.bindings_of_env) 
-    ++ [(pred_to_armc grd, Ast.Predicate.to_string grd); 
-	(reft_to_armc state lhs, "|- " ^ (C.reft_to_string lhs))] in
+    ++ [(reft_to_armc state lhs, "|- " ^ (C.reft_to_string lhs))] in
   let ps, kvs =  
     List.fold_left (fun (ps', kvs') refa ->
 		      match refa with

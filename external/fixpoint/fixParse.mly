@@ -73,7 +73,7 @@ let env_of_ibindings is =
 %token DOL QM DOT ASGN
 %token OBJ REAL INT NUM PTR LFUN BOOL UNINT FUNC LIT FRAC
 %token SRT AXM CON CST WF SOL QUL KUT BIND ADP DDP
-%token ENV GRD LHS RHS REF
+%token ENV LHS RHS REF
 %token IFWORD THENWORD ELSEWORD
 %right IFF IFFWORD
 %right IMPL
@@ -358,8 +358,8 @@ info:
   ;
 
 cstr:
-  | ENV env GRD pred LHS reft RHS reft          { C.make_t $2 $4 $6 $8 None ([],"") }
-  | ENV env GRD pred LHS reft RHS reft info     { C.make_t $2 $4 $6 $8 (fst $9) (snd $9)}
+  | ENV env LHS reft RHS reft          { C.make_t $2 $4 $6 None ([],"") }
+  | ENV env LHS reft RHS reft info     { C.make_t $2 $4 $6 (fst $7) (snd $7)}
   ;
 
 env:

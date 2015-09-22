@@ -158,7 +158,6 @@ rule token = parse
   | "add_dep"           { ADP }
   | "del_dep"           { DDP }
   | "env"               { ENV }
-  | "grd"               { GRD }
   | "lhs"               { LHS }
   | "rhs"               { RHS }
   | "reft"              { REF }

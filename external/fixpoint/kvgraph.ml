@@ -102,13 +102,11 @@ let edges_of_t c =
   let eks = c |> C.env_of_t 
               |> xkvars_of_env 
               |> List.map (fun (x, (su, k)) -> (C.Kvar (Su.empty, k)), Bnd (x, su)) in
-  let gps = c |> C.grd_of_t 
-              |> (fun p -> if P.is_tauto p then [] else [(C.Conc p, Grd)]) in
   let lks = c |> C.lhs_of_t 
               |> C.ras_of_reft 
               |> List.map (function C.Kvar (su, k) -> (C.Kvar (Su.empty, k), Lhs su) | ra -> (ra, Grd)) in 
   c |> dsts_of_t
-    |> Misc.cross_product (lks ++ gps ++ eks)  
+    |> Misc.cross_product (lks ++ eks)  
     |> List.map (fun ((ra, l), ra') -> (ra, (C.id_of_t c, l), ra'))
 
 (************************************************************************)
