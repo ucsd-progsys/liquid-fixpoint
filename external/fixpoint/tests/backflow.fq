@@ -10,21 +10,18 @@ bind 13 r_3 : {VV : int | [k_4[VV:=f][VV#5:=x][VV#1:=r_2][VV#3:=VV]]}
 constraint:
   // env []     // SAT
   env [13]      // UNSAT
-  grd true
   lhs {VV#F12 : boolean | [(0 = 1)]}
   rhs {VV#F12 : boolean | [(0 = 1)]}
   id 12 
 
 constraint:
   env []
-  grd true
   lhs {VV#3 : int | [(VV#3 >= 0)]}
   rhs {VV#3 : int | [k_4]}
   id 7 
 
 constraint:
   env []
-  grd true
   lhs {VV#3 : int | [k_4]}
   rhs {VV#3 : int | [(VV#3 >= 0)]}
   id 7000 
