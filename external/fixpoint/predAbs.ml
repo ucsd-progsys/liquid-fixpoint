@@ -485,7 +485,7 @@ let ext_bindings yts wkl (x, tx) =
 
 let inst_qual_sorted yts vv t q =
   let (qvv0, t0) :: xts = Q.all_params_of_t q     in
-  match A.Sort.unify [t0] [t] with
+  match BS.time "q-inst-0" (A.Sort.unify [t0]) [t] with
     | Some su0 ->
         xts |> (fun zs -> BS.time "q-inst-1" (List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]) zs)   (* generate subs-bindings   *)
             |> List.rev_map (List.rev <.> snd)                (* extract sorted bindings  *)
