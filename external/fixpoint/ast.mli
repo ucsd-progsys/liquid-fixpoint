@@ -36,56 +36,6 @@ module Cone : sig
   val map : ('a -> 'b) -> 'a t -> 'b t
 end
 
-module Sort :
-  sig
-    type loc =
-      | Loc  of string
-      | Lvar of int
-      | LFun
-
-    type tycon
-    type t
-    type sub
-
-    val tycon       : string -> tycon
-    val tycon_string: tycon -> string
-
-    val to_string   : t -> string
-    val print       : Format.formatter -> t -> unit
-    val t_num       : t
-    val t_frac      : t
-    val t_obj       : t
-    val t_bool      : t
-    val t_int       : t
-    val t_real      : t
-    val t_generic   : int -> t
-    val t_ptr       : loc -> t
-    val t_func      : int -> t list -> t
-    val t_app_tc    : tycon -> t list -> t
-    val t_app       : t -> t list -> t
-    (* val t_fptr      : t *)
-
-    val is_bool      : t -> bool
-    val is_int       : t -> bool
-    val is_real      : t -> bool
-    val is_func      : t -> bool
-    val is_kind      : t -> bool
-    val app_of_t     : t -> (tycon * t list) option
-    val func_of_t    : t -> (int * t list * t) option
-    val ptr_of_t     : t -> loc option
-
-    val compat      : t -> t -> bool
-    val empty_sub   : sub
-    val unifyWith   : sub -> t list -> t list -> sub option
-    val unify       : t list -> t list -> sub option
-    val apply       : sub -> t -> t
-    val generalize  : t list -> t list
-    val sub_args    : sub -> (int * t) list
-    (* val check_arity : int -> sub -> bool *)
-    val makeFresh : int -> (int * int) list
-    val refresh   : (int * int) list -> t -> t
-  end
-
 module Symbol :
   sig
     type t
