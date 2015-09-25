@@ -483,18 +483,18 @@ let inst_qual_sorted yts vv t q =
   let (qvv0, t0) :: xts = Q.all_params_of_t q     in
   match A.Sort.unify [t0] [t] with
     | Some su0 ->
-        xts |> List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]  (* generate subs-bindings   *)
-            |> List.rev_map (List.rev <.> snd)                          (* extract sorted bindings  *)
-            |> List.rev_map (List.map (Misc.app_snd A.eVar))            (* instantiations           *)
-            |> List.rev_map (Q.inst q)                                  (* quals *)
+        xts |> (fun zs -> BS.time "q-inst-1" (List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]) zs)   (* generate subs-bindings   *)
+            |> List.rev_map (List.rev <.> snd)                (* extract sorted bindings  *)
+            |> List.rev_map (List.map (Misc.app_snd A.eVar))  (* instantiations           *)
+            |> List.rev_map (Q.inst q)                        (* quals *)
             (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
 
     | None    -> []
 
 let inst_ext_sorted env vv t qs =
-  let _    = Misc.display_tick () in
-  let yts  = inst_binds env       in
-  let r    = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted yts vv t)) qs in
+  let _   = Misc.display_tick () in
+  let yts = inst_binds env       in
+  let r   = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted yts vv t)) qs in
   r
 
 (***************************************************************)
