@@ -125,6 +125,7 @@ type t     =
   ; stat_umatches       : int ref
   ; stat_unsatLHS       : int ref
   ; stat_emptyRHS       : int ref
+
 }
 
 let lookup_bind k m = SM.find_default Bot k m
@@ -460,20 +461,23 @@ let inst_ext env vv t qs =
      |> Misc.flap   (inst_qual env ys (A.eVar vv))
      |> Misc.filter (wellformed_qual env')
 
-(********************************************************************************)
-(****** Sort Based Qualifier Instantiation **************************************)
-(********************************************************************************)
+(*****************************************************************************)
+(****** Sort Based Qualifier Instantiation ***********************************)
+(*****************************************************************************)
 
 (* [ (su', (x,y) : xys) | (su, xys) <- wkl
                         , (y, ty)   <- yts
                         , varmatch (x, y)
                         , Some su'  <- unifyWith su [tx] [ty] ]  *)
 
+let debug_unify_count = ref 0
+
 let ext_bindings yts wkl (x, tx) =
   let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
   Misc.tr_rev_flap begin fun (su, xys) ->
     Misc.map_partial begin fun (y, ty) ->
-      match A.Sort.unifyWith su [tx] [ty] with
+      let u = incr debug_unify_count ; A.Sort.unifyWith su [tx] [ty] in
+      match u with
         | None     -> None
         | Some su' -> Some (su', (x,y) :: xys)
     end yts
@@ -1015,6 +1019,8 @@ let print_stats ppf me =
   F.fprintf ppf "#Queries: umatch=%d, match=%d, ask=%d, valid=%d\n"
     !(me.stat_umatches) !(me.stat_matches) !(me.stat_imp_queries)
     !(me.stat_valid_queries);
+  F.fprintf ppf "#UnifyWith: %d\n"
+    !debug_unify_count;
   me.tpc#print_stats ppf
 
 (* API *)
