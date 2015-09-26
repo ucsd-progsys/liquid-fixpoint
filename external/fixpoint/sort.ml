@@ -267,9 +267,9 @@ let rec unifyt s = function
       | (Var i), ct
         (* when ct != Bool *) ->
           begin match lookup_var s i with
-          | Some ct' when ct = ct' -> (*let _ = F.printf "\nUnify YES! %s \t - \t  %s" (to_string ct) (to_string (Var i)) in *) Some s
-          | Some ct''              -> (*let _ = F.printf "\nUnify No! %s \t /= %s \t - \t  %s"  (to_string ct) (to_string ct'') (to_string (Var i)) in *) None
-          | None                   -> (*let _ = F.printf "\nUnify Add! %s \t - \t  %s" (to_string ct) (to_string (Var i)) in *) Some {s with vars = (i,ct) :: s.vars}
+          | Some ct' when ct = ct' -> Some s
+          | Some ct''              -> None
+          | None                   -> Some { s with vars = (i,ct) :: s.vars }
           end
 
       | Ptr LFun, Ptr _

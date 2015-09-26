@@ -180,7 +180,7 @@ bsort:
   | FUNC LPAREN Num COMMA sorts RPAREN  { So.t_func $3 $5 }
   | Id                                  { let s = $1 in
                                           if !Co.gen_qual_sorts || FixMisc.stringIsLower s then
-                                            So.t_ptr (So.Loc s)       (* tyvar *)
+                                            So.t_ptr (So.Loc s)          (* tyvar *)
                                           else
                                             So.t_app_tc (So.tycon s) []  (* tycon *)
                                         }

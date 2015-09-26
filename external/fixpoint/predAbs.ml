@@ -507,10 +507,16 @@ let inst_ext_sorted env vv t qs =
 
 END-ORIGINAL *)
 
+let mono_extract tx tys =
+  if Sort.isMono tx then
+    List.filter (fun (t, _) -> t = tx) tys
+  else
+     tys
+
 let ext_bindings tys wkl (x, tx) =
-  let tys = List.map begin fun (t, ys) ->
-              (t, List.filter (fun y -> varmatch (x, y)) ys)
-            end tys in
+  let tys  = tys |>  mono_extract tx
+                 |>: (fun (t, ys) -> (t, List.filter (fun y -> varmatch (x, y)) ys))
+  in
   Misc.tr_rev_flap begin fun (su, xys) ->
     Misc.tr_rev_flap begin fun (ty, ys) ->
       let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
