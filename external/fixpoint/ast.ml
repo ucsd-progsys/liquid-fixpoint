@@ -36,7 +36,7 @@ module Misc = FixMisc
 open Misc.Ops
 module SM = Misc.StringMap
 module IS   = Misc.IntSet
-
+open Prims
 type tag  = int
 
 let mydebug = false
@@ -64,19 +64,6 @@ module Constant =
     let print fmt s =
       to_string s |> Format.fprintf fmt "%s"
   end
-
-
-
-type brel = Eq    (* equal                  *)
-          | Ne    (* not-equal              *)
-          | Gt    (* greater than           *)
-          | Ge    (* greater than or equal  *)
-          | Lt    (* less than              *)
-          | Le    (* less than or equal     *)
-          | Ueq   (* unsorted-equality      *)
-          | Une   (* unsorted-disequality   *)
-
-type bop  = Plus | Minus | Times | Div | Mod  (* NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 type expr = expr_int * tag
 
@@ -841,8 +828,8 @@ and ti_expr g f e =
   | Bot ->
       UnificationError "ti on Bot" |> raise
   | Con (Constant.Int _) ->
-      logf ("ti_expr " ^ Expression.to_string e ^ " sort = " ^ Sort.to_string (Sort.Int));
-      (Sort.sub_empty, Sort.Int)
+      logf ("ti_expr " ^ Expression.to_string e ^ " sort = " ^ Sort.to_string (Sort.t_int));
+      (Sort.sub_empty, Sort.t_int)
   | Con (Constant.Real _) ->
       (Sort.sub_empty, Sort.Real)
   | Con (Constant.Lit (_, t)) ->
@@ -966,9 +953,9 @@ let rec sortcheck_expr g f expected_t e =
   | Bot   ->
       None
   | Con (Constant.Int _) ->
-      Some Sort.Int
+      Some Sort.t_int
   | Con (Constant.Real _) ->
-      Some Sort.Real
+      Some Sort.t_real
   | Con (Constant.Lit (_, t)) ->
       Some t
   | Var s ->
@@ -1040,7 +1027,7 @@ and sortcheck_app g f tExp uf es =
 and sortcheck_op g f (e1, op, e2) =
   match Misc.map_pair (sortcheck_expr g f None) (e1, e2) with
   | (Some Sort.Int, Some Sort.Int)
-  -> Some Sort.Int
+  -> Some Sort.t_int
 
   | (Some Sort.Real, Some Sort.Real)
   -> Some Sort.Real
@@ -1058,7 +1045,7 @@ and sortcheck_op g f (e1, op, e2) =
   (* only allow when language is C *)
   | (Some (Sort.Ptr s), Some (Sort.Ptr s'))
   when op = Minus && s = s'
-  -> Some Sort.Int
+  -> Some Sort.t_int
 
   | (Some (Sort.Var v), Some t)
   | (Some t, Some (Sort.Var v))
