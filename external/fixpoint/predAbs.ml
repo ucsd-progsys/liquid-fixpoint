@@ -474,6 +474,8 @@ let inst_ext env vv t qs =
 let debug_unify_count         = ref 0
 let debug_unify_success_count = ref 0
 
+(* BEGIN-ORIGINAL
+
 let ext_bindings yts wkl (x, tx) =
   let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
   Misc.tr_rev_flap begin fun (su, xys) ->
@@ -495,19 +497,51 @@ let inst_qual_sorted yts vv t q =
             |> List.rev_map (List.map (Misc.app_snd A.eVar))             (* instantiations           *)
             |> List.rev_map (Q.inst q)                                   (* quals *)
             (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
-
     | None    -> []
-(*
-tytd
-*)
-
-
 
 let inst_ext_sorted env vv t qs =
   let _   = Misc.display_tick () in
   let yts = inst_binds env       in
   let r   = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted yts vv t)) qs in
   r
+
+END-ORIGINAL *)
+
+let ext_bindings tys wkl (x, tx) =
+  let tys = List.map begin fun (t, ys) ->
+              (t, List.filter (fun y -> varmatch (x, y)) ys)
+            end tys in
+  Misc.tr_rev_flap begin fun (su, xys) ->
+    Misc.tr_rev_flap begin fun (ty, ys) ->
+      let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
+      match u with
+        | None     -> []
+        | Some su' -> let _  = incr debug_unify_success_count in
+                      List.map (fun y -> (su', (x,y) :: xys)) ys
+    end tys
+  end wkl
+
+let inst_qual_sorted tys vv t q =
+  let (qvv0, t0) :: xts = Q.all_params_of_t q     in
+  match BS.time "q-inst-0" (Sort.unify [t0]) [t] with
+    | Some su0 ->
+        xts |> List.fold_left (ext_bindings tys) [(su0, [(qvv0, vv)])]   (* generate subs-bindings   *)
+            |> List.rev_map (List.rev <.> snd)                           (* extract sorted bindings  *)
+            |> List.rev_map (List.map (Misc.app_snd A.eVar))             (* instantiations           *)
+            |> List.rev_map (Q.inst q)                                   (* quals *)
+            (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
+    | None    -> []
+
+
+let inst_ext_sorted env vv t qs =
+  let _   = Misc.display_tick () in
+  let tys = inst_binds env
+            |> Misc.kgroupby snd
+            |> List.map (fun (ty, yts) -> (ty, List.map fst yts))  in
+  let r   = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted tys vv t)) qs in
+  r
+
+
 
 (***************************************************************)
 (**************** Lazy Instantiation ***************************)

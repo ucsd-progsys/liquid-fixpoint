@@ -1170,7 +1170,6 @@ let kgroupby (f: 'a -> 'b) (xs: 'a list): ('b * 'a list) list =
   Hashtbl.fold (fun k xs xxs -> (k, xs) :: xxs) t []
 
 
-
 let groupby (f: 'a -> 'b) (xs: 'a list): 'a list list =
   kgroupby f xs |> List.map (snd <+> List.rev)
 
