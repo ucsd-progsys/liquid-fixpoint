@@ -346,20 +346,23 @@ let subst_locs_vars lim = map begin function
       | t                             -> t
     end
 
-    (* API *)
+(* API *)
 let generalize ts =
-      let locs = ts |> Misc.flap locs_of_t |> Misc.sort_and_compact       in
-      let idx  = ts |> Misc.flap vars_of_t |> Misc.list_max (-1) |> (+) 1 in
-      let lim  = Misc.index_from idx locs |>: Misc.swap |> SM.of_list     in
-      List.map (subst_locs_vars lim) ts
+  let locs = ts |> Misc.flap locs_of_t |> Misc.sort_and_compact       in
+  let idx  = ts |> Misc.flap vars_of_t |> Misc.list_max (-1) |> (+) 1 in
+  let lim  = Misc.index_from idx locs |>: Misc.swap |> SM.of_list     in
+  List.map (subst_locs_vars lim) ts
 
-    (* API *)
+(* API *)
 let sub_args s = List.sort compare s.vars
 
-    (* API *)
+(* API *)
 let check_arity n s =
   let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in
   n == n_vars
+
+(* API *)
+let is_mono t = Misc.null (vars_of_t t)
 
 (***************************************************************************)
 (*********** New Type Checking Expressions and Predicates ******************)

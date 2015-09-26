@@ -505,13 +505,19 @@ let inst_ext_sorted env vv t qs =
   let r   = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted yts vv t)) qs in
   r
 
+let teq t1 t2 =
+  let r = (t1 = t2)                                   in
+  let _ = F.printf "teq: %s = %s : %b \n"
+            (Sort.to_string t1) (Sort.to_string t2) r in
+  r
 END-ORIGINAL *)
 
-let mono_extract tx tys =
-  if Sort.isMono tx then
-    List.filter (fun (t, _) -> t = tx) tys
+
+let mono_extract tx tyss =
+  if Sort.is_mono tx then
+    List.filter (fun (t, _) -> t = tx) tyss
   else
-     tys
+     tyss
 
 let ext_bindings tys wkl (x, tx) =
   let tys  = tys |>  mono_extract tx

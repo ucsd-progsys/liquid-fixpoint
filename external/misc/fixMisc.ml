@@ -516,9 +516,13 @@ let list_reduce msg f = function
   | []    -> assertf "ERROR: list_reduce with empty list: %s" msg
   | x::xs -> List.fold_left f x xs
 
-let nonnull = function
-  | [] -> false
-  | _  -> true
+
+let null = function
+  | [] -> true
+  | _  -> false
+
+let nonnull xs = not (null xs)
+
 
 (*
 let list_is_empty = function

@@ -63,6 +63,7 @@ val unifyWith   : sub -> t list -> t list -> sub option
 val unify       : t list -> t list -> sub option
 val apply       : sub -> t -> t
 val generalize  : t list -> t list
+val is_mono     : t -> bool
 val sub_args    : sub -> (int * t) list
     (* val check_arity : int -> sub -> bool *)
 val makeFresh : int -> (int * int) list
