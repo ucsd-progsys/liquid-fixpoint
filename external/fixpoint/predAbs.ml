@@ -523,7 +523,7 @@ let ext_bindings tys wkl (x, tx) =
 
 let inst_qual_sorted tys vv t q =
   let (qvv0, t0) :: xts = Q.all_params_of_t q     in
-  match BS.time "q-inst-0" (Sort.unify [t0]) [t] with
+  match Sort.unify [t0] [t] with
     | Some su0 ->
         xts |> List.fold_left (ext_bindings tys) [(su0, [(qvv0, vv)])]   (* generate subs-bindings   *)
             |> List.rev_map (List.rev <.> snd)                           (* extract sorted bindings  *)
@@ -568,7 +568,7 @@ let ppBinding k zs =
 let lazy_instantiate_with me c k su : Q.t list =
   let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
   let env'      = SM.filter (is_non_trivial_var me c su) env in
-  (BS.time "inst_ext" (inst_ext me.qs env env' v) t)
+  inst_ext me.qs env env' v t
   (* >> ppBinding k *)
   |> ((++) (SM.find_default [] k me.om))
 
@@ -587,9 +587,10 @@ let rhs_cands me = function
       |>: (Misc.app_snd (Misc.flip A.substs_pred su))
   (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
   | _ -> []
-}}} *)
 
 let get_lhs me c   = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c
+}}} *)
+
 
 let bind_read me k = SM.find_default Bot k me.m
 
@@ -615,7 +616,7 @@ let quals_of_bind me c k su = function
   | NonBot qs ->
       (qs, me)
   | Bot       ->
-      let qs      = BS.time "lazy-inst" (lazy_instantiate_with me c k) su       in
+      let qs      = lazy_instantiate_with me c k su           in
       let (_, me) = p_update me [k] (qs |>: (fun q -> (k,q))) in
       (qs, me)
 
@@ -646,14 +647,14 @@ let rhs_cands_inst me c =
   (Misc.flatten zs, me)
 
 let lhs_preds me c =
-  let lps = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c in
+  let lps = BS.time "lhs_preds" (C.preds_of_lhs (read me)) c in
   (lps, me)
 
 let refine_sort_bot_rhs me c =
-  let (lps, me) = BS.time "rsb 1" (lhs_preds me) c                                          in
-  let (rcs, me) = BS.time "rsb 2" (rhs_cands_inst me) c                                     in
-  let senv      = BS.time "rsb 3" (C.senv_of_t) c                                           in
-  let rcs       = BS.time "rsb 4" (Misc.filter (fun (_,p) -> C.wellformed_pred senv p)) rcs in
+  let (lps, me) = lhs_preds me c                                          in
+  let (rcs, me) = BS.time "rsb 2" (rhs_cands_inst me) c                   in
+  let senv      = C.senv_of_t c                                           in
+  let rcs       = Misc.filter (fun (_,p) -> C.wellformed_pred senv p) rcs in
   (true, me, lps, rcs)
 
 let refine_sort_first_time me c =
