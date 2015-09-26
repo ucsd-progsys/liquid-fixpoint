@@ -30,7 +30,7 @@ module type THEORY = sig
   type sortDef
 
   val sym_sort    : appDef  -> Sort.t
-  val sym_name    : appDef  -> Ast.Symbol.t
+  val sym_name    : appDef  -> Symbol.t
   val sort_name   : sortDef -> Sort.tycon
   val mk_thy_sort : sortDef -> context -> sort list -> sort
   val mk_thy_app  : appDef  -> context -> sort list -> ast list -> ast
@@ -128,11 +128,11 @@ end
 class type prover =
   object
        (* AST/TC Interface *)
-       method interp_syms :  unit -> (Ast.Symbol.t * Sort.t) list
+       method interp_syms :  unit -> (Symbol.t * Sort.t) list
 
        (* Query Interface *)
-       method set_filter  :  'a . Sort.t Ast.Symbol.SMap.t
-                          -> Ast.Symbol.t
+       method set_filter  :  'a . Sort.t Symbol.SMap.t
+                          -> Symbol.t
                           -> Ast.pred list
                           -> ('a * Ast.pred) list
                           -> 'a list
@@ -140,27 +140,21 @@ class type prover =
        method print_stats : Format.formatter -> unit
 
        (* Counterexample Interface *)
-       method is_contra   :  Sort.t Ast.Symbol.SMap.t
+       method is_contra   :  Sort.t Symbol.SMap.t
                           -> Ast.pred
                           -> bool
 
 
-       method unsat_suffix :  Sort.t Ast.Symbol.SMap.t
+       method unsat_suffix :  Sort.t Symbol.SMap.t
                            -> Ast.pred                     (* background predicate   *)
                            -> Ast.pred list                (* [p0,...,pn] *)
                            -> int option                   (* max j st. p /\i=j..n pi unsat *)
-
-       (* method unsat_core  :  Sort.t Ast.Symbol.SMap.t
-                          -> Ast.pred                      (* background predicate   *)
-                          -> ('a * Ast.pred) list          (* [(index, killer-fact)] *)
-                          -> 'a list                       (* [unsat-core-index]    *)
-       *)
 end
 
 module type PROVER = sig
   val mkProver :  Sort.t list                      (* sorts        *)
-               -> Sort.t Ast.Symbol.SMap.t         (* environment  *)
+               -> Sort.t Symbol.SMap.t         (* environment  *)
                -> Ast.pred list                        (* axioms       *)
-               -> Ast.Symbol.t list                    (* distinct constants, sorts in env *)
+               -> Symbol.t list                    (* distinct constants, sorts in env *)
                -> prover
 end

@@ -29,23 +29,23 @@
 type t
 module QSet : FixMisc.ESetType with type elt = t
 
-val create          :  Ast.Symbol.t
-                    -> Ast.Symbol.t
+val create          :  Symbol.t
+                    -> Symbol.t
                     -> Sort.t
-                    -> (Ast.Symbol.t * Sort.t) list
+                    -> (Symbol.t * Sort.t) list
                     -> Ast.pred
                     -> t
 
-val name_of_t       : t -> Ast.Symbol.t
-val vv_of_t         : t -> Ast.Symbol.t
+val name_of_t       : t -> Symbol.t
+val vv_of_t         : t -> Symbol.t
 val pred_of_t       : t -> Ast.pred
 val sort_of_t       : t -> Sort.t
-val params_of_t     : t -> (Ast.Symbol.t * Sort.t) list
-val all_params_of_t : t -> (Ast.Symbol.t * Sort.t) list
-val vv_of_t         : t -> Ast.Symbol.t
-val args_of_t       : t -> (Ast.Symbol.t * Ast.expr) list
+val params_of_t     : t -> (Symbol.t * Sort.t) list
+val all_params_of_t : t -> (Symbol.t * Sort.t) list
+val vv_of_t         : t -> Symbol.t
+val args_of_t       : t -> (Symbol.t * Ast.expr) list
 val normalize       : t list -> t list
-val inst            : t -> (Ast.Symbol.t * Ast.expr) list -> t
+val inst            : t -> (Symbol.t * Ast.expr) list -> t
 val print           : Format.formatter -> t -> unit
 val print_args      : Format.formatter -> t -> unit
-val expandPred      : Ast.Symbol.t -> Ast.expr list -> Ast.pred option
+val expandPred      : Symbol.t -> Ast.expr list -> Ast.pred option

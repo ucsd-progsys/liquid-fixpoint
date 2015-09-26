@@ -1,27 +1,27 @@
 (*
- * Copyright © 2009 The Regents of the University of California. All rights reserved. 
+ * Copyright © 2009 The Regents of the University of California. All rights reserved.
  *
- * Permission is hereby granted, without written agreement and without 
- * license or royalty fees, to use, copy, modify, and distribute this 
- * software and its documentation for any purpose, provided that the 
- * above copyright notice and the following two paragraphs appear in 
- * all copies of this software. 
- * 
- * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY 
- * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES 
- * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN 
- * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY 
- * OF SUCH DAMAGE. 
- * 
- * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
- * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
- * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
+ * Permission is hereby granted, without written agreement and without
+ * license or royalty fees, to use, copy, modify, and distribute this
+ * software and its documentation for any purpose, provided that the
+ * above copyright notice and the following two paragraphs appear in
+ * all copies of this software.
+ *
+ * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY
+ * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
+ * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN
+ * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ *
+ * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
+ * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
-module Sy = Ast.Symbol
-module P  = Ast.Predicate 
+module Sy = Symbol
+module P  = Ast.Predicate
 module Su = Ast.Subst
 module C  = FixConstraint
 module Misc = FixMisc open Misc.Ops
@@ -47,7 +47,7 @@ end
 
 module Id : Graph.Sig.ORDERED_TYPE_DFT with type t = int * rd = struct
   type t = int * rd
-  let default = 0, Junk 
+  let default = 0, Junk
   let compare = compare
 end
 
@@ -57,7 +57,7 @@ module VS  = Set.Make(V)
 type t = G.t
 
 (************************************************************************)
-(*************************** Dumping to Dot *****************************) 
+(*************************** Dumping to Dot *****************************)
 (************************************************************************)
 
 module DotGraph = struct
@@ -69,50 +69,50 @@ module DotGraph = struct
   let graph_attributes          = fun _ -> [`Size (11.0, 8.5); `Ratio (`Float 1.29)]
   let default_vertex_attributes = fun _ -> [`Shape `Box]
   let vertex_name               = function C.Kvar (_,k) -> Sy.to_string k | ra -> "C"^(string_of_int (V.hash ra))
-  let vertex_attributes         = fun ra -> [`Label (C.refa_to_string ra)] 
+  let vertex_attributes         = fun ra -> [`Label (C.refa_to_string ra)]
   let default_edge_attributes   = fun _ -> []
   let edge_attributes           = fun (_,(i,r),_) -> [`Label (Printf.sprintf "%d:%s" i (Misc.fsprintf print_rd r))]
   let get_subgraph              = fun _ -> None
 end
 
-module Dot = Graph.Graphviz.Dot(DotGraph) 
+module Dot = Graph.Graphviz.Dot(DotGraph)
 
-let dump_graph s g = 
-  s |> open_out 
+let dump_graph s g =
+  s |> open_out
     >> (fun oc -> Dot.output_graph oc g)
-    |> close_out 
+    |> close_out
 
 (************************************************************************)
-(********************* Constraints-to-Graph *****************************) 
+(********************* Constraints-to-Graph *****************************)
 (************************************************************************)
 
-let xkvars_of_env env = 
-  Sy.SMap.fold begin fun x r acc -> 
-    r |> C.kvars_of_reft 
-      |> List.map (fun z -> x,z) 
+let xkvars_of_env env =
+  Sy.SMap.fold begin fun x r acc ->
+    r |> C.kvars_of_reft
+      |> List.map (fun z -> x,z)
       |> (fun xks -> xks ++ acc)
   end env []
 
-let dsts_of_t c = 
-  c |> C.rhs_of_t 
-    |> C.ras_of_reft 
-    |> List.map (function C.Kvar (_,k) -> C.Kvar (Su.empty, k) | ra -> ra) 
+let dsts_of_t c =
+  c |> C.rhs_of_t
+    |> C.ras_of_reft
+    |> List.map (function C.Kvar (_,k) -> C.Kvar (Su.empty, k) | ra -> ra)
 
 let edges_of_t c =
-  let eks = c |> C.env_of_t 
-              |> xkvars_of_env 
+  let eks = c |> C.env_of_t
+              |> xkvars_of_env
               |> List.map (fun (x, (su, k)) -> (C.Kvar (Su.empty, k)), Bnd (x, su)) in
-  let gps = c |> C.grd_of_t 
+  let gps = c |> C.grd_of_t
               |> (fun p -> if P.is_tauto p then [] else [(C.Conc p, Grd)]) in
-  let lks = c |> C.lhs_of_t 
-              |> C.ras_of_reft 
-              |> List.map (function C.Kvar (su, k) -> (C.Kvar (Su.empty, k), Lhs su) | ra -> (ra, Grd)) in 
+  let lks = c |> C.lhs_of_t
+              |> C.ras_of_reft
+              |> List.map (function C.Kvar (su, k) -> (C.Kvar (Su.empty, k), Lhs su) | ra -> (ra, Grd)) in
   c |> dsts_of_t
-    |> Misc.cross_product (lks ++ gps ++ eks)  
+    |> Misc.cross_product (lks ++ gps ++ eks)
     |> List.map (fun ((ra, l), ra') -> (ra, (C.id_of_t c, l), ra'))
 
 (************************************************************************)
-(*************************** Misc. Accessors ****************************) 
+(*************************** Misc. Accessors ****************************)
 (************************************************************************)
 
 let vertices_of_graph = fun g -> G.fold_vertex (fun v acc -> v::acc) g []
@@ -121,55 +121,55 @@ let vertices_of_graph = fun g -> G.fold_vertex (fun v acc -> v::acc) g []
 let filter_kvars f g =
   g  |> vertices_of_graph
      |> List.filter (not <.> C.is_conc_refa)
-     |> List.filter f 
+     |> List.filter f
      |> Misc.sort_and_compact
 
 let get_edges f g vs =
   vs |> Misc.flap (f g)
-     |> List.map (fun (_,(i,_),_) -> i) 
+     |> List.map (fun (_,(i,_),_) -> i)
      |> Misc.sort_and_compact
 
 (* APU *)
-let writes  = get_edges G.pred_e 
+let writes  = get_edges G.pred_e
 let reads   = get_edges G.succ_e
 
 (* API *)
 let k_reads g i k =
   k >> (C.refa_to_string <+> Format.printf "Kvgraph.k_reads [IN] id=%d, k=%s\n" i)
-    |> G.succ_e g 
+    |> G.succ_e g
     |> Misc.map_partial (function (_,(j,x),_) when i=j -> Some x | _ -> None)
     >> (Format.printf "Kvgraph.k_reads [OUT] %a \n" (Misc.pprint_many false "," print_rd))
 
 (************************************************************************)
-(********************* (Backwards) Reachability *************************) 
+(********************* (Backwards) Reachability *************************)
 (************************************************************************)
 
 let vset_of_list vs = List.fold_left (fun s v -> VS.add v s) VS.empty vs
 let pre_star g vs =
   (vs, VS.empty)
-  |> Misc.fixpoint begin function 
+  |> Misc.fixpoint begin function
      | [], r -> ([], r), false
-     | ws, r -> ws |> List.filter (fun v -> not (VS.mem v r)) 
+     | ws, r -> ws |> List.filter (fun v -> not (VS.mem v r))
                    |> Misc.tmap2 (Misc.flap (G.pred g), vset_of_list <+> VS.union r)
-                   |> (fun x -> x, true) 
-     end 
-  |> fst |> snd 
+                   |> (fun x -> x, true)
+     end
+  |> fst |> snd
   |> VS.elements
 
 (************************************************************************)
-(****************************** Predicates ******************************) 
+(****************************** Predicates ******************************)
 (************************************************************************)
 
-let is_num_write g f v = 
-  [v] |> writes g 
-      |> List.length 
+let is_num_write g f v =
+  [v] |> writes g
+      |> List.length
       |> f
 
 let undef_ks     = fun g -> filter_kvars (is_num_write g ((=) 0)) g
 let multi_wr_ks  = fun g -> filter_kvars (is_num_write g ((<) 1)) g
 let single_wr_ks = fun g -> filter_kvars (is_num_write g ((=) 1)) g
 
-let cone_nodes g =  
+let cone_nodes g =
   g |> vertices_of_graph
     |> List.filter C.is_conc_refa
     |> pre_star g
@@ -180,7 +180,7 @@ let cone_nodes g =
 
 let print_ks s ks =
   ks |> Misc.map_partial (function C.Kvar (_,k) -> Some k | _ -> None)
-     |> Format.printf "[KVG] %s %a \n" s (Misc.pprint_many false "," Sy.print) 
+     |> Format.printf "[KVG] %s %a \n" s (Misc.pprint_many false "," Sy.print)
 
 (* API *)
 let is_single_wr = fun g -> is_num_write g ((=) 1)
@@ -189,20 +189,20 @@ let is_single_rd = fun g -> G.succ_e g <+> Misc.groupby (snd3 <+> fst) <+> List.
 (* API *)
 let empty  = G.empty
 let add    = List.fold_left (fun g -> List.fold_left G.add_edge_e g <.> edges_of_t)
-let remove = List.fold_left G.remove_vertex 
+let remove = List.fold_left G.remove_vertex
 
 (* API *)
-let cone_ks g = 
+let cone_ks g =
   g |> cone_nodes
     |> List.filter (not <.> C.is_conc_refa)
 
 (* API *)
-let cone_ids g = 
-  g |> cone_nodes 
+let cone_ids g =
+  g |> cone_nodes
     |> writes g
 
 (* API *)
-let print_stats g = 
+let print_stats g =
   g >> dump_graph ((Constants.get_out_file ())^".dot")
     >> (single_wr_ks <+> print_ks "single write kvs:")
     >> (multi_wr_ks  <+> print_ks "multi write kvs:")

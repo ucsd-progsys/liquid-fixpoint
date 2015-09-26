@@ -17,7 +17,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
  * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION
- * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONAst.Symbol.
+ * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATION
  *
  *)
 
@@ -33,16 +33,16 @@ type id   = int         (* for identifying: must be unique *)
 
 exception BadConstraint of (id * tag * string)
 
-type soln  = Ast.Symbol.t -> Ast.pred list
-type refa  = Conc of Ast.pred | Kvar of Ast.Subst.t * Ast.Symbol.t
-type reft  = Ast.Symbol.t * Sort.t * refa list   (* { VV: t | [ra] } *)
-type envt  = reft Ast.Symbol.SMap.t
-type senvt = Sort.t Ast.Symbol.SMap.t
+type soln  = Symbol.t -> Ast.pred list
+type refa  = Conc of Ast.pred | Kvar of Ast.Subst.t * Symbol.t
+type reft  = Symbol.t * Sort.t * refa list   (* { VV: t | [ra] } *)
+type envt  = reft Symbol.SMap.t
+type senvt = Sort.t Symbol.SMap.t
 
 
-val fresh_kvar       : unit -> Ast.Symbol.t
-val kvars_of_reft    : reft -> (Ast.Subst.t * Ast.Symbol.t) list
-val kvars_of_t       : t -> (Ast.Subst.t * Ast.Symbol.t) list
+val fresh_kvar       : unit -> Symbol.t
+val kvars_of_reft    : reft -> (Ast.Subst.t * Symbol.t) list
+val kvars_of_t       : t -> (Ast.Subst.t * Symbol.t) list
 
 val is_conc_refa     : refa -> bool
 val is_conc_rhs      : t -> bool
@@ -57,21 +57,21 @@ val preds_of_reft    : soln  -> reft -> Ast.pred list
 val preds_of_lhs     : soln  -> t -> Ast.pred list
 val preds_of_lhs_nofilter : soln -> t -> Ast.pred list
 
-val vars_of_t        : soln -> t -> Ast.Symbol.t list
+val vars_of_t        : soln -> t -> Symbol.t list
 val is_tauto         : t -> bool
 
-val preds_kvars_of_reft     : reft -> (Ast.pred list * (Ast.Subst.t * Ast.Symbol.t) list)
-val env_of_bindings         : (Ast.Symbol.t * reft) list -> envt
-val env_of_ordered_bindings : (Ast.Symbol.t * reft) list -> envt
+val preds_kvars_of_reft     : reft -> (Ast.pred list * (Ast.Subst.t * Symbol.t) list)
+val env_of_bindings         : (Symbol.t * reft) list -> envt
+val env_of_ordered_bindings : (Symbol.t * reft) list -> envt
 
 (* TODO: Deprecate *)
-val bindings_of_env  : envt -> (Ast.Symbol.t * reft) list
+val bindings_of_env  : envt -> (Symbol.t * reft) list
 
-val kbindings_of_lhs : t -> (Ast.Symbol.t * reft) list
+val kbindings_of_lhs : t -> (Symbol.t * reft) list
 
 val is_simple        : t -> bool
-val map_env          : (Ast.Symbol.t -> reft -> reft) -> envt -> envt
-val lookup_env       : envt -> Ast.Symbol.t -> reft option
+val map_env          : (Symbol.t -> reft -> reft) -> envt -> envt
+val lookup_env       : envt -> Symbol.t -> reft option
 
 (* to print a constraint "c" do:
    Format.printf "%a" (print_t None) c
@@ -95,28 +95,28 @@ val print_t          : soln option -> Format.formatter -> t -> unit
 val print_ras        : soln option -> Format.formatter -> refa list -> unit
 val print_reft       : soln option -> Format.formatter -> reft -> unit
 val print_reft_pred  : soln option -> Format.formatter -> reft -> unit
-val print_binding    : soln option -> Format.formatter -> (Ast.Symbol.t * reft) -> unit
+val print_binding    : soln option -> Format.formatter -> (Symbol.t * reft) -> unit
 val print_tag        : Format.formatter -> tag -> unit
 val print_dep        : Format.formatter -> dep -> unit
 
 val to_string        : t -> string
 val refa_to_string   : refa -> string
 val reft_to_string   : reft -> string
-val binding_to_string: (Ast.Symbol.t * reft) -> string
+val binding_to_string: (Symbol.t * reft) -> string
 
-val make_reft        : Ast.Symbol.t -> Sort.t -> refa list -> reft
-val vv_of_reft       : reft -> Ast.Symbol.t
+val make_reft        : Symbol.t -> Sort.t -> refa list -> reft
+val vv_of_reft       : reft -> Symbol.t
 val sort_of_reft     : reft -> Sort.t
 val ras_of_reft      : reft -> refa list
 val shape_of_reft    : reft -> reft
 val theta            : Ast.Subst.t -> reft -> reft
 
-val add_consts_wf    : (Ast.Symbol.t * Sort.t) list -> wf -> wf
-val add_consts_t     : (Ast.Symbol.t * Sort.t) list -> t -> t
+val add_consts_wf    : (Symbol.t * Sort.t) list -> wf -> wf
+val add_consts_t     : (Symbol.t * Sort.t) list -> t -> t
 val make_t           : envt -> Ast.pred -> reft -> reft -> id option -> tag -> t
 
 val sort_of_t        : t -> Sort.t
-val vv_of_t          : t -> Ast.Symbol.t
+val vv_of_t          : t -> Symbol.t
 val senv_of_t        : t -> senvt
 val env_of_t         : t -> envt
 val grd_of_t         : t -> Ast.pred

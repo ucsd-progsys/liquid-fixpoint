@@ -56,16 +56,9 @@ type t    = { full    : envt;
               ido     : id option;
               tag     : tag; }
 
-type soln = Ast.Symbol.t -> Ast.pred list
+type soln = Symbol.t -> Ast.pred list
 
 exception BadConstraint of (id * tag * string)
-
-
-(*
-type soln    = Ast.pred list Ast.Symbol.SMap.t
-type soln = { read  : Ast.Symbol.t -> Ast.pred list
-            ; kvars : Ast.Symbol.SSet.t }
-*)
 
 let mydebug = false
 

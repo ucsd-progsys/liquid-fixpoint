@@ -3,7 +3,7 @@
 
 module C  = FixConstraint
 module Co = Constants
-module Sy = Ast.Symbol
+module Sy = Symbol
 module Su = Ast.Subst
 module P = Ast.Predicate
 module E = Ast.Expression

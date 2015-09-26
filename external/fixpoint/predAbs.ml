@@ -105,7 +105,7 @@ type t     =
   { tpc    : ProverArch.prover
   ; m      : bind SM.t
   ; om     : (Q.t list) SM.t
-  ; wm     : (Sort.t SM.t * Ast.Symbol.t * Sort.t) SM.t
+  ; wm     : (Sort.t SM.t * Symbol.t * Sort.t) SM.t
   ; assm   : FixConstraint.soln  (* invariant assumption for K, must be a fixpoint wrt constraints *)
   (* ; qm     : Q.t SM.t  *)     (* map from names to qualifiers *)
   ; qs     : Q.t list            (* list of qualifiers *)
@@ -913,10 +913,10 @@ let apply_facts_c kf me c =
 	  {me with m = BS.time "update pruned" (update_pruned ks me) fqm}
 
 let apply_facts cs kf me =
-  let numqs = me.m |> Ast.Symbol.SMap.to_list
+  let numqs = me.m |> Symbol.SMap.to_list
               |> List.map snd |> List.concat |> List.length in
   let sol   = List.fold_left (apply_facts_c kf) me cs in
-  let numqs' = sol.m |> Ast.Symbol.SMap.to_list
+  let numqs' = sol.m |> Symbol.SMap.to_list
                |> List.map snd |> List.concat |> List.length in
   let _ = Printf.printf "Started with %d, proved %d false\n" numqs (numqs-numqs') in
     sol

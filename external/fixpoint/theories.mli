@@ -21,6 +21,6 @@
  *)
 
 val is_interp   : Sort.tycon -> bool
-val interp_syms : unit -> (Ast.Symbol.t * Sort.t) list
+val interp_syms : unit -> (Symbol.t * Sort.t) list
 
 module MakeTheory(SMT : ProverArch.SMTSOLVER): (ProverArch.THEORY with type context = SMT.context and  type sort = SMT.sort and type ast = SMT.ast)

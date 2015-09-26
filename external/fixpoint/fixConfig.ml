@@ -20,7 +20,7 @@
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
-module Sy  = Ast.Symbol
+module Sy  = Symbol
 module SM  = Sy.SMap
 module Q   = Qualifier
 module C   = FixConstraint
@@ -29,25 +29,24 @@ module Co  = Constants
 
 module Misc = FixMisc open Misc.Ops
 
-exception UnmappedKvar of Ast.Symbol.t
+exception UnmappedKvar of Symbol.t
 
 let mydebug  = false
 
 type qbind   = Q.t list
 
-type solbind = Ast.Symbol.t * ((Ast.Symbol.t * (Ast.expr list)) list)
+type solbind = Symbol.t * ((Symbol.t * (Ast.expr list)) list)
 
 type deft = Srt of Sort.t
           | Axm of Ast.pred
           | Cst of FixConstraint.t
           | Wfc of FixConstraint.wf
-          | Con of Ast.Symbol.t * Sort.t
+          | Con of Symbol.t * Sort.t
           | Sol of solbind
-          (* | Sol of Ast.Symbol.t * (Ast.pred * (Ast.Symbol.t * Ast.Subst.t)) list *)
           | Qul of Q.t
           | Dep of FixConstraint.dep
-          | Kut of Ast.Symbol.t
-          | IBind of int * Ast.Symbol.t * FixConstraint.reft
+          | Kut of Symbol.t
+          | IBind of int * Symbol.t * FixConstraint.reft
 
 type 'bind cfg = {
    a      : int                               (* Tag arity                            *)
@@ -57,10 +56,10 @@ type 'bind cfg = {
  ; ws     : FixConstraint.wf list             (* Well-formedness Constraints          *)
  ; ds     : FixConstraint.dep list            (* Constraint Dependencies              *)
  ; qs     : Q.t list                          (* Qualifiers                           *)
- ; kuts   : Ast.Symbol.t list                 (* "Cut"-Kvars, which break cycles      *)
+ ; kuts   : Symbol.t list                 (* "Cut"-Kvars, which break cycles      *)
  ; bm     : 'bind SM.t                        (* Initial Sol Bindings                 *)
- ; uops   : Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
- ; cons   : Ast.Symbol.t list                 (* Distinct Constants, defined in uops  *)
+ ; uops   : Sort.t Symbol.SMap.t      (* Globals: measures + distinct consts) *)
+ ; cons   : Symbol.t list                 (* Distinct Constants, defined in uops  *)
  ; assm   : FixConstraint.soln                (* Seed Solution -- must be a fixpoint over constraints *)
 }
 

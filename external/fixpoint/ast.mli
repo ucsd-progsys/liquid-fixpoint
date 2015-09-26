@@ -36,23 +36,6 @@ module Cone : sig
   val map : ('a -> 'b) -> 'a t -> 'b t
 end
 
-module Symbol :
-  sig
-    type t
-    module SMap         : FixMisc.EMapType with type key = t
-    module SSet         : FixMisc.ESetType with type elt = t
-    val mk_wild         : unit -> t
-    val of_string       : string -> t
-    val to_string       : t -> string
-    val is_wild_any     : t -> bool
-    val is_wild_fresh   : t -> bool
-    val is_wild         : t -> bool
-    val print           : Format.formatter -> t -> unit
-    val value_variable  : Sort.t -> t
-    val is_value_variable : t -> bool
-    val suffix          : t -> string -> t
-  end
-
 module Constant :
   sig
     type t = Int  of int

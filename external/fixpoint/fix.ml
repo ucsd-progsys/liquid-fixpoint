@@ -22,7 +22,7 @@
  *)
 
 module Ast        = Ast
-module Symbol     = Ast.Symbol
+module Symbol     = Symbol
 module Constant   = Ast.Constant
 module Sort       = Sort
 module Predicate  = Ast.Predicate

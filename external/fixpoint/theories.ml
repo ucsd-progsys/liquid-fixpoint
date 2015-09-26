@@ -21,7 +21,7 @@
  *)
 
 module So = Sort
-module Sy = Ast.Symbol
+module Sy = Symbol
 
 open ProverArch
 open FixMisc.Ops

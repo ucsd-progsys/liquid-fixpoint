@@ -1,23 +1,23 @@
 (*
- * Copyright © 2009 The Regents of the University of California. All rights reserved. 
+ * Copyright © 2009 The Regents of the University of California. All rights reserved.
  *
- * Permission is hereby granted, without written agreement and without 
- * license or royalty fees, to use, copy, modify, and distribute this 
- * software and its documentation for any purpose, provided that the 
- * above copyright notice and the following two paragraphs appear in 
- * all copies of this software. 
- * 
- * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY 
- * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES 
- * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN 
- * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY 
- * OF SUCH DAMAGE. 
- * 
- * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
- * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
- * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
- * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONAst.Symbol.
+ * Permission is hereby granted, without written agreement and without
+ * license or royalty fees, to use, copy, modify, and distribute this
+ * software and its documentation for any purpose, provided that the
+ * above copyright notice and the following two paragraphs appear in
+ * all copies of this software.
+ *
+ * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY
+ * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
+ * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN
+ * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ *
+ * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
+ * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION
+ * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATION.
  *
  *)
 
@@ -81,8 +81,8 @@ let mk_temp = function
 let rv_append v1 = function
   | TVar v2 | PVar v2 ->
       PVar (Sy.of_string (Sy.to_string v1 ^ "_" ^ Sy.to_string v2))
-  
-let collect_apps_from_pred p = 
+
+let collect_apps_from_pred p =
   let apps = ref [] in
   let f_exp e =
     match E.unwrap e with
@@ -106,7 +106,7 @@ let collect_apps_from_program (_, blocks) =
 (************* Rendering IMP to String ***********************************)
 (*************************************************************************)
 
-let print_var ppf = function 
+let print_var ppf = function
   | PVar v -> F.fprintf ppf "%a" Sy.print v
   | TVar v -> F.fprintf ppf "'%a" Sy.print v
 
@@ -125,12 +125,12 @@ let print_instr ppf = function
   | Rset (tupl, rv) ->
       F.fprintf ppf "@[%a@ |>@ %a;@]" print_tuple tupl Sy.print rv
   | Havc v ->
-      F.fprintf ppf "@[havoc@ %a;@]" print_var v 
+      F.fprintf ppf "@[havoc@ %a;@]" print_var v
 
 let print_decl ppf = function
   | RDecl (r, vs) ->
       F.fprintf ppf "@[rel@ (%a)@ (%a);@]" Sy.print r
-        (Misc.pprint_many false ", " Sy.print) vs 
+        (Misc.pprint_many false ", " Sy.print) vs
   | PDecl v ->
       F.fprintf ppf "@[var@ %a;@]" Sy.print v
 
@@ -141,7 +141,7 @@ let print_block ppf block =
 let print_program ppf (decls, blocks) =
   F.fprintf ppf "@[%a@.%a@]"
     (Misc.pprint_many false "\n" print_decl) decls
-    (Misc.pprint_many false "\n" print_block) blocks 
+    (Misc.pprint_many false "\n" print_block) blocks
 
 (* Printing as C syntax *)
 
@@ -158,7 +158,7 @@ let print_bop_as_c ppf = function
   | A.Minus -> F.fprintf ppf "-"
   | A.Times -> F.fprintf ppf "*"
   | A.Div   ->  F.fprintf ppf "/"
-  
+
 let rec print_predicate_as_c ppf pred =
   match P.unwrap pred with
   | A.True ->
@@ -181,7 +181,7 @@ let rec print_predicate_as_c ppf pred =
       print_expr_as_c ppf e
   | A.Forall (ds, p) ->
       assert false
-      
+
 and print_expr_as_c ppf expr =
   match E.unwrap expr with
   | A.Con c ->
@@ -204,7 +204,7 @@ and print_expr_as_c ppf expr =
   | A.Fld (s, e) ->
       print_expr_as_c ppf (A.eApp (Sy.of_string ("field" ^ Sy.to_string s), [e]))
 (*  | A.Mod (e1, i) ->
-      F.fprintf ppf "(%a mod %d)" print_expr_as_c e1 i 
+      F.fprintf ppf "(%a mod %d)" print_expr_as_c e1 i
 *)
 
 let print_var_as_c ppf = function
@@ -300,12 +300,12 @@ let wf_to_decls wf =
 let constraints_to_decls cs =
   let decls = List.map wf_to_decls (filter_wfs cs) in
   let (rdecls, pdecls) = (Misc.flap fst decls, Misc.flap snd decls) in
-  rdecls @ pdecls 
+  rdecls @ pdecls
 
 (* Constraint translation *)
 
 let rec get_kdecl kvar decls =
-  match decls with  
+  match decls with
   | RDecl (k, vars) :: decls ->
       if k = kvar then
         vars
@@ -375,6 +375,6 @@ let mk_program cs =
   (decls, constraints_to_blocks decls cs)
 
 (* API *)
-let render ppf cs = 
-  cs |> mk_program 
-     |> F.fprintf ppf "%a" print_program_as_c 
+let render ppf cs =
+  cs |> mk_program
+     |> F.fprintf ppf "%a" print_program_as_c

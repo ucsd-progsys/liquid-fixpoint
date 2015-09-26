@@ -11,7 +11,7 @@ let q_mathit = Printf.sprintf "\\mathit{%s}"
 
 let sort_to_latex s = Sort.to_string s |> q_mathit
 let symbol_to_latex s =
-  Ast.Symbol.to_string s
+  Symbol.to_string s
   |> Str.global_replace (Str.regexp "_") "\\_"
   |> Str.global_replace (Str.regexp "#") "\\#" |> q_mathit
 let constant_to_latex = Ast.Constant.to_string
@@ -80,10 +80,10 @@ let reft_to_latex (v, b, r) =
     (if r = [] then "\\ltrue" else
        (List.map refa_to_latex r |> String.concat " \\land "))
 let envt_to_latex envt =
-  if Ast.Symbol.SMap.is_empty envt then
+  if Symbol.SMap.is_empty envt then
     "\\ltrue;\\ "
   else
-    Ast.Symbol.SMap.fold
+    Symbol.SMap.fold
       (fun sym reft sofar ->
 	 Printf.sprintf "%s:%s;%s%s"
 	   (symbol_to_latex sym) (reft_to_latex reft)
