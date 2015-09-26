@@ -158,8 +158,9 @@ let cx_iter c me =
   { me with step = me.step + 1 }
 
 let cx_ctrace b c me =
-  let _ = if mydebug then F.printf "\nPredAbs.refine iter = %d cid = %d b = %b\n"
+  (* let _ = if mydebug then F.printf "\nPredAbs.refine iter = %d cid = %d b = %b\n"
                           me.step (C.id_of_t c) b in
+                          *)
   if b then { me with ctrace = IM.adds (C.id_of_t c) [me.step] me.ctrace } else me
 
 
@@ -328,10 +329,10 @@ let dupfree_binding xys : bool =
 let varmatch_ctr = ref 0
 
 let varmatch (x, y) =
-  let _ = varmatch_ctr += 1 in
+  let _     = varmatch_ctr += 1 in
   let (x,y) = Misc.map_pair Sy.to_string (x,y) in
-  if x.[0] = '@' then
-    let x' = Misc.suffix_of_string x 1 in
+  if x.[0]  = '@' then
+    let x'  = Misc.suffix_of_string x 1 in
     Misc.is_prefix x' y
   else true
 
@@ -489,13 +490,18 @@ let inst_qual_sorted yts vv t q =
   let (qvv0, t0) :: xts = Q.all_params_of_t q     in
   match BS.time "q-inst-0" (Sort.unify [t0]) [t] with
     | Some su0 ->
-        xts |> (fun zs -> BS.time "q-inst-1" (List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]) zs)   (* generate subs-bindings   *)
-            |> List.rev_map (List.rev <.> snd)                (* extract sorted bindings  *)
-            |> List.rev_map (List.map (Misc.app_snd A.eVar))  (* instantiations           *)
-            |> List.rev_map (Q.inst q)                        (* quals *)
+        xts |> List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]   (* generate subs-bindings   *)
+            |> List.rev_map (List.rev <.> snd)                           (* extract sorted bindings  *)
+            |> List.rev_map (List.map (Misc.app_snd A.eVar))             (* instantiations           *)
+            |> List.rev_map (Q.inst q)                                   (* quals *)
             (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
 
     | None    -> []
+(*
+tytd
+*)
+
+
 
 let inst_ext_sorted env vv t qs =
   let _   = Misc.display_tick () in
@@ -1021,7 +1027,8 @@ let print_stats ppf me =
   F.fprintf ppf "#Queries: umatch=%d, match=%d, ask=%d, valid=%d\n"
     !(me.stat_umatches) !(me.stat_matches) !(me.stat_imp_queries)
     !(me.stat_valid_queries);
-  F.fprintf ppf "#UnifyWith: %d\n"
+  F.fprintf ppf "#UnifyWith: (%d/%d)\n"
+    !debug_unify_success_count
     !debug_unify_count;
   me.tpc#print_stats ppf
 
@@ -1041,7 +1048,8 @@ let key_of_quals qs =
 let mkbind qs = assertf "PredAbs.mkBind not supported in lazyinst" (* NonBot qs *)(* Misc.flatten <+> Misc.sort_and_compact *)
 
 (* API *)
-let dump s =
+let dump s = ()
+(*
   s.m
   |> SM.to_list
   |> List.map (snd <+> preds_of_bind)
@@ -1051,3 +1059,4 @@ let dump s =
      | (ps::_ as pss) -> Co.bprintf mydebug "SolnCluster: preds %d = size %d \n" (List.length ps) (List.length pss)
      end
   |> ignore
+*)
