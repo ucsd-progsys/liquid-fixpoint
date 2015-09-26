@@ -372,6 +372,7 @@ exception UnificationError of string
 
 (* Substitutions *)
 
+type tsub = (int * t) list
 
 (* TODO: turn them into a map *)
 let sub_empty = []

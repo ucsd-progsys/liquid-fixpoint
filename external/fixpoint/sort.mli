@@ -64,5 +64,8 @@ val sub_args    : sub -> (int * t) list
 val makeFresh : int -> (int * int) list
 val refresh   : (int * int) list -> t -> t
 
-val mgu : int -> t -> t -> (int * t) list
-val apply_ty : (int * t) list -> t -> t
+type tsub = (int * t) list
+val mgu         : int -> t -> t -> tsub
+val apply_ty    : tsub -> t -> t
+val sub_compose : tsub -> tsub -> tsub
+val sub_empty   : tsub
