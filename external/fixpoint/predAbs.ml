@@ -520,17 +520,19 @@ let mono_extract tx tyss =
      tyss
 
 let ext_bindings tys wkl (x, tx) =
-  let tys  = tys |>  mono_extract tx
-                 |>: (fun (t, ys) -> (t, List.filter (fun y -> varmatch (x, y)) ys))
+  let tyss = tys
+           |>: (fun (t, ys) -> (t, List.filter (fun y -> varmatch (x, y)) ys))
   in
   Misc.tr_rev_flap begin fun (su, xys) ->
+    let tx   = Sort.apply su tx    in
+    let tyss = mono_extract tx tyss in
     Misc.tr_rev_flap begin fun (ty, ys) ->
       let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
       match u with
         | None     -> []
         | Some su' -> let _  = incr debug_unify_success_count in
                       List.map (fun y -> (su', (x,y) :: xys)) ys
-    end tys
+    end tyss
   end wkl
 
 let inst_qual_sorted tys vv t q =

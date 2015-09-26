@@ -262,9 +262,9 @@ let refresh_tfun (tyArity, i_ts', o_t') =
 
 
 let rec unifyt s = function
-      | Num,_ | _, Num -> None
-      | ct, (Var i)
-      | (Var i), ct
+  | Num,_ | _, Num -> None
+  | ct, (Var i)
+  | (Var i), ct
         (* when ct != Bool *) ->
           begin match lookup_var s i with
           | Some ct' when ct = ct' -> Some s
@@ -272,43 +272,43 @@ let rec unifyt s = function
           | None                   -> Some { s with vars = (i,ct) :: s.vars }
           end
 
-      | Ptr LFun, Ptr _
-      | Ptr _, Ptr LFun -> Some s
-      | Ptr (Loc cl), Ptr (Lvar j)
-      | Ptr (Lvar j), Ptr (Loc cl) ->
+  | Ptr LFun, Ptr _
+  | Ptr _, Ptr LFun -> Some s
+  | Ptr (Loc cl), Ptr (Lvar j)
+  | Ptr (Lvar j), Ptr (Loc cl) ->
           begin match lookup_loc s j with
           | Some cl' when cl' = cl -> Some s
           | Some _                 -> None
           | None                   -> Some {s with locs = (j,cl) :: s.locs}
           end
 
-      | App (c1, t1s), App (c2, t2s)
+  | App (c1, t1s), App (c2, t2s)
         when c1 = c2 && List.length t1s = List.length t2s ->
           Misc.maybe_fold unifyt s (List.combine t1s t2s)
 
-      | (t1, t2) when t1 = t2 ->
+  | (t1, t2) when t1 = t2 ->
          Some s
       (* Adding code for polymorphic arguments *)
-      | Func (i,[t1]), t2 ->
+  | Func (i,[t1]), t2 ->
         begin
           let freshMap = makeFresh i in
           let t1'      = refresh freshMap t1 in
           unifyt s (t1', t2)
         end
-      | t1, Func (i,[t2]) ->
+  | t1, Func (i,[t2]) ->
         begin
           let freshMap = makeFresh i in
           let t2'      = refresh freshMap t2 in
           unifyt s (t1, t2')
         end
-      | _        -> None
+  | _        -> None
 
 let empty_sub = {vars = []; locs = []}
 
 let unifyWith s ats cts =
-      let _ = asserts (List.length ats = List.length cts) "ERROR: unify sorts" in
-      List.combine ats cts
-      |> Misc.maybe_fold unifyt s
+  let _ = asserts (List.length ats = List.length cts) "ERROR: unify sorts" in
+  List.combine ats cts
+  |> Misc.maybe_fold unifyt s
 
 (*      >> (fun so -> Printf.printf "unify: [%s] ~ [%s] = %s \n"
                       (String.concat "; " (List.map to_string ats))
