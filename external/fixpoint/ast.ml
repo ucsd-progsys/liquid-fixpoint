@@ -749,6 +749,12 @@ let rec fixdiv = function
 (* let logf s = print_string ("\nLOG: " ^ s) *)
 let logf s = ()
 
+let solved_app f uf z = Misc.maybe_map snd (Sort.checkArity f uf z)
+
+let splitArgs t = match Sort.func_of_t t with
+  | None              -> ([], t)
+  | Some (_, its, ot) -> (its, ot)
+
 let rec ti_pred_list g f preds =
   logf "ti_pred_list" ;
   List.fold_left (fun (s, t) p ->
@@ -880,7 +886,7 @@ and ti_app g f uf es =
     let _ = logf "ti_app" in
     let tf = match f uf with | None -> raise (Sort.UnificationError "unfound") |  Some t -> t in
     let (sf, rf) = Sort.instantiate_ty tf in
-    let (t_is, t_o) = Sort.splitArgs rf in
+    let (t_is, t_o) = splitArgs rf in
     let sts =    List.combine es t_is
               |> List.fold_left begin fun s0 (e, t) ->
                    let (s1, t1) = ti_expr g f e in
@@ -977,11 +983,13 @@ and sortcheck_app_sub g f so_expected uf es =
        |> function None -> None | Some tfun  ->
               let (tyArity, i_ts, o_t) = Sort.refresh_tfun tfun in
               let _  = asserts (List.length es = List.length i_ts)
-                         "ERROR: uf arg-arity error: uf=%s" uf in
-              let e_ts = (List.map (fun x -> Some x) i_ts, es) |> Misc.zipWith (sortcheck_expr g f) |> Misc.map_partial id in
-                if List.length e_ts <> List.length i_ts then
+                         "ERROR: uf arg-arity error: uf=%s" (Symbol.to_string uf) in
+              let e_ts = (List.map some i_ts, es)
+                       |> Misc.zipWith (sortcheck_expr g f)
+                       |> Misc.map_partial id in
+              if List.length e_ts <> List.length i_ts then
                   None
-                else
+              else
                   match Sort.unify e_ts i_ts with
                     | None   -> None
                     | Some s ->
@@ -1011,7 +1019,7 @@ and sortcheck_op g f (e1, op, e2) =
 
 and sortcheck_rel g f p (e1, r, e2) =
   let t1o, t2o = (e1,e2) |> Misc.map_pair (sortcheck_expr g f None) in
-  Sort.sortcheck_rel f r t1o t2o
+  Sort.sortcheck_rel g f r t1o t2o
 
 and sortcheck_pred g f p =
   match puw p with
@@ -1081,7 +1089,7 @@ let sortcheck_app g f tExp uf es =
   if (!Constants.newcheck)
    then check_app g f tExp uf es
    else (sortcheck_app_sub g f tExp uf es
-         |> checkArity f uf)
+         |> Sort.checkArity f uf)
 
 let sortcheck_expr g f e
   = if (!Constants.newcheck)

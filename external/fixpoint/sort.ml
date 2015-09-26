@@ -257,7 +257,8 @@ let rec refresh su = function
 let refresh_tfun (tyArity, i_ts', o_t') =
       let freshMap = makeFresh tyArity in
       let i_ts = List.map (refresh freshMap) i_ts' in
-      let o_t  = refresh freshMap o_t' in (tyArity, i_ts, o_t)
+      let o_t  = refresh freshMap o_t' in
+      (tyArity, i_ts, o_t)
 
 
 let rec unifyt s = function
@@ -357,12 +358,8 @@ let sub_args s = List.sort compare s.vars
 
     (* API *)
 let check_arity n s =
-      let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in
-      n == n_vars
-
-
-
-
+  let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in
+  n == n_vars
 
 (***************************************************************************)
 (*********** New Type Checking Expressions and Predicates ******************)
@@ -507,34 +504,18 @@ let ti_loc f = function
   | LFun   -> None
 
 
-
-
-
-
-
-
-
-
-
-
 let uf_arity f uf =
   match f uf with None -> None | Some t ->
     match func_of_t t with None -> None | Some (i,_,_) ->
       Some i
 
-let solved_app f uf = function
+
+let checkArity f uf = function
   | Some (s, t) -> begin match uf_arity f uf with
-                     | Some n -> if check_arity n s then Some t else None
+                     | Some n -> if check_arity n s then Some (s, t) else None
                      | _      -> None
                    end
   | None        -> None
-
-let checkArity f uf = function
-  | None        -> None
-  | Some (s, t) -> begin match uf_arity f uf with
-                         | Some n -> if check_arity n s then Some (s, t) else None
-                         | _      -> None
-                   end
 
 
 let unifiable t1 t2 =
@@ -609,7 +590,7 @@ let sortcheck_op f op t1o t2o =
   | _ -> None
 
 
-let sortcheck_rel f r t1o t2o =
+let sortcheck_rel g f r t1o t2o =
   match r, t1o, t2o with
   | Ueq, Some (_), Some (_)
   | Une, Some (_), Some (_)

@@ -48,23 +48,19 @@ module Constant :
 
 type tag  (* externally opaque *)
 
-type brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
-
-type bop  = Plus | Minus | Times | Div | Mod    (* NOTE: For "Mod" 2nd expr should be a constant or a var *)
-
 type expr = expr_int * tag
 
 and expr_int =
   | Con  of Constant.t
   | Var  of Symbol.t
   | App  of Symbol.t * expr list
-  | Bin  of expr * bop * expr
+  | Bin  of expr * Prims.bop * expr
   | Ite  of pred * expr * expr
   | Fld  of Symbol.t * expr             (* NOTE: Fld (s, e) == App ("field"^s,[e]) *)
   | Cst  of expr * Sort.t
   | Bot
   | MExp of expr list
-  | MBin of expr * bop list * expr
+  | MBin of expr * Prims.bop list * expr
 
 and pred = pred_int * tag
 
@@ -77,8 +73,8 @@ and pred_int =
   | Imp  of pred * pred
   | Iff  of pred * pred
   | Bexp of expr
-  | Atom of expr * brel * expr
-  | MAtom of expr * brel list * expr
+  | Atom of expr * Prims.brel * expr
+  | MAtom of expr * Prims.brel list * expr
   | Forall of ((Symbol.t * Sort.t) list) * pred
 
 (* Constructors : expressions *)
@@ -90,16 +86,16 @@ val eMod : expr * expr -> expr
 val eModExp : expr * expr -> expr
 val eVar : Symbol.t -> expr
 val eApp : Symbol.t * expr list -> expr
-val eBin : expr * bop * expr -> expr
-val eMBin : expr * bop list * expr -> expr
+val eBin : expr * Prims.bop * expr -> expr
+val eMBin : expr * Prims.bop list * expr -> expr
 val eIte : pred * expr * expr -> expr
 val eFld : Symbol.t * expr -> expr
 val eCst : expr * Sort.t -> expr
 (* Constructors : predicates *)
 val pTrue  : pred
 val pFalse : pred
-val pAtom  : expr * brel * expr -> pred
-val pMAtom : expr * brel list * expr -> pred
+val pAtom  : expr * Prims.brel * expr -> pred
+val pMAtom : expr * Prims.brel list * expr -> pred
 val pAnd   : pred list -> pred
 val pOr    : pred list -> pred
 val pNot   : pred -> pred
@@ -109,7 +105,7 @@ val pBexp  : expr -> pred
 val pForall: ((Symbol.t * Sort. t) list) * pred -> pred
 val pEqual : expr * expr -> pred
 val pUequal : expr * expr -> pred
-val neg_brel : brel -> brel
+val neg_brel : Prims.brel -> Prims.brel
 
 module Expression :
 sig

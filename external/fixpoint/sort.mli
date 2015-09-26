@@ -20,7 +20,11 @@
 
 type tycon
 type t
-type sub
+
+type sub = { locs: (int * string) list
+           ; vars: (int * t) list;
+           }
+
 
 type loc =
   | Loc  of string
@@ -64,6 +68,7 @@ val sub_args    : sub -> (int * t) list
 val makeFresh : int -> (int * int) list
 val refresh   : (int * int) list -> t -> t
 
+
 type tsub = (int * t) list
 val mgu            : int -> t -> t -> tsub
 val apply_ty       : tsub -> t -> t
@@ -71,9 +76,13 @@ val sub_compose    : tsub -> tsub -> tsub
 val sub_empty      : tsub
 val sub_apply      : tsub -> tsub -> tsub
 val instantiate_ty : t -> (tsub * t)
-val splitArgs      : t -> (t list * t)
+val func_of_t      : t -> (int * t list * t) option
 val init_ti        : unit -> unit
 val unifiable      : t -> t -> bool
-
+val refresh_tfun   : (int * t list * t) -> (int * t list * t)
 val compat_brel : (Symbol.t -> t option) -> Prims.brel -> t -> t -> (tsub option * t)
 exception UnificationError of string
+
+val sortcheck_op  : (Symbol.t -> t option) -> Prims.bop -> t option -> t option -> t option
+val sortcheck_rel : (tycon -> bool) -> (Symbol.t -> t option) -> Prims.brel -> t option -> t option -> bool
+val checkArity    : (Symbol.t -> t option) -> Symbol.t -> (sub * 'a) option -> (sub * 'a) option 

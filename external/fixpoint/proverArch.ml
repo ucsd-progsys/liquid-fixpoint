@@ -72,7 +72,7 @@ module type SMTSOLVER = sig
   val mkOr      : context -> ast list -> ast
   val mkImp     : context -> ast -> ast -> ast
   val mkIff     : context -> ast -> ast -> ast
-  val mkRel     : context -> Ast.brel   -> ast -> ast -> ast
+  val mkRel     : context -> Prims.brel   -> ast -> ast -> ast
 
   (* Conversions *)
   val astString     : context -> ast -> string

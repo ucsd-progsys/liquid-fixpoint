@@ -193,7 +193,7 @@ let set_emp : appDef  =
   { sy_name  = fst emp
   ; sy_sort  = snd emp
   ; sy_emb   = fun c ts es -> match ts, es with
-                 | [t], [e] -> SMT.mkRel c Ast.Eq e (SMT.mkEmptySet c t)
+                 | [t], [e] -> SMT.mkRel c Prims.Eq e (SMT.mkEmptySet c t)
                  | _        -> assertf "Set_emp: type mismatch"
   }
 
