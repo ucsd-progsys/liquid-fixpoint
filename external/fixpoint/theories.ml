@@ -20,7 +20,7 @@
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
-module So = Ast.Sort
+module So = Sort
 module Sy = Ast.Symbol
 
 open ProverArch
@@ -128,7 +128,7 @@ type appDef  = { sy_name  : Sy.t
                ; sy_emb   : SMT.context -> SMT.sort list -> SMT.ast list -> SMT.ast
                }
 
-type sortDef = { so_name  : Ast.Sort.tycon
+type sortDef = { so_name  : Sort.tycon
                ; so_arity : int
                ; so_emb   : SMT.context -> SMT.sort list -> SMT.sort
                }

@@ -1,22 +1,22 @@
 (*
- * Copyright © 2009 The Regents of the University of California. All rights reserved. 
+ * Copyright © 2009 The Regents of the University of California. All rights reserved.
  *
- * Permission is hereby granted, without written agreement and without 
- * license or royalty fees, to use, copy, modify, and distribute this 
- * software and its documentation for any purpose, provided that the 
- * above copyright notice and the following two paragraphs appear in 
- * all copies of this software. 
- * 
- * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY 
- * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES 
- * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN 
- * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY 
- * OF SUCH DAMAGE. 
- * 
- * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
- * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
- * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
+ * Permission is hereby granted, without written agreement and without
+ * license or royalty fees, to use, copy, modify, and distribute this
+ * software and its documentation for any purpose, provided that the
+ * above copyright notice and the following two paragraphs appear in
+ * all copies of this software.
+ *
+ * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY
+ * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
+ * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN
+ * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ *
+ * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
+ * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONAst.Symbol.
  *
  *)
@@ -24,20 +24,20 @@
 (* This module implements basic datatypes and operations on constraints *)
 
 
-type t                  (* NEVER EVER expose! *) 
+type t                  (* NEVER EVER expose! *)
 type wf                 (* NEVER EVER expose! *)
 type dep                (* NEVER EVER expose! dependencies between constraints *)
 
 type tag  = int list * string (* for ordering: must have same dim, lexico-ordered *)
-type id   = int         (* for identifying: must be unique *) 
+type id   = int         (* for identifying: must be unique *)
 
 exception BadConstraint of (id * tag * string)
 
 type soln  = Ast.Symbol.t -> Ast.pred list
 type refa  = Conc of Ast.pred | Kvar of Ast.Subst.t * Ast.Symbol.t
-type reft  = Ast.Symbol.t * Ast.Sort.t * refa list   (* { VV: t | [ra] } *)
+type reft  = Ast.Symbol.t * Sort.t * refa list   (* { VV: t | [ra] } *)
 type envt  = reft Ast.Symbol.SMap.t
-type senvt = Ast.Sort.t Ast.Symbol.SMap.t
+type senvt = Sort.t Ast.Symbol.SMap.t
 
 
 val fresh_kvar       : unit -> Ast.Symbol.t
@@ -70,7 +70,7 @@ val bindings_of_env  : envt -> (Ast.Symbol.t * reft) list
 val kbindings_of_lhs : t -> (Ast.Symbol.t * reft) list
 
 val is_simple        : t -> bool
-val map_env          : (Ast.Symbol.t -> reft -> reft) -> envt -> envt 
+val map_env          : (Ast.Symbol.t -> reft -> reft) -> envt -> envt
 val lookup_env       : envt -> Ast.Symbol.t -> reft option
 
 (* to print a constraint "c" do:
@@ -85,7 +85,7 @@ val lookup_env       : envt -> Ast.Symbol.t -> reft option
    to convert a constraint c to a string do:
    to_string c
 
-   to print a list of constraints cs do: 
+   to print a list of constraints cs do:
    Format.printf "%a" (FixMisc.pprint_many true "\n" (C.print_t None)) cs
    *)
 
@@ -99,23 +99,23 @@ val print_binding    : soln option -> Format.formatter -> (Ast.Symbol.t * reft) 
 val print_tag        : Format.formatter -> tag -> unit
 val print_dep        : Format.formatter -> dep -> unit
 
-val to_string        : t -> string 
+val to_string        : t -> string
 val refa_to_string   : refa -> string
 val reft_to_string   : reft -> string
 val binding_to_string: (Ast.Symbol.t * reft) -> string
 
-val make_reft        : Ast.Symbol.t -> Ast.Sort.t -> refa list -> reft
+val make_reft        : Ast.Symbol.t -> Sort.t -> refa list -> reft
 val vv_of_reft       : reft -> Ast.Symbol.t
-val sort_of_reft     : reft -> Ast.Sort.t
+val sort_of_reft     : reft -> Sort.t
 val ras_of_reft      : reft -> refa list
 val shape_of_reft    : reft -> reft
 val theta            : Ast.Subst.t -> reft -> reft
 
-val add_consts_wf    : (Ast.Symbol.t * Ast.Sort.t) list -> wf -> wf
-val add_consts_t     : (Ast.Symbol.t * Ast.Sort.t) list -> t -> t
+val add_consts_wf    : (Ast.Symbol.t * Sort.t) list -> wf -> wf
+val add_consts_t     : (Ast.Symbol.t * Sort.t) list -> t -> t
 val make_t           : envt -> Ast.pred -> reft -> reft -> id option -> tag -> t
 
-val sort_of_t        : t -> Ast.Sort.t
+val sort_of_t        : t -> Sort.t
 val vv_of_t          : t -> Ast.Symbol.t
 val senv_of_t        : t -> senvt
 val env_of_t         : t -> envt
@@ -131,12 +131,12 @@ val make_wf          : envt -> reft -> id option -> wf
 val make_filtered_wf : envt -> reft -> id option -> (Qualifier.t -> bool) -> wf
 val env_of_wf        : wf -> envt
 val reft_of_wf       : wf -> reft
-val id_of_wf         : wf -> id 
+val id_of_wf         : wf -> id
 val filter_of_wf     : wf -> (Qualifier.t -> bool)
-  
+
 val reduce_wfs       : wf list -> wf list
 
 val make_dep         : bool -> tag option -> tag option -> dep
 val matches_deps     : dep list -> tag * tag -> bool
 val tags_of_dep      : dep -> tag * tag
-val pol_of_dep       : dep -> bool 
+val pol_of_dep       : dep -> bool

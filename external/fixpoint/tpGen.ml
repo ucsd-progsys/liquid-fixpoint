@@ -555,7 +555,7 @@ class tprover ts env ps consts : prover =
   object (self)
     val me = create ts env ps consts
     method interp_syms  = Theories.interp_syms
-    method set_filter :  'a. Ast.Sort.t Ast.Symbol.SMap.t
+    method set_filter :  'a. Sort.t Ast.Symbol.SMap.t
                           -> Ast.Symbol.t
                           -> Ast.pred list
                           -> ('a * Ast.pred) list

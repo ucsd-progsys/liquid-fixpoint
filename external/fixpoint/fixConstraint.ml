@@ -367,7 +367,7 @@ let print_ras so ppf ras = match so with
 let print_reft_pred so ppf (v,t,ras) =
   F.fprintf ppf "@[{%a:%a | %a}@]"
     Sy.print v
-    Ast.Sort.print t
+    Sort.print t
     (print_ras so) ras
 
 (*
@@ -380,7 +380,7 @@ let print_reft_pred so ppf = function
 let print_reft so ppf (v, t, ras) =
   F.fprintf ppf "@[{%a : %a | %a}@]"
     Sy.print v
-    Ast.Sort.print t
+    Sort.print t
     (print_ras so) ras
 
 (* API *)

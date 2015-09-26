@@ -105,7 +105,7 @@ type t     =
   { tpc    : ProverArch.prover
   ; m      : bind SM.t
   ; om     : (Q.t list) SM.t
-  ; wm     : (Ast.Sort.t SM.t * Ast.Symbol.t * Ast.Sort.t) SM.t
+  ; wm     : (Sort.t SM.t * Ast.Symbol.t * Sort.t) SM.t
   ; assm   : FixConstraint.soln  (* invariant assumption for K, must be a fixpoint wrt constraints *)
   (* ; qm     : Q.t SM.t  *)     (* map from names to qualifiers *)
   ; qs     : Q.t list            (* list of qualifiers *)
@@ -310,7 +310,7 @@ let read_bind s k = failwith "PredAbs.read_bind"
 
 (* DEBUG ONLY *)
 let print_param ppf (x, t) =
-  F.fprintf ppf "%a:%a" Sy.print x Ast.Sort.print t
+  F.fprintf ppf "%a:%a" Sy.print x Sort.print t
 let print_params ppf args =
   F.fprintf ppf "%a" (Misc.pprint_many false ", " print_param) args
 let print_valid_binding ppf (x,y) =
@@ -709,7 +709,7 @@ let unsat me c =
   let lps      = C.preds_of_lhs s c  in
   let rhsp     = c |> C.rhs_of_t |> C.preds_of_reft s |> A.pAnd in
   let k        = Sy.of_string "k" in
-  let kq       = (k, Q.create k k Ast.Sort.t_int [] A.pTrue) in
+  let kq       = (k, Q.create k k Sort.t_int [] A.pTrue) in
   not ((check_tp me (C.senv_of_t c) vv t lps [(kq, rhsp)]) = [kq])
 
 (****************************************************************)
@@ -760,7 +760,7 @@ let min_read s k   = BS.time "min_read" (min_read s) k
 let close_env qs sm =
   qs |> Misc.flap   (Q.pred_of_t <+> P.support)
      |> Misc.filter (not <.> Misc.flip SM.mem sm)
-     |> Misc.map    (fun x -> (x, Ast.Sort.t_int))
+     |> Misc.map    (fun x -> (x, Sort.t_int))
      |> SM.of_list
      |> SM.extend sm
 

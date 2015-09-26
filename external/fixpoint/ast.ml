@@ -49,329 +49,6 @@ module Cone = struct
     | Cone xcs -> Cone (List.map (f <**> map f) xcs)
 end
 
-module Sort =
-  struct
-    type loc =
-      | Loc  of string
-      | Lvar of int
-      | LFun
-
-    type tycon = string
-
-    type t = t_int * tag
-
-    and t_int =
-      | Int
-      | Real
-      | Bool
-      | Obj
-      | Var of int              (* type-var *)
-      | Ptr of loc              (* c-pointer *)
-      | Func of int * t list    (* type-var-arity, in-types @ [out-type]         *)
-      | Num                     (* kind, for numeric tyvars -- ptr(loc(s))    -- *)
-      | Frac                    (* kind, for fractional tyvars -- ptr(loc(s)) -- *)
-      | App of tycon * t list   (* type constructors *)
-
-    type sub = { locs: (int * string) list;
-                 vars: (int * t) list; }
-
-
-    let tycon_string x = x
-    (*
-    let is_loc_string s =
-      let re = Str.regexp "[a-zA-Z]+[0-9]+" in
-      Str.string_match re s 0
-
-    let loc_of_string = fun s -> let _ = asserts (is_loc_string s) in Loc s
-    let loc_of_index  = fun i -> Lvar i
-    *)
-
-    let t_num       = Num
-    let t_frac      = Frac
-    let t_obj       = Obj
-    let t_bool      = Bool
-    let t_int       = Int
-    let t_real      = Real
-    let t_generic   = fun i -> let _ = asserts (0 <= i) "t_generic: %d" i in Var i
-    let t_ptr       = fun l -> Ptr l
-    let t_func      = fun i ts -> Func (i, ts)
-    let tycon s     = s
-    let tc_app      = "FAppTy"
-
-    (* let tycon_re    = Str.regexp "[A-Z][0-9 a-z A-Z '.']"
-     * function | s when Str.string_match tycon_re s 0 -> s
-                | s -> assertf "Error: Invalid tycon: %s" s
-     *)
-
-    let t_app = List.fold_left (fun t1 t2 -> App (tc_app, [t1; t2]))
-
-    let t_app_tc c ts = if c = tc_app then
-                          (App (c, ts))
-                        else
-                          t_app (App (c, [])) ts
-
-    let loc_to_string = function
-      | Loc s  -> s
-      | Lvar i -> string_of_int i
-      | LFun   -> "<fun>"
-
-    let rec to_string = function
-      | Var i        -> Printf.sprintf "@(%d)" i
-      | Int          -> "int"
-      | Real         -> "real"
-      | Bool         -> "bool"
-      | Obj          -> "obj"
-      | Num          -> "num"
-      | Frac         -> "frac"
-      | Ptr l        -> loc_to_string l
-                        (* Printf.sprintf "ptr(%s)" (loc_to_string l) *)
-      | Func (n, ts) -> ts |> List.map to_string
-                           |> String.concat " ; "
-                           |> Printf.sprintf "func(%d, [%s])" n
-      | App (c, ts)  -> ts |> List.map to_string_arg
-                           |> String.concat " "
-                           |> Printf.sprintf "%s %s" c
-
-    and to_string_arg t = match t with
-      | App (_, _) -> Printf.sprintf "(%s)" (to_string t)
-      | _          -> to_string t
-
-    let to_string_short = function
-      | Func _ -> "func"
-   (* | Ptr _  -> "ptr" *)
-      | t      -> to_string t
-
-    let print fmt t =
-      t |> to_string
-        |> Format.fprintf fmt "%s"
-
-    let sub_to_string {locs = ls; vars = vs} =
-      let lts = fun (i, s) -> Printf.sprintf "(%d := %s)" i s in
-      let vts = fun (i, t) -> Printf.sprintf "(%d := %s)" i (to_string t) in
-      Printf.sprintf "locs := %s, vars := %s \n"
-        (String.concat "" (List.map lts ls))
-        (String.concat "" (List.map vts vs))
-
-    let rec map f = function
-      | Func (n, ts) -> Func (n, List.map (map f) ts)
-      | App  (c, ts) -> App  (c, List.map (map f) ts)
-      | t            -> f t
-
-    let rec fold f b = function
-      | Func (n, ts) as t -> List.fold_left (fold f) (f b t) ts
-      | t                 -> f b t
-
-    let subs_tvar ts =
-      map begin function
-          | Var i -> Misc.do_catchf "ERROR: subs_tvar" (List.nth ts) i
-          | t     -> t
-      end
-
-    let is_bool = function
-      | Bool -> true
-      | _    -> false
-
-    let is_int = function
-      | Int -> true
-      | _   -> false
-
-    let is_real = function
-      | Real -> true
-      | _    -> false
-
-    let is_func = function
-      | Func _ -> true
-      | _   -> false
-
-    let is_kind = function
-      | Num    -> true
-      | _      -> false
-
-    (* DELETE THIS
-    let app_of_t = function
-      | App (c, ts) -> Some (c, ts)
-      | _           -> None
-    *)
-
-    (* (L t1 t2 t3) is now encoded as
-        ---> (((L @ t1) @ t2) @ t3)
-        ---> App(@, [App(@, [App(@, [L[]; t1]); t2]); t3])
-        The following decodes the above as
-     *)
-    let rec app_args_of_t acc = function
-      | App (c, [t1; t2]) when c = tc_app -> app_args_of_t (t2 :: acc) t1
-      | App (c, [])                       -> (c, acc)
-      | t                                 -> (tc_app, t :: acc)
-
-      (*
-      | Ptr (Loc s)                       -> (tycon s, acc)
-      | t                                 -> assertf "app_args_of_t: unexpected t1 = %s" (to_string t)
-      *)
-
-    let app_of_t = function
-      | App (c, _) as t when c = tc_app   -> Some (app_args_of_t [] t)
-      | App (c, ts)                       -> Some (c, ts)
-      | _                                 -> None
-
-    let func_of_t = function
-      | Func (i, ts) -> let (xts, t) = ts |> Misc.list_snoc |> Misc.swap in
-                        Some (i, xts, t)
-      | _            -> None
-
-    let ptr_of_t = function
-      | Ptr l -> Some l
-      | _     -> None
-
-    (* Sleazy Hack for C pointers. Make this go away... *)
-
-    let compat t1 t2 = match t1, t2 with
-      | Int, (Ptr _) -> true
-      | (Ptr _), Int -> true
-      | _            -> t1 = t2
-
-    (* {{{
-    let concretize ts = function
-      | Func (n, ats) when n = List.length ts ->
-          Func (n, List.map (subs_tvar ts) ats)
-      | _ ->
-          assertf "ERROR: bad application"
-
-    let is_monotype t =
-      fold (fun b t -> b && (match t with Var _ -> false | _ -> true)) true t
-    }}} *)
-
-
-    let lookup_var = fun s i -> try Some (List.assoc i s.vars) with Not_found -> None
-    let lookup_loc = fun s j -> try Some (List.assoc j s.locs) with Not_found -> None
-
-    let index = ref 0
-
-    let makeFresh n =
-      let rec go i =
-        if i < n then (let x = !index in incr index; (i,x)::go (i+1)) else [] in
-      go 0
-
-    let rec refresh su = function
-      | Int -> Int
-      | Real -> Real
-      | Bool -> Bool
-      | Obj  -> Obj
-      | Var i -> (try (Var (snd (List.find (fun (j, _) -> j == i) su)))
-                 with Not_found -> Var i)
-      | Ptr l -> Ptr l
-      | Func(n, ts) ->  let su' = List.filter (fun (i,_) -> i>= n) su in  Func(n, List.map (refresh su') ts)
-      | Num  -> Num
-      | Frac -> Frac
-      | App(tc, ts) -> App(tc, List.map (refresh su) ts)
-
-    let refresh_tfun (tyArity, i_ts', o_t') =
-      let freshMap = makeFresh tyArity in
-      let i_ts = List.map (refresh freshMap) i_ts' in
-      let o_t  = refresh freshMap o_t' in (tyArity, i_ts, o_t)
-
-
-    let rec unifyt s = function
-      | Num,_ | _, Num -> None
-      | ct, (Var i)
-      | (Var i), ct
-        (* when ct != Bool *) ->
-          begin match lookup_var s i with
-          | Some ct' when ct = ct' -> (*let _ = F.printf "\nUnify YES! %s \t - \t  %s" (to_string ct) (to_string (Var i)) in *) Some s
-          | Some ct''              -> (*let _ = F.printf "\nUnify No! %s \t /= %s \t - \t  %s"  (to_string ct) (to_string ct'') (to_string (Var i)) in *) None
-          | None                   -> (*let _ = F.printf "\nUnify Add! %s \t - \t  %s" (to_string ct) (to_string (Var i)) in *) Some {s with vars = (i,ct) :: s.vars}
-          end
-
-      | Ptr LFun, Ptr _
-      | Ptr _, Ptr LFun -> Some s
-      | Ptr (Loc cl), Ptr (Lvar j)
-      | Ptr (Lvar j), Ptr (Loc cl) ->
-          begin match lookup_loc s j with
-          | Some cl' when cl' = cl -> Some s
-          | Some _                 -> None
-          | None                   -> Some {s with locs = (j,cl) :: s.locs}
-          end
-
-      | App (c1, t1s), App (c2, t2s)
-        when c1 = c2 && List.length t1s = List.length t2s ->
-          Misc.maybe_fold unifyt s (List.combine t1s t2s)
-
-      | (t1, t2) when t1 = t2 ->
-         Some s
-      (* Adding code for polymorphic arguments *)
-      | Func (i,[t1]), t2 ->
-        begin
-          let freshMap = makeFresh i in
-          let t1'      = refresh freshMap t1 in
-          unifyt s (t1', t2)
-        end
-      | t1, Func (i,[t2]) ->
-        begin
-          let freshMap = makeFresh i in
-          let t2'      = refresh freshMap t2 in
-          unifyt s (t1, t2')
-        end
-      | _        -> None
-
-    let empty_sub = {vars = []; locs = []}
-
-    let unifyWith s ats cts =
-      let _ = asserts (List.length ats = List.length cts) "ERROR: unify sorts" in
-      List.combine ats cts
-      |> Misc.maybe_fold unifyt s
-
-(*      >> (fun so -> Printf.printf "unify: [%s] ~ [%s] = %s \n"
-                      (String.concat "; " (List.map to_string ats))
-                      (String.concat "; " (List.map to_string cts))
-                      (match so with None -> "NONE" | Some s -> sub_to_string s))
-*)
-
-    let unify = unifyWith empty_sub
-
-    let apply s =
-      map begin fun t -> match t with
-          | Var i        -> (match lookup_var s i with Some t' -> t' | _ -> t)
-          | Ptr (Lvar j) -> (match lookup_loc s j with Some l -> Ptr (Loc l) | _ -> t)
-          | _            -> t
-      end
-
-    let rec fold f acc t = match t with
-      | Var _ | Int | Real | Bool | Obj | Num | Ptr _
-        -> f acc t
-      | Func (_, ts) | App (_, ts)
-        -> List.fold_left (fold f) (f acc t) ts
-
-    let vars_of_t = fold begin fun acc -> function
-      | Var i -> i :: acc
-      | _     -> acc
-    end []
-
-    let locs_of_t = fold begin fun acc -> function
-      | Ptr (Loc l) -> l :: acc
-      | _           -> acc
-    end []
-
-    let subst_locs_vars lim = map begin function
-      | Ptr (Loc l) when SM.mem l lim -> Var (SM.find l lim)
-      | t                             -> t
-    end
-
-    (* API *)
-    let generalize ts =
-      let locs = ts |> Misc.flap locs_of_t |> Misc.sort_and_compact       in
-      let idx  = ts |> Misc.flap vars_of_t |> Misc.list_max (-1) |> (+) 1 in
-      let lim  = Misc.index_from idx locs |>: Misc.swap |> SM.of_list     in
-      List.map (subst_locs_vars lim) ts
-
-    (* API *)
-    let sub_args s = List.sort compare s.vars
-
-    (* API *)
-    let check_arity n s =
-      let n_vars = s.vars |>: fst |> Misc.sort_and_compact |> List.length  in
-      n == n_vars
-
-  end
-
 module Symbol =
   struct
     type t = string
@@ -508,30 +185,6 @@ and pred_int =
 
 let list_hash b xs =
   List.fold_left (fun v (_,id) -> 2*v + id) b xs
-
-module Hashcons (X : sig type t
-                         val sub_equal : t -> t -> bool
-                         val hash : t -> int end) = struct
-
-  module HashStruct = struct
-    type t = X.t * int
-    let equal (x,_) (y,_) = X.sub_equal x y
-    let hash (x,_) = X.hash x
-  end
-
-  module Hash = Weak.Make(HashStruct)
-
-  let wrap =
-    let tab = Hash.create 251 in
-    let ctr = ref 0 in
-    fun e ->
-      let res = Hash.merge tab (e, !ctr) in
-      let _   = if snd res = !ctr then incr ctr in
-      res
-
-  let unwrap (e,_) = e
-
-end
 
 module ExprHashconsStruct = struct
   type t = expr_int
@@ -1178,163 +831,23 @@ let rec fixdiv = function
       pNot (fixdiv p)
   | p -> p
 
-
-
-
 (***************************************************************************)
 (*********** New Type Checking Expressions and Predicates ******************)
 (***************************************************************************)
-
-(* let logf s = print_string ("\nLOG: " ^ s) *)
-let logf s = ()
-
-exception UnificationError of string
-
-(* Substitutions *)
-
-
-(* TODO: turn them into a map *)
-let sub_empty = []
-
-let rec sub_find_with_default t i = function
-  | [] -> t
-  | ((j,tj)::s) when i = j -> tj
-  | (_::s) -> sub_find_with_default t i s
-
-let sub_singleton i t = [(i, t)]
-
-let vindex = ref 0
-let init_ti _ = vindex := 42
-
-let rec sub_fresh i =
-  if i == 0
-    then []
-    else let j = !vindex in
-         incr vindex;
-         (i-1, Sort.Var j) :: sub_fresh (i-1)
-
-let fresh_var _ =
-  let j = !vindex in
-  incr vindex;
-  Sort.Var j
-
-(* application of subtitutions *)
-
-let rec apply_ty s = function
-  | Sort.Var i        -> sub_find_with_default (Sort.Var i) i s
-  | Sort.Func (n, ts) -> Sort.Func (n,  List.map (apply_ty s) ts)
-  | Sort.App (tc, ts) -> Sort.App  (tc, List.map (apply_ty s) ts)
-  | t                 -> t
-
-
-
-let rec free_vars = function
-  | Sort.Var i -> IS.singleton i
-  | Sort.Func(n, ts) -> List.map (fun t ->
-                                   free_vars t |> IS.filter (fun i -> i>=n)
-                                 ) ts
-                        |> List.fold_left IS.union IS.empty
-  | Sort.App (_, ts) -> List.map free_vars ts
-                        |> List.fold_left IS.union IS.empty
-  | _ -> IS.empty
-
-
-let rec sub_free t = IS.elements (free_vars t)
-                   |> List.map (fun i -> (i, fresh_var ()))
-
-let instantiate_ty t = match t with
-  | Sort.Func (n ,ts) -> let s = sub_fresh n in
-                         let r = Sort.Func(0, List.map (apply_ty s) ts) in
-                         let _ = logf ("instantiate_ty: " ^ (Sort.to_string t) ^ " is " ^ (Sort.to_string r)) in
-                         (s, r)
-  | _                 -> (sub_empty, t)
-
-
-
-let splitArgs = function
-  | Sort.Func (_, ts) -> List.rev ts |> fun xs -> (List.tl xs |> List.rev, List.hd xs)
-  | t -> ([], t)
-
-let sub_apply s1 s2 = List.map (fun (i, t) -> (i, apply_ty s1 t)) s2
-
-
-
-let sub_compose s1 s2 = sub_apply s2 s1 ++ s2
-
-
-let is_free i t = IS.exists (fun j -> j == i) (free_vars t)
-
-let var_asgn i t =
-  if (Sort.Var i) == t
-    then sub_empty
-    else if is_free i t
-    then UnificationError ("var_asgn " ^ string_of_int i ^ " is free in  " ^ Sort.to_string t) |> raise
-    else sub_singleton i t
-
-let rec mgu i t1 t2 =
- let _ = logf ("  of " ^ string_of_int i ^ " " ^ Sort.to_string t1 ^ " and " ^ Sort.to_string t2) in
- match (t1, t2) with
-  | Sort.Int, Sort.Int
-
-  (* Some pointer casting *)
-  | Sort.Int, Sort.Ptr _
-  | Sort.Ptr _, Sort.Int
-
-  | Sort.Real, Sort.Real
-  | Sort.Bool, Sort.Bool
-  | Sort.Obj, Sort.Obj
-  | Sort.Num, Sort.Num
-  | Sort.Frac, Sort.Frac -> sub_empty
-  | Sort.Ptr l1, Sort.Ptr l2 when l1 = l2  -> sub_empty
-  | Sort.Var i, Sort.Var j when i = j -> sub_empty
-  | Sort.Var i, t
-  | t, Sort.Var i -> var_asgn i t
-  | Sort.Func (n1, ts1), Sort.Func (n2, ts2)  when n1 = n2 ->
-     Misc.zipWith (fun x y -> (x, y)) (ts1, ts2) |>
-     List.fold_left
-       (fun s (t1, t2) ->
-          let s' = mgu i (apply_ty s t1) (apply_ty s t2) in
-          sub_compose s s'
-       ) sub_empty
-  | Sort.App  (tc1, ts1), Sort.App (tc2, ts2) when tc1 = tc2 ->
-     Misc.zipWith (fun x y -> (x, y)) (ts1, ts2) |>
-     List.fold_left
-       (fun s (t1, t2) ->
-          let s' = mgu i (apply_ty s t1) (apply_ty s t2) in
-          sub_compose s s'
-       ) sub_empty
-
-      (* Adding code for polymorphic arguments *)
-  | Sort.Func (i,[t1]), t2
-  | t1, Sort.Func (i,[t2]) when i=0 -> mgu i t1 t2
-  | t1, t2 -> UnificationError (String.concat " " ("mgu fails on :":: List.map Sort.to_string [t1; t2]))
-              |> raise
-
-
-let unifiable t1 t2 =
-  let _ = logf ("unifiable " ^ Sort.to_string t1 ^ " and " ^ Sort.to_string t2) in
-  try mgu 0 t1 t2; true with UnificationError _ -> false
-
-
-let ti_loc f = function
-  | Sort.Loc s  -> f (Symbol.of_string s)
-  | Sort.Lvar _ -> None
-  | Sort.LFun   -> None
-
 
 let rec ti_pred_list g f preds =
   logf "ti_pred_list" ;
   List.fold_left (fun (s, t) p ->
     let (s1, t1) = ti_pred g f p in
-    let s2       = mgu 1 (apply_ty s1 t1) Sort.Bool in
-    (sub_compose s2 (sub_compose s1 s), Sort.Bool)
-  ) (sub_empty, Sort.Bool) preds
+    let s2       = mgu 1 (apply_ty s1 t1) Sort.t_bool in
+    (sub_compose s2 (sub_compose s1 s), Sort.t_bool)
+  ) (sub_empty, Sort.t_bool) preds
 
 and ti_pred g f p =
   logf ("ti_pred " ^ pred_to_string p) ;
  match puw p with
   | True
-  | False  -> (sub_empty, Sort.Bool)
+  | False  -> (sub_empty, Sort.t_bool)
   | And ps
   | Or  ps -> ti_pred_list g f ps
   | Not p  -> ti_pred g f p
@@ -1342,9 +855,9 @@ and ti_pred g f p =
   | Iff (p1, p2) -> (ti_pred g f p1; ti_pred g f p2)
   | Bexp e       -> let (s1, t) = ti_expr g f e in
                     let tt = apply_ty s1 t in
-                    let _  = logf ("will call mgu with bool in " ^ Sort.to_string tt) in
-                    let s2 = mgu 2 tt Sort.Bool in
-                    (sub_compose s2 s1, Sort.Bool)
+                    let _  = logf ("will call mgu with t_bool in " ^ Sort.to_string tt) in
+                    let s2 = mgu 2 tt Sort.t_bool in
+                    (sub_compose s2 s1, Sort.t_bool)
   | Atom (e1, brel, e2) -> ti_brel g f brel p e1 e2 (ti_expr g f e1) (ti_expr g f e2)
   | MAtom (e1, brels, e2) -> ti_brel_list g f brels p e1 e2 (ti_expr g f e1) (ti_expr g f e2)
   | Forall (qs, p) ->
@@ -1356,10 +869,10 @@ and ti_brel_list g f brels p e1 e2 st1 st2 =
   List.fold_left (fun (s, t) brel ->
     let (s1, t1) = ti_brel g f brel p e1 e2 st1 st2 in
     let tt = apply_ty s1 t1 in
-    let _ =  logf ("ti_brel_list: will call mgu on " ^ Sort.to_string tt ^ " and " ^ Sort.to_string Sort.Bool)  in
-    let s2       = mgu 3 (apply_ty s1 t1) Sort.Bool in
-    (sub_compose s1 s |> sub_compose s2, Sort.Bool)
-  ) (sub_empty, Sort.Bool) brels
+    let _ =  logf ("ti_brel_list: will call mgu on " ^ Sort.to_string tt ^ " and " ^ Sort.to_string Sort.t_bool)  in
+    let s2       = mgu 3 (apply_ty s1 t1) Sort.t_bool in
+    (sub_compose s1 s |> sub_compose s2, Sort.t_bool)
+  ) (sub_empty, Sort.t_bool) brels
 
 (* NIKI TODO: check old implementation for pointer manipulation etc. *)
 and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
@@ -1368,31 +881,31 @@ and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
    | _,(Con (Constant.Int(0)),_), e, _, _
    | _, e,(Con (Constant.Int(0)), _), _, _
       when not (!Constants.strictsortcheck)
-      -> (sub_compose s1 s2, Sort.Bool)
+      -> (sub_compose s1 s2, Sort.t_bool)
    | Ueq, _, _, _, _
-   | Une, _, _, _, _ -> (sub_compose s1 s2, Sort.Bool)
+   | Une, _, _, _, _ -> (sub_compose s1 s2, Sort.t_bool)
    | _  , _, _, Sort.Real, (Sort.Ptr l)
    | _  , _, _, (Sort.Ptr l), Sort.Real
     -> let tloc = match ti_loc f l with | None -> raise (UnificationError "ti_brel non frac") | Some t -> t in
        let s3 = mgu 14 tloc Sort.Frac in
-       (sub_compose s1 s2 |> sub_compose s3, Sort.Bool)
+       (sub_compose s1 s2 |> sub_compose s3, Sort.t_bool)
    | _  , _, _, Sort.Int, (Sort.Ptr l)
    | _  , _, _, (Sort.Ptr l), Sort.Int
     -> let tloc = match ti_loc f l with | None -> UnificationError "ti_brel non num" |> raise | Some t -> t in
        let s3 = mgu 15 tloc Sort.Num in
-       (sub_compose s1 s2 |> sub_compose s3, Sort.Bool)
+       (sub_compose s1 s2 |> sub_compose s3, Sort.t_bool)
    | Eq , _, _, _, _
-   | Ne , _, _, _, _ -> let s3 = mgu 4 t1 t2 in (sub_compose s3 s2 |> sub_compose s1, Sort.Bool)
+   | Ne , _, _, _, _ -> let s3 = mgu 4 t1 t2 in (sub_compose s3 s2 |> sub_compose s1, Sort.t_bool)
    | _  -> let s3 = mgu 5 t1 t2 in
-           let s  = sub_compose s3 (sub_compose s2 s1) in (s, Sort.Bool)
+           let s  = sub_compose s3 (sub_compose s2 s1) in (s, Sort.t_bool)
 
 
 
 
 (* This check is too strict, i.e., disallows x < y where, x, y :: Var @0 *)
-(*            if unifiable (apply_ty s t1) Sort.Bool
+(*            if unifiable (apply_ty s t1) Sort.t_bool
                then raise (UnificationError "ti_brel on bool")
-               else (s, Sort.Bool)
+               else (s, Sort.t_bool)
  *)
 
 and ti_expr g f e =
@@ -1420,7 +933,7 @@ and ti_expr g f e =
        begin
          let (s1, tp) = ti_pred g f p in
          let _ = logf "will call ite" in
-         let s2       = mgu 6 (apply_ty s1 tp) Sort.Bool in
+         let s2       = mgu 6 (apply_ty s1 tp) Sort.t_bool in
          let (s3, t1) = ti_expr g f e1 in
          let (s4, t2) = ti_expr g f e2 in
          let s   = sub_compose s1 s2 |> sub_compose s3 |> sub_compose s4 in
@@ -1484,7 +997,7 @@ let check_pred g f p =
   try
     init_ti ();
     let t = Misc.uncurry apply_ty (ti_pred g f p) in
-    unifiable t Sort.Bool
+    unifiable t Sort.t_bool
   with
    | UnificationError _ -> false
 
@@ -1517,40 +1030,6 @@ let check_app g f tExp uf es =
 (************* Type Checking Expressions and Predicates ********************)
 (***************************************************************************)
 
-let sortcheck_sym f s = f s
-  (* try Some (f s)  with _ -> None *)
-
-let sortcheck_loc f = function
-  | Sort.Loc s  -> sortcheck_sym f (Symbol.of_string s)
-  | Sort.Lvar _ -> None
-  | Sort.LFun   -> None
-
-let uf_arity f uf =
-  match sortcheck_sym f uf with None -> None | Some t ->
-    match Sort.func_of_t t with None -> None | Some (i,_,_) ->
-      Some i
-
-let solved_app f uf = function
-  | Some (s, t) -> begin match uf_arity f uf with
-                     | Some n -> if Sort.check_arity n s then Some t else None
-                     | _      -> None
-                   end
-  | None        -> None
-
-let checkArity f uf = function
-  | None        -> None
-  | Some (s, t) -> begin match uf_arity f uf with
-                         | Some n -> if Sort.check_arity n s then Some (s, t) else None
-                         | _      -> None
-                   end
-
-
-let unifiable t1 t2 =
-  match Sort.unify [t1] [t2] with
-  | Some _ -> true
-  | _      -> false
-
-
 let rec sortcheck_expr g f expected_t e =
   match euw e with
   | Bot   ->
@@ -1562,7 +1041,7 @@ let rec sortcheck_expr g f expected_t e =
   | Con (Constant.Lit (_, t)) ->
       Some t
   | Var s ->
-      sortcheck_sym f s
+      f s
   | Bin (e1, op, e2) ->
       sortcheck_op g f (e1, op, e2)
   | Ite (p, e1, e2) ->
@@ -1592,7 +1071,7 @@ let rec sortcheck_expr g f expected_t e =
 
 
 and sortcheck_app_sub g f so_expected uf es =
-  sortcheck_sym f uf
+  f uf
   |> function None -> None | Some t ->
        Sort.func_of_t t
        |> function None -> None | Some tfun  ->
@@ -1688,7 +1167,7 @@ and sortcheck_rel g f p (e1, r, e2) =
     when (g tc) (* tc is an interpreted tycon *)
     -> false
   | _ , Some t1, Some t2
-    -> unifiable t1 t2 && t1 != Sort.Bool
+    -> unifiable t1 t2 && t1 != Sort.t_bool
   | _ -> false
 
 and sortcheck_pred g f p =
@@ -1697,7 +1176,7 @@ and sortcheck_pred g f p =
     | False ->
         true
     | Bexp e ->
-        sortcheck_expr g f (Some Sort.Bool) e = Some Sort.Bool
+        sortcheck_expr g f (Some Sort.t_bool) e = Some Sort.t_bool
     | Not p ->
         sortcheck_pred g f p
     | Imp (p1, p2) | Iff (p1, p2) ->
@@ -1719,7 +1198,6 @@ and sortcheck_pred g f p =
     | Atom ((App (uf, es), _), Eq, ((Con _, _) as e))
     | Atom (((Var _, _) as e), Eq, (App (uf, es), _))
     | Atom ((App (uf, es), _), Eq, ((Var _, _) as e))
-           (* -> begin match sortcheck_sym f x with *)
       -> begin match sortcheck_expr g f None e with
          | None   -> false
          | Some t -> not (None = sortcheck_app g f (Some t) uf es)
