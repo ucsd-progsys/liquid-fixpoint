@@ -470,7 +470,8 @@ let inst_ext env vv t qs =
                         , varmatch (x, y)
                         , Some su'  <- unifyWith su [tx] [ty] ]  *)
 
-let debug_unify_count = ref 0
+let debug_unify_count         = ref 0
+let debug_unify_success_count = ref 0
 
 let ext_bindings yts wkl (x, tx) =
   let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
@@ -479,7 +480,8 @@ let ext_bindings yts wkl (x, tx) =
       let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
       match u with
         | None     -> None
-        | Some su' -> Some (su', (x,y) :: xys)
+        | Some su' -> let _  = incr debug_unify_success_count in
+                      Some (su', (x,y) :: xys)
     end yts
   end wkl
 
