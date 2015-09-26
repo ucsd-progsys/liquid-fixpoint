@@ -65,7 +65,15 @@ val makeFresh : int -> (int * int) list
 val refresh   : (int * int) list -> t -> t
 
 type tsub = (int * t) list
-val mgu         : int -> t -> t -> tsub
-val apply_ty    : tsub -> t -> t
-val sub_compose : tsub -> tsub -> tsub
-val sub_empty   : tsub
+val mgu            : int -> t -> t -> tsub
+val apply_ty       : tsub -> t -> t
+val sub_compose    : tsub -> tsub -> tsub
+val sub_empty      : tsub
+val sub_apply      : tsub -> tsub -> tsub
+val instantiate_ty : t -> (tsub * t)
+val splitArgs      : t -> (t list * t)
+val init_ti        : unit -> unit
+val unifiable      : t -> t -> bool
+
+val compat_brel : (Symbol.t -> t option) -> Prims.brel -> t -> t -> (tsub option * t)
+exception UnificationError of string

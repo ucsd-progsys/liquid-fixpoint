@@ -34,9 +34,12 @@
 
 module F    = Format
 module Misc = FixMisc
-open Misc.Ops
 module SM = Misc.StringMap
 module IS = Misc.IntSet
+
+open Misc.Ops
+open Prims
+
 type tag  = int
 
 let mydebug = false
@@ -385,6 +388,7 @@ let rec sub_find_with_default t i = function
 let sub_singleton i t = [(i, t)]
 
 let vindex = ref 0
+
 let init_ti _ = vindex := 42
 
 let rec sub_fresh i =
@@ -433,11 +437,11 @@ let instantiate_ty t = match t with
 
 
 let splitArgs = function
-  | Func (_, ts) -> List.rev ts |> fun xs -> (List.tl xs |> List.rev, List.hd xs)
-  | t -> ([], t)
+  | Func (_, ts) -> let (t, ts') = Misc.list_snoc ts in
+                    (ts', t)
+  | t            -> ([], t)
 
 let sub_apply s1 s2 = List.map (fun (i, t) -> (i, apply_ty s1 t)) s2
-
 
 
 let sub_compose s1 s2 = sub_apply s2 s1 ++ s2
@@ -513,11 +517,6 @@ let ti_loc f = function
 
 
 
-let sortcheck_loc f = function
-  | Loc s  -> f (Symbol.of_string s)
-  | Lvar _ -> None
-  | LFun   -> None
-
 let uf_arity f uf =
   match f uf with None -> None | Some t ->
     match func_of_t t with None -> None | Some (i,_,_) ->
@@ -547,7 +546,7 @@ let ti_loc_err msg f l = match ti_loc f l with
   | None   -> raise (UnificationError msg)
   | Some t -> t
 
-let compat_brel b t1 t2 =
+let compat_brel f b t1 t2 =
   match b, t1, t2 with
    | Ueq, _, _
    | Une, _, _ ->
@@ -557,8 +556,8 @@ let compat_brel b t1 t2 =
       let tloc = ti_loc_err "ti_brel non frac" f l in
       let s3   = mgu 14 tloc Frac                  in
       (Some s3, t_bool)
-   | _  , Sort.Int, (Sort.Ptr l)
-   | _  , (Sort.Ptr l), Sort.Int ->
+   | _  , Int, (Ptr l)
+   | _  , (Ptr l), Int ->
        let tloc = ti_loc_err "ti_brel non num" f l in
        let s3   = mgu 15 tloc Num                  in
        (Some s3, t_bool)
@@ -568,6 +567,74 @@ let compat_brel b t1 t2 =
       (Some s3, t_bool)
       (* Sort.sub_compose s3 s2 |> Sort.sub_compose s1, Sort.t_bool) *)
    | _  ->
-      let s3 = Sort.mgu 5 t1 t2 in
+      let s3 = mgu 5 t1 t2 in
       (Some s3, t_bool)
       (* let s  = Sort.sub_compose s3 (Sort.sub_compose s2 s1) in (s, Sort.t_bool) *)
+
+let sortcheck_loc f = function
+  | Loc s  -> f (Symbol.of_string s)
+  | Lvar _ -> None
+  | LFun   -> None
+
+let sortcheck_op f op t1o t2o =
+  match (t1o, t2o) with
+  | (Some Int, Some Int)
+  -> Some t_int
+
+  | (Some Real, Some Real)
+  -> Some Real
+
+  (* only allow when language is Haskell *)
+  | (Some (Ptr l), Some (Ptr l'))
+  when (l = l' && sortcheck_loc f l = Some Num)
+ -> Some (Ptr l)
+
+  (* only allow when language is C *)
+  | (Some (Ptr s), Some Int)
+  | (Some Int, Some (Ptr s))
+  -> Some (Ptr s)
+
+  (* only allow when language is C *)
+  | (Some (Ptr s), Some (Ptr s'))
+  when op = Minus && s = s'
+  -> Some t_int
+
+  | (Some (Var v), Some t)
+  | (Some t, Some (Var v))
+  -> begin match unify [Var v] [t] with
+     | None   -> None
+     | Some _ -> Some t  (* PV: subst is lost here *)
+     end
+
+  | _ -> None
+
+
+let sortcheck_rel f r t1o t2o =
+  match r, t1o, t2o with
+  | Ueq, Some (_), Some (_)
+  | Une, Some (_), Some (_)
+    -> true
+  | _, Some (Ptr _) , Some (Ptr LFun)
+  | _, Some (Ptr LFun), Some (Ptr _)
+    -> true
+  | _ , Some Int,     Some (Ptr l)
+  | _ , Some (Ptr l), Some Int
+    -> (sortcheck_loc f l = Some Num)
+  | _ , Some (Ptr l1), Some (Ptr l2)
+    when ((sortcheck_loc f l1 = Some Num)
+      &&  (sortcheck_loc f l2 = Some Num))
+      || ((sortcheck_loc f l1 = Some Frac)
+      &&  (sortcheck_loc f l2 = Some Frac))
+    -> true
+  | _ , Some Real,     Some (Ptr l)
+  | _ , Some (Ptr l), Some Real
+    -> sortcheck_loc f l = Some Frac
+  | Eq, Some t1, Some t2
+  | Ne, Some t1, Some t2
+    -> unifiable t1 t2
+  | _ , Some (App (tc,_)), _
+    when (g tc) (* tc is an interpreted tycon *)
+    -> false
+  | _ , Some t1, Some t2
+    -> unifiable t1 t2 && t1 != t_bool
+  | _ -> false

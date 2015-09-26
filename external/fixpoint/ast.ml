@@ -33,10 +33,10 @@
 
 module F  = Format
 module Misc = FixMisc
-open Misc.Ops
 module SM = Misc.StringMap
 module IS   = Misc.IntSet
-
+open Misc.Ops
+open Prims
 type tag  = int
 
 let mydebug = false
@@ -791,8 +791,8 @@ and ti_brel_list g f brels p e1 e2 st1 st2 =
 (* NIKI TODO: check old implementation for pointer manipulation etc. *)
 and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
   logf ("ti_brel " ^ pred_to_string p) ;
-  let s        = Sort.sub_compose s1 s2      in
-  let (so', t) = Sort.compat_brel brel t1 t2 in
+  let s        = Sort.sub_compose s1 s2        in
+  let (so', t) = Sort.compat_brel f brel t1 t2 in
   match so' with
     | None    -> (s, t)
     | Some s' -> (Sort.sub_compose s' s, t)
@@ -808,21 +808,21 @@ and ti_expr g f e =
   logf ("ti_expr " ^ Expression.to_string e) ;
   match euw e with
   | Bot ->
-      UnificationError "ti on Bot" |> raise
+      raise <| Sort.UnificationError "ti on Bot"
   | Con (Constant.Int _) ->
       logf ("ti_expr " ^ Expression.to_string e ^ " sort = " ^ Sort.to_string (Sort.t_int));
       (Sort.sub_empty, Sort.t_int)
   | Con (Constant.Real _) ->
-      (Sort.sub_empty, Sort.Real)
+      (Sort.sub_empty, Sort.t_real)
   | Con (Constant.Lit (_, t)) ->
       (Sort.sub_empty, t)
   | Var x ->
       begin
         match f x with
-        | Some t ->  let _, tt = instantiate_ty t in
+        | Some t ->  let _, tt = Sort.instantiate_ty t in
                      logf ("ti_symbol " ^ Symbol.to_string x ^ " : " ^ Sort.to_string tt) ;
                      (Sort.sub_empty, tt)
-        | None -> UnificationError (String.concat " " ["unbound variable"; Symbol.to_string x])
+        | None -> Sort.UnificationError (String.concat " " ["unbound variable"; Symbol.to_string x])
                   |> raise
       end
   | Ite (p, e1, e2) ->
@@ -841,13 +841,13 @@ and ti_expr g f e =
          let s5 = Sort.mgu 7 t1' t2'    in
          (Sort.sub_compose s s5, t1')
        end
-   | Fld (x, e) -> raise (UnificationError "ti_expr on Fld")
+   | Fld (x, e) -> raise (Sort.UnificationError "ti_expr on Fld")
    | Cst (e, t') ->
         let (s1, t) = ti_expr g f e in
          let _ = logf "will call Cst" in
         let s2 = Sort.mgu 8 t' (Sort.apply_ty s1 t) in
         (Sort.sub_compose s1 s2, t')
-   | MExp [] -> raise (UnificationError "ti_expr on empty expression")
+   | MExp [] -> raise (Sort.UnificationError "ti_expr on empty expression")
    | MExp (e::es) ->
         let st = ti_expr g f e in
         List.fold_left (fun (s1, _) e ->
@@ -873,14 +873,14 @@ and ti_op g f (s1, t1) (s2, t2) op
 and ti_op_list g f st1 st2 ops
   = let _ = logf "ti_op_list" in
     match ops with
-  | [] -> UnificationError "ti_op_list: empty list" |>  raise
+  | [] -> Sort.UnificationError "ti_op_list: empty list" |>  raise
   | (op::_) -> ti_op g f st1 st2 op
 
 and ti_app g f uf es =
     let _ = logf "ti_app" in
-    let tf = match f uf with | None -> raise (UnificationError "unfound") |  Some t -> t in
-    let (sf, rf) = instantiate_ty tf in
-    let (t_is, t_o) = splitArgs rf in
+    let tf = match f uf with | None -> raise (Sort.UnificationError "unfound") |  Some t -> t in
+    let (sf, rf) = Sort.instantiate_ty tf in
+    let (t_is, t_o) = Sort.splitArgs rf in
     let sts =    List.combine es t_is
               |> List.fold_left begin fun s0 (e, t) ->
                    let (s1, t1) = ti_expr g f e in
@@ -889,41 +889,41 @@ and ti_app g f uf es =
                    Sort.sub_compose s3 s12
                  end Sort.sub_empty
     in
-      (sub_apply sts sf, (sts, Sort.apply_ty sts t_o))
+      (Sort.sub_apply sts sf, (sts, Sort.apply_ty sts t_o))
 
 (* Interface *)
 let check_pred g f p =
   logf ("\n\n check_pred " ^ Predicate.to_string p) ;
   try
-    init_ti ();
+    Sort.init_ti ();
     let t = Misc.uncurry Sort.apply_ty (ti_pred g f p) in
-    unifiable t Sort.t_bool
+    Sort.unifiable t Sort.t_bool
   with
-   | UnificationError _ -> false
+   | Sort.UnificationError _ -> false
 
 let check_expr g f tExp e  =
   logf ("\n\n check_expr " ^ Expression.to_string e) ;
-  init_ti ();
+  Sort.init_ti ();
   try
     let t = ti_expr g f e |> Misc.uncurry Sort.apply_ty in
     match tExp with
      | None -> Some t
-     | Some t' ->  if unifiable t t' then Some t else None
+     | Some t' ->  if Sort.unifiable t t' then Some t else None
   with
-    UnificationError _ -> None
+    Sort.UnificationError _ -> None
 
 let check_app g f tExp uf es =
   logf ("\n\n check_app " ^ Symbol.to_string uf ^ String.concat " " (List.map Expression.to_string es)) ;
-  init_ti ();
+  Sort.init_ti ();
   try
     let (s, (ss, t)) = ti_app g f uf es in
     let sub = {Sort.empty_sub with Sort.vars = s} in
     match tExp with
      | None -> Some (sub, t)
-     | Some t' when unifiable t t' -> Some (sub, t)
+     | Some t' when Sort.unifiable t t' -> Some (sub, t)
      |_ -> None
   with
-    UnificationError _ -> None
+    Sort.UnificationError _ -> None
 
 
 (***************************************************************************)
@@ -994,7 +994,6 @@ and sortcheck_app_sub g f so_expected uf es =
                                   | Some s' -> Some (s', Sort.apply s' t)
 
 and sortcheck_app g f tExp uf es =
-
   sortcheck_app_sub g f tExp uf es
   |> Misc.maybe_map snd
                     (*
@@ -1007,68 +1006,12 @@ and sortcheck_app g f tExp uf es =
                      *)
 
 and sortcheck_op g f (e1, op, e2) =
-  match Misc.map_pair (sortcheck_expr g f None) (e1, e2) with
-  | (Some Sort.Int, Some Sort.Int)
-  -> Some Sort.t_int
-
-  | (Some Sort.Real, Some Sort.Real)
-  -> Some Sort.Real
-
-  (* only allow when language is Haskell *)
-  | (Some (Sort.Ptr l), Some (Sort.Ptr l'))
-  when (l = l' && sortcheck_loc f l = Some Sort.Num)
- -> Some (Sort.Ptr l)
-
-  (* only allow when language is C *)
-  | (Some (Sort.Ptr s), Some Sort.Int)
-  | (Some Sort.Int, Some (Sort.Ptr s))
-  -> Some (Sort.Ptr s)
-
-  (* only allow when language is C *)
-  | (Some (Sort.Ptr s), Some (Sort.Ptr s'))
-  when op = Minus && s = s'
-  -> Some Sort.t_int
-
-  | (Some (Sort.Var v), Some t)
-  | (Some t, Some (Sort.Var v))
-  -> begin match Sort.unify [Sort.Var v] [t] with
-     | None   -> None
-     | Some _ -> Some t  (* PV: subst is lost here *)
-     end
-
-  | _ -> None
-
+  let (t1o, t2o) = Misc.map_pair (sortcheck_expr g f None) (e1, e2) in
+  Sort.sortcheck_op f op t1o t2o
 
 and sortcheck_rel g f p (e1, r, e2) =
   let t1o, t2o = (e1,e2) |> Misc.map_pair (sortcheck_expr g f None) in
-  match r, t1o, t2o with
-  | Ueq, Some (_), Some (_)
-  | Une, Some (_), Some (_)
-    -> true
-  | _, Some (Sort.Ptr _) , Some (Sort.Ptr Sort.LFun)
-  | _, Some (Sort.Ptr Sort.LFun), Some (Sort.Ptr _)
-    -> true
-  | _ , Some Sort.Int,     Some (Sort.Ptr l)
-  | _ , Some (Sort.Ptr l), Some Sort.Int
-    -> (sortcheck_loc f l = Some Sort.Num)
-  | _ , Some (Sort.Ptr l1), Some (Sort.Ptr l2)
-    when ((sortcheck_loc f l1 = Some Sort.Num)
-      &&  (sortcheck_loc f l2 = Some Sort.Num))
-      || ((sortcheck_loc f l1 = Some Sort.Frac)
-      &&  (sortcheck_loc f l2 = Some Sort.Frac))
-    -> true
-  | _ , Some Sort.Real,     Some (Sort.Ptr l)
-  | _ , Some (Sort.Ptr l), Some Sort.Real
-    -> sortcheck_loc f l = Some Sort.Frac
-  | Eq, Some t1, Some t2
-  | Ne, Some t1, Some t2
-    -> unifiable t1 t2
-  | _ , Some (Sort.App (tc,_)), _
-    when (g tc) (* tc is an interpreted tycon *)
-    -> false
-  | _ , Some t1, Some t2
-    -> unifiable t1 t2 && t1 != Sort.t_bool
-  | _ -> false
+  Sort.sortcheck_rel f r t1o t2o
 
 and sortcheck_pred g f p =
   match puw p with
@@ -1107,7 +1050,7 @@ and sortcheck_pred g f p =
       -> let t1o = solved_app f uf1 <| sortcheck_app_sub g f None uf1 e1s in
          let t2o = solved_app f uf2 <| sortcheck_app_sub g f None uf2 e2s in
          begin match t1o, t2o with
-               | (Some t1, Some t2) -> (* let _ = F.printf "sortcheck Eq App1 %s" (Predicate.to_string p) in *) unifiable t1 t2
+               | (Some t1, Some t2) -> (* let _ = F.printf "sortcheck Eq App1 %s" (Predicate.to_string p) in *) Sort.unifiable t1 t2
                | (None, None)       -> (* let _ = F.printf "sortcheck Eq App2 %s" (Predicate.to_string p) in *) false
                | (None, Some t2)    -> (* let _ = F.printf "sortcheck Eq App3 %s" (Predicate.to_string p) in *) not (None = sortcheck_app g f (Some t2) uf1 e1s)
                | (Some t1, None)    -> (* let _ = F.printf "sortcheck Eq App4 %s :: %s"
@@ -1362,7 +1305,6 @@ let substs_expr e su = Expression.map id (esub_su su) e
 (****************************************************************************)
 (******************** Unification of Predicates *****************************)
 (****************************************************************************)
-
 
 exception DoesNotUnify
 
