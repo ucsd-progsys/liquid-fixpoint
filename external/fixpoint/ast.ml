@@ -165,7 +165,7 @@ module ExprHashconsStruct = struct
 
 end
 
-module ExprHashcons = Hashcons(ExprHashconsStruct)
+module ExprHashcons = Hashcons.Make(ExprHashconsStruct)
 
 module PredHashconsStruct = struct
 
@@ -219,7 +219,7 @@ module PredHashconsStruct = struct
        50 + (2 * (Hashtbl.hash qs)) + id
 end
 
-module PredHashcons = Hashcons(PredHashconsStruct)
+module PredHashcons = Hashcons.Make(PredHashconsStruct)
 
 let ewr = ExprHashcons.wrap
 let euw = ExprHashcons.unwrap

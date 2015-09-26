@@ -2,7 +2,7 @@
 
 module C  = FixConstraint
 module Co = Constants
-module Sy = Ast.Symbol
+module Sy = Symbol
 module Su = Ast.Subst
 module P = Ast.Predicate
 module E = Ast.Expression
@@ -156,7 +156,7 @@ let refa_to_raw = function
 	Printf.sprintf "%s(%s)" (symbol_to_raw sym) (String.concat ", " params)
 
 let reft_to_raw reft =
-  if C.sort_of_reft reft |> Sort.is_func then 
+  if C.sort_of_reft reft |> Sort.is_func then
     raw_true
   else
     let ras = C.ras_of_reft reft in
