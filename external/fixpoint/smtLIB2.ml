@@ -32,14 +32,16 @@ module F  = Format
 module Co = Constants
 module BS = BNstats
 module A  = Ast
-module Sy = A.Symbol
-module So = A.Sort
+module Sy = Symbol
+module So = Sort
 module SM = Sy.SMap
 module P  = A.Predicate
 module E  = A.Expression
-module Misc = FixMisc open Misc.Ops
+module Misc = FixMisc
 module SSM = Misc.StringMap
 module Th = Theories
+open Misc.Ops
+open Prims
 
 module SMTLib2 : ProverArch.SMTSOLVER = struct
 
@@ -419,14 +421,14 @@ let mkAll _ _ _ _  = failwith "TODO:SMTLib2.mkAll"
 
 let mkRel _ r a1 a2
   = match r with
-  | A.Eq
-  | A.Ueq -> spr "(= %s %s)"       a1 a2
-  | A.Ne
-  | A.Une -> spr "(not (= %s %s))" a1 a2
-  | A.Gt  -> spr "(>  %s %s)"      a1 a2
-  | A.Ge  -> spr "(>= %s %s)"      a1 a2
-  | A.Lt  -> spr "(<  %s %s)"      a1 a2
-  | A.Le  -> spr "(<= %s %s)"      a1 a2
+  | Eq
+  | Ueq -> spr "(= %s %s)"       a1 a2
+  | Ne
+  | Une -> spr "(not (= %s %s))" a1 a2
+  | Gt  -> spr "(>  %s %s)"      a1 a2
+  | Ge  -> spr "(>= %s %s)"      a1 a2
+  | Lt  -> spr "(<  %s %s)"      a1 a2
+  | Le  -> spr "(<= %s %s)"      a1 a2
 
 
 
@@ -435,20 +437,20 @@ let mkApp _ f = function
   | az -> spr "(%s %s)" f (String.concat " " az)
 
 let opStr = function
-  | A.Plus  -> "+"
-  | A.Minus -> "-"
-  | A.Times -> "*"
-  | A.Div   -> "/"
-  | A.Mod   -> "mod"
+  | Plus  -> "+"
+  | Minus -> "-"
+  | Times -> "*"
+  | Div   -> "/"
+  | Mod   -> "mod"
 
 let mkOp op a1 a2
   = spr "(%s %s %s)" (opStr op) a1 a2
 
-let mkMul _ = mkOp A.Times
-let mkDiv _ = mkOp A.Div
-let mkAdd _ = mkOp A.Plus
-let mkSub _ = mkOp A.Minus
-let mkMod _ = mkOp A.Mod
+let mkMul _ = mkOp Times
+let mkDiv _ = mkOp Div
+let mkAdd _ = mkOp Plus
+let mkSub _ = mkOp Minus
+let mkMod _ = mkOp Mod
 
 let mkIte _ a1 a2 a3
   = spr "(ite %s %s %s)" a1 a2 a3

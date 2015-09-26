@@ -32,7 +32,7 @@ module P   = A.Predicate
 
 module Q   = Qualifier
 module QS  = Q.QSet
-module Sy  = A.Symbol
+module Sy  = Symbol
 module Su  = A.Subst
 module SM  = Sy.SMap
 module SS  = Sy.SSet
@@ -335,7 +335,7 @@ let varmatch (x, y) =
     Misc.is_prefix x' y
   else true
 
-let sort_compat t1 t2 = A.Sort.unify [t1] [t2] <> None
+let sort_compat t1 t2 = Sort.unify [t1] [t2] <> None
 
 let wellformed_qual f q =
   Q.pred_of_t q
@@ -392,11 +392,11 @@ let refine_wf_index wm c =
   let ksus  = kvars_of_c c  in (* [(su, k)] *)
   List.fold_left begin fun wm (su, k) ->
     let (xts, v, t) = SM.safeFind k wm "refine_wf_index"                              in
-    let (xts', dts) = Misc.tr_partition begin fun (x,t) -> A.Sort.is_kind t ||
+    let (xts', dts) = Misc.tr_partition begin fun (x,t) -> Sort.is_kind t ||
                         valid_after_substitution ok su x
                       end xts
     in SM.add k (xts', v, t) wm
-   (* let xts' = Misc.filter (fun (x,t) -> A.Sort.is_kind t || valid_after_substitution ok su x) xts in
+   (* let xts' = Misc.filter (fun (x,t) -> Sort.is_kind t || valid_after_substitution ok su x) xts in
       let _     = pp k xts; pp k xts' in
       let _    = pp_ikxts (C.id_of_t c) k dts in
     *)
@@ -451,7 +451,7 @@ let inst_qual env ys evv (q : Q.t) : Q.t list =
 
 let inst_binds env =
   env |> SM.to_list
-      |> Misc.filter (not <.> A.Sort.is_func <.> snd)
+      |> Misc.filter (not <.> Sort.is_func <.> snd)
 
 let inst_ext env vv t qs =
   let _    = Misc.display_tick ()   in
@@ -476,7 +476,7 @@ let ext_bindings yts wkl (x, tx) =
   let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
   Misc.tr_rev_flap begin fun (su, xys) ->
     Misc.map_partial begin fun (y, ty) ->
-      let u = incr debug_unify_count ; A.Sort.unifyWith su [tx] [ty] in
+      let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
       match u with
         | None     -> None
         | Some su' -> Some (su', (x,y) :: xys)
@@ -485,7 +485,7 @@ let ext_bindings yts wkl (x, tx) =
 
 let inst_qual_sorted yts vv t q =
   let (qvv0, t0) :: xts = Q.all_params_of_t q     in
-  match BS.time "q-inst-0" (A.Sort.unify [t0]) [t] with
+  match BS.time "q-inst-0" (Sort.unify [t0]) [t] with
     | Some su0 ->
         xts |> (fun zs -> BS.time "q-inst-1" (List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]) zs)   (* generate subs-bindings   *)
             |> List.rev_map (List.rev <.> snd)                (* extract sorted bindings  *)

@@ -27,16 +27,17 @@ module F  = Format
 module Co = Constants
 module BS = BNstats
 module A  = Ast
-module Sy = A.Symbol
-module So = A.Sort
-module SM   = Sy.SMap
-module P    = A.Predicate
-module E    = A.Expression
+module Sy = Symbol
+module So = Sort
+module SM = Sy.SMap
+module P  = A.Predicate
+module E  = A.Expression
 module Misc = FixMisc
 module SSM  = Misc.StringMap
 module SMT  = SmtZ3.SMTZ3
 
 open Misc.Ops
+open Prims
 open ProverArch
 
 let mydebug = false
@@ -240,7 +241,7 @@ let rec z3Rel me env (e1, r, e2) =
 
 
 and z3Rel_cast me env = function
-  | (e1, A.Eq, e2) -> begin
+  | (e1, Eq, e2) -> begin
       let (t1o, t2o) = (expr_sort env e1, expr_sort env e2) in
       (*
       let _ = F.printf "z3Rel_cast: t1o = %s, t2o = %s \n"
@@ -248,9 +249,9 @@ and z3Rel_cast me env = function
                        (opt_to_string So.to_string t2o) in
        *)
       match (t1o, t2o) with
-        | (Some t , None  ) -> z3Rel_real me env (e1, A.Eq, A.eCst (e2, t))
-        | (None   , Some t) -> z3Rel_real me env (A.eCst (e1, t), A.Eq, e2)
-        | (_      , _     ) -> z3Rel_real me env (e1, A.Eq, e2)
+        | (Some t , None  ) -> z3Rel_real me env (e1, Eq, A.eCst (e2, t))
+        | (None   , Some t) -> z3Rel_real me env (A.eCst (e1, t), Eq, e2)
+        | (_      , _     ) -> z3Rel_real me env (e1, Eq, e2)
     end
   | (e1, r, e2) ->
       z3Rel_real me env (e1, r, e2)
@@ -313,19 +314,19 @@ and z3Exp me env = function
       z3AppThy me env (H.find me.thy_symm f) None f es
   | A.App (f, es), _  ->
       z3App me env f (List.map (z3Exp me env) es)
-  | A.Bin (e1, A.Plus, e2), _ ->
+  | A.Bin (e1, Plus, e2), _ ->
       SMT.mkAdd me.c (z3Exp me env e1) (z3Exp me env e2)
-  | A.Bin (e1, A.Minus, e2), _ ->
+  | A.Bin (e1, Minus, e2), _ ->
       SMT.mkSub me.c (z3Exp me env e1) (z3Exp me env e2)
-  | A.Bin((A.Con (A.Constant.Int n1), _), A.Times, (A.Con (A.Constant.Int n2), _)),_ ->
+  | A.Bin((A.Con (A.Constant.Int n1), _), Times, (A.Con (A.Constant.Int n2), _)),_ ->
       SMT.mkInt me.c (n1 * n2) me.tint
-  | A.Bin (e1, A.Times, e2), _ ->
+  | A.Bin (e1, Times, e2), _ ->
       z3Mul me env (e1, e2)
-  | A.Bin (e1, A.Div, e2), _ ->
+  | A.Bin (e1, Div, e2), _ ->
       z3Div me env (e1, e2)
-  | A.Bin (e, A.Mod, (A.Con (A.Constant.Int i), _)), _ ->
+  | A.Bin (e, Mod, (A.Con (A.Constant.Int i), _)), _ ->
       SMT.mkMod me.c (z3Exp me env e) (SMT.mkInt me.c i me.tint)
-  | A.Bin (e1, A.Mod, e2), _ ->
+  | A.Bin (e1, Mod, e2), _ ->
       SMT.mkMod me.c (z3Exp me env e1) (z3Exp me env e2)
   | A.Ite (e1, e2, e3), _ ->
       SMT.mkIte me.c (z3Pred me env e1) (z3Exp me env e2) (z3Exp me env e3)

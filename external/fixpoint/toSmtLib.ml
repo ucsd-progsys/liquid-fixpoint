@@ -29,8 +29,8 @@ module H  = Hashtbl
 module A  = Ast
 module E  = A.Expression
 module P  = A.Predicate
-module Sy = A.Symbol
-module So = A.Sort
+module Sy = Symbol
+module So = Sort
 module SM = Sy.SMap
 module SS = Sy.SSet
 module C  = FixConstraint
@@ -38,7 +38,10 @@ module Cg = FixConfig
 module Co = Constants
 (*module BS = BNstats*)
 
-module Misc = FixMisc open Misc.Ops
+module Misc = FixMisc
+
+open Misc.Ops
+open Prims
 
 let mydebug = false
 
@@ -82,19 +85,19 @@ let is_kvar x = Misc.is_prefix "k_" (Sy.to_string x)
 (* Printing as C syntax *)
 
 let print_brel ppf = function
-  | A.Eq -> F.fprintf ppf "="
-  | A.Ne -> F.fprintf ppf "!="
-  | A.Gt -> F.fprintf ppf ">"
-  | A.Ge -> F.fprintf ppf ">="
-  | A.Lt -> F.fprintf ppf "<"
-  | A.Le -> F.fprintf ppf "<="
+  | Eq -> F.fprintf ppf "="
+  | Ne -> F.fprintf ppf "!="
+  | Gt -> F.fprintf ppf ">"
+  | Ge -> F.fprintf ppf ">="
+  | Lt -> F.fprintf ppf "<"
+  | Le -> F.fprintf ppf "<="
 
 let print_bop ppf = function
-  | A.Plus  -> F.fprintf ppf "+"
-  | A.Minus -> F.fprintf ppf "-"
-  | A.Times -> F.fprintf ppf "*"
-  | A.Div   -> F.fprintf ppf "/"
-  | A.Mod   -> F.fprintf ppf "mod"
+  | Plus  -> F.fprintf ppf "+"
+  | Minus -> F.fprintf ppf "-"
+  | Times -> F.fprintf ppf "*"
+  | Div   -> F.fprintf ppf "/"
+  | Mod   -> F.fprintf ppf "mod"
 
 let rec print_pred ppf pred =
   match P.unwrap pred with
@@ -102,7 +105,7 @@ let rec print_pred ppf pred =
       F.fprintf ppf "true"
   | A.False ->
       F.fprintf ppf "false"
-  | A.Atom (e1, A.Ne, e2) ->
+  | A.Atom (e1, Ne, e2) ->
       F.fprintf ppf "(not (= %a %a))"
         print_expr e1
         print_expr e2

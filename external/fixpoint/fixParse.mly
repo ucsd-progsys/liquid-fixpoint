@@ -1,8 +1,8 @@
 
 %{
 module A  = Ast
-module So = A.Sort
-module Sy = A.Symbol
+module So = Sort
+module Sy = Symbol
 module E  = A.Expression
 module P  = A.Predicate
 module H  = A.Horn
@@ -10,6 +10,7 @@ module Su = A.Subst
 module C  = FixConstraint
 module Co = Constants
 open FixMisc.Ops
+open Prims
 
 (*
  *
@@ -217,14 +218,14 @@ relsne:
   ;
 
 rel:
-   EQ                                   { A.Eq  }
- | NE                                   { A.Ne  }
- | UEQ                                  { A.Ueq }
- | UNE                                  { A.Une }
- | GT                                   { A.Gt  }
- | GE                                   { A.Ge  }
- | LT                                   { A.Lt  }
- | LE                                   { A.Le  }
+   EQ                                   { Eq  }
+ | NE                                   { Ne  }
+ | UEQ                                  { Ueq }
+ | UNE                                  { Une }
+ | GT                                   { Gt  }
+ | GE                                   { Ge  }
+ | LT                                   { Lt  }
+ | LE                                   { Le  }
  ;
 
 
@@ -281,7 +282,7 @@ expr:
   | con                                   { A.eCon $1  }
   | exprs                                 { A.eMExp $1 }
   | LPAREN expr MOD expr RPAREN           { A.eMod ($2, $4) }
-  | MINUS expr                            { A.eBin (A.zero, A.Minus, $2) }
+  | MINUS expr                            { A.eBin (A.zero, Minus, $2) }
   | expr op expr                          { A.eBin ($1, $2, $3) }
   | expr ops expr                         { A.eMBin ($1, $2, $3) }
   | Id LPAREN exprs RPAREN                { A.eApp ((Sy.of_string $1), $3) }
@@ -294,10 +295,10 @@ expr:
   ;
 
 op:
-  | PLUS                                  { A.Plus  }
-  | MINUS                                 { A.Minus }
-  | TIMES                                 { A.Times }
-  | DIV                                   { A.Div   }
+  | PLUS                                  { Plus  }
+  | MINUS                                 { Minus }
+  | TIMES                                 { Times }
+  | DIV                                   { Div   }
   ;
 
 ops:

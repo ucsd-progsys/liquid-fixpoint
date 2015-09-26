@@ -29,13 +29,16 @@ module H  = Hashtbl
 module A  = Ast
 module E  = A.Expression
 module P  = A.Predicate
-module Sy = A.Symbol
+module Sy = Symbol
 module SM = Sy.SMap
 module C  = FixConstraint
 module Cg = FixConfig
 (*module BS = BNstats*)
 
-module Misc = FixMisc open Misc.Ops
+module Misc = FixMisc
+
+open Misc.Ops
+open Prims
 
 (**********************************************************************)
 (************* Datatypes for IMP Representation ***********************)
@@ -146,18 +149,18 @@ let print_program ppf (decls, blocks) =
 (* Printing as C syntax *)
 
 let print_brel_as_c ppf = function
-  | A.Eq -> F.fprintf ppf "=="
-  | A.Ne -> F.fprintf ppf "!="
-  | A.Gt -> F.fprintf ppf ">"
-  | A.Ge -> F.fprintf ppf ">="
-  | A.Lt -> F.fprintf ppf "<"
-  | A.Le -> F.fprintf ppf "<="
+  | Eq -> F.fprintf ppf "=="
+  | Ne -> F.fprintf ppf "!="
+  | Gt -> F.fprintf ppf ">"
+  | Ge -> F.fprintf ppf ">="
+  | Lt -> F.fprintf ppf "<"
+  | Le -> F.fprintf ppf "<="
 
 let print_bop_as_c ppf = function
-  | A.Plus  -> F.fprintf ppf "+"
-  | A.Minus -> F.fprintf ppf "-"
-  | A.Times -> F.fprintf ppf "*"
-  | A.Div   ->  F.fprintf ppf "/"
+  | Plus  -> F.fprintf ppf "+"
+  | Minus -> F.fprintf ppf "-"
+  | Times -> F.fprintf ppf "*"
+  | Div   ->  F.fprintf ppf "/"
 
 let rec print_predicate_as_c ppf pred =
   match P.unwrap pred with
@@ -315,7 +318,7 @@ let rec get_kdecl kvar decls =
   | [] -> raise Not_found
 
 let sub_to_assume (var, expr) =
-  Assm [A.pAtom (A.eVar var, A.Eq, expr)]
+  Assm [A.pAtom (A.eVar var, Eq, expr)]
 
 (* [[{t | p}]]_get *)
 

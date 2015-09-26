@@ -8,7 +8,7 @@ module Misc = FixMisc open Misc.Ops
 
 let rec defs_of_pred (edefs, pdefs) ((p, _) as pred) =
   match p with
-    | Ast.Atom ((Ast.Var v, _), Ast.Eq, e) when not(P.is_tauto pred) -> Sy.SMap.add v e edefs, pdefs
+    | Ast.Atom ((Ast.Var v, _), Eq, e) when not(P.is_tauto pred) -> Sy.SMap.add v e edefs, pdefs
     | Ast.And [Ast.Imp ((Ast.Bexp (Ast.Var v1, _), _), p1), _;
 	       Ast.Imp (p2, (Ast.Bexp (Ast.Var v2, _), _)), _] when v1 = v2 && p1 = p2 && not(P.is_tauto pred) ->
 	edefs, Sy.SMap.add v1 p1 pdefs
@@ -111,7 +111,7 @@ let kvar_apply_defs edefs pdefs (subs, sym) =
   subs_apply_defs edefs pdefs subs, sym
 
 let simplify_subs subs =
-  List.filter (fun (s, e) -> not(P.is_tauto (Ast.pAtom (Ast.eVar s, Ast.Eq, e)))) subs
+  List.filter (fun (s, e) -> not(P.is_tauto (Ast.pAtom (Ast.eVar s, Eq, e)))) subs
 
 let simplify_kvar (subs, sym) =
   simplify_subs subs, sym
@@ -152,7 +152,7 @@ let simplify_t t =
   let sgrd' = pred_apply_defs edefs pdefs body_pred |> Ast.simplify_pred in
   let sgrd =
     try
-      Ast.pAnd [sgrd'; Ast.pAtom (Ast.eVar lhs_vv, Ast.Eq, Sy.SMap.find lhs_vv edefs |> expr_apply_defs edefs pdefs)]
+      Ast.pAnd [sgrd'; Ast.pAtom (Ast.eVar lhs_vv, Eq, Sy.SMap.find lhs_vv edefs |> expr_apply_defs edefs pdefs)]
     with Not_found -> sgrd' in
 (*    Printf.printf "simplified body_pred: %s\n" (P.to_string sgrd); *)
   let slhs = List.map kvar_to_simple_Kvar lhs_ks |> C.make_reft (C.vv_of_reft lhs) (C.sort_of_reft lhs) in

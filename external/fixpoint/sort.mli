@@ -81,8 +81,10 @@ val init_ti        : unit -> unit
 val unifiable      : t -> t -> bool
 val refresh_tfun   : (int * t list * t) -> (int * t list * t)
 val compat_brel : (Symbol.t -> t option) -> Prims.brel -> t -> t -> (tsub option * t)
+val app_of_t : t -> (tycon * t list) option
+
 exception UnificationError of string
 
 val sortcheck_op  : (Symbol.t -> t option) -> Prims.bop -> t option -> t option -> t option
 val sortcheck_rel : (tycon -> bool) -> (Symbol.t -> t option) -> Prims.brel -> t option -> t option -> bool
-val checkArity    : (Symbol.t -> t option) -> Symbol.t -> (sub * 'a) option -> (sub * 'a) option 
+val checkArity    : (Symbol.t -> t option) -> Symbol.t -> (sub * 'a) option -> (sub * 'a) option
