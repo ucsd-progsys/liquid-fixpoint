@@ -63,3 +63,6 @@ val sub_args    : sub -> (int * t) list
     (* val check_arity : int -> sub -> bool *)
 val makeFresh : int -> (int * int) list
 val refresh   : (int * int) list -> t -> t
+
+val mgu : int -> t -> t -> (int * t) list
+val apply_ty : (int * t) list -> t -> t

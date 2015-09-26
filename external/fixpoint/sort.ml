@@ -404,7 +404,7 @@ let rec apply_ty s = function
   | Var i        -> sub_find_with_default (Var i) i s
   | Func (n, ts) -> Func (n,  List.map (apply_ty s) ts)
   | App (tc, ts) -> App  (tc, List.map (apply_ty s) ts)
-  | t                 -> t
+  | t            -> t
 
 
 

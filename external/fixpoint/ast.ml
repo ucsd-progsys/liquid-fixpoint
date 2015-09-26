@@ -360,7 +360,7 @@ let rec print_expr ppf e = match euw e with
   *)
 
   | Fld(s, e) ->
-      F.fprintf ppf "%a.%s" print_expr e s
+      F.fprintf ppf "%a.%s" print_expr e (Symbol.to_string s)
   | Cst(e,t) ->
       F.fprintf ppf "(%a : %a)"
         print_expr e
@@ -431,7 +431,7 @@ let rec expr_to_string e =
       Printf.sprintf "(%s ? %s : %s)"
         (pred_to_string ip) (expr_to_string te) (expr_to_string ee)
   | Fld(s,e) ->
-      Printf.sprintf "%s.%s" (expr_to_string e) s
+      Printf.sprintf "%s.%s" (expr_to_string e) (Symbol.to_string s)
   | Cst(e,t) ->
       Printf.sprintf "(%s : %s)" (expr_to_string e) (Sort.to_string t)
   | Bot ->
@@ -759,11 +759,14 @@ let rec fixdiv = function
 (*********** New Type Checking Expressions and Predicates ******************)
 (***************************************************************************)
 
+(* let logf s = print_string ("\nLOG: " ^ s) *)
+let logf s = ()
+
 let rec ti_pred_list g f preds =
   logf "ti_pred_list" ;
   List.fold_left (fun (s, t) p ->
     let (s1, t1) = ti_pred g f p in
-    let s2       = mgu 1 (apply_ty s1 t1) Sort.t_bool in
+    let s2       = Sort.mgu 1 (Sort.apply_ty s1 t1) Sort.t_bool in
     (sub_compose s2 (sub_compose s1 s), Sort.t_bool)
   ) (sub_empty, Sort.t_bool) preds
 
@@ -778,9 +781,9 @@ and ti_pred g f p =
   | Imp (p1, p2)
   | Iff (p1, p2) -> (ti_pred g f p1; ti_pred g f p2)
   | Bexp e       -> let (s1, t) = ti_expr g f e in
-                    let tt = apply_ty s1 t in
+                    let tt = Sort.apply_ty s1 t in
                     let _  = logf ("will call mgu with t_bool in " ^ Sort.to_string tt) in
-                    let s2 = mgu 2 tt Sort.t_bool in
+                    let s2 = Sort.mgu 2 tt Sort.t_bool in
                     (sub_compose s2 s1, Sort.t_bool)
   | Atom (e1, brel, e2) -> ti_brel g f brel p e1 e2 (ti_expr g f e1) (ti_expr g f e2)
   | MAtom (e1, brels, e2) -> ti_brel_list g f brels p e1 e2 (ti_expr g f e1) (ti_expr g f e2)
@@ -792,9 +795,9 @@ and ti_brel_list g f brels p e1 e2 st1 st2 =
   logf "ti_brel_list";
   List.fold_left (fun (s, t) brel ->
     let (s1, t1) = ti_brel g f brel p e1 e2 st1 st2 in
-    let tt = apply_ty s1 t1 in
+    let tt = Sort.apply_ty s1 t1 in
     let _ =  logf ("ti_brel_list: will call mgu on " ^ Sort.to_string tt ^ " and " ^ Sort.to_string Sort.t_bool)  in
-    let s2       = mgu 3 (apply_ty s1 t1) Sort.t_bool in
+    let s2       = Sort.mgu 3 (Sort.apply_ty s1 t1) Sort.t_bool in
     (sub_compose s1 s |> sub_compose s2, Sort.t_bool)
   ) (sub_empty, Sort.t_bool) brels
 
@@ -811,16 +814,16 @@ and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
    | _  , _, _, Sort.Real, (Sort.Ptr l)
    | _  , _, _, (Sort.Ptr l), Sort.Real
     -> let tloc = match ti_loc f l with | None -> raise (UnificationError "ti_brel non frac") | Some t -> t in
-       let s3 = mgu 14 tloc Sort.Frac in
+       let s3 = Sort.mgu 14 tloc Sort.Frac in
        (sub_compose s1 s2 |> sub_compose s3, Sort.t_bool)
    | _  , _, _, Sort.Int, (Sort.Ptr l)
    | _  , _, _, (Sort.Ptr l), Sort.Int
     -> let tloc = match ti_loc f l with | None -> UnificationError "ti_brel non num" |> raise | Some t -> t in
-       let s3 = mgu 15 tloc Sort.Num in
+       let s3 = Sort.mgu 15 tloc Sort.Num in
        (sub_compose s1 s2 |> sub_compose s3, Sort.t_bool)
    | Eq , _, _, _, _
-   | Ne , _, _, _, _ -> let s3 = mgu 4 t1 t2 in (sub_compose s3 s2 |> sub_compose s1, Sort.t_bool)
-   | _  -> let s3 = mgu 5 t1 t2 in
+   | Ne , _, _, _, _ -> let s3 = Sort.mgu 4 t1 t2 in (sub_compose s3 s2 |> sub_compose s1, Sort.t_bool)
+   | _  -> let s3 = Sort.mgu 5 t1 t2 in
            let s  = sub_compose s3 (sub_compose s2 s1) in (s, Sort.t_bool)
 
 
@@ -857,21 +860,21 @@ and ti_expr g f e =
        begin
          let (s1, tp) = ti_pred g f p in
          let _ = logf "will call ite" in
-         let s2       = mgu 6 (apply_ty s1 tp) Sort.t_bool in
+         let s2       = Sort.mgu 6 (Sort.apply_ty s1 tp) Sort.t_bool in
          let (s3, t1) = ti_expr g f e1 in
          let (s4, t2) = ti_expr g f e2 in
          let s   = sub_compose s1 s2 |> sub_compose s3 |> sub_compose s4 in
-         let t1' = apply_ty s t1 in
-         let t2' = apply_ty s t1 in
+         let t1' = Sort.apply_ty s t1 in
+         let t2' = Sort.apply_ty s t1 in
          let _ = logf "will call ite2" in
-         let s5 = mgu 7 t1' t2'    in
+         let s5 = Sort.mgu 7 t1' t2'    in
          (sub_compose s s5, t1')
        end
    | Fld (x, e) -> raise (UnificationError "ti_expr on Fld")
    | Cst (e, t') ->
         let (s1, t) = ti_expr g f e in
          let _ = logf "will call Cst" in
-        let s2 = mgu 8 t' (apply_ty s1 t) in
+        let s2 = Sort.mgu 8 t' (Sort.apply_ty s1 t) in
         (sub_compose s1 s2, t')
    | MExp [] -> raise (UnificationError "ti_expr on empty expression")
    | MExp (e::es) ->
@@ -879,7 +882,7 @@ and ti_expr g f e =
         List.fold_left (fun (s1, _) e ->
           let (s2, t) = ti_expr g f e in
           let s = sub_compose s1 s2 in
-          (s, apply_ty s t)
+          (s, Sort.apply_ty s t)
         ) st es
    | Bin (e1, op, e2) -> ti_op g f (ti_expr g f e1) (ti_expr g f e2) op
    | MBin (e1, ops, e2) -> ti_op_list g f (ti_expr g f e1) (ti_expr g f e2) ops
@@ -892,9 +895,9 @@ and ti_expr g f e =
 and ti_op g f (s1, t1) (s2, t2) op
   = let _ = logf "ti_op" in
     let s12 = sub_compose s1 s2 in
-    let s3 = mgu 9 (apply_ty s12 t1) (apply_ty s12 t2) in
+    let s3 = Sort.mgu 9 (Sort.apply_ty s12 t1) (Sort.apply_ty s12 t2) in
     let s  = sub_compose s3 s12 in
-    (s, apply_ty s t1)
+    (s, Sort.apply_ty s t1)
 
 and ti_op_list g f st1 st2 ops
   = let _ = logf "ti_op_list" in
@@ -911,16 +914,16 @@ and ti_app g f uf es
              List.fold_left (fun s0 (e, t) ->
              let (s1, t1) = ti_expr g f e in
              let s12 = sub_compose s1 s0 in
-             let s3 = mgu 10 t (apply_ty s12 t1) in
+             let s3 = Sort.mgu 10 t (Sort.apply_ty s12 t1) in
              sub_compose s3 s12) sub_empty in
-    (sub_apply sts sf, (sts, apply_ty sts t_o))
+    (sub_apply sts sf, (sts, Sort.apply_ty sts t_o))
 
 (* Interface *)
 let check_pred g f p =
   logf ("\n\n check_pred " ^ Predicate.to_string p) ;
   try
     init_ti ();
-    let t = Misc.uncurry apply_ty (ti_pred g f p) in
+    let t = Misc.uncurry Sort.apply_ty (ti_pred g f p) in
     unifiable t Sort.t_bool
   with
    | UnificationError _ -> false
@@ -929,7 +932,7 @@ let check_expr g f tExp e  =
   logf ("\n\n check_expr " ^ Expression.to_string e) ;
   init_ti ();
   try
-    let t = ti_expr g f e |> Misc.uncurry apply_ty in
+    let t = ti_expr g f e |> Misc.uncurry Sort.apply_ty in
     match tExp with
      | None -> Some t
      | Some t' ->  if unifiable t t' then Some t else None
