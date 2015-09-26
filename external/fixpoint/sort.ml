@@ -542,3 +542,32 @@ let unifiable t1 t2 =
   match unify [t1] [t2] with
   | Some _ -> true
   | _      -> false
+
+let ti_loc_err msg f l = match ti_loc f l with
+  | None   -> raise (UnificationError msg)
+  | Some t -> t
+
+let compat_brel b t1 t2 =
+  match b, t1, t2 with
+   | Ueq, _, _
+   | Une, _, _ ->
+      (None, t_bool)
+   | _  , Real, (Ptr l)
+   | _  , (Ptr l), Real ->
+      let tloc = ti_loc_err "ti_brel non frac" f l in
+      let s3   = mgu 14 tloc Frac                  in
+      (Some s3, t_bool)
+   | _  , Sort.Int, (Sort.Ptr l)
+   | _  , (Sort.Ptr l), Sort.Int ->
+       let tloc = ti_loc_err "ti_brel non num" f l in
+       let s3   = mgu 15 tloc Num                  in
+       (Some s3, t_bool)
+   | Eq , _, _
+   | Ne , _, _ ->
+      let s3 = mgu 4 t1 t2 in
+      (Some s3, t_bool)
+      (* Sort.sub_compose s3 s2 |> Sort.sub_compose s1, Sort.t_bool) *)
+   | _  ->
+      let s3 = Sort.mgu 5 t1 t2 in
+      (Some s3, t_bool)
+      (* let s  = Sort.sub_compose s3 (Sort.sub_compose s2 s1) in (s, Sort.t_bool) *)

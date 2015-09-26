@@ -36,7 +36,7 @@ module Misc = FixMisc
 open Misc.Ops
 module SM = Misc.StringMap
 module IS   = Misc.IntSet
-open Prims
+
 type tag  = int
 
 let mydebug = false
@@ -791,29 +791,11 @@ and ti_brel_list g f brels p e1 e2 st1 st2 =
 (* NIKI TODO: check old implementation for pointer manipulation etc. *)
 and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
   logf ("ti_brel " ^ pred_to_string p) ;
-  match brel, e1, e2, t1, t2 with
-   | _,(Con (Constant.Int(0)),_), e, _, _
-   | _, e,(Con (Constant.Int(0)), _), _, _
-      when not (!Constants.strictsortcheck)
-      -> (Sort.sub_compose s1 s2, Sort.t_bool)
-   | Ueq, _, _, _, _
-   | Une, _, _, _, _ -> (Sort.sub_compose s1 s2, Sort.t_bool)
-   | _  , _, _, Sort.Real, (Sort.Ptr l)
-   | _  , _, _, (Sort.Ptr l), Sort.Real
-    -> let tloc = match ti_loc f l with | None -> raise (UnificationError "ti_brel non frac") | Some t -> t in
-       let s3 = Sort.mgu 14 tloc Sort.Frac in
-       (Sort.sub_compose s1 s2 |> Sort.sub_compose s3, Sort.t_bool)
-   | _  , _, _, Sort.Int, (Sort.Ptr l)
-   | _  , _, _, (Sort.Ptr l), Sort.Int
-    -> let tloc = match ti_loc f l with | None -> UnificationError "ti_brel non num" |> raise | Some t -> t in
-       let s3 = Sort.mgu 15 tloc Sort.Num in
-       (Sort.sub_compose s1 s2 |> Sort.sub_compose s3, Sort.t_bool)
-   | Eq , _, _, _, _
-   | Ne , _, _, _, _ -> let s3 = Sort.mgu 4 t1 t2 in (Sort.sub_compose s3 s2 |> Sort.sub_compose s1, Sort.t_bool)
-   | _  -> let s3 = Sort.mgu 5 t1 t2 in
-           let s  = Sort.sub_compose s3 (Sort.sub_compose s2 s1) in (s, Sort.t_bool)
-
-
+  let s        = Sort.sub_compose s1 s2      in
+  let (so', t) = Sort.compat_brel brel t1 t2 in
+  match so' with
+    | None    -> (s, t)
+    | Some s' -> (Sort.sub_compose s' s, t)
 
 
 (* This check is too strict, i.e., disallows x < y where, x, y :: Var @0 *)
