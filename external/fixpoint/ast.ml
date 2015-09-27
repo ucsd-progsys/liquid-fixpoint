@@ -746,8 +746,6 @@ let rec fixdiv = function
 (*********** New Type Checking Expressions and Predicates ******************)
 (***************************************************************************)
 
-let logf s = print_string ("\nLOG: " ^ s)
-
 let solved_app f uf z = Misc.maybe_map snd (Sort.checkArity f uf z)
 
 let splitArgs t = match Sort.func_of_t t with
@@ -755,7 +753,7 @@ let splitArgs t = match Sort.func_of_t t with
   | Some (_, its, ot) -> (its, ot)
 
 let rec ti_pred_list g f preds =
-  logf "ti_pred_list" ;
+  (* logf "ti_pred_list" ; *)
   List.fold_left (fun (s, t) p ->
     let (s1, t1) = ti_pred g f p in
     let s2       = Sort.mgu 1 (Sort.apply_ty s1 t1) Sort.t_bool in
@@ -763,7 +761,7 @@ let rec ti_pred_list g f preds =
   ) (Sort.sub_empty, Sort.t_bool) preds
 
 and ti_pred g f p =
-  logf ("ti_pred " ^ pred_to_string p) ;
+  (* logf ("ti_pred " ^ pred_to_string p) ; *)
  match puw p with
   | True
   | False  -> (Sort.sub_empty, Sort.t_bool)
@@ -774,7 +772,8 @@ and ti_pred g f p =
   | Iff (p1, p2) -> (ti_pred g f p1; ti_pred g f p2)
   | Bexp e       -> let (s1, t) = ti_expr g f e in
                     let tt = Sort.apply_ty s1 t in
-                    let _  = logf ("will call mgu with t_bool in " ^ Sort.to_string tt) in
+                    (* let _  = logf ("will call mgu with t_bool in " ^
+                     * Sort.to_string tt) in *)
                     let s2 = Sort.mgu 2 tt Sort.t_bool in
                     (Sort.sub_compose s2 s1, Sort.t_bool)
   | Atom (e1, brel, e2) -> ti_brel g f brel p e1 e2 (ti_expr g f e1) (ti_expr g f e2)
@@ -785,18 +784,18 @@ and ti_pred g f p =
      in ti_pred g f' p
 
 and ti_brel_list g f brels p e1 e2 st1 st2 =
-  logf "ti_brel_list";
+  (* logf "ti_brel_list"; *)
   List.fold_left (fun (s, t) brel ->
     let (s1, t1) = ti_brel g f brel p e1 e2 st1 st2 in
     let tt = Sort.apply_ty s1 t1 in
-    let _ =  logf ("ti_brel_list: will call mgu on " ^ Sort.to_string tt ^ " and " ^ Sort.to_string Sort.t_bool)  in
+    (* let _ =  logf ("ti_brel_list: will call mgu on " ^ Sort.to_string tt ^ " and " ^ Sort.to_string Sort.t_bool)  in *)
     let s2       = Sort.mgu 3 (Sort.apply_ty s1 t1) Sort.t_bool in
     (Sort.sub_compose s1 s |> Sort.sub_compose s2, Sort.t_bool)
   ) (Sort.sub_empty, Sort.t_bool) brels
 
 (* NIKI TODO: check old implementation for pointer manipulation etc. *)
 and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
-  logf ("ti_brel " ^ pred_to_string p) ;
+  (* logf ("ti_brel " ^ pred_to_string p) ; *)
   let s        = Sort.sub_compose s1 s2        in
   let (so', t) = Sort.compat_brel f brel t1 t2 in
   match so' with
@@ -810,12 +809,12 @@ and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
  *)
 
 and ti_expr g f e = 
-  if mydebug then logf ("ti_expr " ^ Expression.to_string e) ; 
+  (* if mydebug then logf ("ti_expr " ^ Expression.to_string e) ;  *)
   match euw e with
   | Bot ->
       raise <| Sort.UnificationError "ti on Bot"
   | Con (Constant.Int _) ->
-      logf ("ti_expr " ^ Expression.to_string e ^ " sort = " ^ Sort.to_string (Sort.t_int));
+      (* logf ("ti_expr " ^ Expression.to_string e ^ " sort = " ^ Sort.to_string (Sort.t_int)); *)
       (Sort.sub_empty, Sort.t_int)
   | Con (Constant.Real _) ->
       (Sort.sub_empty, Sort.t_real)
@@ -825,7 +824,7 @@ and ti_expr g f e =
       begin
         match f x with
         | Some t ->  let _, tt = Sort.instantiate_ty t in
-                     logf ("ti_symbol " ^ Symbol.to_string x ^ " : " ^ Sort.to_string tt) ;
+                     (* logf ("ti_symbol " ^ Symbol.to_string x ^ " : " ^ Sort.to_string tt) ; *)
                      (Sort.sub_empty, tt)
         | None -> Sort.UnificationError (String.concat " " ["unbound variable"; Symbol.to_string x])
                   |> raise
@@ -833,7 +832,7 @@ and ti_expr g f e =
   | Ite (p, e1, e2) ->
        begin
          let (s1, tp) = ti_pred g f p in
-         let _ = logf "will call ite" in
+         (* let _ = logf "will call ite" in *)
          let s2       = Sort.mgu 6 (Sort.apply_ty s1 tp) Sort.t_bool in
          let (s3, t1) = ti_expr g f e1 in
          let (s4, t2) = ti_expr g f e2 in
@@ -842,14 +841,14 @@ and ti_expr g f e =
                      |> Sort.sub_compose s4 in
          let t1' = Sort.apply_ty s t1 in
          let t2' = Sort.apply_ty s t1 in
-         let _ = logf "will call ite2" in
+         (* let _ = logf "will call ite2" in *)
          let s5 = Sort.mgu 7 t1' t2'    in
          (Sort.sub_compose s s5, t1')
        end
    | Fld (x, e) -> raise (Sort.UnificationError "ti_expr on Fld")
    | Cst (e, t') ->
         let (s1, t) = ti_expr g f e in
-         let _ = logf "will call Cst" in
+        (* let _ = logf "will call Cst" in *)
         let s2 = Sort.mgu 8 t' (Sort.apply_ty s1 t) in
         (Sort.sub_compose s1 s2, t')
    | MExp [] -> raise (Sort.UnificationError "ti_expr on empty expression")
@@ -864,25 +863,25 @@ and ti_expr g f e =
    | Bin (e1, op, e2) -> ti_op g f (ti_expr g f e1) (ti_expr g f e2) op
    | MBin (e1, ops, e2) -> ti_op_list g f (ti_expr g f e1) (ti_expr g f e2) ops
    | App (uf, es) -> let (s, t) = ti_app g f uf es |> snd in
-                     logf ("ti_expr " ^ Expression.to_string e ^ " sort = " ^ Sort.to_string t);
+                     (* logf ("ti_expr " ^ Expression.to_string e ^ " sort = " ^ Sort.to_string t); *)
                      (s, t)
 
 
 and ti_op g f (s1, t1) (s2, t2) op
-  = let _ = logf "ti_op" in
+  = (* let _ = logf "ti_op" in *)
     let s12 = Sort.sub_compose s1 s2 in
     let s3 = Sort.mgu 9 (Sort.apply_ty s12 t1) (Sort.apply_ty s12 t2) in
     let s  = Sort.sub_compose s3 s12 in
     (s, Sort.apply_ty s t1)
 
 and ti_op_list g f st1 st2 ops
-  = let _ = logf "ti_op_list" in
+  = (* let _ = logf "ti_op_list" in *)
     match ops with
   | [] -> Sort.UnificationError "ti_op_list: empty list" |>  raise
   | (op::_) -> ti_op g f st1 st2 op
 
 and ti_app g f uf es =
-    let _ = logf "ti_app" in
+    (* let _ = logf "ti_app" in *)
     let tf = match f uf with | None -> raise (Sort.UnificationError "unfound") |  Some t -> t in
     let (sf, rf) = Sort.instantiate_ty tf in
     let (t_is, t_o) = splitArgs rf in
@@ -898,7 +897,7 @@ and ti_app g f uf es =
 
 (* Interface *)
 let check_pred g f p =
-  logf ("\n\n check_pred " ^ Predicate.to_string p) ;
+  (* logf ("\n\n check_pred " ^ Predicate.to_string p) ; *)
   try
     Sort.init_ti ();
     let t = Misc.uncurry Sort.apply_ty (ti_pred g f p) in
@@ -907,7 +906,7 @@ let check_pred g f p =
    | Sort.UnificationError _ -> false
 
 let check_expr g f tExp e  =
-  logf ("\n\n check_expr " ^ Expression.to_string e) ;
+  (* logf ("\n\n check_expr " ^ Expression.to_string e) ; *)
   Sort.init_ti ();
   try
     let t = ti_expr g f e |> Misc.uncurry Sort.apply_ty in
@@ -918,7 +917,7 @@ let check_expr g f tExp e  =
     Sort.UnificationError _ -> None
 
 let check_app g f tExp uf es =
-  logf ("\n\n check_app " ^ Symbol.to_string uf ^ String.concat " " (List.map Expression.to_string es)) ;
+  (* logf ("\n\n check_app " ^ Symbol.to_string uf ^ String.concat " " (List.map Expression.to_string es)) ; *)
   Sort.init_ti ();
   try
     let (s, (ss, t)) = ti_app g f uf es in
