@@ -156,7 +156,7 @@ let t_to_horn_clause t =
       (fun bv reft (ps, ks) ->
 	 let ps', ks' = preds_kvars_of_reft (C.theta (Su.of_list [(C.vv_of_reft reft, Ast.eVar bv)]) reft) in
 	   List.rev_append ps' ps, List.rev_append ks' ks
-      ) (C.env_of_t t) (C.grd_of_t t :: lhs_ps, lhs_ks) in
+      ) (C.env_of_t t) (lhs_ps, lhs_ks) in
   let head_ps, head_ks = C.rhs_of_t t |> preds_kvars_of_reft in
   let head_kvar_opt =
     match head_ks with

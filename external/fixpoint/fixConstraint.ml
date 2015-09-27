@@ -49,7 +49,6 @@ type senvt = So.t SM.t
 type wf   = envt * reft * (id option) * (Qualifier.t -> bool)
 type t    = { full    : envt;
               nontriv : envt;
-              guard   : A.pred;
               iguard  : A.pred;
               lhs     : reft;
               rhs     : reft;
@@ -74,7 +73,6 @@ let shape_of_reft = fun (v, so, _) -> (v, so, [])
 
 (* API *)
 let env_of_t    = fun t -> t.full
-let grd_of_t    = fun t -> t.guard
 let lhs_of_t    = fun t -> t.lhs
 let rhs_of_t    = fun t -> t.rhs
 let tag_of_t    = fun t -> t.tag
@@ -226,13 +224,11 @@ let non_trivial env =
   end env (SM.empty, [])
 
 (* API *)
-let make_t      = fun env p r1 r2 io is ->
-                    let p      = A.simplify_pred p in
+let make_t      = fun env r1 r2 io is ->
                     let ne, ps = non_trivial env   in
                     { full     = env
                     ; nontriv  = ne
-                    ; guard    = p
-                    ; iguard   = A.pAnd (p::ps)
+                    ; iguard   = A.pAnd (ps)
                     ; lhs      = r1
                     ; rhs      = r2
                     ; ido      = io
@@ -417,11 +413,10 @@ let print_wf so ppf (env, r, io, _) =
     pprint_id io
 
 let print_t so ppf c =
-  let env, g = if !Co.print_nontriv then c.nontriv, c.iguard else c.full, c.guard in
+  (* FIXME: no longer works in !Co.print_nontriv mode *)
   F.fprintf ppf
-  "constraint:@. env  @[%a@] @\n grd @[%a@] @\n lhs @[%a@] @\n rhs @[%a@] @\n %a %a @\n"
-    (print_env so) env
-    P.print g
+  "constraint:@. env  @[%a@] @\n lhs @[%a@] @\n rhs @[%a@] @\n %a %a @\n"
+    (print_env so) c.full
     (print_reft so) c.lhs
     (print_reft so) c.rhs
     pprint_id c.ido

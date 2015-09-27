@@ -34,7 +34,7 @@
 module F  = Format
 module Misc = FixMisc
 module SM = Misc.StringMap
-module IS   = Misc.IntSet
+module IS = Misc.IntSet
 open Misc.Ops
 open Prims
 type tag  = int
@@ -746,8 +746,7 @@ let rec fixdiv = function
 (*********** New Type Checking Expressions and Predicates ******************)
 (***************************************************************************)
 
-(* let logf s = print_string ("\nLOG: " ^ s) *)
-let logf s = ()
+let logf s = print_string ("\nLOG: " ^ s)
 
 let solved_app f uf z = Misc.maybe_map snd (Sort.checkArity f uf z)
 
@@ -779,6 +778,7 @@ and ti_pred g f p =
                     let s2 = Sort.mgu 2 tt Sort.t_bool in
                     (Sort.sub_compose s2 s1, Sort.t_bool)
   | Atom (e1, brel, e2) -> ti_brel g f brel p e1 e2 (ti_expr g f e1) (ti_expr g f e2)
+
   | MAtom (e1, brels, e2) -> ti_brel_list g f brels p e1 e2 (ti_expr g f e1) (ti_expr g f e2)
   | Forall (qs, p) ->
      let f' = fun x -> match Misc.list_assoc_maybe x qs with None -> f x | y -> y
@@ -803,15 +803,14 @@ and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
     | None    -> (s, t)
     | Some s' -> (Sort.sub_compose s' s, t)
 
-
 (* This check is too strict, i.e., disallows x < y where, x, y :: Var @0 *)
 (*            if unifiable (apply_ty s t1) Sort.t_bool
                then raise (UnificationError "ti_brel on bool")
                else (s, Sort.t_bool)
  *)
 
-and ti_expr g f e =
-  logf ("ti_expr " ^ Expression.to_string e) ;
+and ti_expr g f e = 
+  if mydebug then logf ("ti_expr " ^ Expression.to_string e) ; 
   match euw e with
   | Bot ->
       raise <| Sort.UnificationError "ti on Bot"
@@ -854,6 +853,7 @@ and ti_expr g f e =
         let s2 = Sort.mgu 8 t' (Sort.apply_ty s1 t) in
         (Sort.sub_compose s1 s2, t')
    | MExp [] -> raise (Sort.UnificationError "ti_expr on empty expression")
+
    | MExp (e::es) ->
         let st = ti_expr g f e in
         List.fold_left (fun (s1, _) e ->
@@ -866,7 +866,6 @@ and ti_expr g f e =
    | App (uf, es) -> let (s, t) = ti_app g f uf es |> snd in
                      logf ("ti_expr " ^ Expression.to_string e ^ " sort = " ^ Sort.to_string t);
                      (s, t)
-
 
 
 and ti_op g f (s1, t1) (s2, t2) op
@@ -927,6 +926,7 @@ let check_app g f tExp uf es =
     match tExp with
      | None -> Some (sub, t)
      | Some t' when Sort.unifiable t t' -> Some (sub, t)
+
      |_ -> None
   with
     Sort.UnificationError _ -> None

@@ -234,8 +234,12 @@ r(p(pc(%s), data(%s)),
       (annot_conj_to_armc annot_updates)
       id
 
+<<<<<<< HEAD
 let t_to_armc from_data to_data state t =
   let grd = C.grd_of_t t in
+=======
+let t_to_armc from_data to_data state t = 
+>>>>>>> master
   let lhs = C.lhs_of_t t in
   let rhs = C.rhs_of_t t in
   let rhs_s = C.reft_to_string rhs in
@@ -246,10 +250,16 @@ let t_to_armc from_data to_data state t =
       (fun (bv, reft) ->
 	 reft_to_armc state (C.theta [(C.vv_of_reft reft, Ast.eVar bv)] reft),
 	 C.binding_to_string (bv, reft)
+<<<<<<< HEAD
       ) (C.env_of_t t |> C.bindings_of_env)
     ++ [(pred_to_armc grd, Ast.Predicate.to_string grd);
 	(reft_to_armc state lhs, "|- " ^ (C.reft_to_string lhs))] in
   let ps, kvs =
+=======
+      ) (C.env_of_t t |> C.bindings_of_env) 
+    ++ [(reft_to_armc state lhs, "|- " ^ (C.reft_to_string lhs))] in
+  let ps, kvs =  
+>>>>>>> master
     List.fold_left (fun (ps', kvs') refa ->
 		      match refa with
 			| C.Conc p -> p::ps', kvs'

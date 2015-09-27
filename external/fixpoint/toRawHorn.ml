@@ -187,7 +187,7 @@ let c_to_raw c =
     (C.id_of_t c)
     (C.rhs_of_t c |> reft_to_raw)
     (C.lhs_of_t c |> reft_to_raw)
-    (C.grd_of_t c |> pred_to_raw)
+    (raw_true)
     (C.env_of_t c |> env_to_raw)
 
 let to_raw_horn out cs wfs sol =
