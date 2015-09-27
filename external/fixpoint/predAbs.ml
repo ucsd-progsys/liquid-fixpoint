@@ -512,22 +512,25 @@ let teq t1 t2 =
   r
 END-ORIGINAL *)
 
+let mono_filter tx tyss = function
+  | true  -> List.filter (fun (t, _) -> t = tx) tyss
+  | false -> tyss
 
-let mono_extract tx tyss =
-  if Sort.is_mono tx then
-    List.filter (fun (t, _) -> t = tx) tyss
-  else
-     tyss
+let mono_unify su tx ty = function
+  | true  -> if tx = ty then Some su else None
+  | false -> let _ = incr debug_unify_count in
+             Sort.unifyWith su [tx] [ty]
 
-let ext_bindings tys wkl (x, tx) =
-  let tyss = tys
+let ext_bindings tyss wkl (x, tx) =
+  let tyss = tyss
            |>: (fun (t, ys) -> (t, List.filter (fun y -> varmatch (x, y)) ys))
   in
   Misc.tr_rev_flap begin fun (su, xys) ->
     let tx   = Sort.apply su tx     in
-    let tyss = mono_extract tx tyss in
+    let mono = Sort.is_mono tx      in
+    let tyss = mono_filter tx tyss mono in
     Misc.tr_rev_flap begin fun (ty, ys) ->
-      let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
+      let u = mono_unify su tx ty mono in
       match u with
         | None     -> []
         | Some su' -> let _  = incr debug_unify_success_count in

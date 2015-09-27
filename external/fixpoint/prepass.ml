@@ -138,11 +138,10 @@ let validate_reft s env msg ((vv,t,_) as r) =
 let phase5 s cs =
   Misc.filter begin fun c ->
     try
-      let msg  = C.to_string c in
       let env  = C.senv_of_t c in
       let rhs  = C.rhs_of_t c  in
-      List.iter (validate_pred env (lazy (msg^" BAD LHS"))) (C.preds_of_lhs s c);
-      BS.time "valid rhs" (validate_reft s env (lazy (msg^"\n BAD RHS"))) rhs;
+      List.iter (validate_pred env (lazy ((C.to_string c) ^ " BAD LHS"))) (C.preds_of_lhs s c);
+      BS.time "valid rhs" (validate_reft s env (lazy ((C.to_string c) ^ "\n BAD RHS"))) rhs;
       true
     with ex -> begin
       let id  = C.id_of_t c           in
@@ -156,10 +155,9 @@ let phase5 s cs =
 
 (* API *)
 let validate a s cs =
-  cs >> phase3a
-  (* >> phase3b : RJ: this invariant need not hold! *)
-     >> phase4 a
-     |> phase5 s
+  cs >> (fun z -> BS.time "validate-1" phase3a z)
+     >> (fun z -> BS.time "validate-2" (phase4 a) z)
+     |> (fun z -> BS.time "validate-3" (phase5 s) z)
      |> (fun cs' -> asserts (List.length cs = List.length cs') "Validation")
 
 (******************************************************************************)
