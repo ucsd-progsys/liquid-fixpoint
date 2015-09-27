@@ -31,8 +31,8 @@ module F = Format
 
 module P  = Ast.Predicate
 module E  = Ast.Expression
-module Sy = Ast.Symbol
-module So = Ast.Sort
+module Sy = Symbol
+module So = Sort
 module Su = Ast.Subst
 module SM = Sy.SMap
 module SS = Sy.SSet

@@ -115,7 +115,7 @@ let my_scc_array _ g = SCC.scc_array g
 let scc_rank s f is ijs = 
   let g = BNstats.time "making_graph" (make_graph s f is) ijs in
   let a = BNstats.time "scc_array" (my_scc_array ()) g in
-  let _ = scc_print s g a in
+  (* let _ = scc_print s g a in *)
   let sccs = FixMisc.array_to_index_list a in
   FixMisc.flap (fun (i,vs) -> List.map (fun j -> (j,i)) vs) sccs
 

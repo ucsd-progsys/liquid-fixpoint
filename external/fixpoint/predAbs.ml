@@ -32,7 +32,7 @@ module P   = A.Predicate
 
 module Q   = Qualifier
 module QS  = Q.QSet
-module Sy  = A.Symbol
+module Sy  = Symbol
 module Su  = A.Subst
 module SM  = Sy.SMap
 module SS  = Sy.SSet
@@ -105,7 +105,7 @@ type t     =
   { tpc    : ProverArch.prover
   ; m      : bind SM.t
   ; om     : (Q.t list) SM.t
-  ; wm     : (Ast.Sort.t SM.t * Ast.Symbol.t * Ast.Sort.t) SM.t
+  ; wm     : (Sort.t SM.t * Symbol.t * Sort.t) SM.t
   ; assm   : FixConstraint.soln  (* invariant assumption for K, must be a fixpoint wrt constraints *)
   (* ; qm     : Q.t SM.t  *)     (* map from names to qualifiers *)
   ; qs     : Q.t list            (* list of qualifiers *)
@@ -125,6 +125,7 @@ type t     =
   ; stat_umatches       : int ref
   ; stat_unsatLHS       : int ref
   ; stat_emptyRHS       : int ref
+
 }
 
 let lookup_bind k m = SM.find_default Bot k m
@@ -157,8 +158,9 @@ let cx_iter c me =
   { me with step = me.step + 1 }
 
 let cx_ctrace b c me =
-  let _ = if mydebug then F.printf "\nPredAbs.refine iter = %d cid = %d b = %b\n"
+  (* let _ = if mydebug then F.printf "\nPredAbs.refine iter = %d cid = %d b = %b\n"
                           me.step (C.id_of_t c) b in
+                          *)
   if b then { me with ctrace = IM.adds (C.id_of_t c) [me.step] me.ctrace } else me
 
 
@@ -309,7 +311,7 @@ let read_bind s k = failwith "PredAbs.read_bind"
 
 (* DEBUG ONLY *)
 let print_param ppf (x, t) =
-  F.fprintf ppf "%a:%a" Sy.print x Ast.Sort.print t
+  F.fprintf ppf "%a:%a" Sy.print x Sort.print t
 let print_params ppf args =
   F.fprintf ppf "%a" (Misc.pprint_many false ", " print_param) args
 let print_valid_binding ppf (x,y) =
@@ -327,14 +329,14 @@ let dupfree_binding xys : bool =
 let varmatch_ctr = ref 0
 
 let varmatch (x, y) =
-  let _ = varmatch_ctr += 1 in
+  let _     = varmatch_ctr += 1 in
   let (x,y) = Misc.map_pair Sy.to_string (x,y) in
-  if x.[0] = '@' then
-    let x' = Misc.suffix_of_string x 1 in
+  if x.[0]  = '@' then
+    let x'  = Misc.suffix_of_string x 1 in
     Misc.is_prefix x' y
   else true
 
-let sort_compat t1 t2 = A.Sort.unify [t1] [t2] <> None
+let sort_compat t1 t2 = Sort.unify [t1] [t2] <> None
 
 let wellformed_qual f q =
   Q.pred_of_t q
@@ -391,11 +393,11 @@ let refine_wf_index wm c =
   let ksus  = kvars_of_c c  in (* [(su, k)] *)
   List.fold_left begin fun wm (su, k) ->
     let (xts, v, t) = SM.safeFind k wm "refine_wf_index"                              in
-    let (xts', dts) = Misc.tr_partition begin fun (x,t) -> A.Sort.is_kind t ||
+    let (xts', dts) = Misc.tr_partition begin fun (x,t) -> Sort.is_kind t ||
                         valid_after_substitution ok su x
                       end xts
     in SM.add k (xts', v, t) wm
-   (* let xts' = Misc.filter (fun (x,t) -> A.Sort.is_kind t || valid_after_substitution ok su x) xts in
+   (* let xts' = Misc.filter (fun (x,t) -> Sort.is_kind t || valid_after_substitution ok su x) xts in
       let _     = pp k xts; pp k xts' in
       let _    = pp_ikxts (C.id_of_t c) k dts in
     *)
@@ -450,7 +452,7 @@ let inst_qual env ys evv (q : Q.t) : Q.t list =
 
 let inst_binds env =
   env |> SM.to_list
-      |> Misc.filter (not <.> A.Sort.is_func <.> snd)
+      |> Misc.filter (not <.> Sort.is_func <.> snd)
 
 let inst_ext env vv t qs =
   let _    = Misc.display_tick ()   in
@@ -460,41 +462,99 @@ let inst_ext env vv t qs =
      |> Misc.flap   (inst_qual env ys (A.eVar vv))
      |> Misc.filter (wellformed_qual env')
 
-(********************************************************************************)
-(****** Sort Based Qualifier Instantiation **************************************)
-(********************************************************************************)
+(*****************************************************************************)
+(****** Sort Based Qualifier Instantiation ***********************************)
+(*****************************************************************************)
 
 (* [ (su', (x,y) : xys) | (su, xys) <- wkl
                         , (y, ty)   <- yts
                         , varmatch (x, y)
                         , Some su'  <- unifyWith su [tx] [ty] ]  *)
 
+let debug_unify_count         = ref 0
+let debug_unify_success_count = ref 0
+
+(* BEGIN-ORIGINAL
+
 let ext_bindings yts wkl (x, tx) =
   let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
   Misc.tr_rev_flap begin fun (su, xys) ->
     Misc.map_partial begin fun (y, ty) ->
-      match A.Sort.unifyWith su [tx] [ty] with
+      let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
+      match u with
         | None     -> None
-        | Some su' -> Some (su', (x,y) :: xys)
+        | Some su' -> let _  = incr debug_unify_success_count in
+                      Some (su', (x,y) :: xys)
     end yts
   end wkl
 
 let inst_qual_sorted yts vv t q =
   let (qvv0, t0) :: xts = Q.all_params_of_t q     in
-  match A.Sort.unify [t0] [t] with
+  match BS.time "q-inst-0" (Sort.unify [t0]) [t] with
     | Some su0 ->
-        xts |> List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]  (* generate subs-bindings   *)
-            |> List.rev_map (List.rev <.> snd)                          (* extract sorted bindings  *)
-            |> List.rev_map (List.map (Misc.app_snd A.eVar))            (* instantiations           *)
-            |> List.rev_map (Q.inst q)                                  (* quals *)
+        xts |> List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]   (* generate subs-bindings   *)
+            |> List.rev_map (List.rev <.> snd)                           (* extract sorted bindings  *)
+            |> List.rev_map (List.map (Misc.app_snd A.eVar))             (* instantiations           *)
+            |> List.rev_map (Q.inst q)                                   (* quals *)
             (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
-
     | None    -> []
 
 let inst_ext_sorted env vv t qs =
-  let _    = Misc.display_tick () in
-  let yts  = inst_binds env       in
-  let r    = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted yts vv t)) qs in
+  let _   = Misc.display_tick () in
+  let yts = inst_binds env       in
+  let r   = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted yts vv t)) qs in
+  r
+
+let teq t1 t2 =
+  let r = (t1 = t2)                                   in
+  let _ = F.printf "teq: %s = %s : %b \n"
+            (Sort.to_string t1) (Sort.to_string t2) r in
+  r
+END-ORIGINAL *)
+
+let mono_filter tx tyss = function
+  | true  -> List.filter (fun (t, _) -> t = tx) tyss
+  | false -> tyss
+
+let mono_unify su tx ty = function
+  | true  -> if tx = ty then Some su else None
+  | false -> let _ = incr debug_unify_count in
+             Sort.unifyWith su [tx] [ty]
+
+let ext_bindings tyss wkl (x, tx) =
+  let tyss = tyss
+           |>: (fun (t, ys) -> (t, List.filter (fun y -> varmatch (x, y)) ys))
+  in
+  Misc.tr_rev_flap begin fun (su, xys) ->
+    let tx   = Sort.apply su tx     in
+    let mono = Sort.is_mono tx      in
+    let tyss = mono_filter tx tyss mono in
+    Misc.tr_rev_flap begin fun (ty, ys) ->
+      let u = mono_unify su tx ty mono in
+      match u with
+        | None     -> []
+        | Some su' -> let _  = incr debug_unify_success_count in
+                      List.map (fun y -> (su', (x,y) :: xys)) ys
+    end tyss
+  end wkl
+
+let inst_qual_sorted tys vv t q =
+  let (qvv0, t0) :: xts = Q.all_params_of_t q     in
+  match Sort.unify [t0] [t] with
+    | Some su0 ->
+        xts |> List.fold_left (ext_bindings tys) [(su0, [(qvv0, vv)])]   (* generate subs-bindings   *)
+            |> List.rev_map (List.rev <.> snd)                           (* extract sorted bindings  *)
+            |> List.rev_map (List.map (Misc.app_snd A.eVar))             (* instantiations           *)
+            |> List.rev_map (Q.inst q)                                   (* quals *)
+            (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
+    | None    -> []
+
+let inst_ext_sorted env vv t qs =
+  let _   = Misc.display_tick () in
+  let tys = inst_binds env
+            |> Misc.kgroupby snd
+            |> List.map (fun (ty, yts) -> (ty, List.map fst yts))  in
+  let r   = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted tys vv t)) qs in
   r
 
 (***************************************************************)
@@ -522,7 +582,7 @@ let ppBinding k zs =
 let lazy_instantiate_with me c k su : Q.t list =
   let (env,v,t) = SM.safeFind k me.wm "lazy_instantiate"       in
   let env'      = SM.filter (is_non_trivial_var me c su) env in
-  (BS.time "inst_ext" (inst_ext me.qs env env' v) t)
+  inst_ext me.qs env env' v t
   (* >> ppBinding k *)
   |> ((++) (SM.find_default [] k me.om))
 
@@ -541,9 +601,10 @@ let rhs_cands me = function
       |>: (Misc.app_snd (Misc.flip A.substs_pred su))
   (* >> (fun xs -> Co.bprintflush mydebug ("rhs_cands: size="^(string_of_int (List.length xs))^" DONE\n")) *)
   | _ -> []
-}}} *)
 
 let get_lhs me c   = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c
+}}} *)
+
 
 let bind_read me k = SM.find_default Bot k me.m
 
@@ -569,7 +630,7 @@ let quals_of_bind me c k su = function
   | NonBot qs ->
       (qs, me)
   | Bot       ->
-      let qs      = BS.time "lazy-inst" (lazy_instantiate_with me c k) su       in
+      let qs      = lazy_instantiate_with me c k su           in
       let (_, me) = p_update me [k] (qs |>: (fun q -> (k,q))) in
       (qs, me)
 
@@ -595,19 +656,19 @@ let rhs_cands_inst c me = function
       (me, qs |>: make_cand k su)
 
 let rhs_cands_inst me c =
-  let (_, _, ras) = C.rhs_of_t c                               in
+  let (_, _, ras) = C.rhs_of_t c                           in
   let (me, zs)    = Misc.mapfold (rhs_cands_inst c) me ras in
   (Misc.flatten zs, me)
 
 let lhs_preds me c =
-  let lps = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c in
+  let lps = BS.time "lhs_preds" (C.preds_of_lhs (read me)) c in
   (lps, me)
 
 let refine_sort_bot_rhs me c =
-  let (lps, me) = BS.time "rsb 1" (lhs_preds me) c                                          in
-  let (rcs, me) = BS.time "rsb 2" (rhs_cands_inst me) c                                     in
-  let senv      = BS.time "rsb 3" (C.senv_of_t) c                                           in
-  let rcs       = BS.time "rsb 4" (Misc.filter (fun (_,p) -> C.wellformed_pred senv p)) rcs in
+  let (lps, me) = lhs_preds me c                                          in
+  let (rcs, me) = BS.time "rsb 2" (rhs_cands_inst me) c                   in
+  let senv      = C.senv_of_t c                                           in
+  let rcs       = Misc.filter (fun (_,p) -> C.wellformed_pred senv p) rcs in
   (true, me, lps, rcs)
 
 let refine_sort_first_time me c =
@@ -693,8 +754,6 @@ let refine me c =
   let me      = me |> (!Co.cex <?> cx_ctrace b c) in
   (b, me)
 
-
-
 (***************************************************************)
 (************************* Satisfaction ************************)
 (***************************************************************)
@@ -705,7 +764,7 @@ let unsat me c =
   let lps      = C.preds_of_lhs s c  in
   let rhsp     = c |> C.rhs_of_t |> C.preds_of_reft s |> A.pAnd in
   let k        = Sy.of_string "k" in
-  let kq       = (k, Q.create k k Ast.Sort.t_int [] A.pTrue) in
+  let kq       = (k, Q.create k k Sort.t_int [] A.pTrue) in
   not ((check_tp me (C.senv_of_t c) vv t lps [(kq, rhsp)]) = [kq])
 
 (****************************************************************)
@@ -756,7 +815,7 @@ let min_read s k   = BS.time "min_read" (min_read s) k
 let close_env qs sm =
   qs |> Misc.flap   (Q.pred_of_t <+> P.support)
      |> Misc.filter (not <.> Misc.flip SM.mem sm)
-     |> Misc.map    (fun x -> (x, Ast.Sort.t_int))
+     |> Misc.map    (fun x -> (x, Sort.t_int))
      |> SM.of_list
      |> SM.extend sm
 
@@ -909,10 +968,10 @@ let apply_facts_c kf me c =
 	  {me with m = BS.time "update pruned" (update_pruned ks me) fqm}
 
 let apply_facts cs kf me =
-  let numqs = me.m |> Ast.Symbol.SMap.to_list
+  let numqs = me.m |> Symbol.SMap.to_list
               |> List.map snd |> List.concat |> List.length in
   let sol   = List.fold_left (apply_facts_c kf) me cs in
-  let numqs' = sol.m |> Ast.Symbol.SMap.to_list
+  let numqs' = sol.m |> Symbol.SMap.to_list
                |> List.map snd |> List.concat |> List.length in
   let _ = Printf.printf "Started with %d, proved %d false\n" numqs (numqs-numqs') in
     sol
@@ -1015,6 +1074,9 @@ let print_stats ppf me =
   F.fprintf ppf "#Queries: umatch=%d, match=%d, ask=%d, valid=%d\n"
     !(me.stat_umatches) !(me.stat_matches) !(me.stat_imp_queries)
     !(me.stat_valid_queries);
+  F.fprintf ppf "#UnifyWith: (%d/%d)\n"
+    !debug_unify_success_count
+    !debug_unify_count;
   me.tpc#print_stats ppf
 
 (* API *)
@@ -1033,7 +1095,8 @@ let key_of_quals qs =
 let mkbind qs = assertf "PredAbs.mkBind not supported in lazyinst" (* NonBot qs *)(* Misc.flatten <+> Misc.sort_and_compact *)
 
 (* API *)
-let dump s =
+let dump s = ()
+(*
   s.m
   |> SM.to_list
   |> List.map (snd <+> preds_of_bind)
@@ -1043,3 +1106,4 @@ let dump s =
      | (ps::_ as pss) -> Co.bprintf mydebug "SolnCluster: preds %d = size %d \n" (List.length ps) (List.length pss)
      end
   |> ignore
+*)

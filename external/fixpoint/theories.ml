@@ -20,8 +20,8 @@
  * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *)
 
-module So = Ast.Sort
-module Sy = Ast.Symbol
+module So = Sort
+module Sy = Symbol
 
 open ProverArch
 open FixMisc.Ops
@@ -128,7 +128,7 @@ type appDef  = { sy_name  : Sy.t
                ; sy_emb   : SMT.context -> SMT.sort list -> SMT.ast list -> SMT.ast
                }
 
-type sortDef = { so_name  : Ast.Sort.tycon
+type sortDef = { so_name  : Sort.tycon
                ; so_arity : int
                ; so_emb   : SMT.context -> SMT.sort list -> SMT.sort
                }
@@ -193,7 +193,7 @@ let set_emp : appDef  =
   { sy_name  = fst emp
   ; sy_sort  = snd emp
   ; sy_emb   = fun c ts es -> match ts, es with
-                 | [t], [e] -> SMT.mkRel c Ast.Eq e (SMT.mkEmptySet c t)
+                 | [t], [e] -> SMT.mkRel c Prims.Eq e (SMT.mkEmptySet c t)
                  | _        -> assertf "Set_emp: type mismatch"
   }
 

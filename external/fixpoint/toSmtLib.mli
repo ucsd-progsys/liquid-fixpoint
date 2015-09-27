@@ -1,28 +1,28 @@
 (*
- * Copyright © 2009 The Regents of the University of California. All rights reserved. 
+ * Copyright © 2009 The Regents of the University of California. All rights reserved.
  *
- * Permission is hereby granted, without written agreement and without 
- * license or royalty fees, to use, copy, modify, and distribute this 
- * software and its documentation for any purpose, provided that the 
- * above copyright notice and the following two paragraphs appear in 
- * all copies of this software. 
- * 
- * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY 
- * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES 
- * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN 
- * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY 
- * OF SUCH DAMAGE. 
- * 
- * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES, 
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
- * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS 
- * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION 
- * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONAst.Symbol.
+ * Permission is hereby granted, without written agreement and without
+ * license or royalty fees, to use, copy, modify, and distribute this
+ * software and its documentation for any purpose, provided that the
+ * above copyright notice and the following two paragraphs appear in
+ * all copies of this software.
+ *
+ * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY
+ * FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
+ * ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN
+ * IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ *
+ * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
+ * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION
+ * TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATION.
  *
  *)
 
 (* HIDE: all the sigs for defined binders
- 
+
 type rpred = A.pred
 type vdef = Sy.t * So.t
 type kdef = Sy.t * vdef list
@@ -53,7 +53,7 @@ val binds_of_cstr : 'a SM.t -> cstr -> (SM.key * 'a) list
 val print_cstr : So.t SM.t -> Format.formatter -> cstr -> unit
 val print : Format.formatter -> smtlib -> unit
 val sort_compat : 'a -> So.t -> So.t -> bool
-val vdefs_of_env : C.envt -> C.reft -> (Ast.Symbol.t * Ast.Sort.t) list
+val vdefs_of_env : C.envt -> C.reft -> (Ast.Symbol.t * Sort.t) list
 val update_vmap : So.t SM.t -> Sy.t * So.t -> So.t SM.t
 val update_vmap_int : So.t SM.t -> SM.key * 'a -> So.t SM.t
 val add_c_var_to_vmap : So.t SM.t -> C.t -> So.t SM.t
@@ -79,8 +79,7 @@ val dump_smtlib : 'a Cg.cfg -> 'b
 
 *)
 
-(* val render : Format.formatter -> FixConfig.deft list -> unit 
+(* val render : Format.formatter -> FixConfig.deft list -> unit
 val render : Format.formatter -> 'a FixConfig.cfg -> unit
 *)
 val dump_smtlib : 'a FixConfig.cfg -> unit
-

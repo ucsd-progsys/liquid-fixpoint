@@ -27,8 +27,8 @@ module H  = Hashtbl
 module A  = Ast
 module E  = A.Expression
 module P  = A.Predicate
-module Sy = A.Symbol
-module So = A.Sort
+module Sy = Symbol
+module So = Sort
 module SM = Sy.SMap
 module BS = BNstats
 module Su = Ast.Subst
@@ -43,7 +43,7 @@ type id   = int
 type dep  = Adp of tag * tag | Ddp of tag * tag | Ddp_s of tag | Ddp_t of tag
 
 type refa = Conc of A.pred | Kvar of Su.t * Sy.t
-type reft = Sy.t * A.Sort.t * refa list                (* { VV: t | [ra] } *)
+type reft = Sy.t * Sort.t * refa list                (* { VV: t | [ra] } *)
 type envt = reft SM.t
 type senvt = So.t SM.t
 type wf   = envt * reft * (id option) * (Qualifier.t -> bool)
@@ -55,16 +55,9 @@ type t    = { full    : envt;
               ido     : id option;
               tag     : tag; }
 
-type soln = Ast.Symbol.t -> Ast.pred list
+type soln = Symbol.t -> Ast.pred list
 
 exception BadConstraint of (id * tag * string)
-
-
-(*
-type soln    = Ast.pred list Ast.Symbol.SMap.t
-type soln = { read  : Ast.Symbol.t -> Ast.pred list
-            ; kvars : Ast.Symbol.SSet.t }
-*)
 
 let mydebug = false
 
@@ -143,7 +136,7 @@ let kvars_of_reft (_, _, rs) =
 
 let meet x (v1, t1, ra1s) (v2, t2, ra2s) =
   asserts (v1=v2 && t1=t2) "ERROR: FixConstraint.meet x=%s (v1=%s, t1=%s) (v2=%s, t2=%s)"
-  (Sy.to_string x) (Sy.to_string v1) (A.Sort.to_string t1) (Sy.to_string v2) (A.Sort.to_string t2) ;
+  (Sy.to_string x) (Sy.to_string v1) (Sort.to_string t1) (Sy.to_string v2) (Sort.to_string t2) ;
   (v1, t1, Misc.sort_and_compact (ra1s ++ ra2s))
 
 let env_of_bindings_ meetb xrs =
@@ -363,7 +356,7 @@ let print_ras so ppf ras = match so with
 let print_reft_pred so ppf (v,t,ras) =
   F.fprintf ppf "@[{%a:%a | %a}@]"
     Sy.print v
-    Ast.Sort.print t
+    Sort.print t
     (print_ras so) ras
 
 (*
@@ -376,7 +369,7 @@ let print_reft_pred so ppf = function
 let print_reft so ppf (v, t, ras) =
   F.fprintf ppf "@[{%a : %a | %a}@]"
     Sy.print v
-    Ast.Sort.print t
+    Sort.print t
     (print_ras so) ras
 
 (* API *)

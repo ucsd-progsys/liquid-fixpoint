@@ -36,73 +36,6 @@ module Cone : sig
   val map : ('a -> 'b) -> 'a t -> 'b t
 end
 
-module Sort :
-  sig
-    type loc =
-      | Loc  of string
-      | Lvar of int
-      | LFun
-
-    type tycon
-    type t
-    type sub
-
-    val tycon       : string -> tycon
-    val tycon_string: tycon -> string
-
-    val to_string   : t -> string
-    val print       : Format.formatter -> t -> unit
-    val t_num       : t
-    val t_frac      : t
-    val t_obj       : t
-    val t_bool      : t
-    val t_int       : t
-    val t_real      : t
-    val t_generic   : int -> t
-    val t_ptr       : loc -> t
-    val t_func      : int -> t list -> t
-    val t_app_tc    : tycon -> t list -> t
-    val t_app       : t -> t list -> t
-    (* val t_fptr      : t *)
-
-    val is_bool      : t -> bool
-    val is_int       : t -> bool
-    val is_real      : t -> bool
-    val is_func      : t -> bool
-    val is_kind      : t -> bool
-    val app_of_t     : t -> (tycon * t list) option
-    val func_of_t    : t -> (int * t list * t) option
-    val ptr_of_t     : t -> loc option
-
-    val compat      : t -> t -> bool
-    val empty_sub   : sub
-    val unifyWith   : sub -> t list -> t list -> sub option
-    val unify       : t list -> t list -> sub option
-    val apply       : sub -> t -> t
-    val generalize  : t list -> t list
-    val sub_args    : sub -> (int * t) list
-    (* val check_arity : int -> sub -> bool *)
-    val makeFresh : int -> (int * int) list
-    val refresh   : (int * int) list -> t -> t
-  end
-
-module Symbol :
-  sig
-    type t
-    module SMap         : FixMisc.EMapType with type key = t
-    module SSet         : FixMisc.ESetType with type elt = t
-    val mk_wild         : unit -> t
-    val of_string       : string -> t
-    val to_string       : t -> string
-    val is_wild_any     : t -> bool
-    val is_wild_fresh   : t -> bool
-    val is_wild         : t -> bool
-    val print           : Format.formatter -> t -> unit
-    val value_variable  : Sort.t -> t
-    val is_value_variable : t -> bool
-    val suffix          : t -> string -> t
-  end
-
 module Constant :
   sig
     type t = Int  of int
@@ -115,23 +48,19 @@ module Constant :
 
 type tag  (* externally opaque *)
 
-type brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
-
-type bop  = Plus | Minus | Times | Div | Mod    (* NOTE: For "Mod" 2nd expr should be a constant or a var *)
-
 type expr = expr_int * tag
 
 and expr_int =
   | Con  of Constant.t
   | Var  of Symbol.t
   | App  of Symbol.t * expr list
-  | Bin  of expr * bop * expr
+  | Bin  of expr * Prims.bop * expr
   | Ite  of pred * expr * expr
   | Fld  of Symbol.t * expr             (* NOTE: Fld (s, e) == App ("field"^s,[e]) *)
   | Cst  of expr * Sort.t
   | Bot
   | MExp of expr list
-  | MBin of expr * bop list * expr
+  | MBin of expr * Prims.bop list * expr
 
 and pred = pred_int * tag
 
@@ -144,8 +73,8 @@ and pred_int =
   | Imp  of pred * pred
   | Iff  of pred * pred
   | Bexp of expr
-  | Atom of expr * brel * expr
-  | MAtom of expr * brel list * expr
+  | Atom of expr * Prims.brel * expr
+  | MAtom of expr * Prims.brel list * expr
   | Forall of ((Symbol.t * Sort.t) list) * pred
 
 (* Constructors : expressions *)
@@ -157,16 +86,16 @@ val eMod : expr * expr -> expr
 val eModExp : expr * expr -> expr
 val eVar : Symbol.t -> expr
 val eApp : Symbol.t * expr list -> expr
-val eBin : expr * bop * expr -> expr
-val eMBin : expr * bop list * expr -> expr
+val eBin : expr * Prims.bop * expr -> expr
+val eMBin : expr * Prims.bop list * expr -> expr
 val eIte : pred * expr * expr -> expr
 val eFld : Symbol.t * expr -> expr
 val eCst : expr * Sort.t -> expr
 (* Constructors : predicates *)
 val pTrue  : pred
 val pFalse : pred
-val pAtom  : expr * brel * expr -> pred
-val pMAtom : expr * brel list * expr -> pred
+val pAtom  : expr * Prims.brel * expr -> pred
+val pMAtom : expr * Prims.brel list * expr -> pred
 val pAnd   : pred list -> pred
 val pOr    : pred list -> pred
 val pNot   : pred -> pred
@@ -176,7 +105,7 @@ val pBexp  : expr -> pred
 val pForall: ((Symbol.t * Sort. t) list) * pred -> pred
 val pEqual : expr * expr -> pred
 val pUequal : expr * expr -> pred
-val neg_brel : brel -> brel
+val neg_brel : Prims.brel -> Prims.brel
 
 module Expression :
 sig

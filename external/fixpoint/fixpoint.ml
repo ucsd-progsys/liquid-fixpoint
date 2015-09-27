@@ -26,7 +26,7 @@
 
 module CX  = Counterexample
 module BS  = BNstats
-module SM  = Ast.Symbol.SMap
+module SM  = Symbol.SMap
 module Co  = Constants
 module C   = FixConstraint
 module F   = Format
