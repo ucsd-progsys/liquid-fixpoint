@@ -524,7 +524,7 @@ let ext_bindings tys wkl (x, tx) =
            |>: (fun (t, ys) -> (t, List.filter (fun y -> varmatch (x, y)) ys))
   in
   Misc.tr_rev_flap begin fun (su, xys) ->
-    let tx   = Sort.apply su tx    in
+    let tx   = Sort.apply su tx     in
     let tyss = mono_extract tx tyss in
     Misc.tr_rev_flap begin fun (ty, ys) ->
       let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
@@ -546,7 +546,6 @@ let inst_qual_sorted tys vv t q =
             (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
     | None    -> []
 
-
 let inst_ext_sorted env vv t qs =
   let _   = Misc.display_tick () in
   let tys = inst_binds env
@@ -554,8 +553,6 @@ let inst_ext_sorted env vv t qs =
             |> List.map (fun (ty, yts) -> (ty, List.map fst yts))  in
   let r   = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted tys vv t)) qs in
   r
-
-
 
 (***************************************************************)
 (**************** Lazy Instantiation ***************************)
@@ -753,8 +750,6 @@ let refine me c =
   let (b, me) = refine me c                       in
   let me      = me |> (!Co.cex <?> cx_ctrace b c) in
   (b, me)
-
-
 
 (***************************************************************)
 (************************* Satisfaction ************************)
