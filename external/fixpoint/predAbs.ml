@@ -656,7 +656,7 @@ let rhs_cands_inst c me = function
       (me, qs |>: make_cand k su)
 
 let rhs_cands_inst me c =
-  let (_, _, ras) = C.rhs_of_t c                               in
+  let (_, _, ras) = C.rhs_of_t c                           in
   let (me, zs)    = Misc.mapfold (rhs_cands_inst c) me ras in
   (Misc.flatten zs, me)
 
