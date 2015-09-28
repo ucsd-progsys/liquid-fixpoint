@@ -36,6 +36,7 @@ module Misc = FixMisc
 module IM = Misc.IntMap
 open Misc.Ops
 open Ast
+open Prims
 
 let mydebug = false
 
