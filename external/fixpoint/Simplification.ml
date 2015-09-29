@@ -3,8 +3,10 @@ module P = Ast.Predicate
 module E = Ast.Expression
 module Sy = Symbol
 module Su = Ast.Subst
+module Misc = FixMisc
 
-module Misc = FixMisc open Misc.Ops
+open Misc.Ops
+open Prims
 
 let rec defs_of_pred (edefs, pdefs) ((p, _) as pred) =
   match p with
