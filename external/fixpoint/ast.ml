@@ -808,7 +808,7 @@ and ti_brel g f brel p e1 e2 (s1, t1) (s2, t2) =
                else (s, Sort.t_bool)
  *)
 
-and ti_expr g f e = 
+and ti_expr g f e =
   (* if mydebug then logf ("ti_expr " ^ Expression.to_string e) ;  *)
   match euw e with
   | Bot ->
