@@ -83,7 +83,7 @@ type t =
   ; rts   : IS.t                     (* {rank} members are "root" sccs *)
   ; ds    : C.dep list               (* add/del dep list *)
   ; rdeps : (int * int) list         (* real dependencies *)
-  ; kuts  : Symbol.t list        (* CUT KVars *)
+  ; kuts  : Symbol.t list            (* CUT KVars *)
   }
 
 let get_ref_rank me c =
@@ -112,7 +112,7 @@ let make_kread_map cm =
   cm |> IM.to_list
      |> Misc.flap (fun (id, c) -> lhs_ks c |>: (fun k -> (k, id)))
      |> SM.of_alist
-(*     >> SM.iter (fun k ids -> Co.bprintf mydebug "ReadIn %a := %a\n" Symbol.print k Misc.pprint_pretty_ints ids) 
+(*     >> SM.iter (fun k ids -> Co.bprintf mydebug "ReadIn %a := %a\n" Symbol.print k Misc.pprint_pretty_ints ids)
  *)
 
 let make_deps cm =
@@ -183,8 +183,12 @@ let make_rankm cm ranks iranks =
           let c         = IM.find id cm  in
           let r         = IM.find id rm  in
           let (ir, cut) = IM.find id irm in
-          id, { id    = id; scc   = r; iscc  = ir; cut   = cut; tag   = C.tag_of_t c
-              ; simpl = (not !Co.psimple) || (C.is_simple c)                         }
+          id, { id    = id
+              ; scc   = r
+              ; iscc  = ir
+              ; cut   = cut
+              ; tag   = C.tag_of_t c
+              ; simpl = (not !Co.psimple) || (C.is_simple c) }
         end
     |> IM.of_list
     (* >> (IM.range <+> print_rank_groups (fun r -> Printf.sprintf "(%d/%d)" r.scc r.iscc ))   *)
