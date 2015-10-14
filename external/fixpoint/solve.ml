@@ -157,9 +157,9 @@ let rec acsolve me w s =
       let _        = me.stat_refines += 1             in
       let (ch, s') = BS.time "refine" (refine_constraint s) c in
       let _        = hashtbl_incr_frequency me.stat_cfreqt (C.id_of_t c, ch) in
-      (* let _        = Co.bprintf mydebug "iter=%d id=%d ch=%b %a \n"
+      let _        = Co.bprintf true "iter=%d id=%d ch=%b %a \n"
                       !(me.stat_refines) (C.id_of_t c) ch C.print_tag (C.tag_of_t c) in
-                      *)
+
       let w''      = if ch then update_worklist me s' c w' else w' in
       acsolve me w'' s'
 

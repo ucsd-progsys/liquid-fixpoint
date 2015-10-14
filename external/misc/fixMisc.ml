@@ -953,6 +953,7 @@ let display_tick =
     let _   = print_now ("\b."^suf)      in
     ()
 
+let display_tick _ = () (* DEBUG/FIXME *)
 
 
 let with_out_file file f = file |> open_out >> f |> close_out
