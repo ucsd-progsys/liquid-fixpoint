@@ -39,8 +39,8 @@ module PP = Prepass
 module Cg = FixConfig
 module Misc = FixMisc open Misc.Ops
 
-
-let mydebug = false
+let mydebug  = false
+let mydebug' = true
 
 type t = {
    sri : Ci.t
@@ -109,8 +109,8 @@ let print_solver_stats ppf me =
   F.fprintf ppf "Iteration Periods: @[%a@] \n" Timer.print me.tt
 
 let dump me s =
-  Co.bprintf mydebug "%a \n" print_solver_stats me;
-  Co.bprintf mydebug "%a \n" Dom.print_stats s;
+  Co.bprintf mydebug' "%a \n" print_solver_stats me;
+  Co.bprintf mydebug' "%a \n" Dom.print_stats s;
   Dom.dump s
 
 let log_iter_stats me s =
@@ -231,10 +231,10 @@ let global_symbols cfg =
 let create cfg kf =
   let gts = global_symbols cfg in
   let sri = cfg.Cg.cs
-            >> Co.bprintf mydebug "Pre-Simplify Stats\n%a" print_constr_stats
+            >> Co.bprintf mydebug' "Pre-Simplify Stats\n%a" print_constr_stats
             |> BS.time  "Constant Env" (List.map (C.add_consts_t gts))
             |> BS.time  "Simplify" FixSimplify.simplify_ts
-            >> Co.bprintf mydebug "Post-Simplify Stats\n%a" print_constr_stats
+            >> Co.bprintf mydebug' "Post-Simplify Stats\n%a" print_constr_stats
             |> BS.time  "Ref Index" Ci.create cfg.Cg.kuts cfg.Cg.ds
             |> (!Co.slice <?> BS.time "Slice" Ci.slice) in
   let ws  = cfg.Cg.ws
