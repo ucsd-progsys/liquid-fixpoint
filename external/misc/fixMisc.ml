@@ -936,26 +936,6 @@ let with_out_file file f =
     f oc;
     close_out oc
 *)
-
-let display_tick = fun () -> print_now "."
-
-let display_tick =
-  let icona = [| "|"; "/" ; "-"; "\\" |] in
-  let n     = ref 0                      in
-  let pos   = ref 0                      in
-  fun () ->
-    let k   = !pos                       in
-    let _   = pos := (k + 1) mod 4       in
-    let _   = incr n                     in
-    let suf = if (!n mod 76) = 0
-              then "\n"
-              else icona.(k)             in
-    let _   = print_now ("\b."^suf)      in
-    ()
-
-let display_tick _ = () (* DEBUG/FIXME *)
-
-
 let with_out_file file f = file |> open_out >> f |> close_out
 
 let write_to_file f s =

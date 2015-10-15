@@ -147,8 +147,8 @@ let update_worklist me s' c w' =
     |> Ci.wpush me.sri w'
 
 let rec acsolve me w s =
-  let _ = log_iter_stats me s in
-  let _ = Misc.display_tick () in
+  (* let _ = log_iter_stats me s in *)
+  let _ = Constants.display_tick () in
   match Ci.wpop me.sri w with
   | (None,_) ->
       let _ = Timer.log_event me.tt (Some "Finished") in

@@ -291,6 +291,7 @@ let slice me =
   let rdeps = me.rdeps
               |> Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives) in
   (BS.time "create_raw" (create_raw me.kuts me.ds cm dm) rdeps)
+  >> (fun _ -> Co.bprintf true "slice constraints: %d --> %d \n" (IM.cardinal me.cnst) (IM.cardinal cm))
   >> (fun z -> if !Co.save_slice then save (Co.get_save_file ()) z)
 
 (* API *)
@@ -362,7 +363,6 @@ let wpop me w =
 
 let roots me =
   IM.fold begin fun id r sccm ->
-   (*  if not (IM.mem r.scc me.rts) then sccm else *)
       let rs = try IM.find r.scc sccm with Not_found -> [] in
       IM.add r.scc (r::rs) sccm
   end me.rnkm IM.empty
