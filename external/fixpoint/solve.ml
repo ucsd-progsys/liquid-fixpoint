@@ -40,7 +40,7 @@ module Cg = FixConfig
 module Misc = FixMisc open Misc.Ops
 
 let mydebug  = false
-let mydebug' = true
+let mydebug' = false (* enable for solver stats *) 
 
 type t = {
    sri : Ci.t
