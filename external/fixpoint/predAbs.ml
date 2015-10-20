@@ -117,15 +117,14 @@ type t     =
   ; lifespan : CX.lifespan
 
   (* stats *)
-  ; stat_simple_refines : int ref
-  ; stat_tp_refines     : int ref
-  ; stat_imp_queries    : int ref
-  ; stat_valid_queries  : int ref
-  ; stat_matches        : int ref
-  ; stat_umatches       : int ref
-  ; stat_unsatLHS       : int ref
-  ; stat_emptyRHS       : int ref
-
+  ; stat_simple_refines   : int ref
+  ; stat_tp_refines       : int ref
+  ; stat_botLHS_refines   : int ref
+  ; stat_emptyRHS_refines : int ref
+  ; stat_imp_queries      : int ref
+  ; stat_valid_queries    : int ref
+  ; stat_matches          : int ref
+  ; stat_umatches         : int ref
 }
 
 let lookup_bind k m = SM.find_default Bot k m
@@ -455,7 +454,7 @@ let inst_binds env =
       |> Misc.filter (not <.> Sort.is_func <.> snd)
 
 let inst_ext env vv t qs =
-  let _    = Misc.display_tick ()   in
+  let _    = Constants.display_tick ()   in
   let ys   = inst_binds env |>: fst in
   let env' = Misc.flip SM.maybe_find (SM.add vv t env) in
   qs |> List.filter (Q.sort_of_t <+> sort_compat t)
@@ -473,44 +472,6 @@ let inst_ext env vv t qs =
 
 let debug_unify_count         = ref 0
 let debug_unify_success_count = ref 0
-
-(* BEGIN-ORIGINAL
-
-let ext_bindings yts wkl (x, tx) =
-  let yts = List.filter (fun (y,_) -> varmatch (x, y)) yts in
-  Misc.tr_rev_flap begin fun (su, xys) ->
-    Misc.map_partial begin fun (y, ty) ->
-      let u = incr debug_unify_count ; Sort.unifyWith su [tx] [ty] in
-      match u with
-        | None     -> None
-        | Some su' -> let _  = incr debug_unify_success_count in
-                      Some (su', (x,y) :: xys)
-    end yts
-  end wkl
-
-let inst_qual_sorted yts vv t q =
-  let (qvv0, t0) :: xts = Q.all_params_of_t q     in
-  match BS.time "q-inst-0" (Sort.unify [t0]) [t] with
-    | Some su0 ->
-        xts |> List.fold_left (ext_bindings yts) [(su0, [(qvv0, vv)])]   (* generate subs-bindings   *)
-            |> List.rev_map (List.rev <.> snd)                           (* extract sorted bindings  *)
-            |> List.rev_map (List.map (Misc.app_snd A.eVar))             (* instantiations           *)
-            |> List.rev_map (Q.inst q)                                   (* quals *)
-            (* >> (fun qs -> F.printf "IQS: len qs = %d \n" (List.length qs)) *)
-    | None    -> []
-
-let inst_ext_sorted env vv t qs =
-  let _   = Misc.display_tick () in
-  let yts = inst_binds env       in
-  let r   = BS.time "inst-qual-sorted" (Misc.flap (inst_qual_sorted yts vv t)) qs in
-  r
-
-let teq t1 t2 =
-  let r = (t1 = t2)                                   in
-  let _ = F.printf "teq: %s = %s : %b \n"
-            (Sort.to_string t1) (Sort.to_string t2) r in
-  r
-END-ORIGINAL *)
 
 let mono_filter tx tyss = function
   | true  -> List.filter (fun (t, _) -> t = tx) tyss
@@ -550,7 +511,7 @@ let inst_qual_sorted tys vv t q =
     | None    -> []
 
 let inst_ext_sorted env vv t qs =
-  let _   = Misc.display_tick () in
+  let _   = Constants.display_tick () in
   let tys = inst_binds env
             |> Misc.kgroupby snd
             |> List.map (fun (ty, yts) -> (ty, List.map fst yts))  in
@@ -609,8 +570,9 @@ let get_lhs me c   = BS.time "preds_of_lhs" (C.preds_of_lhs (read me)) c
 let bind_read me k = SM.find_default Bot k me.m
 
 let is_bot_reft me (_,_,ras) =
-  List.exists begin function C.Conc _ -> false | C.Kvar (_,k) ->
-    (bind_read me k = Bot)
+  List.exists begin function
+    | C.Conc _     -> false
+    | C.Kvar (_,k) -> (bind_read me k = Bot)
   end ras
 
 let is_bot_lhs me c =
@@ -700,7 +662,6 @@ let is_trivial_rhs me c =
     |> C.ras_of_reft
     |> List.for_all (is_trivial_refa me)
 
-let is_trivial_c me c = is_bot_lhs me c || is_trivial_rhs me c
 
 let refine_match me lps rcs =
   let lt      = PH.create 17                                  in
@@ -711,14 +672,14 @@ let refine_match me lps rcs =
 
 let check_tp me env vv t lps =  function [] -> [] | rcs ->
   me.tpc#set_filter env vv lps rcs
-  >> (fun _  -> me.stat_tp_refines    += 1)
+  (* >> (fun _  -> me.stat_tp_refines    += 1) *)
   >> (fun _  -> me.stat_imp_queries   += List.length rcs)
   >> (fun rv -> me.stat_valid_queries += List.length rv)
 
 let refine_tp me c lps x2 =
-  if C.is_simple c then
-    (me.stat_simple_refines += 1) >| []
-  else
+  (* NUKING SIMPLE: if C.is_simple c then
+    []
+  else *)
     let senv = C.senv_of_t c in
     let vv   = C.vv_of_t c   in
     let t    = C.sort_of_t c in
@@ -728,24 +689,37 @@ let refine_update me c kqs1 kqs2 =
   let ks = C.rhs_of_t c |> C.kvars_of_reft |>: snd in
   p_update me ks (kqs1 ++ kqs2)
 
+(* let is_trivial_c me c = is_bot_lhs me c || is_trivial_rhs me c *)
+
+type refineKind = BotLHS | EmpRHS | Simple | TP
+
+let update_refine_stat me = function
+  | BotLHS -> me.stat_botLHS_refines    += 1
+  | EmpRHS -> me.stat_emptyRHS_refines  += 1
+  | Simple -> me.stat_simple_refines    += 1
+  | TP     -> me.stat_tp_refines        += 1
+
 let refine me c =
-  if BS.time "is_triv" (is_trivial_c me) c then
-    (false, me)
+  if BS.time "is_bot_lhs" (is_bot_lhs me) c then
+    (false, me, BotLHS)
+  else if BS.time "is_trivial_rhs" (is_trivial_rhs me) c then
+    (false, me, EmpRHS)
   else
-    let (ch, me, lps, rcs) = BS.time "refine-sort" (refine_sort me) c     in
+    let (ch, me, lps, rcs) = BS.time "refine-sort" (refine_sort me) c  in
     if BS.time "refine-lhs-contra" (List.exists P.is_contra) lps then
-      let _          = me.stat_unsatLHS += 1                              in
-      let _          = me.stat_umatches += List.length rcs                in
-      (ch, me)
+      let _          = me.stat_umatches += List.length rcs             in
+      (ch, me, BotLHS)
     else
       let rcs        = BS.time "refine-cands"  (List.filter (fun (_,p) -> not (P.is_contra p))) rcs in
       let (kqs1, x2) = BS.time "refine-match"  (refine_match me lps) rcs                            in
       let kqs2       = BS.time "refine-tp"     (refine_tp me c lps) x2                              in
       let (ch', me)  = BS.time "refine-update" (refine_update me c kqs1) kqs2                       in
-      (ch || ch', me)
+      (ch || ch', me, TP)
+
 
 let refine me c =
-  let (ch, me) = BS.time "PA.refine" (refine me) c in
+  let (ch, me, k) = BS.time "PA.refine" (refine me) c in
+  let _           = update_refine_stat me k           in
   (ch, {me with seen = IS.add (C.id_of_t c) me.seen})
 
 let refine me c =
@@ -893,90 +867,20 @@ let create obm cs ws ts sm ps consts assm qs bm =
   ; lifespan = SM.empty
 
   (* Stats *)
-  ; stat_simple_refines = ref 0
-  ; stat_tp_refines     = ref 0; stat_imp_queries    = ref 0
-  ; stat_valid_queries  = ref 0; stat_matches        = ref 0
-  ; stat_umatches       = ref 0; stat_unsatLHS       = ref 0
-  ; stat_emptyRHS       = ref 0
+  ; stat_simple_refines   = ref 0
+  ; stat_tp_refines       = ref 0
+  ; stat_botLHS_refines   = ref 0
+  ; stat_emptyRHS_refines = ref 0
+  ; stat_imp_queries      = ref 0
+  ; stat_valid_queries    = ref 0
+  ; stat_matches          = ref 0
+  ; stat_umatches         = ref 0
+
   }
-
-(***************************************************************)
-(****************** Sort Check Based Refinement ****************)
-(***************************************************************)
-(* LAZYINST
-let refts_of_c c =
-  [ C.lhs_of_t c ; C.rhs_of_t c] ++ (C.env_of_t c |> C.bindings_of_env |>: snd)
-
-let refine_sort_reft env me ((vv, so, ras) as r) =
-  let env' = SM.add vv r env in
-  let ks   = r |> C.kvars_of_reft |>: snd in
-  (* let _    = let s =  String.concat ", " (List.map Sy.to_string ks) in Co.bprintflush mydebug ("\n refine_sort_reft ks = "^s^"\n")  in  *)
-  ras
-  |> Misc.flap (rhs_cands me) (* OMFG blowup due to FLAP if kv appears multiple times...*)
-  |> Misc.filter (fun (_, p) -> C.wellformed_pred env' p)
-  |> List.rev_map fst
-(* |> (fun xs -> Co.bprintflush mydebug (Printf.sprintf "refine_sort_reft map: size = %d\n" (List.length xs));
-                List.rev_map fst xs)
-  >> (fun _ -> Co.bprintflush mydebug "\n refine_sort_reft TICK 4 \n")
-  *)
-  |> p_update me ks
-  |> snd
-
-let refine_sort me c =
-  let env = C.env_of_t c in
-  c (* >> (fun _ -> Co.bprintflush mydebug ("\n refine_sort TICK 0 id = "^(string_of_int (C.id_of_t c))^"\n")) *)
-    |> refts_of_c
-    |> List.fold_left (refine_sort_reft env) me
-    (* >> (fun _ -> Co.bprintflush mydebug "\n refine_sort TICK 2 \n") *)
-*)
 
 (****************************************************************************)
 (****************** APPLYING FACTS FOR INCREMENTAL SOLVING ******************)
 (****************************************************************************)
-
-(* LAZYINST
-
-(* Take in a solution of things that are known to be true, kf. Using
-   this, we can prune qualifiers whose negations are implied by
-   information in kf *)
-let update_pruned ks me fqm =
-  List.fold_left begin fun m k ->
-    if not (SM.mem k fqm) then m else
-      let false_qs = SM.safeFind k fqm "update_pruned 1" in
-      let qs = SM.safeFind k m "update_pruned 2"
-               |> List.filter (fun q -> (not (List.mem (k, q) false_qs)))
-      in SM.add k qs m
-  end me.m ks
-
-let apply_facts_c kf me c =
-  let env = C.senv_of_t c in
-  let (vv, t, lras) = C.lhs_of_t c in
-  let (_,_,ras) as rhs = C.rhs_of_t c in
-  let ks = rhs |> C.kvars_of_reft |> List.map snd in
-  let lps = C.preds_of_lhs kf c in (* Use the known facts here *)
-  let rcs = Misc.flap (rhs_cands me) ras in
-    if rcs = [] then               (* Nothing on the right hand side *)
-      me
-    else if check_tp me env vv t lps [(0, A.pFalse)] = [0] then
-      me
-    else
-      let rcs = List.filter (fun (_,p) -> not (P.is_contra p)) rcs
-                |> List.map (fun (x,p) -> (x, A.pNot p)) in
-	(* can we prove anything on lhs implies something on rhs is false? *)
-      let fqs = BS.time "apply_facts tp" (check_tp me env vv t lps) rcs in
-      let fqm = fqs |> Misc.kgroupby fst |> SM.of_list in
-	  {me with m = BS.time "update pruned" (update_pruned ks me) fqm}
-
-let apply_facts cs kf me =
-  let numqs = me.m |> Symbol.SMap.to_list
-              |> List.map snd |> List.concat |> List.length in
-  let sol   = List.fold_left (apply_facts_c kf) me cs in
-  let numqs' = sol.m |> Symbol.SMap.to_list
-               |> List.map snd |> List.concat |> List.length in
-  let _ = Printf.printf "Started with %d, proved %d false\n" numqs (numqs-numqs') in
-    sol
-
-*)
 
 (* LAZYINST: map each KVAR to BOT *)
 let initial_solution c =
@@ -1068,9 +972,9 @@ let print_stats ppf me =
   let avg = (float_of_int sum) /. (float_of_int n) in
   F.fprintf ppf "# Vars: (Total=%d, False=%d) Quals: (Total=%d, Avg=%f, Max=%d, Min=%d)\n"
     n bot sum avg max min;
-  F.fprintf ppf "#Iteration Profile = (si=%d tp=%d unsatLHS=%d emptyRHS=%d) \n"
+  F.fprintf ppf "#Iteration Profile = (simple=%d tp=%d botLHS=%d emptyRHS=%d) \n"
     !(me.stat_simple_refines) !(me.stat_tp_refines)
-    !(me.stat_unsatLHS) !(me.stat_emptyRHS);
+    !(me.stat_botLHS_refines) !(me.stat_emptyRHS_refines);
   F.fprintf ppf "#Queries: umatch=%d, match=%d, ask=%d, valid=%d\n"
     !(me.stat_umatches) !(me.stat_matches) !(me.stat_imp_queries)
     !(me.stat_valid_queries);

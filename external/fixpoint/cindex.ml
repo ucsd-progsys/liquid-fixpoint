@@ -83,7 +83,7 @@ type t =
   ; rts   : IS.t                     (* {rank} members are "root" sccs *)
   ; ds    : C.dep list               (* add/del dep list *)
   ; rdeps : (int * int) list         (* real dependencies *)
-  ; kuts  : Symbol.t list        (* CUT KVars *)
+  ; kuts  : Symbol.t list            (* CUT KVars *)
   }
 
 let get_ref_rank me c =
@@ -112,7 +112,7 @@ let make_kread_map cm =
   cm |> IM.to_list
      |> Misc.flap (fun (id, c) -> lhs_ks c |>: (fun k -> (k, id)))
      |> SM.of_alist
-(*     >> SM.iter (fun k ids -> Co.bprintf mydebug "ReadIn %a := %a\n" Symbol.print k Misc.pprint_pretty_ints ids) 
+(*     >> SM.iter (fun k ids -> Co.bprintf mydebug "ReadIn %a := %a\n" Symbol.print k Misc.pprint_pretty_ints ids)
  *)
 
 let make_deps cm =
@@ -183,8 +183,12 @@ let make_rankm cm ranks iranks =
           let c         = IM.find id cm  in
           let r         = IM.find id rm  in
           let (ir, cut) = IM.find id irm in
-          id, { id    = id; scc   = r; iscc  = ir; cut   = cut; tag   = C.tag_of_t c
-              ; simpl = (not !Co.psimple) || (C.is_simple c)                         }
+          id, { id    = id
+              ; scc   = r
+              ; iscc  = ir
+              ; cut   = cut
+              ; tag   = C.tag_of_t c
+              ; simpl = (not !Co.psimple) || (C.is_simple c) }
         end
     |> IM.of_list
     (* >> (IM.range <+> print_rank_groups (fun r -> Printf.sprintf "(%d/%d)" r.scc r.iscc ))   *)
@@ -287,22 +291,8 @@ let slice me =
   let rdeps = me.rdeps
               |> Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives) in
   (BS.time "create_raw" (create_raw me.kuts me.ds cm dm) rdeps)
+  >> (fun _ -> Co.bprintf true "slice constraints: %d --> %d \n" (IM.cardinal me.cnst) (IM.cardinal cm))
   >> (fun z -> if !Co.save_slice then save (Co.get_save_file ()) z)
-
-(*
-let slice me =
-  let lives = BS.time "make_lives" (make_lives me.cnst) me.rdeps                        in
-  let cm    = BS.time "slice-filter-1" (IM.filter (fun i _ -> IS.mem i lives)) me.cnst  in
-  let dm0   = me.depm                                                                   in
-  let dm1   = BS.time "slice-filter-2" (IM.filter (fun i _ -> IS.mem i lives)) dm0      in
-  let dm2   = BS.time "slice-filter-2" (IM.map (List.filter (fun j -> IS.mem j lives))) dm1 in
-  let rdeps = BS.time "slice-filter-4" (Misc.filter (fun (i,j) -> IS.mem i lives && IS.mem j lives)) me.rdeps  in
-  let rv    = (BS.time "create_raw" (create_raw me.kuts me.ds cm dm2) rdeps)   in
-  let _     = if !Co.save_slice then BS.time "save slice" (save (Co.get_save_file ())) rv in
-  rv
-
-*)
-
 
 (* API *)
 let slice_wf me ws =
@@ -373,7 +363,6 @@ let wpop me w =
 
 let roots me =
   IM.fold begin fun id r sccm ->
-   (*  if not (IM.mem r.scc me.rts) then sccm else *)
       let rs = try IM.find r.scc sccm with Not_found -> [] in
       IM.add r.scc (r::rs) sccm
   end me.rnkm IM.empty
