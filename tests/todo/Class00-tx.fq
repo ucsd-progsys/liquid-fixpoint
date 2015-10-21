@@ -1,0 +1,22 @@
+qualif Size(v : int, xs : @(0)): (v = size([xs])) // "tests/pos/Class.hs" (line 9, column 12)
+
+constant size : (func(1, [@(0); int]))
+
+bind 1 x_a : {VV : (Thing a) | []}
+bind 2 x_b : {VV : (Thing b) | []}
+
+constraint:
+  env [1]
+  lhs {VV : int | [(VV = size([x_a]))]}
+  rhs {VV : int | [$k1[x_b := x_a]}
+  id 1 tag [7]
+
+constraint:
+  env [1]
+  lhs {VV : int | [$k1[x_b := x_a ]}
+  rhs {VV : int | [(VV = size([x_a]))]}
+  id 2 tag [7]
+
+wf:
+  env [ 2 ]
+  reft {VV : int | [$k1]}
