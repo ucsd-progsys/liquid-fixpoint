@@ -1,0 +1,26 @@
+qualif Size(v : int, xs : @(0)): (v = size([xs])) // "tests/pos/Class.hs" (line 9, column 12)
+
+constant size : (func(1, [@(0); int]))
+
+bind 230 lq_tmp_x_1016 : {VV$35$1020 : (Class.MList  a_a190) | []}
+bind 418 lq_tmp_x_1016 : {VV$35$1020 : (Class.MList  a_a18W$91$sk$93$) | []}
+
+constraint:
+  env [230]
+  lhs {VV$35$F37 : int | [(VV$35$F37 >= 0);
+                          (VV$35$F37 = size([lq_tmp_x_1016]))]}
+  rhs {VV$35$F37 : int | [$k__1024[VV$35$1023:=VV$35$F37]]}
+  id 37 tag [7]
+  // META constraint id 37 : tests/pos/Class.hs:30:10-20
+
+constraint:
+  env [230]
+  lhs {VV$35$F41 : int | [$k__1024[VV$35$1023:=VV$35$F41]]}
+  rhs {VV$35$F41 : int | [(VV$35$F41 = size([lq_tmp_x_1016]))]}
+  id 41 tag [7]
+  // META constraint id 41 : tests/pos/Class.hs:30:10-20
+
+wf:
+  env [ 418 ]
+  reft {VV$35$1023 : int | [$k__1024]}
+  // META wf  : tests/pos/Class.hs:30:10-20
