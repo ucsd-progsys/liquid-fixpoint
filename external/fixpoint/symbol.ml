@@ -42,7 +42,7 @@ let is_wild_pre   s = s.[0] = '@'
 let is_wild s       = is_wild_fresh s || is_wild_any s || is_wild_pre s
 
 let is_safe s =
-      let re = Str.regexp "[A-Za-z '~' '_' '\'' '@' ][0-9 a-z A-Z '_' '@' '\'' '.' '#']*$" in
+      let re = Str.regexp "[A-Za-z '~' '_' '\'' '@' ][0-9 a-z A-Z '_' '$' '@' '\'' '.' '#']*$" in
       Str.string_match re s 0
 
 let to_string_raw x = x
