@@ -71,6 +71,7 @@ data Context      = Ctx { pId     :: ProcessHandle
                         , cOut    :: Handle
                         , cLog    :: Maybe Handle
                         , verbose :: Bool
+                        , uninterp :: Bool
                         }
 
 -- | Theory Symbol
@@ -89,4 +90,4 @@ format f x = LT.toStrict $ DTF.format f x
 
 -- | Types that can be serialized
 class SMTLIB2 a where
-  smt2 :: a -> T.Text
+  smt2 :: Bool -> a -> T.Text

@@ -187,7 +187,7 @@ solveNative !cfg !fi0 = do
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
   -- let qs   = quals fi0
   -- whenLoud $ print qs
-  let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
+  let fi1  = fi0 { quals = remakeQual <$> quals fi0, lits = extendLits (lits fi0)  }
   whenLoud $ putStrLn $ showFix (quals fi1)
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
@@ -206,6 +206,13 @@ solveNative !cfg !fi0 = do
   writeLoud $ "\nSolution:\n"  ++ showpp soln
   -- colorStrLn (colorResult stat') (show stat')
   return    $ Result (WrapC . mlookup (cm fi0) . mfromJust "WAT" <$> stat') soln
+
+extendLits :: SEnv Sort -> SEnv Sort
+extendLits lits = insertSEnv mul t $ insertSEnv div t $ lits
+  where
+    mul = symbol "Z3_OP_MUL"
+    div = symbol "Z3_OP_DIV"
+    t   = (FFunc 1 [(FVar 0), (FVar 0), (FVar 0)])
 
 printElimStats :: Deps -> IO ()
 printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims

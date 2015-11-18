@@ -94,9 +94,9 @@ runCommands cmds
 -}
 
 
-makeZ3Context :: FilePath -> [(Symbol, Sort)] -> IO Context
-makeZ3Context f xts 
-  = do me <- makeContext Z3 f 
+makeZ3Context :: Bool -> FilePath -> [(Symbol, Sort)] -> IO Context
+makeZ3Context u f xts 
+  = do me <- makeContext u Z3 f 
        smtDecls me xts 
        return me 
 
@@ -109,9 +109,9 @@ checkValidWithContext me xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: FilePath -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
-checkValid f xts p q
-  = do me <- makeContext Z3 f
+checkValid :: Bool -> FilePath -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
+checkValid u f xts p q
+  = do me <- makeContext u Z3 f
        smtDecls me xts
        smtAssert me $ pAnd [p, PNot q]
        smtCheckUnsat me
@@ -120,9 +120,9 @@ checkValid f xts p q
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
-checkValids :: FilePath -> [(Symbol, Sort)] -> [Pred] -> IO [Bool]
-checkValids f xts ps
-  = do me <- makeContext Z3 f
+checkValids :: Bool -> FilePath -> [(Symbol, Sort)] -> [Pred] -> IO [Bool]
+checkValids u f xts ps
+  = do me <- makeContext u Z3 f
        smtDecls me xts
        forM ps $ \p ->
           smtBracket me $
@@ -141,7 +141,7 @@ command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
 command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
   where
-    say               = smtWrite me . smt2
+    say               = smtWrite me . (smt2 $ uninterp me)
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -213,10 +213,10 @@ hPutStrLnNow h !s   = TIO.hPutStrLn h s >> hFlush h
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-makeContext   :: SMTSolver -> FilePath -> IO Context
+makeContext   :: Bool -> SMTSolver -> FilePath -> IO Context
 --------------------------------------------------------------------------
-makeContext s f
-  = do me   <- makeProcess s
+makeContext u s f
+  = do me   <- makeProcess u s
        pre  <- smtPreamble s me
        createDirectoryIfMissing True $ takeDirectory smtFile
        hLog <- openFile smtFile WriteMode
@@ -226,22 +226,23 @@ makeContext s f
     where
        smtFile = extFileName Smt2 f
 
-makeContextNoLog :: SMTSolver -> IO Context
-makeContextNoLog s
-  = do me  <- makeProcess s
+makeContextNoLog :: Bool -> SMTSolver -> IO Context
+makeContextNoLog u s
+  = do me  <- makeProcess u s
        pre <- smtPreamble s me
        mapM_ (smtWrite me) pre
        return me
 
-makeProcess :: SMTSolver -> IO Context
-makeProcess s
+makeProcess :: Bool -> SMTSolver -> IO Context
+makeProcess u s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
        loud <- isLoud
        return Ctx { pId     = pid
                   , cIn     = hIn
                   , cOut    = hOut
                   , cLog    = Nothing
-                  , verbose = loud    }
+                  , verbose = loud
+                  , uninterp = u     }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
