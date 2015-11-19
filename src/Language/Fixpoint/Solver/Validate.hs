@@ -21,6 +21,7 @@ import           Language.Fixpoint.Sort        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM)
 import qualified Language.Fixpoint.Types  as F
+import           Language.Fixpoint.Names  (isTempSymbol)
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.List as L
@@ -41,6 +42,7 @@ sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 sanitize   = fM dropHigherOrderBinders
          >=> fM dropFuncSortedShadowedBinders
          >=> fM dropWfcFunctions
+         >=> fM dropWfcTemps
          >=>    checkRhsCs
 
 
@@ -158,6 +160,19 @@ dropWfcFunctions fi = fi { F.ws = ws' }
     nonFunction   = isNothing . F.functionSort
     (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
     ws'           = deleteWfCBinds discards          <$> F.ws fi
+
+
+---------------------------------------------------------------------------
+-- | Drop temp symbols from WfC environments
+---------------------------------------------------------------------------
+dropWfcTemps :: F.SInfo a -> F.SInfo a
+---------------------------------------------------------------------------
+dropWfcTemps fi = fi { F.ws = ws' }
+  where
+    keepFunc s _  = not $ isTempSymbol s
+    (_, discards) = filterBindEnv keepFunc            $  F.bs fi
+    ws'           = deleteWfCBinds discards          <$> F.ws fi
+
 
 ---------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo

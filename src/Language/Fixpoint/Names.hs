@@ -32,6 +32,7 @@ module Language.Fixpoint.Names (
   , isSuffixOfSym
   , isNonSymbol
   , isNontrivialVV
+  , isTempSymbol
 
   -- * Destructors
   , stripPrefix
@@ -354,6 +355,9 @@ kArgPrefix   = "lq_karg$"
 existPrefix  = "lq_ext$"
 
 
+--NOTE: only checks the prefix, so if a temp symbol gets more stuff added in front...
+isTempSymbol :: Symbol -> Bool
+isTempSymbol s = tempPrefix `isPrefixOfSym` s
 
 
 nonSymbol :: Symbol
