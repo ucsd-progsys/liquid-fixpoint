@@ -57,6 +57,7 @@ let of_string, to_string =
         if is_safe s then s else
            try Hashtbl.find of_t s with Not_found ->
              let sy = f () in
+             let _  = Printf.printf "DEBUG:Bind %s to %s \n" s sy in 
              let _  = bind s sy in sy),
     (fun sy -> try Hashtbl.find to_t sy with Not_found -> sy))
 
