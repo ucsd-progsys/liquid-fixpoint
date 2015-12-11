@@ -25,9 +25,9 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
+solve :: (NFData a, F.Fixpoint a) => Config -> S.Solution -> M.HashMap Integer (F.SubC a) -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
-solve cfg s0 fi = do
+solve cfg s0 cm0 fi = do
     -- donePhase Loud "Worklist Initialize"
     (res, stat) <- runSolverM cfg fi n act
     whenLoud $ printStats fi wkl stat
@@ -36,7 +36,7 @@ solve cfg s0 fi = do
   where
     wkl  = W.init fi
     n    = fromIntegral $ W.wRanks wkl
-    act  = solve_ fi s0 wkl
+    act  = solve_ fi s0 wkl cm0
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
 printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
@@ -45,14 +45,14 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
 
 
 ---------------------------------------------------------------------------
-solve_ :: (NFData a, F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
+solve_ :: (NFData a, F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> M.HashMap Integer (F.SubC a) -> SolveM (F.Result a, Stats)
 ---------------------------------------------------------------------------
-solve_ fi s0 wkl = do
+solve_ fi s0 wkl cm0 = do
   let s0' = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
   s   <- {-# SCC "sol-refine" #-} refine s0' wkl
   -- donePhase' "Solution: Fixpoint"
   st  <- stats
-  res <- {-# SCC "sol-result" #-} result wkl s
+  res <- {-# SCC "sol-result" #-} result wkl s cm0
   -- donePhase' "Solution: Check"
   return $!! (res, st)
 
@@ -108,13 +108,12 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> SolveM (F.Result a)
+result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> M.HashMap Integer (F.SubC a) -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
-result wkl s = do
+result wkl s cm0 = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
   stat    <- result_ wkl s
-  return   $ F.Result (F.WrapC <$> stat) sol
-
+  return   $ F.Result (mlookup cm0 . F.subcId <$> stat) sol
 
 result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s   = res <$> filterM isUnsat' cs
