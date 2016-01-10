@@ -24,7 +24,7 @@ module Language.Fixpoint.Types.Refinements (
   , Constant (..)
   , Bop (..)
   , Brel (..)
-  , Expr (..)
+  , Expr, SExpr (..)
   , KVar (..)
   , Subst (..)
   , Reft (..)
@@ -65,6 +65,7 @@ module Language.Fixpoint.Types.Refinements (
   , reftConjuncts
   , intKvar
   , vv_
+  , mkEApp
   ) where
 
 import qualified Data.Binary as B
@@ -173,7 +174,7 @@ instance Fixpoint Subst where
 
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
-data SymConst = SL !Text
+data SymConst = SL !Text -- !Sort 
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Constant = I !Integer
@@ -188,33 +189,40 @@ data Bop  = Plus | Minus | Times | Div | Mod
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
               -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
-data Expr = ESym !SymConst
-          | ECon !Constant
-          | EVar !Symbol
-          -- NV TODO: change this to `EApp !Expr !Expr`
-          | EApp !LocSymbol ![Expr]
-          | ENeg !Expr
-          | EBin !Bop !Expr !Expr
-          | EIte !Expr !Expr !Expr
-          | ECst !Expr !Sort
-          | EBot
-          | ETApp !Expr !Sort 
-          | ETAbs !Expr !Symbol
+type Expr = SExpr (Located ()) Symbol
 
---- Used to be predicates
-          | PTrue
-          | PFalse
-          | PAnd   !(ListNE Expr)
-          | POr    ![Expr]
-          | PNot   !Expr
-          | PImp   !Expr !Expr
-          | PIff   !Expr !Expr
-          | PAtom  !Brel  !Expr !Expr
-          | PKVar  !KVar !Subst
-          | PAll   ![(Symbol, Sort)] !Expr
-          | PExist ![(Symbol, Sort)] !Expr
-          | PTop
-          deriving (Eq, Show, Data, Typeable, Generic)
+data SExpr t s 
+  = ESym !SymConst
+  | ECon !Constant
+  | EVar !s
+
+  -- NV TODO: change this to `EApp !Expr !Expr`
+  | EApp ![SExpr t s]
+
+  | ETick !t !(SExpr t s)
+          
+  | ENeg !(SExpr t s)
+  | EBin !Bop !(SExpr t s) !(SExpr t s)
+  | EIte !(SExpr t s) !(SExpr t s) !(SExpr t s)
+  | ECst !(SExpr t s) !Sort
+  | EBot
+
+  | ETApp !(SExpr t s) !Sort 
+  | ETAbs !(SExpr t s) !Symbol
+
+  | PTrue
+  | PFalse
+  | PAnd   !(ListNE (SExpr t s))
+  | POr    ![(SExpr t s)]
+  | PNot   !(SExpr t s)
+  | PImp   !(SExpr t s) !(SExpr t s)
+  | PIff   !(SExpr t s) !(SExpr t s)
+  | PAtom  !Brel  !(SExpr t s) !(SExpr t s)
+  | PKVar  !KVar !Subst
+  | PAll   ![(Symbol, Sort)] !(SExpr t s)
+  | PExist ![(Symbol, Sort)] !(SExpr t s)
+  | PTop
+  deriving (Eq, Show, Data, Typeable, Generic)
 
 {-@ PAnd :: ListNE Pred -> Pred @-}
 
@@ -223,6 +231,9 @@ newtype Reft = Reft (Symbol, Expr)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Data, Typeable, Generic)
+
+mkEApp :: Located Symbol -> [Expr] -> Expr
+mkEApp f es = ETick (const () <$> f) $ EApp (EVar (val f) :es)
 
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
@@ -275,7 +286,9 @@ instance Fixpoint Expr where
   toFix (ESym c)       = toFix $ encodeSymConst c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
-  toFix (EApp f es)    = toFix f <> parens (toFix es)
+  toFix (EApp [])      = text ""
+  toFix (EApp [e])     = toFix e
+  toFix (EApp es)      = toFix (head es) <> parens (toFix $ tail es)
   toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
   toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
   toFix (EIte p e1 e2) = parens $ text "if" <+> toFix p <+> text "then" <+> toFix e1 <+> text "else" <+> toFix e2
@@ -295,6 +308,7 @@ instance Fixpoint Expr where
   toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
+  toFix (ETick _ e)      = toFix e 
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -415,9 +429,11 @@ instance PPrint Expr where
   pprintPrec z (ENeg e)        = parensIf (z > zn) $
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
-  pprintPrec z (EApp f es)     = parensIf (z > za) $
+  pprintPrec _ (EApp [])       = empty
+  pprintPrec z (EApp [e])      = pprintPrec z e 
+  pprintPrec z (EApp es)       = parensIf (z > za) $
                                    intersperse empty $
-                                     pprint f : (pprintPrec (za+1) <$> es)
+                                     pprint (head es) : (pprintPrec (za+1) <$> (tail es))
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
@@ -463,6 +479,7 @@ instance PPrint Expr where
   pprintPrec _ p@(PKVar {})    = toFix p
   pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s
+  pprintPrec z (ETick _ e)     = pprintPrec z e 
 
 trueD  = text "true"
 falseD = text "false"
@@ -541,7 +558,7 @@ pAnd, pOr     :: ListNE Expr -> Expr
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
-mkProp        = EApp (dummyLoc propConName) . (: [])
+mkProp        = mkEApp (dummyLoc propConName) . (: [])
 
 
 --------------------------------------------------------------------------------

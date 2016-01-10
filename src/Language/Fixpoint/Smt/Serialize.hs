@@ -11,7 +11,6 @@
 module Language.Fixpoint.Smt.Serialize where
 
 import           Language.Fixpoint.Types
---import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
@@ -87,7 +86,6 @@ instance SMTLIB2 Brel where
   smt2 Le    = "<="
   smt2 _     = errorstar "SMTLIB2 Brel"
 
--- NV TODO: change the way EApp is printed 
 instance SMTLIB2 Expr where
   smt2 (ESym z)         = smt2 (symbol z)
   smt2 (ECon c)         = smt2 c
@@ -108,6 +106,7 @@ instance SMTLIB2 Expr where
   smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
   smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
+  smt2 (Tick _ e)       = smt2 e 
   smt2 _                = errorstar "smtlib2 Pred"
 
 smt2Bop o e1 e2
@@ -119,9 +118,10 @@ uOp o | o == Times = dummyLoc mulFuncName
       | otherwise  = errorstar "Serialize.uOp called with bad arguments"
 
 smt2App :: LocSymbol -> [Expr] -> T.Text
-smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
+smt2App (EVar f:es) = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
   where
    ds        = smt2 <$> es
+smt2App _ = errorstar "Serialize.smt2App called on wrong arguments"
 
 smt2App' f [] = smt2 f
 smt2App' f ds = format "({} {})" (smt2 f, smt2many ds)
