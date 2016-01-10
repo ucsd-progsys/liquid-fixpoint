@@ -174,8 +174,13 @@ instance Fixpoint Subst where
 
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
+{- NIKI TODO: remove 
 data SymConst = SL !Text -- !Sort 
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+-}
+
+symConst :: Text -> Constant
+symConst = `L` strSort
 
 data Constant = I !Integer
               | R !Double
@@ -191,37 +196,40 @@ data Bop  = Plus | Minus | Times | Div | Mod
 
 type Expr = SExpr (Located ()) Symbol
 
-data SExpr t s 
-  = ESym !SymConst
+data SExpr t s = 
+  -- typed lambda calculus 
+    EVar !s
+  | EApp !(SExpr t s) !(SExpr t s)
   | ECon !Constant
-  | EVar !s
 
-  -- NV TODO: change this to `EApp !Expr !Expr`
-  | EApp ![SExpr t s]
+  -- type abstraction and application
 
+  | ETApp !(SExpr t s) !Sort
+  | ETAbs !(SExpr t s) !Sort
+
+  -- location information 
   | ETick !t !(SExpr t s)
-          
-  | ENeg !(SExpr t s)
-  | EBin !Bop !(SExpr t s) !(SExpr t s)
-  | EIte !(SExpr t s) !(SExpr t s) !(SExpr t s)
-  | ECst !(SExpr t s) !Sort
-  | EBot
+   
+  -- refined variables 
+  | PKVar  !KVar !Subst
 
-  | ETApp !(SExpr t s) !Sort 
-  | ETAbs !(SExpr t s) !Symbol
+  -- top and bottom 
+  | PBot -- | false predicate 
+  | PTop -- | true predicate 
 
-  | PTrue
-  | PFalse
+  -- SMT specific expressions 
+  | ENeg   !(SExpr t s)
+  | EBin   !Bop !(SExpr t s) !(SExpr t s)
+  | EIte   !(SExpr t s) !(SExpr t s) !(SExpr t s)
   | PAnd   !(ListNE (SExpr t s))
   | POr    ![(SExpr t s)]
   | PNot   !(SExpr t s)
   | PImp   !(SExpr t s) !(SExpr t s)
   | PIff   !(SExpr t s) !(SExpr t s)
   | PAtom  !Brel  !(SExpr t s) !(SExpr t s)
-  | PKVar  !KVar !Subst
   | PAll   ![(Symbol, Sort)] !(SExpr t s)
   | PExist ![(Symbol, Sort)] !(SExpr t s)
-  | PTop
+
   deriving (Eq, Show, Data, Typeable, Generic)
 
 {-@ PAnd :: ListNE Pred -> Pred @-}
