@@ -250,7 +250,7 @@ mkVV Nothing   = vvCon
 shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v'
    | v == v'   = r
-   | otherwise = Reft (v', subst1 ras (v, EVar v'))
+   | otherwise = Reft (v', subst1 ras (v, expr v'))
 
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion

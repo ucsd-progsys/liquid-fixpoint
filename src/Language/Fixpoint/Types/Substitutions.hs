@@ -78,7 +78,7 @@ subst1Except xs z su@(x, _)
   | otherwise   = subst1 z su
 
 substfExcept :: (Symbol -> Expr) -> [Symbol] -> Symbol -> Expr
-substfExcept f xs y = if y `elem` xs then EVar y else f y
+substfExcept f xs y = if y `elem` xs then expr y else f y
 
 substExcept  :: Subst -> [Symbol] -> Subst
 -- substExcept  (Su m) xs = Su (foldr M.delete m xs)
@@ -87,25 +87,25 @@ substExcept (Su xes) xs = Su $ M.filterWithKey (const . not . (`elem` xs)) xes
 instance Subable Symbol where
   substa f                 = f
   substf f x               = subSymbol (Just (f x)) x
-  subst su x               = subSymbol (Just $ appSubst su x) x -- subSymbol (M.lookup x s) x
+  subst su x               = subSymbol (Just $ appSubst su $ symbolVar x) x -- subSymbol (M.lookup x s) x
   syms x                   = [x]
 
-appSubst :: Subst -> Symbol -> Expr
-appSubst (Su s) x = fromMaybe (EVar x) (M.lookup x s)
+appSubst :: Subst -> Var -> Expr
+appSubst (Su s) x = fromMaybe (EVar x) (M.lookup (symbol x) s)
 
-subSymbol (Just (EVar y)) _ = y
+subSymbol (Just (EVar y)) _ = symbol y
 subSymbol Nothing         x = x
 subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showFix b) (showFix a))
 
 instance Subable Expr where
   syms                     = exprSymbols
-  substa f                 = substf (EVar . f)
-  substf f (EApp es)       = EApp (substf f <$> es)
+  substa f                 = substf (expr . f)
+  substf f (EApp e1 e2)    = EApp (substf f e1) (substf f e2)
   substf f (ENeg e)        = ENeg (substf f e)
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
   substf f (ECst e so)     = ECst (substf f e) so
-  substf f (EVar x)        = f x
+  substf f (EVar x)        = f $ symbol x -- NV check if this is valid
   substf f (PAnd ps)       = PAnd $ map (substf f) ps
   substf f (POr  ps)       = POr  $ map (substf f) ps
   substf f (PNot p)        = PNot $ substf f p
@@ -118,7 +118,7 @@ instance Subable Expr where
   substf _  p              = p
 
 
-  subst su (EApp es)       = EApp (subst su <$> es)
+  subst su (EApp e1 e2)    = EApp (subst su e1) (subst su e2)
   subst su (ETick t e)     = ETick t $ subst su e 
   subst su (ENeg e)        = ENeg (subst su e)
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
@@ -155,8 +155,8 @@ instance Monoid Reft where
 
 meetReft (Reft (v, ra)) (Reft (v', ra'))
   | v == v'          = Reft (v , ra  `mappend` ra')
-  | v == dummySymbol = Reft (v', ra' `mappend` (ra `subst1`  (v , EVar v')))
-  | otherwise        = Reft (v , ra  `mappend` (ra' `subst1` (v', EVar v )))
+  | v == dummySymbol = Reft (v', ra' `mappend` (ra `subst1`  (v , expr v')))
+  | otherwise        = Reft (v , ra  `mappend` (ra' `subst1` (v', expr v )))
 
 instance Monoid SortedReft where
   mempty        = RR mempty mempty
@@ -249,8 +249,8 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where
-    go (EVar x)           = [x]
-    go (EApp es)          = concatMap go es
+    go (EVar x)           = [symbol x]
+    go (EApp e1 e2)       = go e1 ++ go e2 
     go (ETick _ e)        = go e 
     go (ENeg e)           = go e
     go (EBin _ e1 e2)     = go e1 ++ go e2

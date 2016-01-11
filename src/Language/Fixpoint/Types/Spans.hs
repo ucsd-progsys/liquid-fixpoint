@@ -132,6 +132,9 @@ instance (IsString a) => IsString (Located a) where
   fromString = dummyLoc . fromString
 
 
+instance Loc SourcePos where
+  srcSpan p = SS p p  
+
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
 -----------------------------------------------------------------------
@@ -141,7 +144,8 @@ data SrcSpan = SS { sp_start :: !SourcePos
                  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Serialize SrcSpan
-
+instance NFData SrcSpan 
+instance B.Binary SrcSpan 
 instance PPrint SrcSpan where
   pprint = ppSrcSpan
 

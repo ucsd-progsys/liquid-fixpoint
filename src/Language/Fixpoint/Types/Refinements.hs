@@ -12,6 +12,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE PatternSynonyms            #-}
 
 -- | This module contains the data types for representing terms in the
 --   refinement logic; currently split into @Expr@ and @Pred@ but which
@@ -20,11 +21,12 @@
 module Language.Fixpoint.Types.Refinements (
 
   -- * Representing Terms
-    SymConst (..)
+    symConst
   , Constant (..)
   , Bop (..)
   , Brel (..)
-  , Expr, SExpr (..)
+  , Expr, UExpr, SExpr (..)
+  , Var (..), VInfo(..)
   , KVar (..)
   , Subst (..)
   , Reft (..)
@@ -38,6 +40,7 @@ module Language.Fixpoint.Types.Refinements (
 
   -- * Generalizing Embedding with Typeclasses
   , Expression (..)
+  , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , Predicate (..)
   , Subable (..)
   , Reftable (..)
@@ -66,6 +69,7 @@ module Language.Fixpoint.Types.Refinements (
   , intKvar
   , vv_
   , mkEApp
+  , makeVar, symbolVar
   ) where
 
 import qualified Data.Binary as B
@@ -96,12 +100,13 @@ import qualified Data.HashMap.Strict       as M
 instance NFData KVar
 instance NFData Subst
 instance NFData Constant
-instance NFData SymConst
 instance NFData Brel
 instance NFData Bop
 instance NFData Expr
 instance NFData Reft
 instance NFData SortedReft
+instance NFData Var
+instance NFData VInfo
 
 instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) where
   put = B.put . M.toList
@@ -110,12 +115,13 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
 instance B.Binary KVar
 instance B.Binary Subst
 instance B.Binary Constant
-instance B.Binary SymConst
 instance B.Binary Brel
 instance B.Binary Bop
 instance B.Binary Expr
 instance B.Binary Reft
 instance B.Binary SortedReft
+instance B.Binary Var
+instance B.Binary VInfo
 
 
 
@@ -150,7 +156,6 @@ instance Show KVar where
 instance Hashable KVar
 instance Hashable Brel
 instance Hashable Bop
-instance Hashable SymConst
 instance Hashable Constant
 
 --------------------------------------------------------------------------------
@@ -184,16 +189,28 @@ data Bop  = Plus | Minus | Times | Div | Mod
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
               -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
-data Variable = Var { vname :: Symbol
-                    , vloc  :: SrcSpan
-                    , vsort :: Sort
-                    , vinfo :: VInfo 
-                    }
+data Var = Var { vname :: Symbol
+               , vsort :: Maybe Sort
+               , vloc  :: SrcSpan
+               , vinfo :: VInfo 
+               } deriving (Show, Data, Typeable, Generic)
 
 data VInfo = VInfo { isSMT :: Bool } 
            | VNoInfo 
+           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-type Expr = SExpr SrcSpan Variable
+
+symbolVar :: Symbol -> Var
+symbolVar s = Var s Nothing dummySpan VNoInfo
+
+makeVar :: Symbol -> Sort -> Var
+makeVar x s = Var x (Just s) dummySpan (VInfo False)
+
+-- untyped expressions 
+type UExpr = SExpr () Symbol
+
+-- typed expressions
+type Expr  = SExpr SrcSpan Var
 
 data SExpr t s = 
   -- typed lambda calculus 
@@ -201,9 +218,8 @@ data SExpr t s =
   | EApp !(SExpr t s) !(SExpr t s)
   | ECon !Constant
 
-  -- type abstraction and application
-  | ETApp !(SExpr t s) !Sort
-  | ETAbs !(SExpr t s) !Sort
+  -- type instantiation
+  | ECst !(SExpr t s) !Sort
 
   -- location information 
   | ETick !t !(SExpr t s)
@@ -237,22 +253,36 @@ data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
 
 -- | Functions that convert to old expressions 
 
-ptop = PAnd []
-pbot = POr  [] 
+pattern PTrue  = PAnd []
+pattern PTop   = PAnd []
+pattern PFalse = POr  [] 
+pattern EBot   = POr  [] 
+
 
 mkEApp :: Located Symbol -> [Expr] -> Expr
-mkEApp f es = ETick (const () <$> f) $ EApp (EVar (val f) :es)
+mkEApp f es = foldl EApp (ETick (srcSpan $ loc f) (EVar $ symbolVar $ val f)) es
 
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
 
 symConst :: Text -> Constant
-symConst = `L` strSort
+symConst = (`L` strSort)
 
 instance Fixpoint Constant where
   toFix (I i)   = toFix i
   toFix (R i)   = toFix i
+  toFix (L s t) | t == strSort = toFix $ encodeSymConst s 
   toFix (L s t) = parens $ text "lit" <+> text "\"" <> toFix s <> text "\"" <+> toFix t
+
+instance Fixpoint Var where
+  toFix = toFix . vname
+
+instance Eq Var where
+  v1 == v2 = (vname v1) == (vname v2)
+
+instance Symbolic Var where
+  symbol = vname
+
 
 ---------------------------------------------------------------
 -- | String Constants -----------------------------------------
@@ -261,17 +291,14 @@ instance Fixpoint Constant where
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
 
-instance Symbolic SymConst where
-  symbol = encodeSymConst
+-- instance Symbolic SymConst where
+--   symbol = encodeSymConst
 
-encodeSymConst        :: SymConst -> Symbol
-encodeSymConst (SL s) = litSymbol $ symbol s
+encodeSymConst  :: Text -> Symbol
+encodeSymConst = litSymbol . symbol
 
-decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap (SL . symbolText) . unLitSymbol
-
-instance Fixpoint SymConst where
-  toFix  = toFix . encodeSymConst
+decodeSymConst :: Symbol -> Maybe Text 
+decodeSymConst = fmap (symbolText) . unLitSymbol
 
 instance Fixpoint KVar where
   toFix (KV k) = text "$" <> toFix k
@@ -294,12 +321,9 @@ instance Fixpoint Bop where
   toFix Mod   = text "mod"
 
 instance Fixpoint Expr where
-  toFix (ESym c)       = toFix $ encodeSymConst c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
-  toFix (EApp [])      = text ""
-  toFix (EApp [e])     = toFix e
-  toFix (EApp es)      = toFix (head es) <> parens (toFix $ tail es)
+  toFix (EApp e1 e2)   = toFix e1 <> parens (toFix e2)
   toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
   toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
   toFix (EIte p e1 e2) = parens $ text "if" <+> toFix p <+> text "then" <+> toFix e1 <+> text "else" <+> toFix e2
@@ -317,8 +341,6 @@ instance Fixpoint Expr where
   toFix (PKVar k su)     = toFix k <> toFix su
   toFix (PAll xts p)     = text "forall" <+> toFix xts <+> text "." <+> toFix p
   toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
-  toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
-  toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
   toFix (ETick _ e)      = toFix e 
 
   simplify (PAnd [])     = PTrue
@@ -384,7 +406,10 @@ isEq r          = r == Eq || r == Ueq
 
 
 instance PPrint Constant where
-  pprint = toFix
+  pprint (L x s) 
+    | s == strSort = doubleQuotes $ text $ T.unpack x 
+  pprint l      
+    = toFix l
 
 instance PPrint Brel where
   pprint Eq = text "=="
@@ -397,11 +422,11 @@ instance PPrint Bop where
 instance PPrint Sort where
   pprint = toFix
 
+instance PPrint Var where
+  pprint = pprint . vname 
+
 instance PPrint KVar where
   pprint (KV x) = text "$" <> pprint x
-
-instance PPrint SymConst where
-  pprint (SL x) = doubleQuotes $ text $ T.unpack x
 
 -- | Wrap the enclosed 'Doc' in parentheses only if the condition holds.
 parensIf True  = parens
@@ -433,18 +458,15 @@ opPrec Times = 7
 opPrec Div   = 7
 
 instance PPrint Expr where
-  pprintPrec _ (ESym c)        = pprint c
   pprintPrec _ (ECon c)        = pprint c
   pprintPrec _ (EVar s)        = pprint s
   pprintPrec _ (EBot)          = text "_|_"
   pprintPrec z (ENeg e)        = parensIf (z > zn) $
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
-  pprintPrec _ (EApp [])       = empty
-  pprintPrec z (EApp [e])      = pprintPrec z e 
-  pprintPrec z (EApp es)       = parensIf (z > za) $
-                                   intersperse empty $
-                                     pprint (head es) : (pprintPrec (za+1) <$> (tail es))
+
+  pprintPrec z (EApp e1 e2)    = parensIf (z > za) $
+                                   pprintPrec (za+1) e1 <+> pprintPrec (za+1) e2
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
@@ -488,8 +510,6 @@ instance PPrint Expr where
   pprintPrec _ (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
   pprintPrec _ (PExist xts p)  = text "exists" <+> toFix xts <+> text "." <+> pprint p
   pprintPrec _ p@(PKVar {})    = toFix p
-  pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
-  pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s
   pprintPrec z (ETick _ e)     = pprintPrec z e 
 
 trueD  = text "true"
@@ -528,11 +548,10 @@ instance Expression Expr where
 -- | The symbol may be an encoding of a SymConst.
 
 instance Expression Symbol where
-  expr s = maybe (eVar s) ESym (decodeSymConst s)
-  -- expr = eVar
+  expr s = maybe (eVar s) (ECon . symConst) (decodeSymConst s)
 
 instance Expression Text where
-  expr = ESym . SL
+  expr = ECon . symConst 
 
 instance Expression Integer where
   expr = ECon . I
@@ -554,16 +573,21 @@ instance Expression a => Expression (Located a) where
   expr   = expr . val
 
 eVar ::  Symbolic a => a -> Expr
-eVar = EVar . symbol
+eVar = EVar . symbolVar . symbol
 
 eProp ::  Symbolic a => a -> Expr
 eProp = mkProp . eVar
 
 isSingletonExpr :: Symbol -> Expr -> Maybe Expr
 isSingletonExpr v (PAtom r e1 e2)
-  | e1 == EVar v && isEq r = Just e2
-  | e2 == EVar v && isEq r = Just e1
+  | isEqVarExpr v e1 && isEq r = Just e2
+  | isEqVarExpr v e1 && isEq r = Just e1
 isSingletonExpr _ _        = Nothing
+
+isEqVarExpr :: Symbol -> Expr -> Bool
+isEqVarExpr s e 
+  | EVar v <- e  = symbol v == s
+  | otherwise    = False  
 
 pAnd, pOr     :: ListNE Expr -> Expr
 pAnd          = simplify . PAnd
@@ -580,7 +604,7 @@ isSingletonReft :: Reft -> Maybe Expr
 isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ conjuncts ra
 
 relReft :: (Expression a) => Brel -> a -> Reft
-relReft r e   = Reft (vv_, PAtom r (eVar vv_)  (expr e))
+relReft r e   = Reft (vv_, PAtom r (eVar $ symbolVar vv_)  (expr e))
 
 exprReft, notExprReft, uexprReft ::  (Expression a) => a -> Reft
 exprReft      = relReft Eq
@@ -655,8 +679,8 @@ class Falseable a where
   isFalse :: a -> Bool
 
 instance Falseable Expr where
-  isFalse (PFalse) = True
-  isFalse _        = False
+  isFalse (POr  []) = True
+  isFalse _         = False
 
 instance Falseable Reft where
   isFalse (Reft (_, ra)) = isFalse ra
@@ -664,6 +688,8 @@ instance Falseable Reft where
 -------------------------------------------------------------------------
 -- | Class Predicates for Valid Refinements -----------------------------
 -------------------------------------------------------------------------
+
+-- NV HERE: 
 
 class Subable a where
   syms   :: a -> [Symbol]
