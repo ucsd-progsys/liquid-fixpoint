@@ -194,7 +194,16 @@ data Bop  = Plus | Minus | Times | Div | Mod
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
               -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
-type Expr = SExpr (Located ()) Symbol
+data Variable = Var { vname :: Symbol
+                    , vloc  :: SrcSpan
+                    , vsort :: Sort
+                    , vinfo :: VInfo 
+                    }
+
+data VInfo = VInfo { isSMT :: Bool } 
+           | VNoInfo 
+
+type Expr = SExpr SrcSpan Variable
 
 data SExpr t s = 
   -- typed lambda calculus 
@@ -203,7 +212,6 @@ data SExpr t s =
   | ECon !Constant
 
   -- type abstraction and application
-
   | ETApp !(SExpr t s) !Sort
   | ETAbs !(SExpr t s) !Sort
 
@@ -213,15 +221,12 @@ data SExpr t s =
   -- refined variables 
   | PKVar  !KVar !Subst
 
-  -- top and bottom 
-  | PBot -- | false predicate 
-  | PTop -- | true predicate 
-
   -- SMT specific expressions 
   | ENeg   !(SExpr t s)
   | EBin   !Bop !(SExpr t s) !(SExpr t s)
   | EIte   !(SExpr t s) !(SExpr t s) !(SExpr t s)
-  | PAnd   !(ListNE (SExpr t s))
+
+  | PAnd   ![(SExpr t s)]
   | POr    ![(SExpr t s)]
   | PNot   !(SExpr t s)
   | PImp   !(SExpr t s) !(SExpr t s)
@@ -232,7 +237,8 @@ data SExpr t s =
 
   deriving (Eq, Show, Data, Typeable, Generic)
 
-{-@ PAnd :: ListNE Pred -> Pred @-}
+ptop = PAnd []
+pbot = POr  [] 
 
 newtype Reft = Reft (Symbol, Expr)
                deriving (Eq, Data, Typeable, Generic)
