@@ -172,16 +172,6 @@ instance Fixpoint Subst where
 -- | Expressions ---------------------------------------------------------------
 --------------------------------------------------------------------------------
 
--- | Uninterpreted constants that are embedded as  "constant symbol : Str"
-
-{- NIKI TODO: remove 
-data SymConst = SL !Text -- !Sort 
-              deriving (Eq, Ord, Show, Data, Typeable, Generic)
--}
-
-symConst :: Text -> Constant
-symConst = `L` strSort
-
 data Constant = I !Integer
               | R !Double
               | L !Text !Sort
@@ -237,8 +227,6 @@ data SExpr t s =
 
   deriving (Eq, Show, Data, Typeable, Generic)
 
-ptop = PAnd []
-pbot = POr  [] 
 
 newtype Reft = Reft (Symbol, Expr)
                deriving (Eq, Data, Typeable, Generic)
@@ -246,11 +234,20 @@ newtype Reft = Reft (Symbol, Expr)
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Data, Typeable, Generic)
 
+
+-- | Functions that convert to old expressions 
+
+ptop = PAnd []
+pbot = POr  [] 
+
 mkEApp :: Located Symbol -> [Expr] -> Expr
 mkEApp f es = ETick (const () <$> f) $ EApp (EVar (val f) :es)
 
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
+
+symConst :: Text -> Constant
+symConst = `L` strSort
 
 instance Fixpoint Constant where
   toFix (I i)   = toFix i
