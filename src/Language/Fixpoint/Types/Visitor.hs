@@ -96,7 +96,7 @@ instance Visitable Reft where
 instance Visitable SortedReft where
   visit v c (RR t r) = RR t <$> visit v c r
 
-instance Visitable (Symbol, SortedReft) where
+instance Visitable (Var, Reft) where
   visit v c (sym, sr) = (sym, ) <$> visit v c sr
 
 instance Visitable BindEnv where
@@ -172,7 +172,7 @@ envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
   where
     squish    = S.toList  . S.fromList . concat
-    kvs       = kvars . sr_reft
+    kvs       = kvars 
 
 -- lhsKVars :: BindEnv -> SubC a -> [KVar]
 -- lhsKVars binds c = envKVs ++ lhsKVs

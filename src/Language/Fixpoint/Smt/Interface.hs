@@ -96,13 +96,13 @@ runCommands cmds
 
 
 -- TODO take makeContext's Bool from caller instead of always using False?
-makeZ3Context :: FilePath -> [(Symbol, Sort)] -> IO Context
+makeZ3Context :: FilePath -> [Var] -> IO Context
 makeZ3Context f xts
   = do me <- makeContext False Z3 f
        smtDecls me xts
        return me
 
-checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
+checkValidWithContext :: Context -> [Var] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q
   = smtBracket me $ do smtDecls me xts
                        smtAssert me $ pAnd [p, PNot q]
@@ -111,7 +111,7 @@ checkValidWithContext me xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: Bool -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
+checkValid :: Bool -> FilePath -> [Var] -> Expr -> Expr -> IO Bool
 checkValid u f xts p q
   = do me <- makeContext u Z3 f
        smtDecls me xts
@@ -122,7 +122,7 @@ checkValid u f xts p q
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
-checkValids :: Bool -> FilePath -> [(Symbol, Sort)] -> [Expr] -> IO [Bool]
+checkValids :: Bool -> FilePath -> [Var] -> [Expr] -> IO [Bool]
 checkValids u f xts ps
   = do me <- makeContext u Z3 f
        smtDecls me xts
@@ -291,13 +291,13 @@ smtPush me        = interact' me Push
 smtPop me         = interact' me Pop
 
 
-smtDecls :: Context -> [(Symbol, Sort)] -> IO ()
-smtDecls me xts = forM_ xts (\(x,t) -> smtDecl me x t)
+smtDecls :: Context -> [Var] -> IO ()
+smtDecls me xts = forM_ xts (smtDecl me)
 
-smtDecl :: Context -> Symbol -> Sort -> IO ()
-smtDecl me x t = interact' me (Declare x ins out)
+smtDecl :: Context -> Var -> IO ()
+smtDecl me v = interact' me (Declare (vname v) ins out)
   where
-    (ins, out) = deconSort t
+    (ins, out) = deconSort $ vsort v
 
 deconSort :: Sort -> ([Sort], Sort)
 deconSort t = case functionSort t of

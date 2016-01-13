@@ -68,7 +68,7 @@ tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
 
 tidyPred :: F.Expr -> F.Expr
-tidyPred = F.substf (F.eVar . F.tidySymbol)
+tidyPred = F.substf (F.EVar . F.mapVarSymbol F.tidySymbol)
 
 --------------------------------------------------------------------------------
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution

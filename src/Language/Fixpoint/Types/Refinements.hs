@@ -24,13 +24,13 @@ module Language.Fixpoint.Types.Refinements (
     symConst
   , Constant (..)
   , Bop (..)
+  , SReft(..), BReft, SortedReft(..)
   , Brel (..)
-  , Expr, UExpr, SExpr (..)
+  , Expr, BExpr, SExpr (..)
   , Var (..), VInfo(..)
   , KVar (..)
-  , Subst (..)
-  , Reft (..)
-  , SortedReft (..)
+  , SSubst (..), BSubst, Subst 
+  , Reft
 
   -- * Constructing Terms
   , eVar, elit
@@ -39,7 +39,7 @@ module Language.Fixpoint.Types.Refinements (
   , isTautoPred
 
   -- * Generalizing Embedding with Typeclasses
-  , Expression (..)
+  , Expression (..), exprSym
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , Predicate (..)
   , Subable (..)
@@ -47,17 +47,16 @@ module Language.Fixpoint.Types.Refinements (
 
   -- * Constructing Refinements
   , reft                    -- "smart
-  , trueSortedReft          -- trivial reft
   , trueReft, falseReft     -- trivial reft
   , exprReft                -- singleton: v == e
   , notExprReft             -- singleton: v /= e
   , uexprReft               -- singleton: v ~~ e
-  , symbolReft              -- singleton: v == x
-  , usymbolReft             -- singleton: v ~~ x
+--   , symbolReft              -- singleton: v == x
+--   , usymbolReft             -- singleton: v ~~ x
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
   , reftPred, reftBind
-  , isFunctionSortedReft, functionSort
+  , functionSort, isFunctionReft
   , isNonTrivial
   , isSingletonReft
   , isEVar
@@ -68,8 +67,10 @@ module Language.Fixpoint.Types.Refinements (
   , reftConjuncts
   , intKvar
   , vv_
-  , mkEApp
-  , makeVar, symbolVar
+  , mkEApp, bmkEApp
+  , makeVar, makeVarWithLoc, locSymbolVar
+  , reftparam, reftSort
+  , mapVarSymbol, mapVarSort  
   ) where
 
 import qualified Data.Binary as B
@@ -92,10 +93,12 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
 -- import           Text.Parsec.Pos
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ 
 -- import           Data.Array                hiding (indices)
 import qualified Data.HashMap.Strict       as M
 -- import qualified Data.HashSet              as S
+
+import qualified Data.Semigroup as SG
 
 instance NFData KVar
 instance NFData Subst
@@ -103,8 +106,8 @@ instance NFData Constant
 instance NFData Brel
 instance NFData Bop
 instance NFData Expr
-instance NFData Reft
 instance NFData SortedReft
+instance NFData Reft
 instance NFData Var
 instance NFData VInfo
 
@@ -125,17 +128,17 @@ instance B.Binary VInfo
 
 
 
-reftConjuncts :: Reft -> [Reft]
+reftConjuncts :: (Eq s, Eq t, Fixpoint t, Ord t) => SReft s t -> [SReft s t]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
     ras'                     = if null ps then ks else ((pAnd ps) : ks)
     (ks, ps)                 = partition isKvar $ refaConjuncts ra
 
-isKvar :: Expr -> Bool
+isKvar :: SExpr s t -> Bool
 isKvar (PKVar _ _) = True
 isKvar _           = False
 
-refaConjuncts :: Expr -> [Expr]
+refaConjuncts :: (Eq s, Eq t) => SExpr s t -> [SExpr s t]
 refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
 
 
@@ -156,19 +159,24 @@ instance Show KVar where
 instance Hashable KVar
 instance Hashable Brel
 instance Hashable Bop
+instance Hashable Var
+instance Hashable VInfo
 instance Hashable Constant
 
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-newtype Subst = Su (M.HashMap Symbol Expr)
+type Subst  = SSubst SrcSpan Var 
+type BSubst = SSubst SrcSpan LocSymbol
+
+newtype SSubst t s = Su (M.HashMap s (SExpr t s))
                 deriving (Eq, Data, Typeable, Generic)
 
-instance Show Subst where
+instance Fixpoint (SSubst t s) => Show (SSubst t s) where
   show = showFix
 
-instance Fixpoint Subst where
+instance (Fixpoint s, Fixpoint (SExpr t s), Ord s) => Fixpoint (SSubst t s) where
   toFix (Su m) = case hashMapToAscList m of
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ toFix x <> text ":=" <> toFix y) xys
@@ -190,27 +198,35 @@ data Bop  = Plus | Minus | Times | Div | Mod
               -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Var = Var { vname :: Symbol
-               , vsort :: Maybe Sort
+               , vsort :: Sort
                , vloc  :: SrcSpan
                , vinfo :: VInfo 
-               } deriving (Show, Data, Typeable, Generic)
+               } deriving (Ord, Show, Data, Typeable, Generic)
 
 data VInfo = VInfo { isSMT :: Bool } 
            | VNoInfo 
            deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-
-symbolVar :: Symbol -> Var
-symbolVar s = Var s Nothing dummySpan VNoInfo
-
 makeVar :: Symbol -> Sort -> Var
-makeVar x s = Var x (Just s) dummySpan (VInfo False)
+makeVar x s = Var x s dummySpan (VInfo False)
+
+makeVarWithLoc :: SrcSpan -> Symbol -> Sort -> Var 
+makeVarWithLoc l x s = (makeVar x s) {vloc = l}
+
+locSymbolVar :: LocSymbol -> Sort -> Var 
+locSymbolVar x s = (makeVar (val x) s) {vloc = srcSpan $ loc x}
+
+
+mapVarSymbol f v = v {vname = f $ vname v}
+mapVarSort   f v = v {vsort = f $ vsort v}
 
 -- untyped expressions 
-type UExpr = SExpr () Symbol
+type BExpr = SExpr SrcSpan LocSymbol
+type BReft = SReft SrcSpan LocSymbol
 
 -- typed expressions
 type Expr  = SExpr SrcSpan Var
+type Reft  = SReft SrcSpan Var
 
 data SExpr t s = 
   -- typed lambda calculus 
@@ -225,7 +241,7 @@ data SExpr t s =
   | ETick !t !(SExpr t s)
    
   -- refined variables 
-  | PKVar  !KVar !Subst
+  | PKVar  !KVar !(SSubst t s)
 
   -- SMT specific expressions 
   | ENeg   !(SExpr t s)
@@ -244,9 +260,14 @@ data SExpr t s =
   deriving (Eq, Show, Data, Typeable, Generic)
 
 
-newtype Reft = Reft (Symbol, Expr)
-               deriving (Eq, Data, Typeable, Generic)
+newtype SReft t s = Reft (s, SExpr t s)
+                  deriving (Eq, Data, Typeable, Generic)
 
+
+reftparam (Reft (x,_)) = x 
+reftSort = vsort . reftparam
+
+--- NV we do not need that anymore 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Data, Typeable, Generic)
 
@@ -259,8 +280,12 @@ pattern PFalse = POr  []
 pattern EBot   = POr  [] 
 
 
-mkEApp :: Located Symbol -> [Expr] -> Expr
-mkEApp f es = foldl EApp (ETick (srcSpan $ loc f) (EVar $ symbolVar $ val f)) es
+mkEApp :: Var -> [Expr] -> Expr
+mkEApp f es = foldl EApp (EVar f) es
+
+bmkEApp :: LocSymbol -> [BExpr] -> BExpr
+bmkEApp f es = foldl EApp (ETick (srcSpan $ loc f) $ EVar f) es
+
 
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
@@ -320,7 +345,7 @@ instance Fixpoint Bop where
   toFix Div   = text "/"
   toFix Mod   = text "mod"
 
-instance Fixpoint Expr where
+instance (Fixpoint t, Eq s, Eq t, Ord t) => Fixpoint (SExpr s t) where
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
   toFix (EApp e1 e2)   = toFix e1 <> parens (toFix e2)
@@ -361,7 +386,7 @@ instance Fixpoint Expr where
     | isTautoPred  p     = PTrue
     | otherwise          = p
 
-isContraPred   :: Expr -> Bool
+isContraPred   :: (Eq t, Eq s) => SExpr s t -> Bool
 isContraPred z = eqC z || (z `elem` contras)
   where
     contras    = [PFalse]
@@ -376,7 +401,7 @@ isContraPred z = eqC z || (z `elem` contras)
                = x == y
     eqC _      = False
 
-isTautoPred   :: Expr -> Bool
+isTautoPred   :: (Eq t, Eq s) => SExpr s t -> Bool
 isTautoPred z  = z == PTop || z == PTrue || eqT z
   where
     eqT (PAnd [])
@@ -547,8 +572,12 @@ instance Expression Expr where
 
 -- | The symbol may be an encoding of a SymConst.
 
-instance Expression Symbol where
-  expr s = maybe (eVar s) (ECon . symConst) (decodeSymConst s)
+instance Expression Var where
+  expr s = maybe (EVar s) (ECon . symConst) (decodeSymConst $ vname s)
+
+
+exprSym :: LocSymbol -> BExpr
+exprSym s = maybe (EVar s) (ECon . symConst) (decodeSymConst $ val s)
 
 instance Expression Text where
   expr = ECon . symConst 
@@ -559,7 +588,7 @@ instance Expression Integer where
 instance Expression Int where
   expr = expr . toInteger
 
-instance Predicate Symbol where
+instance Predicate Var where
   prop = eProp
 
 instance Predicate Expr where
@@ -572,29 +601,28 @@ instance Predicate Bool where
 instance Expression a => Expression (Located a) where
   expr   = expr . val
 
-eVar ::  Symbolic a => a -> Expr
-eVar = EVar . symbolVar . symbol
+eVar ::  Symbolic a => a -> BExpr
+eVar = EVar . dummyLoc . symbol
 
-eProp ::  Symbolic a => a -> Expr
-eProp = mkProp . eVar
+eProp :: Var -> Expr
+eProp = mkProp . EVar
 
-isSingletonExpr :: Symbol -> Expr -> Maybe Expr
+isSingletonExpr :: Var -> Expr -> Maybe Expr
 isSingletonExpr v (PAtom r e1 e2)
-  | isEqVarExpr v e1 && isEq r = Just e2
-  | isEqVarExpr v e1 && isEq r = Just e1
+  | EVar v == e1 && isEq r = Just e2
+  | EVar v == e1 && isEq r = Just e1
 isSingletonExpr _ _        = Nothing
 
-isEqVarExpr :: Symbol -> Expr -> Bool
-isEqVarExpr s e 
-  | EVar v <- e  = symbol v == s
-  | otherwise    = False  
-
-pAnd, pOr     :: ListNE Expr -> Expr
+pAnd, pOr     :: (Eq s, Eq t, Fixpoint t, Ord t) => [SExpr s t] -> SExpr s t
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
-pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
-mkProp        = mkEApp (dummyLoc propConName) . (: [])
 
+pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
+
+mkProp :: Expr -> Expr 
+mkProp        = EApp (EVar propVar)
+
+propVar = makeVar propConName (FFunc 1 [FVar 0, boolSort])
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------
@@ -603,21 +631,21 @@ mkProp        = mkEApp (dummyLoc propConName) . (: [])
 isSingletonReft :: Reft -> Maybe Expr
 isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ conjuncts ra
 
-relReft :: (Expression a) => Brel -> a -> Reft
-relReft r e   = Reft (vv_, PAtom r (eVar $ symbolVar vv_)  (expr e))
+relReft :: (Expression a) => Brel -> Var -> a -> Reft
+relReft r v e  = Reft (v, PAtom r (EVar v)  (expr e))
 
-exprReft, notExprReft, uexprReft ::  (Expression a) => a -> Reft
+exprReft, notExprReft, uexprReft ::  (Expression a) => Var -> a -> Reft
 exprReft      = relReft Eq
 notExprReft   = relReft Ne
 uexprReft     = relReft Ueq
 
-propReft      ::  (Predicate a) => a -> Reft
-propReft p    = Reft (vv_, PIff (eProp vv_) (prop p))
+propReft      ::  (Predicate a) => Var -> a -> Reft
+propReft v p  = Reft (v, PIff (mkProp $ EVar v) (prop p))
 
-predReft      :: (Predicate a) => a -> Reft
-predReft p    = Reft (vv_, prop p)
+predReft      :: (Predicate a) => Var -> a -> Reft
+predReft v p    = Reft (v, prop p)
 
-reft :: Symbol -> Expr -> Reft
+reft :: Var -> Expr -> Reft
 reft v p = Reft (v, p)
 
 mapPredReft :: (Expr -> Expr) -> Reft -> Reft
@@ -627,8 +655,8 @@ mapPredReft f (Reft (v, p)) = Reft (v, f p)
 -- | Refinements ----------------------------------------------
 ---------------------------------------------------------------
 
-isFunctionSortedReft :: SortedReft -> Bool
-isFunctionSortedReft = isJust . functionSort . sr_sort
+isFunctionReft :: Reft -> Bool
+isFunctionReft = isJust . functionSort . reftSort
 
 isNonTrivial :: Reftable r => r -> Bool
 isNonTrivial = not . isTauto
@@ -636,28 +664,28 @@ isNonTrivial = not . isTauto
 reftPred :: Reft -> Expr
 reftPred (Reft (_, p)) = p
 
-reftBind :: Reft -> Symbol
+reftBind :: Reft -> Var
 reftBind (Reft (x, _)) = x
 
 ------------------------------------------------------------
 -- | Generally Useful Refinements --------------------------
 ------------------------------------------------------------
 
+{- Plain symbols cannot create refinements any more 
 symbolReft    :: (Symbolic a) => a -> Reft
 symbolReft    = exprReft . eVar
 
 usymbolReft   :: (Symbolic a) => a -> Reft
 usymbolReft   = uexprReft . eVar
+-}
 
 vv_ :: Symbol
 vv_ = vv Nothing
 
-trueSortedReft :: Sort -> SortedReft
-trueSortedReft = (`RR` trueReft)
 
-trueReft, falseReft :: Reft
-trueReft  = Reft (vv_, PTrue)
-falseReft = Reft (vv_, PFalse)
+trueReft, falseReft :: Var -> Reft
+trueReft  v = Reft (v, PTrue)
+falseReft v = Reft (v, PFalse)
 
 flattenRefas :: [Expr] -> [Expr]
 flattenRefas        = concatMap flatP
@@ -665,7 +693,7 @@ flattenRefas        = concatMap flatP
     flatP (PAnd ps) = concatMap flatP ps
     flatP p         = [p]
 
-conjuncts :: Expr -> [Expr]
+conjuncts :: (Eq s, Eq t) => SExpr s t -> [SExpr s t]
 conjuncts (PAnd ps) = concatMap conjuncts ps
 conjuncts p
   | isTautoPred p   = []
@@ -689,16 +717,14 @@ instance Falseable Reft where
 -- | Class Predicates for Valid Refinements -----------------------------
 -------------------------------------------------------------------------
 
--- NV HERE: 
-
 class Subable a where
-  syms   :: a -> [Symbol]
-  substa :: (Symbol -> Symbol) -> a -> a
+  syms   :: a -> [Var]
+  substa :: (Var -> Var) -> a -> a
   -- substa f  = substf (EVar . f)
 
-  substf :: (Symbol -> Expr) -> a -> a
+  substf :: (Var -> Expr) -> a -> a
   subst  :: Subst -> a -> a
-  subst1 :: a -> (Symbol, Expr) -> a
+  subst1 :: a -> (Var, Expr) -> a
   subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
 
 instance Subable a => Subable (Located a) where
@@ -708,18 +734,17 @@ instance Subable a => Subable (Located a) where
   subst su (Loc l l' x) = Loc l l' (subst su x)
 
 
-class (Monoid r, Subable r) => Reftable r where
+class (SG.Semigroup r, Subable r) => Reftable r where
   isTauto :: r -> Bool
   ppTy    :: r -> Doc -> Doc
 
   top     :: r -> r
-  top _   =  mempty
 
   bot     :: r -> r
 
   meet    :: r -> r -> r
-  meet    = mappend
+  meet    = (SG.<>)
 
-  toReft  :: r -> Reft
+  toReft  :: r -> Reft 
   ofReft  :: Reft -> r
-  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
+  params  :: r -> [Var]          -- ^ parameters for Reft, vv + others

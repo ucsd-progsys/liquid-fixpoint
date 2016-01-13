@@ -3,6 +3,7 @@
 --   either as .fq files or as FInfo.
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PatternGuards       #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
@@ -48,8 +49,9 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Partition        (mcInfo, partition, partition')
-import           Language.Fixpoint.Parse            (rr', mkQual)
+import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
@@ -211,9 +213,28 @@ elim cfg fi
   | otherwise     = return (M.empty, fi)
 
 remakeQual :: Qualifier -> Qualifier
-remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
+remakeQual q = q {q_params = gSort $ q_params q } {- traceShow msg $ -}
 --   where
 --     msg      = "REMAKEQUAL: " ++ show q
+
+gSort :: [Var] -> [Var]
+gSort xts     = mapVarSort (substVars su)  <$> xts
+  where
+    su         = (`zip` [0..]) . sortNub . concatMap (sortVars . vsort) $ xts
+
+substVars :: [(Symbol, Int)] -> Sort -> Sort
+substVars su = mapSort tx
+  where
+    tx (FObj x)
+      | Just i <- lookup x su = FVar i
+    tx t                      = t
+
+sortVars :: Sort -> [Symbol]
+sortVars = foldSort go []
+  where
+    go b (FObj x) = x : b
+    go b _        = b
+
 
 ---------------------------------------------------------------------------
 -- | Extract ExitCode from Solver Result ----------------------------------

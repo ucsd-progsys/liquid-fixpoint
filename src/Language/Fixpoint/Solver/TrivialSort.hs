@@ -92,9 +92,11 @@ updTIBinds be ti = foldl' (flip (updTI Lhs)) ti ts
     ts           = [t | (_,_,t) <- bindEnvToList be]
 
 --------------------------------------------------------------------
-updTI :: Polarity -> SortedReft -> TrivInfo -> TrivInfo
+updTI :: Polarity -> Reft -> TrivInfo -> TrivInfo
 --------------------------------------------------------------------
-updTI p (RR t r) = addKVs t (kvars r) . addNTS p r t
+updTI p r = addKVs t (kvars r) . addNTS p r t
+ where
+   t = reftSort r
 
 addNTS :: Polarity -> Reft -> Sort -> TrivInfo -> TrivInfo
 addNTS p r t ti
@@ -127,7 +129,7 @@ trivP :: Expr -> Bool
 trivP (PKVar {}) = True
 trivP p          = isTautoPred p
 
-singP :: Symbol -> Expr -> Bool
+singP :: Var -> Expr -> Bool
 singP v (PAtom Eq (EVar x) _)
   | v == x                    = True
 singP v (PAtom Eq _ (EVar x))
@@ -147,7 +149,7 @@ simplifyBindEnv :: NonTrivSorts -> BindEnv -> BindEnv
 simplifyBindEnv = mapBindEnv . second . simplifySortedReft
 
 simplifyWfCs :: NonTrivSorts -> M.HashMap KVar (WfC a) -> M.HashMap KVar (WfC a)
-simplifyWfCs tm = M.filter (isNonTrivialSort tm . snd3 . wrft)
+simplifyWfCs tm = M.filter (isNonTrivialSort tm . vsort . fst . wrft)
 
 simplifySubCs ti cm = trace msg cm'
   where
@@ -165,12 +167,12 @@ simplifySubC tm (i, c)
     slhs'             = simplifySortedReft tm (slhs c)
     srhs'             = simplifySortedReft tm (srhs c)
 
-simplifySortedReft :: NonTrivSorts -> SortedReft -> SortedReft
-simplifySortedReft tm sr
-  | nonTrivial = sr
-  | otherwise  = sr { sr_reft = mempty }
+simplifySortedReft :: NonTrivSorts -> Reft -> Reft
+simplifySortedReft tm (Reft (v, r))
+  | nonTrivial = Reft (v, r)
+  | otherwise  = Reft (v, mempty)
   where
-    nonTrivial = isNonTrivialSort tm (sr_sort sr)
+    nonTrivial = isNonTrivialSort tm $ vsort v
 
 isNonTrivialSort :: NonTrivSorts -> Sort -> Bool
 isNonTrivialSort tm t = S.member t tm

@@ -86,7 +86,7 @@ isMono             = null . foldSort fv []
 type StateM = Int
 
 newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
-type Env      = Symbol -> SESearch Sort
+type Env      = Var -> SESearch Sort
 
 instance Monad CheckM where
   return x     = CM $ \i -> (i, Right x)
@@ -131,7 +131,7 @@ instance Freshable [Int] where
 -- | Checking Refinements -----------------------------------------------
 -------------------------------------------------------------------------
 
-checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
+checkSortedReft :: SEnv SortedReft -> [Var] -> SortedReft -> Maybe Doc
 checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
   where
     oops                  = Just . (text "Unknown symbols:" <+>) . toFix
@@ -193,6 +193,11 @@ instance Checkable SortedReft where
    where
      γ' = insertSEnv v s γ
 
+instance Checkable Reft where
+  check γ (Reft (v, ra)) = check γ' ra
+   where
+     γ' = insertSEnv v (vsort v) γ
+
 -------------------------------------------------------------------------
 -- | Checking Expressions -----------------------------------------------
 -------------------------------------------------------------------------
@@ -200,7 +205,6 @@ instance Checkable SortedReft where
 checkExpr                  :: Env -> Expr -> CheckM Sort
 
 checkExpr _ EBot           = throwError "Type Error: Bot"
-checkExpr _ (ESym _)       = return strSort
 checkExpr _ (ECon (I _))   = return FInt
 checkExpr _ (ECon (R _))   = return FReal
 checkExpr _ (ECon (L _ s)) = return s
@@ -224,8 +228,7 @@ checkExpr _ PTop           = return boolSort
 checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
 checkExpr _ (PExist _ _)   = error "SortCheck.checkExpr: TODO: implement PExist"
 
-checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
-checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
+checkExpr f (ETick _ e)    = checkExpr f e 
 
 -- | Helper for checking symbol occurrences
 
@@ -235,7 +238,7 @@ checkSym f x
      Alts xs -> throwError $ errUnboundAlts x xs
 --   $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
-checkLocSym f x = checkSym f (val x)
+_checkLocSym f x = checkSym f (val x)
 
 -- | Helper for checking if-then-else expressions
 
@@ -253,9 +256,9 @@ checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
-checkApp f to g es
-  = snd <$> checkApp' f to g es
-
+checkApp  -- f to g es
+  = undefined -- snd <$> checkApp' f to g es
+{-
 -- | Helper for checking uninterpreted function applications
 checkApp' f to g es
   = do gt           <- checkLocSym f g
@@ -270,7 +273,7 @@ checkApp' f to g es
          Just t'    -> do θ' <- unifyMany θ [t] [t']
                           return (θ', apply θ' t)
 
-
+-}
 -- | Helper for checking binary (numeric) operations
 
 checkNeg f e = do
@@ -301,12 +304,12 @@ checkOpTy _ e t t'
   = throwError $ errOp e t t'
 
 checkFractional f l
-  = do t <- checkSym f l
+  = do t <- checkSym f (makeVar l FInt) -- hack!
        unless (t == FFrac) (throwError $ errNonFractional l)
        return ()
 
 checkNumeric f l
-  = do t <- checkSym f l
+  = do t <- checkSym f (makeVar l FInt)
        unless (t == FNum) (throwError $ errNonNumeric l)
        return ()
 
@@ -323,9 +326,9 @@ checkBoolSort e s
  | otherwise     = throwError $ errBoolSort e s 
 
 -- | Checking Relations
-checkRel :: (Symbol -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
-checkRel f Eq (EVar x) (EApp g es) = checkRelEqVar f x g es
-checkRel f Eq (EApp g es) (EVar x) = checkRelEqVar f x g es
+checkRel :: (Var -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
+checkRel _f Eq (EVar _x) (EApp _g _es) = error "TODO checkRel" -- checkRelEqVar f x g es
+checkRel _f Eq (EApp _g _es) (EVar _x) = error "TODO checkRel" -- checkRelEqVar f x g es
 checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
@@ -354,11 +357,11 @@ checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwErr
 
 
 -- | Special case for polymorphic singleton variable equality e.g. (x = Set_emp)
-
+{-
 checkRelEqVar f x g es             = do tx <- checkSym f x
                                         _  <- checkApp f (Just tx) g es
                                         return ()
-
+-}
 
 -------------------------------------------------------------------------
 -- | Sort Unification
@@ -457,7 +460,7 @@ sortMap f t            = f t
 ------------------------------------------------------------------------
 -- | Deconstruct a function-sort ---------------------------------------
 ------------------------------------------------------------------------
-
+{-
 sortFunction :: Sort -> CheckM (Int, [Sort], Sort)
 sortFunction (FFunc n ts') = return (n, ts, t)
   where
@@ -466,7 +469,7 @@ sortFunction (FFunc n ts') = return (n, ts, t)
     numArgs                = length ts' - 1
 
 sortFunction t             = throwError $ errNonFunction t
-
+-}
 
 ------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions ---------------------------
@@ -498,8 +501,8 @@ errOp e t t'
                          (showpp t) (showpp e)
   | otherwise        = printf "Operands have different types %s and %s in %s"
                          (showpp t) (showpp t') (showpp e)
-errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
-                         (showpp g) (length its) (length es) (showpp (EApp g es))
+-- errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
+--                          (showpp g) (length its) (length es) (showpp (EApp g es))
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
                          (showpp e1) (showpp t1) (showpp e2) (showpp t2)
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
@@ -507,7 +510,7 @@ errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s
 errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
                         (showpp x)
                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
-errNonFunction t     = printf "Sort %s is not a function" (showpp t)
+-- errNonFunction t     = printf "Sort %s is not a function" (showpp t)
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
 errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)

@@ -31,7 +31,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Constraints
   , WfC (..)
-  , SubC, mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
+  , SubC, BSubC, mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, bsubC, wfC
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
@@ -46,7 +46,7 @@ module Language.Fixpoint.Types.Constraints (
   , Result (..)
 
   -- * Qualifiers
-  , Qualifier (..)
+  , SQualifier (..), BQualifier, Qualifier
 
   -- * Cut KVars
   , Kuts (..)
@@ -83,19 +83,23 @@ import qualified Data.HashSet              as S
 type Tag           = [Int]
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
-                   , wrft  :: (Symbol, Sort, KVar)
+                   , wrft  :: (Var, KVar)
                    , winfo :: !a
                    }
               deriving (Eq, Generic, Functor)
 
-data SubC a = SubC { _senv  :: !IBindEnv
-                   , slhs  :: !SortedReft
-                   , srhs  :: !SortedReft
-                   , _sid   :: !(Maybe Integer)
-                   , _stag  :: !Tag
-                   , _sinfo :: !a
-                   }
-              deriving (Eq, Generic, Functor)
+type SubC  = SSubC SrcSpan Var 
+type BSubC = SSubC SrcSpan LocSymbol
+
+data SSubC t s a 
+  = SubC { _senv   :: !IBindEnv
+          , slhs   :: !(SReft t s)
+          , srhs   :: !(SReft t s)
+          , _sid   :: !(Maybe Integer)
+          , _stag  :: !Tag
+          , _sinfo :: !a
+          }
+          deriving (Eq, Generic, Functor)
 
 data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , _crhs  :: !Expr
@@ -110,7 +114,7 @@ class TaggedC c a where
   sid   :: c a -> Maybe Integer
   stag  :: c a -> Tag
   sinfo :: c a -> a
-  clhs  :: BindEnv -> c a -> [(Symbol, SortedReft)]
+  clhs  :: BindEnv -> c a -> [(Var, Reft)]
   crhs  :: c a -> Expr
 
 instance TaggedC SimpC a where
@@ -126,13 +130,11 @@ instance TaggedC SubC a where
   sid       = _sid
   stag      = _stag
   sinfo     = _sinfo
-  crhs      = reftPred . sr_reft . srhs
-  clhs be c = sortedReftBind (slhs c) : envCs be (senv c)
+  crhs      = reftPred . srhs
+  clhs be c = reftBind' (slhs c) : envCs be (senv c)
 
-sortedReftBind :: SortedReft -> (Symbol, SortedReft)
-sortedReftBind sr = (x, sr)
-  where
-    Reft (x, _)   = sr_reft sr
+reftBind' :: Reft -> (Var, Reft)
+reftBind' sr = (reftparam sr, sr)
 
 subcId :: (TaggedC c a) => c a -> Integer
 subcId = mfromJust "subCId" . sid
@@ -191,9 +193,9 @@ instance Fixpoint a => Fixpoint (WfC a) where
   toFix w     = hang (text "\n\nwf:") 2 bd
     where bd  =   toFix (wenv w)
               -- NOTE: this next line is printed this way for compatability with the OCAML solver
-              $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k mempty)))
+              $+$ text "reft" <+> toFix (Reft (v, PKVar k mempty) :: Reft)
               $+$ toFixMeta (text "wf") (toFix (winfo w))
-          (v, t, k) = wrft w
+          (v, k) = wrft w
 
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
@@ -226,7 +228,7 @@ wfC :: IBindEnv -> SortedReft -> a -> [WfC a]
 wfC be sr x
   | Reft (v, PKVar k su) <- sr_reft sr
               = if isEmptySubst su
-                   then [WfC be (v, sr_sort sr, k) x]
+                   then [WfC be (v, k) x]
                    else errorstar msg
   | otherwise = []
   where
@@ -234,40 +236,50 @@ wfC be sr x
 
 mkSubC = SubC 
 
-subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
-subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
+bsubC :: IBindEnv -> BReft -> BReft -> Maybe Integer -> Tag -> a -> [BSubC a]
+bsubC γ r1 r2 i y z = [SubC γ r1 r2' i y z | r2' <- reftConjuncts r2]
    where
-     RR t1 r1          = sr1
-     RR t2 r2          = sr2
-     sr1'              = RR t1 $ shiftVV r1  vv'
-     sr2' r2'          = RR t2 $ shiftVV r2' vv'
-     vv'               = mkVV i
+     -- NV TODO: skip shifting from parsed constraints. this may create troubles
+     -- r1'   = r1  -- shiftVV r1  vv'
+     -- f r2' = r2' -- shiftVV r2' vv'
+     -- vv'   = (const $ mkVV i) <$>  (reftparam r1)
+
+
+
+subC :: IBindEnv -> Reft -> Reft -> Maybe Integer -> Tag -> a -> [SubC a]
+subC γ r1 r2 i y z = [SubC γ r1' (f r2') i y z | r2' <- reftConjuncts r2]
+   where
+     r1'   = shiftVV r1  vv'
+     f r2' = shiftVV r2' vv'
+     vv'   = mapVarSymbol (const $ mkVV i) (reftparam r1)
 
 mkVV :: Maybe Integer -> Symbol
 mkVV (Just i)  = vv $ Just i
 mkVV Nothing   = vvCon
 
-shiftVV :: Reft -> Symbol -> Reft
+shiftVV :: Reft -> Var -> Reft
 shiftVV r@(Reft (v, ras)) v'
    | v == v'   = r
    | otherwise = Reft (v', subst1 ras (v, expr v'))
 
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
-    shiftId i c = c { slhs = shiftSR i $ slhs c }
-                    { srhs = shiftSR i $ srhs c }
-    shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
-    shiftR i r@(Reft (v, _)) = shiftVV r (intSymbol v i)
+    shiftId i c = c { slhs = shiftR i $ slhs c }
+                    { srhs = shiftR i $ srhs c }
+    shiftR i r@(Reft (v, _)) = shiftVV r (mapVarSymbol (`intSymbol` i) v)
 
 --------------------------------------------------------------------------------
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data Qualifier = Q { q_name   :: Symbol           -- ^ Name
-                   , q_params :: [(Symbol, Sort)] -- ^ Parameters
-                   , q_body   :: Expr             -- ^ Predicate
-                   , q_pos    :: !SourcePos       -- ^ Source Location
-                   }
+type BQualifier = SQualifier SrcSpan LocSymbol
+type Qualifier  = SQualifier SrcSpan Var 
+
+data SQualifier s t = Q { q_name  :: Symbol         -- ^ Name
+                        , q_params :: [Var]          -- ^ Parameters
+                        , q_body   :: SExpr s t      -- ^ Predicate
+                        , q_pos    :: !SourcePos     -- ^ Source Location
+                        }
                deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Loc Qualifier where
@@ -304,7 +316,7 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 fi cs ws binds ls ks qs bi fn
   = FI { cm       = M.fromList $ addIds cs
-       , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
+       , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, k) = wrft w]
        , bs       = binds
        , lits     = ls
        , kuts     = ks
@@ -399,7 +411,7 @@ convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
 subcToSimpc :: SubC a -> SimpC a
 subcToSimpc s = SimpC
   { _cenv     = senv s
-  , _crhs     = reftPred $ sr_reft $ srhs s
+  , _crhs     = reftPred $ srhs s
   , _cid      = sid s
   , _ctag     = stag s
   , _cinfo    = sinfo s
@@ -409,7 +421,7 @@ blowOutVV :: FInfo a -> Integer -> SubC a -> FInfo a
 blowOutVV fi i subc = fi { bs = be', cm = cm' }
   where
     sr            = slhs subc
-    x             = reftBind $ sr_reft sr
+    x             = reftBind sr
     (bindId, be') = insertBindEnv x sr $ bs fi
     subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
     cm'           = M.insert i subc' $ cm fi

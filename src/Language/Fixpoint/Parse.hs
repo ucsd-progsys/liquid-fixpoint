@@ -73,7 +73,6 @@ module Language.Fixpoint.Parse (
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
-import           Data.Maybe                  (fromJust)
 import           Text.Parsec
 import           Text.Parsec.Expr
 import           Text.Parsec.Language        (emptyDef)
@@ -84,8 +83,8 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
-import           Language.Fixpoint.Misc      (sortNub, thd3)
-import           Language.Fixpoint.Smt.Types
+import           Language.Fixpoint.Misc      (sortNub, errorstar)
+-- import           Language.Fixpoint.Smt.Types
 --import           Language.Fixpoint.Types.Names     (headSym)
 import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types
@@ -199,29 +198,33 @@ symCharsP = condIdP symChars (`notElem` keyWordSyms)
 locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
 
-symbolP :: Parser Symbol
-symbolP = symbol <$> symCharsP
+symbolP :: Parser LocSymbol
+symbolP = locParserP symbolP'
+
+symbolP' :: Parser Symbol
+symbolP' = symbol <$> symCharsP
 
 constantP :: Parser Constant
 constantP =  try (R <$> double)
          <|> I <$> integer
 
-symconstP :: Parser SymConst
-symconstP = SL . T.pack <$> stringLiteral
+symconstP :: Parser Constant
+symconstP = (`L` strSort) . T.pack <$> stringLiteral
 
-expr0P :: Parser Expr
+expr0P :: Parser BExpr
 expr0P
   =  (fastIfP EIte exprP)
- <|> (ESym <$> symconstP)
+ <|> (ECon <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reserved "_|_" >> return EBot)
  <|> try (parens  exprP)
  <|> try (parens  exprCastP)
- <|> (charsExpr <$> symCharsP)
+ <|> (charsExpr <$> (locParserP symCharsP))
 
+charsExpr :: LocSymbol -> BExpr
 charsExpr cs
-  | isSmall (headSym cs) = expr cs
-  | otherwise            = EVar cs
+  | isSmall (headSym $ val cs) = exprSym cs
+  | otherwise                  = EVar    cs
 
 fastIfP f bodyP
   = do reserved "if"
@@ -243,20 +246,20 @@ qmIfP f bodyP
       return $ f p b1 b2
 -}
 
-expr1P :: Parser Expr
+expr1P :: Parser BExpr
 expr1P
   =  try funAppP
  <|> expr0P
 
-exprP :: Parser Expr
+exprP :: Parser BExpr
 exprP = buildExpressionParser bops expr1P
 
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where
-    exprFunSpacesP = EApp <$> funSymbolP <*> sepBy1 expr0P blanks
-    exprFunCommasP = EApp <$> funSymbolP <*> parens        (sepBy exprP comma)
-    exprFunSemisP  = EApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
-    funSymbolP     = locParserP symbolP
+    exprFunSpacesP = bmkEApp <$> funSymbolP <*> sepBy1 expr0P blanks
+    exprFunCommasP = bmkEApp <$> funSymbolP <*> parens        (sepBy exprP comma)
+    exprFunSemisP  = bmkEApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
+    funSymbolP     = symbolP
 
 
 -- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
@@ -349,7 +352,7 @@ keyWordSyms = ["if", "then", "else", "mod"]
 ---------------------------------------------------------------------
 
 
-pred0P :: Parser Expr
+pred0P :: Parser BExpr
 pred0P =  trueP
       <|> falseP
       <|> try kvarPredP
@@ -363,22 +366,22 @@ pred0P =  trueP
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
-trueP, falseP :: Parser Expr
+trueP, falseP :: Parser BExpr
 trueP  = reserved "true"  >> return PTrue
 falseP = reserved "false" >> return PFalse
 
-kvarPredP :: Parser Expr
+kvarPredP :: Parser BExpr
 kvarPredP = PKVar <$> kvarP <*> substP
 
 kvarP :: Parser KVar
-kvarP = KV <$> (char '$' *> symbolP <* spaces)
+kvarP = KV <$> (char '$' *> symbolP' <* spaces)
 
-substP :: Parser Subst
+substP :: Parser BSubst
 substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
   where
     aP = reserved ":="
 
-predP  :: Parser Expr
+predP  :: Parser BExpr
 predP  = buildExpressionParser lops pred0P
 
 
@@ -398,7 +401,7 @@ predrP = do e1    <- exprP
             e2    <- exprP
             return $ r e1 e2
 
-brelP ::  Parser (Expr -> Expr -> Expr)
+brelP ::  Parser (BExpr -> BExpr -> BExpr)
 brelP =  (reservedOp "==" >> return (PAtom Eq))
      <|> (reservedOp "="  >> return (PAtom Eq))
      <|> (reservedOp "~~" >> return (PAtom Ueq))
@@ -414,13 +417,13 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
 ------------------------------------ BareTypes -----------------------------------
 ----------------------------------------------------------------------------------
 
-refaP :: Parser Expr
+refaP :: Parser BExpr
 refaP =  try (pAnd <$> brackets (sepBy predP semi))
      <|> predP
 
 
 
-refBindP :: Parser Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
+refBindP :: Parser LocSymbol -> Parser BExpr -> Parser (BReft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
       x  <- bp
@@ -453,13 +456,13 @@ sortBindP = pairP symbolP colon
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
-mkQual :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
-mkQual n xts p = Q n ((v, t) : yts) (subst su p)
+mkQual :: Symbol -> [(LocSymbol, Sort)] -> BExpr -> SourcePos -> BQualifier
+mkQual n xts p = Q n yts p
   where
-    (v, t):zts = gSorts xts
+    yts = ((uncurry locSymbolVar) <$> gSorts xts)
     -- yts        = first mkParam <$> zts
-    yts        = zts
-    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+    -- yts   = zts
+    -- su    = mkSubst $ zipWith (\z y -> (z, EVar y)) zts yts
 
 -- mkParam :: Symbol -> Symbol
 -- mkParam s       = unsafeTextSymbol ('~' `T.cons` toUpper c `T.cons` cs)
@@ -492,14 +495,14 @@ sortVars = foldSort go []
 -- Entities in Query File
 data Def a
   = Srt Sort
-  | Axm Expr
-  | Cst (SubC a)
+  | Axm BExpr
+  | Cst (Sort, Sort, BSubC a)
   | Wfc (WfC a)
-  | Con Symbol Sort
-  | Qul Qualifier
+  | Con LocSymbol Sort
+  | Qul BQualifier
   | Kut KVar
-  | IBind Int Symbol SortedReft
-  deriving (Show, Generic)
+  | IBind Int LocSymbol (Sort, BReft)
+  deriving (Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
 
@@ -516,37 +519,47 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
     <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> {-# SCC "sortedReftP" #-} sortedReftP)
 
-sortedReftP :: Parser SortedReft
-sortedReftP = refP (RR <$> (sortP <* spaces))
+sortedReftP :: Parser (Sort, BReft)
+sortedReftP = refP ((,) <$> (sortP <* spaces))
 
 wfCP :: Parser (WfC ())
 wfCP = do reserved "env"
           env <- envP
           reserved "reft"
           r   <- sortedReftP
-          let [w] = wfC env r ()
-          return w
+          return $ mkWfC env r ()
 
-subCP :: Parser (SubC ())
+mkWfC :: IBindEnv -> (Sort, BReft) -> a -> WfC a
+mkWfC be (s, Reft (v, PKVar k su)) i
+  = if isEmptySubst su
+     then WfC be (makeVarWithLoc (srcSpan $ loc v) (val v) s, k) i
+     else errorstar msg
+  where
+    msg       = "mkWfC: malformed wfC for " ++ show k
+mkWfC _ _ _ 
+  = errorstar "mkWfC : malformed wfC"
+
+
+subCP :: Parser (Sort, Sort, BSubC ())
 subCP = do pos <- getPosition
            reserved "env"
            env <- envP
            reserved "lhs"
-           lhs <- sortedReftP
+           (s1, lhs) <- sortedReftP
            reserved "rhs"
-           rhs <- sortedReftP
+           (s2, rhs) <- sortedReftP
            reserved "id"
            i   <- integer <* spaces
            tag <- tagP
            pos' <- getPosition
-           return $ subC' env lhs rhs i tag pos pos'
+           return $ (s1, s2, subC' env lhs rhs i tag pos pos')
 
 subC' env lhs rhs i tag l l'
   = case cs of
       [c] -> c
       _   -> die $ err (SS l l') $ printf "RHS without single conjunct at %s \n" (show l')
     where
-       cs = subC env lhs rhs (Just i) tag ()
+       cs = bsubC env lhs rhs (Just i) tag ()
 
 -- idVV :: Integer -> SortedReft -> SortedReft
 -- idVV i sr = sr {sr_reft = ri }
@@ -569,14 +582,33 @@ intP = fromInteger <$> integer
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
   where
-    cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
-    ws     = M.fromList       [(thd3 $ wrft w, w) | Wfc w     <- defs]
-    bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
-    lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
+    cm     = M.fromList       [ofBSubC env c       | Cst c       <- defs]
+    ws     = M.fromList       [(snd $ wrft w, w) | Wfc w     <- defs]
+    bs     = bindEnvFromList  [(n, ofLocSymbol (fst r) x, ofBreft env r) | IBind n x r <- defs]
+    lts    = fromListSEnv     [(makeVar (val x) t, t)    | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]
-    qs     =                  [q                | Qul q       <- defs]
-    cid    = fromJust . sid
+    qs     =                  [ofBQual env q                | Qul q       <- defs]
+    env    = [(x, t) | Con x t <- defs] ++ [(x, t) | IBind _ x (t,_) <- defs]
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
+
+type Env = [(LocSymbol, Sort)]
+
+-- NV HERE HERE HERE 
+ofBSubC :: Env -> (Sort, Sort, BSubC a) -> (Integer, SubC a)
+ofBSubC = undefined
+--     cid    = fromJust . sid
+
+ofBQual :: Env -> BQualifier -> Qualifier 
+ofBQual = undefined 
+
+ofBreft :: Env -> (Sort, BReft) -> Reft 
+ofBreft = undefined 
+
+ofLocSymbol :: Sort -> LocSymbol -> Var
+ofLocSymbol = undefined 
+
+-- ofWfc :: Env -> Sort -> LocSymbol -> Var
+-- ofWfc = undefined 
 
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
@@ -607,9 +639,9 @@ solution1P
        ps <- brackets $ sepBy predSolP semi
        return (k, simplify $ PAnd ps)
     where
-      kvP = try kvarP <|> (KV <$> symbolP)
+      kvP = try kvarP <|> (KV <$> symbolP')
 
-solutionP :: Parser (M.HashMap KVar Expr)
+solutionP :: Parser (M.HashMap KVar BExpr)
 solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
 
@@ -641,6 +673,7 @@ freshIntP = do n <- getState
                updateState (+ 1)
                return n
 
+{-
 ---------------------------------------------------------------------
 -- Standalone SMTLIB2 commands --------------------------------------
 ---------------------------------------------------------------------
@@ -660,7 +693,7 @@ cmdVarP
        t <- sortP
        return $ Declare x [] t
 
-
+-}
 ---------------------------------------------------------------------
 -- Bundling Parsers into a Typeclass --------------------------------
 ---------------------------------------------------------------------
@@ -671,29 +704,36 @@ class Inputable a where
   rr' _ = rr
   rr    = rr' ""
 
-instance Inputable Symbol where
+instance Inputable LocSymbol where
   rr' = doParse' symbolP
+
+instance Inputable Symbol where
+  rr' = doParse' symbolP'
 
 instance Inputable Constant where
   rr' = doParse' constantP
 
-instance Inputable Expr where
+instance Inputable BExpr where
   rr' = doParse' exprP
 
 instance Inputable (FixResult Integer) where
   rr' = doParse' $ fixResultP integer
 
-instance Inputable (FixResult Integer, FixSolution) where
+type BFixSolution = M.HashMap KVar BExpr
+
+instance Inputable (FixResult Integer, BFixSolution) where
   rr' = doParse' solutionFileP
 
 instance Inputable (FInfo ()) where
   rr' = {-# SCC "fInfoP" #-} doParse' fInfoP
 
+{-
 instance Inputable Command where
   rr' = doParse' commandP
 
 instance Inputable [Command] where
   rr' = doParse' commandsP
+-}
 
 {-
 ---------------------------------------------------------------

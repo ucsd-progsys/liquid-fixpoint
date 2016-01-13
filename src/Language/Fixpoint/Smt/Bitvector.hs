@@ -58,6 +58,7 @@ instance Expression Bv where
 -- | Apply some bitvector operator to a list of arguments
 eOp :: BvOp -> [Expr] -> Expr
 eOp = mkApp . opName
+mkApp = error "NIKI TODO mkApp"
 
 opName :: BvOp -> LocSymbol
 opName BvAnd = dummyLoc bvAndName

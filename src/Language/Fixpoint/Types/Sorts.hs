@@ -37,7 +37,7 @@ module Language.Fixpoint.Types.Sorts (
   , fObj
 
   , sortSubst
-  , functionSort
+  , functionSort, isFunctionSort
   ) where
 
 import qualified Data.Binary as B
@@ -114,6 +114,11 @@ functionSort (FFunc n ts) = Just (n, its, t)
   where
     (its, t)              = safeUnsnoc "functionSort" ts
 functionSort _            = Nothing
+
+
+isFunctionSort :: Sort -> Bool
+isFunctionSort (FFunc _ _) = True
+isFunctionSort _          = False
 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------

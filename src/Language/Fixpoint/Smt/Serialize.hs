@@ -50,6 +50,8 @@ instance SMTLIB2 Sort where
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"
 
+instance SMTLIB2 Var where
+  smt2 = smt2 . vname 
 
 instance SMTLIB2 Symbol where
   smt2 s
@@ -59,12 +61,10 @@ instance SMTLIB2 Symbol where
 instance SMTLIB2 (Symbol, Sort) where
   smt2 (sym, t) = format "({} {})"  (smt2 sym, smt2 t)
 
-instance SMTLIB2 SymConst where
-  smt2 = smt2 . symbol
-
 instance SMTLIB2 Constant where
   smt2 (I n)   = format "{}" (Only n)
   smt2 (R d)   = format "{}" (Only d)
+  smt2 (L t s) | s == strSort = smt2 $ symbol t 
   smt2 (L t _) = format "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
 
 instance SMTLIB2 LocSymbol where
@@ -87,10 +87,9 @@ instance SMTLIB2 Brel where
   smt2 _     = errorstar "SMTLIB2 Brel"
 
 instance SMTLIB2 Expr where
-  smt2 (ESym z)         = smt2 (symbol z)
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
-  smt2 (EApp f es)      = smt2App f es
+  smt2 (EApp _ _)      = error "NV TODO: smt2 App " -- smt2App f es
   smt2 (ENeg e)         = format "(- {})"         (Only $ smt2 e)
   smt2 (EBin o e1 e2)   = smt2Bop o e1 e2
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
@@ -106,7 +105,7 @@ instance SMTLIB2 Expr where
   smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
   smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
-  smt2 (Tick _ e)       = smt2 e 
+  smt2 (ETick _ e)      = smt2 e 
   smt2 _                = errorstar "smtlib2 Pred"
 
 smt2Bop o e1 e2
@@ -118,10 +117,9 @@ uOp o | o == Times = dummyLoc mulFuncName
       | otherwise  = errorstar "Serialize.uOp called with bad arguments"
 
 smt2App :: LocSymbol -> [Expr] -> T.Text
-smt2App (EVar f:es) = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
+smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
   where
    ds        = smt2 <$> es
-smt2App _ = errorstar "Serialize.smt2App called on wrong arguments"
 
 smt2App' f [] = smt2 f
 smt2App' f ds = format "({} {})" (smt2 f, smt2many ds)
