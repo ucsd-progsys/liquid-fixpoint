@@ -584,31 +584,12 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
   where
     cm     = M.fromList       [ofBSubC env c       | Cst c       <- defs]
     ws     = M.fromList       [(snd $ wrft w, w) | Wfc w     <- defs]
-    bs     = bindEnvFromList  [(n, ofLocSymbol (fst r) x, ofBreft env r) | IBind n x r <- defs]
+    bs     = bindEnvFromList  [(n, locSymbolVar x (fst r), ofBreft env r) | IBind n x r <- defs]
     lts    = fromListSEnv     [(makeVar (val x) t, t)    | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]
     qs     =                  [ofBQual env q                | Qul q       <- defs]
     env    = [(x, t) | Con x t <- defs] ++ [(x, t) | IBind _ x (t,_) <- defs]
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
-
-type Env = [(LocSymbol, Sort)]
-
--- NV HERE HERE HERE 
-ofBSubC :: Env -> (Sort, Sort, BSubC a) -> (Integer, SubC a)
-ofBSubC = undefined
---     cid    = fromJust . sid
-
-ofBQual :: Env -> BQualifier -> Qualifier 
-ofBQual = undefined 
-
-ofBreft :: Env -> (Sort, BReft) -> Reft 
-ofBreft = undefined 
-
-ofLocSymbol :: Sort -> LocSymbol -> Var
-ofLocSymbol = undefined 
-
--- ofWfc :: Env -> Sort -> LocSymbol -> Var
--- ofWfc = undefined 
 
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------

@@ -31,7 +31,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Constraints
   , WfC (..)
-  , SubC, BSubC, mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, bsubC, wfC
+  , SubC, BSubC, mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, bsubC, wfC, ssubCSid
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
@@ -100,6 +100,8 @@ data SSubC t s a
           , _sinfo :: !a
           }
           deriving (Eq, Generic, Functor)
+
+ssubCSid = _sid 
 
 data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , _crhs  :: !Expr
@@ -275,9 +277,9 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 type BQualifier = SQualifier SrcSpan LocSymbol
 type Qualifier  = SQualifier SrcSpan Var 
 
-data SQualifier s t = Q { q_name  :: Symbol         -- ^ Name
+data SQualifier t s = Q { q_name   :: Symbol         -- ^ Name
                         , q_params :: [Var]          -- ^ Parameters
-                        , q_body   :: SExpr s t      -- ^ Predicate
+                        , q_body   :: SExpr t s      -- ^ Predicate
                         , q_pos    :: !SourcePos     -- ^ Source Location
                         }
                deriving (Eq, Show, Data, Typeable, Generic)

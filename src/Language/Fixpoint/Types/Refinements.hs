@@ -173,6 +173,7 @@ type BSubst = SSubst SrcSpan LocSymbol
 newtype SSubst t s = Su (M.HashMap s (SExpr t s))
                 deriving (Eq, Data, Typeable, Generic)
 
+
 instance Fixpoint (SSubst t s) => Show (SSubst t s) where
   show = showFix
 

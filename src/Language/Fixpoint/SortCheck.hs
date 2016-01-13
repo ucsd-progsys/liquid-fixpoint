@@ -41,7 +41,7 @@ import           Data.Maybe                (mapMaybe, fromMaybe)
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types hiding (subst)
+import           Language.Fixpoint.Types hiding (subst, Env)
 import           Language.Fixpoint.Types.Visitor (foldSort)
 
 import           Text.PrettyPrint.HughesPJ
