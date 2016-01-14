@@ -213,7 +213,7 @@ checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
-checkExpr f (EApp g es)    = checkApp f Nothing g es
+checkExpr f (EApp f e)     = checkApp f Nothing f e 
 checkExpr _ PTrue          = return boolSort
 checkExpr _ PFalse         = return boolSort
 checkExpr f (PNot p)       = checkPred f p >> return boolSort
@@ -256,7 +256,8 @@ checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
-checkApp -- f to g es
+checkApp :: Env -> (Maybe Sort) -> Expr -> Expr 
+checkApp f to g es
   = undefined -- snd <$> checkApp' f to g es
 {-
 -- | Helper for checking uninterpreted function applications
