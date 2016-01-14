@@ -293,7 +293,7 @@ exprCastP
 dcolon = string "::" <* spaces
 
 varSortP  = FVar  <$> parens intP
-funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
+funcSortP = parens $ mkFFun <$> intP <* comma <*> sortsP
 
 sortsP = brackets $ sepBy sortP semi
 

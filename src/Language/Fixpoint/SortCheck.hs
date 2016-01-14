@@ -256,7 +256,7 @@ checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
-checkApp  -- f to g es
+checkApp -- f to g es
   = undefined -- snd <$> checkApp' f to g es
 {-
 -- | Helper for checking uninterpreted function applications
@@ -402,12 +402,9 @@ unify1 θ (FApp t1 t2) (FApp t1' t2')
                             = unifyMany θ [t1, t2] [t1', t2']
 unify1 θ (FTC l1) (FTC l2)
   | isListTC l1 && isListTC l2          = return θ
-unify1 θ t1@(FFunc _ _ ) t2@(FFunc _ _) = do FFunc _ ts1 <- generalize t1
-                                             FFunc _ ts2 <- generalize t2
-                                             unifyMany θ ts1 ts2
-unify1 θ t1@(FFunc _ [_]) t2            = do FFunc _ [t1'] <- generalize t1
+unify1 θ t1@(FAbs _ _) t2               = do t1' <- generalize t1
                                              unifyMany θ [t1'] [t2]
-unify1 θ t1 t2@(FFunc _ [_])            = do FFunc _ [t2'] <- generalize t2
+unify1 θ t1 t2@(FAbs _ _)               = do t2' <- generalize t2
                                              unifyMany θ [t1] [t2']
 unify1 θ t1 t2
   | t1 == t2                = return θ
@@ -415,16 +412,27 @@ unify1 θ t1 t2
 -- unify1 _ FNum _          = Nothing
 
 
-subst su t@(FVar i)   = fromMaybe t (lookup i su)
-subst su (FApp t1 t2) = FApp (subst su t1) (subst su t2)
-subst _  (FTC l)      = FTC l
-subst su (FFunc i ts) = FFunc i (subst su <$> ts)
-subst _  s            = s
+subst (j,tj) t@(FVar i) 
+  | i == j    = tj
+  | otherwise = t
+subst su (FApp t1 t2)  
+  = FApp (subst su t1) (subst su t2)
+subst _  (FTC l)       
+  = FTC l
+subst su (FFunc t1 t2) 
+  = FFunc (subst su t1) (subst su t2)
+subst su@(j,_) tt@(FAbs i t)    
+  | i == j 
+  = tt
+  | otherwise
+  = FAbs i (subst su t)
+subst _  s             
+  = s
 
-generalize (FFunc n ts)
-  = do vs     <- refresh [0..n-1]
-       let sub = zip [0..n-1] (FVar <$> vs)
-       return $ FFunc 0 $ subst sub <$> ts
+
+generalize (FAbs i t)
+  = do v      <- refresh 0
+       return $  subst (i, FVar v) t
 generalize t
   = return t
 
@@ -453,9 +461,10 @@ apply θ          = sortMap f
 -------------------------------------------------------------------------
 sortMap :: (Sort -> Sort) -> Sort -> Sort
 -------------------------------------------------------------------------
-sortMap f (FFunc n ts) = FFunc n (sortMap f <$> ts)
-sortMap f (FApp t1 t2) = FApp  (sortMap f t1) (sortMap f t2)
-sortMap f t            = f t
+sortMap f (FAbs  i  t ) = FAbs i (sortMap f t )
+sortMap f (FFunc t1 t2) = FFunc  (sortMap f t1) (sortMap f t2)
+sortMap f (FApp  t1 t2) = FApp   (sortMap f t1) (sortMap f t2)
+sortMap f t             = f t
 
 ------------------------------------------------------------------------
 -- | Deconstruct a function-sort ---------------------------------------

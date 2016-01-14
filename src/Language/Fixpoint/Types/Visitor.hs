@@ -202,18 +202,20 @@ isConc = null . kvars
 foldSort :: (a -> Sort -> a) -> a -> Sort -> a
 foldSort f = step
   where
-    step b t          = go (f b t) t
-    go b (FFunc _ ts) = L.foldl' step b ts
-    go b (FApp t1 t2) = L.foldl' step b [t1, t2]
-    go b _            = b
+    step b t           = go (f b t) t
+    go b (FFunc t1 t2) = L.foldl' step b [t1,t2]
+    go b (FApp t1 t2)  = L.foldl' step b [t1, t2]
+    go b (FAbs _ t)    = go b t 
+    go b _             = b
 
 mapSort :: (Sort -> Sort) -> Sort -> Sort
 mapSort f = step
   where
-    step            = go . f
-    go (FFunc n ts) = FFunc n $ step <$> ts
-    go (FApp t1 t2) = FApp (step t1) (step t2)
-    go t            = t
+    step             = go . f
+    go (FAbs  i t  ) = FAbs i $ step t
+    go (FApp  t1 t2) = FApp  (step t1) (step t2)
+    go (FFunc t1 t2) = FFunc (step t1) (step t2)
+    go t             = t
 
 
 ---------------------------------------------------------------

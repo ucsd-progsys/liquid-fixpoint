@@ -26,7 +26,6 @@ import qualified Language.Fixpoint.Types.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.HashSet             as S
 import qualified Data.List as L
-import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
 import           Text.Printf
 
@@ -178,7 +177,7 @@ dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropWfcFunctions fi = fi { F.ws = ws' }
   where
-    nonFunction   = isNothing . F.functionSort
+    nonFunction   = not . F.isFunctionSort
     (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
     ws'           = deleteWfCBinds discards          <$> F.ws fi
 

@@ -297,12 +297,7 @@ smtDecls me xts = forM_ xts (smtDecl me)
 smtDecl :: Context -> Var -> IO ()
 smtDecl me v = interact' me (Declare (vname v) ins out)
   where
-    (ins, out) = deconSort $ vsort v
-
-deconSort :: Sort -> ([Sort], Sort)
-deconSort t = case functionSort t of
-                Just (_, ins, out) -> (ins, out)
-                Nothing            -> ([] , t  )
+    (ins, out) = splitSortArgs $ vsort v
 
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)

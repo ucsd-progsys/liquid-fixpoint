@@ -176,7 +176,7 @@ instCands :: F.SEnv F.Sort -> [(F.Sort, [F.Var])]
 instCands env = filter isOk tyss
   where
     tyss      = groupList [(t, x) | (x, t) <- xts]
-    isOk      = isNothing . F.functionSort . fst
+    isOk      = not . F.isFunctionSort . fst
     xts       = F.toListSEnv env
 
 match :: [(F.Sort, [F.Var])] -> [F.Var] -> [F.Sort] -> [[F.Var]]

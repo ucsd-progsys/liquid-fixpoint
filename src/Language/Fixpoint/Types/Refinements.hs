@@ -56,7 +56,7 @@ module Language.Fixpoint.Types.Refinements (
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
   , reftPred, reftBind
-  , functionSort, isFunctionReft
+  , isFunctionReft
   , isNonTrivial
   , isSingletonReft
   , isEVar
@@ -83,7 +83,6 @@ import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Control.DeepSeq
-import           Data.Maybe                (isJust)
 -- import           Text.Printf               (printf)
 -- import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Names
@@ -623,7 +622,7 @@ pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
 mkProp :: Expr -> Expr 
 mkProp        = EApp (EVar propVar)
 
-propVar = makeVar propConName (FFunc 1 [FVar 0, boolSort])
+propVar = makeVar propConName (FAbs 0 $ FFunc(FVar 0) boolSort)
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------
@@ -657,7 +656,7 @@ mapPredReft f (Reft (v, p)) = Reft (v, f p)
 ---------------------------------------------------------------
 
 isFunctionReft :: Reft -> Bool
-isFunctionReft = isJust . functionSort . reftSort
+isFunctionReft = isFunctionSort . reftSort
 
 isNonTrivial :: Reftable r => r -> Bool
 isNonTrivial = not . isTauto

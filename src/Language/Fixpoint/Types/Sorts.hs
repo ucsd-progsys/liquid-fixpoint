@@ -37,7 +37,9 @@ module Language.Fixpoint.Types.Sorts (
   , fObj
 
   , sortSubst
-  , functionSort, isFunctionSort
+  , splitSortAbs, splitSortArgs, isFunctionSort
+
+  , mkFFun
   ) where
 
 import qualified Data.Binary as B
@@ -109,16 +111,22 @@ sortFTycon FNum    = Just numFTyCon
 sortFTycon (FTC c) = Just c
 sortFTycon _       = Nothing
 
-functionSort :: Sort -> Maybe (Int, [Sort], Sort)
-functionSort (FFunc n ts) = Just (n, its, t)
-  where
-    (its, t)              = safeUnsnoc "functionSort" ts
-functionSort _            = Nothing
 
+splitSortArgs :: Sort -> ([Sort], Sort)
+splitSortArgs = go []
+  where
+    go acc (FFunc sx s) = go (sx:acc) s 
+    go acc s            = (reverse acc, s)
+
+splitSortAbs :: Sort -> ([Int], Sort)
+splitSortAbs = go []
+  where
+    go acc (FAbs sx s) = go (sx:acc) s 
+    go acc s           = (reverse acc, s)
 
 isFunctionSort :: Sort -> Bool
 isFunctionSort (FFunc _ _) = True
-isFunctionSort _          = False
+isFunctionSort _           = False
 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
@@ -132,10 +140,17 @@ data Sort = FInt
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Sort !Sort      -- ^ type-var arity, in-ts ++ [out-t]
           | FTC   FTycon
-          | FApp  Sort Sort      -- ^ constructed type
-          | FAbs !Int Sort 
+          | FApp  !Sort !Sort      -- ^ constructed type
+          | FAbs  !Int Sort 
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+
+mkFFun :: Int -> [Sort] -> Sort 
+mkFFun i ss = go i
+  where
+    go i | i == 0 = foldl1 FApp ss   
+    go i = FAbs i (go (i-1))
+ 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
 
 instance Hashable FTycon where
@@ -149,21 +164,34 @@ instance Fixpoint Sort where
   toFix = toFixSort
 
 toFixSort :: Sort -> Doc
-toFixSort (FVar i)     = text "@"   <> parens (toFix i)
-toFixSort FInt         = text "int"
-toFixSort FReal        = text "real"
-toFixSort FFrac        = text "frac"
-toFixSort (FObj x)     = toFix x
-toFixSort FNum         = text "num"
-toFixSort (FFunc n ts) = text "func" <> parens (toFix n <> text ", " <> toFix ts)
-toFixSort (FTC c)      = toFix c
-toFixSort t@(FApp _ _) = toFixFApp (fApp' t)
+toFixSort (FVar i)      = text "@"   <> parens (toFix i)
+toFixSort FInt          = text "int"
+toFixSort FReal         = text "real"
+toFixSort FFrac         = text "frac"
+toFixSort (FObj x)      = toFix x
+toFixSort FNum          = text "num"
+toFixSort t@(FFunc _ _) = toFixFun 0 t
+toFixSort (FTC c)       = toFix c
+toFixSort t@(FAbs _ _)  = toFixFAbs t 
+toFixSort t@(FApp _ _)  = toFixFApp (fApp' t)
 
 toFixFApp            :: ListNE Sort -> Doc
 toFixFApp [t]        = toFixSort t
 toFixFApp [FTC c, t]
   | isListTC c       = brackets $ toFixSort t
 toFixFApp ts         = parens $ intersperse space (toFixSort <$> ts)
+
+-- TODO: this is represented as it used to be,
+-- type variables should be treated more properly now
+toFixFAbs :: Sort -> Doc 
+toFixFAbs t = toFixFun (length vs) s
+  where
+    (vs, s) = splitSortAbs t 
+
+toFixFun :: Int -> Sort -> Doc 
+toFixFun n t = text "func" <> parens (toFix n <> text ", " <> toFix (ts++[t']))
+  where
+    (ts, t') = splitSortArgs t
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
@@ -189,10 +217,10 @@ fTyconSort c
 ------------------------------------------------------------------------
 sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort
 ------------------------------------------------------------------------
-sortSubst θ t@(FObj x)   = fromMaybe t (M.lookup x θ)
-sortSubst θ (FFunc n ts) = FFunc n (sortSubst θ <$> ts)
-sortSubst θ (FApp t1 t2) = FApp (sortSubst θ t1) (sortSubst θ t2)
-sortSubst _  t           = t
+sortSubst θ t@(FObj x)    = fromMaybe t (M.lookup x θ)
+sortSubst θ (FFunc t1 t2) = FFunc (sortSubst θ t1) (sortSubst θ t2)
+sortSubst θ (FApp t1 t2)  = FApp  (sortSubst θ t1) (sortSubst θ t2)
+sortSubst _  t            = t
 
 
 instance B.Binary FTycon
