@@ -29,7 +29,7 @@ module Language.Fixpoint.Types.Sorts (
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
 
-  , intSort, realSort, boolSort, strSort, funcSort
+  , intSort, realSort, boolSort, strSort, funcSort, arrowSort
   , listFTyCon
   , isListTC
   , fTyconSymbol, symbolFTycon, fTyconSort
@@ -63,13 +63,14 @@ newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 type TCEmb a   = M.HashMap a FTycon
 
 intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
-intFTyCon  = TC $ dummyLoc "int"
-boolFTyCon = TC $ dummyLoc "bool"
-realFTyCon = TC $ dummyLoc "real"
-numFTyCon  = TC $ dummyLoc "num"
-funcFTyCon = TC $ dummyLoc "function"
-strFTyCon  = TC $ dummyLoc strConName
-listFTyCon = TC $ dummyLoc listConName
+intFTyCon   = TC $ dummyLoc "int"
+boolFTyCon  = TC $ dummyLoc "bool"
+realFTyCon  = TC $ dummyLoc "real"
+numFTyCon   = TC $ dummyLoc "num"
+funcFTyCon  = TC $ dummyLoc "function"
+strFTyCon   = TC $ dummyLoc strConName
+listFTyCon  = TC $ dummyLoc listConName
+arrowFTyCon = TC $ dummyLoc arrowConName
 
 isListConName :: LocSymbol -> Bool
 isListConName x = c == listConName || c == listLConName --"List"
@@ -144,7 +145,6 @@ data Sort = FInt
           | FAbs  !Int Sort 
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-
 mkFFun :: Int -> [Sort] -> Sort 
 mkFFun i ss = go i
   where
@@ -201,11 +201,12 @@ instance Fixpoint FTycon where
 -------------------------------------------------------------------------
 
 boolSort, intSort, realSort, strSort, funcSort :: Sort
-boolSort = fTyconSort boolFTyCon
-strSort  = fTyconSort strFTyCon
-intSort  = fTyconSort intFTyCon
-realSort = fTyconSort realFTyCon
-funcSort = fTyconSort funcFTyCon
+boolSort  = fTyconSort boolFTyCon
+strSort   = fTyconSort strFTyCon
+intSort   = fTyconSort intFTyCon
+realSort  = fTyconSort realFTyCon
+funcSort  = fTyconSort funcFTyCon
+arrowSort = fTyconSort arrowFTyCon
 
 fTyconSort :: FTycon -> Sort
 fTyconSort c

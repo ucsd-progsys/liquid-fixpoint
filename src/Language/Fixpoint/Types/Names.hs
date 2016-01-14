@@ -93,6 +93,10 @@ module Language.Fixpoint.Types.Names (
   , mulFuncName
   , divFuncName
 
+  , runFunName
+  , arrowConName
+  , castVarName
+
 ) where
 
 import           Control.DeepSeq             (NFData (..))
@@ -456,6 +460,13 @@ hpropConName = "HProp"
 strConName   = "Str"
 vvName       = "VV"
 
+
+runFunName :: Int -> Symbol
+castVarName :: String -> Symbol
+arrowConName :: Symbol
+runFunName i = symbol ("runFun@" ++ (show i))
+arrowConName = "Arrow"
+castVarName s = symbol ("cast@" ++ s)
 -- symSepName   :: Char
 -- symSepName   = '#' -- DO NOT EVER CHANGE THIS
 

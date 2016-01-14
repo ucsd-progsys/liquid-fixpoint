@@ -67,8 +67,8 @@ module Language.Fixpoint.Types.Refinements (
   , reftConjuncts
   , intKvar
   , vv_
-  , mkEApp, bmkEApp
-  , makeVar, makeVarWithLoc, locSymbolVar
+  , mkEApp, bmkEApp, splitArgs 
+  , makeVar, makeVarWithLoc, locSymbolVar, makeSMTVar
   , reftparam, reftSort
   , mapVarSymbol, mapVarSort  
   ) where
@@ -207,6 +207,10 @@ data VInfo = VInfo { isSMT :: Bool }
            | VNoInfo 
            deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+makeSMTVar :: Symbol -> Sort -> Var
+makeSMTVar x s 
+  = Var x s dummySpan (VInfo True)
+
 makeVar :: Symbol -> Sort -> Var
 makeVar x s = Var x s dummySpan (VInfo False)
 
@@ -279,6 +283,12 @@ pattern PTop   = PAnd []
 pattern PFalse = POr  [] 
 pattern EBot   = POr  [] 
 
+splitArgs :: Expr -> [Expr]
+splitArgs = go []
+  where
+    go acc (EApp e1 e2) = go (e1:acc) e2
+    go acc (ETick _ e)  = go acc e 
+    go acc e            = e:reverse acc 
 
 mkEApp :: Var -> [Expr] -> Expr
 mkEApp f es = foldl EApp (EVar f) es

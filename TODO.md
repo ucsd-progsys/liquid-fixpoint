@@ -1,6 +1,3 @@
 # TODO
 
-
-- fix SortChecking   SortCheck.hs
-- fix smt Application Serialize.hs
-- mkApp in BitVector
+- rewrite sortchecker using sorts on variables

@@ -213,7 +213,7 @@ checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
-checkExpr f (EApp f e)     = checkApp f Nothing f e 
+checkExpr f (EApp e1 e2)   = checkApp f Nothing e1 e2  
 checkExpr _ PTrue          = return boolSort
 checkExpr _ PFalse         = return boolSort
 checkExpr f (PNot p)       = checkPred f p >> return boolSort
@@ -256,25 +256,23 @@ checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
-checkApp :: Env -> (Maybe Sort) -> Expr -> Expr 
-checkApp f to g es
-  = undefined -- snd <$> checkApp' f to g es
-{-
--- | Helper for checking uninterpreted function applications
-checkApp' f to g es
-  = do gt           <- checkLocSym f g
-       gt'          <- generalize gt
-       (_, its, ot) <- sortFunction gt'
-       unless (length its == length es) $ throwError (errArgArity g its es)
-       ets          <- mapM (checkExpr f) es
-       θ            <- unifys its ets
-       let t         = apply θ ot
-       case to of
-         Nothing    -> return (θ, t)
-         Just t'    -> do θ' <- unifyMany θ [t] [t']
-                          return (θ', apply θ' t)
 
--}
+-- NIKI TODO: if there is an application to an interpreted function check it is fully applied
+
+checkApp :: Env -> (Maybe Sort) -> Expr -> Expr -> CheckM Sort
+checkApp f to ef e 
+  = do tf <- checkExpr f ef 
+       unless (isFunctionSort tf) $ throwError (errNonFunction tf)
+       let (FFunc s1 s2) = tf 
+       se <- checkExpr f e 
+       θ  <- unifys [s1] [se]
+       applyUnify θ to s2 
+
+applyUnify θ Nothing   s
+ = return $ apply θ s
+applyUnify θ (Just s') s 
+  = (`apply` s) <$> (unifyMany θ [s'] [s])
+
 -- | Helper for checking binary (numeric) operations
 
 checkNeg f e = do
@@ -328,8 +326,8 @@ checkBoolSort e s
 
 -- | Checking Relations
 checkRel :: (Var -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
-checkRel _f Eq (EVar _x) (EApp _g _es) = error "TODO checkRel" -- checkRelEqVar f x g es
-checkRel _f Eq (EApp _g _es) (EVar _x) = error "TODO checkRel" -- checkRelEqVar f x g es
+checkRel f Eq (EVar x) (EApp g es) = checkRelEqVar f x g es
+checkRel f Eq (EApp g es) (EVar x) = checkRelEqVar f x g es
 checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
@@ -358,11 +356,9 @@ checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwErr
 
 
 -- | Special case for polymorphic singleton variable equality e.g. (x = Set_emp)
-{-
 checkRelEqVar f x g es             = do tx <- checkSym f x
                                         _  <- checkApp f (Just tx) g es
                                         return ()
--}
 
 -------------------------------------------------------------------------
 -- | Sort Unification
@@ -520,7 +516,7 @@ errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s
 errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
                         (showpp x)
                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
--- errNonFunction t     = printf "Sort %s is not a function" (showpp t)
+errNonFunction t     = printf "Sort %s is not a function" (showpp t)
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
 errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)
