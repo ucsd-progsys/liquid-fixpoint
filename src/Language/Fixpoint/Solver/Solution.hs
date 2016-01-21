@@ -81,13 +81,13 @@ instance NFData EQual
 
 {- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
 
-eQual :: F.Qualifier -> [F.Symbol] -> EQual
+eQual :: F.Qualifier -> [F.Var] -> EQual
 eQual q xs = EQL q p es
   where
     p      = F.subst su $  F.q_body q
     su     = F.mkSubst  $  safeZip "eQual" qxs es
-    es     = F.eVar    <$> xs
-    qxs    = fst       <$> F.q_params q
+    es     = F.EVar    <$> xs
+    qxs    = F.q_params q
 
 ------------------------------------------------------------------------
 -- | Update Solution ---------------------------------------------------
@@ -139,48 +139,47 @@ refine :: F.SInfo a
 refine fi qs w = refineK env qs $ F.wrft w
   where
     env        = wenv <> genv
-    wenv       = F.sr_sort <$> (F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w))
+    wenv       = F.reftSort <$> (F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w))
     genv       = F.lits fi
 
-refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, KBind)
-refineK env qs (v, t, k) = (k, eqs')
+refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Var, F.KVar) -> (F.KVar, KBind)
+refineK env qs (v, k) = (k, eqs')
    where
-    eqs                  = instK env v t qs
-    eqs'                 = filter (okInst env v t) eqs
+    eqs                  = instK env v qs
+    eqs'                 = filter (okInst env v) eqs
     -- msg                  = "refineK: " ++ show k
 
 --------------------------------------------------------------------
 instK :: F.SEnv F.Sort
-      -> F.Symbol
-      -> F.Sort
+      -> F.Var
       -> [F.Qualifier]
       -> [EQual]
 --------------------------------------------------------------------
-instK env v t = unique . concatMap (instKQ env v t)
+instK env v = unique . concatMap (instKQ env v)
   where
     unique = L.nubBy ((. eqPred) . (==) . eqPred)
 
 instKQ :: F.SEnv F.Sort
-       -> F.Symbol
-       -> F.Sort
+       -> F.Var
        -> F.Qualifier
        -> [EQual]
-instKQ env v t q
+instKQ env v q
   = do (su0, v0) <- candidates [(t, [v])] qt
        xs        <- match tyss [v0] (So.apply su0 <$> qts)
        return     $ eQual q (reverse xs)
     where
-       qt : qts   = snd <$> F.q_params q
+       qt : qts   = F.vsort <$> F.q_params q
        tyss       = instCands env
+       t          = F.vsort v 
 
-instCands :: F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
+instCands :: F.SEnv F.Sort -> [(F.Sort, [F.Var])]
 instCands env = filter isOk tyss
   where
     tyss      = groupList [(t, x) | (x, t) <- xts]
-    isOk      = isNothing . F.functionSort . fst
+    isOk      = not . F.isFunctionSort . fst
     xts       = F.toListSEnv env
 
-match :: [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
+match :: [(F.Sort, [F.Var])] -> [F.Var] -> [F.Sort] -> [[F.Var]]
 match tyss xs (t : ts)
   = do (su, x) <- candidates tyss t
        match tyss (x : xs) (So.apply su <$> ts)
@@ -188,7 +187,7 @@ match _   xs []
   = return xs
 
 -----------------------------------------------------------------------
-candidates :: [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
+candidates :: [(F.Sort, [F.Var])] -> F.Sort -> [(So.TVSubst, F.Var)]
 -----------------------------------------------------------------------
 candidates tyss tx
   = [(su, y) | (t, ys) <- tyss
@@ -198,13 +197,12 @@ candidates tyss tx
     mono = So.isMono tx
 
 -----------------------------------------------------------------------
-okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> EQual -> Bool
+okInst :: F.SEnv F.Sort -> F.Var -> EQual -> Bool
 -----------------------------------------------------------------------
-okInst env v t eq = isNothing tc
+okInst env v eq = isNothing tc
   where
-    sr            = F.RR t (F.Reft (v, p))
     p             = eqPred eq
-    tc            = So.checkSorted env sr
+    tc            = So.checkSorted env (F.Reft (v, p))
 
 ---------------------------------------------------------------------
 -- | Apply Solution -------------------------------------------------
@@ -247,11 +245,10 @@ instance Solvable F.Reft where
 instance Solvable F.SortedReft where
   apply s = apply s . F.sr_reft
 
-instance Solvable (F.Symbol, F.SortedReft) where
-  apply s (x, sr)   = p `F.subst1` (v, F.eVar x)
+instance Solvable (F.Var, F.Reft) where
+  apply s (x,  F.Reft (v, r))   = p `F.subst1` (v, F.EVar x)
     where
       p             = apply s r
-      F.Reft (v, r) = F.sr_reft sr
 
 instance Solvable a => Solvable [a] where
   apply s = F.pAnd . fmap (apply s)

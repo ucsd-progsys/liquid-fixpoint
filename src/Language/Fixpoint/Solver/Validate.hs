@@ -1,6 +1,7 @@
 -- | Validate and Transform Constraints to Ensure various Invariants -------------------------
 --   1. Each binder must be associated with a UNIQUE sort
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Language.Fixpoint.Solver.Validate
        ( -- * Validate FInfo
@@ -25,7 +26,6 @@ import qualified Language.Fixpoint.Types.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.HashSet             as S
 import qualified Data.List as L
-import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
 import           Text.Printf
 
@@ -55,7 +55,7 @@ banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
     bads = [q | q <- F.quals fi, not $ isOk q]
     lits = fst <$> (F.toListSEnv $ F.lits fi)
-    isOk q = F.syms (F.q_body q) `isSubset` (lits ++ (F.syms $ fst <$> (F.q_params q)))
+    isOk q = F.syms (F.q_body q) `isSubset` (lits ++ (F.syms $ F.q_params q))
 
 badQuals :: Misc.ListNE F.Qualifier -> E.Error
 badQuals = E.catErrors . map E.errFreeVarInQual
@@ -92,37 +92,37 @@ badRhs1 (i, c) = E.err E.dummySpan $ printf "Malformed RHS for %d : %s \n"
 ---------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 ---------------------------------------------------------------------------
-symbolSorts :: F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
+symbolSorts :: F.GInfo c a -> ValidateM [F.Var]
 ---------------------------------------------------------------------------
 symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize  = fmap (map (unShadow dm))
-    dm         = M.fromList defs
-    defs       = F.toListSEnv $ F.lits fi
+    dm         = S.fromList defs
+    defs       = F.keysSEnv $ F.lits fi
 
-unShadow :: M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
-unShadow dm (x, t)
-  | M.member x dm  = (x, t)
-  | otherwise      = (x, defuncSort t)
+unShadow :: S.HashSet F.Var -> F.Var -> F.Var
+unShadow dm x
+  | S.member x dm  = x
+  | otherwise      = F.mapVarSort defuncSort x
 
 defuncSort :: F.Sort -> F.Sort
 defuncSort (F.FFunc {}) = F.funcSort
 defuncSort t            = t
 
-compact :: [(F.Symbol, F.Sort)] -> Either E.Error [(F.Symbol, F.Sort)]
+compact :: [F.Var] -> Either E.Error [F.Var]
 compact xts
-  | null bad  = Right [(x, t) | (x, [t]) <- ok ]
+  | null bad  = Right (fst <$> ok)
   | otherwise = Left $ dupBindErrors bad'
   where
     bad'      = [(x, (, []) <$> ts) | (x, ts) <- bad]
-    (bad, ok) = L.partition multiSorted . binds $ xts
+    (bad, ok) = L.partition multiSorted . binds $ ((\x -> (x, F.vsort x)) <$> xts)
     binds     = M.toList . M.map Misc.sortNub . Misc.group
 
 ---------------------------------------------------------------------------
-bindSorts  :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
+bindSorts  :: F.GInfo c a -> Either E.Error [F.Var]
 ---------------------------------------------------------------------------
 bindSorts fi
-  | null bad   = Right [ (x, t) | (x, [(t, _)]) <- ok ]
+  | null bad   = Right (fst <$> ok)
   | otherwise  = Left $ dupBindErrors [ (x, ts) | (x, ts) <- bad]
   where
     (bad, ok)  = L.partition multiSorted . binds $ fi
@@ -132,7 +132,7 @@ bindSorts fi
 multiSorted :: (x, [t]) -> Bool
 multiSorted = (1 <) . length . snd
 
-dupBindErrors :: [(F.Symbol, [(F.Sort, [F.BindId] )])] -> E.Error
+dupBindErrors :: [(F.Var, [(F.Sort, [F.BindId] )])] -> E.Error
 dupBindErrors = foldr1 E.catError . map dbe
   where
    dbe (x, y) = E.err E.dummySpan $ printf "Multiple sorts for %s : %s \n" (showpp x) (showpp y)
@@ -146,10 +146,10 @@ symBinds  = {- THIS KILLS ELEM: tracepp "symBinds" . -}
           . Misc.group
           . binders
 
-type SymBinds = (F.Symbol, [(F.Sort, [F.BindId])])
+type SymBinds = (F.Var, [(F.Sort, [F.BindId])])
 
-binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
-binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
+binders :: F.BindEnv -> [(F.Var, (F.Sort, F.BindId))]
+binders be = [(x, (F.reftSort t, i)) | (i, x, t) <- F.bindEnvToList be]
 
 
 ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropWfcFunctions fi = fi { F.ws = ws' }
   where
-    nonFunction   = isNothing . F.functionSort
+    nonFunction   = not . F.isFunctionSort
     (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
     ws'           = deleteWfCBinds discards          <$> F.ws fi
 
@@ -194,7 +194,7 @@ dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.lits = lits'
     ws'             = deleteWfCBinds  discards   <$> F.ws fi
     lits'           = F.filterSEnv g (F.lits fi)
 
-type KeepBindF = F.Symbol -> F.Sort -> Bool
+type KeepBindF = F.Var -> F.Sort -> Bool
 type KeepSortF = F.Sort -> Bool
 
 deleteSubCBinds :: [F.BindId] -> F.SimpC a -> F.SimpC a
@@ -208,4 +208,4 @@ filterBindEnv f be  = (F.bindEnvFromList keep, discard')
   where
     (keep, discard) = L.partition f' $ F.bindEnvToList be
     discard'        = Misc.fst3     <$> discard
-    f' (_, x, t)    = f x (F.sr_sort t)
+    f' (_, x, t)    = f x (F.reftSort t)

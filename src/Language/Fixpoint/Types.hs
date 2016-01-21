@@ -14,6 +14,7 @@ module Language.Fixpoint.Types (
   , module Language.Fixpoint.Types.Substitutions
   , module Language.Fixpoint.Types.Environments
   , module Language.Fixpoint.Types.Constraints
+  , module Language.Fixpoint.Types.Bare
 
   ) where
 
@@ -26,3 +27,4 @@ import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
+import           Language.Fixpoint.Types.Bare

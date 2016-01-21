@@ -17,7 +17,7 @@ module Language.Fixpoint.Types.Environments (
 
   -- * Environments
     SEnv, SESearch(..)
-  , emptySEnv, toListSEnv, fromListSEnv
+  , emptySEnv, toListSEnv, fromListSEnv, keysSEnv
   , mapSEnvWithKey, mapSEnv
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , intersectWithSEnv
@@ -58,21 +58,22 @@ type BindMap a     = M.HashMap BindId a
 
 newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
 
-newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
+newtype SEnv a     = SE { seBinds :: M.HashMap Var a }
                      deriving (Eq, Data, Typeable, Generic, Foldable, Traversable)
 
 data SizedEnv a    = BE { _beSize  :: Int
                         , beBinds :: BindMap a
                         } deriving (Eq, Show, Functor, Foldable, Generic, Traversable)
 
-type BindEnv       = SizedEnv (Symbol, SortedReft)
+type BindEnv       = SizedEnv (Var, Reft)
 -- Invariant: All BindIds in the map are less than beSize
 
 
-toListSEnv              ::  SEnv a -> [(Symbol, a)]
+toListSEnv              ::  SEnv a -> [(Var, a)]
 toListSEnv (SE env)     = M.toList env
 
-fromListSEnv            ::  [(Symbol, a)] -> SEnv a
+keysSEnv (SE env)       = M.keys env 
+fromListSEnv            ::  [(Var, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
 
 mapSEnv f (SE env)      = SE (fmap f env)
@@ -88,11 +89,11 @@ filterSEnv f (SE m)     = SE (M.filter f m)
 lookupSEnvWithDistance x (SE env)
   = case M.lookup x env of
      Just z  -> Found z
-     Nothing -> Alts $ symbol <$> alts
+     Nothing -> Alts  $ (symbol <$> alts)
   where
     alts       = takeMin $ zip (editDistance x' <$> ss) ss
-    ss         = symbolString <$> fst <$> M.toList env
-    x'         = symbolString x
+    ss         = symbolString . vname <$> fst <$> M.toList env
+    x'         = symbolString $ vname x
     takeMin xs = [z | (d, z) <- xs, d == getMin xs]
     getMin     = minimum . (fst <$>)
 
@@ -115,26 +116,26 @@ elemsIBindEnv (FB s) = S.toList s
 
 
 -- | Functions for Global Binder Environment
-insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
+insertBindEnv :: Var -> Reft -> BindEnv -> (BindId, BindEnv)
 insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
-bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
+bindEnvFromList :: [(BindId, Var, Reft)] -> BindEnv
 bindEnvFromList [] = emptyBindEnv
 bindEnvFromList bs = BE (1 + maxId) be
   where
     maxId          = maximum $ fst3 <$> bs
     be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
 
-bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
+bindEnvToList :: BindEnv -> [(BindId, Var, Reft)]
 bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
 
-mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
+mapBindEnv :: ((Var, Reft) -> (Var, Reft)) -> BindEnv -> BindEnv
 mapBindEnv f (BE n m) = BE n $ M.map f m
 
-lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
+lookupBindEnv :: BindId -> BindEnv -> (Var, Reft)
 lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
   where
     err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
@@ -142,7 +143,7 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 
-adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
+adjustBindEnv :: ((Var, Reft) -> (Var, Reft)) -> BindId -> BindEnv -> BindEnv
 adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
 
 instance Functor SEnv where
@@ -169,7 +170,7 @@ instance Monoid BindEnv where
   mappend b (BE 0 _) = b
   mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
-envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
+envCs :: BindEnv -> IBindEnv -> [(Var, Reft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
 instance Fixpoint (IBindEnv) where

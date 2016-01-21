@@ -1,3 +1,7 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE FlexibleContexts     #-}
+
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
 --   be in the same place as the @Term@ definitions.
@@ -15,14 +19,16 @@ module Language.Fixpoint.Types.Substitutions (
 import           Data.Maybe
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import           Data.Hashable 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf               (printf)
+
+import qualified Data.Semigroup as SG
 
 instance Monoid Subst where
   mempty  = emptySubst
@@ -36,13 +42,13 @@ catSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
   where
     s1'                     = subst θ2 <$> s1
 
-mkSubst :: [(Symbol, Expr)] -> Subst
+mkSubst :: (Hashable s, Eq s) => [(s, SExpr t s)] -> SSubst t s 
 mkSubst = Su . M.fromList . reverse
 
-isEmptySubst :: Subst -> Bool
+isEmptySubst :: SSubst t s  -> Bool
 isEmptySubst (Su xes) = M.null xes
 
-targetSubstSyms :: Subst -> [Symbol]
+targetSubstSyms :: Subst -> [Var]
 targetSubstSyms (Su ms) = syms $ M.elems ms
 
 instance Subable () where
@@ -69,25 +75,25 @@ instance Subable a => Subable (M.HashMap k a) where
   substf = M.map . substf
   substa = M.map . substa
 
-subst1Except :: (Subable a) => [Symbol] -> a -> (Symbol, Expr) -> a
+subst1Except :: (Subable a) => [Var] -> a -> (Var, Expr) -> a
 subst1Except xs z su@(x, _)
   | x `elem` xs = z
   | otherwise   = subst1 z su
 
-substfExcept :: (Symbol -> Expr) -> [Symbol] -> Symbol -> Expr
+substfExcept :: (Var -> Expr) -> [Var] -> Var -> Expr
 substfExcept f xs y = if y `elem` xs then EVar y else f y
 
-substExcept  :: Subst -> [Symbol] -> Subst
+substExcept  :: Subst -> [Var] -> Subst
 -- substExcept  (Su m) xs = Su (foldr M.delete m xs)
 substExcept (Su xes) xs = Su $ M.filterWithKey (const . not . (`elem` xs)) xes
 
-instance Subable Symbol where
+instance Subable Var where
   substa f                 = f
   substf f x               = subSymbol (Just (f x)) x
   subst su x               = subSymbol (Just $ appSubst su x) x -- subSymbol (M.lookup x s) x
   syms x                   = [x]
 
-appSubst :: Subst -> Symbol -> Expr
+appSubst :: Subst -> Var -> Expr
 appSubst (Su s) x = fromMaybe (EVar x) (M.lookup x s)
 
 subSymbol (Just (EVar y)) _ = y
@@ -96,8 +102,8 @@ subSymbol a               b = errorstar (printf "Cannot substitute symbol %s wit
 
 instance Subable Expr where
   syms                     = exprSymbols
-  substa f                 = substf (EVar . f)
-  substf f (EApp s es)     = EApp (substf f s) $ map (substf f) es
+  substa f                 = substf (expr . f)
+  substf f (EApp e1 e2)    = EApp (substf f e1) (substf f e2)
   substf f (ENeg e)        = ENeg (substf f e)
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
@@ -110,11 +116,13 @@ instance Subable Expr where
   substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
   substf _ p@(PKVar _ _)   = p
-  substf _  (PAll _ _)     = errorstar "substf: FORALL"
+  substf f (ETick t e)     = ETick t $ substf f e 
+  substf _ (PAll _ _)      = errorstar "substf: FORALL"
   substf _  p              = p
 
 
-  subst su (EApp f es)     = EApp (subst su f) $ map (subst su) es
+  subst su (EApp e1 e2)    = EApp (subst su e1) (subst su e2)
+  subst su (ETick t e)     = ETick t $ subst su e 
   subst su (ENeg e)        = ENeg (subst su e)
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst su e2)
@@ -136,26 +144,28 @@ instance Subable Expr where
 disjoint :: Subst -> [(Symbol, Sort)] -> Bool
 disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
   where
-    suSyms = S.fromList $ (syms $ M.elems su) ++ (syms $ M.keys su)
-    bsSyms = S.fromList $ syms $ fst <$> bs
+    suSyms = S.fromList $ (vname <$> (syms $ M.elems su)) ++ (vname <$> (syms $ M.keys su))
+    bsSyms = S.fromList $ fst <$> bs
 
 instance Monoid Expr where
   mempty      = PTrue
   mappend p q = pAnd [p, q]
   mconcat     = pAnd
 
-instance Monoid Reft where
-  mempty  = trueReft
-  mappend = meetReft
+instance SG.Semigroup Reft where
+  (<>) = meetReft
 
+meetReft :: Reft -> Reft -> Reft 
 meetReft (Reft (v, ra)) (Reft (v', ra'))
-  | v == v'          = Reft (v , ra  `mappend` ra')
-  | v == dummySymbol = Reft (v', ra' `mappend` (ra `subst1`  (v , EVar v')))
-  | otherwise        = Reft (v , ra  `mappend` (ra' `subst1` (v', EVar v )))
+  | v == v'          
+  = Reft (v , ra  `mappend` ra')
+  | vname v == dummySymbol 
+  = Reft (v', ra' `mappend` (ra `subst1`  (v , expr v')))
+  | otherwise        
+  = Reft (v , ra  `mappend` (ra' `subst1` (v', expr v )))
 
-instance Monoid SortedReft where
-  mempty        = RR mempty mempty
-  mappend t1 t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (mappend (sr_reft t1) (sr_reft t2))
+instance SG.Semigroup SortedReft where
+  t1 <> t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (sr_reft t1 SG.<> sr_reft t2)
 
 instance Subable Reft where
   syms (Reft (v, ras))      = v : syms ras
@@ -170,6 +180,7 @@ instance Subable SortedReft where
   substf f (RR so r) = RR so $ substf f r
   substa f (RR so r) = RR so $ substa f r
 
+{-
 instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
@@ -179,6 +190,7 @@ instance Reftable () where
   toReft _  = mempty
   ofReft _  = mempty
   params _  = []
+-}
 
 instance Reftable Reft where
   isTauto  = all isTautoPred . conjuncts . reftPred
@@ -186,7 +198,7 @@ instance Reftable Reft where
   toReft   = id
   ofReft   = id
   params _ = []
-  bot    _        = falseReft
+  bot (Reft(v,_)) = falseReft v 
   top (Reft(v,_)) = Reft (v, mempty)
 
 pprReft (Reft (v, p)) d
@@ -201,7 +213,8 @@ instance Reftable SortedReft where
   toReft   = sr_reft
   ofReft   = errorstar "No instance of ofReft for SortedReft"
   params _ = []
-  bot s    = s { sr_reft = falseReft }
+  bot s    = s { sr_reft = falseReft (reftparam $ sr_reft s)}
+  top s    = s { sr_reft = top $ sr_reft s }
 
 -- RJ: this depends on `isTauto` hence, here.
 instance PPrint Reft where
@@ -241,11 +254,12 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 -- | TODO: Rewrite using visitor -----------------------------------------------------
 --------------------------------------------------------------------------------
 
-exprSymbols :: Expr -> [Symbol]
+exprSymbols :: Expr -> [Var]
 exprSymbols = go
   where
     go (EVar x)           = [x]
-    go (EApp f es)        = val f : concatMap go es
+    go (EApp e1 e2)       = go e1 ++ go e2 
+    go (ETick _ e)        = go e 
     go (ENeg e)           = go e
     go (EBin _ e1 e2)     = go e1 ++ go e2
     go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2
@@ -257,5 +271,5 @@ exprSymbols = go
     go (PImp p1 p2)       = go p1 ++ go p2
     go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
     go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.keys su) ++ syms (M.elems su)
-    go (PAll xts p)       = (fst <$> xts) ++ go p
+    go (PAll xts p)       = ((uncurry makeVar) <$> xts) ++ go p
     go _                  = []

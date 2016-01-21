@@ -7,12 +7,12 @@ module Language.Fixpoint.Solver.Eliminate
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars)
 import           Language.Fixpoint.Solver.Deps     (depNonCuts, deps)
-import           Language.Fixpoint.Misc            (fst3, errorstar)
+import           Language.Fixpoint.Misc            (errorstar)
 import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
 import           Data.List           (foldl')
-import           Control.Arrow       (first, second)
+import           Control.Arrow       (first)
 import           Control.DeepSeq     (($!!))
 
 
@@ -33,43 +33,43 @@ eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi { cm = remainingCs , w
     kDom = domain be kvWfC
     orPred = {-# SCC "orPred" #-} POr $!! extractPred kDom be <$> M.elems relevantCs
 
-extractPred :: [Symbol] -> BindEnv -> SimpC a -> Expr
+extractPred :: [Var] -> BindEnv -> SimpC a -> Expr
 extractPred kDom be sc = renameQuantified (subcId sc) kSol
   where
     env = clhs be sc
-    binds = second sr_sort <$> env
-    nonFuncBinds = filter (nonFunction be . fst) binds
-    lhsPreds = bindPred <$> env
-    suPreds = substPreds kDom $ crhs sc
-    kSol = PExist nonFuncBinds $ PAnd (lhsPreds ++ suPreds)
+    binds = env
+    nonFuncBinds = (\(v,_) -> (vname v, vsort v)) <$> filter (nonFunction be . fst) binds
+    lhsPreds     = bindPred <$> env
+    suPreds      = substPreds kDom $ crhs sc
+    kSol         = PExist nonFuncBinds $ PAnd (lhsPreds ++ suPreds)
 
 -- x:{v:int|v=10} -> (x=10)
-bindPred :: (Symbol, SortedReft) -> Expr
-bindPred (sym, sr) = subst1 (reftPred rft) sub
+bindPred :: (Var, Reft) -> Expr
+bindPred (sym, sr) = subst1 (reftPred sr) sub
   where
-    rft = sr_reft sr
-    sub = (reftBind rft, eVar sym)
+    sub = (reftBind sr, EVar sym)
 
 -- k0[v:=e1][x:=e2] -> [v = e1, x = e2]
-substPreds :: [Symbol] -> Expr -> [Expr]
-substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) e | (sym, e) <- M.toList subs , sym `elem` dom]
+substPreds :: [Var] -> Expr -> [Expr]
+substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (EVar sym) e | (sym, e) <- M.toList subs , sym `elem` dom]
 substPreds _ _ = errorstar "Eliminate.substPreds called on bad input"
 
-nonFunction :: BindEnv -> Symbol -> Bool
+nonFunction :: BindEnv -> Var -> Bool
 nonFunction be sym = sym `notElem` funcs
   where
-    funcs = [sym | (_, sym, sr) <- bindEnvToList be, isFunctionSortedReft sr]
+    funcs = [sym | (_, sym, sr) <- bindEnvToList be, isFunctionReft sr]
 
-domain :: BindEnv -> WfC a -> [Symbol]
-domain be wfc = (fst3 $ wrft wfc) : map fst (envCs be $ wenv wfc)
+domain :: BindEnv -> WfC a -> [Var]
+domain be wfc = (fst $ wrft wfc) : map fst (envCs be $ wenv wfc)
 
 renameQuantified :: Integer -> Expr -> Expr
 renameQuantified i (PExist bs p) = PExist bs' p'
   where
     su  = substFromQBinds i bs
-    bs' = (first $ subst su) <$> bs
+    bs' = (first (`existSymbol` i))  <$> bs
     p'  = subst su p
 renameQuantified _ _ = errorstar "Eliminate.renameQuantified called on bad input"
 
+-- NV TODO: change existentials to variables... 
 substFromQBinds :: Integer -> [(Symbol, Sort)] -> Subst
-substFromQBinds i bs = Su $ M.fromList [(s, EVar $ existSymbol s i) | s <- fst <$> bs]
+substFromQBinds i bs = Su $ M.fromList [(makeVar s t, EVar $ makeVar (existSymbol s i) t) | (s,t) <- bs]

@@ -41,7 +41,7 @@ import           Data.Maybe                (mapMaybe, fromMaybe)
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types hiding (subst)
+import           Language.Fixpoint.Types hiding (subst, Env)
 import           Language.Fixpoint.Types.Visitor (foldSort)
 
 import           Text.PrettyPrint.HughesPJ
@@ -86,7 +86,7 @@ isMono             = null . foldSort fv []
 type StateM = Int
 
 newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
-type Env      = Symbol -> SESearch Sort
+type Env      = Var -> SESearch Sort
 
 instance Monad CheckM where
   return x     = CM $ \i -> (i, Right x)
@@ -131,7 +131,7 @@ instance Freshable [Int] where
 -- | Checking Refinements -----------------------------------------------
 -------------------------------------------------------------------------
 
-checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
+checkSortedReft :: SEnv SortedReft -> [Var] -> SortedReft -> Maybe Doc
 checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
   where
     oops                  = Just . (text "Unknown symbols:" <+>) . toFix
@@ -193,6 +193,11 @@ instance Checkable SortedReft where
    where
      γ' = insertSEnv v s γ
 
+instance Checkable Reft where
+  check γ (Reft (v, ra)) = check γ' ra
+   where
+     γ' = insertSEnv v (vsort v) γ
+
 -------------------------------------------------------------------------
 -- | Checking Expressions -----------------------------------------------
 -------------------------------------------------------------------------
@@ -200,7 +205,6 @@ instance Checkable SortedReft where
 checkExpr                  :: Env -> Expr -> CheckM Sort
 
 checkExpr _ EBot           = throwError "Type Error: Bot"
-checkExpr _ (ESym _)       = return strSort
 checkExpr _ (ECon (I _))   = return FInt
 checkExpr _ (ECon (R _))   = return FReal
 checkExpr _ (ECon (L _ s)) = return s
@@ -209,7 +213,7 @@ checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
-checkExpr f (EApp g es)    = checkApp f Nothing g es
+checkExpr f (EApp e1 e2)   = checkApp f Nothing e1 e2  
 checkExpr _ PTrue          = return boolSort
 checkExpr _ PFalse         = return boolSort
 checkExpr f (PNot p)       = checkPred f p >> return boolSort
@@ -224,8 +228,7 @@ checkExpr _ PTop           = return boolSort
 checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
 checkExpr _ (PExist _ _)   = error "SortCheck.checkExpr: TODO: implement PExist"
 
-checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
-checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
+checkExpr f (ETick _ e)    = checkExpr f e 
 
 -- | Helper for checking symbol occurrences
 
@@ -235,7 +238,7 @@ checkSym f x
      Alts xs -> throwError $ errUnboundAlts x xs
 --   $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
-checkLocSym f x = checkSym f (val x)
+_checkLocSym f x = checkSym f (val x)
 
 -- | Helper for checking if-then-else expressions
 
@@ -253,23 +256,22 @@ checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
-checkApp f to g es
-  = snd <$> checkApp' f to g es
 
--- | Helper for checking uninterpreted function applications
-checkApp' f to g es
-  = do gt           <- checkLocSym f g
-       gt'          <- generalize gt
-       (_, its, ot) <- sortFunction gt'
-       unless (length its == length es) $ throwError (errArgArity g its es)
-       ets          <- mapM (checkExpr f) es
-       θ            <- unifys its ets
-       let t         = apply θ ot
-       case to of
-         Nothing    -> return (θ, t)
-         Just t'    -> do θ' <- unifyMany θ [t] [t']
-                          return (θ', apply θ' t)
+-- NIKI TODO: if there is an application to an interpreted function check it is fully applied
 
+checkApp :: Env -> (Maybe Sort) -> Expr -> Expr -> CheckM Sort
+checkApp f to ef e 
+  = do tf <- checkExpr f ef 
+       unless (isFunctionSort tf) $ throwError (errNonFunction tf)
+       let (FFunc s1 s2) = tf 
+       se <- checkExpr f e 
+       θ  <- unifys [s1] [se]
+       applyUnify θ to s2 
+
+applyUnify θ Nothing   s
+ = return $ apply θ s
+applyUnify θ (Just s') s 
+  = (`apply` s) <$> (unifyMany θ [s'] [s])
 
 -- | Helper for checking binary (numeric) operations
 
@@ -301,12 +303,12 @@ checkOpTy _ e t t'
   = throwError $ errOp e t t'
 
 checkFractional f l
-  = do t <- checkSym f l
+  = do t <- checkSym f (makeVar l FInt) -- hack!
        unless (t == FFrac) (throwError $ errNonFractional l)
        return ()
 
 checkNumeric f l
-  = do t <- checkSym f l
+  = do t <- checkSym f (makeVar l FInt)
        unless (t == FNum) (throwError $ errNonNumeric l)
        return ()
 
@@ -323,7 +325,7 @@ checkBoolSort e s
  | otherwise     = throwError $ errBoolSort e s 
 
 -- | Checking Relations
-checkRel :: (Symbol -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
+checkRel :: (Var -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq (EVar x) (EApp g es) = checkRelEqVar f x g es
 checkRel f Eq (EApp g es) (EVar x) = checkRelEqVar f x g es
 checkRel f r  e1 e2                = do t1 <- checkExpr f e1
@@ -354,11 +356,9 @@ checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwErr
 
 
 -- | Special case for polymorphic singleton variable equality e.g. (x = Set_emp)
-
 checkRelEqVar f x g es             = do tx <- checkSym f x
                                         _  <- checkApp f (Just tx) g es
                                         return ()
-
 
 -------------------------------------------------------------------------
 -- | Sort Unification
@@ -399,12 +399,9 @@ unify1 θ (FApp t1 t2) (FApp t1' t2')
                             = unifyMany θ [t1, t2] [t1', t2']
 unify1 θ (FTC l1) (FTC l2)
   | isListTC l1 && isListTC l2          = return θ
-unify1 θ t1@(FFunc _ _ ) t2@(FFunc _ _) = do FFunc _ ts1 <- generalize t1
-                                             FFunc _ ts2 <- generalize t2
-                                             unifyMany θ ts1 ts2
-unify1 θ t1@(FFunc _ [_]) t2            = do FFunc _ [t1'] <- generalize t1
+unify1 θ t1@(FAbs _ _) t2               = do t1' <- generalize t1
                                              unifyMany θ [t1'] [t2]
-unify1 θ t1 t2@(FFunc _ [_])            = do FFunc _ [t2'] <- generalize t2
+unify1 θ t1 t2@(FAbs _ _)               = do t2' <- generalize t2
                                              unifyMany θ [t1] [t2']
 unify1 θ t1 t2
   | t1 == t2                = return θ
@@ -412,16 +409,27 @@ unify1 θ t1 t2
 -- unify1 _ FNum _          = Nothing
 
 
-subst su t@(FVar i)   = fromMaybe t (lookup i su)
-subst su (FApp t1 t2) = FApp (subst su t1) (subst su t2)
-subst _  (FTC l)      = FTC l
-subst su (FFunc i ts) = FFunc i (subst su <$> ts)
-subst _  s            = s
+subst (j,tj) t@(FVar i) 
+  | i == j    = tj
+  | otherwise = t
+subst su (FApp t1 t2)  
+  = FApp (subst su t1) (subst su t2)
+subst _  (FTC l)       
+  = FTC l
+subst su (FFunc t1 t2) 
+  = FFunc (subst su t1) (subst su t2)
+subst su@(j,_) tt@(FAbs i t)    
+  | i == j 
+  = tt
+  | otherwise
+  = FAbs i (subst su t)
+subst _  s             
+  = s
 
-generalize (FFunc n ts)
-  = do vs     <- refresh [0..n-1]
-       let sub = zip [0..n-1] (FVar <$> vs)
-       return $ FFunc 0 $ subst sub <$> ts
+
+generalize (FAbs i t)
+  = do v      <- refresh 0
+       return $  subst (i, FVar v) t
 generalize t
   = return t
 
@@ -450,14 +458,15 @@ apply θ          = sortMap f
 -------------------------------------------------------------------------
 sortMap :: (Sort -> Sort) -> Sort -> Sort
 -------------------------------------------------------------------------
-sortMap f (FFunc n ts) = FFunc n (sortMap f <$> ts)
-sortMap f (FApp t1 t2) = FApp  (sortMap f t1) (sortMap f t2)
-sortMap f t            = f t
+sortMap f (FAbs  i  t ) = FAbs i (sortMap f t )
+sortMap f (FFunc t1 t2) = FFunc  (sortMap f t1) (sortMap f t2)
+sortMap f (FApp  t1 t2) = FApp   (sortMap f t1) (sortMap f t2)
+sortMap f t             = f t
 
 ------------------------------------------------------------------------
 -- | Deconstruct a function-sort ---------------------------------------
 ------------------------------------------------------------------------
-
+{-
 sortFunction :: Sort -> CheckM (Int, [Sort], Sort)
 sortFunction (FFunc n ts') = return (n, ts, t)
   where
@@ -466,7 +475,7 @@ sortFunction (FFunc n ts') = return (n, ts, t)
     numArgs                = length ts' - 1
 
 sortFunction t             = throwError $ errNonFunction t
-
+-}
 
 ------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions ---------------------------
@@ -498,8 +507,8 @@ errOp e t t'
                          (showpp t) (showpp e)
   | otherwise        = printf "Operands have different types %s and %s in %s"
                          (showpp t) (showpp t') (showpp e)
-errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
-                         (showpp g) (length its) (length es) (showpp (EApp g es))
+-- errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
+--                          (showpp g) (length its) (length es) (showpp (EApp g es))
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
                          (showpp e1) (showpp t1) (showpp e2) (showpp t2)
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"

@@ -15,6 +15,8 @@ module Language.Fixpoint.Smt.Theories
        -- * Preamble to initialize SMT
      , preamble
 
+     , SMTInterp(issmtInter)
+
      ) where
 
 import           Prelude hiding (map)
@@ -24,6 +26,9 @@ import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
 import qualified Data.Text                as T
 import           Data.Text.Format         hiding (format)
+
+
+import Data.Maybe (isJust)
 
 
 --------------------------------------------------------------------------
@@ -166,6 +171,21 @@ sizeBv tc
     s               = val $ fTyconSymbol tc
 
 
+class SMTInterp a where
+  issmtInter :: a -> Bool
+
+instance SMTInterp Var where
+  issmtInter = issmtInterVar 
+
+instance SMTInterp Sort where
+  issmtInter = isJust . smt2Sort
+
+issmtInterVar :: Var -> Bool 
+issmtInterVar v = M.member (vname v) theorySymbols || isSMT (vinfo v)
+  where
+    isSMT (VInfo v) = v
+    isSMT _         = False 
+
 -------------------------------------------------------------------------------
 -- | Exported API -------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -183,11 +203,11 @@ smt2Sort (FApp (FTC bv) (FTC s))
   , Just n <- sizeBv s          = Just $ format "(_ BitVec {})" (Only n)
 smt2Sort _                      = Nothing
 
-smt2App :: LocSymbol -> [T.Text] -> Maybe T.Text
+smt2App :: Symbol -> [T.Text] -> Maybe T.Text
 smt2App f [d]
-  | val f == setEmpty = Just $ format "{}"             (Only emp)
-  | val f == setEmp   = Just $ format "(= {} {})"      (emp, d)
-  | val f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
+  | f == setEmpty = Just $ format "{}"             (Only emp)
+  | f == setEmp   = Just $ format "(= {} {})"      (emp, d)
+  | f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
 smt2App _ _           = Nothing
 
 

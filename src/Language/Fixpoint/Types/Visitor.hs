@@ -41,6 +41,9 @@ import qualified Data.List           as L
 import           Language.Fixpoint.Misc (sortNub)
 import           Language.Fixpoint.Types
 
+
+import           Data.Text                 (Text)
+
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
     ctxExpr :: ctx -> Expr -> ctx
@@ -93,7 +96,7 @@ instance Visitable Reft where
 instance Visitable SortedReft where
   visit v c (RR t r) = RR t <$> visit v c r
 
-instance Visitable (Symbol, SortedReft) where
+instance Visitable (Var, Reft) where
   visit v c (sym, sr) = (sym, ) <$> visit v c sr
 
 instance Visitable BindEnv where
@@ -120,11 +123,10 @@ visitExpr v = vE
     vE c e = accum acc >> step c' e' where c'  = ctxExpr v c e
                                            e'  = txExpr v c' e
                                            acc = accExpr v c' e
-    step _ e@EBot          = return e
-    step _ e@(ESym _)      = return e
     step _ e@(ECon _)      = return e
     step _ e@(EVar _)      = return e
-    step c (EApp f es)     = EApp f     <$> (vE c <$$> es)
+    step c (EApp e1 e2)    = EApp       <$> (vE c e1) <*> (vE c e2)
+    step c (ETick t e)     = ETick t    <$> vE c e
     step c (ENeg e)        = ENeg       <$> vE c e
     step c (EBin o e1 e2)  = EBin o     <$> vE c e1 <*> vE c e2
     step c (EIte p e1 e2)  = EIte       <$> vE c p  <*> vE c e1 <*> vE c e2
@@ -137,12 +139,7 @@ visitExpr v = vE
     step c (PAtom r e1 e2) = PAtom r    <$> vE c e1 <*> vE c e2
     step c (PAll xts p)    = PAll   xts <$> vE c p
     step c (PExist xts p)  = PExist xts <$> vE c p
-    step c (ETApp e s)     = (`ETApp` s) <$> vE c e
-    step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
-    step _ p@PTrue         = return p
-    step _ p@PFalse        = return p
-    step _ p@PTop          = return p
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -175,7 +172,7 @@ envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
   where
     squish    = S.toList  . S.fromList . concat
-    kvs       = kvars . sr_reft
+    kvs       = kvars 
 
 -- lhsKVars :: BindEnv -> SubC a -> [KVar]
 -- lhsKVars binds c = envKVs ++ lhsKVs
@@ -205,18 +202,21 @@ isConc = null . kvars
 foldSort :: (a -> Sort -> a) -> a -> Sort -> a
 foldSort f = step
   where
-    step b t          = go (f b t) t
-    go b (FFunc _ ts) = L.foldl' step b ts
-    go b (FApp t1 t2) = L.foldl' step b [t1, t2]
-    go b _            = b
+    step b t           = go (f b t) t
+    go b (FFunc t1 t2) = L.foldl' step b [t1,t2]
+    go b (FApp t1 t2)  = L.foldl' step b [t1, t2]
+    go b (FAbs _ t)    = go b t 
+    go b _             = b
 
 mapSort :: (Sort -> Sort) -> Sort -> Sort
 mapSort f = step
   where
-    step            = go . f
-    go (FFunc n ts) = FFunc n $ step <$> ts
-    go (FApp t1 t2) = FApp (step t1) (step t2)
-    go t            = t
+    step             = go . f
+    go (FAbs  i t  ) = FAbs i $ step t
+    go (FApp  t1 t2) = FApp  (step t1) (step t2)
+    go (FFunc t1 t2) = FFunc (step t1) (step t2)
+    go t             = t
+
 
 ---------------------------------------------------------------
 -- | String Constants -----------------------------------------
@@ -226,7 +226,7 @@ mapSort f = step
 -- symConstLits fi = [(symbol c, strSort) | c <- symConsts fi]
 
 class SymConsts a where
-  symConsts :: a -> [SymConst]
+  symConsts :: a -> [Text]
 
 instance  SymConsts (FInfo a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
@@ -252,12 +252,12 @@ instance SymConsts Reft where
 instance SymConsts Expr where
   symConsts = getSymConsts
 
-getSymConsts :: Visitable t => t -> [SymConst]
+getSymConsts :: Visitable t => t -> [Text]
 getSymConsts         = fold scVis () []
   where
-    scVis            = (defaultVisitor :: Visitor [SymConst] t)  { accExpr = sc }
-    sc _ (ESym c)    = [c]
-    sc _ _           = []
+    scVis            = (defaultVisitor :: Visitor [Text] t)  { accExpr = sc }
+    sc _ (ECon (L c s)) | s == strSort = [c]
+    sc _ _                             = []
 
 
 {-

@@ -44,6 +44,8 @@ mkSort s = fApp (fTyconSort bvTyCon) [ fTyconSort (sizeTyCon s) ]
 bvTyCon :: FTycon
 bvTyCon = symbolFTycon $ dummyLoc bitVecName
 
+bvSort = FApp (FTC bvTyCon)
+
 sizeTyCon    :: BvSize -> FTycon
 sizeTyCon    = symbolFTycon . dummyLoc . sizeName
 
@@ -57,12 +59,17 @@ instance Expression Bv where
 
 -- | Apply some bitvector operator to a list of arguments
 eOp :: BvOp -> [Expr] -> Expr
-eOp = EApp . opName
+eOp = mkEApp . opName
 
-opName :: BvOp -> LocSymbol
-opName BvAnd = dummyLoc bvAndName
-opName BvOr  = dummyLoc bvOrName
+opName :: BvOp -> Var
+opName BvAnd = makeSMTVar bvAndName bopSort
+opName BvOr  = makeSMTVar bvOrName  bopSort
 
+bopSort :: Sort 
+bopSort = FAbs v $ FFunc (FFunc s s) s
+  where
+    s = bvSort (FVar v)
+    v = 0 
 
 -- sizeSort     = (`FApp` [fObj $ dummyLoc $ symbol "obj"]) . sizeTC
 -- s32TyCon     = symbolFTycon $ dummyLoc size32Name

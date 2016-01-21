@@ -11,14 +11,13 @@
 module Language.Fixpoint.Smt.Serialize where
 
 import           Language.Fixpoint.Types
---import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
 import           Language.Fixpoint.Misc (errorstar)
-
+import           Language.Fixpoint.Smt.Defunctionalize
 {-
     (* (L t1 t2 t3) is now encoded as
         ---> (((L @ t1) @ t2) @ t3)
@@ -51,6 +50,8 @@ instance SMTLIB2 Sort where
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"
 
+instance SMTLIB2 Var where
+  smt2 = smt2 . vname 
 
 instance SMTLIB2 Symbol where
   smt2 s
@@ -60,12 +61,10 @@ instance SMTLIB2 Symbol where
 instance SMTLIB2 (Symbol, Sort) where
   smt2 (sym, t) = format "({} {})"  (smt2 sym, smt2 t)
 
-instance SMTLIB2 SymConst where
-  smt2 = smt2 . symbol
-
 instance SMTLIB2 Constant where
   smt2 (I n)   = format "{}" (Only n)
   smt2 (R d)   = format "{}" (Only d)
+  smt2 (L t s) | s == strSort = smt2 $ symbol t 
   smt2 (L t _) = format "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
 
 instance SMTLIB2 LocSymbol where
@@ -87,12 +86,10 @@ instance SMTLIB2 Brel where
   smt2 Le    = "<="
   smt2 _     = errorstar "SMTLIB2 Brel"
 
--- NV TODO: change the way EApp is printed 
 instance SMTLIB2 Expr where
-  smt2 (ESym z)         = smt2 (symbol z)
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
-  smt2 (EApp f es)      = smt2App f es
+  smt2 e@(EApp _ _)     = smt2App e 
   smt2 (ENeg e)         = format "(- {})"         (Only $ smt2 e)
   smt2 (EBin o e1 e2)   = smt2Bop o e1 e2
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
@@ -108,23 +105,38 @@ instance SMTLIB2 Expr where
   smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
   smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
+  smt2 (ETick _ e)      = smt2 e 
   smt2 _                = errorstar "smtlib2 Pred"
 
 smt2Bop o e1 e2
-  | o == Times || o == Div = smt2App (uOp o) [e1, e2]
+  | o == Times || o == Div = smt2OpApp (uOp o) [e1, e2]
   | otherwise  = format "({} {} {})" (smt2 o, smt2 e1, smt2 e2)
 
-uOp o | o == Times = dummyLoc mulFuncName
-      | o == Div   = dummyLoc divFuncName
+uOp o | o == Times = mulFuncName
+      | o == Div   = divFuncName
       | otherwise  = errorstar "Serialize.uOp called with bad arguments"
 
-smt2App :: LocSymbol -> [Expr] -> T.Text
-smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
+
+smt2App :: Expr -> T.Text 
+smt2App = smt2App' . splitArgs
+
+smt2App' :: [Expr] -> T.Text
+smt2App' (EVar f:es) | Thy.issmtInter f 
+  = fromMaybe (smt2AppU (EVar f:es)) (Thy.smt2App (vname f) (smt2 <$> es)) 
+smt2App' es 
+  = smt2AppU es 
+
+smt2AppU :: [Expr] -> T.Text
+smt2AppU es 
+  = format "({} {})" (smt2 (eapply $ length es), smt2many (smt2 . castToInt <$> es))
+
+smt2OpApp :: Symbol -> [Expr] -> T.Text
+smt2OpApp f es = fromMaybe (smt2OpApp' f ds) (Thy.smt2App f ds)
   where
    ds        = smt2 <$> es
 
-smt2App' f [] = smt2 f
-smt2App' f ds = format "({} {})" (smt2 f, smt2many ds)
+smt2OpApp' f [] = smt2 f
+smt2OpApp' f ds = format "({} {})" (smt2 f, smt2many ds)
 
 
 

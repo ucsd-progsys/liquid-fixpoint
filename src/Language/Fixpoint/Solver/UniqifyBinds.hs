@@ -16,7 +16,6 @@ import           Data.Foldable       (foldl')
 import           Data.Maybe          (catMaybes, fromJust, isJust)
 import           Data.Hashable       (Hashable)
 import           GHC.Generics        (Generic)
-import           Control.Arrow       (second)
 import           Control.DeepSeq     (NFData, ($!!))
 
 --------------------------------------------------------------
@@ -40,7 +39,7 @@ type IdMap = M.HashMap Ref (S.HashSet BindId)
 
 -- map from old name and sort to new name, represented by a hashmap containing
 -- association lists. Nothing as new name means same as old
-type RenameMap = M.HashMap Symbol [(Sort, Maybe Symbol)]
+type RenameMap = M.HashMap Var [(Sort, Maybe Var)]
 
 --------------------------------------------------------------
 mkIdMap :: SInfo a -> IdMap
@@ -57,17 +56,17 @@ updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
     symSet = S.fromList $ syms $ crhs s
     refSet = namesToIds symSet nameMap
 
-insertIdIdLinks :: BindEnv -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
+insertIdIdLinks :: BindEnv -> M.HashMap Var BindId -> IdMap -> BindId -> IdMap
 insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
   where
     sr = snd $ lookupBindEnv i be
-    symSet = freeVars $ sr_reft sr
+    symSet = freeVars sr
     refSet = namesToIds symSet nameMap
 
-namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId
+namesToIds :: S.HashSet Var -> M.HashMap Var BindId -> S.HashSet BindId
 namesToIds syms m = S.fromList $ catMaybes [M.lookup sym m | sym <- S.toList syms] --TODO why any Nothings?
 
-freeVars :: Reft -> S.HashSet Symbol
+freeVars :: Reft -> S.HashSet Var
 freeVars rft@(Reft (v, _)) = S.delete v $ S.fromList $ syms rft
 --------------------------------------------------------------
 
@@ -80,17 +79,18 @@ mkRenameMap be = foldl' (addId be) M.empty ids
 
 addId :: BindEnv -> RenameMap -> BindId -> RenameMap
 addId be m i
-  | M.member sym m = addDupId m sym t i
-  | otherwise      = M.insert sym [(t, Nothing)] m
+  | M.member sym m = addDupId m sym i
+  | otherwise      = M.insert sym [(vsort sym, Nothing)] m
   where
-    (sym, t)       = second sr_sort $ lookupBindEnv i be
+    sym = fst $ lookupBindEnv i be
 
-addDupId :: RenameMap -> Symbol -> Sort -> BindId -> RenameMap
-addDupId m sym t i
+addDupId :: RenameMap -> Var -> BindId -> RenameMap
+addDupId m sym i
   | isJust $ L.lookup t mapping = m
-  | otherwise                   = M.insert sym ((t, Just $ renameSymbol sym i) : mapping) m
+  | otherwise                   = M.insert sym ((t, Just $ mapVarSymbol (`renameSymbol` i) sym) : mapping) m
   where
     mapping = fromJust $ M.lookup sym m
+    t       = vsort sym 
 --------------------------------------------------------------
 
 --------------------------------------------------------------
@@ -101,13 +101,13 @@ renameVars fi rnMap idMap = M.foldlWithKey' (updateRef rnMap) fi idMap
 updateRef :: RenameMap -> SInfo a -> Ref -> S.HashSet BindId -> SInfo a
 updateRef rnMap fi rf bset = applySub (mkSubst subs) fi rf
   where
-    symTList = [second sr_sort $ lookupBindEnv i $ bs fi | i <- S.toList bset]
+    symTList = [fst $ lookupBindEnv i $ bs fi | i <- S.toList bset]
     subs = catMaybes $ mkSubUsing rnMap <$> symTList
 
-mkSubUsing :: RenameMap -> (Symbol, Sort) -> Maybe (Symbol, Expr)
-mkSubUsing m (sym, t) = do
-  newName <- fromJust $ L.lookup t $ mlookup m sym
-  return (sym, eVar newName)
+mkSubUsing :: RenameMap -> Var -> Maybe (Var, Expr)
+mkSubUsing m sym = do
+  newName <- fromJust $ L.lookup (vsort sym) $ mlookup m sym
+  return (sym, EVar newName)
 
 applySub :: Subst -> SInfo a -> Ref -> SInfo a
 applySub sub fi (RB i) = fi { bs = adjustBindEnv go i (bs fi) }
@@ -126,11 +126,11 @@ renameBinds fi m = fi { bs = bindEnvFromList $ renameBind m <$> beList }
   where
     beList = bindEnvToList $ bs fi
 
-renameBind :: RenameMap -> (BindId, Symbol, SortedReft) -> (BindId, Symbol, SortedReft)
+renameBind :: RenameMap -> (BindId, Var, Reft) -> (BindId, Var, Reft)
 renameBind m (i, sym, sr)
   | (Just newSym) <- mnewSym = (i, newSym, sr)
   | otherwise                = (i, sym,    sr)
   where
-    t       = sr_sort sr
+    t       = vsort $ reftparam sr
     mnewSym = fromJust $ L.lookup t $ mlookup m sym
 --------------------------------------------------------------
