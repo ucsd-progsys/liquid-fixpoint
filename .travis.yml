@@ -31,8 +31,19 @@ script:
  - scripts/travis do_build && scripts/travis do_test "$SMT"
  - scripts/travis clean_cache "$SMT"
 
+after_success:
+ - scripts/travis deploy_haddock
+
 after_failure:
  - scripts/travis dump_fail_logs
+
+env:
+  global:
+  - HADDOCK_DIR: "<wherever `cabal haddock` puts things>"
+  - GH_USER_NAME: "Travis CI"
+  - GH_USER_EMAIL: "???"
+  - GH_REPO: "github.com/ucsd-progsys/liquid-fixpoint.git"
+  # need to use `travis encrypt to set up GH_TOKEN
 
 notifications:
   slack:

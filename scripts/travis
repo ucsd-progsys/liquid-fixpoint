@@ -128,6 +128,18 @@ function test_source_pkg {
   fi
 }
 
+function deploy_haddock {
+  cd "${HADDOCK_DIR}"
+  echo "now in ${HADDOCK_DIR}"
+
+  loud git init
+  loud git config user.name "${GH_USER_NAME}"
+  loud git config user.email "${GH_USER_EMAIL}"
+  loud git add .
+  loud git commit -m "Deploy Haddock docs (via Travis CI)"
+  git push -f --quiet "https://${GH_TOKEN}@${GH_REPO}" master:gh-pages > /dev/null 2>&1
+}
+
 ## Run Test Stage
 
 stage="$1"
