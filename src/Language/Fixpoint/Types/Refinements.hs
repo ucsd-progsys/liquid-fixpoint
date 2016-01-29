@@ -397,10 +397,14 @@ instance PPrint SymConst where
 parensIf True  = parens
 parensIf False = id
 
--- NOTE: The following Expr and Pred printers use pprintPrec to print
--- expressions with minimal parenthesization. The precedence rules are somewhat
--- fragile, and it would be nice to have them directly tied to the parser, but
--- the general idea is (from lowest to highest precedence):
+----------------------------------------------------------------------
+-- Note [Precedence of Expr]
+----------------------------------------------------------------------
+-- The following Expr and Pred printers use pprintPrec to print
+-- expressions with minimal parenthesization. The precedence rules are
+-- somewhat fragile, and it would be nice to have them directly tied to
+-- the parser, but the general idea is (from lowest to highest
+-- precedence):
 --
 -- 1 - if-then-else
 -- 2 - => and <=>
@@ -411,10 +415,10 @@ parensIf False = id
 -- 7 - * and /
 -- 8 - function application
 --
--- Each printer `p` checks whether the precedence of the context is greater than
--- its own precedence. If so, the printer wraps itself in parentheses. Then it
--- sets the contextual precedence for recursive printer invocations to
--- (prec p + 1).
+-- Each printer `p` checks whether the precedence of the context is
+-- greater than its own precedence. If so, the printer wraps itself in
+-- parentheses. Then it sets the contextual precedence for recursive
+-- printer invocations to (prec p + 1).
 
 opPrec Mod   = 5
 opPrec Plus  = 6
@@ -431,7 +435,7 @@ instance PPrint Expr where
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
   pprintPrec z (EApp f es)     = parensIf (z > za) $
-                                   pprint f <> (pprintPrec (za+1) es)
+                                   pprint f <+> (pprintPrec (za+1) es)
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
