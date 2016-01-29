@@ -114,9 +114,9 @@ instance SMTLIB2 Expr where
   smt2 env (PNot p)         = format "(not {})"    (Only $ smt2  env p)
   smt2 env (PImp p q)       = format "(=> {} {})"  (smt2 env p, smt2 env q)
   smt2 env (PIff p q)       = format "(=  {} {})"  (smt2 env p, smt2 env q)
-  smt2 env (PExist bs p)    = format "(exists ({}) {})"  (smt2s env bs, smt2 env' p)
-    where
-      env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
+  smt2 env (PExist bs p)    = format "(exists ({}) {})"  (smt2s env bs, smt2 env p)
+--     where
+--       env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
   smt2 _   _                = errorstar "smtlib2 Pred"
 

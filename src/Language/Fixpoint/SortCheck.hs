@@ -92,7 +92,8 @@ sortExpr l γ e
       Left msg -> die $ err l ("sortExpr failed for " ++ showFix e ++ "\n with error\n" ++ msg)
       Right s  -> s 
   where
-    f = (`lookupSEnvWithDistance` γ)
+    f x = case traceShow ("Lookup for " ++ show x) $ lookupSEnv x γ of {Just x -> Found x; Nothing -> errorstar "dies!"}  
+         -- (`lookupSEnvWithDistance` γ)
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
