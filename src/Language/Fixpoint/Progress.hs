@@ -34,7 +34,7 @@ progressInit n = do
 
 mkPB   :: Int -> IO ProgressBar
 mkPB n = newProgressBar def { pgWidth       = 80
-                            , pgTotal       = n
+                            , pgTotal       = fromIntegral n
                             , pgFormat      = "Working :percent [:bar]"
                             , pgPendingChar = '.'
                             }
