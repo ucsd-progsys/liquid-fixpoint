@@ -309,6 +309,7 @@ deconSort t = case functionSort t of
 smtAssert :: Context -> Pred -> IO ()
 smtAssert me p' = interact' me (Assert Nothing p)
   where
+    -- BVHACK
     p           = monoBvOffset (cEnv me) p'
 
 

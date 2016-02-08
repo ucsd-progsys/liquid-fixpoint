@@ -205,7 +205,7 @@ envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
 
 
 --------------------------------------------------------------------------------
--- | A shady hack to get the bitvector tests to pass in pldi16-new.
+-- | BVHACK: A shady hack to get the bitvector tests to pass in pldi16-new.
 --       x ~~ offset(args) ===> x ~~ offsetBV(args) if x : BV
 --   It _should_ be subsumed by `elaborate` in develop/master.
 

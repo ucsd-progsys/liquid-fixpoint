@@ -95,6 +95,8 @@ z3Preamble
         (sel, map, elt, elt)
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
+    -- BVHACK
+    , "(declare-fun offsetBV (Int Int) (_ BitVec 32))"
     ]
 
 smtlibPreamble :: [T.Text]
