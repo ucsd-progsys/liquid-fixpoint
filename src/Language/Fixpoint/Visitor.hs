@@ -218,8 +218,9 @@ txMonoBV :: SEnv Sort -> Pred -> Pred
 txMonoBV env p@(PAtom r (EVar x) (EApp f es))
   | isBV env x
   = PAtom r (EVar x) (EApp (bvize f) es)
-  | otherwise
-  = p
+txMonoBV env p@(PAtom r (EApp f es) (EVar x))
+  | isBV env x
+  = PAtom r (EApp (bvize f) es) (EVar x)
 txMonoBV _ p
   = p
 
