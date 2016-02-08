@@ -76,18 +76,14 @@ solveFQ cfg = do fi      <- readFInfo file
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solve cfg fi
-  | parts cfg = partition  cfg     $!! fi
-  | stats cfg = statistics cfg     $!! fi
-  | otherwise = do saveBin cfg     $!! fi
-                   res <- sW s cfg $!! fi
-                   return          $!! res {- FIXME make this $!! -}
+  | parts cfg = partition  cfg       $!! fi
+  | stats cfg = statistics cfg       $!! fi
+  | otherwise = do saveQueryFile cfg $!! fi
+                   res <- sW s cfg   $!! fi
+                   return            $!! res {- FIXME make this $!! -}
   where
     s         = configSolver cfg
     sW        = configSW     cfg
-
-saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
-saveBin cfg fi = when (binary cfg) $ saveBinaryFile cfg fi
-  -- putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
 
 
 configSolver   :: (NFData a, Fixpoint a) => Config -> Solver a
@@ -322,31 +318,59 @@ parseFI f = do
 ---------------------------------------------------------------------------
 -- | Save Query to Binary File
 ---------------------------------------------------------------------------
-saveBinary :: Config -> IO ExitCode
----------------------------------------------------------------------------
-saveBinary cfg
-  | isBinary f = return ExitSuccess
-  | otherwise  = exit (ExitFailure 2) $ readFInfo f >>=
-                                        saveBinaryFile cfg >>
-                                        return ExitSuccess
-  where
-    f          = inFile cfg
+-- saveBinary :: Config -> IO ExitCode
+-- ---------------------------------------------------------------------------
+-- saveBinary cfg
+  -- | isBinary f = return ExitSuccess
+  -- | otherwise  = exit (ExitFailure 2) $ readFInfo f >>=
+                                        -- saveBinaryFile cfg >>
+                                        -- return ExitSuccess
+  -- where
+    -- f          = inFile cfg
+--
+-- saveBinaryFile :: Config -> FInfo a -> IO ()
+-- saveBinaryFile cfg fi = do
+  -- let fi'  = void fi
+  -- let file = binaryFile cfg
+  -- -- putStrLn $ "Saving Binary File: " ++ file ++ "\n"
+  -- ensurePath file
+  -- encodeFile file fi'
+--
+-- binaryFile :: Config -> FilePath
+-- binaryFile cfg = extFileName BinFq f
+  -- where
+    -- f          = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
+--
 
-saveBinaryFile :: Config -> FInfo a -> IO ()
-saveBinaryFile cfg fi = do
+--------------------------------------------------------------------------------
+saveQueryFile :: Config -> FInfo a -> IO ()
+--------------------------------------------------------------------------------
+saveQueryFile cfg fi = when (saveQuery cfg) $ do
   let fi'  = void fi
-  let file = binaryFile cfg
-  -- putStrLn $ "Saving Binary File: " ++ file ++ "\n"
-  ensurePath file
-  encodeFile file fi'
+  saveBinaryQuery cfg fi'
+  saveTextQuery   cfg fi'
 
-binaryFile :: Config -> FilePath
-binaryFile cfg = extFileName BinFq f
+saveBinaryQuery cfg fi = do
+  let bfq  = queryFile BinFq cfg
+  putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
+  ensurePath bfq
+  encodeFile bfq fi
+
+saveTextQuery cfg fi = do
+  let fq   = queryFile Fq cfg
+  putStrLn $ "Saving Text Query: " ++ fq ++ "\n"
+  ensurePath fq
+  writeFile fq $ render (toFixpoint cfg fi)
+
+queryFile :: Ext -> Config -> FilePath
+queryFile e cfg = extFileName e f
   where
-    f          = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
+    f           = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
 
 isBinary :: FilePath -> Bool
 isBinary = isExtFile BinFq
+
+
 
 
 ---------------------------------------------------------------------------

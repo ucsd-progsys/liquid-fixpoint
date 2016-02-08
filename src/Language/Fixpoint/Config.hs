@@ -56,6 +56,7 @@ data Config
     , binary      :: Bool                -- ^ save FInfo as binary file
     , extSolver   :: Bool                -- ^ use external (ocaml) solver
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
+    , saveQuery   :: Bool                -- ^ save query to file
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -78,6 +79,7 @@ instance Default Config where
                , parts       = def
                , binary      = def
                , extSolver   = def
+               , saveQuery   = False
                }
 
 instance Command Config where
@@ -162,6 +164,7 @@ config = Config {
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
   , extSolver   = False &= help "Use external (Ocaml) Solver"
+  , saveQuery   = False &= help "Save query to file"
   }
   &= verbosity
   &= program "fixpoint"
