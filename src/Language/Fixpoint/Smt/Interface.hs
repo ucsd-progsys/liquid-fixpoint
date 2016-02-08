@@ -56,6 +56,7 @@ import           Language.Fixpoint.Config (SMTSolver (..))
 import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Visitor (monoBvOffset)
 import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Smt.Theories (preamble)
 import           Language.Fixpoint.Smt.Serialize()
@@ -95,34 +96,35 @@ runCommands cmds
 
 
 makeZ3Context :: Bool -> FilePath -> [(Symbol, Sort)] -> IO Context
-makeZ3Context u f xts 
-  = do me <- makeContext u Z3 f 
-       smtDecls me xts 
-       return me 
+makeZ3Context u f xts
+  = do me <- makeContext u Z3 f xts
+       smtDecls me xts
+       return me
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
 checkValidWithContext me xts p q
-  = smtBracket me $ do smtDecls me xts
-                       smtAssert me $ pAnd [p, PNot q]
-                       smtCheckUnsat me
+  = smtBracket me $ do
+      smtDecls me xts
+      smtAssert me $ pAnd [p, PNot q]
+      smtCheckUnsat me
 
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
 checkValid :: Bool -> FilePath -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
 checkValid u f xts p q
-  = do me <- makeContext u Z3 f
+  = do me <- makeContext u Z3 f xts
        smtDecls me xts
        smtAssert me $ pAnd [p, PNot q]
        smtCheckUnsat me
 
--- | If you already HAVE a context, where all the variables have declared types 
+-- | If you already HAVE a context, where all the variables have declared types
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
 checkValids :: Bool -> FilePath -> [(Symbol, Sort)] -> [Pred] -> IO [Bool]
 checkValids u f xts ps
-  = do me <- makeContext u Z3 f
+  = do me <- makeContext u Z3 f xts
        smtDecls me xts
        forM ps $ \p ->
           smtBracket me $
@@ -213,10 +215,10 @@ hPutStrLnNow h !s   = TIO.hPutStrLn h s >> hFlush h
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-makeContext   :: Bool -> SMTSolver -> FilePath -> IO Context
+makeContext   :: Bool -> SMTSolver -> FilePath -> [(Symbol, Sort)] -> IO Context
 --------------------------------------------------------------------------
-makeContext u s f
-  = do me   <- makeProcess u s
+makeContext u s f xts
+  = do me   <- makeProcess u s xts
        pre  <- smtPreamble s me
        createDirectoryIfMissing True $ takeDirectory smtFile
        hLog <- openFile smtFile WriteMode
@@ -226,15 +228,15 @@ makeContext u s f
     where
        smtFile = extFileName Smt2 f
 
-makeContextNoLog :: Bool -> SMTSolver -> IO Context
-makeContextNoLog u s
-  = do me  <- makeProcess u s
+makeContextNoLog :: Bool -> SMTSolver -> [(Symbol, Sort)] -> IO Context
+makeContextNoLog u s xts
+  = do me  <- makeProcess u s xts
        pre <- smtPreamble s me
        mapM_ (smtWrite me) pre
        return me
 
-makeProcess :: Bool -> SMTSolver -> IO Context
-makeProcess u s
+makeProcess :: Bool -> SMTSolver -> [(Symbol, Sort)] -> IO Context
+makeProcess u s xts
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
        loud <- isLoud
        return Ctx { pId     = pid
@@ -242,7 +244,9 @@ makeProcess u s
                   , cOut    = hOut
                   , cLog    = Nothing
                   , verbose = loud
-                  , uninterp = u     }
+                  , uninterp = u
+                  , cEnv     = fromListSEnv xts
+                  }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
@@ -290,7 +294,7 @@ smtPop me         = interact' me Pop
 
 
 smtDecls :: Context -> [(Symbol, Sort)] -> IO ()
-smtDecls me xts = forM_ xts (\(x,t) -> smtDecl me x t)
+smtDecls me xts = forM_ xts (\(x, t) -> smtDecl me x t)
 
 smtDecl :: Context -> Symbol -> Sort -> IO ()
 smtDecl me x t = interact' me (Declare x ins out)
@@ -303,7 +307,10 @@ deconSort t = case functionSort t of
                 Nothing            -> ([] , t  )
 
 smtAssert :: Context -> Pred -> IO ()
-smtAssert me p    = interact' me (Assert Nothing p)
+smtAssert me p' = interact' me (Assert Nothing p)
+  where
+    p           = monoBvOffset (cEnv me) p'
+
 
 smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)

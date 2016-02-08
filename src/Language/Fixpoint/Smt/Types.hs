@@ -72,6 +72,7 @@ data Context      = Ctx { pId     :: ProcessHandle
                         , cLog    :: Maybe Handle
                         , verbose :: Bool
                         , uninterp :: Bool
+                        , cEnv     :: SEnv Sort
                         }
 
 -- | Theory Symbol

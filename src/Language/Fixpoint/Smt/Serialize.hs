@@ -8,7 +8,7 @@
 --   typeclass. We split it into a separate module as it depends on
 --   Theories (see @smt2App@).
 
-module Language.Fixpoint.Smt.Serialize where
+module Language.Fixpoint.Smt.Serialize () where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
@@ -60,7 +60,7 @@ instance SMTLIB2 (Symbol, Sort) where
   smt2 ctx (sym, t) = format "({} {})"  (smt2 ctx sym, smt2 ctx t)
 
 instance SMTLIB2 SymConst where
-  smt2 ctx = (smt2 ctx) . symbol
+  smt2 ctx = smt2 ctx . symbol
 
 instance SMTLIB2 Constant where
   smt2 _ (I n)   = format "{}" (Only n)
@@ -68,7 +68,7 @@ instance SMTLIB2 Constant where
   smt2 _ (L t _) = format "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
 
 instance SMTLIB2 LocSymbol where
-  smt2 ctx = (smt2 ctx) . val
+  smt2 ctx = smt2 ctx . val
 
 instance SMTLIB2 Bop where
   smt2 _ Plus  = "+"
@@ -97,11 +97,16 @@ instance SMTLIB2 Expr where
   smt2 ctx (ECst e _)       = smt2 ctx e
   smt2 ctx e                = error  $ "TODO: SMTLIB2 Expr: " ++ show e
 
-smt2Bop ctx o e1 e2 | (ctx && (o == Times || o == Div)) = smt2App ctx (uOp o) [e1, e2]
-                    | otherwise = format "({} {} {})"     (smt2 ctx o, smt2 ctx e1, smt2 ctx e2)
+smt2Bop ctx o e1 e2
+  | ctx && (o == Times || o == Div)
+  = smt2App ctx (uOp o) [e1, e2]
+  | otherwise
+  = format "({} {} {})"     (smt2 ctx o, smt2 ctx e1, smt2 ctx e2)
   where
     uOp o | o == Times = dummyLoc "Z3_OP_MUL"
           | o == Div   = dummyLoc "Z3_OP_DIV"
+
+
 
 smt2App :: Bool -> LocSymbol -> [Expr] -> T.Text
 
@@ -126,7 +131,6 @@ instance SMTLIB2 Pred where
   smt2 ctx (PBexp e)        = smt2 ctx e
   smt2 ctx (PAtom r e1 e2)  = mkRel ctx r e1 e2
   smt2 ctx _                = error "smtlib2 Pred"
-
 
 mkRel ctx Ne  e1 e2         = mkNe ctx e1 e2
 mkRel ctx Une e1 e2         = mkNe ctx e1 e2

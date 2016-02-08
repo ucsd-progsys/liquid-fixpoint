@@ -148,6 +148,10 @@ tSym x n t = (x, Thy x n t)
 isBv :: FTycon -> Bool
 isBv = (bitVecName ==) . val . fTyconSymbol
 
+-- isBvSort :: Sort -> Bool
+-- isBvSort (FApp (FTC bv) _) = isBv bv
+-- isBvSort _                 = False
+
 sizeBv :: FTycon -> Maybe Int
 sizeBv tc
   | s == size32Name = Just 32

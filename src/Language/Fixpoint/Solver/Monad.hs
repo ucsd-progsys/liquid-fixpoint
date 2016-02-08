@@ -77,11 +77,13 @@ instance PTable Stats where
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi t act = do
-  ctx <-  makeContext (not $ real cfg) (solver cfg) file
-  fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+  ctx <-  makeContext (not $ real cfg) (solver cfg) file xts
+  fst <$> runStateT (declare xts ess >> act) (SS ctx be $ stats0 fi)
   where
-    be   = F.bs     fi
-    file = F.fileName fi -- (inFile cfg)
+    (xts, ess) = decls      fi
+    be         = F.bs       fi
+    file       = F.fileName fi
+
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
@@ -129,7 +131,6 @@ filterValid p qs = do
   return qs'
 
 
-
 filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
   smtAssert me p
@@ -140,13 +141,19 @@ filterValid_ p qs me = catMaybes <$> do
       return $ if valid then Just x else Nothing
 
 ---------------------------------------------------------------------------
-declare :: F.GInfo c a -> SolveM ()
+declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> SolveM ()
 ---------------------------------------------------------------------------
-declare fi  = withContext $ \me -> do
-  xts      <- either E.die return $ declSymbols fi
-  let ess   = declLiterals fi
+declare xts ess = withContext $ \me -> do
+  -- xts      <- either E.die return $ declSymbols fi
+  -- let ess   = declLiterals fi
   forM_ xts $ uncurry $ smtDecl     me
   forM_ ess $           smtDistinct me
+
+decls :: F.GInfo c a -> ([(F.Symbol, F.Sort)], [[F.Expr]])
+decls fi = (xts, ess)
+  where
+    ess  = declLiterals fi
+    xts  = either E.die id $ declSymbols fi
 
 declLiterals :: F.GInfo c a -> [[F.Expr]]
 declLiterals fi = [es | (_, es) <- tess ]

@@ -1,7 +1,8 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
 
 module Language.Fixpoint.Visitor (
   -- * Visitor
@@ -24,6 +25,7 @@ module Language.Fixpoint.Visitor (
   , envKVars
   , rhsKVars
   , mapKVars, mapKVars', mapKVarSubsts
+  , monoBvOffset
 
   -- * Predicates on Constraints
   , isConcC , isKvarC
@@ -40,6 +42,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import           Language.Fixpoint.Misc (sortNub)
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Names
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
@@ -199,6 +202,46 @@ envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
   where
     squish    = S.toList  . S.fromList . concat
     kvs       = kvars . sr_reft
+
+
+--------------------------------------------------------------------------------
+-- | This is a shady hack to get the bitvector tests to pass in pldi16-new.
+--       x ~~ offset(args) ===> x ~~ offsetBV(args) if x : BV
+--   It _should_ be subsumed by `elaborate` in develop/master.
+
+monoBvOffset :: SEnv Sort -> Pred -> Pred
+monoBvOffset env = trans mbVis () []
+  where
+    mbVis        = defaultVisitor { txPred = \ _ -> txMonoBV env }
+
+txMonoBV :: SEnv Sort -> Pred -> Pred
+txMonoBV env p@(PAtom r (EVar x) (EApp f es))
+  | isBV env x
+  = PAtom r (EVar x) (EApp (bvize f) es)
+  | otherwise
+  = p
+txMonoBV _ p
+  = p
+
+isBV :: SEnv Sort -> Symbol -> Bool
+isBV env x = maybe False isBvSort (lookupSEnv x env)
+
+bvize :: LocSymbol -> LocSymbol
+bvize f
+  | "offset" <- fs f = f { val = bvf }
+  | otherwise        = f
+  where
+    fs  = symbolText . val
+    bvf = "offsetBV"
+
+isBvSort :: Sort -> Bool
+isBvSort (FApp (FTC bv) _) = isBv bv
+isBvSort _                 = False
+
+isBv :: FTycon -> Bool
+isBv = (bitVecName ==) . val . fTyconSymbol
+--------------------------------------------------------------------------------
+
 
 -- lhsKVars :: BindEnv -> SubC a -> [KVar]
 -- lhsKVars binds c = envKVs ++ lhsKVs
