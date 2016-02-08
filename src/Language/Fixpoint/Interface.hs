@@ -76,15 +76,14 @@ solveFQ cfg = do fi      <- readFInfo file
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solve cfg fi
-  | parts cfg = partition  cfg       $!! fi
-  | stats cfg = statistics cfg       $!! fi
-  | otherwise = do saveQueryFile cfg $!! fi
-                   res <- sW s cfg   $!! fi
-                   return            $!! res {- FIXME make this $!! -}
+  | parts cfg = partition  cfg     $!! fi
+  | stats cfg = statistics cfg     $!! fi
+  | otherwise = do saveQuery cfg   $!! fi
+                   res <- sW s cfg $!! fi
+                   return          $!! res {- FIXME make this $!! -}
   where
     s         = configSolver cfg
     sW        = configSW     cfg
-
 
 configSolver   :: (NFData a, Fixpoint a) => Config -> Solver a
 configSolver cfg
@@ -358,7 +357,7 @@ saveBinaryQuery cfg fi = do
 
 saveTextQuery cfg fi = do
   let fq   = queryFile Fq cfg
-  putStrLn $ "Saving Text Query: " ++ fq ++ "\n"
+  putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
   ensurePath fq
   writeFile fq $ render (toFixpoint cfg fi)
 
