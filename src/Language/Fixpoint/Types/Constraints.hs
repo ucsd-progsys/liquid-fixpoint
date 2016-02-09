@@ -172,6 +172,13 @@ instance Fixpoint a => Show (SubC a) where
 instance Fixpoint a => Show (SimpC a) where
   show = showFix
 
+instance Fixpoint a => PPrint (SubC a) where
+  pprint = toFix
+instance Fixpoint a => PPrint (SimpC a) where
+  pprint = toFix
+instance Fixpoint a => PPrint (WfC a) where
+  pprint = toFix
+
 instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
      where bd =   toFix (senv c)
@@ -232,7 +239,7 @@ wfC be sr x
   where
     msg       = "wfKvar: malformed wfC " ++ show sr
 
-mkSubC = SubC 
+mkSubC = SubC
 
 subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
 subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
@@ -281,6 +288,9 @@ instance Fixpoint Qualifier where
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
+
+instance PPrint Qualifier where
+  pprint q = "qualif" <+> pprint (q_name q) <+> "defined at" <+> pprint (q_pos q)
 
 --------------------------------------------------------------------------------
 -- | Constraint Cut Sets -------------------------------------------------------
@@ -385,7 +395,7 @@ toFixConstant (c, so)
   = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
 
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
-writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
+writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 
 --------------------------------------------------------------------------
 -- | Query Conversions: FInfo to SInfo
