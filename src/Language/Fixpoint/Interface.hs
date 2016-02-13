@@ -76,19 +76,11 @@ solveFQ cfg = do fi      <- readFInfo file
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solve cfg fi
-<<<<<<< HEAD
-  | parts cfg = partition  cfg       $!! fi
-  | stats cfg = statistics cfg       $!! fi
-  | otherwise = do saveQueryFile cfg $!! fi
-                   res <- sW s cfg   $!! fi
-                   return            $!! res {- FIXME make this $!! -}
-=======
   | parts cfg = partition  cfg        $!! fi
   | stats cfg = statistics cfg        $!! fi
-  | otherwise = do saveTextQuery cfg  $!! fi
+  | otherwise = do saveQueryFile cfg  $!! fi
                    res <- sW s cfg    $!! fi
-                   return             $!! res {- FIXME make this $!! -}
->>>>>>> 766a627a209e426605980e1751938ff570ff1103
+                   return             $!! res
   where
     s         = configSolver cfg
     sW        = configSW     cfg
