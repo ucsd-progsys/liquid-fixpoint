@@ -526,6 +526,9 @@ instance Expression Integer where
 instance Expression Int where
   expr = expr . toInteger
 
+instance Expression Double where
+    expr = ECon . R
+
 instance Predicate Symbol where
   prop = eProp
 
