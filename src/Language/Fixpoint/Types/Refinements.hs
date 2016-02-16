@@ -430,8 +430,8 @@ instance PPrint Expr where
   pprintPrec z (ENeg e)        = parensIf (z > zn) $
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
-  pprintPrec z (EApp f es)     = parensIf (z > za) $
-                                   pprint f <> (pprintPrec (za+1) es)
+  pprintPrec z (EApp f e)     = parensIf (z > za) $
+                                   pprintPrec za f <+> (pprintPrec (za+1) e)
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
