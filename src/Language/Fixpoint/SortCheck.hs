@@ -35,7 +35,7 @@ module Language.Fixpoint.SortCheck  (
 
 
 import           Control.Monad
-import           Control.Monad.Error       (MonadError(..))
+import           Control.Monad.Except      (MonadError(..)) 
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
@@ -47,6 +47,8 @@ import           Language.Fixpoint.Types.Visitor (foldSort)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
+-- import Debug.Trace
+
 -------------------------------------------------------------------------
 -- | Predicates on Sorts ------------------------------------------------
 -------------------------------------------------------------------------
@@ -54,12 +56,13 @@ import           Text.Printf
 -------------------------------------------------------------------------
 isFirstOrder :: Sort -> Bool
 -------------------------------------------------------------------------
-isFirstOrder t      = foldSort f 0 t <= 1
-  where
-    f :: Int -> Sort -> Int
-    f n (FFunc _ _) = n + 1
-    f n _           = n
+isFirstOrder (FAbs _ t)    = isFirstOrder t 
+isFirstOrder (FFunc s1 s2) = noFun s1 && isFirstOrder s2
+isFirstOrder _             = True
 
+noFun (FFunc _ _) = False
+noFun (FAbs _ _)  = False
+noFun _           = True
 
 -------------------------------------------------------------------------
 isMono :: Sort -> Bool
@@ -106,7 +109,7 @@ instance Applicative CheckM where
   pure x     = CM $ \i -> (i, Right x)
   (CM f) <*> (CM m) = CM $ \i -> case m i of
                              (j, Left s)  -> (j, Left s)
-                             (j, Right x) -> case f i of
+                             (_, Right x) -> case f i of
                                  (k, Left s)  -> (k, Left s)
                                  (k, Right g) -> (k, Right $ g x)
 
@@ -169,7 +172,7 @@ pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
 checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
     res        = case runCM0 $ checkPred f p of
-                   Left _ -> {- trace (wmsg war p) -} Nothing
+                   Left _   -> {- trace (_wmsg err p) -} Nothing
                    Right _  -> Just p
 
 class Checkable a where
@@ -186,17 +189,6 @@ instance Checkable Expr where
     where
       f           =  (`lookupSEnvWithDistance` γ)
 
-checkEqSort s t
-  | s == t    = return ()
-  | otherwise = throwError $ "Couldn't match expected type '"
-                           ++ show s ++ "'"
-                           ++ "\n\t\t with actual type '"
-                           ++ show t ++ "'"
-
-instance Checkable Pred where
-  check γ = checkPred f
-   where f = (`lookupSEnvWithDistance` γ)
-
 instance Checkable SortedReft where
   check γ (RR s (Reft (v, ra))) = check γ' ra
    where
@@ -208,7 +200,6 @@ instance Checkable SortedReft where
 
 checkExpr                  :: Env -> Expr -> CheckM Sort
 
-checkExpr _ EBot           = throwError "Type Error: Bot"
 checkExpr _ (ESym _)       = return strSort
 checkExpr _ (ECon (I _))   = return FInt
 checkExpr _ (ECon (R _))   = return FReal
@@ -218,7 +209,20 @@ checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
-checkExpr f (EApp g es)    = checkApp f Nothing g es
+checkExpr f (EApp g e)     = checkApp f Nothing g e
+checkExpr f (PNot p)       = checkPred f p >> return boolSort
+checkExpr f (PImp p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
+checkExpr f (PIff p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
+checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
+checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
+checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
+checkExpr _ (PKVar {})     = return boolSort
+
+checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
+checkExpr _ (PExist _ _)   = error "SortCheck.checkExpr: TODO: implement PExist"
+
+checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
+checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
 
 -- | Helper for checking symbol occurrences
 
@@ -228,33 +232,35 @@ checkSym f x
      Alts xs -> throwError $ errUnboundAlts x xs
 --   $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
-checkLocSym f x = checkSym f (val x)
+-- checkLocSym f x = checkSym f (val x)
 
 -- | Helper for checking if-then-else expressions
 
 checkIte f p e1 e2
-  = do tp <- checkPred f p
+  = do checkPred f p
        t1 <- checkExpr f e1
        t2 <- checkExpr f e2
        ((`apply` t1) <$> unifys [t1] [t2]) `catchError` (\_ -> throwError $ errIte e1 e2 t1 t2)
 
 -- | Helper for checking cast expressions
 
-checkCst f t (EApp g es)
-  = checkApp f (Just t) g es
+checkCst f t (EApp g e)
+  = checkApp f (Just t) g e
 checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
+
+checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort 
 checkApp f to g es
   = snd <$> checkApp' f to g es
 
 -- | Helper for checking uninterpreted function applications
-checkApp' f to g es
-  = do gt           <- checkLocSym f g
+checkApp' f to g' e
+  = do gt           <- checkExpr f g
        gt'          <- generalize gt
        (_, its, ot) <- sortFunction gt'
-       unless (length its == length es) $ throwError (errArgArity g its es)
+       unless (length its == length es) $ throwError (errArgArity g its es (EApp g' e))
        ets          <- mapM (checkExpr f) es
        θ            <- unifys its ets
        let t         = apply θ ot
@@ -262,7 +268,8 @@ checkApp' f to g es
          Nothing    -> return (θ, t)
          Just t'    -> do θ' <- unifyMany θ [t] [t']
                           return (θ', apply θ' t)
-
+  where
+    (g, es) = splitEApp $ EApp g' e
 
 -- | Helper for checking binary (numeric) operations
 
@@ -280,17 +287,17 @@ checkOp f e1 o e2
        t2 <- checkExpr f e2
        checkOpTy f (EBin o e1 e2) t1 t2
 
-checkOpTy f _ FReal FReal
+checkOpTy _ _ FReal FReal
   = return FReal
 
-checkOpTy f _ FInt FInt
+checkOpTy _ _ FInt FInt
   = return FInt
 
-checkOpTy f e t@(FObj l) t'@(FObj l')
+checkOpTy f _ t@(FObj l) (FObj l')
   | l == l'
   = checkNumeric f l >> return t
 
-checkOpTy f e t t'
+checkOpTy _ e t t'
   = throwError $ errOp e t t'
 
 checkFractional f l
@@ -307,24 +314,13 @@ checkNumeric f l
 -- | Checking Predicates ------------------------------------------------
 -------------------------------------------------------------------------
 
-checkPred                  :: Env -> Pred -> CheckM ()
-checkPred _ PTrue          = return ()
-checkPred _ PFalse         = return ()
-checkPred f (PBexp e)      = checkPredBExp f e
-checkPred f (PNot p)       = checkPred f p
-checkPred f (PImp p p')    = mapM_ (checkPred f) [p, p']
-checkPred f (PIff p p')    = mapM_ (checkPred f) [p, p']
-checkPred f (PAnd ps)      = mapM_ (checkPred f) ps
-checkPred f (POr ps)       = mapM_ (checkPred f) ps
-checkPred f (PAtom r e e') = checkRel f r e e'
-checkPred _ (PKVar {})     = return ()
-checkPred _ p              = throwError $ errUnexpectedPred p
+checkPred                  :: Env -> Expr -> CheckM ()
+checkPred f e = checkExpr f e >>= checkBoolSort e
 
-checkPredBExp :: Env -> Expr -> CheckM ()
-checkPredBExp f e          = do t <- checkExpr f e
-                                unless (t == boolSort) (throwError $ errBExp e t)
-                                return ()
-
+checkBoolSort :: Expr -> Sort -> CheckM ()
+checkBoolSort e s 
+ | s == boolSort = return ()
+ | otherwise     = throwError $ errBoolSort e s 
 
 -- | Checking Relations
 checkRel :: (Symbol -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
@@ -349,11 +345,11 @@ checkRelTy _ e Eq t1 t2
 checkRelTy _ e Ne t1 t2
   | t1 == boolSort ||
     t2 == boolSort                 = throwError $ errRel e t1 t2
-checkRelTy _ e Eq t1 t2            = void $ unifys [t1] [t2]
-checkRelTy _ e Ne t1 t2            = void $ unifys [t1] [t2]
+checkRelTy _ _ Eq t1 t2            = void $ unifys [t1] [t2]
+checkRelTy _ _ Ne t1 t2            = void $ unifys [t1] [t2]
 
-checkRelTy _ e Ueq t1 t2           = return ()
-checkRelTy _ e Une t1 t2           = return ()
+checkRelTy _ _ Ueq _ _             = return ()
+checkRelTy _ _ Une _ _             = return ()
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
 
 
@@ -362,11 +358,6 @@ checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwErr
 checkRelEqVar f x g es             = do tx <- checkSym f x
                                         _  <- checkApp f (Just tx) g es
                                         return ()
-
--- | Special case for Unsorted Dis/Equality
-isAppTy :: Sort -> Bool
-isAppTy (FApp _ _) = True
-isAppTy _          = False
 
 
 -------------------------------------------------------------------------
@@ -408,12 +399,9 @@ unify1 θ (FApp t1 t2) (FApp t1' t2')
                             = unifyMany θ [t1, t2] [t1', t2']
 unify1 θ (FTC l1) (FTC l2)
   | isListTC l1 && isListTC l2          = return θ
-unify1 θ t1@(FFunc _ _ ) t2@(FFunc _ _) = do FFunc _ ts1 <- generalize t1
-                                             FFunc _ ts2 <- generalize t2
-                                             unifyMany θ ts1 ts2
-unify1 θ t1@(FFunc _ [_]) t2            = do FFunc _ [t1'] <- generalize t1
+unify1 θ t1@(FAbs _ _) t2               = do t1'<- generalize t1
                                              unifyMany θ [t1'] [t2]
-unify1 θ t1 t2@(FFunc _ [_])            = do FFunc _ [t2'] <- generalize t2
+unify1 θ t1 t2@(FAbs _ _)               = do t2' <- generalize t2
                                              unifyMany θ [t1] [t2']
 unify1 θ t1 t2
   | t1 == t2                = return θ
@@ -421,16 +409,21 @@ unify1 θ t1 t2
 -- unify1 _ FNum _          = Nothing
 
 
-subst su t@(FVar i)   = fromMaybe t (lookup i su)
-subst su (FApp t1 t2) = FApp (subst su t1) (subst su t2)
-subst _  (FTC l)      = FTC l
-subst su (FFunc i ts) = FFunc i (subst su <$> ts)
-subst _  s            = s
+subst (j,tj) t@(FVar i)   
+  | i == j    = tj
+  | otherwise = t 
+subst su (FApp t1 t2)  = FApp (subst su t1) (subst su t2)
+subst _  (FTC l)       = FTC l
+subst su (FFunc t1 t2) = FFunc (subst su t1) (subst su t2)
+subst (j,tj) (FAbs i t) 
+  | i == j    = FAbs i t
+  | otherwise = FAbs i $ subst (j,tj) t
+subst _  s             = s
 
-generalize (FFunc n ts)
-  = do vs     <- refresh [0..n-1]
-       let sub = zip [0..n-1] (FVar <$> vs)
-       return $ FFunc 0 $ subst sub <$> ts
+generalize (FAbs i t)
+  = do v      <- refresh 0
+       let sub = (i, FVar v)
+       subst sub <$> generalize t 
 generalize t
   = return t
 
@@ -459,23 +452,20 @@ apply θ          = sortMap f
 -------------------------------------------------------------------------
 sortMap :: (Sort -> Sort) -> Sort -> Sort
 -------------------------------------------------------------------------
-sortMap f (FFunc n ts) = FFunc n (sortMap f <$> ts)
-sortMap f (FApp t1 t2) = FApp  (sortMap f t1) (sortMap f t2)
-sortMap f t            = f t
+sortMap f (FAbs i t)    = FAbs i (sortMap f t)
+sortMap f (FFunc t1 t2) = FFunc (sortMap f t1) (sortMap f t2)
+sortMap f (FApp t1 t2)  = FApp  (sortMap f t1) (sortMap f t2)
+sortMap f t             = f t
 
 ------------------------------------------------------------------------
 -- | Deconstruct a function-sort ---------------------------------------
 ------------------------------------------------------------------------
 
 sortFunction :: Sort -> CheckM (Int, [Sort], Sort)
-sortFunction (FFunc n ts') = return (n, ts, t)
-  where
-    ts                     = take numArgs ts'
-    t                      = last ts'
-    numArgs                = length ts' - 1
-
-sortFunction t             = throwError $ errNonFunction t
-
+sortFunction t 
+  = case functionSort t of 
+     Nothing          -> throwError $ errNonFunction t
+     Just (vs, ts, t) -> return (length vs, ts, t)
 
 ------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions ---------------------------
@@ -502,19 +492,17 @@ errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %
                          (showpp ts) (showpp ts')
 errRel e t1 t2       = printf "Invalid Relation %s with operand types %s and %s"
                          (showpp e) (showpp t1) (showpp t2)
-errBExp e t          = printf "BExp %s with non-propositional type %s" (showpp e) (showpp t)
 errOp e t t'
   | t == t'          = printf "Operands have non-numeric types %s in %s"
                          (showpp t) (showpp e)
   | otherwise        = printf "Operands have different types %s and %s in %s"
                          (showpp t) (showpp t') (showpp e)
-errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
-                         (showpp g) (length its) (length es) (showpp (EApp g es))
+errArgArity g its es e = printf "Measure %s expects %d args but gets %d in %s"
+                           (showpp g) (length its) (length es) (showpp e)
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
                          (showpp e1) (showpp t1) (showpp e2) (showpp t2)
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
                          (showpp e) (showpp t') (showpp t)
-errUnbound x         = printf "Unbound Symbol %s" (showpp x)
 errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
                         (showpp x)
                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
@@ -522,4 +510,4 @@ errNonFunction t     = printf "Sort %s is not a function" (showpp t)
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
 errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)
-errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showpp p)
+errBoolSort     e s  = printf "Expressions %s should have bool sort, but has %s" (showpp e) (showpp s)

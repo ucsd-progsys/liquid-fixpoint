@@ -29,15 +29,16 @@ module Language.Fixpoint.Types.Sorts (
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
 
-  , intSort, realSort, propSort, boolSort, strSort, funcSort
+  , intSort, realSort, boolSort, strSort, funcSort
   , listFTyCon
   , isListTC
   , fTyconSymbol, symbolFTycon, fTyconSort
-  , fApp, fAppTC
+  , fApp, fApp', fAppTC
   , fObj
 
   , sortSubst
   , functionSort
+  , mkFFunc
   ) where
 
 import qualified Data.Binary as B
@@ -60,14 +61,13 @@ import qualified Data.HashMap.Strict       as M
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 type TCEmb a   = M.HashMap a FTycon
 
-intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, propFTyCon, listFTyCon :: FTycon
+intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC $ dummyLoc "int"
 boolFTyCon = TC $ dummyLoc "bool"
 realFTyCon = TC $ dummyLoc "real"
 numFTyCon  = TC $ dummyLoc "num"
 funcFTyCon = TC $ dummyLoc "function"
 strFTyCon  = TC $ dummyLoc strConName
-propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
 
 isListConName :: LocSymbol -> Bool
@@ -110,11 +110,17 @@ sortFTycon FNum    = Just numFTyCon
 sortFTycon (FTC c) = Just c
 sortFTycon _       = Nothing
 
-functionSort :: Sort -> Maybe (Int, [Sort], Sort)
-functionSort (FFunc n ts) = Just (n, its, t)
+functionSort :: Sort -> Maybe ([Int], [Sort], Sort)
+functionSort s 
+  | null is && null ss 
+  = Nothing
+  | otherwise
+  = Just (is, ss, r)
   where
-    (its, t)              = safeUnsnoc "functionSort" ts
-functionSort _            = Nothing
+    (is, ss, r) = go [] [] s  
+    go vs ss (FAbs i t)    = go (i:vs) ss t 
+    go vs ss (FFunc s1 s2) = go vs (s1:ss) s2 
+    go vs ss t             = (reverse vs, reverse ss, t)
 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
@@ -126,12 +132,24 @@ data Sort = FInt
           | FFrac                -- ^ numeric kind for Fractional tyvars
           | FObj  Symbol         -- ^ uninterpreted type
           | FVar  !Int           -- ^ fixpoint type variable
-          | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
+          | FFunc !Sort !Sort    -- ^ function 
+          | FAbs  !Int !Sort     -- ^ type-abstraction 
           | FTC   FTycon
           | FApp  Sort Sort      -- ^ constructed type
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
+
+mkFFunc :: Int -> [Sort] -> Sort 
+mkFFunc i ss = go [0..i-1] ss 
+  where
+    go [] [s] = s
+    go [] (s:ss)   = FFunc s $ go [] ss
+    go (i:is) ss   = FAbs i $ go is ss
+    go _ _ = error "cannot happen"
+
+
+   -- foldl (flip FAbs) (foldl1 (flip FFunc) ss) [0..i-1]
 
 instance Hashable FTycon where
   hashWithSalt i (TC s) = hashWithSalt i s
@@ -150,9 +168,17 @@ toFixSort FReal        = text "real"
 toFixSort FFrac        = text "frac"
 toFixSort (FObj x)     = toFix x
 toFixSort FNum         = text "num"
-toFixSort (FFunc n ts) = text "func" <> parens (toFix n <> text ", " <> toFix ts)
+toFixSort t@(FAbs _ _) = toFixAbsApp t
+toFixSort t@(FFunc _ _)= toFixAbsApp t   
 toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (fApp' t)
+
+
+toFixAbsApp t = text "func" <> parens (toFix n <> text ", " <> toFix ts)
+  where
+    Just (vs, ss, s) = functionSort t 
+    n                = length vs 
+    ts               = ss ++ [s]
 
 toFixFApp            :: ListNE Sort -> Doc
 toFixFApp [t]        = toFixSort t
@@ -167,13 +193,11 @@ instance Fixpoint FTycon where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-numSort, boolSort, intSort, propSort, realSort, strSort, funcSort :: Sort
+boolSort, intSort, realSort, strSort, funcSort :: Sort
 boolSort = fTyconSort boolFTyCon
 strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
-propSort = fTyconSort propFTyCon
-numSort  = fTyconSort numFTyCon
 funcSort = fTyconSort funcFTyCon
 
 fTyconSort :: FTycon -> Sort
@@ -186,10 +210,11 @@ fTyconSort c
 ------------------------------------------------------------------------
 sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort
 ------------------------------------------------------------------------
-sortSubst θ t@(FObj x)   = fromMaybe t (M.lookup x θ)
-sortSubst θ (FFunc n ts) = FFunc n (sortSubst θ <$> ts)
-sortSubst θ (FApp t1 t2) = FApp (sortSubst θ t1) (sortSubst θ t2)
-sortSubst _  t           = t
+sortSubst θ t@(FObj x)    = fromMaybe t (M.lookup x θ)
+sortSubst θ (FFunc t1 t2) = FFunc (sortSubst θ t1) (sortSubst θ t2)
+sortSubst θ (FApp t1 t2)  = FApp  (sortSubst θ t1) (sortSubst θ t2)
+sortSubst θ (FAbs i t)    = FAbs i (sortSubst θ t)
+sortSubst _  t            = t
 
 
 instance B.Binary FTycon

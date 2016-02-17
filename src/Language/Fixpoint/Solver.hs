@@ -30,25 +30,25 @@ import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
-import           Control.Monad                      (when, void)
+import           Control.Monad                      (when, void, filterM, forM)
 import           Control.Exception                  (catch)
 
 import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
-import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
+-- import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Solver.Solution  (Solution)
-import           Language.Fixpoint.Types.Config           (multicore, Config (..), command, withTarget)
+import           Language.Fixpoint.Types.Config           (multicore, Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
-import           Language.Fixpoint.Partition        (mcInfo, partition, partition')
-import           Language.Fixpoint.Parse            (rr, rr', mkQual)
+import           Language.Fixpoint.Partition        -- (mcInfo, partition, partition')
+import           Language.Fixpoint.Parse            (rr', mkQual)
 import           Language.Fixpoint.Types
 import           Control.DeepSeq
 
@@ -74,7 +74,7 @@ solveFQ cfg = do
   where
     file    = inFile       cfg
     eCode   = resultExit . resStatus
-    statStr = render . resultDoc . fmap (const ())
+    statStr = render . resultDoc . void
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
@@ -84,6 +84,7 @@ solve :: (NFData a, Fixpoint a) => Solver a
 solve cfg fi
   | parts cfg = partition  cfg               $!! fi
   | stats cfg = statistics cfg               $!! fi
+  | minimize cfg = minimizeFQ cfg  $!! fi
   | otherwise = do saveQuery cfg             $!! fi
                    res <- sW solveNative cfg $!! fi
                    return                    $!! res
@@ -134,7 +135,7 @@ solveParWith :: (Fixpoint a) => Solver a -> Solver a
 solveParWith s c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
   let fi       = slice fi0
-  withProgressFI fi $ do --progressInitFI fi
+  withProgressFI fi $ do
     mci <- mcInfo c
     let (_, fis) = partition' (Just mci) fi
     writeLoud $ "Number of partitions : " ++ show (length fis)
@@ -196,7 +197,7 @@ solveNative' !cfg !fi0 = do
   -- colorStrLn (colorResult stat) (show stat)
   return res
 
-printElimStats :: Deps -> IO ()
+printElimStats :: GDeps KVar -> IO ()
 printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims
   where
     total        = postElims + S.size (depNonCuts d)
@@ -212,8 +213,8 @@ elim cfg fi
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
-  where
-    msg      = "REMAKEQUAL: " ++ show q
+--   where
+--     msg      = "REMAKEQUAL: " ++ show q
 
 ---------------------------------------------------------------------------
 -- | Extract ExitCode from Solver Result ----------------------------------
@@ -295,3 +296,71 @@ isBinary = isExtFile BinFq
 withProgressFI :: FInfo a -> IO b -> IO b
 ---------------------------------------------------------------------------
 withProgressFI = withProgress . fromIntegral . gSccs . cGraph
+
+
+---------------------------------------------------------------------------
+-- | Delta Debugging minimization
+---------------------------------------------------------------------------
+isUnsafe :: Result a -> Bool
+isUnsafe (Result Safe _)  = False
+isUnsafe _                = True
+
+type ConsList a = [(Integer, SubC a)]
+
+-- polymorphic delta debugging implementation
+deltaDebug :: (Config -> FInfo a -> [c] -> IO Bool) -> Config -> FInfo a -> [c] -> [c] -> IO [c]
+deltaDebug testSet cfg finfo set r = do
+  let (s1, s2) = splitAt ((length set) `div` 2) set
+  if length set == 1
+    then return set
+    else do
+      test1 <- testSet cfg finfo (s1 ++ r)
+      if test1
+        then deltaDebug testSet cfg finfo s1 r
+        else do
+          test2 <- testSet cfg finfo (s2 ++ r)
+          if test2
+            then deltaDebug testSet cfg finfo s2 r
+            else do
+              d1 <- deltaDebug testSet cfg finfo s1 (s2 ++ r)
+              d2 <- deltaDebug testSet cfg finfo s2 (s1 ++ r)
+              return (d1 ++ d2)
+
+testConstraints :: (NFData a, Fixpoint a) => Config -> FInfo a -> ConsList a -> IO Bool
+testConstraints cfg fi cons  = do
+  let fi' = fi { cm = M.fromList cons }
+  res <- solve cfg fi'
+  return $ isUnsafe res
+
+-- run delta debugging on a failing partition
+-- to find minimal set of failing constraints
+getMinFailingCons :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (ConsList a)
+getMinFailingCons cfg fi = do
+  let cons = M.toList $ cm fi
+  deltaDebug testConstraints cfg fi cons []
+
+minimizeFQ :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+minimizeFQ cfg fi = do
+  let cfg' = cfg { minimize = False }
+  let (_, parts) = partition' Nothing fi
+
+  -- filter out partitions that aren't failing
+  failingParts <- flip filterM parts $ \part -> do
+    res <- solve cfg' part
+    return $ isUnsafe res
+
+  -- only run delta debugging on failing partitions
+  -- then append results together
+  partres <- forM failingParts (getMinFailingCons cfg')
+  let partres' = concat partres
+
+  -- create new minimized finfo file
+  let minfi = fi {
+    cm = M.fromList partres',
+    fileName = extFileName Min $ fileName fi
+  }
+
+  -- write minimized finfo file
+  writeFile (fileName minfi) $ render $ toFixpoint cfg' minfi
+
+  return Result { resStatus = Safe, resSolution = M.empty }

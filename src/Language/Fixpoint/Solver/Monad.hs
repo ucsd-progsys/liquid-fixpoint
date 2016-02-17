@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | This is a wrapper around IO that permits SMT queries
 
@@ -40,6 +41,8 @@ import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
 
+import           Control.Exception.Base (bracket)
+
 ---------------------------------------------------------------------------
 -- | Solver Monadic API ---------------------------------------------------
 ---------------------------------------------------------------------------
@@ -76,12 +79,17 @@ instance PTable Stats where
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
-runSolverM cfg fi t act = do
-  ctx <-  makeContext (not $ real cfg) (solver cfg) file
-  fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+runSolverM cfg fi _ act = do
+  bracket acquire release $ \ctx -> do
+    res <- runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+    smtWrite ctx "(exit)"
+    return $ fst res
+      
   where
-    be   = F.bs     fi
-    file = F.fileName fi -- (inFile cfg)
+    acquire = makeContext (not $ real cfg) (solver cfg) file
+    release = cleanupContext
+    be      = F.bs     fi
+    file    = F.fileName fi -- (inFile cfg)
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
@@ -116,7 +124,7 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
-filterValid :: F.Pred -> Cand a -> SolveM [a]
+filterValid :: F.Expr -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
 filterValid p qs = do
   qs' <- withContext $ \me ->
@@ -130,7 +138,7 @@ filterValid p qs = do
 
 
 
-filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
+filterValid_ :: F.Expr -> Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
   smtAssert me p
   forM qs $ \(q, x) ->

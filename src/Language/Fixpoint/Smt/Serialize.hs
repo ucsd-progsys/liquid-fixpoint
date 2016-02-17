@@ -87,33 +87,16 @@ instance SMTLIB2 Brel where
   smt2 Le    = "<="
   smt2 _     = errorstar "SMTLIB2 Brel"
 
+-- NV TODO: change the way EApp is printed 
 instance SMTLIB2 Expr where
   smt2 (ESym z)         = smt2 (symbol z)
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
-  smt2 (EApp f es)      = smt2App f es
+  smt2 e@(EApp _ _)     = smt2App e
   smt2 (ENeg e)         = format "(- {})"         (Only $ smt2 e)
   smt2 (EBin o e1 e2)   = smt2Bop o e1 e2
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
   smt2 (ECst e _)       = smt2 e
-  smt2 e                = errorstar  $ "TODO: SMTLIB2 Expr: " ++ show e
-
-smt2Bop o e1 e2
-  | o == Times || o == Div = smt2App (uOp o) [e1, e2]
-  | otherwise  = format "({} {} {})" (smt2 o, smt2 e1, smt2 e2)
-
-uOp o | o == Times = dummyLoc mulFuncName
-      | o == Div   = dummyLoc divFuncName
-
-smt2App :: LocSymbol -> [Expr] -> T.Text
-smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
-  where
-   ds        = smt2 <$> es
-
-smt2App' f [] = smt2 f
-smt2App' f ds = format "({} {})" (smt2 f, smt2many ds)
-
-instance SMTLIB2 Pred where
   smt2 (PTrue)          = "true"
   smt2 (PFalse)         = "false"
   smt2 (PAnd [])        = "true"
@@ -124,9 +107,26 @@ instance SMTLIB2 Pred where
   smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)
   smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
   smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
-  smt2 (PBexp e)        = smt2 e
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
   smt2 _                = errorstar "smtlib2 Pred"
+
+smt2Bop o e1 e2
+  | o == Times || o == Div = smt2App (mkEApp (uOp o) [e1, e2])
+  | otherwise  = format "({} {} {})" (smt2 o, smt2 e1, smt2 e2)
+
+uOp o | o == Times = dummyLoc mulFuncName
+      | o == Div   = dummyLoc divFuncName
+      | otherwise  = errorstar "Serialize.uOp called with bad arguments"
+
+smt2App :: Expr  -> T.Text
+smt2App e = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
+  where
+    (f, es) = splitEApp e 
+    ds      = smt2 <$> es
+
+smt2App' f [] = smt2 f
+smt2App' f ds = format "({} {})" (smt2 f, smt2many ds)
+
 
 
 mkRel Ne  e1 e2         = mkNe e1 e2

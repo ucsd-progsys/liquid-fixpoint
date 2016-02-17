@@ -7,7 +7,7 @@
 module Language.Fixpoint.Types.Spans (
 
   -- * Concrete Location Type
-    SourcePos (..)
+    SourcePos
   , SrcSpan (..)
 
   -- * Located Values
@@ -19,8 +19,7 @@ module Language.Fixpoint.Types.Spans (
   , locAt
   , dummyLoc
   , dummyPos
-  -- , dummyName
-  -- , isDummy
+  , atLoc 
 
   -- * Destructing spans
   , sourcePosElts
@@ -96,6 +95,10 @@ data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
                      , val  :: a
                      } deriving (Data, Typeable, Generic)
 
+instance Loc (Located a) where 
+  srcSpan (Loc l l' _) = SS l l'
+
+
 instance (NFData a) => NFData (Located a)
 
 instance Fixpoint a => Fixpoint (Located a) where
@@ -164,6 +167,9 @@ instance Hashable SrcSpan where
 
 dummySpan = SS l l
   where l = initialPos ""
+
+atLoc :: Located a -> b -> Located b
+atLoc (Loc l l' _) x = Loc l l' x
 
 locAt :: String -> a -> Located a
 locAt s  = Loc l l

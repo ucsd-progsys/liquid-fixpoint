@@ -12,6 +12,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE PatternSynonyms            #-}
 
 -- | This module contains the data types for representing terms in the
 --   refinement logic; currently split into @Expr@ and @Pred@ but which
@@ -25,7 +26,7 @@ module Language.Fixpoint.Types.Refinements (
   , Bop (..)
   , Brel (..)
   , Expr (..)
-  , Pred (..)
+  , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , KVar (..)
   , Subst (..)
   , Reft (..)
@@ -66,9 +67,9 @@ module Language.Fixpoint.Types.Refinements (
   , reftConjuncts
   , intKvar
   , vv_
+  , mkEApp, eApps, splitEApp 
   ) where
 
-import           Debug.Trace               (trace)
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
@@ -101,7 +102,6 @@ instance NFData SymConst
 instance NFData Brel
 instance NFData Bop
 instance NFData Expr
-instance NFData Pred
 instance NFData Reft
 instance NFData SortedReft
 
@@ -116,7 +116,6 @@ instance B.Binary SymConst
 instance B.Binary Brel
 instance B.Binary Bop
 instance B.Binary Expr
-instance B.Binary Pred
 instance B.Binary Reft
 instance B.Binary SortedReft
 
@@ -128,11 +127,11 @@ reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
     ras'                     = if null ps then ks else ((pAnd ps) : ks)
     (ks, ps)                 = partition isKvar $ refaConjuncts ra
 
-isKvar :: Pred -> Bool
+isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
 isKvar _           = False
 
-refaConjuncts :: Pred -> [Pred]
+refaConjuncts :: Expr -> [Expr]
 refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
 
 
@@ -195,32 +194,46 @@ data Bop  = Plus | Minus | Times | Div | Mod
 data Expr = ESym !SymConst
           | ECon !Constant
           | EVar !Symbol
-          | EApp !LocSymbol ![Expr]
+          -- NV TODO: change this to `EApp !Expr !Expr`
+          | EApp !Expr !Expr
           | ENeg !Expr
           | EBin !Bop !Expr !Expr
-          | EIte !Pred !Expr !Expr
+          | EIte !Expr !Expr !Expr
           | ECst !Expr !Sort
-          | EBot
-          deriving (Eq, Show, Data, Typeable, Generic)
+          | ETApp !Expr !Sort 
+          | ETAbs !Expr !Symbol
 
-data Pred = PTrue
-          | PFalse
-          | PAnd   !(ListNE Pred)
-          | POr    ![Pred]
-          | PNot   !Pred
-          | PImp   !Pred !Pred
-          | PIff   !Pred !Pred
-          | PBexp  !Expr
+--- Used to be predicates
+          | PAnd   ![Expr]
+          | POr    ![Expr]
+          | PNot   !Expr
+          | PImp   !Expr !Expr
+          | PIff   !Expr !Expr
           | PAtom  !Brel  !Expr !Expr
           | PKVar  !KVar !Subst
-          | PAll   ![(Symbol, Sort)] !Pred
-          | PExist ![(Symbol, Sort)] !Pred
-          | PTop
+          | PAll   ![(Symbol, Sort)] !Expr
+          | PExist ![(Symbol, Sort)] !Expr
           deriving (Eq, Show, Data, Typeable, Generic)
 
-{-@ PAnd :: ListNE Pred -> Pred @-}
+pattern PTrue  = PAnd []
+pattern PTop   = PAnd []
+pattern PFalse = POr []
+pattern EBot   = POr []
 
-newtype Reft = Reft (Symbol, Pred)
+mkEApp :: LocSymbol -> [Expr] -> Expr 
+mkEApp f = eApps (EVar $ val f)
+
+eApps :: Expr -> [Expr] -> Expr 
+eApps f es  = foldl EApp f es 
+
+splitEApp :: Expr -> (Expr, [Expr])
+splitEApp = go [] 
+  where
+    go acc (EApp f e) = go (e:acc) f 
+    go acc e          = (e, acc)
+
+
+newtype Reft = Reft (Symbol, Expr)
                deriving (Eq, Data, Typeable, Generic)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
@@ -283,12 +296,9 @@ instance Fixpoint Expr where
   toFix (EIte p e1 e2) = parens $ text "if" <+> toFix p <+> text "then" <+> toFix e1 <+> text "else" <+> toFix e2
   toFix (ECst e so)    = parens $ toFix e   <+> text " : " <+> toFix so
   toFix (EBot)         = text "_|_"
-
-instance Fixpoint Pred where
   toFix PTop             = text "???"
   toFix PTrue            = text "true"
   toFix PFalse           = text "false"
-  toFix (PBexp e)        = parens $ text "?" <+> toFix e
   toFix (PNot p)         = parens $ text "~" <+> parens (toFix p)
   toFix (PImp p1 p2)     = parens $ toFix p1 <+> text "=>" <+> toFix p2
   toFix (PIff p1 p2)     = parens $ toFix p1 <+> text "<=>" <+> toFix p2
@@ -298,6 +308,8 @@ instance Fixpoint Pred where
   toFix (PKVar k su)     = toFix k <> toFix su
   toFix (PAll xts p)     = text "forall" <+> toFix xts <+> text "." <+> toFix p
   toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
+  toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
+  toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -317,7 +329,7 @@ instance Fixpoint Pred where
     | isTautoPred  p     = PTrue
     | otherwise          = p
 
-isContraPred   :: Pred -> Bool
+isContraPred   :: Expr -> Bool
 isContraPred z = eqC z || (z `elem` contras)
   where
     contras    = [PFalse]
@@ -332,7 +344,7 @@ isContraPred z = eqC z || (z `elem` contras)
                = x == y
     eqC _      = False
 
-isTautoPred   :: Pred -> Bool
+isTautoPred   :: Expr -> Bool
 isTautoPred z  = z == PTop || z == PTrue || eqT z
   where
     eqT (PAnd [])
@@ -419,8 +431,7 @@ instance PPrint Expr where
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
   pprintPrec z (EApp f es)     = parensIf (z > za) $
-                                   intersperse empty $
-                                     pprint f : (pprintPrec (za+1) <$> es)
+                                   pprint f <> (pprintPrec (za+1) es)
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
@@ -434,11 +445,9 @@ instance PPrint Expr where
     where zi = 1
   pprintPrec _ (ECst e so)     = parens $ pprint e <+> text ":" <+> pprint so
 
-instance PPrint Pred where
   pprintPrec _ PTop            = text "???"
   pprintPrec _ PTrue           = trueD
   pprintPrec _ PFalse          = falseD
-  pprintPrec z (PBexp e)       = pprintPrec z e
   pprintPrec z (PNot p)        = parensIf (z > zn) $
                                    text "not" <+> pprintPrec (zn+1) p
     where zn = 8
@@ -466,6 +475,8 @@ instance PPrint Pred where
   pprintPrec _ (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
   pprintPrec _ (PExist xts p)  = text "exists" <+> toFix xts <+> text "." <+> pprint p
   pprintPrec _ p@(PKVar {})    = toFix p
+  pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
+  pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s
 
 trueD  = text "true"
 falseD = text "false"
@@ -476,7 +487,7 @@ pprintBin _ b _ [] = b
 pprintBin z _ o xs = intersperse o $ pprintPrec z <$> xs
 
 pprintReft :: Reft -> Doc
-pprintReft r@(Reft (_,ra)) = {- intersperse comma -} pprintBin z trueD andD flat
+pprintReft (Reft (_,ra)) = pprintBin z trueD andD flat
   where
     flat = flattenRefas [ra]
     z    = if length flat > 1 then 3 else 0
@@ -495,7 +506,7 @@ class Expression a where
 -- | Values that can be viewed as Predicates
 
 class Predicate a where
-  prop   :: a -> Pred
+  prop   :: a -> Expr
 
 instance Expression Expr where
   expr = id
@@ -518,7 +529,7 @@ instance Expression Int where
 instance Predicate Symbol where
   prop = eProp
 
-instance Predicate Pred where
+instance Predicate Expr where
   prop = id
 
 instance Predicate Bool where
@@ -531,20 +542,20 @@ instance Expression a => Expression (Located a) where
 eVar ::  Symbolic a => a -> Expr
 eVar = EVar . symbol
 
-eProp ::  Symbolic a => a -> Pred
+eProp ::  Symbolic a => a -> Expr
 eProp = mkProp . eVar
 
-isSingletonExpr :: Symbol -> Pred -> Maybe Expr
+isSingletonExpr :: Symbol -> Expr -> Maybe Expr
 isSingletonExpr v (PAtom r e1 e2)
   | e1 == EVar v && isEq r = Just e2
   | e2 == EVar v && isEq r = Just e1
 isSingletonExpr _ _        = Nothing
 
-pAnd, pOr     :: ListNE Pred -> Pred
+pAnd, pOr     :: ListNE Expr -> Expr
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
-mkProp        = PBexp . EApp (dummyLoc propConName) . (: [])
+mkProp        = EApp (EVar propConName) 
 
 
 --------------------------------------------------------------------------------
@@ -568,10 +579,10 @@ propReft p    = Reft (vv_, PIff (eProp vv_) (prop p))
 predReft      :: (Predicate a) => a -> Reft
 predReft p    = Reft (vv_, prop p)
 
-reft :: Symbol -> Pred -> Reft
+reft :: Symbol -> Expr -> Reft
 reft v p = Reft (v, p)
 
-mapPredReft :: (Pred -> Pred) -> Reft -> Reft
+mapPredReft :: (Expr -> Expr) -> Reft -> Reft
 mapPredReft f (Reft (v, p)) = Reft (v, f p)
 
 ---------------------------------------------------------------
@@ -584,7 +595,7 @@ isFunctionSortedReft = isJust . functionSort . sr_sort
 isNonTrivial :: Reftable r => r -> Bool
 isNonTrivial = not . isTauto
 
-reftPred :: Reft -> Pred
+reftPred :: Reft -> Expr
 reftPred (Reft (_, p)) = p
 
 reftBind :: Reft -> Symbol
@@ -610,13 +621,13 @@ trueReft, falseReft :: Reft
 trueReft  = Reft (vv_, PTrue)
 falseReft = Reft (vv_, PFalse)
 
-flattenRefas :: [Pred] -> [Pred]
+flattenRefas :: [Expr] -> [Expr]
 flattenRefas        = concatMap flatP
   where
     flatP (PAnd ps) = concatMap flatP ps
     flatP p         = [p]
 
-conjuncts :: Pred -> [Pred]
+conjuncts :: Expr -> [Expr]
 conjuncts (PAnd ps) = concatMap conjuncts ps
 conjuncts p
   | isTautoPred p   = []
@@ -629,7 +640,7 @@ conjuncts p
 class Falseable a where
   isFalse :: a -> Bool
 
-instance Falseable Pred where
+instance Falseable Expr where
   isFalse (PFalse) = True
   isFalse _        = False
 

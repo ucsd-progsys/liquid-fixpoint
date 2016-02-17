@@ -30,13 +30,16 @@ import           Data.Text.Format         hiding (format)
 -- | Set Theory ----------------------------------------------------------
 --------------------------------------------------------------------------
 
-elt, set, map, bit, sz32, sz64 :: Raw
+elt, set, map :: Raw 
 elt  = "Elt"
 set  = "Set"
 map  = "Map"
-bit  = symbolText bitVecName -- "BitVec"
-sz32 = symbolText size32Name -- "Size32"
-sz64 = symbolText size64Name -- "Size64"
+
+
+-- bit, sz32, sz64 :: Raw
+-- bit  = symbolText bitVecName -- "BitVec"
+-- sz32 = symbolText size32Name -- "Size32"
+-- sz64 = symbolText size64Name -- "Size64"
 
 
 emp, add, cup, cap, mem, dif, sub, com, sel, sto :: Raw
@@ -95,14 +98,16 @@ z3Preamble u
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
     , uifDef u (symbolText mulFuncName) ("*"::T.Text)
-    , uifDef u (symbolText divFuncName) ("/"::T.Text)
+    , uifDef u (symbolText divFuncName) ("div"::T.Text)
     ]
 
-uifDef u f op | u         = format "(declare-fun {} (Real Real) Real)" (Only f)
-              | otherwise = format "(define-fun {} ((x Real) (y Real)) Real ({} x y))" (f, op)
+-- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
+-- (2) have very different semantics. TODO: proper overloading, post genEApp
+uifDef u f op | u         = format "(declare-fun {} (Int Int) Int)" (Only f)
+              | otherwise = format "(define-fun {} ((x Int) (y Int)) Int ({} x y))" (f, op)
 
 smtlibPreamble :: Bool -> [T.Text]
-smtlibPreamble u --TODO use uif flag u (see z3Preamble)
+smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
   = [        "(set-logic QF_UFLIA)"
     , format "(define-sort {} () Int)"       (Only elt)
     , format "(define-sort {} () Int)"       (Only set)
@@ -117,6 +122,7 @@ smtlibPreamble u --TODO use uif flag u (see z3Preamble)
     , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     ]
 
+{-
 mkSetSort _ _  = set
 mkEmptySet _ _ = emp
 mkSetAdd _ s x = format "({} {} {})" (add, s, x)
@@ -125,6 +131,7 @@ mkSetCup _ s t = format "({} {} {})" (cup, s, t)
 mkSetCap _ s t = format "({} {} {})" (cap, s, t)
 mkSetDif _ s t = format "({} {} {})" (dif, s, t)
 mkSetSub _ s t = format "({} {} {})" (sub, s, t)
+-}
 
 -- smt_set_funs :: M.HashMap Symbol Raw
 -- smt_set_funs = M.fromList [ (setEmp, emp), (setAdd, add), (setCup, cup)
@@ -178,11 +185,11 @@ smt2Sort (FApp (FTC bv) (FTC s))
   , Just n <- sizeBv s          = Just $ format "(_ BitVec {})" (Only n)
 smt2Sort _                      = Nothing
 
-smt2App :: LocSymbol -> [T.Text] -> Maybe T.Text
-smt2App f [d]
-  | val f == setEmpty = Just $ format "{}"             (Only emp)
-  | val f == setEmp   = Just $ format "(= {} {})"      (emp, d)
-  | val f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
+smt2App :: Expr -> [T.Text] -> Maybe T.Text
+smt2App (EVar f) [d]
+  | f == setEmpty = Just $ format "{}"             (Only emp)
+  | f == setEmp   = Just $ format "(= {} {})"      (emp, d)
+  | f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
 smt2App _ _           = Nothing
 
 

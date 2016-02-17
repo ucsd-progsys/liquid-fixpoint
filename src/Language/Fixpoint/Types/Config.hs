@@ -20,7 +20,6 @@ module Language.Fixpoint.Types.Config (
 import GHC.Generics
 import System.Console.CmdArgs
 import Language.Fixpoint.Utils.Files
-import Language.Fixpoint.Misc (errorstar)
 
 class Command a  where
   command :: a -> String
@@ -57,6 +56,7 @@ data Config
     , stats       :: Bool                -- ^ compute constraint statistics
     , parts       :: Bool                -- ^ partition FInfo into separate fq files
     , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
+    , minimize    :: Bool                -- ^ use delta debug to min fq file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     } deriving (Eq,Data,Typeable,Show)
 
@@ -79,6 +79,7 @@ instance Default Config where
                , stats       = def
                , parts       = def
                , save        = def
+               , minimize    = def
                }
 
 instance Command Config where
@@ -116,7 +117,7 @@ instance Command UeqAllSorts where
 
 ---------------------------------------------------------------------------------------
 
-data SMTSolver = Z3 | Cvc4 | Mathsat | Z3mem
+data SMTSolver = Z3 | Cvc4 | Mathsat 
                  deriving (Eq, Data, Typeable, Generic)
 
 instance Command SMTSolver where
@@ -129,7 +130,6 @@ instance Show SMTSolver where
   show Z3      = "z3"
   show Cvc4    = "cvc4"
   show Mathsat = "mathsat"
-  show Z3mem   = "z3mem"
 
 ---------------------------------------------------------------------------------------
 
@@ -152,6 +152,7 @@ config = Config {
   , cores       = def   &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
+  , minimize    = False &= help "Use delta debug to minimize fq file"
   }
   &= verbosity
   &= program "fixpoint"
