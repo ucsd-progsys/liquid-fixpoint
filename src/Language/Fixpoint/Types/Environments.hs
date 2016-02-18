@@ -5,13 +5,13 @@
 {-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 module Language.Fixpoint.Types.Environments (
 
@@ -37,22 +37,22 @@ module Language.Fixpoint.Types.Environments (
   ) where
 
 -- import qualified Data.Binary as B
-import qualified Data.Binary as B
-import           Data.Generics             (Data)
-import           Data.Typeable             (Typeable)
-import           GHC.Generics              (Generic)
-import           Data.Hashable
-import qualified Data.HashMap.Strict       as M
-import qualified Data.HashSet              as S
-import           Data.Maybe
-import           Text.PrettyPrint.HughesPJ
 import           Control.DeepSeq
+import qualified Data.Binary                           as B
+import           Data.Generics                         (Data)
+import           Data.Hashable
+import qualified Data.HashMap.Strict                   as M
+import qualified Data.HashSet                          as S
+import           Data.Maybe
+import           Data.Typeable                         (Typeable)
+import           GHC.Generics                          (Generic)
+import           Text.PrettyPrint.HughesPJ
 
-import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Names
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions ()
-import           Language.Fixpoint.Misc
 
 type BindId        = Int
 type BindMap a     = M.HashMap BindId a
