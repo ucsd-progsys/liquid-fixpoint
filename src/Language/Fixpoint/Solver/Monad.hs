@@ -1,5 +1,6 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns      #-}
 
 -- | This is a wrapper around IO that permits SMT queries
 
@@ -15,6 +16,7 @@ module Language.Fixpoint.Solver.Monad
 
          -- * SMT Query
        , filterValid
+       , checkSat, smtEnablrmbqi
 
          -- * Debug
        , Stats
@@ -28,10 +30,12 @@ import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc    (groupList)
-import           Language.Fixpoint.Types.Config  (Config, solver, real)
+import qualified Language.Fixpoint.Types.Config  as C 
+import           Language.Fixpoint.Types.Config  (Config, solver, linear, SMTSolver(Z3))
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
+import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
@@ -79,17 +83,23 @@ instance PTable Stats where
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
-runSolverM cfg fi _ act = do
+runSolverM cfg fi' _ act = do
   bracket acquire release $ \ctx -> do
-    res <- runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+    res <- runStateT (declareInitEnv >> declare fi >> act) (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
     return $ fst res
-      
+
   where
-    acquire = makeContext (not $ real cfg) (solver cfg) file
+    acquire = makeContextWithSEnv lar (solver cfg) file env 
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
+    env     = F.fromListSEnv ((F.toListSEnv $ F.lits fi) ++ binds)
+    binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
+    -- only linear arithmentic when: linear flag is on or solver /= Z3
+    lar     = linear cfg || Z3 /= solver cfg
+    fi      = fi' {F.allowHO = C.allowHO cfg}
+ 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
@@ -147,21 +157,44 @@ filterValid_ p qs me = catMaybes <$> do
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
 
+
+smtEnablrmbqi
+  = withContext $ \me ->  
+            smtWrite me "(set-option :smt.mbqi true)"
+
+
+checkSat :: F.Expr -> SolveM  Bool 
+checkSat p 
+  = withContext $ \me ->  
+            smtBracket me $
+             smtCheckSat me p
+
 ---------------------------------------------------------------------------
 declare :: F.GInfo c a -> SolveM ()
 ---------------------------------------------------------------------------
+declareInitEnv :: SolveM ()
+declareInitEnv = withContext $ \me -> do 
+                   forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me 
+
 declare fi  = withContext $ \me -> do
   xts      <- either E.die return $ declSymbols fi
   let ess   = declLiterals fi
   forM_ xts $ uncurry $ smtDecl     me
   forM_ ess $           smtDistinct me
 
-declLiterals :: F.GInfo c a -> [[F.Expr]]
-declLiterals fi = [es | (_, es) <- tess ]
+declLiterals :: F.GInfo c a -> [[F.Expr]]   
+declLiterals fi | F.allowHO fi 
+  = [es | (_, es) <- tess ]
   where
-    notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
-    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
+    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, not (isThy x)]
+    isThy       = isJust . Thy.smt2Symbol
 
+declLiterals fi 
+  = [es | (_, es) <- tess ] 
+   where
+    notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)   
+    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
+                             
 declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
   where

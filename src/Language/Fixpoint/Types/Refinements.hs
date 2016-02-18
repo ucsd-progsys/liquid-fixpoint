@@ -25,7 +25,7 @@ module Language.Fixpoint.Types.Refinements (
   , Constant (..)
   , Bop (..)
   , Brel (..)
-  , Expr (..)
+  , Expr (..), Pred
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , KVar (..)
   , Subst (..)
@@ -213,7 +213,10 @@ data Expr = ESym !SymConst
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
+          | PGrad 
           deriving (Eq, Show, Data, Typeable, Generic)
+
+type Pred = Expr
 
 pattern PTrue  = PAnd []
 pattern PTop   = PAnd []
@@ -310,6 +313,7 @@ instance Fixpoint Expr where
   toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
+  toFix PGrad            = text "??"
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -431,7 +435,7 @@ instance PPrint Expr where
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
   pprintPrec z (EApp f es)     = parensIf (z > za) $
-                                   pprint f <> (pprintPrec (za+1) es)
+                                   pprint f <+> (pprintPrec (za+1) es)
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
@@ -477,7 +481,8 @@ instance PPrint Expr where
   pprintPrec _ p@(PKVar {})    = toFix p
   pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s
-
+  pprintPrec _ PGrad           = text "?"
+  
 trueD  = text "true"
 falseD = text "false"
 andD   = text " &&"

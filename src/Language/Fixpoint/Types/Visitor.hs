@@ -40,8 +40,8 @@ import           Control.Monad.Trans.State (State, modify, runState)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
+import           Language.Fixpoint.Types hiding (mapSort)
 import           Language.Fixpoint.Misc (count, sortNub)
-import           Language.Fixpoint.Types
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
@@ -141,6 +141,7 @@ visitExpr v = vE
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
+    step _ PGrad           = return PGrad 
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'

@@ -28,6 +28,7 @@ module Language.Fixpoint.Smt.Interface (
     , Context (..)
     , makeContext
     , makeContextNoLog
+    , makeContextWithSEnv
     , cleanupContext
 
     -- * Execute Queries
@@ -38,6 +39,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtDecl
     , smtAssert
     , smtCheckUnsat
+    , smtCheckSat
     , smtBracket
     , smtDistinct
 
@@ -58,8 +60,8 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
-import           Language.Fixpoint.Smt.Theories (preamble)
-import           Language.Fixpoint.Smt.Serialize()
+import           Language.Fixpoint.Smt.Theories  (preamble)
+import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 
 
 
@@ -79,7 +81,7 @@ import           System.FilePath
 import           System.IO                (IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
-
+import           Text.PrettyPrint.HughesPJ (text)
 {-
 runFile f
   = readFile f >>= runString
@@ -98,7 +100,8 @@ runCommands cmds
 -- TODO take makeContext's Bool from caller instead of always using False?
 makeZ3Context :: FilePath -> [(Symbol, Sort)] -> IO Context
 makeZ3Context f xts
-  = do me <- makeContext False Z3 f
+  = do me <- makeContextWithSEnv False Z3 f $ fromListSEnv xts
+       smtDecls me (toListSEnv initSMTEnv)
        smtDecls me xts
        return me
 
@@ -143,7 +146,7 @@ command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
 command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
   where
-    say               = smtWrite me . smt2
+    say               = smtWrite me . smt2 (smtenv me)
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -228,6 +231,10 @@ makeContext u s f
     where
        smtFile = extFileName Smt2 f
 
+makeContextWithSEnv :: Bool -> SMTSolver -> FilePath  -> SMTEnv -> IO Context
+makeContextWithSEnv u s f env
+  = (\cxt -> cxt {smtenv = env}) <$> makeContext u s f
+
 makeContextNoLog :: Bool -> SMTSolver -> IO Context
 makeContextNoLog u s
   = do me  <- makeProcess s
@@ -243,7 +250,9 @@ makeProcess s
                   , cIn     = hIn
                   , cOut    = hOut
                   , cLog    = Nothing
-                  , verbose = loud    }
+                  , verbose = loud
+                  , smtenv  = initSMTEnv
+                  }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
@@ -302,6 +311,14 @@ deconSort t = case functionSort t of
                 Just (_, ins, out) -> (ins, out)
                 Nothing            -> ([] , t  )
 
+smtCheckSat :: Context -> Expr -> IO Bool
+smtCheckSat me p
+-- hack now this is used only for checking gradual condition.
+ = smtAssert me p >> (ans <$> command me CheckSat)
+ where
+   ans Sat = True
+   ans _   = False
+
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)
 
@@ -320,7 +337,7 @@ smtBracket me a   = do smtPush me
 respSat Unsat   = True
 respSat Sat     = False
 respSat Unknown = False
-respSat r       = die $ err dummySpan $ "crash: SMTLIB2 respSat = " ++ show r
+respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ show r)
 
 interact' me cmd  = void $ command me cmd
 

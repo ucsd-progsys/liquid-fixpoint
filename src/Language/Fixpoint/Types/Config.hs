@@ -51,7 +51,8 @@ data Config
     , solver      :: SMTSolver           -- ^ which SMT solver to use
     , genSorts    :: GenQualifierSort    -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts         -- ^ use UEq on all sorts
-    , real        :: Bool                -- ^ interpret div and mul in SMT
+    , linear      :: Bool                -- ^ not interpret div and mul in SMT
+    , allowHO     :: Bool                -- ^ not interpret div and mul in SMT
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
     , elimStats   :: Bool                -- ^ print eliminate stats
@@ -74,7 +75,8 @@ instance Default Config where
                , solver      = def
                , genSorts    = def
                , ueqAllSorts = def
-               , real        = def
+               , linear      = def
+               , allowHO     = False 
                , newcheck    = False
                , eliminate   = def
                , elimStats   = def
@@ -145,7 +147,8 @@ config = Config {
   , genSorts    = def   &= help "Generalize qualifier sorts"
   , ueqAllSorts = def   &= help "Use UEq on all sorts"
   , newcheck    = False &= help "(alpha) New liquid-fixpoint sort checking "
-  , real        = False &= help "(alpha) Theory of real numbers"
+  , linear      = False &= help "Use uninterpreted integer multiplication and division"
+  , allowHO     = False &= help "Allow higher order binders into fixpoint environment"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , elimStats   = False &= help "(alpha) Print eliminate stats"
   , save        = False &= help "Save Query as .fq and .bfq files"

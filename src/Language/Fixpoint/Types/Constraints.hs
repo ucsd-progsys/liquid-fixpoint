@@ -47,6 +47,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Qualifiers
   , Qualifier (..)
+  , qualifier
 
   -- * Cut KVars
   , Kuts (..)
@@ -58,10 +59,11 @@ import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
-import           Data.List                 (sort)
+import           Data.List                 (sort, nub, delete)
+import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Config
+import           Language.Fixpoint.Types.Config hiding (allowHO)
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
@@ -172,6 +174,13 @@ instance Fixpoint a => Show (SubC a) where
 instance Fixpoint a => Show (SimpC a) where
   show = showFix
 
+instance Fixpoint a => PPrint (SubC a) where
+  pprint = toFix
+instance Fixpoint a => PPrint (SimpC a) where
+  pprint = toFix
+instance Fixpoint a => PPrint (WfC a) where
+  pprint = toFix
+
 instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
      where bd =   toFix (senv c)
@@ -222,17 +231,20 @@ instance (NFData a) => NFData (Result a)
 -- | "Smart Constructors" for Constraints ---------------------------------
 ---------------------------------------------------------------------------
 
-wfC :: IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x
-  | Reft (v, PKVar k su) <- sr_reft sr
-              = if isEmptySubst su
-                   then [WfC be (v, sr_sort sr, k) x]
-                   else errorstar msg
-  | otherwise = []
+wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
+wfC be sr x = if all isEmptySubst sus
+                then [WfC be (v, sr_sort sr, k) x | k <- ks]
+                else errorstar msg
   where
-    msg       = "wfKvar: malformed wfC " ++ show sr
+    msg             = "wfKvar: malformed wfC " ++ show sr
+    Reft (v, ras)   = sr_reft sr 
+    (ks, sus)       = unzip $ go ras 
 
-mkSubC = SubC 
+    go (PKVar k su) = [(k, su)]
+    go (PAnd es)    = [(k, su) | PKVar k su <- es]
+    go _            = [] 
+
+mkSubC = SubC
 
 subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
 subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
@@ -278,9 +290,28 @@ instance Loc Qualifier where
 instance Fixpoint Qualifier where
   toFix = pprQual
 
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
+instance PPrint Qualifier where
+  pprint q = "qualif" <+> pprint (q_name q) <+> "defined at" <+> pprint (q_pos q)
+
+
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
+
+qualifier :: SEnv Sort -> SourcePos -> SEnv Sort -> Symbol -> Sort -> Expr -> Qualifier
+qualifier lEnv l γ v so p   = Q "Auto" ((v, so) : xts) p l
+  where
+    xs  = delete v $ nub $ syms p
+    xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
+
+envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
+envSort l lEnv tEnv x i
+  | Just t <- lookupSEnv x tEnv = Just (x, t)
+  | Just _ <- lookupSEnv x lEnv = Nothing
+  | otherwise                   = Just (x, ai)
+  where
+    ai  = {- trace msg $ -} fObj $ Loc l l $ tempSymbol "LHTV" i
+    -- msg = "unknown symbol in qualifier: " ++ show x
 
 --------------------------------------------------------------------------------
 -- | Constraint Cut Sets -------------------------------------------------------
@@ -302,7 +333,7 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 -- | Constructing Queries
 ------------------------------------------------------------------------
-fi cs ws binds ls ks qs bi fn
+fi cs ws binds ls ks qs bi fn aHO 
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -311,6 +342,7 @@ fi cs ws binds ls ks qs bi fn
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
+       , allowHO  = aHO 
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -331,12 +363,13 @@ data GInfo c a =
      , quals    :: ![Qualifier]
      , bindInfo :: M.HashMap BindId a
      , fileName :: FilePath
+     , allowHO  :: !Bool 
      }
   deriving (Eq, Show, Functor, Generic)
 
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty False 
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -345,6 +378,7 @@ instance Monoid (GInfo c a) where
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
+                     , allowHO  = allowHO i1 || allowHO i2 
                      }
 
 instance PTable (SInfo a) where
@@ -385,7 +419,7 @@ toFixConstant (c, so)
   = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
 
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
-writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
+writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 
 --------------------------------------------------------------------------
 -- | Query Conversions: FInfo to SInfo
