@@ -388,7 +388,7 @@ elabAppAs f t g es = do
   eTs   <- mapM (checkExpr f) es
   gTios <- sortFunction (length es) gT
   su    <- unifys f (snd gTios:fst gTios) (t:eTs)
-  let tg = apply su gT 
+  let tg = apply su gT
   g'    <- elabAs f tg g
   let ts = apply su <$> eTs
   es'   <- zipWithM (elabAs f) ts es
@@ -449,8 +449,8 @@ checkApp f to g es
 
 checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
-checkExprAs f t e 
-  = do t' <- checkExpr f e 
+checkExprAs f t e
+  = do t' <- checkExpr f e
        θ  <- unifys f [t'] [t]
        return $ apply θ t
 
@@ -466,8 +466,8 @@ checkApp' f to g' e
        case to of
          Nothing    -> return (θ, t)
          Just t'    -> do θ' <- unifyMany f θ [t] [t']
-                          let ts = apply θ' <$> ets 
-                          _ <- zipWithM (checkExprAs f) ts es 
+                          let ts = apply θ' <$> ets
+                          _ <- zipWithM (checkExprAs f) ts es
                           return (θ', apply θ' t)
   where
     (g, es) = splitEApp $ EApp g' e
@@ -486,7 +486,9 @@ checkNeg f e = do
 checkOp f e1 o e2
   = do t1 <- checkExpr f e1
        t2 <- checkExpr f e2
-       checkOpTy f (EBin o e1 e2) t1 t2
+       -- PV
+       su <- unifys f [t1] [t2]
+       checkOpTy f (EBin o e1 e2) (apply su t1) (apply su t2)
 
 checkOpTy _ _ FReal FReal
   = return FReal
@@ -528,7 +530,7 @@ checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         su <- unifys f [t1] [t2]
-                                        checkExprAs f (apply su t1) e1 
+                                        checkExprAs f (apply su t1) e1
                                         checkExprAs f (apply su t2) e2
                                         checkRelTy f (PAtom Eq e1 e2) Eq t1 t2
 checkRel f r  e1 e2                = do t1 <- checkExpr f e1
@@ -616,7 +618,7 @@ unify1 f θ FInt (FObj l) = do
   checkNumeric f l
   return θ
 
-unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do 
+unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do
   unifyMany f θ [t1, t2] [t1', t2']
 
 unify1 _ θ t1 t2
@@ -683,9 +685,9 @@ sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
 sortFunction i t
   = case functionSort t of
      Nothing          -> throwError $ errNonFunction i t
-     Just (_, ts, t') -> if length ts < i 
+     Just (_, ts, t') -> if length ts < i
                           then throwError $ errNonFunction i t
-                          else let (its, ots) = splitAt i ts 
+                          else let (its, ots) = splitAt i ts
                                in return (its, foldl FFunc t' ots)
 
 ------------------------------------------------------------------------
