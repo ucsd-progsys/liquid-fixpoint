@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DeriveFoldable            #-}
+{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DeriveTraversable         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -23,6 +23,7 @@ module Language.Fixpoint.Types.Errors (
 
   -- * Abstract Error Type
   , Error
+  , Error1
 
   -- * Constructor
   , err
@@ -46,19 +47,19 @@ module Language.Fixpoint.Types.Errors (
 
 import           Control.Exception
 -- import qualified Control.Monad.Error           as E
-import           Data.Serialize                (Serialize (..))
-import           Data.Generics                 (Data)
-import           Data.Typeable
 import           Control.DeepSeq
+import           Data.Generics                       (Data)
+import           Data.Serialize                      (Serialize (..))
+import           Data.Typeable
 -- import           Data.Hashable
-import qualified Data.Binary                   as B
-import           GHC.Generics                  (Generic)
+import qualified Data.Binary                         as B
+import           GHC.Generics                        (Generic)
+import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
-import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 -- import           Text.Printf
-import           Data.Function (on)
+import           Data.Function                       (on)
 
 -- import           Debug.Trace
 
