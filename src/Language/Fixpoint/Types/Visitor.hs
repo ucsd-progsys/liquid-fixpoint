@@ -6,6 +6,7 @@
 module Language.Fixpoint.Types.Visitor (
   -- * Visitor
      Visitor (..)
+  ,  Visitable (..)
 
   -- * Extracting Symbolic Constants (String Literals)
   ,  SymConsts (..)
@@ -36,7 +37,7 @@ module Language.Fixpoint.Types.Visitor (
 
   ) where
 
-import           Control.Monad.Trans.State (State, modify, runState)
+import           Control.Monad.Trans.State.Strict (State, modify, runState)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
@@ -119,9 +120,11 @@ instance Visitable (SInfo a) where
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr v = vE
   where
-    vE c e = accum acc >> step c' e' where c'  = ctxExpr v c e
-                                           e'  = txExpr v c' e
-                                           acc = accExpr v c' e
+    vE c e = do {-# SCC "visitExpr.vE.accum" #-} accum acc
+                {-# SCC "visitExpr.vE.step" #-} step c' e'
+      where c'  = ctxExpr v c e
+            e'  = txExpr v c' e
+            acc = accExpr v c' e
     step _ e@(ESym _)      = return e
     step _ e@(ECon _)      = return e
     step _ e@(EVar _)      = return e
@@ -177,9 +180,9 @@ size t    = n
     szV    = (defaultVisitor :: Visitor MInt t) { accExpr = \ _ _ -> MInt 1 }
 
 kvars :: Visitable t => t -> [KVar]
-kvars                = fold kvVis () []
+kvars                 = fold kvVis () []
   where
-    kvVis            = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
+    kvVis             = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
     kv' _ (PKVar k _) = [k]
     kv' _ _           = []
 
@@ -247,7 +250,7 @@ instance  SymConsts (FInfo a) where
     where
       csLits   = concatMap symConsts $ M.elems  $  cm    fi
       bsLits   = symConsts           $ bs                fi
-      qsLits   = concatMap symConsts $ q_body  <$> quals fi
+      qsLits   = concatMap symConsts $ qBody  <$> quals fi
 
 instance SymConsts BindEnv where
   symConsts    = concatMap (symConsts . snd) . M.elems . beBinds
@@ -272,11 +275,3 @@ getSymConsts         = fold scVis () []
     scVis            = (defaultVisitor :: Visitor [SymConst] t)  { accExpr = sc }
     sc _ (ESym c)    = [c]
     sc _ _           = []
-
-
-{-
-
-instance SymConsts (SimpC a) where
-  symConsts c  = symConsts (crhs c)
-
--}

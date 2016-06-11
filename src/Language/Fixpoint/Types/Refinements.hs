@@ -29,6 +29,7 @@ module Language.Fixpoint.Types.Refinements (
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , KVar (..)
   , Subst (..)
+  , KVSub
   , Reft (..)
   , SortedReft (..)
 
@@ -36,7 +37,10 @@ module Language.Fixpoint.Types.Refinements (
   , eVar, elit
   , eProp
   , pAnd, pOr, pIte
+  , (&.&), (|.|)
+  , pExist
   , mkEApp
+  , mkProp
   , intKvar
   , vv_
 
@@ -129,7 +133,6 @@ instance B.Binary Expr
 instance B.Binary Reft
 instance B.Binary SortedReft
 
-
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
@@ -167,7 +170,6 @@ instance Hashable Constant
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
-
 newtype Subst = Su (M.HashMap Symbol Expr)
                 deriving (Eq, Data, Typeable, Generic)
 
@@ -178,6 +180,11 @@ instance Fixpoint Subst where
   toFix (Su m) = case hashMapToAscList m of
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ toFix x <> text ":=" <> toFix y) xys
+
+instance PPrint Subst where
+  pprintTidy _ = toFix
+
+type KVSub       = (KVar, Subst)
 
 --------------------------------------------------------------------------------
 -- | Expressions ---------------------------------------------------------------
@@ -203,7 +210,6 @@ data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv
 data Expr = ESym !SymConst
           | ECon !Constant
           | EVar !Symbol
-          -- NV TODO: change this to `EApp !Expr !Expr`
           | EApp !Expr !Expr
           | ENeg !Expr
           | EBin !Bop !Expr !Expr
@@ -410,6 +416,7 @@ instance PPrint SymConst where
   pprintTidy _ (SL x) = doubleQuotes $ text $ T.unpack x
 
 -- | Wrap the enclosed 'Doc' in parentheses only if the condition holds.
+parensIf :: Bool -> Doc -> Doc
 parensIf True  = parens
 parensIf False = id
 
@@ -432,6 +439,7 @@ parensIf False = id
 -- sets the contextual precedence for recursive printer invocations to
 -- (prec p + 1).
 
+opPrec :: Bop -> Int
 opPrec Mod    = 5
 opPrec Plus   = 6
 opPrec Minus  = 6
@@ -497,18 +505,22 @@ instance PPrint Expr where
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
   pprintPrec _ _ PGrad           = "?"
 
+pprintQuant :: Tidy -> Doc -> [(Symbol, Sort)] -> Expr -> Doc
 pprintQuant k d xts p = (d <+> toFix xts)
                         $+$
                         ("  ." <+> pprintTidy k p)
 
+trueD, falseD, andD, orD :: Doc
 trueD  = "true"
 falseD = "false"
 andD   = "&&"
 orD    = "||"
 
+pprintBin :: (PPrint a) => Int -> Tidy -> Doc -> Doc -> [a] -> Doc
 pprintBin _ _ b _ [] = b
 pprintBin z k _ o xs = vIntersperse o $ pprintPrec z k <$> xs
 
+vIntersperse :: Doc -> [Doc] -> Doc
 vIntersperse _ []     = empty
 vIntersperse _ [d]    = d
 vIntersperse s (d:ds) = vcat (d : ((s <+>) <$> ds))
@@ -578,12 +590,25 @@ isSingletonExpr v (PAtom r e1 e2)
   | e2 == EVar v && isEq r = Just e1
 isSingletonExpr _ _        = Nothing
 
-pAnd, pOr     :: ListNE Expr -> Expr
+pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
-pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
-mkProp        = EApp (EVar propConName)
 
+(&.&) :: Pred -> Pred -> Pred
+(&.&) p q = pAnd [p, q]
+
+(|.|) :: Pred -> Pred -> Pred
+(|.|) p q = pOr [p, q]
+
+pIte :: Pred -> Expr -> Expr -> Expr
+pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
+
+pExist :: [(Symbol, Sort)] -> Pred -> Pred
+pExist []  p = p
+pExist xts p = PExist xts p
+
+mkProp :: Expr -> Pred
+mkProp = EApp (EVar propConName)
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------

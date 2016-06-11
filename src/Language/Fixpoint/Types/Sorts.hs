@@ -1,9 +1,6 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -12,7 +9,6 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE PatternGuards              #-}
 
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
@@ -113,6 +109,7 @@ sortFTycon FNum    = Just numFTyCon
 sortFTycon (FTC c) = Just c
 sortFTycon _       = Nothing
 
+
 functionSort :: Sort -> Maybe ([Int], [Sort], Sort)
 functionSort s
   | null is && null ss
@@ -133,12 +130,12 @@ data Sort = FInt
           | FReal
           | FNum                 -- ^ numeric kind for Num tyvars
           | FFrac                -- ^ numeric kind for Fractional tyvars
-          | FObj  Symbol         -- ^ uninterpreted type
+          | FObj  !Symbol        -- ^ uninterpreted type
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Sort !Sort    -- ^ function
           | FAbs  !Int !Sort     -- ^ type-abstraction
-          | FTC   FTycon
-          | FApp  Sort Sort      -- ^ constructed type
+          | FTC   !FTycon
+          | FApp  !Sort !Sort    -- ^ constructed type
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
@@ -154,9 +151,9 @@ mkFFunc i ss     = go [0..i-1] ss
    -- foldl (flip FAbs) (foldl1 (flip FFunc) ss) [0..i-1]
 
 bkFFunc :: Sort -> Maybe (Int, [Sort])
-bkFFunc t    = (maximum (0 : as),) <$> bkFun t' 
-  where 
-    (as, t') = bkAbs t 
+bkFFunc t    = (maximum (0 : as),) <$> bkFun t'
+  where
+    (as, t') = bkAbs t
 
 bkAbs :: Sort -> ([Int], Sort)
 bkAbs (FAbs i t) = (i:is, t') where (is, t') = bkAbs t
@@ -192,7 +189,7 @@ toFixSort t@(FFunc _ _)= toFixAbsApp t
 toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (fApp' t)
 
-
+toFixAbsApp :: Sort -> Doc
 toFixAbsApp t = text "func" <> parens (toFix n <> text ", " <> toFix ts)
   where
     Just (vs, ss, s) = functionSort t
@@ -219,17 +216,17 @@ intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
 funcSort = fTyconSort funcFTyCon
 
-bitVecSort :: Sort 
-mapSort :: Sort -> Sort -> Sort
-
-setSort :: Sort -> Sort 
+setSort :: Sort -> Sort
 setSort    = FApp (FTC $ symbolFTycon' "Set_Set")
 
+bitVecSort :: Sort
 bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
+
+mapSort :: Sort -> Sort -> Sort
 mapSort k v = FApp (FApp (FTC $ symbolFTycon' "Map_t") k) v
 
+symbolFTycon' :: Symbol -> FTycon
 symbolFTycon' = symbolFTycon . dummyLoc
-
 
 fTyconSort :: FTycon -> Sort
 fTyconSort c
