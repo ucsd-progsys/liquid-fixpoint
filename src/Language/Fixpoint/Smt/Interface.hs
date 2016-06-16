@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE PatternGuards             #-}
 
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
@@ -54,7 +55,7 @@ module Language.Fixpoint.Smt.Interface (
 
     ) where
 
-import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver, extensionality)
+import           Language.Fixpoint.Types.Config (SMTSolver (..), Config, solver, extensionality, decidable)
 import           Language.Fixpoint.Misc   (errorstar, getUniqueInt)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -363,8 +364,12 @@ interact' me cmd  = void $ command me cmd
 
 makeMbqi :: Config -> [LT.Text]
 makeMbqi cfg 
-  | extensionality cfg = [""]
-  | otherwise          = ["\n(set-option :smt.mbqi false)"]
+  | decidable cfg           
+  = ["\n(set-option :smt.mbqi false)"]
+  | extensionality cfg
+  = [""]
+  | otherwise          
+  = ["\n(set-option :smt.mbqi false)"]
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options :: [LT.Text]
