@@ -24,35 +24,34 @@ module Language.Fixpoint.Solver.Worklist
        where
 
 import           Prelude hiding (init)
-import           Language.Fixpoint.Types.PrettyPrint -- (PTable (..), PPrint (..))
+import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types   as F
-import           Language.Fixpoint.Solver.Types
-import           Language.Fixpoint.Solver.Graph
+import           Language.Fixpoint.Graph.Types
+import           Language.Fixpoint.Graph   (isTarget)
+
 import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
 import qualified Data.List                 as L
-import           Data.Graph (graphFromEdges)
 import           Text.PrettyPrint.HughesPJ (text)
 
--- | Worklist -------------------------------------------------------------
+-- | Worklist ------------------------------------------------------------------
 
 data Worklist a = WL { wCs     :: !WorkSet
                      , wPend   :: !(CMap ())
-                     , wDeps   :: CSucc
+                     , wDeps   :: !(CMap [F.SubcId])
                      , wCm     :: !(CMap (F.SimpC a))
                      , wRankm  :: !(CMap Rank)
-                     , wLast   :: !(Maybe CId)
+                     , wLast   :: !(Maybe F.SubcId)
                      , wRanks  :: !Int
                      , wTime   :: !Int
-                     , wConcCs :: ![CId]
+                     , wConcCs :: ![F.SubcId]
                      }
 
 data Stats = Stats { numKvarCs  :: !Int
                    , numConcCs  :: !Int
                    , _numSccs   :: !Int
                    } deriving (Eq, Show)
-
 
 instance PPrint (Worklist a) where
   pprintTidy k = pprintTidy k . S.toList . wCs
@@ -70,7 +69,7 @@ instance PTable (Worklist a) where
 
 type WorkSet  = S.Set WorkItem
 
-data WorkItem = WorkItem { wiCId  :: !CId   -- ^ Constraint Id
+data WorkItem = WorkItem { wiCId  :: !F.SubcId   -- ^ Constraint Id
                          , wiTime :: !Int   -- ^ Time at which inserted
                          , wiRank :: !Rank  -- ^ Rank of constraint
                          } deriving (Eq, Show)
@@ -87,31 +86,24 @@ instance Ord WorkItem where
               , compare i1         i2         -- Otherwise Set drops items
               ]
 
--- | Ranks ---------------------------------------------------------------------
-
-data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
-                 , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
-                 , rTag  :: !F.Tag  -- ^ The constraint's Tag
-                 } deriving (Eq, Show)
-
 --------------------------------------------------------------------------------
 -- | Initialize worklist and slice out irrelevant constraints ------------------
 --------------------------------------------------------------------------------
-init :: F.SInfo a -> Worklist a
+init :: SolverInfo a -> Worklist a
 --------------------------------------------------------------------------------
-init fi    = WL { wCs     = items
+init sI    = WL { wCs     = items
                 , wPend   = addPends M.empty kvarCs
                 , wDeps   = cSucc cd
                 , wCm     = cm
-                , wRankm  = rankm
+                , wRankm  = {- F.tracepp "W.init ranks" -} rankm
                 , wLast   = Nothing
                 , wRanks  = cNumScc cd
                 , wTime   = 0
                 , wConcCs = concCs
                 }
   where
-    cm        = F.cm  fi
-    cd        = cDeps fi
+    cm        = F.cm  (siQuery sI)
+    cd        = siDeps sI
     rankm     = cRank cd
     items     = S.fromList $ workItemsAt rankm 0 <$> kvarCs
     concCs    = fst <$> ics
@@ -137,20 +129,20 @@ pop w = do
        , rank w i
        )
 
-popW :: Worklist a -> CId -> WorkSet -> Worklist a
+popW :: Worklist a -> F.SubcId -> WorkSet -> Worklist a
 popW w i is = w { wCs   = is
                 , wLast = Just i
                 , wPend = remPend (wPend w) i }
 
 
-newSCC :: Worklist a -> CId -> Bool
+newSCC :: Worklist a -> F.SubcId -> Bool
 newSCC oldW i = (rScc <$> oldRank) /= (rScc <$> newRank)
   where
     oldRank   = lookupCMap rankm <$> wLast oldW
     newRank   = Just              $  lookupCMap rankm i
     rankm     = wRankm oldW
 
-rank :: Worklist a -> CId -> Int
+rank :: Worklist a -> F.SubcId -> Int
 rank w i = rScc $ lookupCMap (wRankm w) i
 
 ---------------------------------------------------------------------------
@@ -162,65 +154,16 @@ push c w = w { wCs   = sAdds (wCs w) wis'
              }
   where
     i    = F.subcId c
-    is'  = filter (not . isPend wp) $ wDeps w i
+    is'  = filter (not . isPend wp) $ M.lookupDefault [] i (wDeps w)
     wis' = workItemsAt (wRankm w) t <$> is'
     t    = wTime w
     wp   = wPend w
 
-workItemsAt :: CMap Rank -> Int -> CId -> WorkItem
+workItemsAt :: CMap Rank -> Int -> F.SubcId -> WorkItem
 workItemsAt !r !t !i = WorkItem { wiCId  = i
                                 , wiTime = t
                                 , wiRank = lookupCMap r i }
 
----------------------------------------------------------------------------
--- | Constraint Dependencies ----------------------------------------------
----------------------------------------------------------------------------
-
-data CDeps = CDs { cSucc   :: CSucc
-                 , cRank   :: CMap Rank
-                 , cNumScc :: Int
-                 }
-
----------------------------------------------------------------------------
-cDeps :: F.SInfo a -> CDeps
----------------------------------------------------------------------------
-cDeps fi  = CDs { cSucc   = gSucc cg
-                , cNumScc = gSccs cg
-                , cRank   = M.fromList [(i, rf i) | i <- is ]
-                }
-  where
-    rf    = rankF (F.cm fi) outRs inRs
-    inRs  = inRanks fi es outRs
-    outRs = gRanks cg
-    es    = gEdges cg
-    cg    = cGraph fi
-    cm    = F.cm fi
-    is    = M.keys cm
-
-rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CId -> Rank
-rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
-  where
-    outScc        = lookupCMap outR
-    inScc         = lookupCMap inR
-    tag           = F._ctag . lookupCMap cm
-
-
-
----------------------------------------------------------------------------
-inRanks :: F.SInfo a -> [DepEdge] -> CMap Int -> CMap Int
----------------------------------------------------------------------------
-inRanks fi es outR
-  | ks == mempty      = outR
-  | otherwise         = fst $ graphRanks g' vf'
-  where
-    ks                = F.kuts fi
-    cm                = F.cm fi
-    (g', vf', _)      = graphFromEdges es'
-    es'               = [(i, i, filter (not . isCut i) js) | (i,_,js) <- es ]
-    isCut i j         = S.member i cutCIds && isEqOutRank i j
-    isEqOutRank i j   = lookupCMap outR i == lookupCMap outR j
-    cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
-    isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
 
 ---------------------------------------------------------------------------
@@ -235,16 +178,16 @@ stats w = Stats (kn w) (cn w) (wRanks w)
 -- | Pending API
 ---------------------------------------------------------------------------
 
-addPends :: CMap () -> [CId] -> CMap ()
+addPends :: CMap () -> [F.SubcId] -> CMap ()
 addPends = L.foldl' addPend
 
-addPend :: CMap () -> CId -> CMap ()
+addPend :: CMap () -> F.SubcId -> CMap ()
 addPend m i = M.insert i () m
 
-remPend :: CMap () -> CId -> CMap ()
+remPend :: CMap () -> F.SubcId -> CMap ()
 remPend m i = M.delete i m
 
-isPend :: CMap () -> CId -> Bool
+isPend :: CMap () -> F.SubcId -> Bool
 isPend w i = M.member i w
 
 ---------------------------------------------------------------------------
@@ -254,5 +197,5 @@ isPend w i = M.member i w
 sAdds :: WorkSet -> [WorkItem] -> WorkSet
 sAdds = L.foldl' (flip S.insert)
 
-sPop :: WorkSet -> Maybe (CId, WorkSet)
+sPop :: WorkSet -> Maybe (F.SubcId, WorkSet)
 sPop = fmap (first wiCId) . S.minView

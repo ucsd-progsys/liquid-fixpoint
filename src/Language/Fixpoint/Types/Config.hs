@@ -6,12 +6,12 @@
 
 module Language.Fixpoint.Types.Config (
     Config  (..)
+  , defConfig
   , getOpts
   , Command (..)
   , SMTSolver (..)
   , GenQualifierSort (..)
   , UeqAllSorts (..)
-  , withTarget
   , defaultMinPartSize
   , defaultMaxPartSize
   , multicore
@@ -31,9 +31,6 @@ class Command a  where
 -- Configuration Options -----------------------------------------------
 ------------------------------------------------------------------------
 
-withTarget        :: Config -> FilePath -> Config
-withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
-
 defaultMinPartSize :: Int
 defaultMinPartSize = 500
 
@@ -43,7 +40,6 @@ defaultMaxPartSize = 700
 data Config
   = Config {
       inFile      :: FilePath            -- ^ target fq-file
-    , outFile     :: FilePath            -- ^ output file
     , srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c)
     , cores       :: Maybe Int           -- ^ number of cores used to solve constraints
     , minPartSize :: Int                 -- ^ Minimum size of a partition
@@ -52,24 +48,31 @@ data Config
     , genSorts    :: GenQualifierSort    -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts         -- ^ use UEq on all sorts
     , linear      :: Bool                -- ^ not interpret div and mul in SMT
-    , allowHO     :: Bool                -- ^ not interpret div and mul in SMT
+    , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
+    , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
+    , oldElim     :: Bool                -- ^ use old eliminate algorithm (deprecate)
+    , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
     , elimStats   :: Bool                -- ^ print eliminate stats
     , solverStats :: Bool                -- ^ print solver stats
     , metadata    :: Bool                -- ^ print meta-data associated with constraints
     , stats       :: Bool                -- ^ compute constraint statistics
     , parts       :: Bool                -- ^ partition FInfo into separate fq files
     , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
-    , minimize    :: Bool                -- ^ use delta debug to min fq file
+    , minimize    :: Bool                -- ^ min .fq by delta debug (unsat with min constraints)
+    , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     , gradual     :: Bool                -- ^ solve "gradual" constraints
+    , extensionality :: Bool             -- ^ allow function extensionality
+    , autoKuts    :: Bool                -- ^ ignore given kut variables
+    , pack        :: Bool                -- ^ Use pack annotations
+    , nonLinCuts  :: Bool                -- ^ Treat non-linear vars as cuts
     } deriving (Eq,Data,Typeable,Show)
 
 
 instance Default Config where
   def = Config { inFile      = ""
-               , outFile     = def
                , srcFile     = def
                , cores       = def
                , minPartSize = defaultMinPartSize
@@ -79,8 +82,11 @@ instance Default Config where
                , ueqAllSorts = def
                , linear      = def
                , allowHO     = False
+               , allowHOqs   = False
                , newcheck    = False
-               , eliminate   = def
+               , eliminate   = False
+               , oldElim     = True -- False
+               , elimBound   = Nothing
                , elimStats   = def
                , solverStats = False
                , metadata    = def
@@ -88,16 +94,15 @@ instance Default Config where
                , parts       = def
                , save        = def
                , minimize    = def
+               , minimizeQs  = def
                , gradual     = False
+               , extensionality = False
+               , autoKuts       = False
+               , pack           = False
+               , nonLinCuts     = False
                }
-
-instance Command Config where
-  command c =  command (genSorts c)
-            ++ command (ueqAllSorts c)
-            ++ command (solver c)
-            ++ " -out "
-            ++ outFile c ++ " "
-            ++ inFile c
+defConfig :: Config
+defConfig = def
 
 ---------------------------------------------------------------------------------------
 newtype GenQualifierSort = GQS Bool
@@ -144,27 +149,35 @@ instance Show SMTSolver where
 
 config :: Config
 config = Config {
-    inFile      = def   &= typ "TARGET"       &= args    &= typFile
-  , outFile     = "out" &= help "Output file"
-  , srcFile     = def   &= help "Source File from which FQ is generated"
-  , solver      = def   &= help "Name of SMT Solver"
-  , genSorts    = def   &= help "Generalize qualifier sorts"
-  , ueqAllSorts = def   &= help "Use UEq on all sorts"
-  , newcheck    = False &= help "(alpha) New liquid-fixpoint sort checking "
-  , linear      = False &= help "Use uninterpreted integer multiplication and division"
-  , allowHO     = False &= help "Allow higher order binders into fixpoint environment"
-  , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
-  , elimStats   = False &= help "(alpha) Print eliminate stats"
-  , solverStats = False &= help "Print solver stats"
-  , save        = False &= help "Save Query as .fq and .bfq files"
-  , metadata    = False &= help "Print meta-data associated with constraints"
-  , stats       = False &= help "Compute constraint statistics"
-  , parts       = False &= help "Partition constraints into indepdendent .fq files"
-  , cores       = def   &= help "(numeric) Number of threads to use"
+    inFile      = def     &= typ "TARGET"       &= args    &= typFile
+  , srcFile     = def     &= help "Source File from which FQ is generated"
+  , solver      = def     &= help "Name of SMT Solver"
+  , genSorts    = def     &= help "Generalize qualifier sorts"
+  , ueqAllSorts = def     &= help "Use UEq on all sorts"
+  , newcheck    = False   &= help "(alpha) New liquid-fixpoint sort checking "
+  , linear      = False   &= help "Use uninterpreted integer multiplication and division"
+  , allowHO     = False   &= help "Allow higher order binders into fixpoint environment"
+  , allowHOqs   = False   &= help "Allow higher order qualifiers"
+  , eliminate   = False   &= help "Eliminate non-cut KVars"
+  , oldElim     = True    &= help "(default) Use old eliminate algorithm"
+  , elimBound   = Nothing &= name "elimBound"
+                          &= help "(alpha) Maximum eliminate-chain depth"
+  , elimStats   = False   &= help "(alpha) Print eliminate stats"
+  , solverStats = False   &= help "Print solver stats"
+  , save        = False   &= help "Save Query as .fq and .bfq files"
+  , metadata    = False   &= help "Print meta-data associated with constraints"
+  , stats       = False   &= help "Compute constraint statistics"
+  , parts       = False   &= help "Partition constraints into indepdendent .fq files"
+  , cores       = def     &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
-  , minimize    = False &= help "Use delta debug to minimize fq file"
+  , minimize    = False &= help "Delta debug to minimize fq file (unsat with min constraints)"
+  , minimizeQs  = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
   , gradual     = False &= help "Solve gradual-refinement typing constraints"
+  , extensionality = False &= help "Allow function extensionality axioms"
+  , autoKuts       = False &= help "Ignore given Kut vars, compute from scratch"
+  , pack           = False &= help "Use pack annotations"
+  , nonLinCuts     = False &= help "Treat non-linear kvars as cuts"
   }
   &= verbosity
   &= program "fixpoint"

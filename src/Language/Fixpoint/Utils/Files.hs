@@ -41,6 +41,7 @@ import           Language.Fixpoint.Misc (errorstar)
 -- | Hardwired Paths and Files -----------------------------
 ------------------------------------------------------------
 
+getFixpointPath :: IO FilePath
 getFixpointPath = fromMaybe msg . msum <$>
                   sequence [ findExecutable "fixpoint.native"
                            , findExecutable "fixpoint.native.exe"
@@ -50,6 +51,7 @@ getFixpointPath = fromMaybe msg . msum <$>
   where
     msg = errorstar "Cannot find fixpoint binary [fixpoint.native]"
 
+getZ3LibPath :: IO FilePath
 getZ3LibPath    = dropFileName <$> getFixpointPath
 
 
@@ -88,8 +90,10 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | BinFq    -- ^ Binary representation of .fq / FInfo
          | Smt2     -- ^ SMTLIB2 query file
          | Min      -- ^ filter constraints with delta debug
+         | MinQuals -- ^ filter qualifiers with delta debug
          deriving (Eq, Ord, Show)
 
+extMap :: Ext -> FilePath
 extMap          = go
   where
     go Cgi      = ".cgi"
@@ -120,6 +124,7 @@ extMap          = go
     go BinFq    = ".bfq"
     go (Part n) = "." ++ show n
     go Min      = ".minfq"
+    go MinQuals = ".minquals"
     -- go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath
@@ -140,6 +145,7 @@ tempDirectory f
     dir         = takeDirectory f
     isTmp       = (tmpDirName `isSuffixOf`)
 
+tmpDirName :: FilePath
 tmpDirName      = ".liquid"
 
 extFileNameR     :: Ext -> FilePath -> FilePath
@@ -180,8 +186,9 @@ copyFiles srcs tgt
 getFileInDirs :: FilePath -> [FilePath] -> IO (Maybe FilePath)
 getFileInDirs name = findFirst (testM doesFileExist . (</> name))
 
+testM :: (Monad m) => (a -> m Bool) -> a -> m [a]
 testM f x = do b <- f x
-               return $ if b then [x] else []
+               return [ x | b ]
 
 findFirst ::  Monad m => (t -> m [a]) -> [t] -> m (Maybe a)
 findFirst _ []     = return Nothing
