@@ -19,26 +19,23 @@ module Language.Fixpoint.Smt.Types (
 
     -- * Typeclass for SMTLIB2 conversion
     , SMTLIB2 (..)
-
+    , runSmt2
+    
     -- * SMTLIB2 Process Context
     , Context (..)
 
-    -- * SMTLIB2 symbol environment 
-    , SMTEnv, emptySMTEnv, SMTSt(..), withExtendedEnv, SMT2, freshSym
+    -- * SMTLIB2 symbol environment
+    , SMTEnv, emptySMTEnv, SMTSt(..), withExtendedEnv, SMT2, freshSym, withNoExtensionality
 
     -- * Theory Symbol
     , TheorySymbol (..)
-
-    -- * Strict Formatter
-    , format
-
     ) where
 
 import           Language.Fixpoint.Types
-import qualified Data.Text.Format         as DTF
-import           Data.Text.Format.Params  (Params)
+-- import           Language.Fixpoint.Misc   (traceShow)
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
+import qualified Data.Text.Lazy.Builder   as LT
 import           System.IO                (Handle)
 import           System.Process
 import           Control.Monad.State
@@ -47,15 +44,15 @@ import           Control.Monad.State
 -- | Types ---------------------------------------------------------------
 --------------------------------------------------------------------------
 
-type Raw          = T.Text
+type Raw          = LT.Text
 
 -- | Commands issued to SMT engine
 data Command      = Push
                   | Pop
                   | CheckSat
-                  | Declare   Symbol [Sort] Sort
-                  | Define    Sort
-                  | Assert    (Maybe Int) Expr
+                  | Declare   !Symbol [Sort] !Sort
+                  | Define    !Sort
+                  | Assert    !(Maybe Int) !Expr
                   | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
                   | CMany [Command]
@@ -66,59 +63,110 @@ data Response     = Ok
                   | Sat
                   | Unsat
                   | Unknown
-                  | Values [(Symbol, Raw)]
-                  | Error Raw
+                  | Values [(Symbol, T.Text)]
+                  | Error !T.Text
                   deriving (Eq, Show)
 
 -- | Information about the external SMT process
-data Context      = Ctx { pId     :: ProcessHandle
-                        , cIn     :: Handle
-                        , cOut    :: Handle
-                        , cLog    :: Maybe Handle
-                        , verbose :: Bool
-                        , smtenv  :: SMTEnv
+data Context      = Ctx { pId     :: !ProcessHandle
+                        , cIn     :: !Handle
+                        , cOut    :: !Handle
+                        , cLog    :: !(Maybe Handle)
+                        , verbose :: !Bool
+                        , c_ext   :: !Bool              -- flag to enable function extentionality axioms
+                        , c_aeq   :: !Bool              -- flag to enable lambda a-equivalence axioms
+                        , c_beq   :: !Bool              -- flag to enable lambda b-equivalence axioms
+                        , c_norm  :: !Bool              -- flag to enable lambda normal form equivalence axioms
+                        , smtenv  :: !SMTEnv
                         }
 
 -- | Theory Symbol
-data TheorySymbol  = Thy { tsSym  :: Symbol
-                         , tsRaw  :: Raw
-                         , tsSort :: Sort
+data TheorySymbol  = Thy { tsSym  :: !Symbol
+                         , tsRaw  :: !Raw
+                         , tsSort :: !Sort
                          }
                      deriving (Eq, Ord, Show)
 
------------------------------------------------------------------------
--- | AST Conversion: Types that can be serialized ---------------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | AST Conversion: Types that can be serialized ------------------------------
+--------------------------------------------------------------------------------
 
-format :: Params ps => DTF.Format -> ps -> T.Text
-format f x = LT.toStrict $ DTF.format f x
-
-type SMTEnv = SEnv Sort 
-data SMTSt  = SMTSt {fresh :: Int , smt2env :: SMTEnv}
+type SMTEnv = SEnv Sort
+data SMTSt  
+  = SMTSt { fresh   :: !Int 
+          , smt2env :: !SMTEnv
+          , f_ext   :: !Bool   -- enable extensionality axioms
+          , a_eq    :: !Bool   -- enable alpha equivalence axioms
+          , b_eq    :: !Bool   -- enable beta equivalence axioms
+          , f_norm  :: !Bool   -- enable normal form axioms
+          }
 
 type SMT2   = State SMTSt
 
-emptySMTEnv = emptySEnv 
+emptySMTEnv :: SMTEnv
+emptySMTEnv = emptySEnv
 
-withExtendedEnv bs act = do 
-  env <- smt2env <$> get 
+withExtendedEnv ::  [(Symbol, Sort)] -> SMT2 a -> SMT2 a
+withExtendedEnv bs act = do
+  env <- smt2env <$> get
   let env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
   modify $ \s -> s{smt2env = env'}
-  r <- act 
+  r <- act
   modify $ \s -> s{smt2env = env}
-  return r 
+  return r
 
-freshSym = do 
-  n <- fresh <$> get 
+withNoExtensionality :: SMT2 a -> SMT2 a
+withNoExtensionality act = do 
+  extFlag <- f_ext <$> get 
+  modify $ \s -> s{f_ext = False}
+  x <- act
+  modify $ \s -> s{f_ext = extFlag}
+  return x 
+
+
+freshSym :: SMT2 Symbol
+freshSym = do
+  n  <- fresh <$> get
   modify $ \s -> s{fresh = n + 1}
-  return $ intSymbol "lambda_fun_" n 
+  return $ intSymbol "lambda_fun_" n
 
+{- 
+-- Proper Handing of Lam Arguments
+freshLamSym :: (Symbol,Sort) -> Expr  -> SMT2 (Expr, Maybe Symbol) 
+freshLamSym (x, s) e = do 
+  ss <- M.lookup s . globals <$> get
+  case ss of 
+    Nothing -> do y <- freshSym
+                  modify $ \st -> st{globals = M.insert s [y] (globals st)}
+                  return (ELam (y, s) $ e `subst1` (x, EVar y), Just y)
+    Just xs -> 
+               if length xs <= i then do 
+                  y <- freshSym
+                  insertLamSym s y 
+                  return (ELam (y, s) $ e `subst1` (x, EVar y), Just y)
+               else 
+                  return (ELam (xs!!i, s) $ e `subst1` (x, EVar (xs!!i)), Nothing)
+  where
+    i  = go e
+    go (ELam (_, s') e) | s == s' = 1 + go e 
+    go (ELam _ e)   = go e 
+    go (ECst e _)   = go e 
+    go (EApp e1 e2) = (go e1) + (go e2)
+    -- go ... 
+    go _            = 0 
+
+
+insertLamSym :: Sort -> Symbol -> SMT2 () 
+insertLamSym s y = 
+  modify $ \st -> st{globals = M.insertWith (flip (++)) s [y] (globals st)}
+
+-}
 -- | Types that can be serialized
 class SMTLIB2 a where
   defunc :: a -> SMT2 a
-  defunc = return 
+  defunc = return
 
-  smt2 :: a -> T.Text 
+  smt2 :: a -> LT.Builder
 
-  runSmt2 :: SMTEnv -> a -> T.Text 
-  runSmt2 env a = smt2 $ evalState (defunc a) (SMTSt 0 env)
+runSmt2 :: (SMTLIB2 a) => Int -> Context -> a -> LT.Builder
+runSmt2 n cxt a = smt2 $ evalState (defunc a) (SMTSt n (smtenv cxt) (c_ext cxt) (c_aeq cxt) (c_beq cxt) (c_norm cxt))

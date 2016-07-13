@@ -24,7 +24,7 @@ nontrivsorts :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 -------------------------------------------------------------------------
 nontrivsorts cfg fi = do
   let fi' = simplify' cfg fi
-  writeFInfo cfg fi' $ extFileName Out (inFile cfg)
+  writeFInfo cfg fi' $ extFileName Out (srcFile cfg)
   return mempty
 
 simplify' :: Config -> FInfo a -> FInfo a
@@ -42,8 +42,7 @@ type TrivInfo     = (NonTrivSorts, KVarMap)
 --------------------------------------------------------------------
 mkNonTrivSorts :: FInfo a -> NonTrivSorts
 --------------------------------------------------------------------
-mkNonTrivSorts = tracepp "mkNonTrivSorts: "
-               . nonTrivSorts . trivInfo
+mkNonTrivSorts = {- tracepp "mkNonTrivSorts: " . -}  nonTrivSorts . trivInfo
 
 --------------------------------------------------------------------
 nonTrivSorts :: TrivInfo -> NonTrivSorts
@@ -67,8 +66,8 @@ ntEdges (nts, kvm) = es ++ [(v, u) | (u, v) <- es]
 type NTG = [(NTV, NTV, [NTV])]
 
 data NTV = NTV
-         | K KVar
-         | S Sort
+         | K !KVar
+         | S !Sort
          deriving (Eq, Ord, Show, Generic)
 
 instance Hashable NTV
@@ -149,6 +148,8 @@ simplifyBindEnv = mapBindEnv . second . simplifySortedReft
 simplifyWfCs :: NonTrivSorts -> M.HashMap KVar (WfC a) -> M.HashMap KVar (WfC a)
 simplifyWfCs tm = M.filter (isNonTrivialSort tm . snd3 . wrft)
 
+simplifySubCs :: (Eq k, Hashable k)
+              => NonTrivSorts -> M.HashMap k (SubC a) -> M.HashMap k (SubC a)
 simplifySubCs ti cm = trace msg cm'
   where
     cm' = tx cm

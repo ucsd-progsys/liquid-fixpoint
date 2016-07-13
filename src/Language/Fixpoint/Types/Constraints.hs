@@ -11,7 +11,7 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
 
--- | This module contains the top-level query data types and elements,
+-- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
 
 module Language.Fixpoint.Types.Constraints (
@@ -31,7 +31,8 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Constraints
   , WfC (..)
-  , SubC, mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
+  , SubC, SubcId
+  , mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
@@ -43,28 +44,23 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Qualifiers
   , Qualifier (..)
-  , qualifier
   , EQual (..)
   , eQual
+  , qualifier
+  , mkQual, remakeQual
 
   -- * Results
   , FixSolution
   , Result (..)
 
-  -- * Solutions
-  , Hyp
-  , Cube (..)
-  , QBind
-  , Cand
-  , Sol (..)
-  , Solution
-  , solFromList, solInsert, solLookup, solResult
-
   -- * Cut KVars
   , Kuts (..)
   , ksMember
 
-
+  -- * Higher Order Logic
+  , HOInfo (..)
+  , allowHO
+  , allowHOquals
 
   ) where
 
@@ -72,7 +68,7 @@ import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
-import           Data.List                 (sort, nub, delete)
+import qualified Data.List                 as L -- (sort, nub, delete)
 import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Control.Monad             (void)
@@ -96,7 +92,8 @@ import qualified Data.HashSet              as S
 -- | Constraints ---------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-{-@ type Tag = { v : [Int] | len(v) = 1 } @-}
+{-@ type Tag = { v : [Int] | len v == 1 } @-}
+
 type Tag           = [Int]
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
@@ -105,10 +102,12 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    }
               deriving (Eq, Generic, Functor)
 
+type SubcId = Integer
+
 data SubC a = SubC { _senv  :: !IBindEnv
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , _sid   :: !(Maybe Integer)
+                   , _sid   :: !(Maybe SubcId)
                    , _stag  :: !Tag
                    , _sinfo :: !a
                    }
@@ -151,7 +150,7 @@ sortedReftBind sr = (x, sr)
   where
     Reft (x, _)   = sr_reft sr
 
-subcId :: (TaggedC c a) => c a -> Integer
+subcId :: (TaggedC c a) => c a -> SubcId
 subcId = mfromJust "subCId" . sid
 
 ---------------------------------------------------------------------------
@@ -160,8 +159,8 @@ subcId = mfromJust "subCId" . sid
 
 type FixSolution = M.HashMap KVar Expr
 
-data Result a = Result { resStatus   :: FixResult a
-                       , resSolution :: FixSolution }
+data Result a = Result { resStatus   :: !(FixResult a)
+                       , resSolution :: !FixSolution }
                 deriving (Generic, Show)
 
 instance Monoid (Result a) where
@@ -178,7 +177,7 @@ instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
 
 pprSinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
-pprSinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
+pprSinfos msg = map ((text msg <>) . toFix) . L.sort . fmap sinfo
 
 instance Fixpoint a => Show (WfC a) where
   show = showFix
@@ -224,12 +223,14 @@ instance Fixpoint a => Fixpoint (WfC a) where
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
 
-pprId (Just i)  = text "id" <+> tshow i
-pprId _         = text ""
+pprId :: Show a => Maybe a -> Doc
+pprId (Just i)  = "id" <+> tshow i
+pprId _         = ""
 
 ----------------------------------------------------------------
 instance B.Binary Qualifier
 instance B.Binary Kuts
+instance B.Binary HOInfo
 instance (B.Binary a) => B.Binary (SubC a)
 instance (B.Binary a) => B.Binary (WfC a)
 instance (B.Binary a) => B.Binary (SimpC a)
@@ -237,6 +238,7 @@ instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
 
 instance NFData Qualifier
 instance NFData Kuts
+instance NFData HOInfo
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
@@ -261,6 +263,7 @@ wfC be sr x = if all isEmptySubst sus
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
 
+mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
 mkSubC = SubC
 
 subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
@@ -281,6 +284,7 @@ shiftVV r@(Reft (v, ras)) v'
    | v == v'   = r
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
 
+addIds :: [SubC a] -> [(Integer, SubC a)]
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
@@ -292,27 +296,28 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data Qualifier = Q { q_name   :: Symbol           -- ^ Name
-                   , q_params :: [(Symbol, Sort)] -- ^ Parameters
-                   , q_body   :: Expr             -- ^ Predicate
-                   , q_pos    :: !SourcePos       -- ^ Source Location
+data Qualifier = Q { qName   :: !Symbol          -- ^ Name
+                   , qParams :: [(Symbol, Sort)] -- ^ Parameters
+                   , qBody   :: !Expr            -- ^ Predicate
+                   , qPos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Loc Qualifier where
   srcSpan q = SS l l
     where
-      l     = q_pos q
+      l     = qPos q
 
 instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance PPrint Qualifier where
   pprintTidy k q = hcat [ "qualif"
-                        , pprintTidy k (q_name q)
+                        , pprintTidy k (qName q)
                         , "defined at"
-                        , pprintTidy k (q_pos q) ]
+                        , pprintTidy k (qPos q) ]
 
+pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
@@ -320,7 +325,7 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 qualifier :: SEnv Sort -> SourcePos -> SEnv Sort -> Symbol -> Sort -> Expr -> Qualifier
 qualifier lEnv l γ v so p   = Q "Auto" ((v, so) : xts) p l
   where
-    xs  = delete v $ nub $ syms p
+    xs  = L.delete v $ L.nub $ syms p
     xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
 
 envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
@@ -331,6 +336,56 @@ envSort l lEnv tEnv x i
   where
     ai  = {- trace msg $ -} fObj $ Loc l l $ tempSymbol "LHTV" i
     -- msg = "unknown symbol in qualifier: " ++ show x
+
+remakeQual :: Qualifier -> Qualifier
+remakeQual q = {- traceShow msg $ -} mkQual (qName q) (qParams q) (qBody q) (qPos q)
+
+mkQual :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
+mkQual n xts p = Q n ((v, t) : yts) (subst su p)
+  where
+    (v, t):zts = gSorts xts
+    -- yts        = first mkParam <$> zts
+    yts        = zts
+    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+
+gSorts :: [(a, Sort)] -> [(a, Sort)]
+gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
+  where
+    su         = (`zip` [0..]) . sortNub . concatMap (sortVars . snd) $ xts
+
+substVars :: [(Symbol, Int)] -> Sort -> Sort
+substVars su = mapSort' tx
+  where
+    tx (FObj x)
+      | Just i <- lookup x su = FVar i
+    tx t                      = t
+
+sortVars :: Sort -> [Symbol]
+sortVars = foldSort' go []
+  where
+    go b (FObj x) = x : b
+    go b _        = b
+
+-- COPIED from Visitor due to cyclic deps
+mapSort' :: (Sort -> Sort) -> Sort -> Sort
+mapSort' f = step
+  where
+    step             = go . f
+    go (FFunc t1 t2) = FFunc (step t1) (step t2)
+    go (FApp t1 t2)  = FApp (step t1) (step t2)
+    go (FAbs i t)    = FAbs i (step t)
+    go t             = t
+
+-- COPIED from Visitor due to cyclic deps
+foldSort' :: (a -> Sort -> a) -> a -> Sort -> a
+foldSort' f = step
+  where
+    step b t           = go (f b t) t
+    go b (FFunc t1 t2) = L.foldl' step b [t1, t2]
+    go b (FApp t1 t2)  = L.foldl' step b [t1, t2]
+    go b (FAbs _ t)    = go b t
+    go b _             = b
+
 
 --------------------------------------------------------------------------------
 -- | Constraint Cut Sets -------------------------------------------------------
@@ -352,16 +407,29 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 -- | Constructing Queries
 ------------------------------------------------------------------------
-fi cs ws binds ls ks qs bi fn aHO
+fi :: [SubC a]
+   -> [WfC a]
+   -> BindEnv
+   -> SEnv Sort
+   -> SEnv Sort
+   -> Kuts
+   -> [Qualifier]
+   -> M.HashMap BindId a
+   -> FilePath
+   -> Bool
+   -> Bool
+   -> GInfo SubC a
+fi cs ws binds ls ds ks qs bi fn aHO aHOq
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
-       , lits     = ls
+       , gLits    = ls
+       , dLits    = ds
        , kuts     = ks
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
-       , allowHO  = aHO
+       , hoInfo   = HOI aHO aHOq
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -373,31 +441,50 @@ fi cs ws binds ls ks qs bi fn aHO
 
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
+
+data HOInfo = HOI { hoBinds :: Bool          -- ^ Allow higher order binds in the environemnt
+                  , hoQuals :: Bool          -- ^ Allow higher order quals
+                  }
+  deriving (Eq, Show, Generic)
+
+allowHO, allowHOquals :: GInfo c a -> Bool
+allowHO      = hoBinds . hoInfo
+allowHOquals = hoQuals . hoInfo
+
 data GInfo c a =
-  FI { cm       :: M.HashMap Integer (c a)
-     , ws       :: M.HashMap KVar (WfC a)
-     , bs       :: !BindEnv
-     , lits     :: !(SEnv Sort)
-     , kuts     :: Kuts
-     , quals    :: ![Qualifier]
-     , bindInfo :: M.HashMap BindId a
-     , fileName :: FilePath
-     , allowHO  :: !Bool
+  FI { cm       :: !(M.HashMap SubcId (c a)) -- ^ cst id |-> Horn Constraint
+     , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
+     , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
+     , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
+     , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
+     , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
+  --    , packs    :: !Packs                     -- ^ Pack-sets of related KVars
+     , quals    :: ![Qualifier]               -- ^ Abstract domain
+     , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
+     , fileName :: FilePath                   -- ^ Source file name
+     , hoInfo   :: !HOInfo                    -- ^ Higher Order info
      }
   deriving (Eq, Show, Functor, Generic)
 
+instance Monoid HOInfo where
+  mempty        = HOI False False
+  mappend i1 i2 = HOI { hoBinds = hoBinds i1 || hoBinds i2
+                      , hoQuals = hoQuals i1 || hoQuals i2
+                      }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty False
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
-                     , lits     = mappend (lits i1)     (lits i2)
+                     , gLits    = mappend (gLits i1)    (gLits i2)
+                     , dLits    = mappend (dLits i1)    (dLits i2)
                      , kuts     = mappend (kuts i1)     (kuts i2)
+                     -- , packs    = mappend (packs i1)    (packs i2)
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
-                     , allowHO  = allowHO i1 || allowHO i2
+                     , hoInfo   = mappend (hoInfo i1)   (hoInfo i2)
                      }
 
 instance PTable (SInfo a) where
@@ -412,17 +499,21 @@ toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 --------------------------------------------------------------------------
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
-                  $++$ conDoc   x'
+                --   $++$ packsDoc x'
+                  $++$ gConDoc   x'
+                  $++$ dConDoc   x'
                   $++$ bindsDoc x'
                   $++$ csDoc    x'
                   $++$ wsDoc    x'
                   $++$ binfoDoc x'
                   $++$ text "\n"
   where
-    conDoc        = vcat     . map toFixConstant . toListSEnv . lits
+    gConDoc       = sEnvDoc "constant"             . gLits
+    dConDoc       = sEnvDoc "distinct"             . dLits
     csDoc         = vcat     . map toFix . M.elems . cm
     wsDoc         = vcat     . map toFix . M.elems . ws
     kutsDoc       = toFix    . kuts
+    -- packsDoc      = toFix    . packs
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
@@ -434,8 +525,10 @@ toFixpoint cfg x' =    qualsDoc x'
 ($++$) :: Doc -> Doc -> Doc
 x $++$ y = x $+$ text "\n" $+$ y
 
-toFixConstant (c, so)
-  = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
+sEnvDoc :: Doc -> SEnv Sort -> Doc
+sEnvDoc d       = vcat . map kvD . toListSEnv
+  where
+    kvD (c, so) = d <+> toFix c <+> ":" <+> parens (toFix so)
 
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
@@ -470,7 +563,7 @@ blowOutVV fi i subc = fi { bs = be', cm = cm' }
 
 
 --------------------------------------------------------------------------------
--- | Solutions (Instantiated Qualfiers )----------------------------------------
+-- | Instantiated Qualfiers ----------------------------------------
 --------------------------------------------------------------------------------
 
 data EQual = EQL { eqQual :: !Qualifier
@@ -488,68 +581,10 @@ instance NFData EQual
 eQual :: Qualifier -> [Symbol] -> EQual
 eQual q xs = EQL q p es
   where
-    p      = subst su $  q_body q
+    p      = subst su $  qBody q
     su     = mkSubst  $  safeZip "eQual" qxs es
     es     = eVar    <$> xs
-    qxs    = fst     <$> q_params q
-
-
---------------------------------------------------------------------------------
--- | Types ---------------------------------------------------------------------
---------------------------------------------------------------------------------
-
-type Solution = Sol QBind
-
-data Sol a = Sol { sMap :: M.HashMap KVar a
-                 , sHyp :: M.HashMap KVar Hyp
-                 }
-
-data Cube = Cube
-  { cuBinds :: IBindEnv
-  , cuSubst :: Subst
-  }
-
-type Hyp  = ListNE Cube
-
-type QBind    = [EQual]
-
-type Cand a   = [(Expr, a)]
-
-instance Monoid (Sol a) where
-  mempty        = Sol mempty mempty
-  mappend s1 s2 = Sol { sMap = mappend (sMap s1) (sMap s2)
-                      , sHyp = mappend (sHyp s1) (sHyp s2)
-                      }
-
-instance Functor Sol where
-  fmap f (Sol s h) = Sol (f <$> s) h
-
-instance PPrint a => PPrint (Sol a) where
-  pprintTidy k = pprintTidy k . sMap
-
---------------------------------------------------------------------------------
-solResult :: Solution -> M.HashMap KVar Expr
---------------------------------------------------------------------------------
-solResult s = sMap $ (pAnd . fmap eqPred) <$> s
-
-
---------------------------------------------------------------------------------
--- | Create a Solution ---------------------------------------------------------
---------------------------------------------------------------------------------
-solFromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Sol a
-solFromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
-
---------------------------------------------------------------------------------
--- | Read / Write Solution at KVar ---------------------------------------------
---------------------------------------------------------------------------------
-solLookup :: Solution -> KVar -> QBind
---------------------------------------------------------------------------------
-solLookup s k = M.lookupDefault [] k (sMap s)
-
---------------------------------------------------------------------------------
-solInsert :: KVar -> a -> Sol a -> Sol a
---------------------------------------------------------------------------------
-solInsert k qs s = s { sMap = M.insert k qs (sMap s) }
+    qxs    = fst     <$> qParams q
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
@@ -564,12 +599,14 @@ saveQuery cfg fi = {- when (save cfg) $ -} do
   saveBinaryQuery cfg fi'
   saveTextQuery cfg   fi'
 
+saveBinaryQuery :: Config -> FInfo () -> IO ()
 saveBinaryQuery cfg fi = do
   let bfq  = queryFile Files.BinFq cfg
   putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
   ensurePath bfq
   B.encodeFile bfq fi
 
+saveTextQuery :: Config -> FInfo () -> IO ()
 saveTextQuery cfg fi = do
   let fq   = queryFile Files.Fq cfg
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"

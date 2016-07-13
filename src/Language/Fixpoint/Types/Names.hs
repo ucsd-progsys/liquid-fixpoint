@@ -34,6 +34,7 @@ module Language.Fixpoint.Types.Names (
   , isPrefixOfSym
   , isSuffixOfSym
   , isNonSymbol
+  , isLitSymbol
   , isNontrivialVV
   , isDummy
 
@@ -97,6 +98,9 @@ module Language.Fixpoint.Types.Names (
   -- * Casting function names
   , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
+
+  , lambdaName
+  , intArgName
 
 ) where
 
@@ -168,7 +172,8 @@ instance Hashable (Description Symbol) where
   hashWithSalt s (DT t) = hashWithSalt s t
 
 instance Hashable Symbol where
-  hashWithSalt _ (S i _ _) = i
+  -- NOTE: hash based on original text rather than id
+  hashWithSalt s (S _ t _) = hashWithSalt s t
 
 instance NFData Symbol where
   rnf (S {}) = ()
@@ -329,11 +334,11 @@ numChars = S.fromList ['0' .. '9']
 safeChars :: S.HashSet Char
 safeChars = alphaChars `mappend`
             numChars   `mappend`
-            S.fromList ['_', '.'  ]
+            S.fromList ['_', '.']
 
 symChars :: S.HashSet Char
 symChars =  safeChars `mappend`
-            S.fromList ['%', '#', '$']
+            S.fromList ['%', '#', '$', '\'']
 
 okSymChars :: S.HashSet Char
 okSymChars = safeChars
@@ -388,6 +393,9 @@ dummySymbol = dummyName
 litSymbol :: Symbol -> Symbol
 litSymbol s = litPrefix `mappendSym` s
 
+isLitSymbol :: Symbol -> Bool
+isLitSymbol = isPrefixOfSym litPrefix
+
 unLitSymbol :: Symbol -> Maybe Symbol
 unLitSymbol = stripPrefix litPrefix
 
@@ -406,11 +414,14 @@ kArgSymbol x k = (kArgPrefix `mappendSym` x) `suffixSymbol` k
 existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, kArgPrefix, existPrefix :: Symbol
+
+tempPrefix, anfPrefix, renamePrefix, litPrefix  :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
+
+kArgPrefix, existPrefix :: Symbol
 kArgPrefix   = "lq_karg$"
 existPrefix  = "lq_ext$"
 
@@ -455,6 +466,12 @@ instance Symbolic Symbol where
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------
+
+lambdaName :: Symbol
+lambdaName = "smt_lambda"
+
+intArgName :: Int -> Symbol
+intArgName = intSymbol "lam_int_arg"
 
 setToIntName, bitVecToIntName, mapToIntName, boolToIntName , realToIntName:: Symbol
 setToIntName    = "set_to_int"

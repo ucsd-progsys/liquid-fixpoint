@@ -32,15 +32,17 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
-import qualified Data.Text                as T
-import           Data.Text.Format         hiding (format)
-
+import Data.Monoid
+import qualified Data.Text.Lazy           as T
+import qualified Data.Text.Lazy.Builder   as Builder
+import           Data.Text.Format
+import qualified Data.Text
 
 --------------------------------------------------------------------------
 -- | Set Theory ----------------------------------------------------------
 --------------------------------------------------------------------------
 
-elt, set, map :: Raw 
+elt, set, map :: Raw
 elt  = "Elt"
 set  = "Set"
 map  = "Map"
@@ -79,7 +81,7 @@ setSng   = "Set_sng"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
-z3Preamble :: Bool -> [T.Text]
+z3Preamble :: Config -> [T.Text]
 z3Preamble u
   = [ format "(define-sort {} () Int)"
         (Only elt)
@@ -113,10 +115,14 @@ z3Preamble u
 
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
 -- (2) have very different semantics. TODO: proper overloading, post genEApp
-uifDef u f op | u         = format "(declare-fun {} (Int Int) Int)" (Only f)
-              | otherwise = format "(define-fun {} ((x Int) (y Int)) Int ({} x y))" (f, op)
+uifDef :: Config -> Data.Text.Text -> T.Text -> T.Text
+uifDef cfg f op
+  | linear cfg || Z3 /= solver cfg
+  = format "(declare-fun {} (Int Int) Int)" (Only f)
+  | otherwise
+  = format "(define-fun {} ((x Int) (y Int)) Int ({} x y))" (f, op)
 
-cvc4Preamble :: Bool -> [T.Text]
+cvc4Preamble :: Config -> [T.Text]
 cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
   = [        "(set-logic ALL_SUPPORTED)"
     , format "(define-sort {} () Int)"       (Only elt)
@@ -136,7 +142,7 @@ cvc4Preamble _ --TODO use uif flag u (see z3Preamble)
         (sto, map, elt, elt, map)
     ]
 
-smtlibPreamble :: Bool -> [T.Text]
+smtlibPreamble :: Config -> [T.Text]
 smtlibPreamble _ --TODO use uif flag u (see z3Preamble)
   = [       --  "(set-logic QF_AUFRIA)",
       format "(define-sort {} () Int)"       (Only elt)
@@ -173,34 +179,35 @@ mkSetSub _ s t = format "({} {} {})" (sub, s, t)
 isTheorySymbol :: Symbol -> Bool
 isTheorySymbol x = M.member x theorySymbols
 
-theoryEnv = M.map tsSort theorySymbols 
+theoryEnv :: M.HashMap Symbol Sort
+theoryEnv = M.map tsSort theorySymbols
 
 theorySymbols :: M.HashMap Symbol TheorySymbol
 theorySymbols = M.fromList
   [ tSym setEmp   emp (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , tSym setEmpty emp (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
-  , tSym setAdd add   setbopSort 
-  , tSym setCup cup   setbopSort
-  , tSym setCap cap   setbopSort
-  , tSym setMem mem   setmemSort
-  , tSym setDif dif   setbopSort
-  , tSym setSub sub   setcmpSort
-  , tSym setCom com   setcmpSort
-  , tSym mapSel sel   mapselSort
-  , tSym mapSto sto   mapstoSort
-  , tSym bvOrName "bvor"   bvbopSort
-  , tSym bvAndName "bvand" bvbopSort
+  , tSym setAdd add   setBopSort
+  , tSym setCup cup   setBopSort
+  , tSym setCap cap   setBopSort
+  , tSym setMem mem   setMemSort
+  , tSym setDif dif   setBopSort
+  , tSym setSub sub   setCmpSort
+  , tSym setCom com   setCmpSort
+  , tSym mapSel sel   mapSelSort
+  , tSym mapSto sto   mapStoSort
+  , tSym bvOrName "bvor"   bvBopSort
+  , tSym bvAndName "bvand" bvBopSort
   ]
   where
-    setbopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
-    setmemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
-    setcmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
-    mapselSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 0)
-    mapstoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) 
-                                 $ FFunc (FVar 0) 
-                                 $ FFunc (FVar 1) 
+    setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
+    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 1)
+    mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
+                                 $ FFunc (FVar 0)
+                                 $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
-    bvbopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
+    bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
 
 
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
@@ -223,31 +230,31 @@ sizeBv tc
 -- | Exported API -------------------------------------------------------------
 -------------------------------------------------------------------------------
 
-smt2Symbol :: Symbol -> Maybe T.Text
-smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
+smt2Symbol :: Symbol -> Maybe Builder.Builder
+smt2Symbol x = Builder.fromLazyText . tsRaw <$> M.lookup x theorySymbols
 
-smt2Sort :: Sort -> Maybe T.Text
+smt2Sort :: Sort -> Maybe Builder.Builder
 smt2Sort (FApp (FTC c) _)
-  | fTyconSymbol c == "Set_Set" = Just $ format "{}" (Only set)
+  | fTyconSymbol c == "Set_Set" = Just $ build "{}" (Only set)
 smt2Sort (FApp (FApp (FTC c) _) _)
-  | fTyconSymbol c == "Map_t"   = Just $ format "{}" (Only map)
+  | fTyconSymbol c == "Map_t"   = Just $ build "{}" (Only map)
 smt2Sort (FApp (FTC bv) (FTC s))
   | isBv bv
-  , Just n <- sizeBv s          = Just $ format "(_ BitVec {})" (Only n)
+  , Just n <- sizeBv s          = Just $ build "(_ BitVec {})" (Only n)
 smt2Sort _                      = Nothing
 
-smt2App :: Expr -> [T.Text] -> Maybe T.Text
+smt2App :: Expr -> [Builder.Builder] -> Maybe Builder.Builder
 smt2App (EVar f) [d]
-  | f == setEmpty = Just $ format "{}"             (Only emp)
-  | f == setEmp   = Just $ format "(= {} {})"      (emp, d)
-  | f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
-smt2App (EVar f) ds
+  | f == setEmpty = Just $ build "{}"             (Only emp)
+  | f == setEmp   = Just $ build "(= {} {})"      (emp, d)
+  | f == setSng   = Just $ build "({} {} {})"     (add, emp, d)
+smt2App (EVar f) (d:ds)
   | Just s <- M.lookup f theorySymbols
-  = Just $ format "({} {})" (tsRaw s, T.intercalate " " ds) 
+  = Just $ build "({} {})" (tsRaw s, d <> mconcat [ " " <> d | d <- ds])
 smt2App _ _           = Nothing
 
 
-preamble :: Bool -> SMTSolver -> [T.Text]
+preamble :: Config -> SMTSolver -> [T.Text]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
 preamble u _    = smtlibPreamble u
