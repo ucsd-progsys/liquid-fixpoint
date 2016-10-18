@@ -84,20 +84,19 @@ import           Control.Monad.State
 --------------------------------------------------------------------------------
 create :: Config -> F.SInfo a -> [(F.KVar, Hyp)] -> CDeps -> Index
 --------------------------------------------------------------------------------
-create _cfg sI kHyps _cDs = FastIdx
-  { bindExpr = bE
-  , kvUse    = kU
-  , kvDef    = kHypM
-  , envBinds = F.senv <$> cm
-  , envTx    = mkEnvTx kHypM bE cm
-  , envSorts = F.fromListSEnv $ symbolSorts _cfg sI
-  -- - , kvDeps   = {- F.tracepp "KVDeps\n" $ -} mkKvDeps kHypM bE (F.cm sI)
-  -- , bindPrev = mkBindPrev sI
-  }
-  where
-    kHypM    = M.fromList kHyps
-    (bE, kU) = mkBindExpr sI
-    cm       = F.cm sI
+create _ _ _ _ = error "Index.create"
+-- create _cfg sI kHyps _cDs = FastIdx
+  -- { bindExpr = bE
+  -- , kvUse    = kU
+  -- , kvDef    = kHypM
+  -- , envBinds = F.senv <$> cm
+  -- , envTx    = mkEnvTx kHypM bE cm
+  -- , envSorts = F.fromListSEnv $ symbolSorts _cfg sI
+  -- }
+  -- where
+    -- kHypM    = M.fromList kHyps
+    -- (bE, kU) = mkBindExpr sI
+    -- cm       = F.cm sI
 
 --------------------------------------------------------------------------------
 
@@ -300,7 +299,7 @@ intBIndex i
 --------------------------------------------------------------------------------
 bgPred :: Index -> ([(F.Symbol, F.Sort)], F.Pred)
 --------------------------------------------------------------------------------
-bgPred me   = ( xts, F.PTrue )
+bgPred me   = error "Index.bgPred" -- ( xts, F.PTrue )
   where
     xts     = (, F.boolSort) <$> bXs
     bXs     =  (bx <$> M.keys  (bindExpr me)) -- BindId
@@ -375,16 +374,18 @@ isKnownVar me x = F.memberSEnv x (envSorts me)
 --------------------------------------------------------------------------------
 lhsPred :: Solution -> F.SimpC a -> F.Pred
 --------------------------------------------------------------------------------
-lhsPred s c = F.pAnd $ [subcIdPred me nonTrivs j]
-                    ++ [bp i' `F.PImp` ip'    | (i', ip') <- ips'' ]
-                    ++ [bp j' `F.PImp` scp j' | j'        <- js'   ]
-   where
-     me          = mfromJust "Index.lhsPred" (sIdx s)
-     j           = F.subcId c
-     scp         = subcIdPred me nonTrivs
-     nonTrivs    = M.fromList ips''
-     ips''       = filter (not . F.isTautoPred . snd) ips'
-     (ips', js') = footprint me s j
+lhsPred s c = error "Index.lhsPred"
+
+-- lhsPred s c = F.pAnd $ [subcIdPred me nonTrivs j]
+                    -- ++ [bp i' `F.PImp` ip'    | (i', ip') <- ips'' ]
+                    -- ++ [bp j' `F.PImp` scp j' | j'        <- js'   ]
+   -- where
+     -- me          = mfromJust "Index.lhsPred" (sIdx s)
+     -- j           = F.subcId c
+     -- scp         = subcIdPred me nonTrivs
+     -- nonTrivs    = M.fromList ips''
+     -- ips''       = filter (not . F.isTautoPred . snd) ips'
+     -- (ips', js') = footprint me s j
 
 footprint :: Index -> Solution -> F.SubcId -> ([(F.BindId, F.Pred)], [F.SubcId])
 footprint me s j = (ips', crunch jss')
