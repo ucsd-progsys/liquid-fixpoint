@@ -41,7 +41,6 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
-import qualified Language.Fixpoint.Solver.Index as Index
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
@@ -88,9 +87,9 @@ instance F.PTable Stats where
                         ]
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo b -> Int -> F.Solution -> SolveM a -> IO a
+runSolverM :: Config -> SolverInfo b -> Int -> SolveM a -> IO a
 --------------------------------------------------------------------------------
-runSolverM cfg sI _ s0 act =
+runSolverM cfg sI _ act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
@@ -100,7 +99,7 @@ runSolverM cfg sI _ s0 act =
     acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
     release  = cleanupContext
     ess      = distinctLiterals fi
-    (xts, p) = background cfg fi s0
+    (xts, p) = background cfg fi
     be       = F.SolEnv (F.bs fi) -- (getPacks cfg fi)
     file     = C.srcFile cfg
     -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
@@ -114,11 +113,8 @@ runSolverM cfg sI _ s0 act =
 -- /   | C.pack cfg = F.packs fi
 -- /   | otherwise  = mempty
 
-background :: F.TaggedC c a => Config -> F.GInfo c a -> F.Solution -> ([(F.Symbol, F.Sort)], F.Pred)
-background cfg fi s0 = (bts ++ xts, p)
-  where
-    xts              = symbolSorts cfg fi
-    (bts, p)         = maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
+background :: F.TaggedC c a => Config -> F.GInfo c a -> ([(F.Symbol, F.Sort)], F.Pred)
+background cfg fi = (symbolSorts cfg fi, F.PTrue)
 
 --------------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
@@ -230,8 +226,8 @@ declare xts' ess p = withContext $ \me -> do
     isThy   = isJust . Thy.smt2Symbol
 
 assumes :: [F.Expr] -> SolveM ()
-assumes es = withContext $ \me -> 
-  forM_  es $ smtAssert me 
+assumes es = withContext $ \me ->
+  forM_  es $ smtAssert me
 
 declareInitEnv :: SolveM ()
 declareInitEnv

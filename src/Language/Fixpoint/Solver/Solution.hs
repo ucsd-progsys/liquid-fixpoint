@@ -28,7 +28,6 @@ import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
-import qualified Language.Fixpoint.Solver.Index       as Index
 import           Prelude                              hiding (init, lookup)
 
 -- DEBUG
