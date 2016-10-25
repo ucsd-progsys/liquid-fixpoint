@@ -265,7 +265,7 @@ cubePred :: CombinedEnv -> Sol.Solution -> F.KVar -> F.Subst -> Sol.Cube -> Expr
 cubePred g s k su c   = ( F.pExist xts (psu &.& p) , kI )
   where
     ((xts,psu,p), kI) = cubePredExc g s k su c bs'
-    bs'               = delCEnv s k bs g
+    bs'               = delCEnv s k bs
     bs                = Sol.cuBinds c
 
 
@@ -357,8 +357,8 @@ addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
 -- delCEnv :: F.IBindEnv -> CombinedEnv -> F.IBindEnv
 -- delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
 
-delCEnv :: Sol.Solution -> F.KVar -> F.IBindEnv -> CombinedEnv -> F.IBindEnv
-delCEnv s k bs (_, _, bs')  = F.diffIBindEnv bs (F.intersectionIBindEnv bs' _kbs)
+delCEnv :: Sol.Solution -> F.KVar -> F.IBindEnv -> F.IBindEnv
+delCEnv s k bs  = F.diffIBindEnv bs _kbs
                                                 -- ORIG: bs'
   where
     _kbs = safeLookup "delCEnv" k (Sol.sScp s)
