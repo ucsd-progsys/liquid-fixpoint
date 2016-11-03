@@ -11,6 +11,7 @@ category:            Language
 build-type:          Simple
 cabal-version:       >=1.10
 
+
 description:     This package is a Haskell wrapper to the SMTLIB-based
                  Horn-Clause/Logical Implication constraint solver used
                  for Liquid Types.
@@ -39,7 +40,7 @@ Source-Repository head
 Flag devel
   Description: turn on stricter error reporting for development
   Default:     False
-  Manual:      False
+  Manual:      True
 
 Executable fixpoint
   default-language: Haskell98
@@ -56,6 +57,7 @@ Library
   ghc-options:     -W -fno-warn-missing-methods
   if flag(devel)
     ghc-options:   -Werror
+  ghc-prof-options: -fprof-auto
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,
@@ -68,15 +70,21 @@ Library
                    Language.Fixpoint.Types.Substitutions,
                    Language.Fixpoint.Types.Environments,
                    Language.Fixpoint.Types.Constraints,
-                   Language.Fixpoint.Types.Graphs,
+                   Language.Fixpoint.Types.Solutions,
                    Language.Fixpoint.Types.Utils,
                    Language.Fixpoint.Types,
+                   Language.Fixpoint.Graph.Types,
+                   Language.Fixpoint.Graph.Reducible,
+                   Language.Fixpoint.Graph.Indexed,
+                   Language.Fixpoint.Graph.Partition,
+                   Language.Fixpoint.Graph.Deps,
+                   Language.Fixpoint.Graph,
+                   Language.Fixpoint.Defunctionalize.Defunctionalize,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,
                    Language.Fixpoint.Smt.Theories,
                    Language.Fixpoint.Smt.Serialize,
                    Language.Fixpoint.Smt.Interface,
-                   Language.Fixpoint.Partition,
                    Language.Fixpoint.Minimize,
                    Language.Fixpoint.Solver,
                    Language.Fixpoint.Parse,
@@ -84,9 +92,8 @@ Library
                    Language.Fixpoint.Misc,
                    Language.Fixpoint.Utils.Progress,
                    Language.Fixpoint.Utils.Files,
-                   Language.Fixpoint.Solver.Types,
-                   Language.Fixpoint.Solver.Graph,
                    Language.Fixpoint.Solver.Solution,
+                   Language.Fixpoint.Solver.Index,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
                    Language.Fixpoint.Solver.TrivialSort,
@@ -130,6 +137,8 @@ Library
                , fgl
                , fgl-visualize
                , dotgen
+               , time
+
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
   if !os(windows)

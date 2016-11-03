@@ -18,39 +18,27 @@ module Language.Fixpoint.Solver (
   , parseFInfo
 ) where
 
-
 import           Control.Concurrent
 import           Data.Binary
--- import           Data.Maybe                         (fromMaybe)
--- import           Data.List                          hiding (partition)
--- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
-
--- import           System.Console.CmdArgs.Verbosity   hiding (Loud)
+import           System.Console.CmdArgs.Verbosity   (whenNormal)
 import           Text.PrettyPrint.HughesPJ          (render)
--- import           Text.Printf                        (printf)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
-
-import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
-import qualified Language.Fixpoint.Solver.Eliminate as E
--- import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
+import           Language.Fixpoint.Defunctionalize.Defunctionalize (defunctionalize)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
--- import           Language.Fixpoint.Solver.Solution  (Solution)
-
-import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
+import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..), withPragmas)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
-import           Language.Fixpoint.Partition        -- (mcInfo, partition, partition')
-import           Language.Fixpoint.Parse            (rr', mkQual)
+import           Language.Fixpoint.Graph
+import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Minimize (minQuery)
+import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
 
 
@@ -60,15 +48,16 @@ import           Control.DeepSeq
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg = do
-    fi      <- readFInfo file
-    r       <- solve cfg fi
-    let stat = resStatus $!! r
+    (fi, opts) <- readFInfo file
+    cfg'       <- withPragmas cfg opts
+    r          <- solve cfg' fi
+    let stat    = resStatus $!! r
     -- let str  = render $ resultDoc $!! (const () <$> stat)
     -- putStrLn "\n"
-    colorStrLn (colorResult stat) (statStr $!! stat)
+    whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
     return $ eCode r
   where
-    file    = inFile       cfg
+    file    = srcFile      cfg
     eCode   = resultExit . resStatus
     statStr = render . resultDoc . fmap fst
 
@@ -81,6 +70,8 @@ solve cfg q
   | parts cfg    = partition  cfg        $!! q
   | stats cfg    = statistics cfg        $!! q
   | minimize cfg = minQuery   cfg solve' $!! q
+  | minimizeQs cfg = minQuals cfg solve' $!! q
+  | minimizeKs cfg = minKvars cfg solve' $!! q
   | otherwise    = solve'     cfg        $!! q
 
 solve' :: (NFData a, Fixpoint a) => Solver a
@@ -94,20 +85,16 @@ configSW cfg
   | otherwise     = solveSeqWith
 
 ---------------------------------------------------------------------------
-readFInfo :: FilePath -> IO (FInfo ())
+readFInfo :: FilePath -> IO (FInfo (), [String])
 ---------------------------------------------------------------------------
-readFInfo f        = fixFileName <$> act
-  where
-    fixFileName q  = q {fileName = f}
-    act
-      | isBinary f = readBinFq f
-      | otherwise  = readFq f
+readFInfo f | isBinary f = (,) <$> readBinFq f <*> return []
+            | otherwise  = readFq f
 
-readFq :: FilePath -> IO (FInfo ())
+readFq :: FilePath -> IO (FInfo (), [String])
 readFq file = do
   str   <- readFile file
-  let q = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
-  return q
+  let q  = {-# SCC "parsefq" #-} rr' file str :: FInfoWithOpts ()
+  return (fioFI q, fioOpts q)
 
 readBinFq :: FilePath -> IO (FInfo ())
 readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
@@ -116,10 +103,9 @@ readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
 ---------------------------------------------------------------------------
 solveSeqWith :: (Fixpoint a) => Solver a -> Solver a
-solveSeqWith s c fi0 = withProgressFI fi $ s c fi
+solveSeqWith s c fi0 = {- withProgressFI fi $ -} s c fi
   where
     fi               = slice fi0
-
 
 ---------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
@@ -128,18 +114,19 @@ solveParWith :: (Fixpoint a) => Solver a -> Solver a
 ---------------------------------------------------------------------------
 solveParWith s c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
-  let fi       = slice fi0
-  withProgressFI fi $ do
-    mci <- mcInfo c
-    let (_, fis) = partition' (Just mci) fi
-    writeLoud $ "Number of partitions : " ++ show (length fis)
-    writeLoud $ "number of cores      : " ++ show (cores c)
-    writeLoud $ "minimum part size    : " ++ show (minPartSize c)
-    writeLoud $ "maximum part size    : " ++ show (maxPartSize c)
-    case fis of
-      []        -> errorstar "partiton' returned empty list!"
-      [onePart] -> s c onePart
-      _         -> inParallelUsing (s c) fis
+  let fi    = slice fi0
+  mci      <- mcInfo c
+  let fis   = partition' (Just mci) fi
+  writeLoud $ "Number of partitions : " ++ show (length fis)
+  writeLoud $ "number of cores      : " ++ show (cores c)
+  writeLoud $ "minimum part size    : " ++ show (minPartSize c)
+  writeLoud $ "maximum part size    : " ++ show (maxPartSize c)
+  case fis of
+    []        -> errorstar "partiton' returned empty list!"
+    [onePart] -> s c onePart
+    _         -> inParallelUsing (f s c) $ zip [1..] fis
+    where
+      f s c (j, fi) = s (c {srcFile = queryFile (Part j) c}) fi
 
 -------------------------------------------------------------------------------
 -- | Solve a list of FInfos using the provided solver function in parallel
@@ -151,11 +138,11 @@ inParallelUsing f xs = do
    rs <- asyncMapM f xs
    return $ mconcat rs
 
----------------------------------------------------------------------------
--- | Native Haskell Solver ------------------------------------------------
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Native Haskell Solver -----------------------------------------------------
+--------------------------------------------------------------------------------
 solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 solveNative !cfg !fi0 = (solveNative' cfg fi0)
                           `catch`
                              (return . result)
@@ -181,10 +168,10 @@ solveNative' !cfg !fi0 = do
   graphStatistics cfg si1
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
-  -- rnf si2 `seq` donePhase Loud "Uniqify"
-  (s0, si4) <- {-# SCC "elim" #-} elim cfg $!! si3
-  -- writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si4
+  rnf si3 `seq` donePhase Loud "Uniqify & Rename"
+  writeLoud $ "fq file after Uniqify & Rename:\n" ++ render (toFixpoint cfg si3)
+  let si4  = {-# SCC "defunctionalize" #-} defunctionalize cfg $!! si3
+  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res
@@ -193,47 +180,29 @@ solveNative' !cfg !fi0 = do
   -- colorStrLn (colorResult stat) (show stat)
   return res
 
-
-elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
-elim cfg fi
-  | eliminate cfg = do
-      let (s0, fi') = E.eliminate fi
-      writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
-      -- elimSolGraph cfg s0
-      donePhase Loud "Eliminate"
-      writeLoud $ "Solution after eliminate: \n" ++ showpp s0 -- toFixpoint cfg fi')
-      -- donePhase Loud "DonePrint"
-      return (s0, fi')
-  | otherwise     =
-      return (mempty, fi)
-
-remakeQual :: Qualifier -> Qualifier
-remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
---   where
---     msg      = "REMAKEQUAL: " ++ show q
-
----------------------------------------------------------------------------
--- | Extract ExitCode from Solver Result ----------------------------------
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Extract ExitCode from Solver Result ---------------------------------------
+--------------------------------------------------------------------------------
 resultExit :: FixResult a -> ExitCode
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 resultExit Safe        = ExitSuccess
 resultExit (Unsafe _)  = ExitFailure 1
 resultExit _           = ExitFailure 2
 
----------------------------------------------------------------------------
--- | Parse External Qualifiers --------------------------------------------
----------------------------------------------------------------------------
-parseFInfo :: [FilePath] -> IO (FInfo a) -- [Qualifier]
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Parse External Qualifiers -------------------------------------------------
+--------------------------------------------------------------------------------
+parseFInfo :: [FilePath] -> IO (FInfo a)
+--------------------------------------------------------------------------------
 parseFInfo fs = mconcat <$> mapM parseFI fs
 
-parseFI :: FilePath -> IO (FInfo a) --[Qualifier]
+parseFI :: FilePath -> IO (FInfo a)
 parseFI f = do
   str   <- readFile f
   let fi = rr' f str :: FInfo ()
   return $ mempty { quals = quals  fi
-                  , lits  = lits   fi }
+                  , gLits = gLits  fi
+                  , dLits = dLits  fi }
 
 saveSolution :: Config -> Result a -> IO ()
 saveSolution cfg res = when (save cfg) $ do
@@ -241,10 +210,3 @@ saveSolution cfg res = when (save cfg) $ do
   putStrLn $ "Saving Solution: " ++ f ++ "\n"
   ensurePath f
   writeFile f $ "\nSolution:\n"  ++ showpp (resSolution res)
-
----------------------------------------------------------------------------
--- | Initialize Progress Bar
----------------------------------------------------------------------------
-withProgressFI :: FInfo a -> IO b -> IO b
----------------------------------------------------------------------------
-withProgressFI = withProgress . fromIntegral . gSccs . cGraph

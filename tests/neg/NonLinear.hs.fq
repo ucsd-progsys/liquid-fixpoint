@@ -1,0 +1,91 @@
+
+bind 0 GHC.Num.$fNumInt##rlL : {VV##27 : (GHC.Num.Num  int) | []}
+bind 1 GHC.Types.EQ##6U : {VV##28 : GHC.Types.Ordering | [(VV##28 = GHC.Types.EQ##6U)]}
+bind 2 GHC.Types.LT##6S : {VV##29 : GHC.Types.Ordering | [(VV##29 = GHC.Types.LT##6S)]}
+bind 3 GHC.Types.GT##6W : {VV##30 : GHC.Types.Ordering | [(VV##30 = GHC.Types.GT##6W)]}
+bind 4 pig##amI : {VV##33 : int | []}
+bind 5 lq_anf$##dvQ : {lq_tmp$x##41 : int | [(lq_tmp$x##41 = (1  :  int))]}
+bind 6 zink##alG : {zink##0 : int | [(zink##0 = 5)]}
+bind 7 zonk##alH : {zonk##1 : int | [(zonk##1 = 67)]}
+bind 8 bob##alJ : {lq_tmp$x##65 : int | [$k_##38[VV##37:=lq_tmp$x##65][lq_tmp$x##67:=zonk##alH][pig##amI:=zonk##alH]]}
+bind 9 alice##alI : {lq_tmp$x##71 : int | [$k_##38[VV##37:=lq_tmp$x##71][pig##amI:=zink##alG][lq_tmp$x##73:=zink##alG]]}
+bind 10 VV##96 : {VV##96 : int | []}
+bind 11 zink##alG : {zink##0 : int | []}
+bind 12 VV##99 : {VV##99 : int | []}
+bind 13 lq_tmp$x##92 : {zonk##1 : int | []}
+bind 14 VV##102 : {VV##102 : int | []}
+bind 15 VV##104 : {VV##104 : int | []}
+bind 16 zonk##alH : {zonk##1 : int | []}
+bind 17 VV##107 : {VV##107 : int | []}
+bind 18 VV##109 : {VV##109 : int | [(VV##109 = (alice##alI + bob##alJ))]}
+bind 19 VV##111 : {VV##111 : int | [$k_##38[VV##37:=VV##111][lq_tmp$x##88:=VV##111][lq_tmp$x##67:=zonk##alH][lq_tmp$x##65:=VV##111][pig##amI:=zonk##alH];
+                                    (VV##111 = bob##alJ)]}
+bind 20 VV##113 : {VV##113 : int | [$k_##38[VV##37:=VV##113][lq_tmp$x##87:=VV##113][lq_tmp$x##71:=VV##113][pig##amI:=zink##alG][lq_tmp$x##73:=zink##alG];
+                                    (VV##113 = alice##alI)]}
+bind 21 VV##115 : {VV##115 : int | [(VV##115 = 5);
+                                    (VV##115 = zink##alG)]}
+bind 22 VV##117 : {VV##117 : int | [(VV##117 = 67);
+                                    (VV##117 = zonk##alH)]}
+bind 23 VV##119 : {VV##119 : int | [(VV##119 = (pig##amI + lq_anf$##dvQ))]}
+bind 24 VV##121 : {VV##121 : int | [(VV##121 = (1  :  int));
+                                    (VV##121 = lq_anf$##dvQ)]}
+bind 25 VV##123 : {VV##123 : int | [$k_##34[lq_tmp$x##57:=VV##123][VV##33:=VV##123];
+                                    (VV##123 = pig##amI)]}
+bind 26 VV##125 : {VV##125 : int | [(VV##125 = 1)]}
+bind 27 VV##33 : {VV##33 : int | [$k_##34]}
+bind 28 VV##37 : {VV##37 : int | [$k_##38]}
+
+
+
+
+constraint:
+  env [0; 1; 2; 3; 6; 7; 8; 9]
+  lhs {VV##F##1 : int | [(VV##F##1 = (alice##alI + bob##alJ))]}
+  rhs {VV##F##1 : int | [(VV##F##1 = 0)]}
+  id 1 tag [2]
+  // META constraint id 1 : ()
+
+
+constraint:
+  env [0; 1; 2; 3; 6; 7]
+  lhs {VV##F##2 : int | [(VV##F##2 = 5); (VV##F##2 = zink##alG)]}
+  rhs {VV##F##2 : int | [$k_##34[VV##115:=VV##F##2][lq_tmp$x##70:=VV##F##2][VV##F:=VV##F##2][VV##33:=VV##F##2]]}
+  id 2 tag [2]
+  // META constraint id 2 : ()
+
+
+constraint:
+  env [0; 1; 2; 3; 6; 7]
+  lhs {VV##F##3 : int | [(VV##F##3 = 67); (VV##F##3 = zonk##alH)]}
+  rhs {VV##F##3 : int | [$k_##34[lq_tmp$x##64:=VV##F##3][VV##117:=VV##F##3][VV##F:=VV##F##3][VV##33:=VV##F##3]]}
+  id 3 tag [2]
+  // META constraint id 3 : ()
+
+
+constraint:
+  env [0; 1; 2; 3; 4; 5]
+  lhs {VV##F##4 : int | [(VV##F##4 = (pig##amI + lq_anf$##dvQ))]}
+  rhs {VV##F##4 : int | [$k_##38[VV##37:=VV##F##4][VV##119:=VV##F##4][VV##F:=VV##F##4]]}
+  id 4 tag [1]
+  // META constraint id 4 : ()
+
+
+
+
+wf:
+  env [0; 1; 2; 3; 4]
+  reft {VV##37 : int | [$k_##38]}
+  // META wf : ()
+
+
+wf:
+  env [0; 1; 2; 3]
+  reft {VV##33 : int | [$k_##34]}
+  // META wf : ()
+
+
+
+
+
+
+

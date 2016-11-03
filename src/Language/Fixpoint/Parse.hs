@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
 module Language.Fixpoint.Parse (
@@ -33,6 +32,7 @@ module Language.Fixpoint.Parse (
   --   fTyConP  -- Type constructors
   , lowerIdP    -- Lower-case identifiers
   , upperIdP    -- Upper-case identifiers
+  , infixIdP    -- String Haskell infix Id
   , symbolP     -- Arbitrary Symbols
   , constantP   -- (Integer) Constants
   , integer     -- Integer
@@ -69,15 +69,18 @@ module Language.Fixpoint.Parse (
 
   -- * Utilities
   , isSmall
+
+  , initPState, PState
+
+  , Fixity(..), Assoc(..), addOperatorP
   ) where
 
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
-import           Data.Maybe                  (fromJust)
-import           Text.Parsec
+import           Data.Maybe                  (fromJust, fromMaybe)
+import           Text.Parsec       hiding (State)
 import           Text.Parsec.Expr
-import           Text.Parsec.Language        (emptyDef)
 import qualified Text.Parsec.Token           as Token
 -- import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
@@ -85,16 +88,40 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
-import           Language.Fixpoint.Misc      (tshow, sortNub, thd3)
+import           Language.Fixpoint.Misc      (tshow, thd3)
 import           Language.Fixpoint.Smt.Types
---import           Language.Fixpoint.Types.Names     (headSym)
-import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
+-- import           Language.Fixpoint.Types.Names     (headSym)
+-- import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types hiding    (mapSort)
 import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
-type Parser = Parsec String Integer
+
+import Control.Monad.State
+
+type Parser = ParsecT String Integer (State PState)
+type ParserT u a = ParsecT String u (State PState) a
+
+data PState = PState {fixityTable :: OpTable}
+
 
 --------------------------------------------------------------------
 
+
+emptyDef :: Monad m => Token.GenLanguageDef String a m
+emptyDef    = Token.LanguageDef
+               { Token.commentStart   = ""
+               , Token.commentEnd     = ""
+               , Token.commentLine    = ""
+               , Token.nestedComments = True
+               , Token.identStart     = letter <|> char '_'
+               , Token.identLetter    = alphaNum <|> oneOf "_'"
+               , Token.opStart        = Token.opLetter emptyDef
+               , Token.opLetter       = oneOf ":!#$%&*+./<=>?@\\^|-~"
+               , Token.reservedOpNames= []
+               , Token.reservedNames  = []
+               , Token.caseSensitive  = True
+               }
+
+languageDef :: Monad m => Token.GenLanguageDef String a m
 languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
@@ -135,31 +162,46 @@ languageDef =
                                      ]
            }
 
-lexer         = Token.makeTokenParser languageDef
+lexer :: Monad m => Token.GenTokenParser String u m
+lexer = Token.makeTokenParser languageDef
+
+
+reserved :: String -> Parser ()
 reserved      = Token.reserved      lexer
+
+reservedOp :: String -> Parser ()
 reservedOp    = Token.reservedOp    lexer
+
+parens, brackets, angles, braces :: ParserT u a -> ParserT u a
 parens        = Token.parens        lexer
 brackets      = Token.brackets      lexer
 angles        = Token.angles        lexer
+braces        = Token.braces        lexer
+
+semi, colon, comma, stringLiteral :: Parser String
 semi          = Token.semi          lexer
 colon         = Token.colon         lexer
 comma         = Token.comma         lexer
-whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
-braces        = Token.braces        lexer
+
+whiteSpace :: Parser ()
+whiteSpace    = Token.whiteSpace    lexer
+
+double :: Parser Double
 double        = Token.float         lexer
 -- integer       = Token.integer       lexer
 
 -- identifier = Token.identifier lexer
 
-
+blanks :: Parser String
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
+integer :: Parser Integer
 integer = posInteger
 
 --  try (char '-' >> (negate <$> posInteger))
 --       <|> posInteger
-
+posInteger :: Parser Integer
 posInteger = toI <$> (many1 digit <* spaces)
   where
     toI :: String -> Integer
@@ -185,6 +227,9 @@ condIdP chars f
        blanks
        if f (c:cs) then return (symbol $ c:cs) else parserZero
 
+infixIdP :: Parser String
+infixIdP = many (satisfy (`notElem` [' ', '.']))
+
 upperIdP :: Parser Symbol
 upperIdP = condIdP symChars (not . isSmall . head)
 
@@ -196,7 +241,10 @@ isSmall c = isLower c || c == '_'
 
 symCharsP :: Parser Symbol
 symCharsP = condIdP symChars (`notElem` keyWordSyms)
+  where
+    keyWordSyms = ["if", "then", "else", "mod"]
 
+locLowerIdP, locUpperIdP :: Parser LocSymbol
 locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
 
@@ -221,10 +269,12 @@ expr0P
  <|> try (parens  exprCastP)
  <|> (charsExpr <$> symCharsP)
 
+charsExpr :: Symbol -> Expr
 charsExpr cs
   | isSmall (headSym cs) = expr cs
   | otherwise            = EVar cs
 
+fastIfP :: (Expr -> a -> a -> a) -> Parser a -> Parser a
 fastIfP f bodyP
   = do reserved "if"
        p <- predP
@@ -251,46 +301,92 @@ expr1P
  <|> expr0P
 
 exprP :: Parser Expr
-exprP = buildExpressionParser bops expr1P
+exprP = (fixityTable <$> get) >>= (`buildExpressionParser` expr1P)
 
+data Fixity
+  = FInfix   {fpred :: Maybe Int, fname :: String, fop2 :: Maybe (Expr -> Expr -> Expr), fassoc :: Assoc}
+  | FPrefix  {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
+  | FPostfix {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
+
+
+-- Invariant : OpTable has 10 elements
+type OpTable = OperatorTable String Integer (State PState) Expr
+
+addOperatorP :: Fixity -> Parser ()
+addOperatorP op
+  = modify $ \s -> s{fixityTable =  addOperator op (fixityTable s)}
+
+addOperator :: Fixity -> OpTable -> OpTable
+addOperator (FInfix p x f assoc) ops
+ = insertOperator (makePrec p) (Infix (reservedOp x >> return (makeInfixFun x f)) assoc) ops
+addOperator (FPrefix p x f) ops
+ = insertOperator (makePrec p) (Prefix (reservedOp x >> return (makePrefixFun x f))) ops
+addOperator (FPostfix p x f) ops
+ = insertOperator (makePrec p) (Postfix (reservedOp x >> return (makePrefixFun x f))) ops
+
+makePrec :: Maybe Int -> Int
+makePrec = fromMaybe 9
+
+makeInfixFun :: String -> Maybe (Expr -> Expr -> Expr) -> (Expr -> Expr -> Expr)
+makeInfixFun x = fromMaybe (\e1 e2 -> EApp (EApp (EVar $ symbol x) e1) e2)
+
+makePrefixFun :: String -> Maybe (Expr -> Expr) -> (Expr -> Expr)
+makePrefixFun x = fromMaybe (\e -> EApp (EVar $ symbol x) e)
+
+insertOperator :: Int -> Operator String Integer (State PState) Expr -> OpTable -> OpTable
+insertOperator i op ops = go (9-i) ops
+  where
+    go _ []       = die $ err dummySpan (text "insertOperator on empty ops")
+    go 0 (xs:xss) = (xs++[op]):xss
+    go i (xs:xss) = xs:go (i-1) xss
+
+initOpTable :: OpTable
+initOpTable = take 10 (repeat [])
+
+bops :: OpTable
+bops = foldl (flip addOperator) initOpTable buildinOps
+  where
+-- Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity
+    buildinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
+                 , FInfix  (Just 7) "*"   (Just $ EBin Times) AssocLeft
+                 , FInfix  (Just 7) "/"   (Just $ EBin Div)   AssocLeft
+                 , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
+                 , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
+                 , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
+                 ]
+
+funAppP :: Parser Expr
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
   where
     exprFunSpacesP = mkEApp <$> funSymbolP <*> sepBy1 expr0P blanks
     exprFunCommasP = mkEApp <$> funSymbolP <*> parens        (sepBy exprP comma)
     exprFunSemisP  = mkEApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
-    simpleAppP     = EApp <$> (parens exprP) <*> (parens exprP)
+    simpleAppP     = EApp <$> parens exprP <*> parens exprP
     funSymbolP     = locParserP symbolP
 
 
 -- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
+litP :: Parser Expr
 litP = do reserved "lit"
           l <- stringLiteral
           t <- sortP
           return $ ECon $ L (T.pack l) t
 
+parenBrackets :: Parser a -> Parser a
 parenBrackets  = parens . brackets
-
-bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
-       , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
-         , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
-         ]
-       , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
-         , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
-         ]
-       , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
-       ]
 
 -- eMinus     = EBin Minus (expr (0 :: Integer))
 -- eCons x xs = EApp (dummyLoc consName) [x, xs]
 -- eNil       = EVar nilName
 
+exprCastP :: Parser Expr
 exprCastP
   = do e  <- exprP
        (try dcolon) <|> colon
        so <- sortP
        return $ ECst e so
 
-
+lamP :: Parser Expr
 lamP
   = do reserved "\\"
        x <- symbolP
@@ -300,12 +396,16 @@ lamP
        e  <- exprP
        return $ ELam (x, t) e
 
-
+dcolon :: Parser String
 dcolon = string "::" <* spaces
 
+varSortP :: Parser Sort
 varSortP  = FVar  <$> parens intP
+
+funcSortP :: Parser Sort
 funcSortP = parens $ mkFFunc <$> intP <* comma <*> sortsP
 
+sortsP :: Parser [Sort]
 sortsP = brackets $ sepBy sortP semi
 
 sortP    :: Parser Sort
@@ -330,6 +430,7 @@ sortP' appArgsP
   <|> try (fAppTC <$> fTyConP <*> appArgsP)
   <|> try (fApp   <$> tvarP   <*> appArgsP)
 
+single :: a -> [a]
 single x = [x]
 
 tvarP :: Parser Sort
@@ -347,16 +448,16 @@ fTyConP
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
+  <|> (reserved "Str"     >> return strFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
-bvSortP
-  = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
+bvSortP :: Parser Sort
+bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
+  where
+    bvSizeP ss s = do
+      parens (reserved "BitVec" >> reserved ss)
+      return s
 
-bvSizeP ss s = do
-  parens (reserved "BitVec" >> reserved ss)
-  return s
-
-keyWordSyms = ["if", "then", "else", "mod"]
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------
@@ -392,21 +493,21 @@ substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
   where
     aP = reserved ":="
 
-predP  :: Parser Expr
-predP  = buildExpressionParser lops pred0P
-
-
+predsP :: Parser [Expr]
 predsP = brackets $ sepBy predP semi
 
+predP  :: Parser Expr
+predP  = buildExpressionParser lops pred0P
+  where
+    lops = [ [Prefix (reservedOp "~"    >> return PNot)]
+           , [Prefix (reservedOp "not " >> return PNot)]
+           , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
+           , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
+           , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
+           , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]
+           , [Infix  (reservedOp "<=>"  >> return PIff) AssocRight]]
 
-lops = [ [Prefix (reservedOp "~"    >> return PNot)]
-       , [Prefix (reservedOp "not " >> return PNot)]
-       , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
-       , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
-       , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
-       , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]
-       , [Infix  (reservedOp "<=>"  >> return PIff) AssocRight]]
-
+predrP :: Parser Expr
 predrP = do e1    <- exprP
             r     <- brelP
             e2    <- exprP
@@ -424,9 +525,9 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
 
-----------------------------------------------------------------------------------
------------------------------------- BareTypes -----------------------------------
-----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | BareTypes -----------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 refaP :: Parser Expr
 refaP =  try (pAnd <$> brackets (sepBy predP semi))
@@ -444,16 +545,22 @@ refBindP bp rp kindP
       return $ t (Reft (x, ra))
 
 -- bindP      = symbol    <$> (lowerIdP <* colon)
+bindP :: Parser Symbol
 bindP      = symbolP <* colon
+
+optBindP :: Symbol -> Parser Symbol
 optBindP x = try bindP <|> return x
 
+refP :: Parser (Reft -> a) -> Parser a
 refP       = refBindP bindP refaP
+
+refDefP :: Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
 refDefP x  = refBindP (optBindP x)
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
-
+qualifierP :: Parser Sort -> Parser Qualifier
 qualifierP tP = do
   pos    <- getPosition
   n      <- upperIdP
@@ -461,42 +568,16 @@ qualifierP tP = do
   _      <- colon
   body   <- predP
   return  $ mkQual n params body pos
-
-sortBindP = pairP symbolP colon
+  where
+    sortBindP = pairP symbolP colon
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
-
-mkQual :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
-mkQual n xts p = Q n ((v, t) : yts) (subst su p)
-  where
-    (v, t):zts = gSorts xts
-    -- yts        = first mkParam <$> zts
-    yts        = zts
-    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
 
 -- mkParam :: Symbol -> Symbol
 -- mkParam s       = unsafeTextSymbol ('~' `T.cons` toUpper c `T.cons` cs)
 --  where
 --    Just (c,cs) = T.uncons $ symbolSafeText s
-
-gSorts :: [(a, Sort)] -> [(a, Sort)]
-gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
-  where
-    su         = (`zip` [0..]) . sortNub . concatMap (sortVars . snd) $ xts
-
-substVars :: [(Symbol, Int)] -> Sort -> Sort
-substVars su = mapSort tx
-  where
-    tx (FObj x)
-      | Just i <- lookup x su = FVar i
-    tx t                      = t
-
-sortVars :: Sort -> [Symbol]
-sortVars = foldSort go []
-  where
-    go b (FObj x) = x : b
-    go b _        = b
 
 
 ---------------------------------------------------------------------
@@ -505,17 +586,24 @@ sortVars = foldSort go []
 
 -- Entities in Query File
 data Def a
-  = Srt Sort
-  | Axm Expr
-  | Cst (SubC a)
-  | Wfc (WfC a)
-  | Con Symbol Sort
-  | Qul Qualifier
-  | Kut KVar
-  | IBind Int Symbol SortedReft
+  = Srt !Sort
+  | Axm !Expr
+  | Cst !(SubC a)
+  | Wfc !(WfC a)
+  | Con !Symbol !Sort
+  | Dis !Symbol !Sort
+  | Qul !Qualifier
+  | Kut !KVar
+  | Pack !KVar !Int
+  | IBind !Int !Symbol !SortedReft
+  | Opt !String
   deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
+
+fInfoOptP :: Parser (FInfoWithOpts ())
+fInfoOptP = do ps <- many defP
+               return $ FIO (defsFInfo ps) [s | Opt s <- ps]
 
 fInfoP :: Parser (FInfo ())
 fInfoP = defsFInfo <$> {-# SCC "many-defP" #-} many defP
@@ -526,9 +614,12 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Cst   <$> (reserved "constraint" >> colon >> {-# SCC "subCP" #-} subCP)
     <|> Wfc   <$> (reserved "wf"         >> colon >> {-# SCC "wfCP"  #-} wfCP)
     <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
+    <|> Dis   <$> (reserved "distinct"   >> symbolP) <*> (colon >> sortP)
+    <|> Pack  <$> (reserved "pack"       >> kvarP)   <*> (colon >> intP)
     <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
     <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> {-# SCC "sortedReftP" #-} sortedReftP)
+    <|> Opt   <$> (reserved "fixpoint"   >> stringLiteral)
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))
@@ -555,6 +646,14 @@ subCP = do pos <- getPosition
            pos' <- getPosition
            return $ subC' env lhs rhs i tag pos pos'
 
+subC' :: IBindEnv
+      -> SortedReft
+      -> SortedReft
+      -> Integer
+      -> Tag
+      -> SourcePos
+      -> SourcePos
+      -> SubC ()
 subC' env lhs rhs i tag l l'
   = case cs of
       [c] -> c
@@ -575,15 +674,17 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty False 
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs mempty mempty mempty
   where
-    cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
-    ws     = M.fromList       [(thd3 $ wrft w, w) | Wfc w     <- defs]
-    bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
-    lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
-    kts    = KS $ S.fromList  [k                | Kut k       <- defs]
-    qs     =                  [q                | Qul q       <- defs]
-    cid    = fromJust . sid
+    cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
+    ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
+    bs         = bindEnvFromList    [(n, x, r)          | IBind n x r <- defs]
+    lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
+    dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
+    kts        = KS $ S.fromList    [k                  | Kut k       <- defs]
+    -- pks        = Packs $ M.fromList [(k, i)             | Pack k i    <- defs]
+    qs         =                    [q                  | Qul q       <- defs]
+    cid        = fromJust . sid
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
 
 ---------------------------------------------------------------------
@@ -596,44 +697,49 @@ fixResultP pp
  <|> (reserved "UNSAT" >> Unsafe <$> brackets (sepBy pp comma))
  <|> (reserved "CRASH" >> crashP pp)
 
-crashP pp
-  = do i   <- pp
-       msg <- many anyChar
-       return $ Crash [i] msg
+crashP :: Parser a -> Parser (FixResult a)
+crashP pp = do
+  i   <- pp
+  msg <- many anyChar
+  return $ Crash [i] msg
 
-predSolP
-  = parens (predP  <* (comma >> iQualP))
+predSolP :: Parser Expr
+predSolP = parens (predP  <* (comma >> iQualP))
 
+iQualP :: Parser [Symbol]
+iQualP = upperIdP >> parens (sepBy symbolP comma)
 
-iQualP
-  = upperIdP >> parens (sepBy symbolP comma)
-
-solution1P
-  = do reserved "solution:"
-       k  <- kvP
-       reserved ":="
-       ps <- brackets $ sepBy predSolP semi
-       return (k, simplify $ PAnd ps)
-    where
-      kvP = try kvarP <|> (KV <$> symbolP)
+solution1P :: Parser (KVar, Expr)
+solution1P = do
+  reserved "solution:"
+  k  <- kvP
+  reserved ":="
+  ps <- brackets $ sepBy predSolP semi
+  return (k, simplify $ PAnd ps)
+  where
+    kvP = try kvarP <|> (KV <$> symbolP)
 
 solutionP :: Parser (M.HashMap KVar Expr)
-solutionP
-  = M.fromList <$> sepBy solution1P whiteSpace
+solutionP = M.fromList <$> sepBy solution1P whiteSpace
 
-solutionFileP
-  = (,) <$> fixResultP integer <*> solutionP
+solutionFileP :: Parser (FixResult Integer, M.HashMap KVar Expr)
+solutionFileP = (,) <$> fixResultP integer <*> solutionP
 
-------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+remainderP :: Parser a -> Parser (a, String, SourcePos)
 remainderP p
   = do res <- p
        str <- getInput
        pos <- getPosition
        return (res, str, pos)
 
+
+initPState :: PState
+initPState = PState {fixityTable = bops}
+
+doParse' :: Parser a -> SourceName -> String -> a
 doParse' parser f s
-  = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
+  = case evalState (runParserT (remainderP (whiteSpace >> parser)) 0 f s) initPState of
       Left e            -> die $ err (errorSpan e) (dErr e)
       Right (r, "", _)  -> r
       Right (_, r, l)   -> die $ err (SS l l) (dRem r)
@@ -644,6 +750,8 @@ doParse' parser f s
                     , nest 4 (text r)
                     , "when parsing from" <+> text f ]
 
+
+errorSpan :: ParseError -> SrcSpan
 errorSpan e = SS l l where l = errorPos e
 
 parseFromFile :: Parser b -> SourceName -> IO b
@@ -657,9 +765,10 @@ freshIntP = do n <- getState
 ---------------------------------------------------------------------
 -- Standalone SMTLIB2 commands --------------------------------------
 ---------------------------------------------------------------------
-
+commandsP :: Parser [Command]
 commandsP = sepBy commandP semi
 
+commandP :: Parser Command
 commandP
   =  (reserved "var"      >> cmdVarP)
  <|> (reserved "push"     >> return Push)
@@ -668,11 +777,11 @@ commandP
  <|> (reserved "assert"   >> (Assert Nothing <$> predP))
  <|> (reserved "distinct" >> (Distinct <$> brackets (sepBy exprP comma)))
 
-cmdVarP
-  = do x <- bindP
-       t <- sortP
-       return $ Declare x [] t
-
+cmdVarP :: Parser Command
+cmdVarP = do
+  x <- bindP
+  t <- sortP
+  return $ Declare x [] t
 
 ---------------------------------------------------------------------
 -- Bundling Parsers into a Typeclass --------------------------------
@@ -701,6 +810,9 @@ instance Inputable (FixResult Integer, FixSolution) where
 
 instance Inputable (FInfo ()) where
   rr' = {-# SCC "fInfoP" #-} doParse' fInfoP
+
+instance Inputable (FInfoWithOpts ()) where
+  rr' = {-# SCC "fInfoWithOptsP" #-} doParse' fInfoOptP
 
 instance Inputable Command where
   rr' = doParse' commandP
