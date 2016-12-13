@@ -41,7 +41,6 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
--- import qualified Language.Fixpoint.Solver.Index as Index
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
@@ -88,19 +87,19 @@ instance F.PTable Stats where
                         ]
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo b -> Int -> F.Solution -> SolveM a -> IO a
+runSolverM :: Config -> SolverInfo b -> Int -> SolveM a -> IO a
 --------------------------------------------------------------------------------
-runSolverM cfg sI _ _ act =
+runSolverM cfg sI _ act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
     return $ fst res
   where
-    act'     = declareInitEnv >> declare xts ess p >> assumes (F.asserts fi) >> act
+    act'     = declareInitEnv >> declare xts ess >> assumes (F.asserts fi) >> act
     acquire  = makeContextWithSEnv cfg file (F.fromListSEnv xts) -- env
     release  = cleanupContext
     ess      = distinctLiterals fi
-    (xts, p) = background cfg fi
+    xts      = symbolSorts cfg fi
     be       = F.SolEnv (F.bs fi) -- (getPacks cfg fi)
     file     = C.srcFile cfg
     -- env      = F.fromListSEnv (F.toListSEnv (F.lits fi) ++ binds)
@@ -108,17 +107,6 @@ runSolverM cfg sI _ _ act =
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
-
--- getPacks :: Config -> F.SInfo a -> F.Packs
--- getPacks cfg fi
--- /   | C.pack cfg = F.packs fi
--- /   | otherwise  = mempty
-
-background :: F.TaggedC c a => Config -> F.GInfo c a -> ([(F.Symbol, F.Sort)], F.Pred)
-background cfg fi = (bts ++ xts, p)
-  where
-    xts           = symbolSorts cfg fi
-    (bts, p)      = ([], F.PTrue) -- maybe ([], F.PTrue) Index.bgPred (F.sIdx s0)
 
 --------------------------------------------------------------------------------
 getBinds :: SolveM F.SolEnv
@@ -218,13 +206,12 @@ checkSat p
         smtCheckSat me p
 
 --------------------------------------------------------------------------------
-declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> F.Pred -> SolveM ()
+declare :: [(F.Symbol, F.Sort)] -> [[F.Expr]] -> SolveM ()
 --------------------------------------------------------------------------------
-declare xts' ess p = withContext $ \me -> do
+declare xts' ess = withContext $ \me -> do
   let xts      = filter (not . isThy . fst) xts'
   forM_ xts    $ uncurry $ smtDecl     me
   forM_ ess    $           smtDistinct me
-  _           <-           smtAssert   me p
   return ()
   where
     isThy   = isJust . Thy.smt2Symbol

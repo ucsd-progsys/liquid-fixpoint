@@ -39,7 +39,7 @@ solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Intege
 --------------------------------------------------------------------------------
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
-    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n s0 act
+    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
