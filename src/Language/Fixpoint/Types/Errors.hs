@@ -6,6 +6,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE CPP #-}
+
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -47,7 +49,10 @@ module Language.Fixpoint.Types.Errors (
 
 import           Control.Exception
 -- import qualified Control.Monad.Error           as E
+
+
 import           Data.Serialize                (Serialize (..))
+
 import           Data.Generics                 (Data)
 import           Data.Typeable
 import           Control.DeepSeq
@@ -63,11 +68,15 @@ import           Data.Function (on)
 
 -- import           Debug.Trace
 
+instance Serialize Doc where
+  put = put . render
+  get = fmap text get
+
 instance Serialize Error1
 instance Serialize TextDetails
-instance Serialize Doc
 instance Serialize Error
 instance Serialize (FixResult Error)
+
 
 instance (B.Binary a) => B.Binary (FixResult a)
 
