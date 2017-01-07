@@ -140,24 +140,25 @@ visitExpr v = vE
     step _ e@(ESym _)      = return e
     step _ e@(ECon _)      = return e
     step _ e@(EVar _)      = return e
-    step c (EApp f e)      = EApp        <$> vE c f  <*> vE c e
-    step c (ENeg e)        = ENeg        <$> vE c e
-    step c (EBin o e1 e2)  = EBin o      <$> vE c e1 <*> vE c e2
-    step c (EIte p e1 e2)  = EIte        <$> vE c p  <*> vE c e1 <*> vE c e2
-    step c (ECst e t)      = (`ECst` t)  <$> vE c e
-    step c (PAnd  ps)      = PAnd        <$> (vE c <$$> ps)
-    step c (POr  ps)       = POr         <$> (vE c <$$> ps)
-    step c (PNot p)        = PNot        <$> vE c p
-    step c (PImp p1 p2)    = PImp        <$> vE c p1 <*> vE c p2
-    step c (PIff p1 p2)    = PIff        <$> vE c p1 <*> vE c p2
-    step c (PAtom r e1 e2) = PAtom r     <$> vE c e1 <*> vE c e2
-    step c (PAll xts p)    = PAll   xts  <$> vE c p
-    step c (ELam (x,t) e)  = ELam (x,t)  <$> vE c e
-    step c (PExist xts p)  = PExist xts  <$> vE c p
-    step c (ETApp e s)     = (`ETApp` s) <$> vE c e
-    step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
-    step _ p@(PKVar _ _)   = return p
-    step _ PGrad           = return PGrad
+    step c (EApp f e)          = EApp        <$> vE c f  <*> vE c e
+    step c (ENeg e)            = ENeg        <$> vE c e
+    step c (EBin o e1 e2)      = EBin o      <$> vE c e1 <*> vE c e2
+    step c (EIte p e1 e2)      = EIte        <$> vE c p  <*> vE c e1 <*> vE c e2
+    step c (ECst e t)          = (`ECst` t)  <$> vE c e
+    step c (PAnd  ps)          = PAnd        <$> (vE c <$$> ps)
+    step c (POr  ps)           = POr         <$> (vE c <$$> ps)
+    step c (PNot p)            = PNot        <$> vE c p
+    step c (PImp p1 p2)        = PImp        <$> vE c p1 <*> vE c p2
+    step c (PIff p1 p2)        = PIff        <$> vE c p1 <*> vE c p2
+    step c (PAtom r e1 e2)     = PAtom r     <$> vE c e1 <*> vE c e2
+    -- Vistors don't visit trigger patterns
+    step c (PAll xts p pat)    = PAll   xts <$> vE c p <*> pure pat
+    step c (ELam (x,t) e)      = ELam (x,t)  <$> vE c e
+    step c (PExist xts p)      = PExist xts  <$> vE c p
+    step c (ETApp e s)         = (`ETApp` s) <$> vE c e
+    step c (ETAbs e s)         = (`ETAbs` s) <$> vE c e
+    step _ p@(PKVar _ _)       = return p
+    step _ PGrad               = return PGrad
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -179,27 +180,27 @@ mapExpr f = trans (defaultVisitor {txExpr = const f}) () []
 mapMExpr :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
 mapMExpr f = go
   where
-    go e@(ESym _)      = f e
-    go e@(ECon _)      = f e
-    go e@(EVar _)      = f e
-    go e@(PKVar _ _)   = f e
-    go e@PGrad         = f e
-    go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
-    go (PNot p)        = f =<< (PNot        <$>  go p                     )
-    go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )
-    go (PAll xts p)    = f =<< (PAll   xts  <$>  go p                     )
-    go (ELam (x,t) e)  = f =<< (ELam (x,t)  <$>  go e                     )
-    go (PExist xts p)  = f =<< (PExist xts  <$>  go p                     )
-    go (ETApp e s)     = f =<< ((`ETApp` s) <$>  go e                     )
-    go (ETAbs e s)     = f =<< ((`ETAbs` s) <$>  go e                     )
-    go (EApp g e)      = f =<< (EApp        <$>  go g  <*> go e           )
-    go (EBin o e1 e2)  = f =<< (EBin o      <$>  go e1 <*> go e2          )
-    go (PImp p1 p2)    = f =<< (PImp        <$>  go p1 <*> go p2          )
-    go (PIff p1 p2)    = f =<< (PIff        <$>  go p1 <*> go p2          )
-    go (PAtom r e1 e2) = f =<< (PAtom r     <$>  go e1 <*> go e2          )
-    go (EIte p e1 e2)  = f =<< (EIte        <$>  go p  <*> go e1 <*> go e2)
-    go (PAnd  ps)      = f =<< (PAnd        <$> (go <$$> ps)              )
-    go (POr  ps)       = f =<< (POr         <$> (go <$$> ps)              )
+    go e@(ESym _)         = f e
+    go e@(ECon _)         = f e
+    go e@(EVar _)         = f e
+    go e@(PKVar _ _)      = f e
+    go e@PGrad            = f e
+    go (ENeg e)           = f =<< (ENeg        <$>  go e                     )
+    go (PNot p)           = f =<< (PNot        <$>  go p                     )
+    go (ECst e t)         = f =<< ((`ECst` t)  <$>  go e                     )
+    go (PAll xts p pat)   = f =<< (PAll xts    <$>  go p  <*> pure pat       )
+    go (ELam (x,t) e)     = f =<< (ELam (x,t)  <$>  go e                     )
+    go (PExist xts p)     = f =<< (PExist xts  <$>  go p                     )
+    go (ETApp e s)        = f =<< ((`ETApp` s) <$>  go e                     )
+    go (ETAbs e s)        = f =<< ((`ETAbs` s) <$>  go e                     )
+    go (EApp g e)         = f =<< (EApp        <$>  go g  <*> go e           )
+    go (EBin o e1 e2)     = f =<< (EBin o      <$>  go e1 <*> go e2          )
+    go (PImp p1 p2)       = f =<< (PImp        <$>  go p1 <*> go p2          )
+    go (PIff p1 p2)       = f =<< (PIff        <$>  go p1 <*> go p2          )
+    go (PAtom r e1 e2)    = f =<< (PAtom r     <$>  go e1 <*> go e2          )
+    go (EIte p e1 e2)     = f =<< (EIte        <$>  go p  <*> go e1 <*> go e2)
+    go (PAnd  ps)         = f =<< (PAnd        <$> (go <$$> ps)              )
+    go (POr  ps)          = f =<< (POr         <$> (go <$$> ps)              )
 
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f        = trans kvVis () []

@@ -116,7 +116,7 @@ instance Subable Expr where
   substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
   substf _ p@(PKVar _ _)   = p
-  substf _  (PAll _ _)     = errorstar "substf: FORALL"
+  substf _  (PAll _ _ _)   = errorstar "substf: FORALL"
   substf _  p              = p
 
 
@@ -134,8 +134,8 @@ instance Subable Expr where
   subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
   subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
-  subst su (PAll bs p)
-          | disjoint su bs = PAll bs $ subst su p --(substExcept su (fst <$> bs)) p
+  subst su (PAll bs p pat)
+          | disjoint su bs = PAll bs (subst su p) pat
           | otherwise      = errorstar "subst: PAll (without disjoint binds)"
   subst su (PExist bs p)
           | disjoint su bs = PExist bs $ subst su p --(substExcept su (fst <$> bs)) p
@@ -273,5 +273,5 @@ exprSymbols = go
     go (PImp p1 p2)       = go p1 ++ go p2
     go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
     go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.elems su)
-    go (PAll xts p)       = (fst <$> xts) ++ go p
+    go (PAll xts p _)     = (fst <$> xts) ++ go p
     go _                  = []

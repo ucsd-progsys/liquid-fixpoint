@@ -179,7 +179,7 @@ elabApply = go
     step (PImp p q)       = PImp (go p) (go q)
     step (PIff p q)       = PIff (go p) (go q)
     step (PExist bs p)    = PExist bs (go p)
-    step (PAll   bs p)    = PAll   bs (go p)
+    step (PAll bs p pat)  = PAll bs (go p) pat
     step (PAtom r e1 e2)  = PAtom r (go e1) (go e2)
     step e@(EApp {})      = go e
     step (ELam b e)       = ELam b (go e)
@@ -370,7 +370,7 @@ checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
 checkExpr _ (PKVar {})     = return boolSort
 checkExpr _ PGrad          = return boolSort
 
-checkExpr f (PAll  bs e )  = checkExpr (addEnv f bs) e
+checkExpr f (PAll  bs e _) = checkExpr (addEnv f bs) e
 checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e
 checkExpr f (ELam (x,t) e) = FFunc t <$> checkExpr (addEnv f [(x,t)]) e
 checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
@@ -482,9 +482,9 @@ elab f (PExist bs e) = do
   (e', s) <- elab (addEnv f bs) e
   return (PExist bs e', s)
 
-elab f (PAll bs e) = do
+elab f (PAll bs e pat) = do
   (e', s) <- elab (addEnv f bs) e
-  return (PAll bs e', s)
+  return (PAll bs e' pat, s)
 
 elab f (ELam (x,t) e) = do
   (e', s) <- elab (addEnv f [(x,t)]) e
