@@ -234,7 +234,8 @@ data Expr = ESym !SymConst
           | PIff   !Expr !Expr
           | PAtom  !Brel  !Expr !Expr
           | PKVar  !KVar !Subst
-          | PAll   ![(Symbol, Sort)] !Expr
+          -- PAll also takes a list of trigger patterns
+          | PAll   ![(Symbol, Sort)] !Expr ![[Expr]]
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad
           deriving (Eq, Show, Data, Typeable, Generic)
@@ -289,7 +290,7 @@ debruijnIndex = go
     go (PImp e1 e2)    = go e1 + go e2
     go (PIff e1 e2)    = go e1 + go e2
     go (PAtom _ e1 e2) = go e1 + go e2
-    go (PAll _ e)      = go e
+    go (PAll _ e _)    = go e
     go (PExist _ e)    = go e
     go (PKVar _ _)     = 1
     go PGrad           = 1
@@ -370,7 +371,7 @@ instance Fixpoint Expr where
   toFix (POr  ps)      = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
   toFix (PKVar k su)     = toFix k <> toFix su
-  toFix (PAll xts p)     = "forall" <+> (toFix xts
+  toFix (PAll xts p _)   = "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
   toFix (PExist xts p)   = "exists" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
@@ -537,7 +538,7 @@ instance PPrint Expr where
                                    pprintTidy k r         <+>
                                    pprintPrec (za+1) k e2
     where za = 4
-  pprintPrec _ k (PAll xts p)    = pprintQuant k "forall" xts p
+  pprintPrec _ k (PAll xts p _)  = pprintQuant k "forall" xts p
   pprintPrec _ k (PExist xts p)  = pprintQuant k "exists" xts p
   pprintPrec _ k (ELam (x,t) e)  = "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprintTidy k e
   pprintPrec _ _ p@(PKVar {})    = toFix p

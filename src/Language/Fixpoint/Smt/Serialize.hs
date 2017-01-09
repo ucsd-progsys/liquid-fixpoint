@@ -101,8 +101,10 @@ instance SMTLIB2 Expr where
   smt2 (PIff p q)       = build "(= {} {})"  (smt2 p, smt2 q)
   smt2 (PExist [] p)    = smt2 p
   smt2 (PExist bs p)    = build "(exists ({}) {})"  (smt2s bs, smt2 p)
-  smt2 (PAll   [] p)    = smt2 p
-  smt2 (PAll   bs p)    = build "(forall ({}) {})"  (smt2s bs, smt2 p)
+  smt2 (PAll   [] p _)    = smt2 p
+  smt2 (PAll   bs p [])   = build "(forall ({}) {})"  (smt2s bs, smt2 p)
+  smt2 (PAll   bs p pats) = build "(forall ({}) (! {} {}))"  (smt2s bs, smt2 p,
+                                      smt2many $ (":pattern (" <>) . (<> ")") . smt2s <$> pats)
 
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
   smt2 PGrad            = "true"

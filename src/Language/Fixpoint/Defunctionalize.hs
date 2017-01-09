@@ -114,7 +114,7 @@ normalize = snd . go
                               (i2, e2') = go e2
                           in (max i1 i2, EApp e1' e2')
     go (ECst e s)       = mapSnd (`ECst` s) (go e)
-    go (PAll bs e)      = mapSnd (PAll bs)  (go e)
+    go (PAll bs e p)    = mapSnd (\e -> PAll bs e p)  (go e)
     go e                = (1, e)
 
     unECst (ECst e _) = unECst e
@@ -135,7 +135,7 @@ normalizeLamsFromTo i   = go
                               (i2, e2') = go e2
                           in (max i1 i2, EApp e1' e2')
     go (ECst e s)       = mapSnd (`ECst` s) (go e)
-    go (PAll bs e)      = mapSnd (PAll bs) (go e)
+    go (PAll bs e p)    = mapSnd (\e -> PAll bs e p) (go e)
     go e                = (i, e)
 
 --------------------------------------------------------------------------------
@@ -163,8 +163,8 @@ closeLam ((x,(y,s)):su) e = ELam (y,s) (subst1 (closeLam su e) (x, EVar y))
 closeLam []             e = e
 
 splitPAll :: [(Symbol, Sort)] -> Expr -> ([(Symbol, Sort)], Expr)
-splitPAll acc (PAll xs e) = splitPAll (acc ++ xs) e
-splitPAll acc e           = (acc, e)
+splitPAll acc (PAll xs e _) = splitPAll (acc ++ xs) e
+splitPAll acc e             = (acc, e)
 
 -- NOPROP instantiate :: [(Symbol, Sort)] -> [[(Symbol, (Symbol,Sort))]]
 -- NOPROP instantiate []     = [[]]
@@ -341,7 +341,7 @@ getClosedField fld = do
   return (closeLams env <$> es)
 
 closeLams :: SEnv Sort -> Expr -> Expr
-closeLams env e = PAll (freeBinds env e) e
+closeLams env e = PAll (freeBinds env e) e []
 
 freeBinds :: SEnv Sort -> Expr -> [(Symbol, Sort)]
 freeBinds env e = [ (y, t) | y <- sortNub (syms e)

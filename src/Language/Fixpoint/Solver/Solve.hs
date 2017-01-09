@@ -236,7 +236,7 @@ gradualSolveOne c =
 
 makeGradualExpression :: [(F.Symbol, F.SortedReft)] -> [(F.Symbol, F.SortedReft)] -> F.Expr -> F.Expr
 makeGradualExpression γ γ' p
-  = F.PAnd [F.PAll bs (F.PImp gs p), gs]
+  = F.PAnd [F.PAll bs (F.PImp gs p) [], gs]
   where
     bs = [ (x, s) | (x, F.RR s _) <- γ']
     gs = F.pAnd (bindToLogic <$> (γ ++ γ'))
