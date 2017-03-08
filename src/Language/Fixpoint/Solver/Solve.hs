@@ -161,12 +161,11 @@ predKs _              = []
 result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
        -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-result _cfg wkl s = do
+result cfg wkl s = do
   lift $ writeLoud "Computing Result"
-  stat    <- result_ wkl s
-  -- stat'   <- gradualSolve cfg stat
+  stat    <- result_ wkl s >>= gradualSolve cfg
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  F.Result (ci <$> stat) <$> solResult _cfg s
+  F.Result (ci <$> stat) <$> solResult cfg s
   where
     ci c = (F.subcId c, F.sinfo c)
 
