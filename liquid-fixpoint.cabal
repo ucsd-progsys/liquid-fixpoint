@@ -1,6 +1,6 @@
 name:                liquid-fixpoint
-version:             0.5.0.1
-Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
+version:             0.6.0.1
+Copyright:           2010-17 Ranjit Jhala, University of California, San Diego.
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
 license:             BSD3
@@ -10,6 +10,8 @@ maintainer:          jhala@cs.ucsd.edu
 category:            Language
 build-type:          Simple
 cabal-version:       >=1.10
+Tested-With:         GHC == 7.10.3, GHC == 8.0.1
+
 
 
 description:     This package is a Haskell wrapper to the SMTLIB-based
@@ -49,7 +51,7 @@ Executable fixpoint
   if flag(devel)
     ghc-options: -Werror
   hs-source-dirs: bin
-  Build-Depends: base >= 4.7 && < 5
+  Build-Depends: base >= 4.8 && < 5
                , liquid-fixpoint
 
 Library
@@ -70,6 +72,7 @@ Library
                    Language.Fixpoint.Types.Substitutions,
                    Language.Fixpoint.Types.Environments,
                    Language.Fixpoint.Types.Constraints,
+                   Language.Fixpoint.Types.Triggers,
                    Language.Fixpoint.Types.Solutions,
                    Language.Fixpoint.Types.Utils,
                    Language.Fixpoint.Types,
@@ -79,7 +82,7 @@ Library
                    Language.Fixpoint.Graph.Partition,
                    Language.Fixpoint.Graph.Deps,
                    Language.Fixpoint.Graph,
-                   Language.Fixpoint.Defunctionalize.Defunctionalize,
+                   Language.Fixpoint.Defunctionalize,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,
                    Language.Fixpoint.Smt.Theories,
@@ -93,18 +96,17 @@ Library
                    Language.Fixpoint.Utils.Progress,
                    Language.Fixpoint.Utils.Files,
                    Language.Fixpoint.Solver.Solution,
-                   Language.Fixpoint.Solver.Index,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
                    Language.Fixpoint.Solver.TrivialSort,
                    Language.Fixpoint.Solver.UniqifyKVars,
                    Language.Fixpoint.Solver.UniqifyBinds,
                    Language.Fixpoint.Solver.Eliminate,
-                   Language.Fixpoint.Solver.Validate,
+                   Language.Fixpoint.Solver.Sanitize,
                    Language.Fixpoint.Utils.Statistics,
                    Language.Fixpoint.Solver.Solve
 
-  Build-Depends: base >= 4.7 && < 5
+  Build-Depends: base >= 4.8 && < 5
                , array
                , async
                , attoparsec

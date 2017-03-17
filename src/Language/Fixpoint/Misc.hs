@@ -14,7 +14,7 @@ import           Control.Exception                (bracket_)
 import           Data.Hashable
 -- import           Data.IORef
 import           Control.Arrow                    (second)
-import           Control.Monad                    (forM_)
+import           Control.Monad                    (when, forM_)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
@@ -154,6 +154,7 @@ snd3 (_,x,_) = x
 thd3 ::  (a, b, c) -> c
 thd3 (_,_,x) = x
 
+secondM :: Functor f => (b -> f c) -> (a, b) -> f (a, c)
 secondM act (x, y) = (x,) <$> act y
 
 #ifdef MIN_VERSION_located_base
@@ -293,6 +294,12 @@ singleton x = [x]
 
 fM :: (Monad m) => (a -> b) -> a -> m b
 fM f = return . f
+
+whenM :: (Monad m) => m Bool -> m () -> m ()
+whenM cond act = do
+  b <- cond
+  when b act
+
 
 mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
 mapEither _ []     = ([], [])

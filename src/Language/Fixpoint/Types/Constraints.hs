@@ -36,6 +36,7 @@ module Language.Fixpoint.Types.Constraints (
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
+  , strengthenLhs
 
   -- * Accessing Constraints
   , addIds
@@ -44,8 +45,6 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Qualifiers
   , Qualifier (..)
-  , EQual (..)
-  , eQual
   , qualifier
   , mkQual, remakeQual
 
@@ -74,6 +73,7 @@ import           Control.DeepSeq
 import           Control.Monad             (void)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (allowHO)
+import           Language.Fixpoint.Types.Triggers
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
@@ -120,6 +120,11 @@ data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , _cinfo :: !a
                      }
               deriving (Generic, Functor)
+
+strengthenLhs :: Expr -> SubC a -> SubC a
+strengthenLhs e subc = subc {slhs = go (slhs subc)}
+  where
+    go (RR s (Reft(v, r))) = RR s (Reft (v, pAnd [r, e]))
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv
@@ -312,10 +317,7 @@ instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance PPrint Qualifier where
-  pprintTidy k q = hcat [ "qualif"
-                        , pprintTidy k (qName q)
-                        , "defined at"
-                        , pprintTidy k (qPos q) ]
+  pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
 
 pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
@@ -417,8 +419,9 @@ fi :: [SubC a]
    -> M.HashMap BindId a
    -> Bool
    -> Bool
+   -> [Triggered Expr]
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi aHO aHOq
+fi cs ws binds ls ds ks qs bi aHO aHOq es 
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -428,7 +431,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq
        , quals    = qs
        , bindInfo = bi
        , hoInfo   = HOI aHO aHOq
-       , asserts  = mempty
+       , asserts  = es
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -463,9 +466,10 @@ data GInfo c a =
      , quals    :: ![Qualifier]               -- ^ Abstract domain
      , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
      , hoInfo   :: !HOInfo                    -- ^ Higher Order info
-     , asserts  :: ![Expr]
+     , asserts  :: ![Triggered Expr]
      }
   deriving (Eq, Show, Functor, Generic)
+
 
 instance Monoid HOInfo where
   mempty        = HOI False False
@@ -561,31 +565,6 @@ blowOutVV fi i subc = fi { bs = be', cm = cm' }
     subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
     cm'           = M.insert i subc' $ cm fi
 
-
-
---------------------------------------------------------------------------------
--- | Instantiated Qualfiers ----------------------------------------
---------------------------------------------------------------------------------
-
-data EQual = EQL { eqQual :: !Qualifier
-                 , eqPred :: !Expr
-                 , eqArgs :: ![Expr]
-                 }
-             deriving (Eq, Show, Data, Typeable, Generic)
-
-instance PPrint EQual where
-  pprintTidy k = pprintTidy k . eqPred
-
-instance NFData EQual
-
-{- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
-eQual :: Qualifier -> [Symbol] -> EQual
-eQual q xs = EQL q p es
-  where
-    p      = subst su $  qBody q
-    su     = mkSubst  $  safeZip "eQual" qxs es
-    es     = eVar    <$> xs
-    qxs    = fst     <$> qParams q
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------

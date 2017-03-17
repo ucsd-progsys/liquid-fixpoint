@@ -12,11 +12,11 @@ import qualified Data.HashMap.Strict as M
 
 import           Language.Fixpoint.Types.Config    (Config)
 import qualified Language.Fixpoint.Types.Solutions as Sol
--- import qualified Language.Fixpoint.Solver.Index    as Index -- Fast
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
+import           Language.Fixpoint.Solver.Sanitize
 
 --------------------------------------------------------------------------------
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
@@ -28,27 +28,23 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList    [] kHyps kS Nothing -- idx
+    sHyp           = Sol.fromList sE [] kHyps kS
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
-    -- idx            = solverIndex cfg sI kHyps cD
     kS             = kvScopes     sI es
+    sE             = symbolEnv   cfg sI
+
 
 --------------------------------------------------------------------------------
 kvScopes :: SInfo a -> [CEdge] -> M.HashMap KVar IBindEnv
 kvScopes sI es = is2env <$> kiM
   where
     is2env = foldr1 intersectionIBindEnv . fmap (senv . getSubC sI)
-    kiM    = group [(k, i) | (Cstr i, KVar k) <- es ]
+    kiM    = group $ [(k, i) | (Cstr i, KVar k) <- es ] ++
+                     [(k, i) | (KVar k, Cstr i) <- es ]
 
 --------------------------------------------------------------------------------
-
--- TODO: delete/deprecated
--- solverIndex :: Config -> SInfo a -> [(KVar, Sol.Hyp)] -> CDeps -> Maybe Sol.Index
--- solverIndex cfg sI kHyps cD
-  -- // | oldElim cfg    = Nothing
-  -- // | otherwise      = Just $ Index.create cfg sI kHyps cD
 
 cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar -> SInfo a
 cutSInfo si kI cKs = si { ws = ws', cm = cm' }

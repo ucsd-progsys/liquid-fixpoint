@@ -39,7 +39,7 @@ solve :: (NFData a, F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result (Intege
 --------------------------------------------------------------------------------
 solve cfg fi = do
     -- donePhase Loud "Worklist Initialize"
-    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n s0 act
+    (res, stat) <- withProgressFI sI $ runSolverM cfg sI n act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
@@ -67,10 +67,10 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
 solverInfo :: Config -> F.SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg fI
-  | eliminate cfg = E.solverInfo cfg fI
-  | otherwise     = SI mempty fI cD (siKvars fI)
+  | useElim cfg = E.solverInfo cfg fI
+  | otherwise   = SI mempty fI cD (siKvars fI)
   where
-    cD            = elimDeps fI (kvEdges fI) mempty
+    cD          = elimDeps fI (kvEdges fI) mempty
 
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
@@ -87,7 +87,7 @@ solve_ :: (NFData a, F.Fixpoint a)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
   -- lift $ dumpSolution "solve_.s0" s0
-  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init fi ks
+  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
   s       <- {-# SCC "sol-refine" #-} refine s0' wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
@@ -98,7 +98,6 @@ solve_ cfg fi s0 ks wkl = do
 -- | tidyResult ensures we replace the temporary kVarArg names introduced to
 --   ensure uniqueness with the original names in the given WF constraints.
 --------------------------------------------------------------------------------
-
 tidyResult :: F.Result a -> F.Result a
 tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
 
@@ -143,12 +142,13 @@ refineC _i s c
     _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
                      _i (show _ci) (showpp ks) (length xs) (length ys)
 
-rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, F.EQual))
-rhsCands s c   = (fst <$> ks, kqs)
+rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+rhsCands s c    = (fst <$> ks, kqs)
   where
-    kqs        = [ cnd k su q | (k, su) <- ks, q <- Sol.lookupQBind s k]
-    ks         = predKs . F.crhs $ c
-    cnd k su q = (F.subst su (F.eqPred q), (k, q))
+    kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q)  <- cnd k su ]
+    ks          = predKs . F.crhs $ c
+    cnd k su    = Sol.qbPreds msg s su (Sol.lookupQBind s k)
+    msg         = "rhsCands: " ++ show (F.sid c)
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps
@@ -158,16 +158,20 @@ predKs _              = []
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution -> SolveM (F.Result (Integer, a))
+result :: (F.Fixpoint a) => Config -> W.Worklist a -> Sol.Solution
+       -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-result _ wkl s = do
+result _cfg wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
   -- stat'   <- gradualSolve cfg stat
   lift $ whenNormal $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  return   $  F.Result (ci <$> stat) (Sol.result s)
+  F.Result (ci <$> stat) <$> solResult _cfg s
   where
     ci c = (F.subcId c, F.sinfo c)
+
+solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResult cfg = minimizeResult cfg . Sol.result
 
 result_ :: W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
@@ -176,9 +180,35 @@ result_  w s = res <$> filterM (isUnsat s) cs
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
 
----------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | `minimizeResult` transforms each KVar's result by removing
+--   conjuncts that are implied by others. That is,
+--
+--      minimizeConjuncts :: ps:[Pred] -> {qs:[Pred] | subset qs ps}
+--
+--   such that `minimizeConjuncts ps` is a minimal subset of ps where no
+--   is implied by /\_{q' in qs \ qs}
+--   see: tests/pos/min00.fq for an example. 
+--------------------------------------------------------------------------------
+minimizeResult :: Config -> M.HashMap F.KVar F.Expr
+               -> SolveM (M.HashMap F.KVar F.Expr)
+--------------------------------------------------------------------------------
+minimizeResult cfg s
+  | minimalSol cfg = mapM minimizeConjuncts s
+  | otherwise      = return s
+
+minimizeConjuncts :: F.Expr -> SolveM F.Expr
+minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
+  where
+    go []     acc   = return acc
+    go (p:ps) acc   = do b <- isValid (F.pAnd (acc ++ ps)) p
+                         if b then go ps acc
+                              else go ps (p:acc)
+
+--------------------------------------------------------------------------------
 isUnsat :: Sol.Solution -> F.SimpC a -> SolveM Bool
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
