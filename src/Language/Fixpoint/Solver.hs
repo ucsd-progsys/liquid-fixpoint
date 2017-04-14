@@ -165,37 +165,33 @@ loudDump i cfg si = writeLoud $ msg ++ render (toFixpoint cfg si)
   where
     msg           = "fq file after Uniqify & Rename " ++ show i ++ "\n"
 
-solveNative' !cfg !fi0 = do
-  -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
-  -- rnf fi0 `seq` donePhase Loud "Read Constraints"
-  -- let qs   = quals fi0
-  -- whenLoud $ print qs
-  let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
-  -- whenLoud $ putStrLn $ showFix (quals fi1)
-  let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
-  -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
-  -- rnf si0 `seq` donePhase Loud "Format Conversion"
-  let si1 = either die id $ {-# SCC "sanitize" #-} sanitize $!! si0
-  -- writeLoud $ "fq file after sanitize: \n" ++ render (toFixpoint cfg si1)
-  -- rnf si1 `seq` donePhase Loud "Validated Constraints"
-  graphStatistics cfg si1
-  let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
-  let si3  = {-# SCC "renameAll"  #-} renameAll  $!! si2
-  rnf si3 `seq` donePhase Loud "Uniqify & Rename"
-  loudDump 1 cfg si3
-  let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! si3
-  -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
-  loudDump 2 cfg si4
-  let si5  = {-# SCC "elaborate"  #-} elaborate "solver" (symbolEnv cfg si4) si4
-  loudDump 3 cfg si5
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si5
-  -- rnf soln `seq` donePhase Loud "Solve2"
-  --let stat = resStatus res
-  saveSolution cfg res
-  -- when (save cfg) $ saveSolution cfg
-  -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
-  -- colorStrLn (colorResult stat) (show stat)
-  return res
+printPhase :: Fixpoint a => String -> Config -> SInfo a -> IO ()
+printPhase phrase cfg si =
+  donePhase Loud phrase >>
+  writeLoud ("fq file after" ++ phrase ++ ":\n" ++ render (toFixpoint cfg si))
+
+solveNative' !cfg !fi0 = saveSolution cfg <<=<<
+  {-# SCC "Sol.solve" #-}  (Sol.solve       cfg $!!) =<<
+                           (loudDump 3 cfg      $!!) <<=<<
+  {-# SCC "elaborate" #-}  (\si -> elaborate "si" (symbolEnv cfg si) si) <$>
+                           (loudDump 2 cfg      $!!) <<=<<
+  {-# SCC "defunction" #-} (defunctionalize cfg $!!) <$>
+                           (loudDump 1 cfg      $!!) <<=<<
+  ( "Uniqify & Rename"     `printPhase`     cfg $!!) <<=<<
+  {-# SCC "renameAll" #-}  (renameAll           $!!) <$>
+  {-# SCC "wfcUniqify" #-} (wfcUniqify          $!!) <$>
+--( "Validate Constraints" `printPhase`     cfg $!!) <<=<<
+                           (graphStatistics cfg $!!) <<=<<
+  {-# SCC "validate" #-}   ((either die id . sanitize) $!!) <$>
+--( "Format Conversion"    `printPhase`     cfg $!!) <<=<<
+  {-# SCC "convertF" #-}   (convertFormat        $!!) <$>
+--( "Read Constraints"     `printPhase`     cfg $!!) <<=<<
+                           return fi0
+
+infixr <<=<<
+f <<=<< ma = do a <- ma
+                f a
+                return a
 
 --------------------------------------------------------------------------------
 -- | Extract ExitCode from Solver Result ---------------------------------------
