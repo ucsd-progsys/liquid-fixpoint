@@ -170,28 +170,31 @@ printPhase phrase cfg si =
   donePhase Loud phrase >>
   writeLoud ("fq file after" ++ phrase ++ ":\n" ++ render (toFixpoint cfg si))
 
-solveNative' !cfg !fi0 = saveSolution cfg <<=<<
-  {-# SCC "Sol.solve" #-}  (Sol.solve       cfg $!!) =<<
-                           (loudDump 3 cfg      $!!) <<=<<
-  {-# SCC "elaborate" #-}  (\si -> elaborate "si" (symbolEnv cfg si) si) <$>
-                           (loudDump 2 cfg      $!!) <<=<<
-  {-# SCC "defunction" #-} (defunctionalize cfg $!!) <$>
-                           (loudDump 1 cfg      $!!) <<=<<
-  ( "Uniqify & Rename"     `printPhase`     cfg $!!) <<=<<
-  {-# SCC "renameAll" #-}  (renameAll           $!!) <$>
-  {-# SCC "wfcUniqify" #-} (wfcUniqify          $!!) <$>
---( "Validate Constraints" `printPhase`     cfg $!!) <<=<<
-                           (graphStatistics cfg $!!) <<=<<
-  {-# SCC "validate" #-}   ((either die id . sanitize) $!!) <$>
---( "Format Conversion"    `printPhase`     cfg $!!) <<=<<
-  {-# SCC "convertF" #-}   (convertFormat        $!!) <$>
---( "Read Constraints"     `printPhase`     cfg $!!) <<=<<
-                           return fi0
+solveNative' !cfg !fi0 = ((((((((((((return fi0
+-- =>> ( "Read Constraints"    `printPhase`     cfg $!!))
+  $> {-# SCC "convertF" #-}   (convertFormat       $!!))
+-- =>> ( "Format Conversion"   `printPhase`     cfg $!!))
+  $> {-# SCC "validate" #-}   ((either die id . sanitize) $!!))
+  =>>                         (graphStatistics cfg $!!))
+-- =>> ( "Validate Constraints" `printPhase`    cfg $!!))
+  $> {-# SCC "wfcUniqify" #-} (wfcUniqify          $!!))
+  $> {-# SCC "renameAll" #-}  (renameAll           $!!))
+  =>> ( "Uniqify & Rename"    `printPhase`     cfg $!!))
+  =>>                         (loudDump 1      cfg $!!))
+  $> {-# SCC "defunction" #-} (defunctionalize cfg $!!))
+  =>>                         (loudDump 2      cfg $!!))
+  $> {-# SCC "elaborate" #-}  (\si -> elaborate "si" (symbolEnv cfg si) si))
+  =>>                         (loudDump 3      cfg $!!))
+  >>= {-# SCC "Sol.solve" #-} (Sol.solve       cfg $!!))
+  =>> saveSolution cfg
 
-infixr <<=<<
-f <<=<< ma = do a <- ma
-                f a
-                return a
+infixr 4 $>
+($>) = flip fmap
+
+infixr 4 =>>
+ma =>> f = do a <- ma
+              f a
+              return a
 
 --------------------------------------------------------------------------------
 -- | Extract ExitCode from Solver Result ---------------------------------------
