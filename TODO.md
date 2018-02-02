@@ -1,21 +1,23 @@
 # TODO
 
-## Proper Encoding of DataTypes
+## SMTLIB2 format 
 
-Need to get proper casts.
+See `tests/pos/test0{0,1}.smt2` 
 
-So
+We need the following
 
-    (Cons 1 Emp)
+```haskell
+-- | A datatype to hold the Horn format queries 
+--   Language/Fixpoint/Horn/Types.hs 
+data HornInfo
 
-should be elaborated to
+-- | A function to parse in .smt2 files
+--   Language/Fixpoint/Horn/Parse.hs 
+parse :: Text -> HornInfo
 
-    ((Cons : (int, List int) => List int) (1 : int) (Emp : List int))
+-- | A function to translate from Horn into standard FInfo 
+--   Language/Fixpoint/Horn/Convert.hs 
+convert :: HornInfo -> FInfo 
+```
 
 
-1. Rig `checkSym` to call `instantiate`
-    - currently returns poly-type (e.g. `forall a. List a`)
-
-2. Change all places where `unify`/`apply` happens to
-   ALSO apply the substitutions to the casts.
-  
