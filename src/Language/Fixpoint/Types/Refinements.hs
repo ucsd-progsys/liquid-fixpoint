@@ -160,9 +160,9 @@ isKvar _           = False
 class HasGradual a where
   isGradual :: a -> Bool
   gVars     :: a -> [KVar]
-  gVars _ = [] 
+  gVars _ = []
   ungrad    :: a -> a
-  ungrad x = x 
+  ungrad x = x
 
 instance HasGradual Expr where
   isGradual (PGrad {}) = True
@@ -280,7 +280,7 @@ data Expr = ESym !SymConst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad  !KVar !Subst !GradInfo !Expr
-          | ECoerc !Sort !Sort !Expr  
+          | ECoerc !Sort !Sort !Expr
           deriving (Eq, Show, Data, Typeable, Generic)
 
 type Pred = Expr
