@@ -73,7 +73,7 @@ module Language.Fixpoint.Parse (
 
   , initPState, PState
 
-  , Fixity(..), Assoc(..), addOperatorP
+  , Fixity(..), Assoc(..), mkOpTable, addOperatorP
 
   -- * For testing
   , expr0P
@@ -86,6 +86,7 @@ module Language.Fixpoint.Parse (
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
+import qualified Data.List                   as L
 import           Data.Maybe                  (fromJust, fromMaybe)
 import           Text.Parsec       hiding (State)
 import           Text.Parsec.Expr
@@ -453,20 +454,29 @@ insertOperator i op ops = go (9 - i) ops
     go 0 (xs:xss) = (xs++[op]):xss
     go i (xs:xss) = xs:go (i-1) xss
 
-initOpTable :: OpTable
-initOpTable = replicate 10 [] --  take 10 (repeat [])
+initPState :: PState
+initPState = mkInitPState builtinOps -- { fixityTable = bops }
 
-bops :: OpTable
-bops = foldl (flip addOperator) initOpTable buildinOps
+mkInitPState :: [Fixity] -> PState
+mkInitPState ops = PState { fixityTable = mkOpTable ops }
+
+mkOpTable :: [Fixity] -> OpTable
+mkOpTable = L.foldl' (flip addOperator) initOpTable
   where
--- Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity
-    buildinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
-                 , FInfix  (Just 7) "*"   (Just $ EBin Times) AssocLeft
-                 , FInfix  (Just 7) "/"   (Just $ EBin Div)   AssocLeft
-                 , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
-                 , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
-                 , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
-                 ]
+    initOpTable :: OpTable
+    initOpTable = replicate 10 [] --  take 10 (repeat [])
+
+-- | Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity
+builtinOps :: [Fixity]
+builtinOps = -- mkOpTable
+  [ FPrefix (Just 9) "-"   (Just ENeg)
+  , FInfix  (Just 7) "*"   (Just $ EBin Times) AssocLeft
+  , FInfix  (Just 7) "/"   (Just $ EBin Div)   AssocLeft
+  , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
+  , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
+  , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
+  ]
+
 
 -- | Function Applications
 funAppP :: Parser Expr
@@ -912,10 +922,23 @@ remainderP p
        pos <- getPosition
        return (res, str, pos)
 
+doParse' :: Parser a -> SourceName -> String -> a
+doParse' = parseWithState initPState
 
-initPState :: PState
-initPState = PState {fixityTable = bops}
+parseWithState :: PState -> Parser a -> SourceName -> String -> a
+parseWithState st parser f s
+  = case evalState (runParserT (remainderP (whiteSpace >> parser)) 0 f s) st of
+      Left e            -> die $ err (errorSpan e) (dErr e)
+      Right (r, "", _)  -> r
+      Right (_, r, l)   -> die $ err (SS l l) (dRem r)
+    where
+      dErr e = vcat [ "parseError"        <+> tshow e
+                    , "when parsing from" <+> text f ]
+      dRem r = vcat [ "doParse has leftover"
+                    , nest 4 (text r)
+                    , "when parsing from" <+> text f ]
 
+{-
 doParse' :: Parser a -> SourceName -> String -> a
 doParse' parser f s
   = case evalState (runParserT (remainderP (whiteSpace >> parser)) 0 f s) initPState of
@@ -928,7 +951,7 @@ doParse' parser f s
       dRem r = vcat [ "doParse has leftover"
                     , nest 4 (text r)
                     , "when parsing from" <+> text f ]
-
+-}
 
 errorSpan :: ParseError -> SrcSpan
 errorSpan e = SS l l where l = errorPos e
