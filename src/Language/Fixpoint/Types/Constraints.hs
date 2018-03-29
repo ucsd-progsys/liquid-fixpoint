@@ -10,6 +10,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE BangPatterns               #-}
 
 -- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
@@ -692,9 +693,9 @@ writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 --------------------------------------------------------------------------------
 convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
 --------------------------------------------------------------------------------
-convertFormat fi = fi' { cm = subcToSimpc bindm <$> cm fi' }
+convertFormat !fi = fi' { cm = subcToSimpc bindm <$> cm fi' }
   where
-    (bindm, fi') = M.foldlWithKey' outVV (M.empty, fi) $ cm fi
+    (!bindm, !fi') = M.foldlWithKey' outVV (M.empty, fi) $ cm fi
 
 subcToSimpc :: BindM -> SubC a -> SimpC a
 subcToSimpc m s = SimpC
@@ -707,15 +708,15 @@ subcToSimpc m s = SimpC
   }
 
 outVV :: (BindM, FInfo a) -> Integer -> SubC a -> (BindM, FInfo a)
-outVV (m, fi) i c = (m', fi')
+outVV (!m, !fi) !i !c = (m', fi')
   where
-    fi'           = fi { bs = be', cm = cm' }
-    m'            = M.insert i bId m
-    (bId, be')    = insertBindEnv x sr $ bs fi
-    cm'           = M.insert i c' $ cm fi
-    c'            = c { _senv = insertsIBindEnv [bId] $ senv c }
-    sr            = slhs c
-    x             = reftBind $ sr_reft sr
+    !fi'           = fi { bs = be', cm = cm' }
+    !m'            = M.insert i bId m
+    (!bId, !be')    = insertBindEnv x sr $ bs fi
+    !cm'           = M.insert i c' $ cm fi
+    !c'            = c { _senv = insertsIBindEnv [bId] $ senv c }
+    !sr            = slhs c
+    !x             = reftBind $ sr_reft sr
 
 type BindM = M.HashMap Integer BindId
 
