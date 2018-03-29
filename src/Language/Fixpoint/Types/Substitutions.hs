@@ -264,23 +264,27 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 --------------------------------------------------------------------------------
 -- | TODO: Rewrite using visitor -----------------------------------------------
 --------------------------------------------------------------------------------
+-- JP: Order doesn't matter right?
 exprSymbols :: Expr -> [Symbol]
-exprSymbols = go
+exprSymbols = go [] []
   where
-    go (EVar x)           = [x]
-    go (EApp f e)         = go f ++ go e
-    go (ELam (x,_) e)     = filter (/= x) (go e)
-    go (ECoerc _ _ e)     = go e
-    go (ENeg e)           = go e
-    go (EBin _ e1 e2)     = go e1 ++ go e2
-    go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2
-    go (ECst e _)         = go e
-    go (PAnd ps)          = concatMap go ps
-    go (POr ps)           = concatMap go ps
-    go (PNot p)           = go p
-    go (PIff p1 p2)       = go p1 ++ go p2
-    go (PImp p1 p2)       = go p1 ++ go p2
-    go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.elems su)
-    go (PAll xts p)       = (fst <$> xts) ++ go p
-    go _                  = []
+    go acc banned (EVar x) | x `elem` banned = acc
+    go acc _      (EVar x)                   = x:acc
+    go acc banned (EApp f e)         = go (go acc banned e) banned f
+    go acc banned (ELam (x,_) e)     = go acc (x:banned) e
+        -- (filter (/= x) (go [] e)) ++ acc
+        -- filter (/= x) (go acc e) -- JP: Use banned? This is wrong. We shouldn't filter from acc.
+    go acc banned (ECoerc _ _ e)     = go acc banned e
+    go acc banned (ENeg e)           = go acc banned e
+    go acc banned (EBin _ e1 e2)     = go (go acc banned e2) banned e1
+    go acc banned (EIte p e1 e2)     = go (go (go acc banned e2) banned e1) banned p
+    go acc banned (ECst e _)         = go acc banned e
+    go acc banned (PAnd ps)          = foldr (\p a -> go a banned p) acc ps
+    go acc banned (POr ps)           = foldr (\p a -> go a banned p) acc ps
+    go acc banned (PNot p)           = go acc banned p
+    go acc banned (PIff p1 p2)       = go (go acc banned p2) banned p1
+    go acc banned (PImp p1 p2)       = go (go acc banned p2) banned p1
+    go acc banned (PAtom _ e1 e2)    = go (go acc banned e2) banned e1
+    go acc banned (PKVar _ (Su su)) = foldr (\p a -> go a banned p) acc $ M.elems su -- {- CUTSOLVER k : -} syms (M.elems su) -- JP: Not sure about this one...
+    go acc banned (PAll xts p)       = foldr (\xt a -> (fst xt):a) (go acc banned p) xts -- (fst <$> xts) ++ go acc p
+    go acc _      _                  = acc
