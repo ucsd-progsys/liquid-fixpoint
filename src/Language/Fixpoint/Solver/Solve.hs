@@ -297,32 +297,3 @@ partitionInfo (i, fi)
     gs   = F.wloc . snd <$> L.filter (F.isGWfc . snd) (M.toList (F.ws fi))
     defs = L.nub (F.gsrc <$> gs)
     uses = L.nub (F.gused <$> gs)
-
-{-
- -
----------------------------------------------------------------------------------
-solveEbinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
---------------------------------------------------------------------------------
-solveEbinds si s0  = L.foldl' solve1 s0 ebs
-  where
-    solve1 s (i,c,x) = Sol.updateEbind s i (ebReft s (i, c, x))
-    ebs            = ([(ix, cid, x) | (ix, Sol.EbDef cid x) <- M.toList (Sol.sEbd s0)] :: [(F.BindId, F.SubcId ,F.Symbol)])
-    be             = F.bs si
-    xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be]
-    ebReft s (i,c,x) = exElim xEnv i x (ebindReft si s c)
-
-ebindReft :: F.SInfo a -> Sol.Solution -> F.SubcId -> F.Pred 
-ebindReft si s cid = F.pAnd [ S.lhsPred be s c, F.crhs c ]
-  where
-    be             = F.bs si
-    c              = Misc.safeLookup "solveEbinds" cid (F.cm si)
-
-
-exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Symbol -> F.Pred -> F.Pred
-exElim env xi _ p = F.notracepp msg (F.pExist yts p)
-  where
-    msg         = printf "exElim: ix = %d, p = %s" xi (F.showpp p) 
-    yts         = [ (y, yt) | y        <- F.syms p
-                            , (yi, yt) <- Mb.maybeToList (F.lookupSEnv y env)
-                            , xi < yi                                        ]
--}
