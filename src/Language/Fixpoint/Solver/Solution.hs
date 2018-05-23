@@ -204,7 +204,7 @@ lookupBindEnvExt g@(_,be,_) s i
 ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
 ebSol g s i = case  M.lookup i sebds of
   Just (Sol.EbSol p) -> Just p
-  Just (Sol.EbDef c x) -> Just $ ebReft s' (i, c, x)
+  Just (Sol.EbDef c x) -> F.notracepp ("ebSol " ++ show i) $  Just $ ebReft s' (i, c, x)
   _                  -> Nothing
   where
     sebds = Sol.sEbd s
@@ -212,8 +212,9 @@ ebSol g s i = case  M.lookup i sebds of
     s' = s { Sol.sEbd = M.insert i Sol.EbIncr sebds }
 
 ebindReft :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.SimpC () -> F.Pred
-ebindReft g s c = F.pAnd [ fst $ apply g s bs, F.crhs c ]
+ebindReft (_,be,_) s c = F.pAnd [ fst $ apply g' s bs, F.crhs c ]
   where
+    g'             = (sid c, be, bs)
     bs             = F.senv c
 
 exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Symbol -> F.Pred -> F.Pred
@@ -262,7 +263,7 @@ elabExist s xts p = foldr (\(x,t) -> quantify x (x,t)) p xts'
     quantify x  = if x `elem` es then F.PAll . (:[]) else F.pExist . (:[])
 
 cubePred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
-cubePred g s ksu c    = (F.tracepp "cubePred" $ elabExist s xts (psu &.& p), kI)
+cubePred g s ksu c    = (F.notracepp "cubePred" $ elabExist s xts (psu &.& p), kI)
   where
     ((xts,psu,p), kI) = cubePredExc g s ksu c bs'
     bs'               = delCEnv s k bs
