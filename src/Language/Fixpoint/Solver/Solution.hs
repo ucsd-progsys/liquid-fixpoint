@@ -254,13 +254,11 @@ hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
  -}
 
 elabExist :: Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
-elabExist s xts p = foldr (\(x,t) -> quantify x (x,t)) p xts'
+elabExist s xts p = F.pExist xts' p
   where
     xts'        = [ (x, elab t) | (x, t) <- xts]
     elab        = So.elaborate "elabExist" env
     env         = Sol.sEnv s
-    es          = [x | Sol.EbDef _ x <- M.elems (Sol.sEbd s)]
-    quantify x  = if x `elem` es then F.PAll . (:[]) else F.pExist . (:[])
 
 cubePred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
 cubePred g s ksu c    = (F.notracepp "cubePred" $ elabExist s xts (psu &.& p), kI)
