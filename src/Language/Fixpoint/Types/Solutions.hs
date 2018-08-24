@@ -46,7 +46,6 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Update
   , update
-  , updateEbind
 
   -- * Lookup
   , lookupQBind
@@ -182,23 +181,13 @@ instance PPrint QBind where
 data EbindSol
   = EbDef [SimpC ()] Symbol -- ^ The constraint whose HEAD "defines" the Ebind
                              -- and the @Symbol@ for that EBind
-  | EbSol Expr             -- ^ The solved out term that should be used at USES.
   | EbIncr                 -- ^ EBinds not to be solved for (because they're currently being solved for)
    deriving (Show, Generic, NFData)
 
 instance PPrint EbindSol where 
   pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x
-  pprintTidy k (EbSol e)   = "EbSol:" <+> pprintTidy k e
   pprintTidy _ (EbIncr)    = "EbIncr"
 
---------------------------------------------------------------------------------
-updateEbind :: Sol a b -> BindId -> Pred -> Sol a b 
---------------------------------------------------------------------------------
-updateEbind s i !e = case M.lookup i (sEbd s) of 
-  Nothing         -> errorstar $ "updateEBind: Unknown ebind " ++ show i
-  Just (EbSol e0) -> errorstar $ "updateEBind: Re-assigning ebind " ++ show i ++ " with solution: " ++ show e0 
-  Just _          -> s { sEbd = M.insert i (EbSol e) (sEbd s) }
-    
 --------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
 --   in particular, to compute `lhsPred` for any given constraint.

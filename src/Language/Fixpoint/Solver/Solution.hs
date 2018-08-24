@@ -199,7 +199,9 @@ apply g s bs      = (F.pAnd (pks:ps), kI)
 envConcKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
 envConcKVars g s bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
   where
-    (pss, kss, gss) = unzip3 [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
+    (pss, kss, gss) = unzip3 [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $
+                                F.sortedReftConcKVars x sr
+                             | (x, sr) <- xrs ]
     xrs             = lookupBindEnvExt g s <$> is
     is              = F.elemsIBindEnv bs
 
@@ -212,14 +214,13 @@ lookupBindEnvExt g s i
 
 ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
 ebSol g s i = case  M.lookup i sebds of
-  Just (Sol.EbSol p)    -> Just p
   Just (Sol.EbDef cs _) -> Just $ F.PAnd (cSol <$> cs)
   _                     -> Nothing
   where
     sebds = Sol.sEbd s
 
     ebReft s (i,c) = exElim (Sol.sxEnv s) (senv c) i (ebindReft g s c)
-    cSol c = if sid c == ceCid g 
+    cSol c = if sid c == ceCid g
                 then F.PFalse
                 else ebReft s' (i, c)
 
