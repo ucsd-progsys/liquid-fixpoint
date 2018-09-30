@@ -9,6 +9,7 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE DeriveLift                 #-}
 
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
@@ -88,8 +89,9 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict       as M
 
+import Language.Haskell.TH.Syntax (Lift)
     
-data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
+data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic, Lift)
 
 -- instance Show FTycon where
 --   show (TC s _) = show (val s)
@@ -101,7 +103,7 @@ instance Eq FTycon where
   (TC s _) == (TC s' _) = val s == val s'
 
 data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool, tc_isString :: Bool }
-  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic, Lift)
 
 mappendFTC :: FTycon -> FTycon -> FTycon
 mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2)
@@ -226,7 +228,7 @@ data Sort = FInt
           | FAbs  !Int !Sort     -- ^ type-abstraction
           | FTC   !FTycon
           | FApp  !Sort !Sort    -- ^ constructed type
-            deriving (Eq, Ord, Show, Data, Typeable, Generic)
+            deriving (Eq, Ord, Show, Data, Typeable, Generic, Lift)
 
 data DataField = DField
   { dfName :: !LocSymbol          -- ^ Field Name

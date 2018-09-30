@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TemplateHaskell           #-}
 
 module Language.Fixpoint.Types.Spans (
 
@@ -44,6 +45,7 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 -- import           Debug.Trace
 
+import Language.Haskell.TH.Syntax (Lift(..))
 
 -----------------------------------------------------------------------
 -- | Located Values ---------------------------------------------------
@@ -98,6 +100,11 @@ data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
                      , locE :: !SourcePos -- ^ End Position
                      , val  :: !a
                      } deriving (Data, Typeable, Generic)
+instance Lift a => Lift (Located a) where
+  lift (Loc s e v) = [|Loc (toSourcePos s') (toSourcePos e') v|]
+    where
+      s' = sourcePosElts s
+      e' = sourcePosElts e
 
 instance Loc (Located a) where
   srcSpan (Loc l l' _) = SS l l'
@@ -148,6 +155,11 @@ instance (IsString a) => IsString (Located a) where
 data SrcSpan = SS { sp_start :: !SourcePos
                   , sp_stop  :: !SourcePos}
                  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+instance Lift SrcSpan where
+  lift (SS s e) = [|SS (toSourcePos s') (toSourcePos e')|]
+    where
+      s' = sourcePosElts s
+      e' = sourcePosElts e
 
 instance Serialize SrcSpan
 

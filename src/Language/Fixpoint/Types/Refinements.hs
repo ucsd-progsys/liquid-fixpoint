@@ -13,6 +13,9 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE DeriveLift                 #-}
+
 
 -- | This module has the types for representing terms in the refinement logic.
 
@@ -116,6 +119,7 @@ import           Text.PrettyPrint.HughesPJ
 
 -- import           Text.Printf               (printf)
 
+import Language.Haskell.TH.Syntax (Lift(..))
 
 instance NFData KVar
 instance NFData SrcSpan
@@ -195,7 +199,7 @@ refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 --------------------------------------------------------------------------------
 
 newtype KVar = KV { kv :: Symbol }
-               deriving (Eq, Ord, Data, Typeable, Generic, IsString)
+               deriving (Eq, Ord, Data, Typeable, Generic, IsString, Lift)
 
 intKvar :: Integer -> KVar
 intKvar = KV . intSymbol "k_"
@@ -217,6 +221,9 @@ instance Hashable Expr
 --------------------------------------------------------------------------------
 newtype Subst = Su (M.HashMap Symbol Expr)
                 deriving (Eq, Data, Typeable, Generic)
+instance Lift Subst where
+  lift (Su kvs) = [|Su (M.fromList kvsl)|]
+    where kvsl = M.toList kvs
 
 instance Show Subst where
   show = showFix
@@ -247,17 +254,25 @@ instance PPrint KVSub where
 
 data SymConst = SL !Text
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+instance Lift SymConst where
+  lift (SL t) = [|SL (T.pack s)|]
+    where s = T.unpack t
 
 data Constant = I !Integer
               | R !Double
               | L !Text !Sort
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+instance Lift Constant where
+  lift (I i) = [|I i|]
+  lift (R r) = [|R r|]
+  lift (L t s) = [|L (T.pack ts) s|]
+    where ts = T.unpack t
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
-            deriving (Eq, Ord, Show, Data, Typeable, Generic)
+            deriving (Eq, Ord, Show, Data, Typeable, Generic, Lift)
 
 data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv
-            deriving (Eq, Ord, Show, Data, Typeable, Generic)
+            deriving (Eq, Ord, Show, Data, Typeable, Generic, Lift)
             -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ESym !SymConst
@@ -282,7 +297,7 @@ data Expr = ESym !SymConst
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad  !KVar !Subst !GradInfo !Expr
           | ECoerc !Sort !Sort !Expr  
-          deriving (Eq, Show, Data, Typeable, Generic)
+          deriving (Eq, Show, Data, Typeable, Generic, Lift)
 
 type Pred = Expr
 
@@ -298,7 +313,7 @@ pattern ERDiv e1 e2   = EBin RDiv   e1 e2
 
 
 data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
-          deriving (Eq, Show, Data, Typeable, Generic)
+          deriving (Eq, Show, Data, Typeable, Generic, Lift)
 
 srcGradInfo :: SourcePos -> GradInfo
 srcGradInfo src = GradInfo (SS src src) Nothing
@@ -348,10 +363,10 @@ debruijnIndex = go
 -- | Parsed refinement of @Symbol@ as @Expr@
 --   e.g. in '{v: _ | e }' v is the @Symbol@ and e the @Expr@
 newtype Reft = Reft (Symbol, Expr)
-               deriving (Eq, Data, Typeable, Generic)
+               deriving (Eq, Data, Typeable, Generic, Lift)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
-                  deriving (Eq, Data, Typeable, Generic)
+                  deriving (Eq, Data, Typeable, Generic, Lift)
 
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s

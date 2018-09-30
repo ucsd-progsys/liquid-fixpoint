@@ -9,6 +9,8 @@
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE DeriveLift                 #-}
+{-# LANGUAGE TemplateHaskell            #-}
 
 
 -- | This module contains Haskell variables representing globally visible names.
@@ -138,6 +140,8 @@ import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 
+import Language.Haskell.TH.Syntax (Lift(..))
+
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
 ---------------------------------------------------------------
@@ -164,6 +168,10 @@ data Symbol
       , symbolRaw     :: !T.Text
       , symbolEncoded :: !T.Text
       } deriving (Data, Typeable, Generic)
+instance Lift Symbol where
+  lift (S _ r _) = [|symbol rs|]
+    where
+      rs = T.unpack r
 
 instance Eq Symbol where
   S i _ _ == S j _ _ = i == j
