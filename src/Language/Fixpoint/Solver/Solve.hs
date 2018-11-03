@@ -165,7 +165,8 @@ result :: (F.Fixpoint a, F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Sol
 --------------------------------------------------------------------------------
 result cfg wkl s = do
   lift $ writeLoud "Computing Result"
-  stat    <- result_ wkl s
+  stat <- result_ wkl s
+  ebInhabs s
   lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
   F.Result (ci <$> stat) <$> solResult cfg s <*> return mempty
   where
@@ -180,6 +181,29 @@ result_  w s = res <$> filterM (isUnsat s) cs
     cs       = W.unsatCandidates w
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
+
+--------------------------------------------------------------------------------
+-- | `ebInhab` makes sure that solutions to existential binders are inhabited
+--------------------------------------------------------------------------------
+-- After we check each of the constraints we need to check to make sure that
+-- our solution to the evars isn't false
+-- Given some /defining constraint/ of the form
+--    forall alphabar. pbar => exists n. forall v. lhs => rhs
+-- We need to check that
+--    forall alphabar . pbar => exists n. exists v. lhs /\ rhs
+-- [note-rhs-extrawork]
+
+ebInhabs s = do
+  lift $ writeLoud "Checking Existentials"
+  let ebs = M.keys $ Sol.sEbd s
+  be <- getBinds
+  let ebRes = S.ebInhab s be <$> ebs
+  lift $ whenLoud $ putStrLn $ "eb solutions: " ++ show (pprint ebRes)
+  sats <- mapM checkSat (snd <$> ebRes)
+  lift $ writeLoud (show sats)
+  -- FIXME: Make a real error message
+  if and sats then return () else error "eb uninhabited"
+  return ebRes
 
 --------------------------------------------------------------------------------
 -- | `minimizeResult` transforms each KVar's result by removing
