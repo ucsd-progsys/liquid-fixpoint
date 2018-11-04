@@ -1,0 +1,12 @@
+fixpoint "--eliminate=some"
+
+// need to check that the solutions we compute for `n` as the weakest
+// precondition of the so-called defining constrant are not empty
+
+ebind 1 n : { int }
+
+constraint:
+  env [1]
+  lhs {VV : int | 0 = 1  }
+  rhs {VV : int | VV = n }
+  id 1 tag []
