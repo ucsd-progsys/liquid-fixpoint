@@ -246,7 +246,7 @@ exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
                             , yi `F.memberIBindEnv` ienv                  ]
 
 -- wraps ebSol for export
-ebInhab s be i = (i,) $ fromMaybe F.PTrue $ do
+ebInhab s be i = fromMaybe (err, F.PTrue) $ do
     (c, x)  <- (unwrapDef =<< M.lookup i (Sol.sEbd s))
     (_, t)  <- F.lookupSEnv x (Sol.sxEnv s)
     -- CombinedEnv should provide us context as to what constraint we're currrently
@@ -254,9 +254,10 @@ ebInhab s be i = (i,) $ fromMaybe F.PTrue $ do
     -- know what alphabar is in scope (anything else?) so we should use the
     -- bs and c from the first defining constraint? (do these matter?)
     let g   = CEnv (Just (-1)) be (F.senv c) (F.srcSpan c)
-    F.pExist [(x, t)] <$> ebSol g s i
+    (c,) . F.pExist [(x, t)] <$> ebSol g s i
   where unwrapDef (Sol.EbDef (c:_) x) = Just (c, x)
         unwrapDef _                   = Nothing
+        err = error "Trying to blame nonextant defining constraint"
 
 -- [note-rhs-extrawork]:
 -- Currently (Oct '18), all defining constraints have rhs of the form `t = n`,

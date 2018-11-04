@@ -10,7 +10,7 @@
 
 module Language.Fixpoint.Solver.Solve (solve, solverInfo) where
 
-import           Control.Monad (when, filterM)
+import           Control.Monad (when, filterM, join)
 import           Control.Monad.State.Strict (lift)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Misc            as Misc
@@ -30,7 +30,7 @@ import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
--- import qualified Data.Maybe          as Mb 
+import qualified Data.Maybe          as Mb
 import qualified Data.List           as L
 
 --------------------------------------------------------------------------------
@@ -166,11 +166,26 @@ result :: (F.Fixpoint a, F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Sol
 result cfg wkl s = do
   lift $ writeLoud "Computing Result"
   stat <- result_ wkl s
-  ebInhabs s
   lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-  F.Result (ci <$> stat) <$> solResult cfg s <*> return mempty
-  where
-    ci c = (F.subcId c, F.sinfo c)
+  inhabRes <- ebInhabs s
+  -- see [note-clean-mapppend]
+  let res = ci <$> cleanMappend wkl stat inhabRes
+  F.Result res <$> solResult cfg s <*> return mempty
+   where ci c = (F.subcId c, F.sinfo c)
+
+-- [note-clean-mappend] We want to write
+--   let res = ci <$> mappend stat inhabRes
+-- but inhabRes reutrns FR (SimpC ()), whereas stat is FR (SimpC a), so we
+-- need to use the cid to look up the corresponding SimpC in wkl's wCm
+cleanMappend :: W.Worklist a
+                -> F.FixResult (F.SimpC a)
+                -> F.FixResult (F.SimpC ())
+                -> F.FixResult (F.SimpC a)
+cleanMappend wkl stat inhabRes = mappend stat inhabStat
+  where clean c = join $ M.lookup <$> F.sid c <*> return (W.wCm wkl)
+        err = error "uh-oh. failed to translate from SimpC () to SimpC a using a worklist"
+        inhabStat = Mb.fromMaybe err . clean <$> inhabRes
+
 
 solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
@@ -203,9 +218,9 @@ ebInhabs s = do
   sats <- mapM checkSat (snd <$> ebRes)
   lift $ writeLoud (show sats)
 
-  -- FIXME: Make a real error message
-  if and sats then return () else error "eb uninhabited"
-  return ebRes
+  return $ if and sats
+    then F.Safe
+    else F.Unsafe (fst <$> ebRes)
 
 --------------------------------------------------------------------------------
 -- | `minimizeResult` transforms each KVar's result by removing

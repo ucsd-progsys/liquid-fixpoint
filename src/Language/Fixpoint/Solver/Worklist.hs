@@ -19,6 +19,9 @@ module Language.Fixpoint.Solver.Worklist
 
          -- * Statistics
        , wRanks
+
+         -- * Get back the constraint map
+       , wCm
        )
        where
 
