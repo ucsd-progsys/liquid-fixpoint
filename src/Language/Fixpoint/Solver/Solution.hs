@@ -225,7 +225,7 @@ ebSol g s i = case  M.lookup i sebds of
     ebReft s (i,c) = exElim (Sol.sxEnv s) (senv c) i (ebindReft g s c)
     cSol c = if sid c == ceCid g
                 then F.PFalse
-                -- False because we're traversing in lfp order
+                -- False because we're traverseing in lfp order
                 else ebReft s' (i, c)
 
     s' = s { Sol.sEbd = M.insert i Sol.EbIncr sebds }
@@ -246,30 +246,23 @@ exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
                             , yi `F.memberIBindEnv` ienv                  ]
 
 -- wraps ebSol for export
-ebInhab s be i = (i, F.pExist [(x, t)] sol)
-  where
--- For each ebind, we take the F.BindId and then call ebSol on it, but with
--- what CombinedEnv?
-    Just sol = ebSol g s i
-
--- CombinedEnv should provide us context as to what constraint we're currrently
--- solving, so that we don't loop forever (in this case, none), and so that we
--- know what alphabar is in scope (anything else?) so we should use the
--- bs and c from the first defining constraint? (do these matter?)
-    g        = CEnv (Just (-1)) be (F.senv c) (F.srcSpan c)
-
-    (c, x)   = case M.lookup i (Sol.sEbd s) of
-                   Just (Sol.EbDef (c:_) x) -> (c, x)
-                   _ -> error $ " no solution to eb : " ++ show i
-
-    Just (_, t) = F.lookupSEnv x (Sol.sxEnv s)
+ebInhab s be i = (i,) $ fromMaybe F.PTrue $ do
+    (c, x)  <- (unwrapDef =<< M.lookup i (Sol.sEbd s))
+    (_, t)  <- F.lookupSEnv x (Sol.sxEnv s)
+    -- CombinedEnv should provide us context as to what constraint we're currrently
+    -- solving, so that we don't loop forever (in this case, none), and so that we
+    -- know what alphabar is in scope (anything else?) so we should use the
+    -- bs and c from the first defining constraint? (do these matter?)
+    let g   = CEnv (Just (-1)) be (F.senv c) (F.srcSpan c)
+    F.pExist [(x, t)] <$> ebSol g s i
+  where unwrapDef (Sol.EbDef (c:_) x) = Just (c, x)
+        unwrapDef _                   = Nothing
 
 -- [note-rhs-extrawork]:
--- Currently (Oct 18), all defining constraints have rhs of the form `t = n`,
+-- Currently (Oct '18), all defining constraints have rhs of the form `t = n`,
 -- which are always inhabited, but it's not like Z3 is going to struggle with
 -- that one, so we might as well throw it at Z3 while we're at it --- it's probably
 -- less work and future-proof
-
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat

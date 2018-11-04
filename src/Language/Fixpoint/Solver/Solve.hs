@@ -195,12 +195,14 @@ result_  w s = res <$> filterM (isUnsat s) cs
 
 ebInhabs s = do
   lift $ writeLoud "Checking Existentials"
-  let ebs = M.keys $ Sol.sEbd s
   be <- getBinds
-  let ebRes = S.ebInhab s be <$> ebs
+  let ebRes = S.ebInhab s be <$> M.keys (Sol.sEbd s)
+
   lift $ whenLoud $ putStrLn $ "eb solutions: " ++ show (pprint ebRes)
+
   sats <- mapM checkSat (snd <$> ebRes)
   lift $ writeLoud (show sats)
+
   -- FIXME: Make a real error message
   if and sats then return () else error "eb uninhabited"
   return ebRes
