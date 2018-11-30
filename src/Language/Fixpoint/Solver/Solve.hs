@@ -215,10 +215,10 @@ ebInhabs s = do
 
   lift $ whenLoud $ putStrLn $ "eb solutions: " ++ show (pprint ebRes)
 
-  sats <- mapM checkSat (snd <$> ebRes)
+  sats <- mapM checkSat (F.PNot . snd <$> ebRes)
   lift $ writeLoud (show sats)
 
-  return $ if and sats
+  return $ if and (not <$> sats)
     then F.Safe
     else F.Unsafe (fst <$> ebRes)
 
