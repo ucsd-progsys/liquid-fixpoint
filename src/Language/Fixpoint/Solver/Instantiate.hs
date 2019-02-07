@@ -46,11 +46,11 @@ import           Debug.Trace          (trace)
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg  && incrPle cfg 
-  = incrInstantiate' cfg fi
-
-  | rewriteAxioms cfg -- && not incrementalPLE
+  | rewriteAxioms cfg && noIncrPle cfg
   = instantiate' cfg fi
+
+  | rewriteAxioms cfg -- && incrPle cfg 
+  = incrInstantiate' cfg fi
 
   | otherwise         
   = return fi
@@ -116,7 +116,7 @@ loopB env ctx delta iMb res b = case b of
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
   let ctx'  = updCtx env ctx delta cidMb 
-  let assms = notracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
+  let assms = notracepp ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT) 
     act ctx'
@@ -124,10 +124,11 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
 ple1 env@(InstEnv {..}) ctx i cidMb res = do 
-  let cands = S.toList (icCands ctx) 
-  -- unfolds  <- evalCands ieKnowl ieEvEnv cands   
+  let cands = notracepp ("ple1-cands: "  ++ show cidMb) $ S.toList (icCands ctx) 
+  -- unfolds  <- evalCands ieKnowl ieEvEnv cands
   unfolds  <- evalCandsLoop ieCfg ieSMT ieKnowl ieEvEnv cands   
-  return    $ updCtxRes env ctx res i cidMb unfolds
+  return    $ updCtxRes env ctx res i cidMb (notracepp ("ple1-cands-unfolds: " ++ show cidMb) unfolds)
+
 
 _evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
 _evalCands _ _  []    = return []
@@ -183,6 +184,7 @@ data ICtx    = ICtx
   { icAssms  :: ![Pred]          -- ^ Hypotheses, already converted to SMT format 
   , icCands  :: S.HashSet Expr   -- ^ "Candidates" for unfolding
   , icEquals :: ![Expr]          -- ^ "Known" equalities
+  , icSolved :: S.HashSet Expr   -- ^ Terms that we have already expanded
   } 
 
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
@@ -198,7 +200,12 @@ type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
 
 initCtx :: [Expr] -> ICtx
-initCtx es = ICtx [] mempty (notracepp "INITIAL-STUFF-INCR" es)
+initCtx es = ICtx 
+  { icAssms  = [] 
+  , icCands  = mempty 
+  , icEquals = notracepp "INITIAL-STUFF-INCR" es 
+  , icSolved = mempty
+  }
 
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
@@ -209,23 +216,28 @@ notrace msg x
 
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = notrace _msg 
-                         ( ctx { icCands  = cands', icEquals = mempty}
+                       = -- trace _msg 
+                         ( ctx { icCands  = cands', icSolved = solved', icEquals = mempty}
                          , res'
                          ) 
   where 
     _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs) 
-    cands'             = S.difference (icCands ctx) (S.fromList solvedCands)
-    solvedEqs          = icEquals ctx ++ concatMap snd us
-    solvedCands        = [ e          | (Just e, _) <- us]
-
+    cands'             = ((icCands ctx) `S.union` newCands) `S.difference` solved' 
+    solved'            = S.union (icSolved ctx) solvedCands 
+    newCands           = S.fromList (concatMap topApps newEqs) 
+    solvedCands        = S.fromList [ e | (Just e, _) <- okUnfolds ] 
+    solvedEqs          = icEquals ctx ++ newEqs 
+    newEqs             = concatMap snd okUnfolds
+    okUnfolds          = notracepp _str [ (eMb, ps)  | (eMb, eqs) <- us, let ps = equalitiesPred eqs, not (null ps) ] 
+    _str               = "okUnfolds " ++ showpp (iMb, cidMb)
+    
 mkUnfolds :: [(a, [(Expr, Expr)])] -> [(a, [Expr])]
 mkUnfolds us = [ (eMb, ps)  | (eMb, eqs) <- us
                             , let ps = equalitiesPred eqs
                             , not (null ps) 
                ] 
-
+    
 debugResult :: InstEnv a -> InstRes -> SubcId -> String 
 debugResult (InstEnv {..}) res i = msg 
   where 
@@ -250,7 +262,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icEquals = initEqs <> icEquals ctx }
   where         
     initEqs   = equalitiesPred (initEqualities ieSMT ieAenv bs)
-    cands     = S.fromList (concatMap topApps es0)
+    cands     = (S.fromList (concatMap topApps es0)) `S.difference` (icSolved ctx)
     ctxEqs    = toSMT ieCfg ieSMT [] <$> concat 
                   [ initEqs 
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
@@ -294,7 +306,7 @@ instSimpC cfg ctx bds aenv sid sub
   | isPleCstr aenv sid sub = do
     let is0       = notracepp "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
     let (bs, es0) = cstrExprs bds sub
-    equalities   <- evaluate cfg ctx aenv bs es0 
+    equalities   <- evaluate cfg ctx aenv bs es0 sid 
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
     return        $ pAnd (is0 ++ evalEqs)  
   | otherwise     = return PTrue
@@ -324,12 +336,13 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
 evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
          -> [(Symbol, SortedReft)]            -- ^ Environment of "true" facts 
          -> [Expr]                            -- ^ Candidates for unfolding 
+         -> SubcId                            -- ^ Constraint Id
          -> IO [(Expr, Expr)]                 -- ^ Newly unfolded equalities
 --------------------------------------------------------------------------------
-evaluate cfg ctx aenv facts es = do 
+evaluate cfg ctx aenv facts es sid = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = notracepp "evaluate-cands" $ Misc.hashNub (concatMap topApps es)
+  let cands    = notracepp ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
