@@ -1,10 +1,12 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE LambdaCase  #-}
+{-# LANGUAGE FlexibleInstances  #-}
 module Language.Fixpoint.Horn.Transformations (
-    poke
+    uniq
+  , flatten
+  , poke
   , elim
-  , uniq
   , elimPis
   , elimKs
   , solveEbs
@@ -28,6 +30,42 @@ import           System.Console.CmdArgs.Verbosity
 -- >>> :m + *Language.Fixpoint.Horn.Parse
 -- >>> import Language.Fixpoint.Parse
 -- >>> :set -XOverloadedStrings
+
+{- |
+>>> let c = doParse' hCstrP "" "(forall ((a Int) (p a)) (exists ((b Int) (q b)) (and (($k a)) (($k b))))))"
+-}
+
+class Flatten a where
+  flatten :: a -> a
+
+instance Flatten (Cstr a) where
+  flatten (CAnd cs) = case flatten cs of
+                        [c] -> c
+                        cs -> CAnd cs
+  flatten (Head p a) = Head (flatten p) a
+  flatten (All (Bind x t p) c) = All (Bind x t (flatten p)) (flatten c)
+  flatten (Any (Bind x t p) c) = Any (Bind x t (flatten p)) (flatten c)
+
+instance Flatten [Cstr a] where
+  flatten (CAnd cs : xs) = flatten cs ++ flatten xs
+  flatten (x:xs)
+    | Head (Reft p) _ <- x
+    , F.isTautoPred p            = flatten xs
+    | otherwise                  = x:flatten xs
+  flatten [] = []
+
+instance Flatten Pred where
+  flatten (PAnd ps) = case flatten ps of
+                        [p] -> p
+                        ps  -> PAnd ps
+  flatten p = p
+
+instance Flatten [Pred] where
+  flatten (PAnd ps' : ps) = flatten ps' ++ flatten ps
+  flatten (Reft e   : ps)
+    | F.isTautoPred e     = flatten ps
+  flatten (p        : ps) = p : flatten ps
+  flatten []              = []
 
 type Sol = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr ())) F.Expr)
 ------------------------------------------------------------------------------
