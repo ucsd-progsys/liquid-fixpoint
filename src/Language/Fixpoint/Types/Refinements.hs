@@ -27,7 +27,7 @@ module Language.Fixpoint.Types.Refinements (
   , GradInfo (..)
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , pattern ETimes, pattern ERTimes, pattern EDiv, pattern ERDiv
-  , pattern EEq
+  , pattern EEq, pattern PRel
   , KVar (..)
   , Subst (..)
   , KVSub (..)
@@ -291,6 +291,7 @@ pattern PTrue         = PAnd []
 pattern PTop          = PAnd []
 pattern PFalse        = POr  []
 pattern EBot          = POr  []
+pattern PRel e i      = EApp (EApp (EVar "relational") e) (ECon (I i))
 pattern EEq e1 e2     = PAtom Eq    e1 e2
 pattern ETimes e1 e2  = EBin Times  e1 e2
 pattern ERTimes e1 e2 = EBin RTimes e1 e2

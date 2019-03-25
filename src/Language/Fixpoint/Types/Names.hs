@@ -116,6 +116,7 @@ module Language.Fixpoint.Types.Names (
   , lambdaName
   , lamArgSymbol
   , isLamArgSymbol
+  , relationalName
 
 ) where
 
@@ -562,7 +563,7 @@ boolConName  = "Bool"
 funConName   = "->"
 
 
-listConName, listLConName, tupConName, propConName, _hpropConName, vvName, setConName, mapConName :: Symbol
+listConName, listLConName, tupConName, propConName, _hpropConName, vvName, setConName, mapConName, relationalName :: Symbol
 listConName  = "[]"
 listLConName = "List"
 tupConName   = "Tuple"
@@ -571,6 +572,7 @@ mapConName   = "Map_t"
 vvName       = "VV"
 propConName  = "Prop"
 _hpropConName = "HProp"
+relationalName = "relational"
 
 strConName, charConName :: (IsString a) => a
 strConName   = "Str"

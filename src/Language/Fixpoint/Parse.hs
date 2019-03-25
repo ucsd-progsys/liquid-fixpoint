@@ -358,6 +358,7 @@ expr0P
  <|> falseP
  <|> fastIfP EIte exprP
  <|> coerceP exprP
+ <|> relationalP exprP
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reservedOp "_|_" >> return EBot)
@@ -412,7 +413,11 @@ coerceP p = do
   e      <- p
   return $ ECoerc s t e
 
-
+relationalP :: Parser Expr -> Parser Expr
+relationalP p = do
+  e <- braces p
+  i <- integer
+  return $ PRel e i 
 
 {-
 qmIfP f bodyP
