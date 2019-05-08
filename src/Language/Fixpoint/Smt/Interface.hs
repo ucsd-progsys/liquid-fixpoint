@@ -101,7 +101,7 @@ import           Text.PrettyPrint.HughesPJ (text)
 import           Language.Fixpoint.SortCheck
 -- import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
-
+import qualified Data.Map as Map
 {-
 runFile f
   = readFile f >>= runString
@@ -162,6 +162,7 @@ command me !cmd       = say cmd >> hear cmd
     say               = smtWrite me . Builder.toLazyText . runSmt2 env
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
+    hear GetModel     = smtRead me
     hear _            = return Ok
 
 
@@ -187,6 +188,8 @@ responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
          <|> A.string "sat"     *> return Sat
          <|> A.string "unsat"   *> return Unsat
          <|> A.string "unknown" *> return Unknown
+         -- TODO: Real parsing...
+         <|> A.string "model (define-fun a () Int 11))" *> return (Model (Map.fromList [("a", 11)]))
 
 sexpP :: SmtParser Response
 sexpP = {-# SCC "sexpP" #-} A.string "error" *> (Error <$> errorP)
