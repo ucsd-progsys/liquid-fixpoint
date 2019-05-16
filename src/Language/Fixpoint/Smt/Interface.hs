@@ -48,6 +48,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
+    , smtGetModel 
 
     -- * Check Validity
     , checkValid
@@ -102,6 +103,9 @@ import           Language.Fixpoint.SortCheck
 -- import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 import qualified Data.Map as Map
+import Debug.Trace
+import System.IO.Unsafe
+
 {-
 runFile f
   = readFile f >>= runString
@@ -184,16 +188,39 @@ smtRead me = {-# SCC "smtRead" #-} do
 type SmtParser a = Parser T.Text a
 
 responseP :: SmtParser Response
-responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
+responseP = {-# SCC "responseP" #-} 
+             A.char '(' *> sexpP
          <|> A.string "sat"     *> return Sat
          <|> A.string "unsat"   *> return Unsat
          <|> A.string "unknown" *> return Unknown
-         -- TODO: Real parsing...
-         <|> A.string "model (define-fun a () Int 11))" *> return (Model (Map.fromList [("a", 11)]))
+
 
 sexpP :: SmtParser Response
 sexpP = {-# SCC "sexpP" #-} A.string "error" *> (Error <$> errorP)
      <|> Values <$> valuesP
+     <|> Model <$> modelP 
+
+modelP :: SmtParser [(Symbol, T.Text)]
+modelP = do
+  A.string "model"
+  A.skipSpace
+  A.many1' modelPairP -- <* A.char ')'
+
+modelPairP :: SmtParser (Symbol, T.Text)
+modelPairP = do
+  A.char '('
+  A.string "define-fun"
+  A.skipSpace
+  !x <- symbolP
+  A.skipSpace
+  A.string "()" -- assuming constants
+  A.skipSpace
+  A.string "Int" -- assuming ints...
+  A.skipSpace
+  !v <- let isDigit c = c >= '0' && c <= '9'
+        in  A.takeWhile1 isDigit
+  A.char ')'
+  return (x, v)
 
 errorP :: SmtParser T.Text
 errorP = A.skipSpace *> A.char '"' *> A.takeWhile1 (/='"') <* A.string "\")"
@@ -341,6 +368,8 @@ versionGreaterEq _ _ = Misc.errorstar "Interface.versionGreater called with bad 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
+
+smtGetModel me = command me GetModel
 
 smtPush, smtPop   :: Context -> IO ()
 smtPush me        = interact' me Push

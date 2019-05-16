@@ -78,13 +78,12 @@ ppCmd (Distinct{}) = text "Distinct ..."
 ppCmd (GetValue{}) = text "GetValue ..."
 ppCmd (CMany{}   ) = text "CMany ..."
 
-type Var = String
 -- | Responses received from SMT engine
 data Response     = Ok
                   | Sat
                   | Unsat
                   | Unknown
-                  | Model (Map.Map Var Int) -- TODO: Not only integers values from SMT
+                  | Model [(Symbol, T.Text)] -- TODO: Not only integers values from SMT
                   | Values [(Symbol, T.Text)]
                   | Error !T.Text
                   deriving (Eq, Show)
