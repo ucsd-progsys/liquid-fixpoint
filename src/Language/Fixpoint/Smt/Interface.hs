@@ -103,8 +103,8 @@ import           Language.Fixpoint.SortCheck
 -- import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 import qualified Data.Map as Map
-import Debug.Trace
-import System.IO.Unsafe
+import           Debug.Trace
+import           System.IO.Unsafe
 
 {-
 runFile f
@@ -204,10 +204,11 @@ modelP :: SmtParser [(Symbol, T.Text)]
 modelP = do
   A.string "model"
   A.skipSpace
-  A.many1' modelPairP -- <* A.char ')'
+  A.many1' modelPairP <* A.char ')'
 
 modelPairP :: SmtParser (Symbol, T.Text)
 modelPairP = do
+  A.skipSpace
   A.char '('
   A.string "define-fun"
   A.skipSpace
@@ -217,8 +218,7 @@ modelPairP = do
   A.skipSpace
   A.string "Int" -- assuming ints...
   A.skipSpace
-  !v <- let isDigit c = c >= '0' && c <= '9'
-        in  A.takeWhile1 isDigit
+  !v <- A.takeWhile1 isDigit
   A.char ')'
   return (x, v)
 
