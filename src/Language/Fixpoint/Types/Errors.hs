@@ -22,9 +22,10 @@ module Language.Fixpoint.Types.Errors (
   , FixResult (..)
   , colorResult
   , resultDoc
+  , resultExit 
 
-  -- * Abstract Error Type
-  , Error
+  -- * Error Type
+  , Error, Error1
 
   -- * Constructor
   , err
@@ -32,6 +33,7 @@ module Language.Fixpoint.Types.Errors (
   -- * Accessors
   , errLoc
   , errMsg
+  , errs
 
   -- * Adding Insult to Injury
   , catError
@@ -49,6 +51,7 @@ module Language.Fixpoint.Types.Errors (
   , errIllScopedKVar
   ) where
 
+import           System.Exit                        (ExitCode (..))
 import           Control.Exception
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
@@ -89,6 +92,10 @@ instance (B.Binary a) => B.Binary (FixResult a)
 
 newtype Error = Error [Error1]
                 deriving (Eq, Ord, Show, Typeable, Generic)
+
+
+errs :: Error -> [Error1]
+errs (Error es) = es 
 
 data Error1 = Error1
   { errLoc :: SrcSpan
@@ -196,6 +203,11 @@ colorResult :: FixResult a -> Moods
 colorResult (Safe)      = Happy
 colorResult (Unsafe _)  = Angry
 colorResult (_)         = Sad
+
+resultExit :: FixResult a -> ExitCode
+resultExit Safe        = ExitSuccess
+resultExit (Unsafe _)  = ExitFailure 1
+resultExit _           = ExitFailure 2
 
 ---------------------------------------------------------------------
 -- | Catalogue of Errors --------------------------------------------

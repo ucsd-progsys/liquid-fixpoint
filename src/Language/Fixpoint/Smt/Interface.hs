@@ -88,6 +88,7 @@ import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as Builder
 import qualified Data.Text.Lazy.IO        as LTIO
+import           System.IO (hIsEOF)
 import           System.Directory
 import           System.Console.CmdArgs.Verbosity
 import           System.Exit              hiding (die)
@@ -228,7 +229,9 @@ smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   maybe (return ()) (`hPutStrLnNow` s) (ctxLog me)
 
 smtReadRaw       :: Context -> IO T.Text
-smtReadRaw me    = {-# SCC "smtReadRaw" #-} TIO.hGetLine (ctxCin me)
+smtReadRaw me    = {-# SCC "smtReadRaw" #-} do 
+  wait <- hIsEOF (ctxCin me)
+  if wait then smtReadRaw me else TIO.hGetLine (ctxCin me)
 
 hPutStrLnNow     :: Handle -> LT.Text -> IO ()
 hPutStrLnNow h !s = LTIO.hPutStrLn h s >> hFlush h
@@ -466,6 +469,7 @@ dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
 funcSortVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
 funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
+                 ++ [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
                  ++ [(var lambdaName t       , lamSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where
