@@ -253,6 +253,7 @@ instance SMTLIB2 Command where
   smt2 env (AssertAx t)        = build "(assert {})"                  (Only $ smt2  env t)
   smt2 _   (Push)              = "(push 1)"
   smt2 _   (Pop)               = "(pop 1)"
+  smt2 _   (GetModel)          = "(get-model)"
   smt2 _   (CheckSat)          = "(check-sat)"
   smt2 env (GetValue xs)       = "(get-value (" <> smt2s env xs <> "))"
   smt2 env (CMany cmds)        = smt2many (smt2 env <$> cmds)

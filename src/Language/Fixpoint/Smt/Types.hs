@@ -6,33 +6,35 @@
 
 -- | This module contains the types defining an SMTLIB2 interface.
 
-module Language.Fixpoint.Smt.Types (
+module Language.Fixpoint.Smt.Types
+  (
 
     -- * Serialized Representation
     --    symbolBuilder
 
     -- * Commands
-      Command  (..)
+    Command(..)
 
     -- * Responses
-    , Response (..)
+  , Response(..)
 
     -- * Typeclass for SMTLIB2 conversion
-    , SMTLIB2 (..)
-    , runSmt2
+  , SMTLIB2(..)
+  , runSmt2
 
     -- * SMTLIB2 Process Context
-    , Context (..)
-
-    ) where
+  , Context(..)
+  )
+where
 
 import           Language.Fixpoint.Types
-import qualified Data.Text                as T
-import qualified Data.Text.Lazy.Builder   as LT
+import qualified Data.Text                     as T
+import qualified Data.Text.Lazy.Builder        as LT
 import           Text.PrettyPrint.HughesPJ
 
-import           System.IO                (Handle)
+import           System.IO                      ( Handle )
 import           System.Process
+import qualified Data.Map                      as Map
 -- import           Language.Fixpoint.Misc   (traceShow)
 
 --------------------------------------------------------------------------------
@@ -51,6 +53,7 @@ data Command      = Push
                   | Define   !Sort
                   | Assert   !(Maybe Int) !Expr
                   | AssertAx !(Triggered Expr)
+                  | GetModel
                   | Distinct [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue [Symbol]
                   | CMany    [Command]
@@ -63,21 +66,24 @@ ppCmd :: Command -> Doc
 ppCmd Push             = text "Push"
 ppCmd Pop              = text "Pop"
 ppCmd CheckSat         = text "CheckSat"
-ppCmd (DeclData d)     = text "Data" <+> pprint d
+ppCmd GetModel         = text "GetModel"
+ppCmd (DeclData d    ) = text "Data" <+> pprint d
 ppCmd (Declare x [] t) = text "Declare" <+> pprint x <+> text ":" <+> pprint t
-ppCmd (Declare x ts t) = text "Declare" <+> pprint x <+> text ":" <+> parens (pprint ts) <+> pprint t 
-ppCmd (Define {})   = text "Define ..."
-ppCmd (Assert _ e)  = text "Assert" <+> pprint e
-ppCmd (AssertAx _)  = text "AssertAxiom ..."
-ppCmd (Distinct {}) = text "Distinct ..."
-ppCmd (GetValue {}) = text "GetValue ..."
-ppCmd (CMany {})    = text "CMany ..."
+ppCmd (Declare x ts t) =
+  text "Declare" <+> pprint x <+> text ":" <+> parens (pprint ts) <+> pprint t
+ppCmd (Define{}  ) = text "Define ..."
+ppCmd (Assert _ e) = text "Assert" <+> pprint e
+ppCmd (AssertAx _) = text "AssertAxiom ..."
+ppCmd (Distinct{}) = text "Distinct ..."
+ppCmd (GetValue{}) = text "GetValue ..."
+ppCmd (CMany{}   ) = text "CMany ..."
 
 -- | Responses received from SMT engine
 data Response     = Ok
                   | Sat
                   | Unsat
                   | Unknown
+                  | Model [(Symbol, T.Text)] -- TODO: Not only integers values from SMT
                   | Values [(Symbol, T.Text)]
                   | Error !T.Text
                   deriving (Eq, Show)
