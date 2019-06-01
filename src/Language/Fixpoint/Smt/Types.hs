@@ -34,7 +34,7 @@ import           Text.PrettyPrint.HughesPJ
 
 import           System.IO                      ( Handle )
 import           System.Process
-import qualified Data.Map                      as Map
+-- import qualified Data.Map                      as Map
 -- import           Language.Fixpoint.Misc   (traceShow)
 
 --------------------------------------------------------------------------------
