@@ -30,7 +30,7 @@ import qualified Data.HashSet                                      as S
 import qualified Data.List                                         as L
 import qualified Data.Text                                         as T
 import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
-import           Control.Monad       ((>=>))
+import           Control.Monad       ((>=>), guard)
 import           Text.PrettyPrint.HughesPJ
 
 type SanitizeM a = Either E.Error a
@@ -127,6 +127,7 @@ eliminateEta cfg si
     
     fapp' :: F.Expr -> Maybe (F.Expr, [F.Symbol])
     fapp' (F.EApp e0 (F.EVar arg)) = do
+      guard (arg `notElem` F.syms e0)
       (fvar, args) <- fapp' e0
       splitApp (fvar, arg:args)
     fapp' e = pure (e, [])
