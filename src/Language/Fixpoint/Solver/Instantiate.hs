@@ -412,7 +412,7 @@ topApps = go
     go (EBin  _ e1 e2) = go e1  ++ go e2
     go (PNot e)        = go e
     go (ENeg e)        = go e
-    go e@(EApp e1 e2)  = e:(go e1 ++ go e2)
+    go e@(EApp e1 e2)  = e:(concatMap go es) where (_,es) = splitEApp e
     go _               = []
 
 -- makeLam is the adjoint of splitEApp
