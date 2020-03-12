@@ -50,10 +50,10 @@ mytracepp = notracepp
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
   | rewriteAxioms cfg && noIncrPle cfg
-  = instantiate' cfg fi
+  = instantiate' cfg (normalize fi)
 
   | rewriteAxioms cfg -- && incrPle cfg 
-  = incrInstantiate' cfg fi
+  = incrInstantiate' cfg (normalize fi)
 
   | otherwise         
   = return fi
@@ -810,3 +810,23 @@ withCtx cfg file env k = do
   modify (\st -> st {evId = (mytracepp msg $ evId st) + 1})
   return e'
 
+-------------------------------------------------------------------------------
+-- | Normalization of Equation: make their arguments unique -------------------
+-------------------------------------------------------------------------------
+
+class Normalizable a where 
+  normalize :: a -> a 
+
+instance Normalizable (GInfo c a) where 
+  normalize si = si {ae = normalize $ ae si}
+
+instance Normalizable AxiomEnv where 
+  normalize aenv = aenv {aenvEqs = normalize <$> aenvEqs aenv}
+
+instance Normalizable Equation where 
+  normalize eq = eq {eqArgs = zip xs' ss, eqBody = subst su $ eqBody eq }
+    where 
+      su      = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
+      (xs,ss) = unzip (eqArgs eq) 
+      xs'     = zipWith mkSymbol xs [0..]
+      mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i 
