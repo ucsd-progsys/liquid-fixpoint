@@ -10,7 +10,7 @@ module Language.Fixpoint.Congruence.Types
   , Disequality (..)
     
     -- * Terms 
-  , Term 
+  , Term (Var, App)
   , identity 
 
     -- * Constructors
@@ -27,10 +27,11 @@ import qualified Language.Fixpoint.Types as F
 -- 1.  x = y => f x = f y
 -- 2.  f(f(f(x))) = x => f(f(f(f(f(x))))) = x => f(x) = a 
 
+_examples :: [Term]
 _examples = [t1, t2]
   where 
-    t1   = app "f" [var "x", var "y"] 
-    t2   = app "f" [var "x", var "y"] 
+    t1   = foldr app (var "f") [var "x", var "y"]
+    t2   = foldr app (var "f") [var "x", var "y"]
 
 data CongQuery   = Query [Equality] [Disequality]  
 data Equality    = Eq    Term Term
@@ -39,7 +40,7 @@ data Disequality = Diseq Term Term
 --------------------------------------------------------------------------------
 -- | Exported Constructors
 --------------------------------------------------------------------------------
-app :: F.Symbol -> [Term] -> Term
+app :: Term -> Term -> Term
 app f as = intern (BApp f as)
 
 var :: F.Symbol -> Term
@@ -50,21 +51,28 @@ var x = intern (BVar x)
 --------------------------------------------------------------------------------
 data Term 
   = Var   {-# UNPACK #-} !Id !F.Symbol 
-  | App   {-# UNPACK #-} !Id !F.Symbol [Term]
+  | App   {-# UNPACK #-} !Id Term Term
+
+instance Show Term where
+    show (Var _ s) = F.symbolString s
+    show (App _ t1 t2) = show t1 ++ "(" ++ show t2 ++ ")"
 --------------------------------------------------------------------------------
 
-data UninternedTerm
-  = BVar !F.Symbol 
-  | BApp !F.Symbol [Term] 
+data UninternedTerm  = BVar !F.Symbol
+                     | BApp Term Term
+
+instance Show UninternedTerm where
+    show (BVar s) = F.symbolString s
+    show (BApp t1 t2) = show t1 ++ "(" ++ show t2 ++ ")"
 
 instance Interned Term where
   type Uninterned Term  = UninternedTerm
   data Description Term = DVar F.Symbol
-                        | DApp F.Symbol [Id]
+                        | DApp Id Id
                           deriving Show
-  describe (BApp f as)  = DApp f (identity <$> as) 
-  describe (BVar x)     = DVar x
-  identify i            = go 
+  describe (BApp f e)  = DApp (identity f) (identity  e)
+  describe (BVar x)    = DVar x
+  identify i             = go
     where
       go (BApp f as)    = App i f as
       go (BVar x)       = Var i x

@@ -10,6 +10,7 @@ module Language.Fixpoint.Horn.Transformations (
   , elimPis
   , solveEbs
   , cstrToExpr
+  , collectEqualities
 ) where
 
 import           Language.Fixpoint.Horn.Types

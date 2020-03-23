@@ -16,6 +16,8 @@ import qualified Language.Fixpoint.Horn.Parse   as H
 import qualified Language.Fixpoint.Horn.Transformations as Tx
 import           Language.Fixpoint.Horn.Info
 
+-- import           Language.Fixpoint.Congruence.Solver (solveEUF, resSimpleStatus)
+
 import           System.Console.CmdArgs.Verbosity
 
 -- import Debug.Trace (traceM)
@@ -61,4 +63,5 @@ solve cfg q = do
   whenLoud $ putStrLn $ F.showpp c
   q <- eliminate cfg ({- void $ -} q { H.qCstr = c })
   Solver.solve cfg (hornFInfo q)
+  -- pure $ resSimpleStatus $ solveEUF $ H.qCstr q
 

@@ -1,3 +1,4 @@
+(fixpoint "--eliminate=horn")
 (var $k0 ((Int)))
 
 (qualif Foo ((v Int)) ((v > 100)))
