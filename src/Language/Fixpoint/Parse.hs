@@ -16,17 +16,18 @@ module Language.Fixpoint.Parse (
   , Parser
 
   -- * Lexer to add new tokens
-  , lexer
+  -- , lexer -- TODO
 
   -- * Some Important keyword and parsers
   , reserved, reservedOp
   , parens  , brackets, angles, braces
   , semi    , comma
   , colon   , dcolon
-  , whiteSpace
-  , blanks
+  , dot
   , pairP
   , stringLiteral
+  , spaces
+  , spacesSameLine
 
   -- * Parsing basic entities
 
@@ -36,11 +37,11 @@ module Language.Fixpoint.Parse (
   , infixIdP    -- String Haskell infix Id
   , symbolP     -- Arbitrary Symbols
   , constantP   -- (Integer) Constants
-  , integer     -- Integer
+  , natural     -- Non-negative integer
   , bindP       -- Binder (lowerIdP <* colon)
   , sortP       -- Sort
   , mkQual      -- constructing qualifiers
-  , infixSymbolP -- parse infix symbols 
+  , infixSymbolP -- parse infix symbols
 
   -- * Parsing recursive entities
   , exprP       -- Expressions
@@ -85,20 +86,28 @@ module Language.Fixpoint.Parse (
 
   ) where
 
+import           Control.Monad.Combinators.Expr
+import qualified Data.IntMap.Strict          as IM
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
+import           Data.List                   (foldl')
+import           Data.List.NonEmpty          (NonEmpty(..))
 import qualified Data.Text                   as T
 import           Data.Maybe                  (fromJust, fromMaybe)
-import           Text.Parsec       hiding (State)
-import           Text.Parsec.Expr
-import qualified Text.Parsec.Token           as Token
+import           Data.Void
+import           Text.Megaparsec             hiding (State, ParseError)
+import           Text.Megaparsec.Char
+import qualified Text.Megaparsec.Char.Lexer  as L
+-- import           Text.Parsec       hiding (State)
+-- import           Text.Parsec.Expr
+-- import qualified Text.Parsec.Token           as Token
 -- import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
 
 import qualified Data.Char                   as Char -- (isUpper, isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
-import qualified Language.Fixpoint.Misc      as Misc      
+import qualified Language.Fixpoint.Misc      as Misc
 import           Language.Fixpoint.Smt.Types
 -- import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types hiding    (mapSort)
@@ -106,18 +115,70 @@ import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
 
 import Control.Monad.State
 
-type Parser = ParsecT String Integer (State PState)
-type ParserT u a = ParsecT String u (State PState) a
+-- For reference,
+--
+-- in *parsec*, the base monad transformer is
+--
+-- ParsecT s u m a
+--
+-- where
+--
+--   s   is the input stream type
+--   u   is the user state type
+--   m   is the underlying monad
+--   a   is the return type
+--
+-- whereas in *megaparsec*, the base monad transformer is
+--
+-- ParsecT e s m a
+--
+-- where
+--
+--   e   is the custom data component for errors
+--   s   is the input stream type
+--   m   is the underlying monad
+--   a   is the return type
+--
+-- The Liquid Haskell parser tracks state in 'PState', primarily
+-- for operator fixities.
+--
+-- The old Liquid Haskell parser did not use parsec's "user state"
+-- functionality for 'PState', but instead wrapped a state monad
+-- in a parsec monad. We do the same thing for megaparsec.
+--
+-- However, user state was still used for an additional 'Integer'
+-- as a unique supply. We incorporate this in the 'PState'.
+--
+-- Furthermore, we have to decide whether the state in the parser
+-- should be "backtracking" or not. "Backtracking" state resets when
+-- the parser backtracks, and thus only contains state modifications
+-- performed by successful parses. On the other hand, non-backtracking
+-- state would contain all modifications made during the parsing
+-- process and allow us to observe unsuccessful attempts.
+--
+-- It turns out that:
+--
+-- - parsec's old built-in user state is backtracking
+-- - using @StateT s (ParsecT ...)@ is backtracking
+-- - using @ParsecT ... (StateT s ...)@ is non-backtracking
+--
+-- We want all our state to be non-backtracking.
+--
+-- NOTE that this is in deviation from what the old LH parser did,
+-- but I think that was plainly wrong.
+
+type Parser = StateT PState (Parsec Void String)
 
 data PState = PState { fixityTable :: OpTable
                      , fixityOps   :: [Fixity]
                      , empList     :: Maybe Expr
-                     , singList    :: Maybe (Expr -> Expr)}
-
+                     , singList    :: Maybe (Expr -> Expr)
+                     , supply      :: !Integer
+                     }
 
 --------------------------------------------------------------------
 
-
+{-
 emptyDef :: Monad m => Token.GenLanguageDef String a m
 emptyDef    = Token.LanguageDef
                { Token.commentStart   = ""
@@ -143,6 +204,7 @@ languageDef =
            , Token.reservedNames   = S.toList reservedNames
            , Token.reservedOpNames =          reservedOpNames
            }
+-}
 
 reservedNames :: S.HashSet String
 reservedNames = S.fromList
@@ -205,8 +267,13 @@ reservedNames = S.fromList
   , "in"
   ]
 
-reservedOpNames :: [String]
-reservedOpNames =
+-- TODO: This is currently unused.
+--
+-- The only place where this is used in the original parsec code is in the
+-- Text.Parsec.Token.operator parser.
+--
+_reservedOpNames :: [String]
+_reservedOpNames =
   [ "+", "-", "*", "/", "\\", ":"
   , "<", ">", "<=", ">=", "=", "!=" , "/="
   , "mod", "and", "or"
@@ -226,49 +293,140 @@ reservedOpNames =
   , "."
   ]
 
+{-
 lexer :: Monad m => Token.GenTokenParser String u m
 lexer = Token.makeTokenParser languageDef
+-}
 
+-- | Consumes a line comment.
+lhLineComment :: Parser ()
+lhLineComment =
+  L.skipLineComment "//"
 
+-- | Consumes a block comment.
+lhBlockComment :: Parser ()
+lhBlockComment =
+  L.skipBlockComment "/*" "*/"
+
+-- | Consumes all whitespace, including LH comments.
+spaces :: Parser ()
+spaces =
+  L.space
+    space1
+    lhLineComment
+    lhBlockComment
+
+-- | Consumes all whitespace, including LH comments, but not newlines.
+spacesSameLine :: Parser ()
+spacesSameLine =
+  L.space
+    (void $ takeWhile1P (Just "white space on same line") (\ c -> Char.isSpace c && c /= '\n'))
+    lhLineComment
+    lhBlockComment
+
+-- | Parser that consumes a single char within an identifier (not start of identifier).
+identLetter :: Parser Char
+identLetter =
+  alphaNumChar <|> oneOf ("_" :: String)
+
+-- | Parser that consumes a single char within an operator (not start of operator).
+opLetter :: Parser Char
+opLetter =
+  oneOf (":!#$%&*+./<=>?@\\^|-~'" :: String)
+
+-- | Parser that consumes the given reserved word.
+--
+-- The input token cannot be longer than the given name.
+--
+-- NOTE: we currently don't double-check that the reserved word is in the
+-- list of reserved words.
+--
 reserved :: String -> Parser ()
-reserved      = Token.reserved      lexer
+reserved x =
+  void $ L.lexeme spaces (try (string x <* notFollowedBy identLetter))
 
+-- | Parser that consumes the given reserved operator.
+--
+-- The input token cannot be longer than the given name.
+--
+-- NOTE: we currently don't double-check that the reserved operator is in the
+-- list of reserved operators.
+--
 reservedOp :: String -> Parser ()
-reservedOp    = Token.reservedOp    lexer
+reservedOp x =
+  void $ L.lexeme spaces (try (string x <* notFollowedBy opLetter))
 
-parens, brackets, angles, braces :: ParserT u a -> ParserT u a
-parens        = Token.parens        lexer
-brackets      = Token.brackets      lexer
-angles        = Token.angles        lexer
-braces        = Token.braces        lexer
+-- | Parser that consumes the given symbol.
+--
+-- The difference with 'reservedOp' is that the given symbol is seen
+-- as a token of its own, so the next character that follows does not
+-- matter.
+--
+-- symbol :: String -> Parser String
+-- symbol x =
+--   L.symbol spaces (string x)
 
-sbraces :: Parser a -> Parser a 
+parens, brackets, angles, braces :: Parser a -> Parser a
+parens   = between (L.symbol spaces "(") (L.symbol spaces ")")
+brackets = between (L.symbol spaces "[") (L.symbol spaces "]")
+angles   = between (L.symbol spaces "<") (L.symbol spaces ">")
+braces   = between (L.symbol spaces "{") (L.symbol spaces "}")
+
+-- | 'sbraces' is a more space-liberal version of 'braces'.
+-- It allows to parse arbitrary whitespace before the closing
+-- brace, even if the argument parser would normally admit
+-- none or only limited spaces.
+--
+sbraces :: Parser a -> Parser a
 sbraces pp   = braces $ (spaces *> pp <* spaces)
 
-semi, colon, comma, dot, stringLiteral :: Parser String
-semi          = Token.semi          lexer
-colon         = Token.colon         lexer
-comma         = Token.comma         lexer
-dot           = Token.dot           lexer
-stringLiteral = Token.stringLiteral lexer
+semi, colon, comma, dot :: Parser String
+semi  = L.symbol spaces ";"
+colon = L.symbol spaces ":"
+comma = L.symbol spaces ","
+dot   = L.symbol spaces "."
 
-whiteSpace :: Parser ()
-whiteSpace    = Token.whiteSpace    lexer
+-- | Parses a string literal as a lexeme. This is based on megaparsec's
+-- 'charLiteral' parser, which claims to handle all the single-character
+-- escapes defined by the Haskell grammar.
+--
+stringLiteral :: Parser String
+stringLiteral =
+  L.lexeme spaces
+    (char '\"' *> manyTill L.charLiteral (char '\"'))
 
+-- TODO: this should not be needed; we should use spaces instead (or in rare cases, spacesSameLine)
+-- whiteSpace :: Parser ()
+-- whiteSpace    = _ -- Token.whiteSpace    lexer
+
+-- | Consumes a float literal lexeme.
 double :: Parser Double
-double        = Token.float         lexer
--- integer       = Token.integer       lexer
+double = L.lexeme spaces L.float
 
 -- identifier :: Parser String
 -- identifier = Token.identifier lexer
 
+-- TODO: the following should not be needed and be replaced with spacesSameLine
 -- TODO:AZ: pretty sure there is already a whitespace eater in parsec,
-blanks :: Parser String
-blanks  = many (satisfy (`elem` [' ', '\t']))
+-- blanks :: Parser String
+-- blanks  = many (satisfy (`elem` [' ', '\t']))
+
+-- | Consumes a natural number literal lexeme, which can be
+-- in decimal, octal and hexadecimal representation.
+--
+natural :: Parser Integer
+natural = L.lexeme spaces $
+      try (char '0' *> char' 'x') *> L.hexadecimal
+  <|> try (char '0' *> char' 'o') *> L.octal
+  <|> L.decimal
+
+-- TODO: It is totally unclear whether we need to also
+-- parse signed integers. It seems the old 'integer'
+-- parser could in fact only parse non-negative integers.
 
 -- | Integer
-integer :: Parser Integer
-integer = Token.natural lexer <* spaces
+-- integer :: Parser Integer
+-- integer = _ -- Token.natural lexer <* spaces
 
 --  try (char '-' >> (negate <$> posInteger))
 --       <|> posInteger
@@ -283,9 +441,9 @@ integer = Token.natural lexer <* spaces
 ----------------------------------------------------------------
 
 locParserP :: Parser a -> Parser (Located a)
-locParserP p = do l1 <- getPosition
+locParserP p = do l1 <- getSourcePos
                   x  <- p
-                  l2 <- getPosition
+                  l2 <- getSourcePos
                   return $ Loc l1 l2 x
 
 
@@ -294,11 +452,12 @@ locParserP p = do l1 <- getPosition
 
 condIdP  :: Parser Char -> S.HashSet Char -> (String -> Bool) -> Parser Symbol
 condIdP initP okChars p
-  = do c    <- initP 
-       cs   <- many (satisfy (`S.member` okChars))
-       blanks
+  = do c    <- initP
+       cs   <- takeWhileP Nothing (`S.member` okChars)
+       spacesSameLine
        let s = c:cs
-       if p s then return (symbol s) else parserZero
+       guard (p s)
+       pure (symbol s)
 
 -- upperIdP :: Parser Symbol
 -- upperIdP = do
@@ -320,13 +479,13 @@ condIdP initP okChars p
 -- lowerIdP = symbol <$> (identifier <* blanks)
 
 upperIdP :: Parser Symbol
-upperIdP  = condIdP upper                  symChars (const True)
+upperIdP  = condIdP upperChar                  symChars (const True)
 
 lowerIdP :: Parser Symbol
-lowerIdP  = condIdP (lower <|> char '_')   symChars isNotReserved
+lowerIdP  = condIdP (lowerChar <|> char '_')   symChars isNotReserved
 
 symCharsP :: Parser Symbol
-symCharsP = condIdP (letter <|> char '_')  symChars isNotReserved
+symCharsP = condIdP (letterChar <|> char '_')  symChars isNotReserved
 
 isNotReserved :: String -> Bool
 isNotReserved s = not (s `S.member` reservedNames)
@@ -352,7 +511,7 @@ symbolP = symbol <$> symCharsP
 -- | (Integer) Constants
 constantP :: Parser Constant
 constantP =  try (R <$> double)
-         <|> I <$> integer
+         <|> I <$> natural
 
 
 symconstP :: Parser SymConst
@@ -372,23 +531,23 @@ expr0P
   -- TODO:AZ get rid of these try, after the rest
  <|> try (parens exprP)
  <|> (reserved "[]" >> emptyListP)
- <|> try (brackets exprP >>= singletonListP) 
+ <|> try (brackets exprP >>= singletonListP)
  <|> try (parens exprCastP)
  <|> (charsExpr <$> symCharsP)
 
 emptyListP :: Parser Expr
-emptyListP = do 
-  e <- empList <$> get 
-  case e of 
+emptyListP = do
+  e <- empList <$> get
+  case e of
     Nothing -> fail "No parsing support for empty lists"
-    Just s  -> return s 
+    Just s  -> return s
 
-singletonListP :: Expr -> Parser Expr 
-singletonListP e = do 
+singletonListP :: Expr -> Parser Expr
+singletonListP e = do
   f <- singList <$> get
-  case f of 
+  case f of
     Nothing -> fail "No parsing support for singleton lists"
-    Just s  -> return $ s e 
+    Just s  -> return $ s e
 
 exprCastP :: Parser Expr
 exprCastP
@@ -440,7 +599,12 @@ expr1P
 
 -- | Expressions
 exprP :: Parser Expr
-exprP = (fixityTable <$> get) >>= (`buildExpressionParser` expr1P)
+exprP =
+  do
+    table <- gets fixityTable
+    makeExprParser expr1P (flattenOpTable table)
+
+data Assoc = AssocNone | AssocLeft | AssocRight
 
 data Fixity
   = FInfix   {fpred :: Maybe Int, fname :: String, fop2 :: Maybe (Expr -> Expr -> Expr), fassoc :: Assoc}
@@ -448,31 +612,52 @@ data Fixity
   | FPostfix {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Expr -> Expr)}
 
 
--- Invariant : OpTable has 10 elements
-type OpTable = OperatorTable String Integer (State PState) Expr
+-- | An OpTable stores operators by their fixity.
+--
+-- Fixity levels range from 9 (highest) to 0 (lowest).
+type OpTable = IM.IntMap [Operator Parser Expr] -- [[Operator Parser Expr]]
 
+-- | Transform an operator table to the form expected by 'makeExprParser',
+-- which wants operators sorted by decreasing priority.
+--
+flattenOpTable :: OpTable -> [[Operator Parser Expr]]
+flattenOpTable =
+  (snd <$>) <$> IM.toDescList
+
+-- | Add an operator to the parsing state.
 addOperatorP :: Fixity -> Parser ()
 addOperatorP op
-  = modify $ \s -> s{ fixityTable =  addOperator op (fixityTable s)
-                    , fixityOps   =  op:fixityOps s 
+  = modify $ \s -> s{ fixityTable = addOperator op (fixityTable s)
+                    , fixityOps   = op:fixityOps s
                     }
 
 infixSymbolP :: Parser Symbol
-infixSymbolP = do 
-  ops <- infixOps <$> get 
+infixSymbolP = do
+  ops <- infixOps <$> get
   choice (reserved' <$> ops)
-  where 
+  where
     infixOps st = [s | FInfix _ s _ _ <- fixityOps st]
-    reserved' x = reserved x >> return (symbol x) 
+    reserved' x = reserved x >> return (symbol x)
 
+-- | Helper function that turns an associativity into the right constructor for 'Operator'.
+mkInfix :: Assoc -> parser (expr -> expr -> expr) -> Operator parser expr
+mkInfix AssocLeft  = InfixL
+mkInfix AssocRight = InfixR
+mkInfix AssocNone  = InfixN
+
+-- | Add the given operator to the operator table.
 addOperator :: Fixity -> OpTable -> OpTable
 addOperator (FInfix p x f assoc) ops
- = insertOperator (makePrec p) (Infix (reservedOp x >> return (makeInfixFun x f)) assoc) ops
+ = insertOperator (makePrec p) (mkInfix assoc (reservedOp x >> return (makeInfixFun x f))) ops
 addOperator (FPrefix p x f) ops
  = insertOperator (makePrec p) (Prefix (reservedOp x >> return (makePrefixFun x f))) ops
 addOperator (FPostfix p x f) ops
  = insertOperator (makePrec p) (Postfix (reservedOp x >> return (makePrefixFun x f))) ops
 
+-- | Helper function for computing the priority of an operator.
+--
+-- If no explicit priority is given, a priority of 9 is assumed.
+--
 makePrec :: Maybe Int -> Int
 makePrec = fromMaybe 9
 
@@ -482,21 +667,21 @@ makeInfixFun x = fromMaybe (\e1 e2 -> EApp (EApp (EVar $ symbol x) e1) e2)
 makePrefixFun :: String -> Maybe (Expr -> Expr) -> Expr -> Expr
 makePrefixFun x = fromMaybe (EApp (EVar $ symbol x))
 
-insertOperator :: Int -> Operator String Integer (State PState) Expr -> OpTable -> OpTable
-insertOperator i op = go (9 - i) 
-  where
-    go _ []         = die $ err dummySpan (text "insertOperator on empty ops")
-    go 0 (xs:xss)   = (xs ++ [op]) : xss
-    go i (xs:xss)   = xs : go (i - 1) xss
+-- | Add an operator at the given priority to the operator table.
+insertOperator :: Int -> Operator Parser Expr -> OpTable -> OpTable
+insertOperator i op = IM.alter (Just . (op :) . fromMaybe []) i
 
+-- | The initial (empty) operator table.
 initOpTable :: OpTable
-initOpTable = replicate 10 [] 
+initOpTable = IM.empty
 
+-- | Built-in operator table, parameterised over the composition function.
 bops :: Maybe Expr -> OpTable
-bops cmpFun = foldl (flip addOperator) initOpTable buildinOps
+bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
   where
--- Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity
-    buildinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
+    -- Built-in Haskell operators, see https://www.haskell.org/onlinereport/decls.html#fixity
+    builtinOps :: [Fixity]
+    builtinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
                  , FInfix  (Just 7) "*"   (Just $ EBin Times) AssocLeft
                  , FInfix  (Just 7) "/"   (Just $ EBin Div)   AssocLeft
                  , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
@@ -504,6 +689,7 @@ bops cmpFun = foldl (flip addOperator) initOpTable buildinOps
                  , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
                  , FInfix  (Just 9) "."   applyCompose        AssocRight
                  ]
+    applyCompose :: Maybe (Expr -> Expr -> Expr)
     applyCompose = (\f x y -> (f `eApps` [x,y])) <$> cmpFun
 
 -- | Function Applications
@@ -511,7 +697,7 @@ funAppP :: Parser Expr
 funAppP            =  litP <|> exprFunP <|> simpleAppP
   where
     exprFunP = mkEApp <$> funSymbolP <*> funRhsP
-    funRhsP  =  sepBy1 expr0P blanks
+    funRhsP  =  sepBy1 expr0P spacesSameLine
             <|> parens innerP
     innerP   = brackets (sepBy exprP semi)
 
@@ -567,7 +753,7 @@ sortsP = brackets $ sepBy sortP semi
 
 -- | Sort
 sortP    :: Parser Sort
-sortP    = sortP' (sepBy sortArgP blanks)
+sortP    = sortP' (sepBy sortArgP spacesSameLine)
 
 sortArgP :: Parser Sort
 sortArgP = sortP' (return [])
@@ -583,13 +769,10 @@ sortP' :: Parser [Sort] -> Parser Sort
 sortP' appArgsP
    =  parens sortP
   <|> (reserved "func" >> funcSortP)
-  <|> (fAppTC listFTyCon . single <$> brackets sortP)
+  <|> (fAppTC listFTyCon . pure <$> brackets sortP)
   <|> bvSortP
   <|> (fAppTC <$> fTyConP <*> appArgsP)
   <|> (fApp   <$> tvarP   <*> appArgsP)
-
-single :: a -> [a]
-single x = [x]
 
 tvarP :: Parser Sort
 tvarP
@@ -638,7 +821,7 @@ pred0P =  trueP
 
 makeUniquePGrad :: Parser Expr
 makeUniquePGrad
-  = do uniquePos <- getPosition
+  = do uniquePos <- getSourcePos
        return $ PGrad (KV $ symbol $ show uniquePos) mempty (srcGradInfo uniquePos) mempty
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
@@ -662,15 +845,15 @@ predsP :: Parser [Expr]
 predsP = brackets $ sepBy predP semi
 
 predP  :: Parser Expr
-predP  = buildExpressionParser lops pred0P
+predP  = makeExprParser pred0P lops
   where
     lops = [ [Prefix (reservedOp "~"    >> return PNot)]
            , [Prefix (reservedOp "not " >> return PNot)]
-           , [Infix  (reservedOp "&&"   >> return pGAnd) AssocRight]
-           , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
-           , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
-           , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]
-           , [Infix  (reservedOp "<=>"  >> return PIff) AssocRight]]
+           , [InfixR (reservedOp "&&"   >> return pGAnd)]
+           , [InfixR (reservedOp "||"   >> return (\x y -> POr  [x,y]))]
+           , [InfixR (reservedOp "=>"   >> return PImp)]
+           , [InfixR (reservedOp "==>"  >> return PImp)]
+           , [InfixR (reservedOp "<=>"  >> return PIff)]]
 
 predrP :: Parser Expr
 predrP = do e1    <- exprP
@@ -749,35 +932,35 @@ dataDeclP  = DDecl <$> fTyConP <*> intP <* reservedOp "="
 -- | Qualifiers
 qualifierP :: Parser Sort -> Parser Qualifier
 qualifierP tP = do
-  pos    <- getPosition
+  pos    <- getSourcePos
   n      <- upperIdP
   params <- parens $ sepBy1 (qualParamP tP) comma
   _      <- colon
   body   <- predP
   return  $ mkQual n params body pos
 
-qualParamP :: Parser Sort -> Parser QualParam 
-qualParamP tP = do 
-  x     <- symbolP 
-  pat   <- qualPatP 
-  _     <- colon 
-  t     <- tP 
-  return $ QP x pat t 
+qualParamP :: Parser Sort -> Parser QualParam
+qualParamP tP = do
+  x     <- symbolP
+  pat   <- qualPatP
+  _     <- colon
+  t     <- tP
+  return $ QP x pat t
 
 qualPatP :: Parser QualPattern
-qualPatP 
+qualPatP
    =  (reserved "as" >> qualStrPatP)
-  <|> return PatNone 
+  <|> return PatNone
 
 qualStrPatP :: Parser QualPattern
-qualStrPatP 
+qualStrPatP
    = (PatExact <$> symbolP)
   <|> parens (    (uncurry PatPrefix <$> pairP symbolP dot qpVarP)
               <|> (uncurry PatSuffix <$> pairP qpVarP  dot symbolP) )
 
 
 qpVarP :: Parser Int
-qpVarP = char '$' *> intP 
+qpVarP = char '$' *> intP
 
 symBindP :: Parser a -> Parser (Symbol, a)
 symBindP = pairP symbolP colon
@@ -830,7 +1013,7 @@ data Def a
   | Kut !KVar
   | Pack !KVar !Int
   | IBind !Int !Symbol !SortedReft
-  | EBind !Int !Symbol !Sort 
+  | EBind !Int !Symbol !Sort
   | Opt !String
   | Def !Equation
   | Mat !Rewrite
@@ -881,7 +1064,7 @@ wfCP = do reserved "env"
           return w
 
 subCP :: Parser (SubC ())
-subCP = do pos <- getPosition
+subCP = do pos <- getSourcePos
            reserved "env"
            env <- envP
            reserved "lhs"
@@ -889,9 +1072,9 @@ subCP = do pos <- getPosition
            reserved "rhs"
            rhs <- sortedReftP
            reserved "id"
-           i   <- integer <* spaces
+           i   <- natural <* spaces
            tag <- tagP
-           pos' <- getPosition
+           pos' <- getSourcePos
            return $ subC' env lhs rhs i tag pos pos'
 
 subC' :: IBindEnv
@@ -919,7 +1102,7 @@ envP  = do binds <- brackets $ sepBy (intP <* spaces) semi
            return $ insertsIBindEnv binds emptyIBindEnv
 
 intP :: Parser Int
-intP = fromInteger <$> integer
+intP = fromInteger <$> natural
 
 boolP :: Parser Bool
 boolP = (reserved "True" >> return True)
@@ -928,12 +1111,12 @@ boolP = (reserved "True" >> return True)
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae
   where
-    cm         = Misc.safeFromList 
+    cm         = Misc.safeFromList
                    "defs-cm"        [(cid c, c)         | Cst c       <- defs]
-    ws         = Misc.safeFromList 
+    ws         = Misc.safeFromList
                    "defs-ws"        [(i, w)              | Wfc w    <- defs, let i = Misc.thd3 (wrft w)]
-    bs         = bindEnvFromList  $ exBinds ++ [(n,x,r)  | IBind n x r <- defs] 
-    ebs        =                    [ n                  | (n,_,_) <- exBinds] 
+    bs         = bindEnvFromList  $ exBinds ++ [(n,x,r)  | IBind n x r <- defs]
+    ebs        =                    [ n                  | (n,_,_) <- exBinds]
     exBinds    =                    [(n, x, RR t mempty) | EBind n x t <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
@@ -971,7 +1154,7 @@ fixResultP pp
 crashP :: Parser a -> Parser (FixResult a)
 crashP pp = do
   i   <- pp
-  msg <- many anyChar
+  msg <- takeWhileP Nothing (const True) -- consume the rest of the input
   return $ Crash [i] msg
 
 predSolP :: Parser Expr
@@ -991,50 +1174,65 @@ solution1P = do
     kvP = try kvarP <|> (KV <$> symbolP)
 
 solutionP :: Parser (M.HashMap KVar Expr)
-solutionP = M.fromList <$> sepBy solution1P whiteSpace
+solutionP = M.fromList <$> sepBy solution1P spaces
 
 solutionFileP :: Parser (FixResult Integer, M.HashMap KVar Expr)
-solutionFileP = (,) <$> fixResultP integer <*> solutionP
+solutionFileP = (,) <$> fixResultP natural <*> solutionP
 
 --------------------------------------------------------------------------------
+
+-- | Parse via the given parser, and obtain the rest of the input
+-- as well as the final source position.
+--
 remainderP :: Parser a -> Parser (a, String, SourcePos)
 remainderP p
   = do res <- p
        str <- getInput
-       pos <- getPosition
+       pos <- getSourcePos
        return (res, str, pos)
 
-
+-- | Initial parser state.
 initPState :: Maybe Expr -> PState
 initPState cmpFun = PState { fixityTable = bops cmpFun
                            , empList     = Nothing
                            , singList    = Nothing
-                           , fixityOps   = [] 
+                           , fixityOps   = []
+                           , supply      = 0
                            }
 
+-- | Entry point for parsing, for testing.
+--
+-- Take the top-level parser, the source file name, and the input as a string.
+-- Fails with an exception on a parse error.
+--
 doParse' :: Parser a -> SourceName -> String -> a
-doParse' parser f s
-  = case evalState (runParserT (remainderP (whiteSpace >> parser)) 0 f s) $ initPState Nothing of
-      Left e            -> die $ err (errorSpan e) (dErr e)
-      Right (r, "", _)  -> r
-      Right (_, r, l)   -> die $ err (SS l l) (dRem r)
-    where
-      dErr e = vcat [ "parseError"        <+> Misc.tshow e
-                    , "when parsing from" <+> text f ]
-      dRem r = vcat [ "doParse has leftover"
-                    , nest 4 (text r)
-                    , "when parsing from" <+> text f ]
+doParse' parser fileName input =
+  case runParser (evalStateT (remainderP (spaces *> parser)) (initPState Nothing)) fileName input of
+    Left (ParseErrorBundle errors posState) -> -- parse errors; we extract the first error from the error bundle
+      let
+        ((e, pos) :| _, _) = attachSourcePos errorOffset errors posState
+      in
+        die $ err (SS pos pos) (dErr e)
+    Right (r, "", _) -> r -- successful parse with no remaining input
+    Right (_, r, l) -> die $ err (SS l l) (dRem r)
+  where
+    dErr e = vcat [ "parseError"        <+> Misc.tshow e
+                  , "when parsing from" <+> text fileName ]
+    dRem r = vcat [ "doParse has leftover"
+                  , nest 4 (text r)
+                  , "when parsing from" <+> text fileName ]
 
 
-errorSpan :: ParseError -> SrcSpan
-errorSpan e = SS l l where l = errorPos e
+-- errorSpan :: ParseError -> SrcSpan
+-- errorSpan e = SS l l where l = errorPos e
 
 parseFromFile :: Parser b -> SourceName -> IO b
 parseFromFile p f = doParse' p f <$> readFile f
 
+-- | Obtain a fresh integer during the parsing process.
 freshIntP :: Parser Integer
-freshIntP = do n <- getState
-               updateState (+ 1)
+freshIntP = do n <- gets supply
+               modify (\ s -> s{supply = n + 1})
                return n
 
 ---------------------------------------------------------------------
@@ -1079,7 +1277,7 @@ instance Inputable Expr where
   rr' = doParse' exprP
 
 instance Inputable (FixResult Integer) where
-  rr' = doParse' $ fixResultP integer
+  rr' = doParse' $ fixResultP natural
 
 instance Inputable (FixResult Integer, FixSolution) where
   rr' = doParse' solutionFileP
