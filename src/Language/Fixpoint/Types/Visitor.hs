@@ -60,6 +60,7 @@ import           Data.Semigroup      (Semigroup (..))
 import           Control.Monad.State.Strict
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
+import qualified Data.IntMap.Strict  as IntMap
 import qualified Data.List           as L
 import           Language.Fixpoint.Types hiding (mapSort)
 import qualified Language.Fixpoint.Misc as Misc
@@ -413,7 +414,7 @@ instance (SymConsts (c a)) => SymConsts (GInfo c a) where
       qsLits   = concatMap symConsts $ qBody   <$> quals fi
 
 instance SymConsts BindEnv where
-  symConsts    = concatMap (symConsts . snd) . M.elems . beBinds
+  symConsts    = concatMap (symConsts . snd) . IntMap.elems . beBinds
 
 instance SymConsts (SubC a) where
   symConsts c  = symConsts (slhs c) ++

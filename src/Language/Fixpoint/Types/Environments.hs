@@ -70,6 +70,8 @@ import           GHC.Generics              (Generic)
 import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import qualified Data.IntMap.Strict        as IntMap
+import qualified Data.IntSet               as IntSet
 import           Data.Maybe
 import           Data.Function             (on)
 import           Text.PrettyPrint.HughesPJ.Compat
@@ -82,9 +84,10 @@ import           Language.Fixpoint.Types.Substitutions ()
 import           Language.Fixpoint.Misc
 
 type BindId        = Int
-type BindMap a     = M.HashMap BindId a
+type BindIdSet     = IntSet.IntSet
+type BindMap a     = IntMap.IntMap a
 
-newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
+newtype IBindEnv   = FB BindIdSet deriving (Eq, Data, Typeable, Generic)
 
 instance PPrint IBindEnv where
   pprintTidy _ = pprint . L.sort . elemsIBindEnv
@@ -104,8 +107,8 @@ type BindEnv       = SizedEnv (Symbol, SortedReft)
 newtype EBindEnv   = EB BindEnv
 
 splitByQuantifiers :: BindEnv -> [BindId] -> (BindEnv, EBindEnv)
-splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> not (elem k ebs)) bs
-                                   , EB $ BE i $ M.filterWithKey (\k _ -> elem k ebs) bs
+splitByQuantifiers (BE i bs) ebs = ( BE i $ IntMap.filterWithKey (\k _ -> not (elem k ebs)) bs
+                                   , EB $ BE i $ IntMap.filterWithKey (\k _ -> elem k ebs) bs
                                    )
 
 -- data SolEnv        = SolEnv { soeBinds :: !BindEnv } 
@@ -187,88 +190,88 @@ instance Monoid IBindEnv where
   mappend = (<>)
 
 emptyIBindEnv :: IBindEnv
-emptyIBindEnv = FB S.empty
+emptyIBindEnv = FB IntSet.empty
 
 deleteIBindEnv :: BindId -> IBindEnv -> IBindEnv
-deleteIBindEnv i (FB s) = FB (S.delete i s)
+deleteIBindEnv i (FB s) = FB (IntSet.delete i s)
 
 memberIBindEnv :: BindId -> IBindEnv -> Bool
-memberIBindEnv i (FB s) = S.member i s
+memberIBindEnv i (FB s) = IntSet.member i s
 
 insertsIBindEnv :: [BindId] -> IBindEnv -> IBindEnv
-insertsIBindEnv is (FB s) = FB (foldr S.insert s is)
+insertsIBindEnv is (FB s) = FB (L.foldl' (\acc i -> IntSet.insert i acc) s is)
 
 elemsIBindEnv :: IBindEnv -> [BindId]
-elemsIBindEnv (FB s) = S.toList s
+elemsIBindEnv (FB s) = IntSet.toList s
 
 fromListIBindEnv :: [BindId] -> IBindEnv
-fromListIBindEnv = FB . S.fromList
+fromListIBindEnv = FB . IntSet.fromList
 
 -- | Functions for Global Binder Environment
 insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
-insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
+insertBindEnv x r (BE n m) = (n, BE (n + 1) (IntMap.insert n (x, r) m))
 
 emptyBindEnv :: BindEnv
-emptyBindEnv = BE 0 M.empty
+emptyBindEnv = BE 0 IntMap.empty
 
 filterBindEnv   :: (BindId -> Symbol -> SortedReft -> Bool) -> BindEnv -> BindEnv
-filterBindEnv f (BE n be) = BE n (M.filterWithKey (\ n (x, r) -> f n x r) be)
+filterBindEnv f (BE n be) = BE n (IntMap.filterWithKey (\ n (x, r) -> f n x r) be)
 
 bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
 bindEnvFromList [] = emptyBindEnv
 bindEnvFromList bs = BE (1 + maxId) be
   where
     maxId          = maximum $ fst3 <$> bs
-    be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
+    be             = IntMap.fromList [(n, (x, r)) | (n, x, r) <- bs]
 
 elemsBindEnv :: BindEnv -> [BindId]
 elemsBindEnv be = fst3 <$> bindEnvToList be
 
 bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
-bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
+bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- IntMap.toList be]
 
 mapBindEnv :: (BindId -> (Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
-mapBindEnv f (BE n m) = BE n $ M.mapWithKey f m
+mapBindEnv f (BE n m) = BE n $ IntMap.mapWithKey f m
 -- (\i z -> tracepp (msg i z) $ f z) m
 --  where
 --    msg i z = "beMap " ++ show i ++ " " ++ show z
 
 mapWithKeyMBindEnv :: (Monad m) => ((BindId, (Symbol, SortedReft)) -> m (BindId, (Symbol, SortedReft))) -> BindEnv -> m BindEnv
-mapWithKeyMBindEnv f (BE n m) = (BE n . M.fromList) <$> mapM f (M.toList m)
+mapWithKeyMBindEnv f (BE n m) = (BE n . IntMap.fromList) <$> mapM f (IntMap.toList m)
 
 lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
-lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
+lookupBindEnv k (BE _ m) = fromMaybe err (IntMap.lookup k m)
   where
     err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
 
 filterIBindEnv :: (BindId -> Bool) -> IBindEnv -> IBindEnv
-filterIBindEnv f (FB m) = FB (S.filter f m)
+filterIBindEnv f (FB m) = FB (IntSet.filter f m)
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
-unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
+unionIBindEnv (FB m1) (FB m2) = FB $ m1 `IntSet.union` m2
 
 intersectionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
-intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.intersection` m2
+intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `IntSet.intersection` m2
 
 nullIBindEnv :: IBindEnv -> Bool
-nullIBindEnv (FB m) = S.null m
+nullIBindEnv (FB m) = IntSet.null m
 
 diffIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
-diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2
+diffIBindEnv (FB m1) (FB m2) = FB $ m1 `IntSet.difference` m2
 
 adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
-adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
+adjustBindEnv f i (BE n m) = BE n $ IntMap.adjust f i m
 
 instance Functor SEnv where
   fmap = mapSEnv
 
 instance Fixpoint EBindEnv where
-  toFix (EB (BE _ m)) = vcat $ map toFixBind $ hashMapToAscList m
+  toFix (EB (BE _ m)) = vcat $ map toFixBind $ intMapToAscList m
     where
       toFixBind (i, (x, r)) = "ebind" <+> toFix i <+> toFix x <+> ": { " <+> toFix (sr_sort r) <+> " }"
 
 instance Fixpoint BindEnv where
-  toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
+  toFix (BE _ m) = vcat $ map toFixBind $ intMapToAscList m
     where
       toFixBind (i, (x, r)) = "bind" <+> toFix i <+> toFix x <+> ":" <+> toFix r
 
@@ -290,7 +293,7 @@ instance Semigroup BindEnv where
   _        <> _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid BindEnv where
-  mempty  = BE 0 M.empty
+  mempty  = BE 0 IntMap.empty
   mappend = (<>)
 
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]

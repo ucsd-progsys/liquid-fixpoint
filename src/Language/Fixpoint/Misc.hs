@@ -17,6 +17,7 @@ import           Data.Hashable
 import           Control.Arrow                    (second)
 import           Control.Monad                    (when, forM_, filterM)
 import qualified Data.HashMap.Strict              as M
+import qualified Data.IntMap.Strict               as IntMap
 import qualified Data.List                        as L
 import qualified Data.HashSet                     as S
 import           Data.Tuple                       (swap)
@@ -55,6 +56,9 @@ traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 
 hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
 hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
+
+intMapToAscList :: IntMap.IntMap b -> [(Int, b)]
+intMapToAscList = L.sortBy (compare `on` fst) . IntMap.toList
 
 findNearest :: (Ord i, Num i) => i -> [(i, a)] -> Maybe a 
 findNearest key kvs = argMin [ (abs (key - k), v) | (k, v) <- kvs ]

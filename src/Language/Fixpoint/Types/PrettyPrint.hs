@@ -10,6 +10,8 @@ import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Text.PrettyPrint.Boxes as B
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import qualified Data.IntSet         as IntSet
+import qualified Data.IntMap.Strict  as IntMap
 import qualified Data.List           as L
 import           Language.Fixpoint.Misc
 import           Data.Hashable
@@ -34,6 +36,10 @@ showFix =  render . toFix
 instance (Ord a, Hashable a, Fixpoint a) => Fixpoint (S.HashSet a) where
   toFix xs = brackets $ sep $ punctuate ";" (toFix <$> L.sort (S.toList xs))
   simplify = S.fromList . map simplify . S.toList
+
+instance Fixpoint IntSet.IntSet where
+  toFix xs = brackets $ sep $ punctuate ";" (toFix <$> L.sort (IntSet.toList xs))
+  simplify = IntSet.fromList . map simplify . IntSet.toList
 
 instance Fixpoint () where
   toFix _ = "()"
@@ -113,8 +119,14 @@ instance PPrint a => PPrint [a] where
 instance PPrint a => PPrint (S.HashSet a) where
   pprintTidy k = pprintTidy k . S.toList
 
+instance PPrint IntSet.IntSet where
+  pprintTidy k = pprintTidy k . IntSet.toList
+
 instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
   pprintTidy k = pprintKVs k . M.toList
+
+instance PPrint b => PPrint (IntMap.IntMap b) where
+  pprintTidy k = pprintKVs k . IntMap.toList
 
 pprintKVs   :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> Doc
 pprintKVs t = vcat . punctuate "\n" . map pp1
