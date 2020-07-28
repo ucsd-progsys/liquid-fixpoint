@@ -205,6 +205,12 @@ groupList = M.toList . group
 groupMap   :: (Eq k, Hashable k) => (a -> k) -> [a] -> M.HashMap k [a]
 groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
 
+groupIntMap :: (a -> Int) -> [a] -> IntMap.IntMap [a]
+groupIntMap f = L.foldl' (\m x -> add (f x) x m) IntMap.empty
+  where
+    add ::  Int -> v -> IntMap.IntMap [v] -> IntMap.IntMap [v]
+    add k v m = IntMap.insert k (v : IntMap.findWithDefault [] k m) m
+
 allMap :: (Eq k, Hashable k) => (v -> Bool) -> M.HashMap k v -> Bool
 allMap p = L.foldl' (\a v -> a && p v) True
 

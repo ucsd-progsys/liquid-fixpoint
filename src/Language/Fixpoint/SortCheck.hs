@@ -64,7 +64,7 @@ import           Control.Monad
 import           Control.Monad.Except      -- (MonadError(..))
 import           Control.Monad.State.Strict
 
-import qualified Data.HashMap.Strict       as M
+import qualified Data.IntMap.Strict        as IntMap
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
 #if !MIN_VERSION_base(4,14,0)
@@ -1213,7 +1213,7 @@ checkFunSort t             = throwErrorAt (errNonFunction 1 t)
 -- | API for manipulating Sort Substitutions -----------------------------------
 --------------------------------------------------------------------------------
 
-newtype TVSubst = Th (M.HashMap Int Sort) deriving (Show)
+newtype TVSubst = Th (IntMap.IntMap Sort) deriving (Show)
 
 instance Semigroup TVSubst where
   (Th s1) <> (Th s2) = Th (s1 <> s2)
@@ -1223,13 +1223,13 @@ instance Monoid TVSubst where
   mappend = (<>)
 
 lookupVar :: Int -> TVSubst -> Maybe Sort
-lookupVar i (Th m)   = M.lookup i m
+lookupVar i (Th m)   = IntMap.lookup i m
 
 updateVar :: Int -> Sort -> TVSubst -> TVSubst
-updateVar !i !t (Th m) = Th (M.insert i t m)
+updateVar !i !t (Th m) = Th (IntMap.insert i t m)
 
 emptySubst :: TVSubst
-emptySubst = Th M.empty
+emptySubst = Th IntMap.empty
 
 --------------------------------------------------------------------------------
 -- | Error messages ------------------------------------------------------------

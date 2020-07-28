@@ -33,6 +33,7 @@ import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Graph.Types
 import           Language.Fixpoint.Graph.Deps
 
+import qualified Data.IntMap.Strict                   as IntMap
 import qualified Data.HashMap.Strict                  as M
 -- import qualified Data.Graph                           as G
 -- import qualified Data.Tree                            as T
@@ -173,8 +174,8 @@ dumpPartitions cfg fis =
 -- | Type alias for a function to construct a partition. mkPartition and
 --   mkPartition' are the two primary functions that conform to this interface
 type PartitionCtor c a b = F.GInfo c a
-                       -> M.HashMap Int [(Integer, c a)]
-                       -> M.HashMap Int [(F.KVar, F.WfC a)]
+                       -> IntMap.IntMap [(Integer, c a)]
+                       -> IntMap.IntMap [(F.KVar, F.WfC a)]
                        -> Int
                        -> b -- ^ typically a F.FInfo a or F.CPart a
 
@@ -188,8 +189,8 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     gc   = groupFun cM                                 -- (i, ci) |-> j
     gk   = groupFun kM                                 -- k       |-> j
 
-    iwM  = groupMap (gk . fst) (M.toList (F.ws fi))    -- j |-> [w]
-    icM  = groupMap (gc . fst) (M.toList (F.cm fi))    -- j |-> [(i, ci)]
+    iwM  = groupIntMap (gk . fst) (M.toList (F.ws fi))    -- j |-> [w]
+    icM  = groupIntMap (gc . fst) (M.toList (F.cm fi))    -- j |-> [(i, ci)]
 
     jkvs = zip [1..] kvss
     kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
@@ -197,23 +198,23 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
 
 mkPartition :: F.GInfo c a
-            -> M.HashMap Int [(Integer, c a)]
-            -> M.HashMap Int [(F.KVar, F.WfC a)]
+            -> IntMap.IntMap [(Integer, c a)]
+            -> IntMap.IntMap [(F.KVar, F.WfC a)]
             -> Int
             -> F.GInfo c a
 mkPartition fi icM iwM j
-  = fi{ F.cm       = M.fromList $ M.lookupDefault [] j icM
-      , F.ws       = M.fromList $ M.lookupDefault [] j iwM
+  = fi{ F.cm       = M.fromList $ IntMap.findWithDefault [] j icM
+      , F.ws       = M.fromList $ IntMap.findWithDefault [] j iwM
       }
 
 mkPartition' :: F.GInfo c a
-             -> M.HashMap Int [(Integer, c a)]
-             -> M.HashMap Int [(F.KVar, F.WfC a)]
+             -> IntMap.IntMap [(Integer, c a)]
+             -> IntMap.IntMap [(F.KVar, F.WfC a)]
              -> Int
              -> CPart c a
 mkPartition' _ icM iwM j
-  = CPart { pcm       = M.fromList $ M.lookupDefault [] j icM
-          , pws       = M.fromList $ M.lookupDefault [] j iwM
+  = CPart { pcm       = M.fromList $ IntMap.findWithDefault [] j icM
+          , pws       = M.fromList $ IntMap.findWithDefault [] j iwM
           }
 
 groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
