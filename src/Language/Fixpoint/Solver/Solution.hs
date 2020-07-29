@@ -18,6 +18,7 @@ import           Control.Parallel.Strategies
 import           Control.Arrow (second, (***))
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
+import qualified Data.IntMap.Strict             as IntMap
 import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
 #if !MIN_VERSION_base(4,14,0)
@@ -190,7 +191,7 @@ data CombinedEnv = CEnv
 instance F.Loc CombinedEnv where 
   srcSpan = ceSpan
 
-type Cid         = Maybe Integer
+type Cid         = Maybe Int
 type ExprInfo    = (F.Expr, KInfo)
 
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
@@ -453,7 +454,7 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
 --------------------------------------------------------------------------------
 ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
 ebindInfo si = group [((bid, x), cons cid) | (bid, cid, x) <- ebindDefs si]
-  where cons cid = const () <$> Misc.safeLookup "ebindInfo" cid cs
+  where cons cid = const () <$> Misc.safeLookupIntMap "ebindInfo" cid cs
         cs = F.cm si
         cmpByFst x y = fst ( fst x ) == fst ( fst y )
         group xs = (\ys -> ( (fst $ fst $ head ys)
@@ -474,7 +475,7 @@ ebindSyms si = M.fromList [ (xi, bi) | bi        <- ebinds si
     be       = F.bs si 
  
 cstrDefs :: F.SInfo a -> [(F.SubcId, F.Symbol)]
-cstrDefs si = [(cid, x) | (cid, c) <- M.toList (cm si)
+cstrDefs si = [(cid, x) | (cid, c) <- IntMap.toList (cm si)
                         , x <- maybeToList (cstrDef be c) ]
   where 
     be      = F.bs si

@@ -40,6 +40,7 @@ import Language.Fixpoint.Misc               (allCombinations, errorstar)
 import Control.DeepSeq
 
 import qualified Data.HashMap.Strict       as M
+import qualified Data.IntMap.Strict        as IntMap
 import qualified Data.List                 as L
 
 import Control.Monad.State.Lazy
@@ -93,8 +94,8 @@ uniquify fi = fi{cm = cm', ws = ws', bs = bs'}
 
 uniquifyCS :: (NFData a, Fixpoint a, Loc a)
            => BindEnv
-           -> M.HashMap SubcId (SimpC a)
-           -> (M.HashMap SubcId (SimpC a), M.HashMap KVar [(KVar, Maybe SrcSpan)], BindEnv)
+           -> IntMap.IntMap (SimpC a)
+           -> (IntMap.IntMap (SimpC a), M.HashMap KVar [(KVar, Maybe SrcSpan)], BindEnv)
 uniquifyCS bs cs
   = (x, km, benv st)
 --   = (x, km, mapBindEnv (\i (x,r) -> if i `elem` ubs st then (x, ungrad r) else (x, r)) $ benv st)
@@ -109,6 +110,9 @@ class Unique a where
 
 instance Unique a => Unique (M.HashMap SubcId a) where
   uniq m = M.fromList <$> mapM (\(i,x) -> (i,) <$> uniq x) (M.toList m)
+
+instance Unique a => Unique (IntMap.IntMap a) where
+  uniq m = IntMap.fromList <$> mapM (\(i,x) -> (i,) <$> uniq x) (IntMap.toList m)
 
 instance Loc a => Unique (SimpC a) where
   uniq cs = do
@@ -258,6 +262,9 @@ instance Gradual BindEnv where
 
 instance Gradual v => Gradual (M.HashMap k v) where
   gsubst su = M.map (gsubst su)
+
+instance Gradual v => Gradual (IntMap.IntMap v) where
+  gsubst su = IntMap.map (gsubst su)
 
 instance Gradual (SInfo a) where
   gsubst su fi = fi { bs = gsubst su (bs fi)

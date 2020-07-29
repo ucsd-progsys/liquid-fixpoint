@@ -48,7 +48,7 @@ import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 import           Data.List            (partition)
 -- import           Data.Char            (isUpper)
 import           Control.Monad.State.Strict
-import qualified Data.HashMap.Strict as M
+import qualified Data.IntMap.Strict  as IntMap
 import           Data.Maybe (catMaybes)
 import           Control.Exception.Base (bracket)
 
@@ -67,7 +67,7 @@ data SolverState = SS
 stats0    :: F.GInfo c b -> Stats
 stats0 fi = Stats nCs 0 0 0 0
   where
-    nCs   = M.size $ F.cm fi
+    nCs   = IntMap.size $ F.cm fi
 
 --------------------------------------------------------------------------------
 runSolverM :: Config -> SolverInfo b c -> SolveM a -> IO a

@@ -85,6 +85,7 @@ module Language.Fixpoint.Parse (
 
   ) where
 
+import qualified Data.IntMap.Strict          as IntMap
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
@@ -95,6 +96,7 @@ import qualified Text.Parsec.Token           as Token
 -- import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
 
+import           Data.List                   (foldl')
 import qualified Data.Char                   as Char -- (isUpper, isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
@@ -889,7 +891,7 @@ subCP = do pos <- getPosition
            reserved "rhs"
            rhs <- sortedReftP
            reserved "id"
-           i   <- integer <* spaces
+           i   <- intP <* spaces --NOTE(adn) Should we fail in case of overflow?
            tag <- tagP
            pos' <- getPosition
            return $ subC' env lhs rhs i tag pos pos'
@@ -897,7 +899,7 @@ subCP = do pos <- getPosition
 subC' :: IBindEnv
       -> SortedReft
       -> SortedReft
-      -> Integer
+      -> Int
       -> Tag
       -> SourcePos
       -> SourcePos
@@ -928,29 +930,29 @@ boolP = (reserved "True" >> return True)
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae
   where
-    cm         = Misc.safeFromList 
+    cm         = Misc.safeFromListIntMap
                    "defs-cm"        [(cid c, c)         | Cst c       <- defs]
-    ws         = Misc.safeFromList 
+    ws         = Misc.safeFromList
                    "defs-ws"        [(i, w)              | Wfc w    <- defs, let i = Misc.thd3 (wrft w)]
-    bs         = bindEnvFromList  $ exBinds ++ [(n,x,r)  | IBind n x r <- defs] 
-    ebs        =                    [ n                  | (n,_,_) <- exBinds] 
+    bs         = bindEnvFromList  $ exBinds ++ [(n,x,r)  | IBind n x r <- defs]
+    ebs        =                    [ n                  | (n,_,_) <- exBinds]
     exBinds    =                    [(n, x, RR t mempty) | EBind n x t <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]
     qs         =                    [q                  | Qul q       <- defs]
     binfo      = mempty
-    expand     = M.fromList         [(fromIntegral i, f)| Expand fs   <- defs, (i,f) <- fs]
+    expand     = IntMap.fromList    [(i, f)             | Expand fs   <- defs, (i,f) <- fs]
     eqs        =                    [e                  | Def e       <- defs]
     rews       =                    [r                  | Mat r       <- defs]
-    autoRWs    = M.fromList         [(arId , s)         | AutoRW arId s <- defs]
+    autoRWs    = IntMap.fromList    [(arId , s)         | AutoRW arId s <- defs]
     rwEntries  =                    [(i, f)             | RWMap fs   <- defs, (i,f) <- fs]
-    rwMap      = foldl insert (M.fromList []) rwEntries
+    rwMap      = foldl' insert (IntMap.fromList []) rwEntries
                  where
                    insert map (cid, arId) =
-                     case M.lookup arId autoRWs of
+                     case IntMap.lookup arId autoRWs of
                        Just rewrite ->
-                         M.insertWith (++) (fromIntegral cid) [rewrite] map
+                         IntMap.insertWith (++) cid [rewrite] map
                        Nothing ->
                          map
     cid        = fromJust . sid

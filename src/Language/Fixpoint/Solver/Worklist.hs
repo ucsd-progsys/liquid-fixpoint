@@ -29,7 +29,7 @@ import           Language.Fixpoint.Graph.Types
 import           Language.Fixpoint.Graph   (isTarget)
 
 import           Control.Arrow             (first)
-import qualified Data.HashMap.Strict       as M
+import qualified Data.IntMap.Strict        as IntMap
 import qualified Data.Set                  as S
 import qualified Data.List                 as L
 import           Text.PrettyPrint.HughesPJ (text)
@@ -91,7 +91,7 @@ instance Ord WorkItem where
 init :: SolverInfo a b -> Worklist a
 --------------------------------------------------------------------------------
 init sI    = WL { wCs     = items
-                , wPend   = addPends M.empty kvarCs
+                , wPend   = addPends IntMap.empty kvarCs
                 , wDeps   = cSucc cd
                 , wCm     = cm
                 , wRankm  = {- F.tracepp "W.init ranks" -} rankm
@@ -107,7 +107,7 @@ init sI    = WL { wCs     = items
     items     = S.fromList $ workItemsAt rankm 0 <$> kvarCs
     concCs    = fst <$> ics
     kvarCs    = fst <$> iks
-    (ics,iks) = L.partition (isTarget . snd) (M.toList cm)
+    (ics,iks) = L.partition (isTarget . snd) (IntMap.toList cm)
 
 ---------------------------------------------------------------------------
 -- | Candidate Constraints to be checked AFTER computing Fixpoint ---------
@@ -153,7 +153,7 @@ push c w = w { wCs   = sAdds (wCs w) wis'
              }
   where
     i    = F.subcId c
-    is'  = filter (not . isPend wp) $ M.lookupDefault [] i (wDeps w)
+    is'  = filter (not . isPend wp) $ IntMap.findWithDefault [] i (wDeps w)
     wis' = workItemsAt (wRankm w) t <$> is'
     t    = wTime w
     wp   = wPend w
@@ -170,7 +170,7 @@ stats :: Worklist a -> Stats
 ---------------------------------------------------------------------------
 stats w = Stats (kn w) (cn w) (wRanks w)
   where
-    kn  = M.size . wCm
+    kn  = IntMap.size . wCm
     cn  = length . wConcCs
 
 ---------------------------------------------------------------------------
@@ -181,13 +181,13 @@ addPends :: CMap () -> [F.SubcId] -> CMap ()
 addPends = L.foldl' addPend
 
 addPend :: CMap () -> F.SubcId -> CMap ()
-addPend m i = M.insert i () m
+addPend m i = IntMap.insert i () m
 
 remPend :: CMap () -> F.SubcId -> CMap ()
-remPend m i = M.delete i m
+remPend m i = IntMap.delete i m
 
 isPend :: CMap () -> F.SubcId -> Bool
-isPend w i = M.member i w
+isPend w i = IntMap.member i w
 
 ---------------------------------------------------------------------------
 -- | Set API --------------------------------------------------------------

@@ -58,9 +58,9 @@ import           Data.List (sortBy)
 --------------------------------------------------------------------------------
 
 data CPart c a = CPart { pws :: !(M.HashMap F.KVar (F.WfC a))
-                       , pcm :: !(M.HashMap Integer (c a))
+                       , pcm :: !(IntMap.IntMap (c a))
                        }
-  
+
 instance Semigroup (CPart c a) where
   l <> r = CPart { pws = pws l <> pws r
                  , pcm = pcm l <> pcm r
@@ -88,7 +88,7 @@ mcInfo c = do
                  , mcMaxPartSize = maxPartSize c
                  }
 
-partition :: (F.Fixpoint a, F.Fixpoint (c a), F.TaggedC c a) => Config -> F.GInfo c a -> IO (F.Result (Integer, a))
+partition :: (F.Fixpoint a, F.Fixpoint (c a), F.TaggedC c a) => Config -> F.GInfo c a -> IO (F.Result (Int, a))
 partition cfg fi
   = do dumpPartitions cfg fis
        -- writeGraph      f   g
@@ -151,7 +151,7 @@ partitionN mi fi cp
 -- | Return the "size" of a CPart. Used to determine if it's
 -- substantial enough to be worth parallelizing.
 cpartSize :: CPart c a -> Int
-cpartSize c = (M.size . pcm) c + (length . pws) c
+cpartSize c = (IntMap.size . pcm) c + (length . pws) c
 
 -- | Convert a CPart to an FInfo
 cpartToFinfo :: F.GInfo c a -> CPart c a -> F.GInfo c a
@@ -174,7 +174,7 @@ dumpPartitions cfg fis =
 -- | Type alias for a function to construct a partition. mkPartition and
 --   mkPartition' are the two primary functions that conform to this interface
 type PartitionCtor c a b = F.GInfo c a
-                       -> IntMap.IntMap [(Integer, c a)]
+                       -> IntMap.IntMap [(Int, c a)]
                        -> IntMap.IntMap [(F.KVar, F.WfC a)]
                        -> Int
                        -> b -- ^ typically a F.FInfo a or F.CPart a
@@ -190,7 +190,7 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     gk   = groupFun kM                                 -- k       |-> j
 
     iwM  = groupIntMap (gk . fst) (M.toList (F.ws fi))    -- j |-> [w]
-    icM  = groupIntMap (gc . fst) (M.toList (F.cm fi))    -- j |-> [(i, ci)]
+    icM  = groupIntMap (gc . fst) (IntMap.toList (F.cm fi))    -- j |-> [(i, ci)]
 
     jkvs = zip [1..] kvss
     kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
@@ -198,23 +198,23 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
 
 mkPartition :: F.GInfo c a
-            -> IntMap.IntMap [(Integer, c a)]
+            -> IntMap.IntMap [(Int, c a)]
             -> IntMap.IntMap [(F.KVar, F.WfC a)]
             -> Int
             -> F.GInfo c a
 mkPartition fi icM iwM j
-  = fi{ F.cm       = M.fromList $ IntMap.findWithDefault [] j icM
+  = fi{ F.cm       = IntMap.fromList $ IntMap.findWithDefault [] j icM
       , F.ws       = M.fromList $ IntMap.findWithDefault [] j iwM
       }
 
 mkPartition' :: F.GInfo c a
-             -> IntMap.IntMap [(Integer, c a)]
+             -> IntMap.IntMap [(Int, c a)]
              -> IntMap.IntMap [(F.KVar, F.WfC a)]
              -> Int
              -> CPart c a
 mkPartition' _ icM iwM j
-  = CPart { pcm       = M.fromList $ IntMap.findWithDefault [] j icM
-          , pws       = M.fromList $ IntMap.findWithDefault [] j iwM
+  = CPart { pcm       = IntMap.fromList $ IntMap.findWithDefault [] j icM
+          , pws       = M.fromList      $ IntMap.findWithDefault [] j iwM
           }
 
 groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int

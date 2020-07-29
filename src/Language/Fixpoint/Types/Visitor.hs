@@ -409,7 +409,7 @@ class SymConsts a where
 instance (SymConsts (c a)) => SymConsts (GInfo c a) where
   symConsts fi = Misc.sortNub $ csLits ++ bsLits ++ qsLits
     where
-      csLits   = concatMap symConsts $ M.elems  $  cm    fi
+      csLits   = concatMap symConsts $ IntMap.elems  $  cm    fi
       bsLits   = symConsts           $ bs                fi
       qsLits   = concatMap symConsts $ qBody   <$> quals fi
 

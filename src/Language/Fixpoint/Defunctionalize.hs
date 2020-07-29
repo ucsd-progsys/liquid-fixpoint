@@ -25,6 +25,7 @@ module Language.Fixpoint.Defunctionalize
   ) where 
 
 import qualified Data.HashMap.Strict as M
+import qualified Data.IntMap.Strict  as IntMap
 import           Data.Hashable
 import           Control.Monad.State
 import           Language.Fixpoint.Misc            (fM, secondM, mapSnd)
@@ -166,6 +167,9 @@ instance Defunc a => Defunc [a] where
 instance (Defunc a, Eq k, Hashable k) => Defunc (M.HashMap k a) where
   defunc m = M.fromList <$> mapM (secondM defunc) (M.toList m)
 
+instance (Defunc a) => Defunc (IntMap.IntMap a) where
+  defunc m = IntMap.fromList <$> mapM (secondM defunc) (IntMap.toList m)
+
 type DF    = State DFST
 
 data DFST = DFST
@@ -194,7 +198,7 @@ makeInitDFState :: Config -> SInfo a -> DFST
 makeInitDFState cfg si
   = makeDFState cfg
       (symbolEnv cfg si)
-      (mconcat ((senv <$> M.elems (cm si)) ++ (wenv <$> M.elems (ws si))))
+      (mconcat ((senv <$> IntMap.elems (cm si)) ++ (wenv <$> M.elems (ws si))))
 
 --------------------------------------------------------------------------------
 -- | Low level monad manipulation ----------------------------------------------

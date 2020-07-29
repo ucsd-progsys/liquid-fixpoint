@@ -115,6 +115,7 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import qualified Data.IntMap.Strict        as IntMap
 
 --------------------------------------------------------------------------------
 -- | Constraints ---------------------------------------------------------------
@@ -160,7 +161,7 @@ isGWfc (WfC  {}) = False
 instance HasGradual (WfC a) where
   isGradual = isGWfc
 
-type SubcId = Integer
+type SubcId = Int
 
 data SubC a = SubC
   { _senv  :: !IBindEnv
@@ -175,7 +176,7 @@ data SubC a = SubC
 data SimpC a = SimpC
   { _cenv  :: !IBindEnv
   , _crhs  :: !Expr
-  , _cid   :: !(Maybe Integer)
+  , _cid   :: !(Maybe Int)
   , cbind  :: !BindId               -- ^ Id of lhs/rhs binder
   , _ctag  :: !Tag
   , _cinfo :: !a
@@ -185,14 +186,14 @@ data SimpC a = SimpC
 instance Loc a => Loc (SimpC a) where 
   srcSpan = srcSpan . _cinfo
 
-strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
+strengthenHyp :: SInfo a -> [(Int, Expr)] -> SInfo a
 strengthenHyp si ies = strengthenBinds si bindExprs
   where
     bindExprs        = safeFromList "strengthenHyp" [ (subcBind si i, e) | (i, e) <- ies ]
 
 subcBind :: SInfo a -> SubcId -> BindId
 subcBind si i
-  | Just c <- M.lookup i (cm si)
+  | Just c <- IntMap.lookup i (cm si)
   = cbind c
   | otherwise
   = errorstar $ "Unknown subcId in subcBind: " ++ show i
@@ -221,7 +222,7 @@ strengthenSortedReft (RR s (Reft (v, r))) e = RR s (Reft (v, pAnd [r, e]))
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv
-  sid   :: c a -> Maybe Integer
+  sid   :: c a -> Maybe Int
   stag  :: c a -> Tag
   sinfo :: c a -> a
   clhs  :: BindEnv -> c a -> [(Symbol, SortedReft)]
@@ -430,10 +431,10 @@ wfC be sr x = if all isEmptySubst sus -- ++ gsus)
     go' (PAnd es)      = concatMap go' es
     go' _              = []
 
-mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
+mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Int -> Tag -> a -> SubC a
 mkSubC = SubC
 
-subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
+subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Int -> Tag -> a -> [SubC a]
 subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
    where
      RR t1 r1          = sr1
@@ -442,8 +443,8 @@ subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2
      sr2' r2'          = RR t2 $ shiftVV r2' vv'
      vv'               = mkVV i
 
-mkVV :: Maybe Integer -> Symbol
-mkVV (Just i)  = vv $ Just i
+mkVV :: Maybe Int -> Symbol
+mkVV (Just i)  = vv $ Just (toInteger i)
 mkVV Nothing   = vvCon
 
 shiftVV :: Reft -> Symbol -> Reft
@@ -451,7 +452,7 @@ shiftVV r@(Reft (v, ras)) v'
    | v == v'   = r
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
 
-addIds :: [SubC a] -> [(Integer, SubC a)]
+addIds :: [SubC a] -> [(Int, SubC a)]
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where 
     -- Adding shiftId to have distinct VV for SMT conversion
@@ -545,13 +546,13 @@ qualParams xts = [ QP x PatNone t | (x, t) <- xts]
 qualBinds   :: Qualifier -> [(Symbol, Sort)]
 qualBinds q = [ (qpSym qp, qpSort qp) | qp <- qParams q ]
 
-envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
+envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Int -> Maybe (Symbol, Sort)
 envSort l lEnv tEnv x i
   | Just t <- lookupSEnv x tEnv = Just (x, t)
   | Just _ <- lookupSEnv x lEnv = Nothing
   | otherwise                   = Just (x, ai)
   where
-    ai  = {- trace msg $ -} fObj $ Loc l l $ tempSymbol "LHTV" i
+    ai  = {- trace msg $ -} fObj $ Loc l l $ tempSymbol "LHTV" (toInteger i)
     -- msg = "unknown symbol in qualifier: " ++ show x
 
 remakeQual :: Qualifier -> Qualifier
@@ -633,7 +634,7 @@ fi :: [SubC a]
    -> SEnv Sort
    -> Kuts
    -> [Qualifier]
-   -> M.HashMap BindId a
+   -> IntMap.IntMap a
    -> Bool
    -> Bool
    -> [Triggered Expr]
@@ -642,7 +643,7 @@ fi :: [SubC a]
    -> [BindId] 
    -> GInfo SubC a
 fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
-  = FI { cm       = M.fromList $ addIds cs
+  = FI { cm       = IntMap.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = foldr (adjustBindEnv stripReft) binds ebs
        , gLits    = ls
@@ -683,8 +684,8 @@ allowHO, allowHOquals :: GInfo c a -> Bool
 allowHO      = hoBinds . hoInfo
 allowHOquals = hoQuals . hoInfo
 
-data GInfo c a = FI 
-  { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
+data GInfo c a = FI
+  { cm       :: !(IntMap.IntMap (c a))     -- ^ cst id |-> Horn Constraint
   , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
   , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
   , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
@@ -692,7 +693,7 @@ data GInfo c a = FI
   , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
   , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
   , quals    :: ![Qualifier]               -- ^ Abstract domain
-  , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
+  , bindInfo :: !(IntMap.IntMap a)         -- ^ Metadata about binders
   , ddecls   :: ![DataDecl]                -- ^ User-defined data declarations
   , hoInfo   :: !HOInfo                    -- ^ Higher Order info
   , asserts  :: ![Triggered Expr]          -- ^ TODO: what is this?
@@ -729,20 +730,20 @@ instance Semigroup (GInfo c a) where
 
 
 instance Monoid (GInfo c a) where
-  mempty        = FI { cm       = M.empty
-                     , ws       = mempty 
-                     , bs       = mempty 
-                     , ebinds   = mempty 
-                     , gLits    = mempty 
-                     , dLits    = mempty 
-                     , kuts     = mempty 
-                     , quals    = mempty 
-                     , bindInfo = mempty 
-                     , ddecls   = mempty 
-                     , hoInfo   = mempty 
-                     , asserts  = mempty 
+  mempty        = FI { cm       = mempty
+                     , ws       = mempty
+                     , bs       = mempty
+                     , ebinds   = mempty
+                     , gLits    = mempty
+                     , dLits    = mempty
+                     , kuts     = mempty
+                     , quals    = mempty
+                     , bindInfo = mempty
+                     , ddecls   = mempty
+                     , hoInfo   = mempty
+                     , asserts  = mempty
                      , ae       = mempty
-                     } 
+                     }
 
 instance PTable (SInfo a) where
   ptable z = DocTable [ (text "# Sub Constraints", pprint $ length $ cm z)
@@ -771,7 +772,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     cfgDoc cfg    = text ("// " ++ show cfg)
     gConDoc       = sEnvDoc "constant"             . gLits
     dConDoc       = sEnvDoc "distinct"             . dLits
-    csDoc         = vcat     . map toFix . M.elems . cm
+    csDoc         = vcat     . map toFix . IntMap.elems . cm
     wsDoc         = vcat     . map toFix . M.elems . ws
     kutsDoc       = toFix    . kuts
     -- packsDoc      = toFix    . packs
@@ -784,7 +785,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = metadata cfg
     binfoDoc
-      | mdata     = vcat     . map metaDoc . M.toList . bindInfo
+      | mdata     = vcat     . map metaDoc . IntMap.toList . bindInfo
       | otherwise = \_ -> text "\n"
 
 ($++$) :: Doc -> Doc -> Doc
@@ -805,35 +806,35 @@ convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
 --------------------------------------------------------------------------------
 convertFormat fi = fi' { cm = subcToSimpc bindm <$> cm fi' }
   where
-    (bindm, fi') = M.foldlWithKey' outVV (M.empty, fi) $ cm fi
+    (bindm, fi') = IntMap.foldlWithKey' outVV (IntMap.empty, fi) $ cm fi
 
 subcToSimpc :: BindM -> SubC a -> SimpC a
 subcToSimpc m s = SimpC
   { _cenv       = senv s
   , _crhs       = reftPred $ sr_reft $ srhs s
   , _cid        = sid s
-  , cbind      = safeLookup "subcToSimpc" (subcId s) m
+  , cbind       = safeLookupIntMap "subcToSimpc" (subcId s) m
   , _ctag       = stag s
   , _cinfo      = sinfo s
   }
 
-outVV :: (BindM, FInfo a) -> Integer -> SubC a -> (BindM, FInfo a)
+outVV :: (BindM, FInfo a) -> Int -> SubC a -> (BindM, FInfo a)
 outVV (m, fi) i c = (m', fi')
   where
     fi'           = fi { bs = be', cm = cm' }
-    m'            = M.insert i bId m
+    m'            = IntMap.insert i bId m
     (bId, be')    = insertBindEnv x sr $ bs fi
-    cm'           = M.insert i c' $ cm fi
+    cm'           = IntMap.insert i c' $ cm fi
     c'            = c { _senv = insertsIBindEnv [bId] $ senv c }
     sr            = slhs c
     x             = reftBind $ sr_reft sr
 
-type BindM = M.HashMap Integer BindId
+type BindM = IntMap.IntMap BindId
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
 ---------------------------------------------------------------------------
-type Solver a = Config -> FInfo a -> IO (Result (Integer, a))
+type Solver a = Config -> FInfo a -> IO (Result (Int, a))
 
 --------------------------------------------------------------------------------
 saveQuery :: Config -> FInfo a -> IO ()
@@ -863,8 +864,8 @@ saveTextQuery cfg fi = do
 data AxiomEnv = AEnv
   { aenvEqs      :: ![Equation]
   , aenvSimpl    :: ![Rewrite]
-  , aenvExpand   :: M.HashMap SubcId Bool
-  , aenvAutoRW   :: M.HashMap SubcId [AutoRewrite]
+  , aenvExpand   :: IntMap.IntMap Bool
+  , aenvAutoRW   :: IntMap.IntMap [AutoRewrite]
   } deriving (Eq, Show, Generic)
 
 instance B.Binary AutoRewrite
@@ -889,7 +890,7 @@ instance Semigroup AxiomEnv where
       aenvAutoRW' = (aenvAutoRW a1) <> (aenvAutoRW a2)
 
 instance Monoid AxiomEnv where
-  mempty          = AEnv [] [] (M.fromList []) (M.fromList [])
+  mempty          = AEnv [] [] (IntMap.fromList []) (IntMap.fromList [])
   mappend         = (<>)
 
 instance PPrint AxiomEnv where
@@ -933,13 +934,13 @@ instance Hashable SortedReft
 instance Hashable AutoRewrite
 
 
-instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
+instance Fixpoint (IntMap.IntMap [AutoRewrite]) where
   toFix autoRW =
     vcat (map fixRW rewrites)
     $+$ text "rewrite "
     <+> toFix rwsMapping
     where
-      rewrites     = L.nub $ concatMap snd (M.toList autoRW)
+      rewrites     = L.nub $ concatMap snd (IntMap.toList autoRW)
 
       fixRW rw@(AutoRewrite args lhs rhs) =
           text ("autorewrite " ++ show (hash rw))
@@ -951,7 +952,7 @@ instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
           <+> text "}"
 
       rwsMapping = do
-        (cid, rws) <- M.toList autoRW
+        (cid, rws) <- IntMap.toList autoRW
         rw         <-  rws
         return $ text $ show cid ++ " : " ++ show (hash rw)
 
@@ -969,7 +970,7 @@ data Rewrite  = SMeasure
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
-              $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
+              $+$ text "expand" <+> toFix (pairdoc <$> IntMap.toList(aenvExpand axe))
               $+$ toFix (aenvAutoRW axe)
     where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y

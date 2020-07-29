@@ -9,6 +9,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Sanitize (dropDeadSubsts)
 import           Language.Fixpoint.Misc          (fst3, mlookup)
 
+import qualified Data.IntMap.Strict  as IntMap
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -46,11 +47,11 @@ dropUnusedBinds fi = fi {bs = filterBindEnv isUsed (bs fi)}-- { bs = mapBindEnv 
     isUsed i _x r  = {- tracepp (unwords ["isUsed", show i, showpp _x]) $ -} memberIBindEnv i usedBinds || isTauto r
     usedBinds      = L.foldl' unionIBindEnv emptyIBindEnv (cEnvs ++ wEnvs)
     wEnvs          = wenv <$> M.elems (ws fi)
-    cEnvs          = senv <$> M.elems (cm fi)
+    cEnvs          = senv <$> IntMap.elems (cm fi)
 
 data Ref
   = RB !BindId    -- ^ Bind identifier
-  | RI !Integer   -- ^ Constraint identifier?
+  | RI !Int       -- ^ Constraint identifier?
     deriving (Eq, Generic)
 
 instance NFData   Ref
@@ -66,12 +67,15 @@ type IdMap = M.HashMap Ref (S.HashSet BindId)
 --   `Nothing` as new name means the name is the same as the old.
 type RenameMap = M.HashMap Symbol [(Sort, Maybe Symbol)]
 
+-- NOTE(adn) This can be improved, because the type of Ref is really isomorphic to 'Either Int Int' now,
+-- so we might be able to optimise things further due to the fact that 'updateIdMap' works only on
+-- 'RI' and 'insertIdIdLinks' only on 'RB's.
 --------------------------------------------------------------------------------
 mkIdMap :: SInfo a -> IdMap
 --------------------------------------------------------------------------------
-mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
+mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty . M.fromList . IntMap.toList $ cm fi
 
-updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
+updateIdMap :: BindEnv -> IdMap -> Int -> SimpC a -> IdMap
 updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
     ids                 = elemsIBindEnv (senv s)
@@ -135,7 +139,7 @@ applySub sub fi (RB i) = fi { bs = adjustBindEnv go i (bs fi) }
   where
     go (sym, sr)       = (sym, subst sub sr)
 
-applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
+applySub sub fi (RI i) = fi { cm = IntMap.adjust go i (cm fi) }
   where
     go c               = c { _crhs = subst sub (_crhs c) }
 

@@ -12,6 +12,7 @@ import           Language.Fixpoint.Misc
 import qualified Data.HashSet            as S
 import           Data.Hashable
 import qualified Data.HashMap.Strict     as M
+import qualified Data.IntMap.Strict      as IntMap
 import           Data.List (foldl')
 import qualified Data.Graph              as G
 import           Data.Maybe
@@ -74,7 +75,7 @@ instance Hashable NTV
 --------------------------------------------------------------------
 trivInfo :: FInfo a -> TrivInfo
 --------------------------------------------------------------------
-trivInfo fi = updTISubCs (M.elems $ cm fi)
+trivInfo fi = updTISubCs (IntMap.elems $ cm fi)
             . updTIBinds (bs fi)
             $ (S.empty, M.empty)
 
@@ -147,15 +148,14 @@ simplifyBindEnv tm = mapBindEnv (\_ (x, sr) -> (x, simplifySortedReft tm sr))
 simplifyWfCs :: NonTrivSorts -> M.HashMap KVar (WfC a) -> M.HashMap KVar (WfC a)
 simplifyWfCs tm = M.filter (isNonTrivialSort tm . snd3 . wrft)
 
-simplifySubCs :: (Eq k, Hashable k)
-              => NonTrivSorts -> M.HashMap k (SubC a) -> M.HashMap k (SubC a)
+simplifySubCs :: NonTrivSorts -> IntMap.IntMap (SubC a) -> IntMap.IntMap (SubC a)
 simplifySubCs ti cm = trace msg cm'
   where
     cm' = tx cm
-    tx  = M.fromList . mapMaybe (simplifySubC ti) . M.toList
+    tx  = IntMap.fromList . mapMaybe (simplifySubC ti) . IntMap.toList
     msg = printf "simplifySUBC: before = %d, after = %d \n" n n'
-    n   = M.size cm
-    n'  = M.size cm'
+    n   = IntMap.size cm
+    n'  = IntMap.size cm'
 
 simplifySubC :: NonTrivSorts -> (b, SubC a) -> Maybe (b, SubC a)
 simplifySubC tm (i, c)

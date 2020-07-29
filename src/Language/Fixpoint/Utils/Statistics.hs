@@ -14,11 +14,11 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Graph (partition')
 import qualified Language.Fixpoint.Types        as F
-import qualified Data.HashMap.Strict            as M
+import qualified Data.IntMap.Strict             as IntMap
 import           Data.List (sort,group)
 import           Text.PrettyPrint.HughesPJ
 
-statistics :: Config -> F.FInfo a -> IO (F.Result (Integer, a))
+statistics :: Config -> F.FInfo a -> IO (F.Result (Int, a))
 statistics _ fi = do
   let fis = partition' Nothing fi
   putStrLn $ render $ pprint $ partitionStats fis
@@ -28,7 +28,7 @@ statistics _ fi = do
 partitionStats :: [F.FInfo a] -> Maybe Stats
 partitionStats fis = info
   where
-    css            = [M.keys $ F.cm fi | fi <- fis]
+    css            = [IntMap.keys $ F.cm fi | fi <- fis]
     sizes          = fromIntegral . length <$> css
     info           = applyNonNull Nothing (Just . mkStats) sizes
 

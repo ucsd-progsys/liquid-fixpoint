@@ -35,6 +35,7 @@ import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import           Control.Monad.State
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
+import qualified Data.IntMap.Strict   as IntMap
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
@@ -68,7 +69,7 @@ instantiate cfg fi
 incrInstantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 ------------------------------------------------------------------------------- 
 incrInstantiate' cfg fi = do 
-    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
+    let cs = [ (i, c) | (i, c) <- IntMap.toList (cm fi), isPleCstr aEnv i c ] 
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $ 
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
@@ -287,7 +288,7 @@ instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
                         ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
-    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
+    cstrs           = [ (i, c) | (i, c) <- IntMap.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
     aenv            = {- mytracepp  "AXIOM-ENV" -} (ae fi)
@@ -310,7 +311,7 @@ instSimpC cfg ctx bds aenv sid sub
   | otherwise     = return PTrue
 
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
-isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv) 
+isPleCstr aenv sid c = isTarget c && IntMap.findWithDefault False sid (aenvExpand aenv) 
 
 cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
 cstrExprs bds sub = (unElab <$> binds, unElab <$> es)

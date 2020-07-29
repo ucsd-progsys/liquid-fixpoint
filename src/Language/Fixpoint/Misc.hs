@@ -172,20 +172,25 @@ thd3 (_,_,x) = x
 secondM :: Functor f => (b -> f c) -> (a, b) -> f (a, c)
 secondM act (x, y) = (x,) <$> act y
 
-mlookup    :: (?callStack :: CallStack, Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
-safeLookup :: (?callStack :: CallStack, Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
-mfromJust  :: (?callStack :: CallStack) => String -> Maybe a -> a
+mlookup          :: (?callStack :: CallStack, Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
+safeLookup       :: (?callStack :: CallStack, Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
+safeLookupIntMap :: (?callStack :: CallStack) => String -> Int -> IntMap.IntMap v -> v
+mfromJust        :: (?callStack :: CallStack) => String -> Maybe a -> a
 
 mlookup m k = fromMaybe err $ M.lookup k m
   where
     err     = errorstar $ "mlookup: unknown key " ++ show k
 
-safeLookup msg k m   = fromMaybe (errorstar msg) (M.lookup k m)
+safeLookup msg k m       = fromMaybe (errorstar msg) (M.lookup k m)
+safeLookupIntMap msg k m = fromMaybe (errorstar msg) (IntMap.lookup k m)
 mfromJust _ (Just x) = x
 mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 
 inserts ::  (Eq k, Hashable k) => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
+
+intMapInserts :: Int -> v -> IntMap.IntMap [v] -> IntMap.IntMap [v]
+intMapInserts k v m = IntMap.insert k (v : IntMap.findWithDefault [] k m) m
 
 removes ::  (Eq k, Hashable k, Eq v) => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 removes k v m = M.insert k (L.delete v (M.lookupDefault [] k m)) m
@@ -194,10 +199,20 @@ count :: (Eq k, Hashable k) => [k] -> [(k, Int)]
 count = M.toList . fmap sum . group . fmap (, 1)
 
 group :: (Eq k, Hashable k) => [(k, v)] -> M.HashMap k [v]
-group = groupBase M.empty
+group = groupBase inserts mempty
 
-groupBase :: (Eq k, Hashable k) => M.HashMap k [v] -> [(k, v)] -> M.HashMap k [v]
-groupBase = L.foldl' (\m (k, v) -> inserts k v m)
+groupImap :: [(Int, v)] -> IntMap.IntMap [v]
+groupImap = groupBase intMapInserts mempty
+
+groupBase :: Monoid m
+          => (k -> v -> m -> m)
+          -- ^ A function to add elements to the key-value store.
+          -> m
+          -- ^ The initial key-value store.
+          -> [(k, v)]
+          -- ^ The elements to add.
+          -> m
+groupBase add = L.foldl' (\m (k, v) -> add k v m)
 
 groupList :: (Eq k, Hashable k) => [(k, v)] -> [(k, [v])]
 groupList = M.toList . group
@@ -206,10 +221,7 @@ groupMap   :: (Eq k, Hashable k) => (a -> k) -> [a] -> M.HashMap k [a]
 groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
 
 groupIntMap :: (a -> Int) -> [a] -> IntMap.IntMap [a]
-groupIntMap f = L.foldl' (\m x -> add (f x) x m) IntMap.empty
-  where
-    add ::  Int -> v -> IntMap.IntMap [v] -> IntMap.IntMap [v]
-    add k v m = IntMap.insert k (v : IntMap.findWithDefault [] k m) m
+groupIntMap f = L.foldl' (\m x -> intMapInserts (f x) x m) IntMap.empty
 
 allMap :: (Eq k, Hashable k) => (v -> Bool) -> M.HashMap k v -> Bool
 allMap p = L.foldl' (\a v -> a && p v) True
@@ -265,13 +277,18 @@ safeInit   :: (?callStack :: CallStack) => String -> ListNE a -> [a]
 safeUncons :: (?callStack :: CallStack) => String -> ListNE a -> (a, [a])
 safeUnsnoc :: (?callStack :: CallStack) => String -> ListNE a -> ([a], a)
 safeFromList :: (?callStack :: CallStack, Eq k, Hashable k, Show k) => String -> [(k, v)] -> M.HashMap k v
+safeFromListIntMap :: (?callStack :: CallStack) => String -> [(Int, v)] -> IntMap.IntMap v
 
-safeFromList msg kvs = applyNonNull (M.fromList kvs) err dups
+
+safeFromListIface :: (Show k, Eq k, Hashable k) => ([(k,v)] -> kvs) -> String -> [(k,v)] -> kvs
+safeFromListIface mkKvs msg kvs = applyNonNull (mkKvs kvs) err dups
   where
-    -- dups             = duplicates . fmap fst
     dups             = [ x | (x, n) <- count (fst <$> kvs), 1 < n ]
     err              = errorstar . wrap "safeFromList with duplicates" msg . show
-    wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2 
+    wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2
+
+safeFromList msg       = safeFromListIface M.fromList msg
+safeFromListIntMap msg = safeFromListIface IntMap.fromList msg
 
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg

@@ -27,6 +27,7 @@ import qualified Language.Fixpoint.Types.Errors                    as E
 import qualified Language.Fixpoint.Smt.Theories                    as Thy
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
 import qualified Data.HashMap.Strict                               as M
+import qualified Data.IntMap.Strict                                as IntMap
 import qualified Data.HashSet                                      as S
 import qualified Data.List                                         as L
 import qualified Data.Text                                         as T
@@ -191,7 +192,7 @@ _banIllScopedKvars si = Misc.applyNonNull (Right si) (Left . badKs) errs
 badKs :: [(F.KVar, F.SubcId, F.SubcId, F.IBindEnv)] -> F.Error
 badKs = E.catErrors . map E.errIllScopedKVar
 
-type KvConstrM = M.HashMap F.KVar [Integer]
+type KvConstrM = M.HashMap F.KVar [Int]
 type KvDefs    = (KvConstrM, KvConstrM)
 
 checkIllScope :: F.SInfo a -> KvDefs -> F.KVar -> [(F.KVar, F.SubcId, F.SubcId, F.IBindEnv)]
@@ -213,7 +214,7 @@ isIllScope si k inI outI
     outXs                = subcBinds si outI
 
 subcBinds :: F.SInfo a -> F.SubcId -> F.IBindEnv
-subcBinds si i = F._cenv $ F.cm si M.! i
+subcBinds si i = F._cenv $ F.cm si IntMap.! i
 
 kvarBinds :: F.SInfo a -> F.KVar -> F.IBindEnv
 kvarBinds si = F.wenv . (F.ws si M.!)
@@ -265,7 +266,7 @@ type KvBads    = M.HashMap F.KVar [F.Symbol]
 safeKvarEnv :: F.SInfo a -> KvDom
 safeKvarEnv si = L.foldl' (dropKvarEnv si) env0 cs
   where
-    cs         = M.elems  (F.cm si)
+    cs         = IntMap.elems  (F.cm si)
     env0       = initKvarEnv si
 
 dropKvarEnv :: F.SInfo a -> KvDom -> F.SimpC a -> KvDom
@@ -322,7 +323,7 @@ banConstraintFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
     fi      = mapKVars (const $ Just F.PTrue) fi0
-    bads    = [(c, fs) | c <- M.elems $ F.cm fi, Just fs <- [cNoFreeVars fi k c]]
+    bads    = [(c, fs) | c <- IntMap.elems $ F.cm fi, Just fs <- [cNoFreeVars fi k c]]
     k       = known fi
 
 known :: F.SInfo a -> F.Symbol -> Bool
@@ -368,14 +369,14 @@ banMixedRhs :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 banMixedRhs fi = Misc.applyNonNull (Right fi) (Left . badRhs) bads
   where
-    ics        = M.toList $ F.cm fi
+    ics        = IntMap.toList $ F.cm fi
     bads       = [(i, c) | (i, c) <- ics, not $ isOk c]
     isOk c     = isKvarC c || isConcC c
 
-badRhs :: Misc.ListNE (Integer, F.SimpC a) -> E.Error
+badRhs :: Misc.ListNE (Int, F.SimpC a) -> E.Error
 badRhs = E.catErrors . map badRhs1
 
-badRhs1 :: (Integer, F.SimpC a) -> E.Error
+badRhs1 :: (Int, F.SimpC a) -> E.Error
 badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+> pprint i
                                           , nest 4 (pprint (F.crhs c)) ]
 

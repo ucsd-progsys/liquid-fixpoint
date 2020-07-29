@@ -7,6 +7,7 @@ module Language.Fixpoint.Solver.Extensionality (expand) where
 
 import           Control.Monad.State
 import qualified Data.HashMap.Strict       as M
+import qualified Data.IntMap.Strict        as IntMap
 import           Data.Maybe  (fromMaybe)
 
 import           Language.Fixpoint.Types.Config
@@ -35,6 +36,9 @@ instance Extend (SInfo a) where
 
 instance (Extend a) => Extend (M.HashMap SubcId a) where 
   extend h = M.fromList <$> mapM extend (M.toList h) 
+
+instance (Extend a) => Extend (IntMap.IntMap a) where
+  extend h = IntMap.fromList <$> mapM extend (IntMap.toList h)
 
 instance (Extend a, Extend b) => Extend (a,b) where 
   extend (a,b) = (,) <$> extend a <*> extend b 

@@ -76,6 +76,7 @@ import           Control.DeepSeq
 import           Data.Hashable
 import qualified Data.Maybe                 as Mb 
 import qualified Data.HashMap.Strict        as M
+import qualified Data.IntMap.Strict         as IntMap
 import qualified Data.List                  as L
 import           Data.Generics             (Data)
 #if !MIN_VERSION_base(4,14,0)
@@ -116,7 +117,7 @@ folds f b = L.foldl' step ([], b)
          (c, x')      = f acc x
 
 groupKs :: [KVar] -> [(KVar, EQual)] -> [(KVar, QBind)]
-groupKs ks kqs = [ (k, QB eqs) | (k, eqs) <- M.toList $ groupBase m0 kqs ]
+groupKs ks kqs = [ (k, QB eqs) | (k, eqs) <- M.toList $ groupBase inserts m0 kqs ]
   where
     m0         = M.fromList $ (,[]) <$> ks
 
@@ -453,4 +454,5 @@ data Index = FastIdx
   -- , kvDeps     :: !(CMap [KIndex])       -- ^ List of (Cut) KVars on which a SubC depends
   }
 
-type CMap a  = M.HashMap SubcId a
+-- A Map indexed by 'SubcId's.
+type CMap a  = IntMap.IntMap a

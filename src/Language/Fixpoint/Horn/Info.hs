@@ -8,6 +8,7 @@ module Language.Fixpoint.Horn.Info (
     hornFInfo
   ) where
 
+import qualified Data.IntMap.Strict             as IntMap
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import qualified Data.Tuple                     as Tuple
@@ -36,9 +37,9 @@ hornFInfo q    = mempty
 
 ----------------------------------------------------------------------------------
 hornSubCs :: F.BindEnv -> KVEnv a -> H.Cstr a
-          -> (F.BindEnv, [F.BindId], M.HashMap F.SubcId (F.SubC a))
+          -> (F.BindEnv, [F.BindId], IntMap.IntMap (F.SubC a))
 ----------------------------------------------------------------------------------
-hornSubCs be kve c = (be', ebs, M.fromList (F.addIds cs))
+hornSubCs be kve c = (be', ebs, IntMap.fromList (F.addIds cs))
   where
     (be', ebs, cs)      = goS kve F.emptyIBindEnv lhs0 be c
     lhs0           = bindSortedReft kve H.dummyBind

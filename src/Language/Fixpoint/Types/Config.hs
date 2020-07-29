@@ -89,7 +89,7 @@ data Config = Config
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
-  , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
+  , checkCstr        :: [Int]          -- ^ Only check these specific constraints 
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
   , maxRWOrderingConstraints :: Maybe Int
   , rwTerminationCheck     :: Bool

@@ -53,7 +53,7 @@ eliminate cfg q
 
 ----------------------------------------------------------------------------------
 solve :: (F.PPrint a, NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a
-       -> IO (F.Result (Integer, a))
+       -> IO (F.Result (Int, a))
 ----------------------------------------------------------------------------------
 solve cfg q = do
   let c = Tx.uniq $ Tx.flatten $ H.qCstr q

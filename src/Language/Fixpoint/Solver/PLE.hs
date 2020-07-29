@@ -36,6 +36,7 @@ import           Language.Fixpoint.Solver.Rewrite
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import qualified Data.HashMap.Strict  as M
+import qualified Data.IntMap.Strict   as IntMap
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
@@ -57,7 +58,7 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi' = do 
-    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
+    let cs = [ (i, c) | (i, c) <- IntMap.toList (cm fi), isPleCstr aEnv i c ] 
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $ 
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
@@ -281,7 +282,7 @@ updCtx InstEnv {..} ctx delta cidMb
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
-    subMb     = getCstr (M.fromList ieCstrs) <$> cidMb
+    subMb     = getCstr (IntMap.fromList ieCstrs) <$> cidMb
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
@@ -320,11 +321,11 @@ isGoodApp γ e
 
 
 
-getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
-getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
+getCstr :: IntMap.IntMap (SimpC a) -> SubcId -> SimpC a 
+getCstr env cid = Misc.safeLookupIntMap "Instantiate.getCstr" cid env
 
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
-isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv) 
+isPleCstr aenv sid c = isTarget c && IntMap.findWithDefault False sid (aenvExpand aenv)
 
 type EvAccum = S.HashSet (Expr, Expr)
 
@@ -342,7 +343,7 @@ getAutoRws :: Knowledge -> ICtx -> [AutoRewrite]
 getAutoRws γ ctx =
   Mb.fromMaybe [] $ do
     cid <- icSubcId ctx
-    M.lookup cid $ knAutoRWs γ
+    IntMap.lookup cid $ knAutoRWs γ
 
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvAccum
 evalOne γ env ctx e | null $ getAutoRws γ ctx = do
@@ -612,7 +613,7 @@ data Knowledge = KN
   , knDCs               :: !(S.HashSet Symbol)     -- data constructors drawn from Rewrite 
   , knSels              :: !(SelectorMap) 
   , knConsts            :: !(ConstDCMap)
-  , knAutoRWs           :: M.HashMap SubcId [AutoRewrite]
+  , knAutoRWs           :: IntMap.IntMap [AutoRewrite]
   , knRWTerminationOpts :: RWTerminationOpts
   }
 

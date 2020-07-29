@@ -9,6 +9,7 @@
 
 module Language.Fixpoint.Minimize ( minQuery, minQuals, minKvars ) where
 
+import qualified Data.IntMap.Strict                 as IntMap
 import qualified Data.HashMap.Strict                as M
 import           Control.Monad                      (filterM)
 import           Language.Fixpoint.Types.Visitor    (mapKVars)
@@ -52,14 +53,14 @@ type Oracle a c = (Config -> Solver a -> FInfo a -> [c] -> IO Bool)
 
 commonDebug :: (NFData a, Fixpoint a) => (FInfo a -> [c])
                                       -> (FInfo a -> [c] -> FInfo a)
-                                      -> (Result (Integer, a) -> Bool)
+                                      -> (Result (Int, a) -> Bool)
                                       -> Bool
                                       -> Config
                                       -> Solver a
                                       -> FInfo a
                                       -> Ext
                                       -> (FInfo a -> [c] -> String)
-                                      -> IO (Result (Integer, a))
+                                      -> IO (Result (Int, a))
 commonDebug init updateFi checkRes min cfg solve fi ext formatter = do
   let cs0 = init fi
   let oracle = mkOracle updateFi checkRes
@@ -71,7 +72,7 @@ commonDebug init updateFi checkRes min cfg solve fi ext formatter = do
 
 ---------------------------------------------------------------------------
 minQuery :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
-         -> IO (Result (Integer, a))
+         -> IO (Result (Int, a))
 ---------------------------------------------------------------------------
 minQuery cfg solve fi = do
   let cfg'  = cfg { minimize = False }
@@ -79,12 +80,12 @@ minQuery cfg solve fi = do
   failFis  <- filterM (fmap (not . isSafe) . solve cfg') fis
   let failFi = safeHead "--minimize can only be called on UNSAT fq" failFis
   let format _ cs = "Minimized Constraints: " ++ show (fst <$> cs)
-  let update fi cs = fi { cm = M.fromList cs }
-  commonDebug (M.toList . cm) update (not . isSafe) True cfg' solve failFi Min format
+  let update fi cs = fi { cm = IntMap.fromList cs }
+  commonDebug (IntMap.toList . cm) update (not . isSafe) True cfg' solve failFi Min format
 
 ---------------------------------------------------------------------------
 minQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
-         -> IO (Result (Integer, a))
+         -> IO (Result (Int, a))
 ---------------------------------------------------------------------------
 minQuals cfg solve fi = do
   let cfg'  = cfg { minimizeQs = False }
@@ -95,7 +96,7 @@ minQuals cfg solve fi = do
 
 ---------------------------------------------------------------------------
 minKvars :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
-         -> IO (Result (Integer, a))
+         -> IO (Result (Int, a))
 ---------------------------------------------------------------------------
 minKvars cfg solve fi = do
   let cfg'  = cfg { minimizeKs = False }
@@ -110,7 +111,7 @@ removeOtherKs fi0 ks = fi1 { ws = ws', cm = cm' }
     go k | k `elem` ks = Nothing
          | otherwise   = Just PTrue
     ws' = M.filterWithKey (\k _ -> k `elem` ks) $ ws fi1
-    cm' = M.filter (isNonTrivial . srhs) $ cm fi1
+    cm' = IntMap.filter (isNonTrivial . srhs) $ cm fi1
 
 ---------------------------------------------------------------------------
 -- Helper functions
@@ -119,7 +120,7 @@ addExt :: Ext -> Config -> Config
 addExt ext cfg = cfg { srcFile = queryFile ext cfg }
 
 mkOracle :: (NFData a, Fixpoint a) => (FInfo a -> [c] -> FInfo a)
-                                   -> (Result (Integer, a) -> Bool)
+                                   -> (Result (Int, a) -> Bool)
                                    -> Oracle a c
 mkOracle updateFi checkRes cfg solve fi qs = do
   let fi' = updateFi fi qs

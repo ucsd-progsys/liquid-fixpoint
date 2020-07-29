@@ -8,6 +8,7 @@ module Language.Fixpoint.Graph.Reducible ( isReducible ) where
 
 import qualified Data.Tree                            as T
 import qualified Data.HashMap.Strict                  as M
+import qualified Data.IntMap.Strict                   as IntMap
 import           Data.Graph.Inductive
 
 import           Language.Fixpoint.Misc         -- hiding (group)
@@ -35,7 +36,7 @@ isReducibleWithStart g x = all (isBackEdge domList) rEdges
 convertToGraph :: (F.TaggedC c a) => F.GInfo c a -> Gr Int ()
 convertToGraph fi = mkGraph vs es
   where
-    subCs        = M.elems (F.cm fi)
+    subCs        = IntMap.elems (F.cm fi)
     es           = lUEdge <$> concatMap (subcEdges' kvI $ F.bs fi) subCs
     ks           = M.keys (F.ws fi)
     kiM          = M.fromList $ zip ks [0..]

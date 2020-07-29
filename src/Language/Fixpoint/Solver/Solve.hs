@@ -30,11 +30,12 @@ import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import qualified Data.IntSet         as IntSet
 -- import qualified Data.Maybe          as Mb 
 import qualified Data.List           as L
 
 --------------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Int, a))
 --------------------------------------------------------------------------------
 
 solve cfg fi = do
@@ -83,7 +84,7 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> Sol.Solution
        -> S.HashSet F.KVar
        -> W.Worklist a
-       -> SolveM (F.Result (Integer, a), Stats)
+       -> SolveM (F.Result (Int, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
   let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
@@ -161,7 +162,7 @@ predKs _              = []
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
 result :: (F.Fixpoint a, F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Solution
-       -> SolveM (F.Result (Integer, a))
+       -> SolveM (F.Result (Int, a))
 --------------------------------------------------------------------------------
 result cfg wkl s = do
   lift $ writeLoud "Computing Result"
@@ -188,8 +189,8 @@ result_  cfg w s = do
 isChecked :: Config -> [F.SimpC a] -> [F.SimpC a]
 isChecked cfg cs = case checkCstr cfg of 
   []   -> cs 
-  ids  -> let s = S.fromList ids in 
-          [c | c <- cs, S.member (F.subcId c) s ]
+  ids  -> let s = IntSet.fromList ids in 
+          [c | c <- cs, IntSet.member (F.subcId c) s ]
 
 --------------------------------------------------------------------------------
 -- | `minimizeResult` transforms each KVar's result by removing
@@ -229,7 +230,7 @@ isUnsat s c = do
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
   return res
 
-showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
+showUnsat :: Bool -> Int -> F.Pred -> F.Pred -> IO ()
 showUnsat u i lP rP = {- when u $ -} do
   putStrLn $ printf   "UNSAT id %s %s" (show i) (show u)
   putStrLn $ showpp $ "LHS:" <+> pprint lP

@@ -48,6 +48,7 @@ import           Control.Monad             (when)
 import qualified Data.HashSet                         as S
 import qualified Data.List                            as L
 import qualified Data.HashMap.Strict                  as M
+import qualified Data.IntMap.Strict                   as IntMap
 import qualified Data.Graph                           as G
 import           Data.Function (on)
 import           Data.Hashable
@@ -67,8 +68,8 @@ slice cfg fi
   = fi { F.cm = cm'
        , F.ws = ws' }
   where
-     cm' = M.filterWithKey inC (F.cm fi)
-     ws' = M.filterWithKey inW (F.ws fi)
+     cm' = IntMap.filterWithKey inC (F.cm fi)
+     ws' = M.filterWithKey      inW (F.ws fi)
      ks  = sliceKVars fi sl
      is  = S.fromList (slKVarCs sl ++ slConcCs sl)
      sl  = mkSlice fi
@@ -98,7 +99,7 @@ mkSlice fi        = mkSlice_ (F.cm fi) g' es v2i i2v
     errU i        = errorstar $ "graphSlice: Unknown constraint " ++ show i
 
 mkSlice_ :: F.TaggedC c a
-         => M.HashMap F.SubcId (c a)
+         => IntMap.IntMap (c a)
          -> G.Graph
          -> [DepEdge]
          -> (G.Vertex -> F.SubcId)
@@ -110,7 +111,7 @@ mkSlice_ cm g' es v2i i2v = Slice { slKVarCs = kvarCs
                                   }
   where
     -- n                  = length kvarCs
-    concCs             = [ i | (i, c) <- M.toList cm, isTarget c ]
+    concCs             = [ i | (i, c) <- IntMap.toList cm, isTarget c ]
     kvarCs             = v2i <$> reachVs
     rootVs             = i2v <$> concCs
     reachVs            = concatMap flatten $ G.dfs g' rootVs
@@ -145,7 +146,7 @@ cGraph fi = CGraph { gEdges = es
                    , gSucc  = next
                    , gSccs  = length sccs }
   where
-    es             = [(i, i, M.lookupDefault [] i next) | i <- M.keys $ F.cm fi]
+    es             = [(i, i, IntMap.findWithDefault [] i next) | i <- IntMap.keys $ F.cm fi]
     next           = kvSucc fi
     (g, vf, _)     = G.graphFromEdges es
     (outRs, sccs)  = graphRanks g vf
@@ -155,7 +156,7 @@ cGraph fi = CGraph { gEdges = es
 --------------------------------------------------------------------------------
 graphRanks :: G.Graph -> (G.Vertex -> DepEdge) -> (CMap Int, [[G.Vertex]])
 ---------------------------------------------------------------------------
-graphRanks g vf = (M.fromList irs, sccs)
+graphRanks g vf = (IntMap.fromList irs, sccs)
   where
     irs        = [(v2i v, r) | (r, vs) <- rvss, v <- vs ]
     rvss       = zip [0..] sccs
@@ -186,7 +187,7 @@ kvWriteBy cm = V.kvars . F.crhs . lookupCMap cm
 --------------------------------------------------------------------------------
 kvReadBy :: (F.TaggedC c a) => F.GInfo c a -> KVRead
 --------------------------------------------------------------------------------
-kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
+kvReadBy fi = group [ (k, i) | (i, ci) <- IntMap.toList cm
                              , k       <- V.envKVars bs ci]
   where
     cm      = F.cm fi
@@ -211,7 +212,7 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs ++ concatMap (ebindEdges ebs 
   where
     bs     = F.bs fi
     ebs    = F.ebinds fi
-    cs     = M.elems (F.cm fi)
+    cs     = IntMap.elems (F.cm fi)
     ks     = fiKVars fi
     selfes =  [(Cstr i , Cstr  i) | c <- cs, let i = F.subcId c]
            ++ [(KVar k , DKVar k) | k <- ks]
@@ -357,7 +358,7 @@ sMapMaybe :: (Hashable b, Eq b) => (a -> Maybe b) -> S.HashSet a -> S.HashSet b
 sMapMaybe f = S.fromList . mapMaybe f . S.toList
 
 --------------------------------------------------------------------------------
-type EdgeRank = M.HashMap F.KVar Integer
+type EdgeRank = M.HashMap F.KVar Int
 --------------------------------------------------------------------------------
 edgeRank :: [CEdge] -> EdgeRank
 edgeRank es = minimum . (n :) <$> kiM
@@ -474,7 +475,7 @@ graphDeps :: F.TaggedC c a => F.GInfo c a -> [CEdge] -> CDeps
 graphDeps fi cs = CDs { cSucc   = gSucc cg
                       , cPrev   = cPrevM
                       , cNumScc = gSccs cg
-                      , cRank   = M.fromList [(i, rf i) | i <- is ]
+                      , cRank   = IntMap.fromList [(i, rf i) | i <- is ]
                       }
   where
     rf          = rankF (F.cm fi) outRs inRs
@@ -483,7 +484,7 @@ graphDeps fi cs = CDs { cSucc   = gSucc cg
     es          = gEdges cg
     cg          = cGraphCE cs
     is          = [i | (Cstr i, _) <- cs]
-    cPrevM      = sortNub <$> group [ (i, k) | (KVar k, Cstr i) <- cs ]
+    cPrevM      = sortNub <$> groupImap [ (i, k) | (KVar k, Cstr i) <- cs ]
 
 --TODO merge these with cGraph and kvSucc
 cGraphCE :: [CEdge] -> CGraph
@@ -492,7 +493,7 @@ cGraphCE cs = CGraph { gEdges = es
                      , gSucc  = next
                      , gSccs  = length sccs }
   where
-    es             = [(i, i, M.lookupDefault [] i next) | (Cstr i, _) <- cs]
+    es             = [(i, i, IntMap.findWithDefault [] i next) | (Cstr i, _) <- cs]
     next           = cSuccM cs
     (g, vf, _)     = G.graphFromEdges es
     (outRs, sccs)  = graphRanks g vf
@@ -500,9 +501,9 @@ cGraphCE cs = CGraph { gEdges = es
 cSuccM      :: [CEdge] -> CMap [F.SubcId]
 cSuccM es    = (sortNub . concatMap kRdBy) <$> iWrites
   where
-    kRdBy k  = M.lookupDefault [] k kReads
-    iWrites  = group [ (i, k) | (Cstr i, KVar k) <- es ]
-    kReads   = group [ (k, j) | (KVar k, Cstr j) <- es ]
+    kRdBy k  = M.findWithDefault [] k kReads
+    iWrites  = groupImap [ (i, k) | (Cstr i, KVar k) <- es ]
+    kReads   = group     [ (k, j) | (KVar k, Cstr j) <- es ]
 
 rankF ::  F.TaggedC c a => CMap (c a) -> CMap Int -> CMap Int -> F.SubcId -> Rank
 rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
@@ -524,7 +525,7 @@ inRanks fi es outR
     es'               = [(i, i, filter (not . isCut i) js) | (i,_,js) <- es ]
     isCut i j         = S.member i cutCIds && isEqOutRank i j
     isEqOutRank i j   = lookupCMap outR i == lookupCMap outR j
-    cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
+    cutCIds           = S.fromList [i | i <- IntMap.keys cm, isKutWrite i ]
     isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
 --------------------------------------------------------------------------------
@@ -575,7 +576,7 @@ nonLinearKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
 nonLinearKVars fi = S.unions $ nlKVarsC bs <$> cs
   where
     bs            = F.bs fi
-    cs            = M.elems (F.cm fi)
+    cs            = IntMap.elems (F.cm fi)
 
 nlKVarsC :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
 nlKVarsC bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]
