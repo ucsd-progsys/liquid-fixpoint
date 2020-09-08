@@ -1,5 +1,6 @@
+cabal-version:      2.4
 name:               liquid-fixpoint
-version:            0.8.0.2
+version:            0.8.10.2
 synopsis:           Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 description:
   This package implements an SMTLIB based Horn-Clause\/Logical Implication constraint
@@ -15,12 +16,12 @@ description:
   In addition to the .cabal dependencies you require
   .
   * A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
-license:            BSD3
+license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2010-17 Ranjit Jhala, University of California, San Diego.
 author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         jhala@cs.ucsd.edu
-tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4
+tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4, GHC == 8.10.1
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquid-fixpoint
 build-type:         Simple
@@ -30,7 +31,6 @@ extra-source-files: tests/neg/*.fq
                     win/Language/Fixpoint/Utils/*.hs
                     tests/logs/cur/pin
                     Makefile
-cabal-version:      >= 1.10
 
 source-repository head
   type:     git
@@ -42,6 +42,7 @@ flag devel
   description: turn on stricter error reporting for development
 
 library
+  autogen-modules:  Paths_liquid_fixpoint
   exposed-modules:  Language.Fixpoint.Defunctionalize
                     Language.Fixpoint.Graph
                     Language.Fixpoint.Graph.Deps
@@ -68,6 +69,7 @@ library
                     Language.Fixpoint.Solver.Instantiate
                     Language.Fixpoint.Solver.PLE
                     Language.Fixpoint.Solver.Monad
+                    Language.Fixpoint.Solver.Rewrite
                     Language.Fixpoint.Solver.Sanitize
                     Language.Fixpoint.Solver.Solution
                     Language.Fixpoint.Solver.Solve
@@ -159,6 +161,7 @@ test-suite test
   main-is:          test.hs
   other-modules:    Paths_liquid_fixpoint
   hs-source-dirs:   tests
+  build-tool-depends: liquid-fixpoint:fixpoint
   build-depends:    base          >= 4.9.1.0 && < 5
                   , containers    >= 0.5
                   , directory
