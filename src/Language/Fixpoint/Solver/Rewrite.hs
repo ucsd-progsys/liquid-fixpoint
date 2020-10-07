@@ -298,7 +298,7 @@ unifyAll freeVars (template:xs) (seen:ys) =
     let ys' = map (subst rs) ys
     (Su s2) <- unifyAll (freeVars L.\\ M.keys s1) xs' ys'
     return $ Su (M.union s1 s2)
-unifyAll _ _ _ = undefined
+unifyAll _ _ _ = Nothing
 
 unify :: [Symbol] -> Expr -> Expr -> Maybe Subst
 unify _ template seenExpr | template == seenExpr = Just (Su M.empty)

@@ -60,7 +60,7 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi' = do 
-    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
+    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ]
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $ 
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
@@ -129,7 +129,7 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
-ple1 (InstEnv {..}) ctx i res = 
+ple1 (InstEnv {..}) ctx i res =
   updCtxRes res i <$> evalCandsLoop ieCfg ctx ieSMT ieKnowl ieEvEnv
 
 
@@ -306,8 +306,10 @@ makeCandidates γ ctx expr
     cands = filter (\e -> isRedex γ e && (not (e `S.member` icSolved ctx))) (notGuardedApps expr)
 
 isRedex :: Knowledge -> Expr -> Bool 
-isRedex γ e = isGoodApp γ e || isIte e 
-  where 
+isRedex γ e = isGoodApp γ e || isIte e  || isEQ e
+  where
+    isEQ (EEq _ _) = True
+    isEQ _         = False
     isIte (EIte _ _ _) = True 
     isIte _            = False 
 
@@ -349,9 +351,9 @@ getAutoRws γ ctx =
 
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvAccum
 evalOne γ env ctx e | null $ getAutoRws γ ctx = do
-    (e',st) <- runStateT (fastEval γ ctx e) env 
+    (e',st) <- runStateT (fastEval γ ctx e) env
     return $ if e' == e then evAccum st else S.insert (e, e') (evAccum st)
-evalOne γ env ctx e =
+evalOne γ env ctx e = do
   evAccum <$> execStateT (eval γ ctx [(e, PLE)]) env
 
 notGuardedApps :: Expr -> [Expr]
@@ -360,7 +362,7 @@ notGuardedApps = go
     go e@(EApp e1 e2)  = [e] ++ go e1 ++ go e2
     go (PAnd es)       = concatMap go es
     go (POr es)        = concatMap go es
-    go (PAtom _ e1 e2) = go e1  ++ go e2
+    go e@(PAtom _ e1 e2) = [e] ++ go e1  ++ go e2
     go (PIff e1 e2)    = go e1  ++ go e2
     go (PImp e1 e2)    = go e1  ++ go e2 
     go (EBin  _ e1 e2) = go e1  ++ go e2
@@ -437,7 +439,7 @@ eval _ ctx path
         
 eval γ ctx path =
   do
-    rws <- getRWs 
+    rws <- getRWs
     e'  <- simplify γ ctx <$> evalStep γ ctx e
     let evalIsNewExpr = L.notElem e' pathExprs
     let exprsToAdd    = (if evalIsNewExpr then [e'] else []) ++ map fst rws
@@ -456,13 +458,33 @@ eval γ ctx path =
         ints      = concatMap subsFromAssm (S.toList $ icAssms ctx)
         su        = Su (M.fromList ints)
         e'        = subst' e
+
+        canRW c@(PAnd [EEq lhs rhs]) = do
+          if any (isMatch lhs rhs) autorws
+            then return True
+            else isValid γ c
+        canRW c = isValid γ c
+
+        isMatch lhs rhs (AutoRewrite args lhs' rhs') =
+          if any (/= PTrue) preconds
+          then False
+          else
+            case unify freeVars lhs' lhs of
+              Just su -> subst su rhs' == rhs
+              Nothing -> False
+          where
+            freeVars = [s | RR _ (Reft (s, _)) <- args ]
+            preconds = [c | RR _ (Reft (_, c)) <- args ]
+          
+        
         subst' ee =
           let ee' = subst su ee
           in if ee == ee' then ee else subst' ee'
-        rwArgs = RWArgs (isValid γ) (knRWTerminationOpts γ)
-        getRWs' s = 
+        rwArgs = RWArgs canRW (knRWTerminationOpts γ)
+        getRWs' s =
           Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRewrite rwArgs path s) autorws
-      in concat <$> mapM getRWs' (subExprs e')
+      in
+        concat <$> mapM getRWs' (subExprs e')
           
     addConst (e,e') = if isConstant (knDCs γ) e'
                       then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
@@ -631,7 +653,7 @@ data Knowledge = KN
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
-isValid γ e = do 
+isValid γ e = do
   contra <- knPreds γ (knContext γ) (knLams γ) PFalse
   if contra 
     then return False 
@@ -646,6 +668,7 @@ knowledge cfg ctx si = KN
   , knLams                     = [] 
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims) 
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
+                                 ++ lits
   , knDCs                      = S.fromList (smDC <$> sims) 
   , knSels                     = Mb.catMaybes $ map makeSel  sims 
   , knConsts                   = Mb.catMaybes $ map makeCons sims 
@@ -655,7 +678,15 @@ knowledge cfg ctx si = KN
       then RWTerminationCheckEnabled (maxRWOrderingConstraints cfg)
       else RWTerminationCheckDisabled
   } 
-  where 
+  where
+
+    lits = map toSum (toListSEnv (gLits si))
+      where
+        toSum (sym, sort)      = (sym, getArity sort)
+        
+        getArity (FFunc _ rhs) = 1 + getArity rhs
+        getArity _             = 0
+    
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
     aenv = ae si 
 
