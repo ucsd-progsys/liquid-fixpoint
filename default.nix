@@ -54,21 +54,21 @@ let
         # build dependencies; using latest hackage releases as of Tue 18 Aug 2020 02:51:27 PM UTC
         memory = self.callHackage "memory" "0.15.0" { };
         z3 = overrideCabal super.z3 (old: { broken = false; });
+
+        # this project
+        liquid-fixpoint = nixpkgs.haskell.lib.overrideCabal (self.callCabal2nix "liquid-fixpoint" (nixpkgs.nix-gitignore.gitignoreSource [ ] ./.) { }) (old: {
+          buildTools = [ nixpkgs.z3 ];
+          doCheck = true;
+          doHaddock = true;
+          # bring the `fixpoint` binary into scope for tests run by nix-build
+          preCheck = ''export PATH="$PWD/dist/build/fixpoint:$PATH"'';
+        });
+
       };
     }
   );
   # function to bring devtools in to a package environment
   devtools = old: { nativeBuildInputs = old.nativeBuildInputs ++ [ nixpkgs.cabal-install nixpkgs.ghcid ]; }; # ghc and hpack are automatically included
-  # ignore files specified by gitignore in nix-build
-  source = nixpkgs.nix-gitignore.gitignoreSource [ ] ./.;
-  # use overridden-haskellPackages to call gitignored-source
-  drv = nixpkgs.haskell.lib.overrideCabal (haskellPackages.callCabal2nix "liquid-fixpoint" source { }) (
-    old: {
-      buildTools = [ nixpkgs.z3 ];
-      doCheck = true;
-      doHaddock = true;
-      preCheck = ''export PATH="$PWD/dist/build/fixpoint:$PATH"''; # bring the `fixpoint` binary into scope for tests run by nix-build
-    }
-  );
+  drv = haskellPackages.liquid-fixpoint;
 in
 if makeEnv then drv.env.overrideAttrs devtools else drv
