@@ -53,6 +53,7 @@ let
         );
         # build dependencies; using latest hackage releases as of Tue 18 Aug 2020 02:51:27 PM UTC
         memory = self.callHackage "memory" "0.15.0" { };
+        z3 = overrideCabal super.z3 (old: { broken = false; });
       };
     }
   );
