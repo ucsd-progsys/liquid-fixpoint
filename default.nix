@@ -1,4 +1,4 @@
-{ makeEnv ? false, config ? { allowBroken = true; }, ... }:
+{ makeEnv ? false, config ? { }, ... }:
 let
   # fetch pinned version of nixpkgs
   nixpkgs = import (
@@ -25,9 +25,27 @@ let
           }
         );
         # test dependencies
-        git = overrideCabal (self.callHackage "git" "0.3.0" {}) (
+        git = overrideCabal (self.callHackage "git" "0.3.0" { }) (
           old: {
-            patches = [ ./git-0.3.0_fix-monad-fail-for-ghc-8.10.1.patch ]; # git-0.3.0 defines a Monad a fail function, which is incompatible with ghc-8.10.1 https://hackage.haskell.org/package/git-0.3.0/docs/src/Data.Git.Monad.html#line-240
+            broken = false;
+            # git-0.3.0 defines a Monad a fail function, which is incompatible with ghc-8.10.1 https://hackage.haskell.org/package/git-0.3.0/docs/src/Data.Git.Monad.html#line-240
+            patches = [
+              (nixpkgs.writeText "git-0.3.0_fix-monad-fail-for-ghc-8.10.1.patch" ''
+                diff --git a/Data/Git/Monad.hs b/Data/Git/Monad.hs
+                index 480af9f..27c3b3e 100644
+                --- a/Data/Git/Monad.hs
+                +++ b/Data/Git/Monad.hs
+                @@ -130 +130 @@ instance Resolvable Git.RefName where
+                -class (Functor m, Applicative m, Monad m) => GitMonad m where
+                +class (Functor m, Applicative m, Monad m, MonadFail m) => GitMonad m where
+                @@ -242,0 +243 @@ instance Monad GitM where
+                +instance MonadFail GitM where
+                @@ -315,0 +317 @@ instance Monad CommitAccessM where
+                +instance MonadFail CommitAccessM where
+                @@ -476,0 +479 @@ instance Monad CommitM where
+                +instance MonadFail CommitM where
+              '')
+            ];
           }
         );
         # build dependencies; using latest hackage releases as of Tue 18 Aug 2020 02:51:27 PM UTC
