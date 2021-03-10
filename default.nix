@@ -15,9 +15,9 @@ let
     old: {
 
       all-cabal-hashes = nixpkgs.fetchurl {
-        # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/tree/hackage as of Tue 18 Aug 2020 02:51:27 PM UTC
-        url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/112fef7b4bf392d4d4c36fbbe00ed061685ba26c.tar.gz";
-        sha256 = "0x0mkpwnndw7n62l089gimd76n9gy749giban9pacf5kxbsfxrdc";
+        # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/tree/hackage as of Wed 10 Mar 2021 05:25:16 PM UTC
+        url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/bc95cd0e1029a0581e3df2f5cffc52867f6045b0.tar.gz";
+        sha256 = "0k26992nabqpja1n43yky792jch9h3blb4pw5vivads2qd3l49vj";
       };
       overrides = self: super: with nixpkgs.haskell.lib; rec {
         mkDerivation = args: super.mkDerivation (
