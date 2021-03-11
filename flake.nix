@@ -16,6 +16,8 @@
         overlays = self.overlays;
       }).haskellPackages.liquid-fixpoint;
 
+      devShell.${system} = self.defaultPackage.${system}.env;
+
       overlays = [
 
         # # build cabal2nix with a different package set as suggested by https://github.com/NixOS/nixpkgs/issues/83098#issuecomment-602132784
