@@ -30,7 +30,7 @@
                   broken = false;
                   # git-0.3.0 defines a Monad a fail function, which is incompatible with ghc-8.10.1 https://hackage.haskell.org/package/git-0.3.0/docs/src/Data.Git.Monad.html#line-240
                   patches = [
-                    (prev.writeText "git-0.3.0_fix-monad-fail-for-ghc-8.10.1.patch" ''
+                    (prev.writeText "git-0.3.0_fix-monad-fail-for-ghc-8.10.x.patch" ''
                       diff --git a/Data/Git/Monad.hs b/Data/Git/Monad.hs
                       index 480af9f..27c3b3e 100644
                       --- a/Data/Git/Monad.hs
@@ -52,8 +52,7 @@
           })
           # overlay to add our own package
           (final: prev: {
-            haskellPackages = with prev.haskell.lib; prev.haskell.packages."ghc8101".override {
-              # what happens if we use haskellPackages here?
+            haskellPackages = with prev.haskell.lib; prev.haskellPackages.override {
               overrides = selfH: superH: {
                 liquid-fixpoint = overrideCabal (prev.haskellPackages.callCabal2nix "liquid-fixpoint" self { }) (old: {
                   buildTools = [ prev.z3 ];
