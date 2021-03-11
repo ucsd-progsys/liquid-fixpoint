@@ -4,7 +4,6 @@
 
   inputs = {
     nixpkgs.url = github:NixOS/nixpkgs/nixos-20.09;
-    #all-cabal-hashes = { flake = false; url = github:commercialhaskell/all-cabal-hashes/hackage; };
     flake-utils.url = github:numtide/flake-utils;
   };
 
@@ -23,11 +22,6 @@
       unnamespaced-outputs = {
 
         overlays = [
-          # # build cabal2nix with a different package set as suggested by https://github.com/NixOS/nixpkgs/issues/83098#issuecomment-602132784
-          # (final: prev: {
-          #   cabal2nix-unwrapped = prev.haskell.lib.justStaticExecutables
-          #     (prev.haskell.lib.generateOptparseApplicativeCompletion "cabal2nix" prev.haskell.packages."ghc882".cabal2nix);
-          # })
           # fix haskell's git package
           (final: prev: {
             haskellPackages = prev.haskellPackages.override {
