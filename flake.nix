@@ -11,6 +11,11 @@
     let system = "x86_64-linux"; in
     {
 
+      defaultPackage.${system} = (import nixpkgs {
+        inherit system;
+        overlays = self.overlays;
+      }).haskellPackages.liquid-fixpoint;
+
       overlays = [
 
         # # build cabal2nix with a different package set as suggested by https://github.com/NixOS/nixpkgs/issues/83098#issuecomment-602132784
@@ -65,11 +70,6 @@
         })
 
       ];
-
-      defaultPackage.${system} = (import nixpkgs {
-        inherit system;
-        overlays = self.overlays;
-      }).haskellPackages.liquid-fixpoint;
 
     };
 }
