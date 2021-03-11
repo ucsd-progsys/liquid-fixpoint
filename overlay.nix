@@ -7,9 +7,9 @@ self: super: {
     #  sha256 = "0k26992nabqpja1n43yky792jch9h3blb4pw5vivads2qd3l49vj";
     #};
     overrides = selfH: superH: {
-      mkDerivation = args: superH.mkDerivation (
-        args // { doCheck = false; doHaddock = false; jailbreak = true; enableLibraryProfiling = false; }
-      );
+      #mkDerivation = args: superH.mkDerivation (
+      #  args // { doCheck = false; doHaddock = false; jailbreak = true; enableLibraryProfiling = false; }
+      #);
       # test dependencies
       #git = super.haskell.lib.overrideCabal (selfH.callHackage "git" "0.3.0" { }) (old: {
       #  broken = false;

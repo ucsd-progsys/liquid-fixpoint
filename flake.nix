@@ -4,10 +4,10 @@
 
   inputs = {
     nixpkgs.url = github:NixOS/nixpkgs/nixos-20.09;
-    all-cabal-hashes = { flake = false; url = github:commercialhaskell/all-cabal-hashes/hackage; };
+    #all-cabal-hashes = { flake = false; url = github:commercialhaskell/all-cabal-hashes/hackage; };
   };
 
-  outputs = { self, nixpkgs, all-cabal-hashes }:
+  outputs = { self, nixpkgs }:
     let system = "x86_64-linux"; in
     {
 
