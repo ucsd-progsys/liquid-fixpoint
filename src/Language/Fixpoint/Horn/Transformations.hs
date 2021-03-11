@@ -70,14 +70,14 @@ printPiSols piSols =
 
 solveEbs :: (F.PPrint a) => F.Config -> Query a -> IO (Query a)
 ------------------------------------------------------------------------------
-solveEbs cfg query@(Query qs vs c cons dist) = do
+solveEbs cfg query@(Query qs vs c cons dist eqns mats dds) = do
   -- clean up
   let normalizedC = flatten . pruneTauts $ hornify c
   whenLoud $ putStrLn "Normalized EHC:"
   whenLoud $ putStrLn $ F.showpp normalizedC
 
   -- short circuit if no ebinds are present
-  if isNNF c then pure $ Query qs vs normalizedC cons dist else do
+  if isNNF c then pure $ Query qs vs normalizedC cons dist eqns mats dds else do
   let kvars = boundKvars normalizedC
 
   whenLoud $ putStrLn "Skolemized:"
@@ -122,7 +122,7 @@ solveEbs cfg query@(Query qs vs c cons dist) = do
   let solvedSide = substPiSols solvedPiCstrs side'
   whenLoud $ putStrLn $ F.showpp solvedSide
 
-  pure $ (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist)
+  pure $ (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist eqns mats dds)
 
 -- | Collects the defining constraint for π
 -- that is, given `∀ Γ.∀ n.π => c`, returns `((π, n:Γ), c)`
@@ -137,8 +137,8 @@ piDefConstr k c = ((head ns, head formals), defC)
     go (CAnd cs) = (\(as, bs, cs) -> (concat as, concat bs, cAndMaybes cs)) $ unzip3 $ go <$> cs
     go (All b@(Bind n _ (Var k' xs)) c')
       | k == k' = ([n], [S.toList $ S.fromList xs `S.difference` S.singleton n], Just c')
-      | otherwise = fmap (fmap (All b)) (go c')
-    go (All b c') = fmap (fmap (All b)) (go c')
+      | otherwise = map3 (fmap (All b)) (go c')
+    go (All b c') = map3 (fmap (All b)) (go c')
     go _ = ([], [], Nothing)
 
     cAndMaybes :: [Maybe (Cstr a)] -> Maybe (Cstr a)
@@ -146,10 +146,8 @@ piDefConstr k c = ((head ns, head formals), defC)
       [] -> Nothing
       cs -> Just $ CAnd cs
 
-#if !MIN_VERSION_base(4,14,0)
-instance Functor ((,,) a b) where
-    fmap f (a, b, c) = (a, b, f c)
-#endif
+map3 :: (c -> d) -> (a, b, c) -> (a, b, d)
+map3 f (x, y, z) = (x, y, f z)
 
 -- | Solve out the given pivars
 solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
@@ -923,9 +921,9 @@ isNNF (All _ c) = isNNF c
 isNNF Any{} = False
 
 calculateCuts :: F.Config -> Query a -> Cstr a -> S.Set F.Symbol
-calculateCuts cfg (Query qs vs _ cons dist) nnf = convert $ FG.depCuts deps
+calculateCuts cfg (Query qs vs _ cons dist eqns mats dds) nnf = convert $ FG.depCuts deps
   where
-    (_, deps) = elimVars cfg (hornFInfo $ Query qs vs nnf cons dist)
+    (_, deps) = elimVars cfg (hornFInfo cfg $ Query qs vs nnf cons dist eqns mats dds)
     convert hashset = S.fromList $ F.kv <$> (HS.toList hashset)
 
 forgetPiVars :: S.Set F.Symbol -> Cstr a -> Cstr a

@@ -22,14 +22,16 @@ module Language.Fixpoint.Solver (
   , simplifyFInfo
 ) where
 
-import           Control.Concurrent
-import           Data.Binary
+import           Control.Concurrent                 (setNumCapabilities)
+import           Data.Binary                        (decodeFile)
+import           Data.Aeson                         (ToJSON, encode)
+import qualified Data.Text.Lazy.IO                as LT
+import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
-
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
@@ -58,19 +60,20 @@ solveFQ cfg = do
     cfg'       <- withPragmas cfg opts
     let fi'     = ignoreQualifiers cfg' fi
     r          <- solve cfg' fi'
-    resultExitCode (fst <$> r)
+    resultExitCode cfg (fst <$> r)
   where
     file    = srcFile      cfg
 
 ---------------------------------------------------------------------------
-resultExitCode :: Result SubcId -> IO ExitCode 
+resultExitCode :: (Fixpoint a, NFData a, ToJSON a) => Config -> Result a 
+               -> IO ExitCode
 ---------------------------------------------------------------------------
-resultExitCode r = do 
-  -- let str  = render $ resultDoc $!! (const () <$> stat)
-  -- putStrLn "\n"
+resultExitCode cfg r = do 
   whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
+  when (json cfg) $ LT.putStrLn jStr
   return (eCode r)
   where 
+    jStr    = LT.decodeUtf8 . encode $ r
     stat    = resStatus $!! r
     eCode   = resultExit . resStatus
     statStr = render . resultDoc 
@@ -159,6 +162,7 @@ inParallelUsing f xs = do
    rs <- asyncMapM f xs
    return $ mconcat rs
 
+
 --------------------------------------------------------------------------------
 -- | Native Haskell Solver -----------------------------------------------------
 --------------------------------------------------------------------------------
@@ -190,7 +194,7 @@ simplifyFInfo !cfg !fi0 = do
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
-  let si1   = either die id $ {-# SCC "sanitize" #-} sanitize cfg $!! si0
+  let si1   = either die id $ ({-# SCC "sanitize" #-} sanitize cfg $!! si0)
   -- writeLoud $ "fq file after sanitize: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
@@ -203,8 +207,10 @@ simplifyFInfo !cfg !fi0 = do
   loudDump 2 cfg si4
   let si5  = {-# SCC "elaborate"  #-} elaborate (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
   loudDump 3 cfg si5
-  let si6  = if extensionality cfg then {-# SCC "expand"     #-} expand cfg si5 else si5
-  instantiate cfg $!! si6
+  let si6 = if extensionality cfg then {-# SCC "expand"     #-} expand cfg si5 else si5
+  if rewriteAxioms cfg && noLazyPLE cfg
+    then instantiate cfg si6 $!! Nothing
+    else return si6
 
 
 solveNative' !cfg !fi0 = do

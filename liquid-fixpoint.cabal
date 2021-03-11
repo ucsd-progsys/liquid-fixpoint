@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquid-fixpoint
-version:            0.8.10.1
+version:            0.8.10.2.1
 synopsis:           Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 description:
   This package implements an SMTLIB based Horn-Clause\/Logical Implication constraint
@@ -21,7 +21,7 @@ license-file:       LICENSE
 copyright:          2010-17 Ranjit Jhala, University of California, San Diego.
 author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         jhala@cs.ucsd.edu
-tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4
+tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4, GHC == 8.10.1
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquid-fixpoint
 build-type:         Simple
@@ -98,6 +98,7 @@ library
                     Language.Fixpoint.Types.Triggers
                     Language.Fixpoint.Types.Utils
                     Language.Fixpoint.Types.Visitor
+                    Language.Fixpoint.Utils.Builder
                     Language.Fixpoint.Utils.Files
                     Language.Fixpoint.Utils.Progress
                     Language.Fixpoint.Utils.Statistics
@@ -123,15 +124,16 @@ library
                   , intern
                   , mtl
                   , parallel
-                  , parsec
+                  , parser-combinators
+                  , megaparsec           >= 7.0.0 && < 9
                   , pretty               >= 1.1.3.1
                   , process
                   , syb
                   , syb
                   , text
-                  , text-format
                   , transformers
                   , unordered-containers
+                  , aeson
   default-language: Haskell98
   ghc-options:      -W -fno-warn-missing-methods -fwarn-missing-signatures
 

@@ -87,6 +87,7 @@ module Language.Fixpoint.Types.Constraints (
 
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
+import           Data.Aeson                hiding (Result)
 #if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
 #endif
@@ -272,6 +273,11 @@ data Result a = Result
   , gresSolution :: !GFixSolution 
   }
   deriving (Generic, Show, Functor)
+
+
+
+instance ToJSON a => ToJSON (Result a) where
+  toJSON = toJSON . resStatus
 
 instance Semigroup (Result a) where
   r1 <> r2  = Result stat soln gsoln
@@ -902,7 +908,7 @@ data Equation = Equ
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
-  deriving (Eq, Show, Generic)
+  deriving (Data, Eq, Show, Generic)
 
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
 mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
@@ -965,7 +971,7 @@ data Rewrite  = SMeasure
   , smArgs  :: [Symbol]       -- eg. xs
   , smBody  :: Expr           -- eg. e[xs]
   }
-  deriving (Eq, Show, Generic)
+  deriving (Data, Eq, Show, Generic)
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))

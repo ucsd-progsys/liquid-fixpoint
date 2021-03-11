@@ -9,6 +9,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE BangPatterns          #-}
+{-# LANGUAGE RankNTypes            #-}
 
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
@@ -80,7 +81,20 @@ import qualified Language.Fixpoint.Smt.Theories   as Thy
 import           Text.PrettyPrint.HughesPJ.Compat
 import           Text.Printf
 
--- import Debug.Trace
+import           GHC.Stack
+
+--import Debug.Trace as Debug
+
+-- If set to 'True', enable precise logging via CallStacks.
+debugLogs :: Bool
+debugLogs = False
+
+traced :: HasCallStack => (HasCallStack => String) -> String
+traced str =
+  if debugLogs
+    then let prettified = prettyCallStack (popCallStack callStack)
+         in str <> " (at " <> prettified <> ")"
+    else str
 
 --------------------------------------------------------------------------------
 -- | Predicates on Sorts -------------------------------------------------------
@@ -298,10 +312,10 @@ mkSearchEnv env x = lookupSEnvWithDistance x env
 
 -- withError :: CheckM a -> ChError -> CheckM a
 -- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
- 
-withError :: CheckM a -> String -> CheckM a
+
+withError :: HasCallStack => CheckM a -> String -> CheckM a
 act `withError` msg = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ msg)))
- 
+
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = fst <$> runStateT act (ChS 42 sp)
 
@@ -471,10 +485,18 @@ elab f (ENeg e) = do
   (e', s) <- elab f e
   return (ENeg e', s)
 
-elab f@(_,g) (EIte p e1 e2) = do
+elab f@(_,g) (ECst (EIte p e1 e2) t) = do
   (p', _)   <- elab f p
-  (e1', s1) <- elab f e1
-  (e2', s2) <- elab f e2
+  (e1', s1) <- elab f (ECst e1 t)
+  (e2', s2) <- elab f (ECst e2 t)
+  s         <- checkIteTy g p e1' e2' s1 s2
+  return (EIte p' (cast e1' s) (cast e2' s), t)
+
+elab f@(_,g) (EIte p e1 e2) = do
+  t <- getIte g e1 e2 
+  (p', _)   <- elab f p
+  (e1', s1) <- elab f (ECst e1 t)
+  (e2', s2) <- elab f (ECst e2 t)
   s         <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (cast e1' s) (cast e2' s), s)
 
@@ -580,15 +602,15 @@ elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
   (e1', s1)     <- notracepp ("elabEApp1: e1 = " ++ showpp e1) <$> elab f e1
   (e2', s2)     <- elab f e2
-  (s1', s2', s) <- elabAppSort g e1 e2 s1 s2
-  return           (e1', s1', e2', s2', s)
+  (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
+  return           (e1'', s1', e2'', s2', s)
 
-elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Sort, Sort, Sort)
+elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
   su'             <- unify1 f e su sIn s2
-  return           $ (apply su' s1, apply su' s2, apply su' sOut)
+  return           $ (applyExpr (Just su') e1, applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
 
 --------------------------------------------------------------------------------
@@ -834,6 +856,12 @@ checkIte f p e1 e2 = do
   t2 <- checkExpr f e2
   checkIteTy f p e1 e2 t1 t2
 
+getIte :: Env -> Expr -> Expr -> CheckM Sort 
+getIte f e1 e2 = do 
+  t1 <- checkExpr f e1 
+  t2 <- checkExpr f e2 
+  (`apply` t1) <$> unifys f Nothing [t1] [t2]
+
 checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
 checkIteTy f p e1 e2 t1 t2
   = ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
@@ -908,9 +936,9 @@ checkOpTy _ _ FInt  FReal
 checkOpTy _ _ FReal FInt
   = return FReal
 
-checkOpTy f _ t t'
-  | t == t'
-  = checkNumeric f t >> return t
+checkOpTy f e t t'
+  | Just s <- unify f (Just e) t t'
+  = checkNumeric f (apply s t) >> return (apply s t)
 
 checkOpTy _ e t t'
   = throwErrorAt (errOp e t t')
@@ -950,7 +978,7 @@ checkBoolSort e s
   | otherwise     = throwErrorAt (errBoolSort e s)
 
 -- | Checking Relations
-checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
+checkRel :: HasCallStack => Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
@@ -1068,11 +1096,11 @@ unifyFast True  _ = uMono
 
 
 --------------------------------------------------------------------------------
-unifys :: Env -> Maybe Expr -> [Sort] -> [Sort] -> CheckM TVSubst
+unifys :: HasCallStack => Env -> Maybe Expr -> [Sort] -> [Sort] -> CheckM TVSubst
 --------------------------------------------------------------------------------
 unifys f e = unifyMany f e emptySubst
 
-unifyMany :: Env -> Maybe Expr -> TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
+unifyMany :: HasCallStack => Env -> Maybe Expr -> TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
 unifyMany f e θ ts ts'
   | length ts == length ts' = foldM (uncurry . unify1 f e) θ $ zip ts ts'
   | otherwise               = throwErrorAt (errUnifyMany ts ts')
@@ -1256,8 +1284,9 @@ errUnifyMany :: [Sort] -> [Sort] -> String
 errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
                          (showpp ts) (showpp ts')
 
-errRel :: Expr -> Sort -> Sort -> String
-errRel e t1 t2       = printf "Invalid Relation %s with operand types %s and %s"
+errRel :: HasCallStack => Expr -> Sort -> Sort -> String
+errRel e t1 t2       =
+  traced $ printf "Invalid Relation %s with operand types %s and %s"
                          (showpp e) (showpp t1) (showpp t2)
 
 errOp :: Expr -> Sort -> Sort -> String
