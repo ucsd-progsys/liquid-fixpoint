@@ -9,21 +9,23 @@
 
   outputs = { self, nixpkgs, flake-utils }:
     let
-      namespaced-outputs = system: {
+      composeOverlays = funs: builtins.foldl' nixpkgs.lib.composeExtensions (self: super: { }) funs;
+      mkOutputs = system: {
 
         defaultPackage = (import nixpkgs {
           inherit system;
-          overlays = self.overlays;
+          overlays = [ self.overlay.${system} ];
         }).haskellPackages.liquid-fixpoint;
 
         devShell = self.defaultPackage.${system}.env;
 
-      };
-      unnamespaced-outputs = {
+        overlay = composeOverlays [
+          self.overlays.${system}.patchHaskellGit
+          self.overlays.${system}.addLiquidFixpoint
+        ];
 
-        overlays = [
-          # fix haskell's git package
-          (final: prev: {
+        overlays = {
+          patchHaskellGit = final: prev: {
             haskellPackages = prev.haskellPackages.override {
               overrides = selfH: superH: {
                 git = prev.haskell.lib.overrideCabal (selfH.callHackage "git" "0.3.0" { }) (old: {
@@ -49,9 +51,8 @@
                 });
               };
             };
-          })
-          # overlay to add our own package
-          (final: prev: {
+          };
+          addLiquidFixpoint = final: prev: {
             haskellPackages = with prev.haskell.lib; prev.haskellPackages.override {
               overrides = selfH: superH: {
                 liquid-fixpoint = overrideCabal (prev.haskellPackages.callCabal2nix "liquid-fixpoint" self { }) (old: {
@@ -63,10 +64,10 @@
                 });
               };
             };
-          })
-        ];
+          };
+        };
 
       };
     in
-    flake-utils.lib.eachDefaultSystem namespaced-outputs // unnamespaced-outputs;
+    flake-utils.lib.eachDefaultSystem mkOutputs;
 }
