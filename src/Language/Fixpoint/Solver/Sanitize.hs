@@ -101,11 +101,11 @@ eliminateEta :: Config -> F.SInfo a -> F.SInfo a
 eliminateEta cfg si
   | Cfg.etaElim cfg 
   , Cfg.oldPLE  cfg
-  = si { F.ae = ae' }
+  = si -- si { F.ae = ae' }
   | Cfg.etaElim cfg 
-  = si { F.ae = (ae {F.aenvEqs = etaElimNEW `fmap` F.aenvEqs ae }) }
+  = si -- si { F.ae = (ae {F.aenvEqs = etaElimNEW `fmap` F.aenvEqs ae }) }
   | otherwise 
-  = si 
+  = si {-
   where
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
@@ -171,7 +171,7 @@ eliminateEta cfg si
       = pure (e,es)
       | otherwise
       = Nothing
-
+-}
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
 --      G1        |- K.su1

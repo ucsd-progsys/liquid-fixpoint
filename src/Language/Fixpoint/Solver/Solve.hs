@@ -34,7 +34,7 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import qualified Language.Fixpoint.Types.Config as C
-import Language.Fixpoint.Solver.Instantiate (instantiate)
+import Language.Fixpoint.Solver.PLE{-Instantiate-} (instantiate)
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))

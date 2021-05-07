@@ -48,7 +48,7 @@ import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
-import           Language.Fixpoint.Solver.Instantiate (instantiate)
+import           Language.Fixpoint.Solver.PLE{-Instantiate-} (instantiate)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
