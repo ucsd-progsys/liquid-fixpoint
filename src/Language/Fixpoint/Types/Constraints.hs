@@ -75,7 +75,9 @@ module Language.Fixpoint.Types.Constraints (
   -- * Axioms
   , AxiomEnv (..)
   , Equation (..)
+  , fromGuarded
   , mkEquation
+  , GEqns
   , Rewrite  (..)
   , AutoRewrite (..)
 
@@ -901,26 +903,40 @@ instance Monoid AxiomEnv where
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show
 
+type GEqns = [(Pred, Expr)]
+
 data Equation = Equ
   { eqName :: !Symbol           -- ^ name of reflected function
   , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
-  , eqBody :: !Expr             -- ^ definition of body
+  , eqBody :: !GEqns            -- ^ guarded form of definition body [(Expr, Expr)]
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
   deriving (Data, Eq, Show, Generic)
 
+-- convert a reflected func body like "if (n <= 0) then (0) else (n + sum (n-1))"
+--   to a "guarded form" [(n <= 0, 0), (true, n + sum (n-1))]
+toGuarded :: Expr -> GEqns
+--toGuarded (EIte e0 e1 e2) = (e0, e1) : (toGuarded e2)
+toGuarded (EIte e0 e1 e2) = [ (pAnd [e0, g], b) | (g, b) <- toGuarded e1 ] ++ toGuarded e2
+                              -- previously: (e0, e1) : (toGuarded e2)
+toGuarded e               = [(PTrue, e)]
+
+fromGuarded :: GEqns -> Expr
+fromGuarded [(p, e)]    = e
+fromGuarded ((p,e):ges) = EIte p e (fromGuarded ges)
+
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
-mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
+mkEquation f xts e out = Equ f xts (toGuarded e) out (f `elem` syms e)
 
 instance Subable Equation where
-  syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)
+  syms   a = L.foldl' (\b (g,e) -> (syms g) ++ (syms e) ++ b) [] (eqBody a)
   subst su = mapEqBody (subst su)
   substf f = mapEqBody (substf f)
   substa f = mapEqBody (substa f)
-
+  
 mapEqBody :: (Expr -> Expr) -> Equation -> Equation
-mapEqBody f a = a { eqBody = f (eqBody a) }
+mapEqBody f a = a { eqBody = map (\(g,e) -> (f g, f e)) (eqBody a) }
 
 instance PPrint Equation where
   pprintTidy _ = toFix
@@ -973,6 +989,9 @@ data Rewrite  = SMeasure
   }
   deriving (Data, Eq, Show, Generic)
 
+--mkRewrite :: Symbol -> Symbol -> [Symbol] -> Expr -> Rewrite
+--mkRewrite f dc xs e = SMeasure f dc xs [(PTrue, e)] -- TODO: (toGuarded e) 
+
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
               $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
@@ -984,7 +1003,9 @@ instance Fixpoint Doc where
   toFix = id
 
 instance Fixpoint Equation where
-  toFix (Equ f xs e _ _) = "define" <+> toFix f <+> ppArgs xs <+> text "=" <+> parens (toFix e)
+  toFix (Equ f xs ges _ _) = "define" <+> toFix f <+> ppArgs xs <+> text "=" <+> parens gesToFix
+    where
+      gesToFix = L.foldl' (\fx (g, e) -> fx <+> text ", " <+> toFix g <+> text " -> " <+> toFix e) "" ges
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)

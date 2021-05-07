@@ -42,7 +42,7 @@ import qualified Data.Maybe           as Mb
 import           Debug.Trace          (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = notracepp
+mytracepp = notracepp 
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e')
@@ -101,7 +101,7 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
     ctx0         = initCtx env ((mkEq <$> es0) ++ (mkEq' <$> es0'))
     es0          = L.filter (null . eqArgs) (aenvEqs   . ieAenv $ env)
     es0'         = L.filter (null . smArgs) (aenvSimpl . ieAenv $ env)
-    mkEq  eq     = (EVar $ eqName eq, eqBody eq)
+    mkEq  eq     = (EVar $ eqName eq, fromGuarded (eqBody eq))
     mkEq' rw     = (EApp (EVar $ smName rw) (EVar $ smDC rw), smBody rw)
 
 loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
@@ -184,7 +184,7 @@ rewriteTop e rw
   , f == smDC rw
   , length es == length (smArgs rw)
   = Just (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
-  | otherwise
+  | otherwise  
   = Nothing
 
 ---------------------------------------------------------------------------------------------- 
@@ -313,7 +313,7 @@ findConstants γ es = [(EVar x, c) | (x,c) <- go [] (concatMap splitPAnd es)]
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
-  = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
+  = {-notracepp-} mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where 
     cands = filter (\e -> isRedex γ e && not (e `S.member` icSolved ctx)) (notGuardedApps expr)
 
@@ -372,7 +372,7 @@ getAutoRws γ ctx =
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (EvAccum, FuelCount)
 evalOne γ env ctx e | null (getAutoRws γ ctx) = do
     (e', st) <- runStateT (fastEval γ ctx e) (env { evFuel = icFuel ctx }) 
-    let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
+    let evAcc' = if ({-notracepp-} mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
 evalOne γ env ctx e = do
   env' <- execStateT (eval γ ctx [(e, PLE)]) (env { evFuel = icFuel ctx }) 
@@ -547,9 +547,23 @@ evalApp γ ctx _e0 (EVar f, es)
        okFuel <- checkFuel f
        if okFuel
          then do
-                useFuel f
-                let (es1,es2) = splitAt (length (eqArgs eq)) es
-                shortcut (substEq env eq es1) es2          -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                 let (es1,es2) = splitAt (length (eqArgs eq)) es
+                 let ges       = mytracepp ("trying to unfold Equation " ++ showpp (eqName eq) ++ " defined by " ++ showpp eq ++ " applied to " ++ showpp es1) $ substEq env eq es1
+                 b <- canUnfoldGEqns γ ctx ges
+                 if b
+                   then do
+                           useFuel f
+                           e <- unfoldGEqns γ ctx ges
+                           return $ eApps e es2
+                           -- shortcut e {-(substEq env eq es1)-} es2          
+                               -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                               -- TODO: this won't work yet if we can't match one of the predicates yet
+                   else return _e0
+{- - }
+                   else do let ex' = fromGuarded ges
+                           useFuel f
+                           return {-shortcut ex'-} $ eApps ex' {-(substEq env eq es1)-} es2
+{ - -}
          else return _e0
   where
     shortcut (EIte i e1 e2) es2 = do
@@ -577,12 +591,32 @@ evalApp _ _ e _
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
+canUnfoldGEqns :: Knowledge -> ICtx -> GEqns -> EvalST Bool
+canUnfoldGEqns γ ctx ((g,e):ges) = do me <- {-fastEval γ ctx-} evalBool γ g
+                                      if (mytracepp ("for guard " ++ showpp g ++ " and expr " ++ showpp e) me) == Just PTrue
+                                         then return True
+--                                         else canUnfoldGEqns γ ctx ges  
+                                         else do if me == Just PFalse
+                                                    then canUnfoldGEqns γ ctx ges
+                                                    else return False
+canUnfoldGEqns γ ctx []          = return False
+
+unfoldGEqns :: Knowledge -> ICtx -> GEqns -> EvalST Expr
+unfoldGEqns γ ctx ((g,e):ges) = do me <- {-fastEval γ ctx-} evalBool γ g
+                                   if me == Just PTrue
+                                      then return e
+--                                      else unfoldGEqns γ ctx ges  
+                                      else do if me == Just PFalse
+                                                 then unfoldGEqns γ ctx ges
+                                                 else error "Guard isn't true or false!"
+unfoldGEqns γ ctx []          = error "Can never go past the final guard"
+
+substEq :: SEnv Sort -> Equation -> [Expr] -> GEqns
 substEq env eq es = subst su (substEqCoerce env eq es)
   where su = mkSubst $ zip (eqArgNames eq) es
 
-substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr
-substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
+substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> GEqns
+substEqCoerce env eq es = Vis.applyCoSubGE coSub $ eqBody eq
   where 
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
@@ -691,7 +725,7 @@ knowledge cfg ctx si = KN
     aenv = ae si 
 
     makeCons rw 
-      | null (syms $ smBody rw)
+      | null (syms $ (smBody rw))
       = Just (smName rw, (smDC rw, smBody rw))
       | otherwise
       = Nothing 
@@ -722,7 +756,7 @@ askSMT cfg ctx bs e
     e'                 = toSMT "askSMT" cfg ctx bs e 
 
 toSMT :: String ->  Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
-toSMT msg cfg ctx bs e = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs) . mytracepp ("toSMT from " ++ msg ++ showpp e)
+toSMT msg cfg ctx bs e = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs) . {-notracepp-} mytracepp ("toSMT from " ++ msg ++ showpp e)
                           $ e 
   where
     elabEnv      = insertsSymEnv senv
@@ -762,8 +796,8 @@ class Simplifiable a where
   simplify :: Knowledge -> ICtx -> a -> a 
 
 
-instance Simplifiable Expr where
-  simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExpr tx) e 
+instance Simplifiable Expr where 
+  simplify γ ictx e = {-notracepp-} mytracepp ({-"w/r/t functions" ++ show (knAms γ) ++ " !!!-} "simplification of " ++ showpp e) $ fix (Vis.mapExpr tx) e 
     where 
       fix f e = if e == e' then e else fix f e' where e' = f e 
       tx e 
@@ -840,8 +874,8 @@ instance Normalizable (GInfo c a) where
   normalize si = si {ae = normalize $ ae si}
 
 instance Normalizable AxiomEnv where 
-  normalize aenv = aenv { aenvEqs   = mytracepp "aenvEqs"  (normalize <$> aenvEqs   aenv)
-                        , aenvSimpl = mytracepp "aenvSimpl" (normalize <$> aenvSimpl aenv) }
+  normalize aenv = aenv { aenvEqs   = {-notracepp-} mytracepp "aenvEqs"   (normalize <$> aenvEqs   aenv)
+                        , aenvSimpl = {-notracepp-} mytracepp "aenvSimpl" (normalize <$> aenvSimpl aenv) }
 
 instance Normalizable Rewrite where 
   normalize rw = rw { smArgs = xs', smBody = normalizeBody (smName rw) $ subst su $ smBody rw }
@@ -851,15 +885,14 @@ instance Normalizable Rewrite where
       xs' = zipWith mkSymbol xs [0..]
       mkSymbol x i = x `suffixSymbol` intSymbol (smName rw) i 
 
-
 instance Normalizable Equation where 
-  normalize eq = eq {eqArgs = zip xs' ss, eqBody = normalizeBody (eqName eq) $ subst su $ eqBody eq }
+  normalize eq = eq {eqArgs = zip xs' ss, 
+                     eqBody = normalizeGEBody (eqName eq) $ subst su $ eqBody eq }
     where 
-      su      = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
-      (xs,ss) = unzip (eqArgs eq) 
-      xs'     = zipWith mkSymbol xs [0..]
+      su           = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
+      (xs,ss)      = unzip (eqArgs eq) 
+      xs'          = zipWith mkSymbol xs [0..]
       mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i 
-
 
 normalizeBody :: Symbol -> Expr -> Expr
 normalizeBody f = go   
@@ -873,6 +906,13 @@ normalizeBody f = go
     go' (PAnd [PImp c e1,PImp (PNot c') e2])
       | c == c' = EIte c e1 (go' e2)
     go' e = e 
+
+normalizeGEBody :: Symbol -> GEqns -> GEqns
+normalizeGEBody f []          = []
+normalizeGEBody f ((g,e):ges) = (g',e') : (normalizeGEBody f ges)
+  where
+    g' = normalizeBody f g
+    e' = normalizeBody f e 
 
 _splitBranches :: Symbol -> Expr -> [(Expr, Expr)]
 _splitBranches f = go   
@@ -903,6 +943,6 @@ useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
 checkFuel :: Symbol -> EvalST Bool
 checkFuel f = do 
   fc <- gets evFuel
-  case (M.lookup f (fcMap fc), fcMax fc) of
+  case (mytracepp ("current use of " ++ showpp f) $ M.lookup f (fcMap fc), fcMax fc) of
     (Just fk, Just n) -> pure (fk <= n)
     _                 -> pure True

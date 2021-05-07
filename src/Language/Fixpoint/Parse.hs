@@ -1254,6 +1254,7 @@ defineP = do
 
 matchP :: Parser Rewrite
 matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
+--matchP = mkRewrite <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
 
 pairsP :: Parser a -> Parser b -> Parser [(a, b)]
 pairsP aP bP = brackets $ sepBy1 (pairP aP (reserved ":") bP) semi
