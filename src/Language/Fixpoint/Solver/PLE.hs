@@ -549,7 +549,10 @@ evalApp γ ctx _e0 (EVar f, es)
          then do
                  let (es1,es2) = splitAt (length (eqArgs eq)) es
                  let ges       = mytracepp ("trying to unfold Equation " ++ showpp (eqName eq) ++ " defined by " ++ showpp eq ++ " applied to " ++ showpp es1) $ substEq env eq es1
-                 b <- canUnfoldGEqns γ ctx ges
+                 useFuel f
+                 e <- unfoldGEqns γ ges
+                 shortcut e {-(substEq env eq es1)-} es2
+                 {-b <- canUnfoldGEqns γ ctx ges
                  if b
                    then do
                            useFuel f
@@ -558,7 +561,7 @@ evalApp γ ctx _e0 (EVar f, es)
                            -- shortcut e {-(substEq env eq es1)-} es2          
                                -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                                -- TODO: this won't work yet if we can't match one of the predicates yet
-                   else return _e0
+                   else return _e0-}
 {- - }
                    else do let ex' = fromGuarded ges
                            useFuel f
@@ -591,7 +594,7 @@ evalApp _ _ e _
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-canUnfoldGEqns :: Knowledge -> ICtx -> GEqns -> EvalST Bool
+{-canUnfoldGEqns :: Knowledge -> ICtx -> GEqns -> EvalST Bool
 canUnfoldGEqns γ ctx ((g,e):ges) = do me <- {-fastEval γ ctx-} evalBool γ g
                                       if (mytracepp ("for guard " ++ showpp g ++ " and expr " ++ showpp e) me) == Just PTrue
                                          then return True
@@ -599,9 +602,18 @@ canUnfoldGEqns γ ctx ((g,e):ges) = do me <- {-fastEval γ ctx-} evalBool γ g
                                          else do if me == Just PFalse
                                                     then canUnfoldGEqns γ ctx ges
                                                     else return False
-canUnfoldGEqns γ ctx []          = return False
+canUnfoldGEqns γ ctx []          = return False-}
 
-unfoldGEqns :: Knowledge -> ICtx -> GEqns -> EvalST Expr
+unfoldGEqns :: Knowledge -> {-ICtx ->-} GEqns -> EvalST Expr
+
+unfoldGEqns γ (EN e)         = return e
+unfoldGEqns γ (GN g ge1 ge2) = do me <- evalBool γ g
+                                  if me == Just PTrue
+                                     then unfoldGEqns γ ge1
+                                     else do if me == Just PFalse
+                                                then unfoldGEqns γ ge2
+                                                else return $ fromGuarded (GN g ge1 ge2)
+{-
 unfoldGEqns γ ctx ((g,e):ges) = do me <- {-fastEval γ ctx-} evalBool γ g
                                    if me == Just PTrue
                                       then return e
@@ -609,7 +621,7 @@ unfoldGEqns γ ctx ((g,e):ges) = do me <- {-fastEval γ ctx-} evalBool γ g
                                       else do if me == Just PFalse
                                                  then unfoldGEqns γ ctx ges
                                                  else error "Guard isn't true or false!"
-unfoldGEqns γ ctx []          = error "Can never go past the final guard"
+unfoldGEqns γ ctx []          = error "Can never go past the final guard"-}
 
 substEq :: SEnv Sort -> Equation -> [Expr] -> GEqns
 substEq env eq es = subst su (substEqCoerce env eq es)
@@ -725,7 +737,7 @@ knowledge cfg ctx si = KN
     aenv = ae si 
 
     makeCons rw 
-      | null (syms $ (smBody rw))
+      | null (syms $ smBody rw)
       = Just (smName rw, (smDC rw, smBody rw))
       | otherwise
       = Nothing 
@@ -908,11 +920,10 @@ normalizeBody f = go
     go' e = e 
 
 normalizeGEBody :: Symbol -> GEqns -> GEqns
-normalizeGEBody f []          = []
-normalizeGEBody f ((g,e):ges) = (g',e') : (normalizeGEBody f ges)
+normalizeGEBody f (EN e)         = EN $ normalizeBody f e
+normalizeGEBody f (GN g ge1 ge2) = GN g' (normalizeGEBody f ge1) (normalizeGEBody f ge2)
   where
     g' = normalizeBody f g
-    e' = normalizeBody f e 
 
 _splitBranches :: Symbol -> Expr -> [(Expr, Expr)]
 _splitBranches f = go   
