@@ -1029,17 +1029,18 @@ instance Fixpoint GEqns where
       toFix (GN g ge1 ge2) = toFix g <+> text " -> " <+> parens (toFix ge1) <+> text ", " <+> parens (toFix ge2)
 
 instance Fixpoint Equation where
-  toFix (Equ f xs ges _ _) = "define" <+> toFix f <+> ppArgs xs <+> text "=" <+> parens (gesToFix ges)
-    where
-      gesToFix (EN e)         = toFix e 
-      gesToFix (GN g ge1 ge2) = toFix g <+> text " -> " <+> parens (gesToFix ge1) <+> text ", " <+> parens (gesToFix ge2)
+  toFix (Equ f xs ges sor _) = "define" <+> toFix f <+> ppArgs xs <+> text ":" <+> toFix sor <+>
+                                            text "= {" <+> toFix (fromGuarded ges) <+> text "}"
+--    where
+--      gesToFix (EN e)         = toFix e 
+--      gesToFix (GN g ge1 ge2) = toFix g <+> text " -> " <+> parens (gesToFix ge1) <+> text ", " <+> parens (gesToFix ge2)
 --      gesToFix = L.foldl' (\fx (g, e) -> fx <+> text ", " <+> toFix g <+> text " -> " <+> toFix e) "" ges
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"
    <+> toFix f
-   <+> parens (toFix d <+> hsep (toFix <$> xs))
+   <+> (toFix d <+> hsep (toFix <$> xs))
    <+> text " = "
    <+> parens (toFix e)
 
