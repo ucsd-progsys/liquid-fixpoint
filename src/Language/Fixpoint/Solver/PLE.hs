@@ -552,21 +552,8 @@ evalApp γ ctx _e0 (EVar f, es)
                  useFuel f
                  e <- unfoldGEqns γ ges
                  shortcut e {-(substEq env eq es1)-} es2
-                 {-b <- canUnfoldGEqns γ ctx ges
-                 if b
-                   then do
-                           useFuel f
-                           e <- unfoldGEqns γ ctx ges
-                           return $ eApps e es2
-                           -- shortcut e {-(substEq env eq es1)-} es2          
                                -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-                               -- TODO: this won't work yet if we can't match one of the predicates yet
-                   else return _e0-}
-{- - }
-                   else do let ex' = fromGuarded ges
-                           useFuel f
-                           return {-shortcut ex'-} $ eApps ex' {-(substEq env eq es1)-} es2
-{ - -}
+                               -- TODO: return $ eApps e es2
          else return _e0
   where
     shortcut (EIte i e1 e2) es2 = do
@@ -594,15 +581,6 @@ evalApp _ _ e _
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-{-canUnfoldGEqns :: Knowledge -> ICtx -> GEqns -> EvalST Bool
-canUnfoldGEqns γ ctx ((g,e):ges) = do me <- {-fastEval γ ctx-} evalBool γ g
-                                      if (mytracepp ("for guard " ++ showpp g ++ " and expr " ++ showpp e) me) == Just PTrue
-                                         then return True
---                                         else canUnfoldGEqns γ ctx ges  
-                                         else do if me == Just PFalse
-                                                    then canUnfoldGEqns γ ctx ges
-                                                    else return False
-canUnfoldGEqns γ ctx []          = return False-}
 
 unfoldGEqns :: Knowledge -> {-ICtx ->-} GEqns -> EvalST Expr
 
@@ -613,15 +591,6 @@ unfoldGEqns γ (GN g ge1 ge2) = do me <- evalBool γ g
                                      else do if me == Just PFalse
                                                 then unfoldGEqns γ ge2
                                                 else return $ fromGuarded (GN g ge1 ge2)
-{-
-unfoldGEqns γ ctx ((g,e):ges) = do me <- {-fastEval γ ctx-} evalBool γ g
-                                   if me == Just PTrue
-                                      then return e
---                                      else unfoldGEqns γ ctx ges  
-                                      else do if me == Just PFalse
-                                                 then unfoldGEqns γ ctx ges
-                                                 else error "Guard isn't true or false!"
-unfoldGEqns γ ctx []          = error "Can never go past the final guard"-}
 
 substEq :: SEnv Sort -> Equation -> [Expr] -> GEqns
 substEq env eq es = subst su (substEqCoerce env eq es)
