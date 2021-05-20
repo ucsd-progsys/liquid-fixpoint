@@ -82,7 +82,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg)
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) M.empty
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -142,7 +142,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
   where
     withRewrites exprs =
       let
-        rws = [rewrite e rw | rw <- knSims γ
+        rws = [rewrite e rw | rw <- snd <$> M.toList (knSims γ)
                             ,  e <- S.toList (snd `S.map` exprs)]
       in 
         exprs <> (S.fromList $ concat rws)
@@ -282,7 +282,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     }
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
-                                                  , rw <- knSims ieKnowl]
+                                                  , rw <- snd <$> M.toList (knSims ieKnowl)]
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
@@ -348,6 +348,7 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
+  , evGuards   :: GuardCache
   }
 
 data FuelCount = FC 
@@ -358,6 +359,8 @@ data FuelCount = FC
 
 defFuelCount :: Config -> FuelCount
 defFuelCount cfg = FC mempty (fuel cfg)
+
+type GuardCache = M.HashMap Pred (Maybe Pred) 
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
@@ -540,7 +543,7 @@ f <$$> xs = f Misc.<$$> xs
 
 evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalApp γ ctx _e0 (EVar f, es)
-  | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
+  | Just eq <- M.lookup f (knAms γ)
   , length (eqArgs eq) <= length es 
   = do 
        env  <- gets (seSort . evEnv)
@@ -550,8 +553,9 @@ evalApp γ ctx _e0 (EVar f, es)
                  let (es1,es2) = splitAt (length (eqArgs eq)) es
                  let ges       = mytracepp ("trying to unfold Equation " ++ showpp (eqName eq) ++ " defined by " ++ showpp eq ++ " applied to " ++ showpp es1) $ substEq env eq es1
                  useFuel f
-                 e <- unfoldGEqns γ ges
-                 shortcut e {-(substEq env eq es1)-} es2
+                 e <- unfoldGEqns γ ctx ges
+                 return $ eApps e es2
+                 --shortcut e {-(substEq env eq es1)-} es2
                                -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                                -- TODO: return $ eApps e es2
          else return _e0
@@ -569,7 +573,7 @@ evalApp γ ctx _e0 (EVar f, es)
 
 evalApp γ _ _ (EVar f, e:es) 
   | (EVar dc, as) <- splitEApp e
-  , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
+  , Just rw <- M.lookup (f, dc) (knSims γ)
   , length as == length (smArgs rw)
   = return $ eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es 
 
@@ -582,15 +586,16 @@ evalApp _ _ e _
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
 
-unfoldGEqns :: Knowledge -> {-ICtx ->-} GEqns -> EvalST Expr
+unfoldGEqns :: Knowledge -> ICtx -> GEqns -> EvalST Expr
 
-unfoldGEqns γ (EN e)         = return e
-unfoldGEqns γ (GN g ge1 ge2) = do me <- evalBool γ g
-                                  if me == Just PTrue
-                                     then unfoldGEqns γ ge1
-                                     else do if me == Just PFalse
-                                                then unfoldGEqns γ ge2
-                                                else return $ fromGuarded (GN g ge1 ge2)
+unfoldGEqns γ ctx (EN e)         = return e
+unfoldGEqns γ ctx (GN g ge1 ge2) = do g' <- fastEval γ ctx g
+                                      me <- evalBool γ g'
+                                      if me == Just PTrue
+                                         then unfoldGEqns γ ctx ge1
+                                         else do if me == Just PFalse
+                                                    then unfoldGEqns γ ctx ge2
+                                                    else return $ fromGuarded (GN g' ge1 ge2)
 
 substEq :: SEnv Sort -> Equation -> [Expr] -> GEqns
 substEq env eq es = subst su (substEqCoerce env eq es)
@@ -629,12 +634,17 @@ eqArgNames = map fst . eqArgs
 
 evalBool :: Knowledge -> Expr -> EvalST (Maybe Expr) 
 evalBool γ e = do 
-  bt <- liftIO $ isValid γ e
-  if bt then return $ Just PTrue 
-   else do 
-    bf <- liftIO $ isValid γ (PNot e)
-    if bf then return $ Just PFalse 
-          else return Nothing
+  gc <- gets evGuards
+  if M.member e gc 
+    then return $ M.lookupDefault Nothing e gc
+    else do bt <- liftIO $ isValid γ e
+            if bt then do modify $ \st -> st { evGuards = M.insert e (Just PTrue) (evGuards st) }
+                          return $ Just PTrue 
+                  else do bf <- liftIO $ isValid γ (PNot e)
+                          if bf then do modify $ \st -> st { evGuards = M.insert e (Just PFalse) (evGuards st) }
+                                        return $ Just PFalse 
+                                else do modify $ \st -> st { evGuards = M.insert e Nothing (evGuards st) }
+                                        return Nothing
                
 fastEvalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
 fastEvalIte γ ctx _ b0 e1 e2 = do 
@@ -663,8 +673,8 @@ evalIte γ ctx _ b0 e1 e2 = do
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
 data Knowledge = KN 
-  { knSims              :: ![Rewrite]           -- ^ Rewrite rules came from match and data type definitions 
-  , knAms               :: ![Equation]          -- ^ All function definitions
+  { knSims              :: M.HashMap (Symbol, Symbol) Rewrite  -- ^ Rewrite rules came from match and data type definitions 
+  , knAms               :: M.HashMap Symbol Equation  -- ^ All function definitions -- restore ! here?
   , knContext           :: SMT.Context
   , knPreds             :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
   , knLams              :: ![(Symbol, Sort)]
@@ -685,8 +695,8 @@ isValid γ e = do
 
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN 
-  { knSims                     = sims 
-  , knAms                      = aenvEqs aenv
+  { knSims                     = M.fromList $ (\r -> ((smName r, smDC r), r)) <$> sims 
+  , knAms                      = M.fromList $ (\a -> (eqName a, a)) <$> aenvEqs aenv
   , knContext                  = ctx 
   , knPreds                    = askSMT  cfg 
   , knLams                     = [] 
@@ -702,7 +712,7 @@ knowledge cfg ctx si = KN
       else RWTerminationCheckDisabled
   } 
   where 
-    sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
+    sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) -- store as list too? 
     aenv = ae si 
 
     makeCons rw 
@@ -778,7 +788,7 @@ class Simplifiable a where
 
 
 instance Simplifiable Expr where 
-  simplify γ ictx e = {-notracepp-} mytracepp ({-"w/r/t functions" ++ show (knAms γ) ++ " !!!-} "simplification of " ++ showpp e) $ fix (Vis.mapExpr tx) e 
+  simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExpr tx) e 
     where 
       fix f e = if e == e' then e else fix f e' where e' = f e 
       tx e 
@@ -814,9 +824,29 @@ applyConstantFolding bop e1 e2 =
       Mb.fromMaybe e (cfR bop (fromIntegral left) right)
     ((ECon (I left)), (ECon (I right))) ->
       Mb.fromMaybe e (cfI bop left right)
+    (EBin bop1 e11 (ECon (R left)), ECon (R right))
+      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) left right))
+      | otherwise   -> e
+    (EBin bop1 e11 (ECon (R left)), ECon (I right))
+      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) left (fromIntegral right)))
+      | otherwise   -> e
+    (EBin bop1 e11 (ECon (I left)), ECon (R right))
+      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) (fromIntegral left) right))
+      | otherwise   -> e
+    (EBin bop1 e11 (ECon (I left)), ECon (I right))
+      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfI (rop bop) left right))
+      | otherwise   -> e
     _ -> e
   where
     
+    rop :: Bop -> Bop
+    rop Plus   = Plus
+    rop Minus  = Plus
+    rop Times  = Times
+    rop Div    = Times
+    rop RTimes = RTimes
+    rop RDiv   = RDiv
+
     e = EBin bop e1 e2
     
     getOp :: Num a => Bop -> Maybe (a -> a -> a)
