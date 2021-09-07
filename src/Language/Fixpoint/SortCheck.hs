@@ -154,13 +154,9 @@ instance Elaborate Rewrite where
       env' = insertsSymEnv env undefined
 
 instance Elaborate Equation where
-  elaborate msg env eq = eq { eqBody = go {-map (\(g,e) -> (skip g, skip e))-} (eqBody eq) }
+  elaborate msg env eq = eq { eqBody = skipElabExpr msg env' (eqBody eq) }
     where
       env' = insertsSymEnv env (eqArgs eq) 
-      skip = skipElabExpr msg env'
-   
-      go (EN e)         = EN $ skip e
-      go (GN g ge1 ge2) = GN (skip g) (go ge1) (go ge2)  
 
 instance Elaborate Expr where
   elaborate msg env = elabNumeric . elabApply env . elabExpr msg env

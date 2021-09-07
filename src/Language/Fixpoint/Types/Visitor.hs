@@ -37,7 +37,6 @@ module Language.Fixpoint.Types.Visitor (
   -- * Coercion Substitutions
   , CoSub
   , applyCoSub
-  , applyCoSubGE
 
   -- * Predicates on Constraints
   , isConcC , isKvarC
@@ -124,18 +123,6 @@ class Visitable t where
 instance Visitable Expr where
   visit = visitExpr
 
-instance Visitable GEqns where 
-  visit v c (EN e)         = do e'   <- visit v c e
-                                return $ EN e'
-  visit v c (GN g ge1 ge2) = do g'   <- visit v c g
-                                ge1' <- visit v c ge1
-                                ge2' <- visit v c ge2
-                                return $ GN g' ge1' ge2'
-{-(Pred, Expr) where
-  visit v c (p, e) = do p' <- visit v c p
-                        e' <- visit v c e
-                        return (p', e')-}
-
 instance Visitable Reft where
   visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
 
@@ -176,9 +163,9 @@ instance Visitable AxiomEnv where
     return x { aenvEqs = eqs' , aenvSimpl = simpls'} 
 
 instance Visitable Equation where 
-  visit v c geq = do 
-    body' <- (visit v c) (eqBody geq) 
-    return geq { eqBody = body' } 
+  visit v c eq = do 
+    body' <- visit v c (eqBody eq) 
+    return eq { eqBody = body' } 
 
 instance Visitable Rewrite where 
   visit v c rw = do 
@@ -377,14 +364,6 @@ applyCoSub coSub      = mapExpr fE
     fS (FObj a)       = {- FObj -} (txV a)
     fS t              = t
     txV a             = M.lookupDefault (FObj a) a coSub
-
-applyCoSubGE :: CoSub -> GEqns -> GEqns
-applyCoSubGE coSub (EN e)         = EN $ applyCoSub coSub e
-applyCoSubGE coSub (GN g ge1 ge2) = GN g' ge1' ge2'
-  where
-    g'   = applyCoSub coSub g
-    ge1' = applyCoSubGE coSub ge1
-    ge2' = applyCoSubGE coSub ge2
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

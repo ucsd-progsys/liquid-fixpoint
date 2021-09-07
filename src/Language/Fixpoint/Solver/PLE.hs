@@ -44,7 +44,7 @@ import qualified Data.Maybe           as Mb
 import           Debug.Trace          (trace, traceId)
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = {-no-}tracepp 
+mytracepp = notracepp 
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e')
@@ -105,7 +105,7 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
     ctx0         = initCtx env ((mkEq <$> es0) ++ (mkEq' <$> es0'))
     es0          = L.filter (null . eqArgs) (aenvEqs   . ieAenv $ env)
     es0'         = L.filter (null . smArgs) (aenvSimpl . ieAenv $ env)
-    mkEq  eq     = (EVar $ eqName eq, fromGuarded (eqBody eq))
+    mkEq  eq     = (EVar $ eqName eq, eqBody eq)
     mkEq' rw     = (EApp (EVar $ smName rw) (EVar $ smDC rw), smBody rw)
 
 loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
@@ -612,11 +612,10 @@ evalApp γ ctx _e0 (EVar f, es)
        okFuel <- checkFuel f
        if okFuel
          then do
+                 useFuel f
                  let (es1,es2) = splitAt (length (eqArgs eq)) es
                  let ges       = mytracepp ("trying to unfold Equation " ++ showpp (eqName eq) ++ " defined by " ++ showpp eq ++ " applied to " ++ showpp es1) $ substEq env eq es1
-                 useFuel f
-                 --ges' <- unfoldGEqns' γ ctx ges
-                 e <- unfoldGEqns γ ctx env ges --'
+                 e <- unfoldExpr γ ctx env ges 
                  --return $ eApps e es2
                  shortcut e {-(substEq env eq es1)-} es2
                                -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
@@ -649,44 +648,22 @@ evalApp _ _ e _
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
 
-unfoldGEqns :: Knowledge -> ICtx -> SEnv Sort -> GEqns -> EvalST Expr
-unfoldGEqns γ ctx env (EN e)         = return e
-unfoldGEqns γ ctx env (GN g ge1 ge2) = do --{-let g' = interpret γ ctx env g-} g' <- fastEval γ ctx g -- faster?
-                                          let g' = g
-                                          me <- evalBool γ g'
-                                          if me == Just PTrue
-                                             then unfoldGEqns γ ctx env ge1
-                                             else do if me == Just PFalse
-                                                        then unfoldGEqns γ ctx env ge2
-                                                        else return $ fromGuarded (GN g' ge1 ge2)
-{-
--- this one for the interpreter version (no more PLE calls) -- or unless needed?
-unfoldGEqns' :: Knowledge -> ICtx -> GEqns -> EvalST GEqns
-unfoldGEqns' γ ctx (EN e)         = return $ EN e
-unfoldGEqns' γ ctx (GN g ge1 ge2) = do g' <- interpret' γ ctx g 
-                                       if g' == PTrue
-                                          then unfoldGEqns' γ ctx ge1
-                                          else if g' == PFalse
-                                                  then unfoldGEqns' γ ctx ge2
-                                                  else {-fromGuarded-} return (GN g' ge1 ge2)
--}
-{-
-unfoldGEqns'' :: Knowledge -> ICtx -> SEnv Sort -> GEqns -> {-EvalST-} Expr
-unfoldGEqns'' γ ctx env (EN e)         = e
-unfoldGEqns'' γ ctx env (GN g ge1 ge2) = let g' = interpret γ ctx env g in
-                                           if g' == PTrue
-                                              then unfoldGEqns'' γ ctx env ge1
-                                              else if g' == PFalse
-                                                      then unfoldGEqns'' γ ctx env ge2
-                                                      else fromGuarded (GN g' ge1 ge2)
--}
+unfoldExpr :: Knowledge -> ICtx -> SEnv Sort -> Expr -> EvalST Expr
+unfoldExpr γ ctx env (EIte e0 e1 e2) = do let g = e0 -- g <- fastEval γ ctx e0 -- faster?
+                                          g' <- evalBool γ g
+                                          if g' == Just PTrue
+                                             then unfoldExpr γ ctx env e1
+                                             else do if g' == Just PFalse
+                                                        then unfoldExpr γ ctx env e2
+                                                        else return $ EIte g' e1 e2
+unfoldExpr γ ctx env e               = return e
 
-substEq :: SEnv Sort -> Equation -> [Expr] -> GEqns
+substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
 substEq env eq es = subst su (substEqCoerce env eq es)
   where su = mkSubst $ zip (eqArgNames eq) es
 
-substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> GEqns
-substEqCoerce env eq es = Vis.applyCoSubGE coSub $ eqBody eq
+substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr
+substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
   where 
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
@@ -742,13 +719,6 @@ fastEvalIte γ ctx _ b0 e1 e2 = do
               then return e1 
               else if nb' then return $ e2 
               else return $ EIte b e1 e2  
-{-
-fastEvalIte' :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-fastEvalIte' γ ctx _ b0 e1 e2 = do b <- interpret γ ctx b0 
-                                   if b == PTrue then return e1
-                                      else if b == PFalse then return e2 
-                                         else return $ EIte b e1 e2
--}
 
 evalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
 evalIte γ ctx _ b0 e1 e2 = do 
@@ -1194,7 +1164,7 @@ instance Normalizable Rewrite where
 
 instance Normalizable Equation where 
   normalize eq = eq {eqArgs = zip xs' ss, 
-                     eqBody = normalizeGEBody (eqName eq) $ subst su $ eqBody eq }
+                     eqBody = normalizeBody (eqName eq) $ subst su $ eqBody eq }
     where 
       su           = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       (xs,ss)      = unzip (eqArgs eq) 
@@ -1213,12 +1183,6 @@ normalizeBody f = go
     go' (PAnd [PImp c e1,PImp (PNot c') e2])
       | c == c' = EIte c e1 (go' e2)
     go' e = e 
-
-normalizeGEBody :: Symbol -> GEqns -> GEqns
-normalizeGEBody f (EN e)         = EN $ normalizeBody f e
-normalizeGEBody f (GN g ge1 ge2) = GN g' (normalizeGEBody f ge1) (normalizeGEBody f ge2)
-  where
-    g' = normalizeBody f g
 
 _splitBranches :: Symbol -> Expr -> [(Expr, Expr)]
 _splitBranches f = go   

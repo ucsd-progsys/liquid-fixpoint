@@ -75,9 +75,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Axioms
   , AxiomEnv (..)
   , Equation (..)
-  , fromGuarded
   , mkEquation
-  , GEqns  (..)
   , Rewrite  (..)
   , AutoRewrite (..)
 
@@ -411,7 +409,6 @@ instance Hashable Qualifier
 instance Hashable QualPattern
 instance Hashable QualParam
 instance Hashable Equation
-instance Hashable GEqns
 
 
 ---------------------------------------------------------------------------
@@ -880,14 +877,12 @@ instance B.Binary AutoRewrite
 instance B.Binary AxiomEnv
 instance B.Binary Rewrite
 instance B.Binary Equation
-instance B.Binary GEqns
 instance B.Binary SMTSolver
 instance B.Binary Eliminate
 instance NFData AutoRewrite
 instance NFData AxiomEnv
 instance NFData Rewrite
 instance NFData Equation
-instance NFData GEqns
 instance NFData SMTSolver
 instance NFData Eliminate
 
@@ -906,62 +901,26 @@ instance Monoid AxiomEnv where
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show
 
-data GEqns = GN Pred GEqns GEqns | EN Expr
-    deriving (Data, Eq, Show, Generic)
-
 data Equation = Equ
   { eqName :: !Symbol           -- ^ name of reflected function
   , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
-  , eqBody :: !GEqns            -- ^ guarded form of definition body [(Expr, Expr)]
+  , eqBody :: !Expr             -- ^ definition of body
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
   deriving (Data, Eq, Show, Generic)
 
--- convert a reflected func body like "if (n <= 0) then (0) else (n + sum (n-1))"
---   to a "guarded form" GN (n <= 0) (EN 0) (EN (n + sum (n-1)))
-toGuarded :: Expr -> GEqns
---toGuarded (EIte e0 e1 e2) = (e0, e1) : (toGuarded e2)
-toGuarded (EIte e0 e1 e2) = GN e0 (toGuarded e1) (toGuarded e2)
-                              -- [ (pAnd [e0, g], b) | (g, b) <- toGuarded e1 ] ++ toGuarded e2
-                              -- previously: (e0, e1) : (toGuarded e2)
-toGuarded e               = EN e --[(PTrue, e)]
-
-fromGuarded :: GEqns -> Expr
-fromGuarded (EN e)         = e
-          -- [(p, e)]    = e
-fromGuarded (GN g ge1 ge2) = EIte g (fromGuarded ge1) (fromGuarded ge2)
-          -- ((p,e):ges) = EIte p e (fromGuarded ges)
-
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
-mkEquation f xts e out = Equ f xts (toGuarded e) out (f `elem` syms e)
-
-instance Subable GEqns where
-  syms   (EN e)         = syms e
-  syms   (GN g ge1 ge2) = syms g ++ syms ge1 ++ syms ge2    
-  subst su = mapGEqns (subst su)
-  substf f = mapGEqns (substf f)
-  substa f = mapGEqns (substa f)
+mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
 instance Subable Equation where
-  syms   a = go (eqBody a)
-    where
-      go (EN e)         = syms e
-      go (GN g ge1 ge2) = syms g ++ go ge1 ++ go ge2
+  syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)
   subst su = mapEqBody (subst su)
   substf f = mapEqBody (substf f)
   substa f = mapEqBody (substa f)
-  
-mapGEqns :: (Expr -> Expr) -> GEqns -> GEqns 
-mapGEqns f (EN e)         = EN $ f e
-mapGEqns f (GN g ge1 ge2) = GN (f g) (mapGEqns f ge1) (mapGEqns f ge2)
 
 mapEqBody :: (Expr -> Expr) -> Equation -> Equation
-mapEqBody f a = a { eqBody = mapGEqns f (eqBody a) }
---mapEqBody f a = a { eqBody = map (\(g,e) -> (f g, f e)) (eqBody a) }
-
-instance PPrint GEqns where
-  pprintTidy _ = toFix
+mapEqBody f a = a { eqBody = f (eqBody a) }
 
 instance PPrint Equation where
   pprintTidy _ = toFix
@@ -1024,17 +983,9 @@ instance Fixpoint AxiomEnv where
 instance Fixpoint Doc where
   toFix = id
 
-instance Fixpoint GEqns where
-      toFix (EN e)         = toFix e 
-      toFix (GN g ge1 ge2) = toFix g <+> text " -> " <+> parens (toFix ge1) <+> text ", " <+> parens (toFix ge2)
-
 instance Fixpoint Equation where
-  toFix (Equ f xs ges sor _) = "define" <+> toFix f <+> ppArgs xs <+> text ":" <+> toFix sor <+>
-                                            text "= {" <+> toFix (fromGuarded ges) <+> text "}"
---    where
---      gesToFix (EN e)         = toFix e 
---      gesToFix (GN g ge1 ge2) = toFix g <+> text " -> " <+> parens (gesToFix ge1) <+> text ", " <+> parens (gesToFix ge2)
---      gesToFix = L.foldl' (\fx (g, e) -> fx <+> text ", " <+> toFix g <+> text " -> " <+> toFix e) "" ges
+  toFix (Equ f xs e sor _) = "define" <+> toFix f <+> ppArgs xs <+> text ":" <+> toFix sor <+>
+                                            text "= {" <+> toFix e <+> text "}"
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)

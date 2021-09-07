@@ -41,9 +41,9 @@ import qualified Data.Maybe           as Mb
 import           Debug.Trace          (trace, traceId)
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = {-no-}tracepp 
+mytracepp = notracepp 
 
-mytrace = trace {-flip const-}
+mytrace = {-trace-} flip const
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e')
@@ -107,7 +107,7 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
     ctx0         = initCtx env ((mkEq <$> es0) ++ (mkEq' <$> es0'))
     es0          = L.filter (null . eqArgs) (aenvEqs   . ieAenv $ env)
     es0'         = L.filter (null . smArgs) (aenvSimpl . ieAenv $ env)
-    mkEq  eq     = (EVar $ eqName eq, fromGuarded (eqBody eq))
+    mkEq  eq     = (EVar $ eqName eq, eqBody eq)
     mkEq' rw     = (EApp (EVar $ smName rw) (EVar $ smDC rw), smBody rw)
 
 loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
@@ -625,34 +625,22 @@ evalApp _ _ e _
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-{-
-unfoldGEqns :: Knowledge -> ICtx -> GEqns -> EvalST Expr
-unfoldGEqns γ ctx (EN e)         = return e
-unfoldGEqns γ ctx (GN g ge1 ge2) = do let g' = g {-g' <- fastEval' γ ctx g -- is this faster or not?-}
-                                      me <- evalBool γ g'
-                                      if me == Just PTrue
-                                         then unfoldGEqns γ ctx ge1
-                                         else do if me == Just PFalse
-                                                    then unfoldGEqns γ ctx ge2
-                                                    else return $ fromGuarded (GN g' ge1 ge2)
--}
 
--- this one for the interpreter version (no more PLE calls) -- or unless needed?
-unfoldGEqns' :: Knowledge -> ICtx -> SEnv Sort -> InstRes -> GEqns -> {-EvalST-} Expr
-unfoldGEqns' γ ctx env res (EN e)         = e
-unfoldGEqns' γ ctx env res (GN g ge1 ge2) = let g' = interpret' γ ctx env res g in
+unfoldExpr :: Knowledge -> ICtx -> SEnv Sort -> InstRes -> Expr -> {-EvalST-} Expr
+unfoldExpr γ ctx env res (EIte e0 e1 e2) = let g' = interpret' γ ctx env res e0 in
                                                if g' == PTrue
-                                                  then unfoldGEqns' γ ctx env res ge1
+                                                  then unfoldExpr γ ctx env res e1
                                                   else if g' == PFalse
-                                                          then unfoldGEqns' γ ctx env res ge2
-                                                          else fromGuarded (GN g' ge1 ge2)
+                                                          then unfoldExpr γ ctx env res e2
+                                                          else EIte g' e1 e2
+unfoldExpr γ ctx env res e               = e
 
-substEq :: SEnv Sort -> Equation -> [Expr] -> GEqns
+substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
 substEq env eq es = subst su (substEqCoerce env eq es)
   where su = mkSubst $ zip (eqArgNames eq) es
 
-substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> GEqns
-substEqCoerce env eq es = Vis.applyCoSubGE coSub $ eqBody eq
+substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr
+substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
   where 
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
@@ -744,7 +732,7 @@ interpret γ ctx env res e@(EApp _ _)     = case splitEApp e of
         , length (eqArgs eq) <= length es 
         = let (es1,es2) = splitAt (length (eqArgs eq)) es
               ges       = substEq env eq es1
-              exp       = unfoldGEqns' γ ctx env res ges 
+              exp       = unfoldGExpr γ ctx env res ges 
               exp'      = eApps exp es2 in  --exp' -- TODO undo
             if (eApps (EVar f) es) == exp' then exp' else interpret' γ ctx env res exp'
 
@@ -1177,7 +1165,7 @@ instance Normalizable Rewrite where
 
 instance Normalizable Equation where 
   normalize eq = eq {eqArgs = zip xs' ss, 
-                     eqBody = normalizeGEBody (eqName eq) $ subst su $ eqBody eq }
+                     eqBody = normalizeBody (eqName eq) $ subst su $ eqBody eq }
     where 
       su           = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       (xs,ss)      = unzip (eqArgs eq) 
@@ -1196,12 +1184,6 @@ normalizeBody f = go
     go' (PAnd [PImp c e1,PImp (PNot c') e2])
       | c == c' = EIte c e1 (go' e2)
     go' e = e 
-
-normalizeGEBody :: Symbol -> GEqns -> GEqns
-normalizeGEBody f (EN e)         = EN $ normalizeBody f e
-normalizeGEBody f (GN g ge1 ge2) = GN g' (normalizeGEBody f ge1) (normalizeGEBody f ge2)
-  where
-    g' = normalizeBody f g
 
 _splitBranches :: Symbol -> Expr -> [(Expr, Expr)]
 _splitBranches f = go   
