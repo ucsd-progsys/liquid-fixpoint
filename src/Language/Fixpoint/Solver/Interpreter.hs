@@ -732,7 +732,7 @@ interpret γ ctx env res e@(EApp _ _)     = case splitEApp e of
         , length (eqArgs eq) <= length es 
         = let (es1,es2) = splitAt (length (eqArgs eq)) es
               ges       = substEq env eq es1
-              exp       = unfoldGExpr γ ctx env res ges 
+              exp       = unfoldExpr γ ctx env res ges 
               exp'      = eApps exp es2 in  --exp' -- TODO undo
             if (eApps (EVar f) es) == exp' then exp' else interpret' γ ctx env res exp'
 

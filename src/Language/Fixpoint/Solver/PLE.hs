@@ -655,7 +655,7 @@ unfoldExpr γ ctx env (EIte e0 e1 e2) = do let g = e0 -- g <- fastEval γ ctx e0
                                              then unfoldExpr γ ctx env e1
                                              else do if g' == Just PFalse
                                                         then unfoldExpr γ ctx env e2
-                                                        else return $ EIte g' e1 e2
+                                                        else return $ EIte g e1 e2
 unfoldExpr γ ctx env e               = return e
 
 substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
