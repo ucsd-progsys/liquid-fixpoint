@@ -189,7 +189,7 @@ rewriteTop e rw
   , f == smDC rw
   , length es == length (smArgs rw)
   = Just (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
-  | otherwise  
+  | otherwise 
   = Nothing
 
 ---------------------------------------------------------------------------------------------- 
@@ -252,7 +252,7 @@ ctxContents ctx =   "assms:   " ++ showpp (         S.toList $ icAssms ctx) ++
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
 ---------------------------------------------------------------------------------------------- 
 
-type InstRes = M.HashMap BindId Expr         -- TODO: maybe go back to a set?
+type InstRes = M.HashMap BindId Expr 
 
 ---------------------------------------------------------------------------------------------- 
 -- | @Unfold is the result of running PLE at a single equality; 
@@ -370,7 +370,6 @@ data EvalEnv = EvalEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
   , evGuards   :: GuardCache
---  , evInterp   :: InterpCache      --- TODO eliminate this separate
   }
 
 data FuelCount = FC 
@@ -384,8 +383,6 @@ defFuelCount cfg = FC mempty (fuel cfg)
 
 type GuardCache = M.HashMap Pred (Maybe Pred) 
 
---type InterpCache = M.HashMap Expr Expr    -- TODO: eliminate?
-
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
@@ -398,8 +395,8 @@ getAutoRws γ ctx =
 
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (EvAccum, FuelCount)
 evalOne γ env ctx e | null (getAutoRws γ ctx) = do
-    (e', st) <- runStateT (fastEval{-'-} γ ctx e) (env { evFuel = icFuel ctx }) 
-    let evAcc' = if (mytracepp ("w/ Knowledge" ++ (knContents γ) ++ "evalOne: " ++ showpp e) e') == e 
+    (e', st) <- runStateT (fastEval γ ctx e) (env { evFuel = icFuel ctx }) 
+    let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e 
                    then evAccum st else {-M.insert e e'-} S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
 evalOne γ env ctx e = do
@@ -440,31 +437,6 @@ subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab lhs
                            , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
 subsFromAssm _                                           = []
 
-{-- try the interpreter first, then back to z3
-fastEval' :: Knowledge -> ICtx -> Expr -> EvalST Expr
-fastEval' _ ctx e
-  | Just v <- M.lookup e (icSimpl ctx)
-  = return v
-  
-fastEval' _ ctx e
-  | e == PTrue || e == PFalse 
-  = return e
-
-fastEval' γ ctx e = do acc <- gets evAccum
-                       case M.lookup e acc of
-                         Just e' -> fastEval γ ctx e'
-                         _ -> do env <- gets (seSort . evEnv)
-                                 let e' = {-simplify γ ctx $-} interpret γ ctx env $ simplify γ ctx e
-                                 if e /= e'
-                                   then do modify (\st -> st { evAccum = M.insert e e' {-(traceE (e, e'))-} (evAccum st) })
-                                           fastEval γ (addConst (e,e') ctx) e'
-                                   else do fastEval γ (addConst (e,e') ctx) e'
-  where
-    addConst (e,e') ctx = if isConstant (knDCs γ) e'
-                           then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
---if e == e' then fastEval γ ctx{-(addConst (e,e') ctx)-} e'
---           else return e'
--}
 fastEval :: Knowledge -> ICtx -> Expr -> EvalST Expr
 fastEval _ ctx e
   | Just v <- M.lookup e (icSimpl ctx)
@@ -479,29 +451,21 @@ fastEval γ ctx e =
      case {-M-}L.lookup e acc of
         Just e' -> fastEval γ ctx e'
         _ -> do
-          --env <- gets (seSort . evEnv)
-          --let e' = interpret γ ctx env $ simplify γ ctx $ mytracepp ("interpreting" ++ show e) e
-          --if e /= e'
-          --  then do modify (\st -> st { evAccum = M.insert e e' {-(traceE (e, e'))-} (evAccum st) })
-          --          fastEval γ (addConst (e,e') ctx) e'
-          {-  else do-} 
-                    e'' <- simplify γ ctx <$> go (mytracepp ("evaluating" ++ show e) e)
-                    if e /= e'' 
-                      then do modify (\st -> st { evAccum = {-M-}S.insert {-e e''-} (traceE (e, e'')) (evAccum st) })
-                              fastEval γ (addConst (e,e'') ctx) e''
-                      else return e
+          e' <- simplify γ ctx <$> go (mytracepp ("evaluating" ++ show e) e)
+          if e /= e' 
+            then do 
+              modify (\st -> st { evAccum = {-M-}S.insert {-e e'-} (traceE (e, e')) (evAccum st) })
+              fastEval γ (addConst (e,e') ctx) e'
+            else return e
   where
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
 
     go (ELam (x,s) e)   = ELam (x, s) <$> fastEval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
-    go e@(EIte b e1 e2) = {-do e' <- fastEvalIte' γ ctx e b e1 e2
-                             if e' == e
-                               then-} fastEvalIte γ ctx e b e1 e2
-                          --     else return e'
+    go e@(EIte b e1 e2) = fastEvalIte γ ctx e b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
-    go e@(EApp _ _)     = case splitEApp e of 
-                           (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es)       -- inefficient?
+    go e@(EApp _ _)     = case splitEApp e of                                     -- try without
+                           (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es) -- inefficient?
                                          evalApp γ ctx (eApps f' es') (f',es')
 
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
@@ -618,8 +582,7 @@ evalApp γ ctx _e0 (EVar f, es)
                  e <- unfoldExpr γ ctx env ges 
                  --return $ eApps e es2
                  shortcut e {-(substEq env eq es1)-} es2
-                               -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-                               -- TODO: return $ eApps e es2
+                 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          else return _e0
   where
     shortcut (EIte i e1 e2) es2 = do
@@ -732,102 +695,6 @@ evalIte γ ctx _ b0 e1 e2 = do
         then e1
         else if nb' then e2 
         else EIte b e1 e2
-{-
-  -- first attempt at an "interpreter" for PLE
-interpret :: Knowledge -> ICtx -> SEnv Sort -> Expr -> {-EvalST-} Expr
-interpret γ ctx env e@(ESym _)       = e
-interpret γ ctx env e@(ECon _)       = e
-interpret γ ctx env e@(EVar _)       = e
---interpret γ ctx env e@(EApp e1 e2)
---  | isSetPred e1                     = applySetFolding e1 e2
-interpret γ ctx env e@(EApp _ _)     = case splitEApp e of
-  (f, es) -> let (f':es') = map (interpret γ ctx env) (f:es) in interpretApp γ ctx env f' es'
-    where
-      interpretApp γ ctx env (EVar f) es
-        | Just eq <- M.lookup f (knAms γ)
-        , length (eqArgs eq) <= length es 
-        = let (es1,es2) = splitAt (length (eqArgs eq)) es
-              ges       = substEq env eq es1
-              exp       = unfoldGEqns'' γ ctx env ges
-              exp'      = eApps exp es2 in 
-            if (eApps (EVar f) es) == exp' then exp' else interpret γ ctx env exp'
-
-      interpretApp γ ctx env (EVar f) (e:es)
-        | (EVar dc, as) <- splitEApp e
-        , Just rw <- M.lookup (f, dc) (knSims γ)
-        , length as == length (smArgs rw)
-        = let e' = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es in 
-            if (eApps (EVar f) es) == e' then e' else interpret γ ctx env e'
-
-      interpretApp γ ctx env (EVar f) ([e0])
-        | (EVar dc, as) <- splitEApp e0
-        , isTestSymbol f
-        = if testSymbol dc == f then PTrue else
-            if S.member dc (knAllDCs γ) then PFalse else simplify γ ctx $ eApps (EVar f) [e0]
-
-      interpretApp γ ctx env f        es     = simplify γ ctx $ eApps f es
-
-interpret γ ctx env e@(ENeg e1)      = let e1' = interpret γ ctx env e1 in
-                                         simplify γ ctx (ENeg e1')
-interpret γ ctx env e@(EBin o e1 e2) = let e1' = interpret γ ctx env e1 
-                                           e2' = interpret γ ctx env e2 in
-                                         simplify γ ctx (EBin o e1' e2')
-interpret γ ctx env e@(EIte g e1 e2) = let b = interpret γ ctx env g in
-                                         if b == PTrue then interpret γ ctx env e1 else
-                                           if b == PFalse then interpret γ ctx env e2 else 
-                                             EIte b e1 e2
-interpret γ ctx env e@(ECst e1 s)    = let e1' = interpret γ ctx env e1 in ECst e1' s
-interpret γ ctx env (ELam (x,s) e)   = let γ' = γ { knLams = (x, s) : knLams γ }
-                                           e' = interpret γ' ctx env e in 
-                                         ELam (x, s) e'
-interpret γ ctx env e@(ETApp e1 t)   = let e1' = interpret γ ctx env e1 in ETApp e1' t
-interpret γ ctx env e@(ETAbs e1 sy)  = let e1' = interpret γ ctx env e1 in ETAbs e1' sy
-interpret γ ctx env (PAnd es)        = let es' = map (interpret γ ctx env) es in go [] (reverse es')
-  where
-    go []  []     = PTrue
-    go [p] []     = interpret γ ctx env p
-    go acc []     = PAnd acc
-    go acc (e:es) = if e == PTrue then go acc es
-                                  else if e == PFalse then PFalse else go (e:acc) es
-interpret γ ctx env (POr es)         = let es' = map (interpret γ ctx env) es in go [] (reverse es')
-  where
-    go []  []     = PFalse
-    go [p] []     = interpret γ ctx env p
-    go acc []     = POr acc
-    go acc (e:es) = if e == PTrue then PTrue
-                                  else if e == PFalse then go acc es else go (e:acc) es
-interpret γ ctx env (PNot e)         = let e' = interpret γ ctx env e in case e' of
-    (PNot e'')    -> e''
-    PTrue         -> PFalse 
-    PFalse        -> PTrue 
-    _             -> PNot e'
-interpret γ ctx env (PImp e1 e2)     = let e1' = interpret γ ctx env e1 
-                                           e2' = interpret γ ctx env e2 in
-                                         if e1' == PFalse || e2' == PTrue then PTrue else
-                                           if e1' == PTrue then e2' else
-                                             if e2' == PFalse then interpret γ ctx env (PNot e1') else 
-                                               PImp e1' e2'
-interpret γ ctx env (PIff e1 e2)     = let e1' = interpret γ ctx env e1 
-                                           e2' = interpret γ ctx env e2 in
-                                         if e1' == PTrue then e2' else
-                                           if e2' == PTrue then e1' else
-                                             if e1' == PFalse then interpret γ ctx env (PNot e2') else
-                                               if e2' == PFalse then interpret γ ctx env (PNot e1') else
-                                                 PIff e1' e2'
-interpret γ ctx env (PAtom o e1 e2)  = let e1' = interpret γ ctx env e1
-                                           e2' = interpret γ ctx env e2 in
-                                         simplify γ ctx (PAtom o e1' e2') 
-interpret γ ctx env e@(PKVar _ _)    = e
-interpret γ ctx env e@(PAll xss e1)  = case xss of
-  [] -> interpret γ ctx env e1
-  _  -> e
-interpret γ ctx env e@(PExist xss e1) = case xss of
-  [] -> interpret γ ctx env e1
-  _  -> e
-interpret γ ctx env e@(PGrad _ _ _ _) = e
-interpret γ ctx env (ECoerc s t e)    = let e' = interpret γ ctx env e in
-                                          simplify γ ctx (ECoerc s t e')
--}
         
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
@@ -919,7 +786,7 @@ askSMT cfg ctx bs e
     e'                 = toSMT "askSMT" cfg ctx bs e 
 
 toSMT :: String ->  Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
-toSMT msg cfg ctx bs e = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs) . {-notracepp-} mytracepp ("toSMT from " ++ msg ++ showpp e)
+toSMT msg cfg ctx bs e = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs) . mytracepp ("toSMT from " ++ msg ++ showpp e)
                           $ e 
   where
     elabEnv      = insertsSymEnv senv
@@ -977,6 +844,7 @@ instance Simplifiable Expr where
       tx (EIte b e1 e2)
         | isTautoPred b  = e1 
         | isContraPred b = e2
+      tx (ECst e s)       = simplifyCasts e s
       tx (ECoerc s t e)
         | s == t = e 
       tx (EApp (EVar f) a)
@@ -1140,6 +1008,11 @@ applySetFolding e1 e2   = case e1 of
       _                     -> Nothing   
     evalSetI _            = Nothing
 
+simplifyCasts :: Expr -> Sort -> Expr
+simplifyCasts (ECon (I n)) FInt  = ECon (I n)
+simplifyCasts (ECon (R x)) FReal = ECon (R x)
+simplifyCasts e            s     = ECst e s
+
 -------------------------------------------------------------------------------
 -- | Normalization of Equation: make their arguments unique -------------------
 -------------------------------------------------------------------------------
@@ -1151,8 +1024,8 @@ instance Normalizable (GInfo c a) where
   normalize si = si {ae = normalize $ ae si}
 
 instance Normalizable AxiomEnv where 
-  normalize aenv = aenv { aenvEqs   = {-notracepp-} mytracepp "aenvEqs"   (normalize <$> aenvEqs   aenv)
-                        , aenvSimpl = {-notracepp-} mytracepp "aenvSimpl" (normalize <$> aenvSimpl aenv) }
+  normalize aenv = aenv { aenvEqs   = mytracepp "aenvEqs"   (normalize <$> aenvEqs   aenv)
+                        , aenvSimpl = mytracepp "aenvSimpl" (normalize <$> aenvSimpl aenv) }
 
 instance Normalizable Rewrite where 
   normalize rw = rw { smArgs = xs', smBody = normalizeBody (smName rw) $ subst su $ smBody rw }
@@ -1213,6 +1086,6 @@ useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
 checkFuel :: Symbol -> EvalST Bool
 checkFuel f = do 
   fc <- gets evFuel
-  case (mytracepp ("current use of " ++ showpp f) $ M.lookup f (fcMap fc), fcMax fc) of
+  case (M.lookup f (fcMap fc), fcMax fc) of
     (Just fk, Just n) -> pure (fk <= n)
     _                 -> pure True

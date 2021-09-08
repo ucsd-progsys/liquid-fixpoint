@@ -35,8 +35,10 @@ import qualified Data.List           as L
 import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import qualified Language.Fixpoint.Types.Config as C
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
-import Language.Fixpoint.Solver.PLE{-Instantiate-} (instantiate)
+import Language.Fixpoint.Solver.Instantiate (instantiate)
 import Debug.Trace                      (trace)
+
+mytrace = {- trace -} flip const
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
@@ -119,19 +121,18 @@ solve_ cfg fi s0 ks wkl = do
   res0     <- {-# SCC "sol-result" #-} result cfg wkl s3
   res      <- case resStatus res0 of
     Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
-      fi' <- doInterpret cfg (trace (showpp $ F.toFixpoint cfg fi) fi) (map fst $ trace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
-      s4    <- {-# SCC "sol-refine" #-} refine s3 wkl
+      fi' <- doInterpret cfg fi (map fst $ trace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
+      s4    <- {- SCC "sol-refine" #-} refine s3 wkl
       res1  <- result cfg wkl s4
       res2  <- case resStatus res1 of
         Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
           bEnv' <- gets ssBinds
-          let fi'' = fi{F.bs = bEnv'}
-          doPLE cfg {-(fi'{F.bs = bEnv})-} (trace (showpp $ F.toFixpoint cfg fi'') fi'') (map fst $ trace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
-          s5    <- {-# SCC "sol-refine" #-} refine s4 wkl
+          let fi'' = mytrace (showpp $ vcat     . map toFix . M.elems . F.cm $ fi) fi{F.bs = bEnv'}
+          doPLE {-doInterpet-} cfg fi'' (map fst $ trace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
+          s5    <- {- SCC "sol-refine" #-} refine s4 wkl
           result cfg wkl s5
         _ -> return $ trace "all checked with interpreter" res1
       return res2
---      return res1 {-  -}
     _ -> return $ trace "all checked without any PLE" res0
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
