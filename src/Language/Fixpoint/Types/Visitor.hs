@@ -124,7 +124,7 @@ instance Visitable Expr where
   visit = visitExpr
 
 instance Visitable Reft where
-  visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
+  visit v c (Reft (x, ra)) = Reft . (x, ) <$> visit v c ra
 
 instance Visitable SortedReft where
   visit v c (RR t r) = RR t <$> visit v c r
@@ -176,8 +176,8 @@ instance Visitable Rewrite where
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr !v    = vE
   where
-    vE !c !e    = do {-# SCC "visitExpr.vE.accum" #-} accum acc
-                     {-# SCC "visitExpr.vE.step" #-}  step c' e'
+    vE !c !e    = do {- SCC "visitExpr.vE.accum" #-} accum acc
+                     {- SCC "visitExpr.vE.step" #-}  step c' e'
       where !c'  = ctxExpr v c  e
             !e'  = txExpr  v c' e
             !acc = accExpr v c' e
@@ -403,6 +403,20 @@ dataCtorSorts = map dfSort . dcFields
 
 class SymConsts a where
   symConsts :: a -> [SymConst]
+
+
+instance SymConsts a => SymConsts [a] where
+  symConsts xs = concatMap symConsts xs 
+  
+instance SymConsts AxiomEnv where 
+  symConsts xs =  symConsts (aenvEqs xs) ++ symConsts (aenvSimpl xs)
+
+instance SymConsts Equation where 
+  symConsts = symConsts . eqBody 
+
+instance SymConsts Rewrite where 
+  symConsts = symConsts . smBody 
+
 
 -- instance  SymConsts (FInfo a) where
 instance (SymConsts (c a)) => SymConsts (GInfo c a) where
