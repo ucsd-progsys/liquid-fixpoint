@@ -41,7 +41,7 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
-import           Debug.Trace          (trace, traceId)
+import           Debug.Trace                              (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp 
@@ -217,15 +217,15 @@ data InstEnv a = InstEnv
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
   } 
-
-instContents :: InstEnv a -> String         -- (debug code)
+{-                                          -- (debug code)
+instContents :: InstEnv a -> String
 instContents (InstEnv {..}) =   "binds:   " ++ show (L.sortOn fst $ M.toList $ beBinds ieBEnv) ++
                               "\nconstrts:" ++ showSimpC (L.sortOn fst ieCstrs)
   where
     showSimpC :: [(SubcId, SimpC a)] -> String
     showSimpC []                = ""
     showSimpC ((id,cstr):cstrs) = "\n    SubcId " ++ show id ++ ":  " ++ showpp (crhs cstr)
-
+-}
 ---------------------------------------------------------------------------------------------- 
 -- | @ICtx@ is the local information -- at each trie node -- obtained by incremental PLE
 ---------------------------------------------------------------------------------------------- 
@@ -240,6 +240,7 @@ data ICtx    = ICtx
   , icFuel     :: !FuelCount                -- ^ Current fuel-count
   } 
 
+{-                              -- (debug code)
 ctxContents :: ICtx -> String
 ctxContents ctx =   "assms:   " ++ showpp (         S.toList $ icAssms ctx) ++
                   "\ncands:   " ++ showpp (         S.toList $ icCands ctx) ++
@@ -247,7 +248,7 @@ ctxContents ctx =   "assms:   " ++ showpp (         S.toList $ icAssms ctx) ++
                   "\nsolved:  " ++ showpp (         S.toList $ icSolved ctx) ++
                   "\nsimplf:  " ++ showpp (         M.keys   $ icSimpl ctx) ++
                   "\nsubcid:  " ++ show   (                    icSubcId ctx)
-
+-}
 ---------------------------------------------------------------------------------------------- 
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
 ---------------------------------------------------------------------------------------------- 
@@ -442,7 +443,7 @@ fastEval _ ctx e
   | Just v <- M.lookup e (icSimpl ctx)
   = return v
   
-fastEval _ ctx e
+fastEval _ _ e
   | e == PTrue || e == PFalse 
   = return e
   
@@ -619,7 +620,7 @@ unfoldExpr γ ctx env (EIte e0 e1 e2) = do let g = e0 -- g <- fastEval γ ctx e0
                                              else do if g' == Just PFalse
                                                         then unfoldExpr γ ctx env e2
                                                         else return $ EIte g e1 e2
-unfoldExpr γ ctx env e               = return e
+unfoldExpr _ _   _   e               = return e
 
 substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
 substEq env eq es = subst su (substEqCoerce env eq es)
@@ -916,6 +917,7 @@ applyConstantFolding bop e1 e2 =
       Mb.fromMaybe e (cfR bop (fromIntegral left) right)
     ((ECon (I left)), (ECon (I right))) ->
       Mb.fromMaybe e (cfI bop left right)
+    (EBin Mod  _   _              , _)  -> e
     (EBin bop1 e11 (ECon (R left)), ECon (R right))
       | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) left right))
       | otherwise   -> e
@@ -937,7 +939,8 @@ applyConstantFolding bop e1 e2 =
     rop Times  = Times
     rop Div    = Times
     rop RTimes = RTimes
-    rop RDiv   = RDiv
+    rop RDiv   = RTimes
+    rop Mod    = Mod  -- excluded, Mod not associative
 
     e = EBin bop e1 e2
     
@@ -967,7 +970,7 @@ applyConstantFolding bop e1 e2 =
 
 isSetPred :: Expr -> Bool
 isSetPred (EVar s) | s == setEmp          = True
-isSetPred (EApp e1 e2) = case e1 of
+isSetPred (EApp e1 _) = case e1 of
   (EVar s) | s == setMem || s == setSub  -> True
   _                                      -> False
 isSetPred _                               = False
@@ -976,11 +979,13 @@ isSetPred _                               = False
 applySetFolding :: Expr -> Expr -> Expr
 applySetFolding e1 e2   = case e1 of
     (EVar s) | s == setEmp
-             -> Mb.fromMaybe e $ pure (fromBool . S.null)   <*> evalSetI e2
-    (EApp (EVar s) e1') -> case s of
-      setMem -> Mb.fromMaybe e $ fromBool <$> (S.member <$> getInt e1' <*> evalSetI e2)
-      setSub -> Mb.fromMaybe e $ fromBool <$> (S.null <$> (S.difference <$> evalSetI e1' <*> evalSetI e2))
-      _      -> e
+      -> Mb.fromMaybe e $ pure (fromBool . S.null)   <*> evalSetI e2
+    (EApp (EVar s) e1') | s == setMem
+      -> Mb.fromMaybe e $ fromBool <$> (S.member <$> getInt e1' <*> evalSetI e2)
+                        | s == setEmp
+      -> Mb.fromMaybe e $ fromBool <$> (S.null <$> (S.difference <$> evalSetI e1' <*> evalSetI e2))
+                        | otherwise
+      -> e
     _                   -> e
   where
     e = EApp e1 e2
@@ -1000,8 +1005,8 @@ applySetFolding e1 e2   = case e1 of
 
     evalSetI :: Expr -> Maybe (S.HashSet Integer)
     evalSetI (EApp e1 e2) = case e1 of
-      (EVar setEmpty)       -> Just S.empty
-      (EVar setSng)         -> case e2 of
+      (EVar s) | s == setEmpty -> Just S.empty
+               | s == setSng   -> case e2 of
         (ECon (I n))             -> Just $ S.singleton n
         _                        -> Nothing
       (EApp (EVar f) e1')   -> getOp f <*> evalSetI e1' <*> evalSetI e2

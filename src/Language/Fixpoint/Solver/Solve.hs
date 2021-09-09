@@ -38,6 +38,7 @@ import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
 import Debug.Trace                      (trace)
 
+mytrace :: String -> a -> a
 mytrace = {- trace -} flip const
 
 --------------------------------------------------------------------------------
@@ -127,7 +128,7 @@ solve_ cfg fi s0 ks wkl = do
       res2  <- case resStatus res1 of
         Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
           bEnv' <- gets ssBinds
-          let fi'' = mytrace (showpp $ vcat     . map toFix . M.elems . F.cm $ fi) fi{F.bs = bEnv'}
+          let fi'' = mytrace (showpp $ vcat     . map toFix . M.elems . F.cm $ fi') fi'{F.bs = bEnv'}
           doPLE {-doInterpet-} cfg fi'' (map fst $ trace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
           s5    <- {- SCC "sol-refine" #-} refine s4 wkl
           result cfg wkl s5
