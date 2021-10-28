@@ -39,7 +39,7 @@ import Language.Fixpoint.Solver.Instantiate (instantiate)
 import Debug.Trace                      (trace)
 
 mytrace :: String -> a -> a
-mytrace = {- trace -} flip const
+mytrace = {- trace-}  flip const
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
@@ -133,9 +133,7 @@ solve_ cfg fi s0 ks wkl = do
         return (s4, res1)
       res2  <- case resStatus res1 of
         Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
-          bEnv' <- gets ssBinds
-          let fi'' = mytrace (showpp $ vcat     . map toFix . M.elems . F.cm $ fi') fi'{F.bs = bEnv'}
-          doPLE cfg fi'' (map fst $ trace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
+          doPLE cfg fi' (map fst $ trace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
           sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
             s5    <- {- SCC "sol-refine" #-} refine bindingsInSmt s4 wkl
             result bindingsInSmt cfg wkl s5
@@ -145,6 +143,14 @@ solve_ cfg fi s0 ks wkl = do
   st      <- stats
   let res' = {- SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
+
+printUnsolved :: (NFData a, F.Fixpoint a, F.Loc a) => Config -> F.SInfo a -> [F.SubcId] -> Doc
+printUnsolved cfg fi bads = csDoc $+$ text "\n"
+  where
+    cs            = [ (i, c) | (i, c) <- M.toList (F.cm fi)
+                      ,  i `L.elem` bads ]
+--    cm'           = M.filterWithKey (\id v -> L.elem id bads) . F.cm
+    csDoc         = vcat     . map (toFix . snd) $ {-hashMapToAscList $-} cs
 
 --------------------------------------------------------------------------------
 -- | tidyResult ensures we replace the temporary kVarArg names introduced to

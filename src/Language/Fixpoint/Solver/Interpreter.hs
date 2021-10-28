@@ -31,13 +31,14 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Rewrite
+import           Control.Monad (guard, mplus, msum)
 import           Control.Monad.State
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
---import           Debug.Trace                              (trace)
+import           Debug.Trace                              (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp 
@@ -122,11 +123,41 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
-ple1 (InstEnv {..}) ctx i res = 
-  updCtxRes (mytracepp ("\nInstRes:  ") res) i <$> evalCandsLoop ieCfg ctx ieKnowl ieEvEnv res
+ple1 env@(InstEnv {..}) ctx i res = 
+  updCtxRes (mytracepp ("\nInstRes:  ") res) i <$> evalCandsLoop {-anfEnv-} M.empty ieCfg ctx ieKnowl ieEvEnv res
+{-    where
+      anfBEnv = filterBindEnv anfFilter ieBEnv 
+      anfFilter = (\i sym r -> (anfPrefix `isPrefixOfSym` sym) || (vvName `isPrefixOfSym` sym))
 
-evalCandsLoop :: Config -> ICtx -> Knowledge -> EvalEnv -> InstRes -> IO ICtx 
-evalCandsLoop _ ictx0 γ env res = go ictx0 
+      anfEnv = M.fromList ( Mb.mapMaybe unElabRefts (M.elems (beBinds anfBEnv)) )
+
+      unElabRefts (sym, sr) = let r = sr_reft sr in
+                                (,) (EVar sym) <$> (unElab <$> isSingletonE (reftBind r) (reftPred r))-}
+{-
+    | (anfPrefix `isPrefixOfSym` sym) || (vvName `isPrefixOfSym` sym)
+    , Just sr <- L.lookup sym (M.elems (beBinds (ieBEnv ie)))
+    , let r = sr_reft sr
+    , Just e' <- mytrace ("attempt of isSingletonE for" ++ show sym) $ isSingletonE (reftBind r) (reftPred r)
+    , let e'' = unElab e' -- unApply (removeECst e')
+    = interpret' ie γ ctx env res (mytrace ("found equality for sym " ++ show sym ++ " of " ++ show e'') e'')
+  where-}
+{-      isSingletonE v (PAtom br e0 e1)
+        | isEq br = isSingEq v e0 e1 `mplus` isSingEq v e1 e0
+      isSingletonE v (PIff e0 e1) =
+        isSingEq v e0 e1 `mplus` isSingEq v e1 e0
+      isSingletonE v (PAnd cs) =
+        msum $ map (isSingletonE v) cs
+      isSingletonE _ _ =
+        Nothing
+
+      isSingEq v e0 e1 = do
+        guard $ EVar v == dropECst e0 && not (S.member v $ exprSymbolsSet e1)
+        Just e1
+
+      isEq r = r == Eq || r == Ueq-}
+
+evalCandsLoop :: ConstMap -> Config -> ICtx -> Knowledge -> EvalEnv -> InstRes -> IO ICtx 
+evalCandsLoop ie _ ictx0 γ env res = go ictx0 
   where
     withRewrites exprs =
       let
@@ -138,7 +169,7 @@ evalCandsLoop _ ictx0 γ env res = go ictx0
     go ictx =  do let cands = icCands ictx
                   let env' = env { evAccum = icEquals ictx <> evAccum env }
                   (ictx', evalResults)  <- 
-                               foldM (evalOneCandStep γ env' res) (ictx, []) (S.toList cands) 
+                               foldM (evalOneCandStep ie γ env' res) (ictx, []) (S.toList cands) 
                   let us = mconcat evalResults 
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx 
@@ -151,9 +182,9 @@ evalCandsLoop _ ictx0 γ env res = go ictx0
                                  
 -- evalOneCands :: Knowledge -> EvalEnv -> ICtx -> [Expr] -> IO (ICtx, [EvAccum])
 -- evalOneCands γ env' ictx = foldM step (ictx, [])
-evalOneCandStep :: Knowledge -> EvalEnv -> InstRes -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
-evalOneCandStep γ env' inres (ictx, acc) e = do 
-  res <- evalOne γ env' ictx inres e 
+evalOneCandStep :: ConstMap -> Knowledge -> EvalEnv -> InstRes -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
+evalOneCandStep env γ env' inres (ictx, acc) e = do 
+  res <- evalOne env γ env' ictx inres e 
   return (ictx, res : acc)
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
@@ -215,7 +246,6 @@ data ICtx    = ICtx
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   } 
 
-{-                            (debug code)
 ctxContents :: ICtx -> String
 ctxContents ctx =   "assms:   " ++ showpp (         S.toList $ icAssms ctx) ++
                   "\ncands:   " ++ showpp (         S.toList $ icCands ctx) ++
@@ -223,7 +253,7 @@ ctxContents ctx =   "assms:   " ++ showpp (         S.toList $ icAssms ctx) ++
                   "\nsolved:  " ++ showpp (         S.toList $ icSolved ctx) ++   
                   "\nsimplf:  " ++ showpp (         M.keys   $ icSimpl ctx) ++
                   "\nsubcid:  " ++ show   (                    icSubcId ctx)
--}
+
 ---------------------------------------------------------------------------------------------- 
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
 ---------------------------------------------------------------------------------------------- 
@@ -271,7 +301,8 @@ updRes res  Nothing _ = res
 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
 updCtx (InstEnv {..}) ctx delta cidMb 
-              = ctx { icCands  = S.fromList cands           <> icCands  ctx
+    = -- trace ("new context " ++ ctxContents ctx) 
+                ctx { icCands  = S.fromList cands           <> icCands  ctx
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
                     , icSubcId = fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
@@ -298,7 +329,7 @@ findConstants γ es = [(EVar x, c) | (x,c) <- go [] (concatMap splitPAnd es)]
        where ess' = subst (mkSubst su') <$> ess
              su'  = makeSu ess 
     makeSu exprs  = [(x,c) | (EEq (EVar x) c) <- exprs 
-                           , isConstant (knDCs γ) c
+                           , isConstant (knDCs γ) c (Just x)
                            , EVar x /= c ]
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
@@ -347,9 +378,9 @@ type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
 
-evalOne :: Knowledge -> EvalEnv -> ICtx -> InstRes -> Expr -> IO EvAccum
-evalOne γ env ctx res e {-| null (getAutoRws γ ctx)-} = do
-    (e', st) <- runStateT (fastEval γ ctx res e) env  
+evalOne :: ConstMap -> Knowledge -> EvalEnv -> ICtx -> InstRes -> Expr -> IO EvAccum
+evalOne ienv γ env ctx res e {-| null (getAutoRws γ ctx)-} = do
+    (e', st) <- runStateT (fastEval ienv γ ctx res e) env  
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return evAcc' 
 {-evalOne γ env ctx res e = do
@@ -390,9 +421,10 @@ subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab lhs
                            , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
 subsFromAssm _                                           = []-}
 
-fastEval :: Knowledge -> ICtx -> InstRes -> Expr -> EvalST Expr
-fastEval γ ctx res e = do env  <- gets (seSort . evEnv)
-                          return $ mytracepp ("evaluating" ++ show e) $ interpret γ ctx env res $ simplify γ ctx e
+fastEval :: ConstMap -> Knowledge -> ICtx -> InstRes -> Expr -> EvalST Expr
+fastEval ienv γ ctx res e 
+    = do env  <- gets (seSort . evEnv)
+         return $ mytracepp ("evaluating" ++ show e) $ interpret ienv γ ctx env res $ simplify γ ctx e
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -400,14 +432,14 @@ fastEval γ ctx res e = do env  <- gets (seSort . evEnv)
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
 
-unfoldExpr :: Knowledge -> ICtx -> SEnv Sort -> InstRes -> Expr -> {-EvalST-} Expr
-unfoldExpr γ ctx env res (EIte e0 e1 e2) = let g' = interpret' γ ctx env res e0 in
-                                               if g' == PTrue
-                                                  then unfoldExpr γ ctx env res e1
-                                                  else if g' == PFalse
-                                                          then unfoldExpr γ ctx env res e2
-                                                          else EIte g' e1 e2
-unfoldExpr _ _   _   _   e               = e
+unfoldExpr :: ConstMap -> Knowledge -> ICtx -> SEnv Sort -> InstRes -> Expr -> {-EvalST-} Expr
+unfoldExpr ie γ ctx env res (EIte e0 e1 e2) = let g' = interpret' ie γ ctx env res e0 in
+                                                 if g' == PTrue
+                                                    then unfoldExpr ie γ ctx env res e1
+                                                    else if g' == PFalse
+                                                            then unfoldExpr ie γ ctx env res e2
+                                                            else EIte g' e1 e2
+unfoldExpr ie _ _   _   _   e               = e
 
 substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
 substEq env eq es = subst su (substEqCoerce env eq es)
@@ -441,110 +473,165 @@ matchSorts s1 s2 = go s1 s2
 
 --------------------------------------------------------------------------------
 
+removeECst :: Expr -> Expr
+removeECst e = case e of
+  (ECst e' _t)    -> removeECst e'
+  (EApp e1 e2)    -> EApp (removeECst e1) (removeECst e2)
+  (EBin b e1 e2)  -> EBin b (removeECst e1) (removeECst e2)
+  (EIte e0 e1 e2) -> EIte (removeECst e0) (removeECst e1) (removeECst e2)
+  (ELam p e')     -> ELam p (removeECst e')
+  (ETApp e' s)    -> ETApp (removeECst e') s
+  (ETAbs e' sym)  -> ETAbs (removeECst e') sym
+  (PAnd es)       -> PAnd (map removeECst es)
+  (POr es)        -> POr  (map removeECst es)
+  (PNot e')       -> PNot (removeECst e')
+  (PImp e1 e2)    -> PImp (removeECst e1) (removeECst e2)
+  (PIff e1 e2)    -> PIff (removeECst e1) (removeECst e2)
+  (PAtom b e1 e2) -> PAtom b (removeECst e1) (removeECst e2)
+  (PAll p e')     -> PAll p (removeECst e')
+  (PExist p e')   -> PExist p (removeECst e')
+  (PGrad k s g e')  -> PGrad k s g (removeECst e')
+  (ECoerc s1 s2 e') -> ECoerc s1 s2 (removeECst e')
+  _                 -> e
+
+dropECst :: Expr -> Expr
+dropECst e = case e of
+  (ECst e' _t) -> dropECst e'
+  _            -> e
+
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
-interpret' :: Knowledge -> ICtx -> SEnv Sort -> InstRes -> Expr -> Expr
-interpret' γ ctx env res e = mytracepp ("Interpreting " ++ show e) $ interpret γ ctx env res e
+interpret' :: ConstMap -> Knowledge -> ICtx -> SEnv Sort -> InstRes -> Expr -> Expr
+interpret' ie γ ctx env res e = mytracepp ("Interpreting " ++ show e) $ interpret ie γ ctx env res e
 
-interpret :: Knowledge -> ICtx -> SEnv Sort -> InstRes -> Expr -> Expr
-interpret _ _   _   _   e@(ESym _)       = e
-interpret _ _   _   _   e@(ECon _)       = e
-interpret _ _   _   _   e@(EVar _)       = e
-interpret γ ctx env res   (EApp e1 e2)
-  | isSetPred e1                         = let e2' = interpret' γ ctx env res e2 in 
+interpret :: ConstMap -> Knowledge -> ICtx -> SEnv Sort -> InstRes -> Expr -> Expr
+interpret _  _ _   _   _   e@(ESym _)       = e
+interpret _  _ _   _   _   e@(ECon _)       = e
+interpret ie γ ctx env res (EVar sym)
+    | Just e' <- M.lookup (EVar sym) (icSimpl ctx)
+    = interpret' ie γ ctx env res e'
+{-
+interpret ie γ ctx env res (EVar sym)      
+    | Just e'' <- M.lookup (EVar sym) ie
+    = interpret' ie γ ctx env res (mytrace ("found equality for sym " ++ show sym ++ " of " ++ show e'') e'')
+-}
+{-
+    | (anfPrefix `isPrefixOfSym` sym) || (vvName `isPrefixOfSym` sym)
+    , Just sr <- L.lookup sym (M.elems (beBinds (ieBEnv ie)))
+    , let r = sr_reft sr
+    , Just e' <- mytrace ("attempt of isSingletonE for" ++ show sym) $ isSingletonE (reftBind r) (reftPred r)
+    , let e'' = unElab e' -- unApply (removeECst e')-}
+{-  where
+    isSingletonE v (PAtom br e0 e1)
+      | isEq br = isSingEq v e0 e1 `mplus` isSingEq v e1 e0
+    isSingletonE v (PIff e0 e1) =
+      isSingEq v e0 e1 `mplus` isSingEq v e1 e0
+    isSingletonE v (PAnd cs) =
+      msum $ map (isSingletonE v) cs
+    isSingletonE _ _ =
+      Nothing
+
+    isSingEq v e0 e1 = do
+      guard $ EVar v == dropECst e0 && not (S.member v $ exprSymbolsSet e1)
+      Just e1
+
+    isEq r = r == Eq || r == Ueq-}
+interpret ie _ _   _   _   e@(EVar _)       = e
+interpret ie γ ctx env res   (EApp e1 e2)
+  | isSetPred e1                         = let e2' = interpret' ie γ ctx env res e2 in 
                                              applySetFolding e1 e2'
-interpret γ ctx env res e@(EApp _ _)     = case splitEApp e of
-  (f, es) -> let (f':es') = map (interpret' γ ctx env res) (f:es) in interpretApp γ ctx env f' es'
+interpret ie γ ctx env res e@(EApp _ _)     = case splitEApp e of
+  (f, es) -> let (f':es') = map (interpret' ie γ ctx env res) (f:es) in interpretApp ie γ ctx env f' es'
     where
-      interpretApp γ ctx env (EVar f) es
+      interpretApp ie γ ctx env (EVar f) es
         | Just eq <- M.lookup f (knAms γ)
         , length (eqArgs eq) <= length es 
         = let (es1,es2) = splitAt (length (eqArgs eq)) es
               ges       = substEq env eq es1
-              exp       = unfoldExpr γ ctx env res ges 
+              exp       = unfoldExpr ie γ ctx env res ges 
               exp'      = eApps exp es2 in  --exp' -- TODO undo
-            if (eApps (EVar f) es) == exp' then exp' else interpret' γ ctx env res exp'
+            if (eApps (EVar f) es) == exp' then exp' else interpret' ie γ ctx env res exp'
 
-      interpretApp γ ctx env (EVar f) (e1:es)
+      interpretApp ie γ ctx env (EVar f) (e1:es)
         | (EVar dc, as) <- splitEApp e1
         , Just rw <- M.lookup (f, dc) (knSims γ)
         , length as == length (smArgs rw)
         = let e' = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es in --e' -- TODO undo
-            if (eApps (EVar f) es) == e' then e' else interpret' γ ctx env res e' 
+            if (eApps (EVar f) es) == e' then e' else interpret' ie γ ctx env res e' 
 
-      interpretApp γ _   _   (EVar f) ([e0])
+      interpretApp ie γ _   _   (EVar f) ([e0])
         | (EVar dc, _as) <- splitEApp e0
         , isTestSymbol f
         = if testSymbol dc == f then PTrue else 
             if S.member dc (knAllDCs γ) then PFalse else {-simplify γ ctx $-} eApps (EVar f) [e0]
 
-      interpretApp _ _   _   f        es     = {-simplify γ ctx $-} eApps f es
-interpret γ ctx env res   (ENeg e1)      = let e1' = interpret' γ ctx env res e1 in
-                                             applyConstantFolding Minus (ECon (I 0)) e1'
+      interpretApp _  _ _   _   f        es     = {-simplify γ ctx $-} eApps f es
+interpret ie γ ctx env res   (ENeg e1)      = let e1' = interpret' ie γ ctx env res e1 in
+                                                applyConstantFolding Minus (ECon (I 0)) e1'
 --                                             simplify γ ctx (ENeg e1')
-interpret γ ctx env res   (EBin o e1 e2) = let e1' = interpret' γ ctx env res e1 
-                                               e2' = interpret' γ ctx env res e2 in
-                                             applyConstantFolding o e1' e2'
+interpret ie γ ctx env res   (EBin o e1 e2) = let e1' = interpret' ie γ ctx env res e1 
+                                                  e2' = interpret' ie γ ctx env res e2 in
+                                                applyConstantFolding o e1' e2'
 --                                             simplify γ ctx (EBin o e1' e2')
-interpret γ ctx env res   (EIte g e1 e2) = let b = interpret' γ ctx env res g in
-                                             if b == PTrue then interpret' γ ctx env res e1 else
-                                               if b == PFalse then interpret' γ ctx env res e2 else 
-                                                 simplify γ ctx $ EIte b e1 e2
+interpret ie γ ctx env res   (EIte g e1 e2) = let b = interpret' ie γ ctx env res g in
+                                                if b == PTrue then interpret' ie γ ctx env res e1 else
+                                                  if b == PFalse then interpret' ie γ ctx env res e2 else 
+                                                    simplify γ ctx $ EIte b e1 e2
 --                                             EIte b (interpret' γ ctx env e1) (interpret' γ ctx env e2)
-interpret γ ctx env res   (ECst e1 s)    = let e1' = interpret' γ ctx env res e1 in
-                                             simplifyCasts e1' s -- ECst e1' s
-interpret γ ctx env res (ELam (x,s) e)   = let γ' = γ { knLams = (x, s) : knLams γ }
-                                               e' = interpret' γ' ctx env res e in 
-                                             ELam (x, s) e'
-interpret γ ctx env res   (ETApp e1 t)   = let e1' = interpret' γ ctx env res e1 in ETApp e1' t
-interpret γ ctx env res   (ETAbs e1 sy)  = let e1' = interpret' γ ctx env res e1 in ETAbs e1' sy
-interpret γ ctx env res   (PAnd es)      = let es' = map (interpret' γ ctx env res) es in go [] (reverse es')
+interpret ie γ ctx env res   (ECst e1 s)    = let e1' = interpret' ie γ ctx env res e1 in
+                                                simplifyCasts e1' s -- ECst e1' s
+interpret ie γ ctx env res (ELam (x,s) e)   = let γ' = γ { knLams = (x, s) : knLams γ }
+                                                  e' = interpret' ie γ' ctx env res e in 
+                                                ELam (x, s) e'
+interpret ie γ ctx env res   (ETApp e1 t)   = let e1' = interpret' ie γ ctx env res e1 in ETApp e1' t
+interpret ie γ ctx env res   (ETAbs e1 sy)  = let e1' = interpret' ie γ ctx env res e1 in ETAbs e1' sy
+interpret ie γ ctx env res   (PAnd es)      = let es' = map (interpret' ie γ ctx env res) es in go [] (reverse es')
   where
     go []  []     = PTrue
-    go [p] []     = interpret' γ ctx env res p
+    go [p] []     = interpret' ie γ ctx env res p
     go acc []     = PAnd acc
     go acc (e:es) = if e == PTrue then go acc es
                                   else if e == PFalse then PFalse else go (e:acc) es
-interpret γ ctx env res (POr es)         = let es' = map (interpret' γ ctx env res) es in go [] (reverse es')
+interpret ie γ ctx env res (POr es)         = let es' = map (interpret' ie γ ctx env res) es in go [] (reverse es')
   where
     go []  []     = PFalse
-    go [p] []     = interpret' γ ctx env res p
+    go [p] []     = interpret' ie γ ctx env res p
     go acc []     = POr acc
     go acc (e:es) = if e == PTrue then PTrue
                                   else if e == PFalse then go acc es else go (e:acc) es
-interpret γ ctx env res (PNot e)         = let e' = interpret' γ ctx env res e in case e' of
+interpret ie γ ctx env res (PNot e)         = let e' = interpret' ie γ ctx env res e in case e' of
     (PNot e'')    -> e''
     PTrue         -> PFalse 
     PFalse        -> PTrue 
     _             -> PNot e'
-interpret γ ctx env res (PImp e1 e2)     = let e1' = interpret' γ ctx env res e1 
-                                               e2' = interpret' γ ctx env res e2 in
-                                             if e1' == PFalse || e2' == PTrue then PTrue else
-                                               if e1' == PTrue then e2' else
-                                                 if e2' == PFalse then interpret' γ ctx env res (PNot e1') else 
-                                                   PImp e1' e2'
-interpret γ ctx env res (PIff e1 e2)     = let e1' = interpret' γ ctx env res e1 
-                                               e2' = interpret' γ ctx env res e2 in
-                                             if e1' == PTrue then e2' else
-                                               if e2' == PTrue then e1' else
-                                                 if e1' == PFalse then interpret' γ ctx env res (PNot e2') else
-                                                   if e2' == PFalse then interpret' γ ctx env res (PNot e1') else
-                                                     PIff e1' e2'
-interpret γ ctx env res (PAtom o e1 e2)  = let e1' = interpret' γ ctx env res e1
-                                               e2' = interpret' γ ctx env res e2 in
-                                             applyBooleanFolding o e1' e2'
+interpret ie γ ctx env res (PImp e1 e2)     = let e1' = interpret' ie γ ctx env res e1 
+                                                  e2' = interpret' ie γ ctx env res e2 in
+                                                if e1' == PFalse || e2' == PTrue then PTrue else
+                                                  if e1' == PTrue then e2' else
+                                                    if e2' == PFalse then interpret' ie γ ctx env res (PNot e1') else 
+                                                      PImp e1' e2'
+interpret ie γ ctx env res (PIff e1 e2)     = let e1' = interpret' ie γ ctx env res e1 
+                                                  e2' = interpret' ie γ ctx env res e2 in
+                                                if e1' == PTrue then e2' else
+                                                  if e2' == PTrue then e1' else
+                                                    if e1' == PFalse then interpret' ie γ ctx env res (PNot e2') else
+                                                      if e2' == PFalse then interpret' ie γ ctx env res (PNot e1') else
+                                                        PIff e1' e2'
+interpret ie γ ctx env res (PAtom o e1 e2)  = let e1' = interpret' ie γ ctx env res e1
+                                                  e2' = interpret' ie γ ctx env res e2 in
+                                                applyBooleanFolding o e1' e2'
 --                                             simplify γ ctx (PAtom o e1' e2') 
-interpret _ _   _   _   e@(PKVar _ _)    = e
-interpret γ ctx env res e@(PAll xss e1)  = case xss of
-  [] -> interpret' γ ctx env res e1
+interpret _  _ _   _   _   e@(PKVar _ _)    = e
+interpret ie γ ctx env res e@(PAll xss e1)  = case xss of
+  [] -> interpret' ie γ ctx env res e1
   _  -> e
-interpret γ ctx env res e@(PExist xss e1) = case xss of
-  [] -> interpret' γ ctx env res e1
+interpret ie γ ctx env res e@(PExist xss e1) = case xss of
+  [] -> interpret' ie γ ctx env res e1
   _  -> e
-interpret _ _   _   _   e@(PGrad _ _ _ _) = e
-interpret γ ctx env res (ECoerc s t e)    = let e' = interpret' γ ctx env res e in
-                                              if s == t then e' else (ECoerc s t e')
+interpret _  _ _   _   _   e@(PGrad _ _ _ _) = e
+interpret ie γ ctx env res (ECoerc s t e)    = let e' = interpret' ie γ ctx env res e in
+                                                 if s == t then e' else (ECoerc s t e')
 --                                              simplify γ ctx (ECoerc s t e')
 
 -- missing the Consts and Sels for EApp - does it matter?
@@ -574,7 +661,7 @@ knowledge cfg si = KN
   , knLams                     = [] 
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims) 
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
-  , knDCs                      = S.fromList (smDC <$> sims) 
+  , knDCs                      = S.fromList (smDC <$> sims)  <> constNames si
   , knAllDCs                   = S.fromList $ (val . dcName) <$> concatMap ddCtors (ddecls si)
   , knSels                     = M.fromList . Mb.catMaybes $ map makeSel  sims 
   , knConsts                   = M.fromList . Mb.catMaybes $ map makeCons sims 
@@ -599,6 +686,9 @@ knowledge cfg si = KN
       = (smName rw,) . (smDC rw,) <$> L.elemIndex x (smArgs rw)
       | otherwise 
       = Nothing 
+
+    constNames si = (S.fromList . fst . unzip . toListSEnv . gLits $ si) `S.union`
+                      (S.fromList . fst . unzip . toListSEnv . dLits $ si)
 
 -- testSymbol (from names)
 
@@ -637,11 +727,11 @@ type ConstMap = M.HashMap Expr Expr
 type LDataCon = Symbol              -- Data Constructors 
 
 isSimplification :: S.HashSet LDataCon -> (Expr,Expr) -> Bool 
-isSimplification dcs (_,c) = isConstant dcs c 
+isSimplification dcs (_,c) = isConstant dcs c Nothing
   
 
-isConstant :: S.HashSet LDataCon -> Expr -> Bool 
-isConstant dcs e = S.null (S.difference (S.fromList $ syms e) dcs) 
+isConstant :: S.HashSet LDataCon -> Expr -> Maybe Symbol -> Bool 
+isConstant dcs e sym = mytrace ("for expression " ++ show e ++ " maybe symbol " ++ show sym ++ "difference is " ++ show (S.difference (S.fromList $ syms e) dcs)) S.null (S.difference (S.fromList $ syms e) dcs) 
 
 class Simplifiable a where 
   simplify :: Knowledge -> ICtx -> a -> a 

@@ -55,6 +55,7 @@ import           Language.Fixpoint.Types.Names
   , isPrefixOfSym
   , prefixOfSym
   , symbolText
+  , vvName
   )
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
@@ -78,6 +79,11 @@ import           Language.Fixpoint.Types.Refinements
   )
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
 import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
+
+import           Debug.Trace (trace)
+
+mytrace :: String -> a -> a
+mytrace = {-trace-} flip const
 
 -- | Strips from all the constraint environments the bindings that are
 -- irrelevant for their respective constraints.
@@ -574,7 +580,7 @@ undoANF :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
 undoANF env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (inlineInSortedReftChanged env') env
+    let env' = HashMap.map (inlineInSortedReftChanged env') (mytrace ("*** THE ENV ***" ++ show  (HashMap.Strict.keys env)) env)
      in HashMap.mapMaybe dropUnchanged env'
   where
     dropUnchanged ((m, b), sr) = do
@@ -618,20 +624,20 @@ inlineInExpr :: HashMap Symbol (m, SortedReft) -> Expr -> Expr
 inlineInExpr env = simplify . mapExprOnExpr inlineExpr
   where
     inlineExpr (EVar sym)
-      | anfPrefix `isPrefixOfSym` sym
+      | (anfPrefix `isPrefixOfSym` sym) || (vvName `isPrefixOfSym` sym)
       , Just (_, sr) <- HashMap.lookup sym env
-      , let r = sr_reft sr
-      , Just e <- isSingletonE (reftBind r) (reftPred r)
-      = wrapWithCoercion Eq (sr_sort sr) e
+      , let r = mytrace ("checking symbol " ++ show sym ++ " has reft " ++ show (sr_reft sr)) sr_reft sr
+      , Just e <- mytrace ("result of isSingletonE for" ++ show sym) $ isSingletonE (reftBind r) (reftPred r)
+      = wrapWithCoercion Eq (sr_sort sr) (mytrace ("inlining variable expr: " ++ show e) e)
     inlineExpr (PAtom br e0 e1@(dropECst -> EVar sym))
-      | anfPrefix `isPrefixOfSym` sym
+      | (anfPrefix `isPrefixOfSym` sym) || (vvName `isPrefixOfSym` sym)
       , isEq br
       , Just (_, sr) <- HashMap.lookup sym env
-      , let r = sr_reft sr
-      , Just e <- isSingletonE (reftBind r) (reftPred r)
+      , let r = mytrace ("checking symbol " ++ show sym ++ " has reft " ++ show (sr_reft sr)) sr_reft sr
+      , Just e <- mytrace ("result of isSingletonE for" ++ show sym) $ isSingletonE (reftBind r) (reftPred r)
       =
-        PAtom br e0 $ subst1 e1 (sym, wrapWithCoercion br (sr_sort sr) e)
-    inlineExpr e = e
+        PAtom br e0 $ subst1 e1 (sym, wrapWithCoercion br (sr_sort sr) (mytrace ("inlining variable expr: " ++ show e) e))
+    inlineExpr e = {-trace ("cannot inline the expr: " ++ show e)-} e
 
     isSingletonE v (PAtom br e0 e1)
       | isEq br = isSingEq v e0 e1 `mplus` isSingEq v e1 e0
