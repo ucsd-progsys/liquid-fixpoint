@@ -80,7 +80,7 @@ import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
 import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
 
-import           Debug.Trace (trace)
+--import           Debug.Trace (trace)
 
 mytrace :: String -> a -> a
 mytrace = {-trace-} flip const

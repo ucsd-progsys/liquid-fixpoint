@@ -11,7 +11,7 @@
 module Language.Fixpoint.Solver.Solve (solve, solverInfo) where
 
 import           Control.Monad (when, filterM)
-import           Control.Monad.State.Strict (liftIO, modify, lift, gets)
+import           Control.Monad.State.Strict (liftIO, modify, lift)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Misc            as Misc
 import qualified Language.Fixpoint.Types           as F
@@ -38,8 +38,8 @@ import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
 import Debug.Trace                      (trace)
 
-mytrace :: String -> a -> a
-mytrace = {- trace-}  flip const
+--mytrace :: String -> a -> a
+--mytrace = {- trace-}  flip const
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
@@ -144,6 +144,7 @@ solve_ cfg fi s0 ks wkl = do
   let res' = {- SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
 
+{-
 printUnsolved :: (NFData a, F.Fixpoint a, F.Loc a) => Config -> F.SInfo a -> [F.SubcId] -> Doc
 printUnsolved cfg fi bads = csDoc $+$ text "\n"
   where
@@ -151,6 +152,7 @@ printUnsolved cfg fi bads = csDoc $+$ text "\n"
                       ,  i `L.elem` bads ]
 --    cm'           = M.filterWithKey (\id v -> L.elem id bads) . F.cm
     csDoc         = vcat     . map (toFix . snd) $ {-hashMapToAscList $-} cs
+-}
 
 --------------------------------------------------------------------------------
 -- | tidyResult ensures we replace the temporary kVarArg names introduced to

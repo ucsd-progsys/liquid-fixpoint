@@ -31,14 +31,13 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Rewrite
-import           Control.Monad (guard, mplus, msum)
 import           Control.Monad.State
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
-import           Debug.Trace                              (trace)
+--import           Debug.Trace                              (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp 
@@ -123,7 +122,7 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
-ple1 env@(InstEnv {..}) ctx i res = 
+ple1 (InstEnv {..}) ctx i res = 
   updCtxRes (mytracepp ("\nInstRes:  ") res) i <$> evalCandsLoop {-anfEnv-} M.empty ieCfg ctx ieKnowl ieEvEnv res
 {-    where
       anfBEnv = filterBindEnv anfFilter ieBEnv 
@@ -246,13 +245,14 @@ data ICtx    = ICtx
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   } 
 
+{- (debug code)
 ctxContents :: ICtx -> String
 ctxContents ctx =   "assms:   " ++ showpp (         S.toList $ icAssms ctx) ++
                   "\ncands:   " ++ showpp (         S.toList $ icCands ctx) ++
                   "\nequals:  " ++ show   (         S.toList $ icEquals ctx) ++
                   "\nsolved:  " ++ showpp (         S.toList $ icSolved ctx) ++   
                   "\nsimplf:  " ++ showpp (         M.keys   $ icSimpl ctx) ++
-                  "\nsubcid:  " ++ show   (                    icSubcId ctx)
+                  "\nsubcid:  " ++ show   (                    icSubcId ctx)  -}
 
 ---------------------------------------------------------------------------------------------- 
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
@@ -439,7 +439,7 @@ unfoldExpr ie γ ctx env res (EIte e0 e1 e2) = let g' = interpret' ie γ ctx env
                                                     else if g' == PFalse
                                                             then unfoldExpr ie γ ctx env res e2
                                                             else EIte g' e1 e2
-unfoldExpr ie _ _   _   _   e               = e
+unfoldExpr _  _ _   _   _   e               = e
 
 substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
 substEq env eq es = subst su (substEqCoerce env eq es)
@@ -472,7 +472,7 @@ matchSorts s1 s2 = go s1 s2
     go _             _             = []
 
 --------------------------------------------------------------------------------
-
+{-
 removeECst :: Expr -> Expr
 removeECst e = case e of
   (ECst e' _t)    -> removeECst e'
@@ -498,7 +498,7 @@ dropECst :: Expr -> Expr
 dropECst e = case e of
   (ECst e' _t) -> dropECst e'
   _            -> e
-
+-}
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
@@ -537,7 +537,7 @@ interpret ie γ ctx env res (EVar sym)
       Just e1
 
     isEq r = r == Eq || r == Ueq-}
-interpret ie _ _   _   _   e@(EVar _)       = e
+interpret _  _ _   _   _   e@(EVar _)       = e
 interpret ie γ ctx env res   (EApp e1 e2)
   | isSetPred e1                         = let e2' = interpret' ie γ ctx env res e2 in 
                                              applySetFolding e1 e2'
@@ -560,7 +560,7 @@ interpret ie γ ctx env res e@(EApp _ _)     = case splitEApp e of
         = let e' = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es in --e' -- TODO undo
             if (eApps (EVar f) es) == e' then e' else interpret' ie γ ctx env res e' 
 
-      interpretApp ie γ _   _   (EVar f) ([e0])
+      interpretApp _  γ _   _   (EVar f) ([e0])
         | (EVar dc, _as) <- splitEApp e0
         , isTestSymbol f
         = if testSymbol dc == f then PTrue else 
