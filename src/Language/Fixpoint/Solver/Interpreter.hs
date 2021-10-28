@@ -379,7 +379,7 @@ type EvalST a = StateT EvalEnv IO a
 
 
 evalOne :: ConstMap -> Knowledge -> EvalEnv -> ICtx -> InstRes -> Expr -> IO EvAccum
-evalOne ienv γ env ctx res e {-| null (getAutoRws γ ctx)-} = do
+evalOne ienv γ env ctx res e {- | null (getAutoRws γ ctx) -} = do
     (e', st) <- runStateT (fastEval ienv γ ctx res e) env  
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return evAcc' 
