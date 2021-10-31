@@ -124,7 +124,7 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) M.empty et restSolver
     et                = fmap makeET restSolver
     makeET solver     =
       ET.empty (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
@@ -298,15 +298,7 @@ data InstEnv a = InstEnv
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
   } 
-{-                                          -- (debug code)
-instContents :: InstEnv a -> String
-instContents (InstEnv {..}) =   "binds:   " ++ show (L.sortOn fst $ M.toList $ beBinds ieBEnv) ++
-                              "\nconstrts:" ++ showSimpC (L.sortOn fst ieCstrs)
-  where
-    showSimpC :: [(SubcId, SimpC a)] -> String
-    showSimpC []                = ""
-    showSimpC ((id,cstr):cstrs) = "\n    SubcId " ++ show id ++ ":  " ++ showpp (crhs cstr)
--}
+
 ---------------------------------------------------------------------------------------------- 
 -- | @ICtx@ is the local information -- at each trie node -- obtained by incremental PLE
 ---------------------------------------------------------------------------------------------- 
@@ -322,15 +314,6 @@ data ICtx    = ICtx
   , icANFs     :: S.HashSet Pred            -- Hopefully contain only ANF things
   } 
 
-{-                              -- (debug code)
-ctxContents :: ICtx -> String
-ctxContents ctx =   "assms:   " ++ showpp (         S.toList $ icAssms ctx) ++
-                  "\ncands:   " ++ showpp (         S.toList $ icCands ctx) ++
---                  "\nequals:  " ++ show   (         M.toList $ icEquals ctx) ++
-                  "\nsolved:  " ++ showpp (         S.toList $ icSolved ctx) ++
-                  "\nsimplf:  " ++ showpp (         M.keys   $ icSimpl ctx) ++
-                  "\nsubcid:  " ++ show   (                    icSubcId ctx)
--}
 ---------------------------------------------------------------------------------------------- 
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
 ---------------------------------------------------------------------------------------------- 
@@ -944,7 +927,6 @@ data Knowledge = KN
   , knLams              :: ![(Symbol, Sort)]
   , knSummary           :: ![(Symbol, Int)]     -- ^ summary of functions to be evaluates (knSims and knAsms) with their arity
   , knDCs               :: !(S.HashSet Symbol)  -- ^ data constructors drawn from Rewrite 
-  , knAllDCs            :: !(S.HashSet Symbol)  -- ^
   , knSels              :: !SelectorMap 
   , knConsts            :: !ConstDCMap
   , knAutoRWs           :: M.HashMap SubcId [AutoRewrite]
@@ -969,8 +951,8 @@ knowledge cfg ctx si = KN
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
                                  ++ rwSyms
   , knDCs                      = S.fromList (smDC <$> sims)
-  , knSels                     = Mb.catMaybes $ map makeSel  sims 
-  , knConsts                   = Mb.catMaybes $ map makeCons sims 
+  , knSels                     = M.fromList . Mb.catMaybes $ map makeSel  sims 
+  , knConsts                   = M.fromList . Mb.catMaybes $ map makeCons sims 
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
       if (rwTerminationCheck cfg)

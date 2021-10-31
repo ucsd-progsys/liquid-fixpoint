@@ -666,10 +666,9 @@ knowledge cfg si = KN
   , knSels                     = M.fromList . Mb.catMaybes $ map makeSel  sims 
   , knConsts                   = M.fromList . Mb.catMaybes $ map makeCons sims 
   , knAutoRWs                  = aenvAutoRW aenv
-  , knRWTerminationOpts        =
-      if (rwTerminationCheck cfg)
-      then RWTerminationCheckEnabled (maxRWOrderingConstraints cfg)
-      else RWTerminationCheckDisabled
+  , knRWTerminationOpts        = if (rwTerminationCheck cfg)
+                                   then RWTerminationCheckEnabled 
+                                   else RWTerminationCheckDisabled
   } 
   where 
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) -- store as list too? 
