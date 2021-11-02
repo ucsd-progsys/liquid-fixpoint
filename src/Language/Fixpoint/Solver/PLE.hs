@@ -220,8 +220,8 @@ ple1 (InstEnv {..}) ctx i res =
   updCtxRes res i <$> evalCandsLoop ieCfg ctx ieSMT ieKnowl ieEvEnv
 
 
-evalToSMT :: String -> Config -> SMT.Context -> {-Expr -> Expr -> Pred -} (Expr, Expr) -> Pred
-evalToSMT msg cfg ctx {-e1 e2-} (e1, e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
+evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
+evalToSMT msg cfg ctx (e1, e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
 
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx 
 evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
@@ -244,12 +244,11 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                                -- foldM (\ictx e -> undefined) 
                                -- mapM (evalOne γ env' ictx) (S.toList cands)
                   let us = mconcat evalResults 
-                  if {-M-}S.null (us {-M-}`S.difference` icEquals ictx)
+                  if S.null (us `S.difference` icEquals ictx)
                         then return ictx 
-                        else do  let oks      = {-M.keysSet us -} fst `S.map` us
+                        else do  let oks      = fst `S.map` us
                                  let us'      = withRewrites us 
-{-                                 let eqsSMT   = M.foldlWithKey' (\ps e e' -> (evalToSMT "evalCandsLoop" cfg ctx e e') : ps) [] us'-}
-                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx {-`M.foldMapWithKey`-} `S.map` us'
+                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us'
                                  let ictx''   = ictx' { icSolved = icSolved ictx <> oks 
                                                       , icEquals = icEquals ictx <> us'
                                                       , icAssms  = S.filter (not . isTautoPred) eqsSMT }
@@ -342,8 +341,8 @@ initCtx env es   = ICtx
   , icANFs   = mempty
   }
 
-equalitiesPred :: {-M.HashMap Expr Expr-} S.HashSet (Expr, Expr) -> [Expr]
-equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- {-M-}S.toList eqs, e1 /= e2 ] 
+equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
+equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- S.toList eqs, e1 /= e2 ] 
 
 updCtxRes :: InstRes -> Maybe BindId -> ICtx -> (ICtx, InstRes) 
 updCtxRes res iMb ctx = (ctx, res')
@@ -373,7 +372,7 @@ updCtx InstEnv {..} ctx delta cidMb
     initEqs   = S.fromList $ concat [rewrite e (knSims ieKnowl) | e  <- cands]
     anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub [ expr xr | xr <- bs ])
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
-    sims      = {-M-}S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
+    sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat
                   [ equalitiesPred initEqs 
@@ -430,7 +429,7 @@ getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
 isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv) 
 
-type EvAccum = {-M.HashMap Expr Expr-} S.HashSet (Expr, Expr)
+type EvAccum = S.HashSet (Expr, Expr)
 
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
@@ -711,7 +710,7 @@ evalREST _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
   , Just v    <- M.lookup e (icSimpl ctx)
-  = when (v /= e) $ modify (\st -> st { evAccum = {-M-}S.insert {-e v-} (e, v) (evAccum st)})
+  = when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
         
 evalREST γ ctx rp =
   do
@@ -847,7 +846,7 @@ evalApp _ _ e es _
 --------------------------------------------------------------------------------
 
 unfoldExpr :: Knowledge -> ICtx -> SEnv Sort -> Expr -> EvalST Expr
-unfoldExpr γ ctx env (EIte e0 e1 e2) = do let g = e0 -- g <- fastEval γ ctx e0 -- faster?
+unfoldExpr γ ctx env (EIte e0 e1 e2) = do let g = e0 
                                           g' <- evalBool γ g
                                           if g' == Just PTrue
                                              then unfoldExpr γ ctx env e1
@@ -1035,8 +1034,8 @@ type ConstDCMap  = M.HashMap Symbol (Symbol, Expr)
 type ConstMap = M.HashMap Expr Expr
 type LDataCon = Symbol              -- Data Constructors 
 
-isSimplification :: S.HashSet LDataCon -> {- Expr -> Bool -} (Expr, Expr) -> Bool
-isSimplification dcs {-c-} (_,c) = isConstant dcs c   
+isSimplification :: S.HashSet LDataCon -> (Expr, Expr) -> Bool
+isSimplification dcs (_,c) = isConstant dcs c   
 
 isConstant :: S.HashSet LDataCon -> Expr -> Bool 
 isConstant dcs e = S.null (S.difference (exprSymbolsSet e) dcs)

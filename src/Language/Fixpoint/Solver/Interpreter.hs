@@ -117,7 +117,6 @@ loopB env ctx delta iMb res b = case b of
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
   let ctx'  = updCtx env ctx delta cidMb
-  --let assms = icAssms ctx'
   act ctx' 
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
@@ -132,28 +131,6 @@ ple1 (InstEnv {..}) ctx i res =
 
       unElabRefts (sym, sr) = let r = sr_reft sr in
                                 (,) (EVar sym) <$> (unElab <$> isSingletonE (reftBind r) (reftPred r))-}
-{-
-    | (anfPrefix `isPrefixOfSym` sym) || (vvName `isPrefixOfSym` sym)
-    , Just sr <- L.lookup sym (M.elems (beBinds (ieBEnv ie)))
-    , let r = sr_reft sr
-    , Just e' <- mytrace ("attempt of isSingletonE for" ++ show sym) $ isSingletonE (reftBind r) (reftPred r)
-    , let e'' = unElab e' -- unApply (removeECst e')
-    = interpret' ie γ ctx env res (mytrace ("found equality for sym " ++ show sym ++ " of " ++ show e'') e'')
-  where-}
-{-      isSingletonE v (PAtom br e0 e1)
-        | isEq br = isSingEq v e0 e1 `mplus` isSingEq v e1 e0
-      isSingletonE v (PIff e0 e1) =
-        isSingEq v e0 e1 `mplus` isSingEq v e1 e0
-      isSingletonE v (PAnd cs) =
-        msum $ map (isSingletonE v) cs
-      isSingletonE _ _ =
-        Nothing
-
-      isSingEq v e0 e1 = do
-        guard $ EVar v == dropECst e0 && not (S.member v $ exprSymbolsSet e1)
-        Just e1
-
-      isEq r = r == Eq || r == Ueq-}
 
 evalCandsLoop :: ConstMap -> Config -> ICtx -> Knowledge -> EvalEnv -> InstRes -> IO ICtx 
 evalCandsLoop ie _ ictx0 γ env res = go ictx0 
@@ -223,15 +200,6 @@ data InstEnv a = InstEnv
   , ieEvEnv :: !EvalEnv
   } 
 
-{-                                  -- (debug code)
-instContents :: InstEnv a -> String
-instContents (InstEnv {..}) =   "binds:   " ++ show (L.sortOn fst $ M.toList $ beBinds ieBEnv) ++
-                    "\nconstrts:" ++ showSimpC (L.sortOn fst ieCstrs)
-  where
-    showSimpC :: [(SubcId, SimpC a)] -> String
-    showSimpC []                = ""
-    showSimpC ((id,cstr):cstrs) = "\n    SubcId " ++ show id ++ ":  " ++ showpp (crhs cstr)
--}
 ---------------------------------------------------------------------------------------------- 
 -- | @ICtx@ is the local information -- at each trie node -- obtained by incremental PLE
 ---------------------------------------------------------------------------------------------- 
@@ -244,15 +212,6 @@ data ICtx    = ICtx
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   } 
-
-{- (debug code)
-ctxContents :: ICtx -> String
-ctxContents ctx =   "assms:   " ++ showpp (         S.toList $ icAssms ctx) ++
-                  "\ncands:   " ++ showpp (         S.toList $ icCands ctx) ++
-                  "\nequals:  " ++ show   (         S.toList $ icEquals ctx) ++
-                  "\nsolved:  " ++ showpp (         S.toList $ icSolved ctx) ++   
-                  "\nsimplf:  " ++ showpp (         M.keys   $ icSimpl ctx) ++
-                  "\nsubcid:  " ++ show   (                    icSubcId ctx)  -}
 
 ---------------------------------------------------------------------------------------------- 
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
@@ -301,9 +260,8 @@ updRes res  Nothing _ = res
 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
 updCtx (InstEnv {..}) ctx delta cidMb 
-    = -- trace ("new context " ++ ctxContents ctx) 
-                ctx { icCands  = S.fromList cands           <> icCands  ctx
-                    , icEquals = initEqs                    <> icEquals ctx
+    = ctx { icCands  = S.fromList cands           <> icCands  ctx
+          , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
                     , icSubcId = fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
                     }
@@ -368,11 +326,7 @@ type EvAccum = S.HashSet (Expr, Expr)
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
---  , evFuel     :: FuelCount
---  , evGuards   :: GuardCache
   }
-
---type GuardCache = M.HashMap Pred (Maybe Pred) 
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
@@ -383,9 +337,6 @@ evalOne ienv γ env ctx res e {- null (getAutoRws γ ctx) -} = do
     (e', st) <- runStateT (fastEval ienv γ ctx res e) env  
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return evAcc' 
-{-evalOne γ env ctx res e = do
-  env' <- execStateT (eval γ ctx [(e, PLE)]) (env { evFuel = icFuel ctx }) -- this one needs res or not???
-  return (evAccum env', evFuel env')-}
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -413,13 +364,6 @@ notGuardedApps = go
     go (PExist _ _)    = []
     go (PGrad{})       = []
 
-
-{-
-subsFromAssm :: Expr -> [(Symbol, Expr)]
-subsFromAssm (PAnd es)                                   = concatMap subsFromAssm es
-subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab lhs
-                           , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
-subsFromAssm _                                           = []-}
 
 fastEval :: ConstMap -> Knowledge -> ICtx -> InstRes -> Expr -> EvalST Expr
 fastEval ienv γ ctx res e 
@@ -472,33 +416,7 @@ matchSorts s1 s2 = go s1 s2
     go _             _             = []
 
 --------------------------------------------------------------------------------
-{-
-removeECst :: Expr -> Expr
-removeECst e = case e of
-  (ECst e' _t)    -> removeECst e'
-  (EApp e1 e2)    -> EApp (removeECst e1) (removeECst e2)
-  (EBin b e1 e2)  -> EBin b (removeECst e1) (removeECst e2)
-  (EIte e0 e1 e2) -> EIte (removeECst e0) (removeECst e1) (removeECst e2)
-  (ELam p e')     -> ELam p (removeECst e')
-  (ETApp e' s)    -> ETApp (removeECst e') s
-  (ETAbs e' sym)  -> ETAbs (removeECst e') sym
-  (PAnd es)       -> PAnd (map removeECst es)
-  (POr es)        -> POr  (map removeECst es)
-  (PNot e')       -> PNot (removeECst e')
-  (PImp e1 e2)    -> PImp (removeECst e1) (removeECst e2)
-  (PIff e1 e2)    -> PIff (removeECst e1) (removeECst e2)
-  (PAtom b e1 e2) -> PAtom b (removeECst e1) (removeECst e2)
-  (PAll p e')     -> PAll p (removeECst e')
-  (PExist p e')   -> PExist p (removeECst e')
-  (PGrad k s g e')  -> PGrad k s g (removeECst e')
-  (ECoerc s1 s2 e') -> ECoerc s1 s2 (removeECst e')
-  _                 -> e
 
-dropECst :: Expr -> Expr
-dropECst e = case e of
-  (ECst e' _t) -> dropECst e'
-  _            -> e
--}
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
@@ -621,7 +539,6 @@ interpret ie γ ctx env res (PIff e1 e2)     = let e1' = interpret' ie γ ctx en
 interpret ie γ ctx env res (PAtom o e1 e2)  = let e1' = interpret' ie γ ctx env res e1
                                                   e2' = interpret' ie γ ctx env res e2 in
                                                 applyBooleanFolding o e1' e2'
---                                             simplify γ ctx (PAtom o e1' e2') 
 interpret _  _ _   _   _   e@(PKVar _ _)    = e
 interpret ie γ ctx env res e@(PAll xss e1)  = case xss of
   [] -> interpret' ie γ ctx env res e1
@@ -632,10 +549,6 @@ interpret ie γ ctx env res e@(PExist xss e1) = case xss of
 interpret _  _ _   _   _   e@(PGrad _ _ _ _) = e
 interpret ie γ ctx env res (ECoerc s t e)    = let e' = interpret' ie γ ctx env res e in
                                                  if s == t then e' else (ECoerc s t e')
---                                              simplify γ ctx (ECoerc s t e')
-
--- missing the Consts and Sels for EApp - does it matter?
-
 
         
 --------------------------------------------------------------------------------
@@ -688,19 +601,8 @@ knowledge cfg si = KN
 
     constNames si = (S.fromList . fst . unzip . toListSEnv . gLits $ si) `S.union`
                       (S.fromList . fst . unzip . toListSEnv . dLits $ si)
-
 -- testSymbol (from names)
 
-{-                                 (debug code)
-knContents :: Knowledge -> String
-knContents γ = "defs:    " ++ show (L.sort . M.keys $ knAms γ) ++
-               "matches: " ++ show (L.sort . M.keys $ knSims γ) ++
-               "selects: " ++ show (L.sort . M.keys $ knSels γ) ++              
-               "consts:  " ++ show (L.sort . M.keys $ knConsts γ) ++
-               "DCs:     " ++ show (knDCs γ) ++
-               "All DCs: " ++ show (knAllDCs γ) ++
-               "summary: " ++ show (knSummary γ)
--}
 
 reWriteDDecl :: DataDecl -> [Rewrite]
 reWriteDDecl ddecl = concatMap go (ddCtors ddecl) 
