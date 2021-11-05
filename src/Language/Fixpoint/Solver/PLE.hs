@@ -481,30 +481,31 @@ evalOne γ env ctx _ e | otherwise = do
 -- applications not under an if-then-else, lambda abstraction, type abstraction,
 -- type application, or quantifier.
 notGuardedApps :: Expr -> [Expr]
-notGuardedApps = go 
-  where 
-    go e@(EApp e1 e2)  = [e] ++ go e1 ++ go e2
-    go (PAnd es)       = concatMap go es
-    go (POr es)        = concatMap go es
-    go (PAtom _ e1 e2) = go e1  ++ go e2
-    go (PIff e1 e2)    = go e1  ++ go e2
-    go (PImp e1 e2)    = go e1  ++ go e2 
-    go (EBin  _ e1 e2) = go e1  ++ go e2
-    go (PNot e)        = go e
-    go (ENeg e)        = go e
-    go e@(EIte b _ _)  = go b ++ [e] -- ++ go e1 ++ go e2  
-    go (ECoerc _ _ e)  = go e 
-    go (ECst e _)      = go e 
-    go (ESym _)        = []
-    go (ECon _)        = []
-    go (EVar _)        = []
-    go (ELam _ _)      = []
-    go (ETApp _ _)     = []
-    go (ETAbs _ _)     = []
-    go (PKVar _ _)     = []
-    go (PAll _ _)      = []
-    go (PExist _ _)    = []
-    go (PGrad{})       = []
+notGuardedApps = flip go []
+  where
+    go e0 acc = case e0 of
+      EApp e1 e2 -> e0 : go e1 (go e2 acc)
+      PAnd es    -> foldr go acc es
+      POr es     -> foldr go acc es
+      PAtom _ e1 e2 -> go e1 $ go e2 acc
+      PIff e1 e2 -> go e1 $ go e2 acc
+      PImp e1 e2 -> go e1 $ go e2 acc
+      EBin  _ e1 e2 -> go e1 $ go e2 acc
+      PNot e -> go e acc
+      ENeg e -> go e acc
+      EIte b _ _ -> go b $ e0 : acc
+      ECoerc _ _ e -> go e acc
+      ECst e _ -> go e acc
+      ESym _ -> acc
+      ECon _ -> acc
+      EVar _ -> acc
+      ELam _ _ -> acc
+      ETApp _ _ -> acc
+      ETAbs _ _ -> acc
+      PKVar _ _ -> acc
+      PAll _ _ -> acc
+      PExist _ _ -> acc
+      PGrad{} -> acc
 
 
 
