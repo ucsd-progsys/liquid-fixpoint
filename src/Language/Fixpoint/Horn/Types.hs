@@ -259,6 +259,7 @@ ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks
 
 ppBlanks :: [P.Doc] -> P.Doc
 ppBlanks ds = P.parens (P.hcat (L.intersperse " " ds))
+
 -------------------------------------------------------------------------------
 -- Pretty Printing
 -------------------------------------------------------------------------------
