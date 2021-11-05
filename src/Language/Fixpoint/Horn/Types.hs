@@ -157,10 +157,12 @@ data Bind = Bind
   deriving (Data, Typeable, Generic, Eq)
 
 instance F.Subable Bind where
-    syms = undefined
-    substa = undefined
-    substf = undefined
-    subst su (Bind x t p) = (Bind x t (F.subst su p))
+    syms     (Bind x _ p) = x : F.syms p
+    substa f (Bind v t p) = Bind (f v) t (F.substa f p)
+    substf f (Bind v t p) = Bind v t (F.substf (F.substfExcept f [v]) p)
+    -- subst su (Bind x t p) = (Bind x t (F.subst su p))
+    subst su (Bind v t p)  = Bind v t (F.subst (F.substExcept su [v]) p)
+    subst1 (Bind v t p) su = Bind v t (F.subst1Except [v] p su)
 
 dummyBind :: Bind 
 dummyBind = Bind F.dummySymbol F.intSort (PAnd []) 
@@ -168,7 +170,7 @@ dummyBind = Bind F.dummySymbol F.intSort (PAnd [])
 -- Can we enforce the invariant that CAnd has len > 1?
 data Cstr a
   = Head  !Pred a               -- ^ p
-  | CAnd  ![(Cstr a)]           -- ^ c1 /\ ... /\ cn
+  | CAnd  ![Cstr a]             -- ^ c1 /\ ... /\ cn
   | All   !Bind  !(Cstr a)      -- ^ \all x:t. p => c
   | Any   !Bind  !(Cstr a)      -- ^ \exi x:t. p /\ c or is it \exi x:t. p => c?
   deriving (Data, Typeable, Generic, Functor, Eq)
@@ -185,23 +187,23 @@ cLabel cstr = case go cstr of
 
 -- We want all valid constraints to start with a binding at the top
 okCstr :: Cstr a -> Bool 
-okCstr (All {}) = True 
-okCstr (Any {}) = True 
-okCstr _        = False 
+okCstr All {} = True 
+okCstr Any {} = True 
+okCstr _      = False 
 
 -------------------------------------------------------------------------------
 -- | @Query@ is an NNF Horn Constraint. 
 -------------------------------------------------------------------------------
 
 data Query a = Query 
-  { qQuals :: ![F.Qualifier]                    -- ^ qualifiers over which to solve cstrs
-  , qVars  :: ![Var a]                          -- ^ kvars, with parameter-sorts
-  , qCstr  :: !(Cstr a)                         -- ^ list of constraints
-  , qCon   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
-  , qDis   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
-  , qEqns  :: ![F.Equation]                     -- ^ list of equations
-  , qMats  :: ![F.Rewrite]                      -- ^ list of match-es
-  , qData  :: ![F.DataDecl]                     -- ^ list of data-declarations
+  { qQuals :: ![F.Qualifier]             -- ^ qualifiers over which to solve cstrs
+  , qVars  :: ![Var a]                   -- ^ kvars, with parameter-sorts
+  , qCstr  :: !(Cstr a)                  -- ^ list of constraints
+  , qCon   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (uninterpreted functions
+  , qDis   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (uninterpreted functions
+  , qEqns  :: ![F.Equation]              -- ^ list of equations
+  , qMats  :: ![F.Rewrite]               -- ^ list of match-es
+  , qData  :: ![F.DataDecl]              -- ^ list of data-declarations
   }
   deriving (Data, Typeable, Generic, Functor)
 
@@ -253,7 +255,7 @@ ppQual (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (pp
     ppArg qp    = F.pprint (F.qpSym qp) P.<+> P.parens (F.pprint (F.qpSort qp))
 
 ppVar :: Var a -> P.Doc
-ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks ((P.parens . F.pprint) <$> ts)) 
+ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts)) 
 
 ppBlanks :: [P.Doc] -> P.Doc
 ppBlanks ds = P.parens (P.hcat (L.intersperse " " ds))
