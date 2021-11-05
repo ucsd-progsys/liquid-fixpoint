@@ -401,7 +401,15 @@ makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
   = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where 
-    cands = filter (\e -> isRedex γ e && not (e `S.member` icSolved ctx)) (notGuardedApps expr)
+    cands =
+      filter (\e -> isRedex γ e && not (e `S.member` icSolved ctx)) (notGuardedApps expr) ++
+      filter (\e -> hasConstructors γ e && not (e `S.member` icSolved ctx)) (largestApps expr)
+
+    -- Constructor occurrences need to be considered as candidadates since
+    -- they identify relevant measure equations. The function 'rewrite'
+    -- introduces these equations.
+    hasConstructors :: Knowledge -> Expr -> Bool
+    hasConstructors γ e =  not $ S.null $ S.intersection (exprSymbolsSet e) (knDCs γ)
 
 isRedex :: Knowledge -> Expr -> Bool 
 isRedex γ e = isGoodApp γ e || isIte e 
@@ -507,6 +515,35 @@ notGuardedApps = flip go []
       PExist _ _ -> acc
       PGrad{} -> acc
 
+-- | @largestApps e@ yields all the largest subexpressions that are
+-- applications not under an if-then-else, lambda abstraction, type abstraction,
+-- type application, or quantifier.
+largestApps :: Expr -> [Expr]
+largestApps = flip go []
+  where
+    go e0 acc = case e0 of
+      EApp _ _ -> e0 : acc
+      PAnd es -> foldr go acc es
+      POr es -> foldr go acc es
+      PAtom _ e1 e2 -> go e1 $ go e2 acc
+      PIff e1 e2 -> go e1 $ go e2 acc
+      PImp e1 e2 -> go e1 $ go e2 acc
+      EBin  _ e1 e2 -> go e1 $ go e2 acc
+      PNot e -> go e acc
+      ENeg e -> go e acc
+      EIte b _ _ -> go b $ e0 : acc
+      ECoerc _ _ e -> go e acc
+      ECst e _ -> go e acc
+      ESym _ -> acc
+      ECon _ -> acc
+      EVar _ -> e0 : acc
+      ELam _ _ -> acc
+      ETApp _ _ -> acc
+      ETAbs _ _ -> acc
+      PKVar _ _ -> acc
+      PAll _ _ -> acc
+      PExist _ _ -> acc
+      PGrad{} -> acc
 
 
 -- The FuncNormal and RWNormal evaluation strategies are used for REST
