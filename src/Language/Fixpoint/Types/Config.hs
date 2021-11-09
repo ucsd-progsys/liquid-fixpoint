@@ -80,7 +80,7 @@ data Config = Config
   , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
   , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
   , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
-  , etaElim     :: Bool                -- ^ eta eliminate function definitions 
+  , etaElim     :: Bool                -- ^ eta eliminate function definitions
   , gradual     :: Bool                -- ^ solve "gradual" constraints
   , ginteractive :: Bool                -- ^ interactive gradual solving
   , autoKuts         :: Bool           -- ^ ignore given kut variables
@@ -92,10 +92,10 @@ data Config = Config
   , noEnvironmentReduction :: Bool     -- ^ Don't use environment reduction
   , inlineANFBindings :: Bool          -- ^ Inline ANF bindings.
                                        -- Sometimes improves performance and sometimes worsens it.
-  , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
+  , checkCstr        :: [Integer]      -- ^ Only check these specific constraints
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
   , rwTerminationCheck  :: Bool        -- ^ Enable termination checking for rewriting
-  , stdin               :: Bool        -- ^ Read input query from stdin  
+  , stdin               :: Bool        -- ^ Read input query from stdin
   , json                :: Bool        -- ^ Render output in JSON format
   , noLazyPLE           :: Bool
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
@@ -197,7 +197,7 @@ defConfig = Config {
           , "Sometimes improves performance and sometimes worsens it."
           , "Disabled by --no-environment-reduction"
           ])
-  , checkCstr                = []    &= help "Only check these specific constraint-ids" 
+  , checkCstr                = []    &= help "Only check these specific constraint-ids"
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
   , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"
@@ -219,7 +219,7 @@ config :: Mode (CmdArgs Config)
 config = cmdArgsMode defConfig
 
 getOpts :: IO Config
-getOpts = do 
+getOpts = do
   md <- cmdArgs defConfig
   whenNormal (putStrLn banner)
   return md

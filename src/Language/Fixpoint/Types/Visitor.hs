@@ -153,24 +153,24 @@ instance (Visitable (c a)) => Visitable (GInfo c a) where
   visit v c x = do
     cm' <- mapM (visit v c) (cm x)
     bs' <- visit v c (bs x)
-    ae' <- visit v c (ae x) 
+    ae' <- visit v c (ae x)
     return x { cm = cm', bs = bs', ae = ae' }
 
-instance Visitable AxiomEnv where 
-  visit v c x = do 
-    eqs'    <- mapM (visit v c) (aenvEqs   x) 
-    simpls' <- mapM (visit v c) (aenvSimpl x) 
-    return x { aenvEqs = eqs' , aenvSimpl = simpls'} 
+instance Visitable AxiomEnv where
+  visit v c x = do
+    eqs'    <- mapM (visit v c) (aenvEqs   x)
+    simpls' <- mapM (visit v c) (aenvSimpl x)
+    return x { aenvEqs = eqs' , aenvSimpl = simpls'}
 
-instance Visitable Equation where 
-  visit v c eq = do 
-    body' <- visit v c (eqBody eq) 
-    return eq { eqBody = body' } 
+instance Visitable Equation where
+  visit v c eq = do
+    body' <- visit v c (eqBody eq)
+    return eq { eqBody = body' }
 
-instance Visitable Rewrite where 
-  visit v c rw = do 
-    body' <- visit v c (smBody rw) 
-    return rw { smBody = body' } 
+instance Visitable Rewrite where
+  visit v c rw = do
+    body' <- visit v c (smBody rw)
+    return rw { smBody = body' }
 
 ---------------------------------------------------------------------------------
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
@@ -400,7 +400,7 @@ stripCasts = mapExprOnExpr go
 --   to the ty-vars that they should be substituted with. Note the
 --   domain and range are both Symbol and not the Int used for real ty-vars.
 --------------------------------------------------------------------------------
-type CoSub = M.HashMap Symbol Sort 
+type CoSub = M.HashMap Symbol Sort
 
 applyCoSub :: CoSub -> Expr -> Expr
 applyCoSub coSub      = mapExpr fE
@@ -454,16 +454,16 @@ class SymConsts a where
 
 
 instance SymConsts a => SymConsts [a] where
-  symConsts xs = concatMap symConsts xs 
-  
-instance SymConsts AxiomEnv where 
+  symConsts xs = concatMap symConsts xs
+
+instance SymConsts AxiomEnv where
   symConsts xs =  symConsts (aenvEqs xs) ++ symConsts (aenvSimpl xs)
 
-instance SymConsts Equation where 
-  symConsts = symConsts . eqBody 
+instance SymConsts Equation where
+  symConsts = symConsts . eqBody
 
-instance SymConsts Rewrite where 
-  symConsts = symConsts . smBody 
+instance SymConsts Rewrite where
+  symConsts = symConsts . smBody
 
 
 -- instance  SymConsts (FInfo a) where
