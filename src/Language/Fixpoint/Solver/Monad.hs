@@ -61,7 +61,7 @@ import           Control.Exception.Base (bracket)
 
 type SolveM = StateT SolverState IO
 
-data SolverState = SS 
+data SolverState = SS
   { ssCtx     :: !Context          -- ^ SMT Solver Context
   , ssBinds   :: !F.BindEnv        -- ^ All variables and types
   , ssStats   :: !Stats            -- ^ Solver Statistics
@@ -94,7 +94,7 @@ runSolverM cfg sI act =
 
 
 --------------------------------------------------------------------------------
-getBinds :: SolveM F.BindEnv 
+getBinds :: SolveM F.BindEnv
 --------------------------------------------------------------------------------
 getBinds = ssBinds <$> get
 

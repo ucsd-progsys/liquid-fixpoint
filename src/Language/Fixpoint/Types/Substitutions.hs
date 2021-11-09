@@ -63,7 +63,7 @@ targetSubstSyms :: Subst -> [Symbol]
 targetSubstSyms (Su ms) = syms $ M.elems ms
 
 
-  
+
 instance Subable () where
   syms _      = []
   subst _ ()  = ()
@@ -88,7 +88,7 @@ instance Subable a => Subable (Maybe a) where
   substf = fmap . substf
   substa = fmap . substa
 
- 
+
 instance Subable a => Subable (M.HashMap k a) where
   syms   = syms . M.elems
   subst  = M.map . subst

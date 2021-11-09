@@ -55,7 +55,7 @@ module Language.Fixpoint.Types.Constraints (
   , qualifier
   , mkQual
   , remakeQual
-  , mkQ 
+  , mkQ
   , qualBinds
 
   -- * Results
@@ -188,7 +188,7 @@ data SimpC a = SimpC
   }
   deriving (Generic, Functor)
 
-instance Loc a => Loc (SimpC a) where 
+instance Loc a => Loc (SimpC a) where
   srcSpan = srcSpan . _cinfo
 
 strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
@@ -275,11 +275,11 @@ toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
 
 
-data Result a = Result 
+data Result a = Result
   { resStatus    :: !(FixResult a)
   , resSolution  :: !FixSolution
   , resNonCutsSolution :: !FixSolution
-  , gresSolution :: !GFixSolution 
+  , gresSolution :: !GFixSolution
   }
   deriving (Generic, Show, Functor)
 
@@ -315,7 +315,7 @@ isUnsafe r | Unsafe _ _ <- resStatus r
 isUnsafe _ = False
 
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
-  toFix (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)" 
+  toFix (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)"
   -- toFix (UnknownError d) = text $ "Unknown Error: " ++ d
   toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  pprSinfos "CRASH: " xs ++ [parens (text msg)]
   toFix (Unsafe _ xs)    = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
@@ -390,8 +390,8 @@ instance Show   GFixSolution where
   show = showpp
 
 ----------------------------------------------------------------
-instance S.Store QualPattern 
-instance S.Store QualParam 
+instance S.Store QualPattern
+instance S.Store QualParam
 instance S.Store Qualifier
 instance S.Store Kuts
 instance S.Store HOInfo
@@ -402,8 +402,8 @@ instance (S.Store a) => S.Store (WfC a)
 instance (S.Store a) => S.Store (SimpC a)
 instance (S.Store (c a), S.Store a) => S.Store (GInfo c a)
 
-instance NFData QualPattern 
-instance NFData QualParam 
+instance NFData QualPattern
+instance NFData QualParam
 instance NFData Qualifier
 instance NFData Kuts
 instance NFData HOInfo
@@ -473,7 +473,7 @@ shiftVV r@(Reft (v, ras)) v'
 
 addIds :: [SubC a] -> [(Integer, SubC a)]
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
-  where 
+  where
     -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
@@ -483,7 +483,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 --------------------------------------------------------------------------------
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
-data Qualifier = Q 
+data Qualifier = Q
   { qName   :: !Symbol     -- ^ Name
   , qParams :: [QualParam] -- ^ Parameters
   , qBody   :: !Expr       -- ^ Predicate
@@ -491,15 +491,15 @@ data Qualifier = Q
   }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data QualParam = QP 
+data QualParam = QP
   { qpSym  :: !Symbol
-  , qpPat  :: !QualPattern 
+  , qpPat  :: !QualPattern
   , qpSort :: !Sort
-  } 
+  }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data QualPattern 
-  = PatNone                 -- ^ match everything 
+data QualPattern
+  = PatNone                 -- ^ match everything
   | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
   | PatSuffix !Int !Symbol  -- ^ $i . str  i.e. match suffix 'str' with prefix bound to $i
   | PatExact  !Symbol       -- ^ str       i.e. exactly match 'str'
@@ -513,31 +513,31 @@ instance Loc Qualifier where
     where
       l     = qPos q
 
-instance Subable Qualifier where 
-  syms   = qualFreeSymbols 
+instance Subable Qualifier where
+  syms   = qualFreeSymbols
   subst  = mapQualBody . subst
   substf = mapQualBody . substf
   substa = mapQualBody . substa
 
 mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
 mapQualBody f q = q { qBody = f (qBody q) }
-  
+
 qualFreeSymbols :: Qualifier -> [Symbol]
-qualFreeSymbols q = filter (not . isPrim) xs 
+qualFreeSymbols q = filter (not . isPrim) xs
   where
-    xs            = syms (qBody q) L.\\ syms (qpSym <$> qParams q) 
+    xs            = syms (qBody q) L.\\ syms (qpSym <$> qParams q)
 
-instance Fixpoint QualParam where 
-  toFix (QP x _ t) = toFix (x, t) 
+instance Fixpoint QualParam where
+  toFix (QP x _ t) = toFix (x, t)
 
-instance PPrint QualParam where 
-  pprintTidy k (QP x pat t) = pprintTidy k x <+> pprintTidy k pat <+> colon <+> pprintTidy k t 
+instance PPrint QualParam where
+  pprintTidy k (QP x pat t) = pprintTidy k x <+> pprintTidy k pat <+> colon <+> pprintTidy k t
 
-instance PPrint QualPattern where 
-  pprintTidy _ PatNone         = "" 
+instance PPrint QualPattern where
+  pprintTidy _ PatNone         = ""
   pprintTidy k (PatPrefix s i) = "as" <+> pprintTidy k s <+> ("$" <-> pprint i)
-  pprintTidy k (PatSuffix s i) = "as" <+> ("$" <-> pprint i) <+> pprintTidy k s 
-  pprintTidy k (PatExact  s  ) = "~"  <+> pprintTidy k s 
+  pprintTidy k (PatSuffix s i) = "as" <+> ("$" <-> pprint i) <+> pprintTidy k s
+  pprintTidy k (PatExact  s  ) = "~"  <+> pprintTidy k s
 
 instance Fixpoint Qualifier where
   toFix = pprQual
@@ -556,7 +556,7 @@ qualifier lEnv l γ v so p   = mkQ "Auto" ((v, so) : xts) p l
     xs  = L.delete v $ L.nub $ syms p
     xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
 
-mkQ :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier 
+mkQ :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
 mkQ n = Q n . qualParams
 
 qualParams :: [(Symbol, Sort)] -> [QualParam]
@@ -579,13 +579,13 @@ remakeQual q = mkQual (qName q) (qParams q) (qBody q) (qPos q)
 
 -- | constructing qualifiers
 mkQual :: Symbol -> [QualParam] -> Expr -> SourcePos -> Qualifier
-mkQual n qps p = Q n qps' p 
+mkQual n qps p = Q n qps' p
   where
     qps'       = zipWith (\qp t' -> qp { qpSort = t'}) qps ts'
-    ts'        = gSorts (qpSort <$> qps) 
+    ts'        = gSorts (qpSort <$> qps)
 
 gSorts :: [Sort] -> [Sort]
-gSorts ts = substVars su <$> ts 
+gSorts ts = substVars su <$> ts
   where
     su    = (`zip` [0..]) . sortNub . concatMap sortVars $ ts
 
@@ -659,7 +659,7 @@ fi :: [SubC a]
    -> [Triggered Expr]
    -> AxiomEnv
    -> [DataDecl]
-   -> [BindId] 
+   -> [BindId]
    -> GInfo SubC a
 fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
   = FI { cm       = M.fromList $ addIds cs
@@ -674,7 +674,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
        , asserts  = es
        , ae       = axe
        , ddecls   = adts
-       , ebinds   = ebs 
+       , ebinds   = ebs
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -685,7 +685,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
 -- | Top-level Queries
 ------------------------------------------------------------------------
 
-data FInfoWithOpts a = FIO 
+data FInfoWithOpts a = FIO
   { fioFI   :: FInfo a
   , fioOpts :: [String]
   }
@@ -693,7 +693,7 @@ data FInfoWithOpts a = FIO
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
 
-data HOInfo = HOI 
+data HOInfo = HOI
   { hoBinds :: Bool          -- ^ Allow higher order binds in the environemnt
   , hoQuals :: Bool          -- ^ Allow higher order quals
   }
@@ -703,7 +703,7 @@ allowHO, allowHOquals :: GInfo c a -> Bool
 allowHO      = hoBinds . hoInfo
 allowHOquals = hoQuals . hoInfo
 
-data GInfo c a = FI 
+data GInfo c a = FI
   { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
   , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
   , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
@@ -750,19 +750,19 @@ instance Semigroup (GInfo c a) where
 
 instance Monoid (GInfo c a) where
   mempty        = FI { cm       = M.empty
-                     , ws       = mempty 
-                     , bs       = mempty 
-                     , ebinds   = mempty 
-                     , gLits    = mempty 
-                     , dLits    = mempty 
-                     , kuts     = mempty 
-                     , quals    = mempty 
-                     , bindInfo = mempty 
-                     , ddecls   = mempty 
-                     , hoInfo   = mempty 
-                     , asserts  = mempty 
+                     , ws       = mempty
+                     , bs       = mempty
+                     , ebinds   = mempty
+                     , gLits    = mempty
+                     , dLits    = mempty
+                     , kuts     = mempty
+                     , quals    = mempty
+                     , bindInfo = mempty
+                     , ddecls   = mempty
+                     , hoInfo   = mempty
+                     , asserts  = mempty
                      , ae       = mempty
-                     } 
+                     }
 
 instance PTable (SInfo a) where
   ptable z = DocTable [ (text "# Sub Constraints", pprint $ length $ cm z)

@@ -220,7 +220,7 @@ proposeRenamings = toSymMap . toPrefixSuffixMap
 --
 -- > forall ss.
 -- > Set.fromList ss == Set.fromList $ concat [ xs | m <- elems (toPrefixSuffixMap ss), xs <- elems m ]
--- 
+--
 -- > forall ss.
 -- > and [ all (pfx `isPrefixOfSym`) xs && all (sfx `isSuffixOfSym`) xs
 -- >     | (pfx, m) <- toList (toPrefixSuffixMap ss)

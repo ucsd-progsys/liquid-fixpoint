@@ -72,7 +72,7 @@ module Language.Fixpoint.Types.Refinements (
   , isNonTrivial
   , isContraPred
   , isTautoPred
-  , isSingletonExpr 
+  , isSingletonExpr
   , isSingletonReft
   , isFalse
 
@@ -149,7 +149,7 @@ instance NFData SortedReft
   -- put = B.put . M.toList
   -- get = M.fromList <$> B.get
 
-instance (Eq a, Hashable a, S.Store a) => S.Store (TCEmb a) 
+instance (Eq a, Hashable a, S.Store a) => S.Store (TCEmb a)
 instance S.Store SrcSpan
 instance S.Store KVar
 instance S.Store Subst
@@ -176,9 +176,9 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
   put = B.put . M.toList
   get = M.fromList <$> B.get
 
-instance B.Binary Subst 
+instance B.Binary Subst
 instance B.Binary Expr
-instance B.Binary Reft 
+instance B.Binary Reft
 instance B.Binary TCArgs
 instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a)
 
@@ -198,9 +198,9 @@ isKvar _           = False
 class HasGradual a where
   isGradual :: a -> Bool
   gVars     :: a -> [KVar]
-  gVars _ = [] 
+  gVars _ = []
   ungrad    :: a -> a
-  ungrad x = x 
+  ungrad x = x
 
 instance HasGradual Expr where
   isGradual (PGrad {}) = True
@@ -247,9 +247,9 @@ instance Hashable Brel
 instance Hashable Bop
 instance Hashable SymConst
 instance Hashable Constant
-instance Hashable GradInfo 
-instance Hashable Subst 
-instance Hashable Expr 
+instance Hashable GradInfo
+instance Hashable Subst
+instance Hashable Expr
 instance Hashable Reft
 
 --------------------------------------------------------------------------------
@@ -321,7 +321,7 @@ data Expr = ESym !SymConst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad  !KVar !Subst !GradInfo !Expr
-          | ECoerc !Sort !Sort !Expr  
+          | ECoerc !Sort !Sort !Expr
           deriving (Eq, Show, Ord, Data, Typeable, Generic)
 
 onEverySubexpr :: (Expr -> Expr) -> Expr -> Expr
@@ -672,8 +672,8 @@ instance PPrint Bop where
 instance PPrint Sort where
   pprintTidy _ = toFix
 
-instance PPrint a => PPrint (TCEmb a) where 
-  pprintTidy k = pprintTidy k . tceToList 
+instance PPrint a => PPrint (TCEmb a) where
+  pprintTidy k = pprintTidy k . tceToList
 
 instance PPrint KVar where
   pprintTidy _ (KV x) = text "$" <-> pprint x
@@ -862,7 +862,7 @@ isSingletonExpr :: Symbol -> Expr -> Maybe Expr
 isSingletonExpr v (PAtom r e1 e2)
   | e1 == EVar v && isEq r = Just e2
   | e2 == EVar v && isEq r = Just e1
-isSingletonExpr v (PIff e1 e2) 
+isSingletonExpr v (PIff e1 e2)
   | e1 == EVar v           = Just e2
   | e2 == EVar v           = Just e1
 isSingletonExpr _ _        = Nothing

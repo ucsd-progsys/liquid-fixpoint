@@ -73,10 +73,10 @@ module Language.Fixpoint.Types.Sorts (
 
   -- * Embedding Source types as Sorts
   , TCEmb, TCArgs (..)
-  , tceLookup 
-  , tceFromList 
+  , tceLookup
+  , tceFromList
   , tceToList
-  , tceMember 
+  , tceMember
   , tceInsert
   , tceInsertWith
   , tceMap
@@ -234,24 +234,24 @@ functionSort s
     go vs ss t             = (reverse vs, reverse ss, t)
 
 
-sortAbs :: Sort -> Int 
-sortAbs (FAbs i s)    = max i (sortAbs s) 
-sortAbs (FFunc s1 s2) = max (sortAbs s1) (sortAbs s2) 
+sortAbs :: Sort -> Int
+sortAbs (FAbs i s)    = max i (sortAbs s)
+sortAbs (FFunc s1 s2) = max (sortAbs s1) (sortAbs s2)
 sortAbs (FApp  s1 s2) = max (sortAbs s1) (sortAbs s2)
-sortAbs _             = -1  
+sortAbs _             = -1
 
-mapFVar :: (Int -> Int) -> Sort -> Sort 
-mapFVar f = go 
+mapFVar :: (Int -> Int) -> Sort -> Sort
+mapFVar f = go
   where go (FVar i)      = FVar (f i)
         go (FAbs i t)    = FAbs (f i) (go t)
         go (FFunc t1 t2) = FFunc (go t1) (go t2)
         go (FApp t1 t2)  = FApp (go t1) (go t2)
-        go t@(FObj _)    = t  
-        go t@(FTC _)     = t  
-        go t@FInt        = t  
-        go t@FReal       = t  
-        go t@FNum        = t  
-        go t@FFrac       = t  
+        go t@(FObj _)    = t
+        go t@(FTC _)     = t
+        go t@FInt        = t
+        go t@FReal       = t
+        go t@FNum        = t
+        go t@FFrac       = t
 
 --------------------------------------------------------------------------------
 -- | Sorts ---------------------------------------------------------------------
@@ -317,7 +317,7 @@ muSort  :: [DataDecl] -> [DataDecl]
 muSort dds = mapSortDataDecl tx <$> dds
   where
     selfs = [(fTyconSelfSort c n, fTyconSort c) | DDecl c n _ <- dds]
-    tx t  = fromMaybe t $ L.lookup t selfs 
+    tx t  = fromMaybe t $ L.lookup t selfs
 
     mapSortDataDecl f  dd = dd { ddCtors  = mapSortDataCTor f  <$> ddCtors  dd }
     mapSortDataCTor f  ct = ct { dcFields = mapSortDataField f <$> dcFields ct }
@@ -399,8 +399,8 @@ isPoly :: Sort -> Bool
 isPoly FAbs {} = True
 isPoly _       = False
 
-mkPoly :: Int -> Sort -> Sort 
-mkPoly i s = foldl (flip FAbs) s [0..i] 
+mkPoly :: Int -> Sort -> Sort
+mkPoly i s = foldl (flip FAbs) s [0..i]
 
 
 instance Hashable FTycon where
@@ -501,9 +501,9 @@ fTyconSort c
   | otherwise       = FTC c
 
 basicSorts :: [Sort]
-basicSorts = [FInt, boolSort] 
+basicSorts = [FInt, boolSort]
 
-type SortSubst = M.HashMap Symbol Sort 
+type SortSubst = M.HashMap Symbol Sort
 
 mkSortSubst :: [(Symbol, Sort)] -> SortSubst
 mkSortSubst = M.fromList
@@ -517,8 +517,8 @@ sortSubst θ (FApp t1 t2)  = FApp  (sortSubst θ t1) (sortSubst θ t2)
 sortSubst θ (FAbs i t)    = FAbs i (sortSubst θ t)
 sortSubst _  t            = t
 
--- instance (S.Store a) => S.Store (TCEmb a) 
-instance S.Store TCArgs 
+-- instance (S.Store a) => S.Store (TCEmb a)
+instance S.Store TCArgs
 instance S.Store FTycon
 instance S.Store TCInfo
 instance S.Store Sort
@@ -535,8 +535,8 @@ instance B.Binary Sort
 instance NFData FTycon where
   rnf (TC x i) = x `seq` i `seq` ()
 
-instance (NFData a) => NFData (TCEmb a) 
-instance NFData TCArgs 
+instance (NFData a) => NFData (TCEmb a)
+instance NFData TCArgs
 instance NFData TCInfo
 instance NFData Sort
 instance NFData DataField
@@ -556,57 +556,57 @@ instance Monoid Sort where
   mappend = (<>)
 
 -------------------------------------------------------------------------------
--- | Embedding stuff as Sorts 
+-- | Embedding stuff as Sorts
 -------------------------------------------------------------------------------
-newtype TCEmb a = TCE (M.HashMap a (Sort, TCArgs)) 
-  deriving (Eq, Show, Data, Typeable, Generic) 
+newtype TCEmb a = TCE (M.HashMap a (Sort, TCArgs))
+  deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Hashable a => Hashable (TCEmb a)
 
-data TCArgs = WithArgs | NoArgs 
-  deriving (Eq, Ord, Show, Data, Typeable, Generic) 
+data TCArgs = WithArgs | NoArgs
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-instance Hashable TCArgs 
+instance Hashable TCArgs
 
 tceInsertWith :: (Eq a, Hashable a) => (Sort -> Sort -> Sort) -> a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsertWith f k t a (TCE m) = TCE (M.insertWith ff k (t, a) m)
-  where 
+  where
     ff (t1, a1) (t2, a2)      = (f t1 t2, a1 <> a2)
 
-instance Semigroup TCArgs where 
+instance Semigroup TCArgs where
   NoArgs <> NoArgs = NoArgs
   _      <> _      = WithArgs
 
-instance Monoid TCArgs where 
-  mempty = NoArgs 
+instance Monoid TCArgs where
+  mempty = NoArgs
   mappend = (<>)
 
-instance PPrint TCArgs where 
+instance PPrint TCArgs where
   pprintTidy _ WithArgs = "*"
   pprintTidy _ NoArgs   = ""
 
 tceInsert :: (Eq a, Hashable a) => a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsert k t a (TCE m) = TCE (M.insert k (t, a) m)
 
-tceLookup :: (Eq a, Hashable a) => a -> TCEmb a -> Maybe (Sort, TCArgs) 
+tceLookup :: (Eq a, Hashable a) => a -> TCEmb a -> Maybe (Sort, TCArgs)
 tceLookup k (TCE m) = M.lookup k m
 
-instance (Eq a, Hashable a) => Semigroup (TCEmb a) where 
+instance (Eq a, Hashable a) => Semigroup (TCEmb a) where
   (TCE m1) <> (TCE m2) = TCE (m1 <> m2)
 
-instance (Eq a, Hashable a) => Monoid (TCEmb a) where 
-  mempty  = TCE mempty 
+instance (Eq a, Hashable a) => Monoid (TCEmb a) where
+  mempty  = TCE mempty
   mappend = (<>)
 
 
 tceMap :: (Eq b, Hashable b) => (a -> b) -> TCEmb a -> TCEmb b
-tceMap f = tceFromList . fmap (mapFst f) . tceToList 
+tceMap f = tceFromList . fmap (mapFst f) . tceToList
 
 tceFromList :: (Eq a, Hashable a) => [(a, (Sort, TCArgs))] -> TCEmb a
-tceFromList = TCE . M.fromList 
+tceFromList = TCE . M.fromList
 
 tceToList :: TCEmb a -> [(a, (Sort, TCArgs))]
 tceToList (TCE m) = M.toList m
 
-tceMember :: (Eq a, Hashable a) => a -> TCEmb a -> Bool 
+tceMember :: (Eq a, Hashable a) => a -> TCEmb a -> Bool
 tceMember k (TCE m) = M.member k m

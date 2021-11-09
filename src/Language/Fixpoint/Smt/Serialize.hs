@@ -46,12 +46,12 @@ smt2data' env ds = seqs [ parens $ smt2many (smt2dataname env <$> ds)
                          , parens $ smt2many (smt2datactors env <$> ds)
                          ]
 
- 
+
 smt2dataname :: SymEnv -> DataDecl -> Builder.Builder
 smt2dataname env (DDecl tc as _) = parenSeqs [name, n]
   where
     name  = smt2 env (symbol tc)
-    n     = smt2 env as 
+    n     = smt2 env as
 
 
 smt2datactors :: SymEnv -> DataDecl -> Builder.Builder
@@ -59,12 +59,12 @@ smt2datactors env (DDecl _ as cs) = parenSeqs ["par", parens tvars, parens ds]
   where
     tvars        = smt2many (smt2TV <$> [0..(as-1)])
     smt2TV       = smt2 env . SVar
-    ds           = smt2many (smt2ctor env as <$> cs) 
+    ds           = smt2many (smt2ctor env as <$> cs)
 
 smt2ctor :: SymEnv -> Int -> DataCtor -> Builder.Builder
 smt2ctor env _  (DCtor c [])  = smt2 env c
 smt2ctor env as (DCtor c fs)  = parenSeqs [smt2 env c, fields]
-                                
+
   where
     fields                 = smt2many (smt2field env as <$> fs)
 
@@ -101,8 +101,8 @@ instance SMTLIB2 Symbol where
     | Just t <- Thy.smt2Symbol env s = t
   smt2 _ s                           = symbolBuilder s
 
-instance SMTLIB2 Int where 
-  smt2 _ = Builder.fromString . show 
+instance SMTLIB2 Int where
+  smt2 _ = Builder.fromString . show
 
 instance SMTLIB2 LocSymbol where
   smt2 env = smt2 env . val
@@ -148,14 +148,14 @@ instance SMTLIB2 Expr where
   smt2 _   (PAnd [])        = "true"
   smt2 env (PAnd ps)        = parenSeqs ["and", smt2s env ps]
   smt2 _   (POr [])         = "false"
-  smt2 env (POr ps)         = parenSeqs ["or", smt2s env ps] 
+  smt2 env (POr ps)         = parenSeqs ["or", smt2s env ps]
   smt2 env (PNot p)         = parenSeqs ["not", smt2  env p]
   smt2 env (PImp p q)       = parenSeqs ["=>", smt2 env p, smt2 env q]
   smt2 env (PIff p q)       = parenSeqs ["=", smt2 env p, smt2 env q]
   smt2 env (PExist [] p)    = smt2 env p
   smt2 env (PExist bs p)    = parenSeqs ["exists", parens (smt2s env bs), smt2 env p]
   smt2 env (PAll   [] p)    = smt2 env p
-  smt2 env (PAll   bs p)    = parenSeqs ["forall", parens (smt2s env bs), smt2 env p] 
+  smt2 env (PAll   bs p)    = parenSeqs ["forall", parens (smt2s env bs), smt2 env p]
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
   smt2 env (ELam b e)       = smt2Lam   env b e
   smt2 env (ECoerc t1 t2 e) = smt2Coerc env t1 t2 e
@@ -205,13 +205,13 @@ smt2App env e
     (f, es)   = splitEApp' e
 
 smt2Coerc :: SymEnv -> Sort -> Sort -> Expr -> Builder.Builder
-smt2Coerc env t1 t2 e 
+smt2Coerc env t1 t2 e
   | t1' == t2'  = smt2 env e
   | otherwise = parenSeqs [Builder.fromText coerceFn , smt2 env e]
-  where 
+  where
     coerceFn  = symbolAtName coerceName env (ECoerc t1 t2 e) t
     t         = FFunc t1 t2
-    t1'       = smt2SortMono e env t1 
+    t1'       = smt2SortMono e env t1
     t2'       = smt2SortMono e env t2
 
 splitEApp' :: Expr -> (Expr, [Expr])
@@ -257,10 +257,10 @@ instance SMTLIB2 (Triggered Expr) where
   smt2 env (TR _ (PAll   [] p))   = smt2 env p
   smt2 env t@(TR _ (PAll   bs p)) = smtTr env "forall" bs p t
   smt2 env (TR _ e)               = smt2 env e
-  
+
 {-# INLINE smtTr #-}
 smtTr :: SymEnv -> Builder.Builder -> [(Symbol, Sort)] -> Expr -> Triggered Expr -> Builder.Builder
-smtTr env q bs p t = key q (parens (smt2s env bs) <+> key "!" (smt2 env p <+> ":pattern" <> parens (smt2s env (makeTriggers t)))) 
+smtTr env q bs p t = key q (parens (smt2s env bs) <+> key "!" (smt2 env p <+> ":pattern" <> parens (smt2s env (makeTriggers t))))
 
 {-# INLINE smt2s #-}
 smt2s    :: SMTLIB2 a => SymEnv -> [a] -> Builder.Builder
