@@ -36,11 +36,9 @@ import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Rewrite
 
-import Language.REST.AbstractOC as OC
+import Language.REST.OCAlgebra as OC
 import Language.REST.ExploredTerms as ET
 import Language.REST.RuntimeTerm as RT
-import Language.REST.OrderingConstraints.ADT (ConstraintsADT)
-import Language.REST.Op
 import Language.REST.SMT (withZ3, SolverHandle)
 
 import           Control.Monad.State
@@ -55,9 +53,6 @@ import qualified Data.Maybe           as Mb
 import qualified Data.Text            as Tx
 import           Debug.Trace          (trace)
 import           Text.PrettyPrint.HughesPJ.Compat
-
--- Type of Ordering Constraints for REST
-type OCType = ConstraintsADT
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -119,13 +114,17 @@ savePLEEqualities cfg fi res = when (save cfg) $ do
 instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> InstEnv a
 instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
   where
+    restOC            = restOrdering cfg
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver restOC
     et                = fmap makeET restSolver
     makeET solver     =
-      ET.empty (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
+      let
+        oc = ordConstraints restOC solver
+      in
+        ET.empty (EF (OC.union oc) (OC.notStrongerThan oc))
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -436,8 +435,9 @@ data EvalEnv = EvalEnv
   , evFuel     :: FuelCount
 
   -- REST parameters
-  , explored   :: Maybe (ExploredTerms RuntimeTerm (OCType Op) IO)
+  , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
   , restSolver :: Maybe SolverHandle
+  , restOCA    :: RESTOrdering
   }
 
 data FuelCount = FC 
@@ -468,8 +468,8 @@ evalOne γ env ctx _ e | otherwise = do
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
-    oc :: AbstractOC (OCType Op) Expr IO
-    oc = ordConstraints (Mb.fromJust $ restSolver env)
+    oc :: OCAlgebra OCType Expr IO
+    oc = ordConstraints (restOCA env) (Mb.fromJust $ restSolver env)
 
     rp = RP oc [(e, PLE)] constraints
     constraints = foldl go (OC.top oc) []
@@ -648,7 +648,7 @@ eval γ ctx et e =
         Nothing -> fallback
 
 data RESTParams oc = RP
-  { oc   :: AbstractOC oc Expr IO
+  { oc   :: OCAlgebra oc Expr IO
   , path :: [(Expr, TermOrigin)]
   , c    :: oc
   }
@@ -700,7 +700,7 @@ deANF ctx e = subst' e where
 -- The main difference with 'eval' is that 'evalREST' takes into account
 -- autorewrites.
 --
-evalREST :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
+evalREST :: Knowledge -> ICtx -> RESTParams OCType -> EvalST ()
 evalREST _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs

@@ -5,7 +5,6 @@
 
 module Language.Fixpoint.Solver.Rewrite
   ( getRewrite
-  -- , getRewrite'
   , subExprs
   , unify
   , ordConstraints
@@ -15,6 +14,8 @@ module Language.Fixpoint.Solver.Rewrite
   , RWTerminationOpts(..)
   , SubExpr
   , TermOrigin(..)
+  , OCType
+  , RESTOrdering(..)
   ) where
 
 import           Control.Monad.State
@@ -24,12 +25,15 @@ import qualified Data.List            as L
 import qualified Data.Text as TX
 import           GHC.IO.Handle.Types (Handle)
 import           Text.PrettyPrint (text)
+import           Language.Fixpoint.Types.Config (RESTOrdering(..))
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.REST
-import           Language.REST.AbstractOC
-import qualified Language.REST.RuntimeTerm as RT
+import           Language.REST.KBO (kbo)
+import           Language.REST.OCAlgebra
 import           Language.REST.Op
-import           Language.REST.OrderingConstraints.ADT (ConstraintsADT)
+import           Language.REST.SMT (SMTExpr)
+import           Language.REST.WQOConstraints.ADT (ConstraintsADT)
+import qualified Language.REST.RuntimeTerm as RT
 
 type SubExpr = (Expr, Expr -> Expr)
 
@@ -48,8 +52,30 @@ data RewriteArgs = RWArgs
  , rwTerminationOpts  :: RWTerminationOpts
  }
 
-ordConstraints :: (Handle, Handle) -> AbstractOC (ConstraintsADT Op) Expr IO
-ordConstraints solver = contramap convert (adtRPO solver)
+
+-- Monomorphize ordering constraints so we don't litter PLE with type variables
+-- Also helps since GHC doesn't support impredicate polymorphism (yet)
+data OCType =
+    RPO (ConstraintsADT Op)
+  | KBO (SMTExpr Bool)
+  | Fuel Int
+  deriving (Eq, Show)
+
+ordConstraints :: RESTOrdering -> (Handle, Handle) -> OCAlgebra OCType Expr IO
+ordConstraints RESTRPO      solver = bimapConstraints RPO asRPO $ contramap convert (adtRPO solver)
+  where
+    asRPO (RPO t) = t
+    asRPO _       = undefined
+
+ordConstraints RESTKBO      solver = bimapConstraints KBO asKBO $ contramap convert (kbo solver)
+  where
+    asKBO (KBO t) = t
+    asKBO _       = undefined
+
+ordConstraints (RESTFuel n) _      = bimapConstraints Fuel asFuel $ fuelOC n
+  where
+    asFuel (Fuel n) = n
+    asFuel _        = undefined
 
 
 convert :: Expr -> RT.RuntimeTerm
@@ -67,14 +93,14 @@ convert (ESym (SL tx)) = RT.App (Op tx) []
 convert (ECst t _)     = convert t
 convert e              = error (show e)
 
-passesTerminationCheck :: AbstractOC oc a IO -> RewriteArgs -> oc -> IO Bool
+passesTerminationCheck :: OCAlgebra oc a IO -> RewriteArgs -> oc -> IO Bool
 passesTerminationCheck aoc rwArgs c =
   case rwTerminationOpts rwArgs of
     RWTerminationCheckEnabled  -> isSat aoc c
     RWTerminationCheckDisabled -> return True
 
 getRewrite ::
-     AbstractOC oc Expr IO
+     OCAlgebra oc Expr IO
   -> RewriteArgs
   -> oc
   -> SubExpr

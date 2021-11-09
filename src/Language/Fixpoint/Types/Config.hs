@@ -14,6 +14,8 @@ module Language.Fixpoint.Types.Config (
   -- * SMT Solver options
   , SMTSolver (..)
 
+  , RESTOrdering (..)
+
   -- * Eliminate options
   , Eliminate (..)
   , useElim
@@ -26,6 +28,7 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
+import qualified Data.List as L
 import Data.Serialize                (Serialize (..))
 import Control.Monad
 import GHC.Generics
@@ -99,10 +102,30 @@ data Config = Config
   , json                :: Bool        -- ^ Render output in JSON format
   , noLazyPLE           :: Bool
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
+  , restOrdering        :: RESTOrdering
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
   def = defConfig
+
+---------------------------------------------------------------------------------------
+
+data RESTOrdering = RESTKBO | RESTRPO | RESTFuel Int
+                 deriving (Eq, Data, Typeable, Generic)
+
+instance Default RESTOrdering where
+  def = RESTRPO
+
+instance Show RESTOrdering where
+  show RESTKBO      = "kbo"
+  show RESTRPO      = "rpo"
+  show (RESTFuel n) = "fuel" ++ show n
+
+instance Read RESTOrdering where
+  readsPrec _ "kbo" = [(RESTKBO, "")]
+  readsPrec _ "rpo" = [(RESTRPO, "")]
+  readsPrec _ xs    | "fuel" `L.isPrefixOf` xs = [(RESTFuel (read (drop 4 xs)), "")]
+  readsPrec _ xs    = error $ "Cannot parse " ++ xs ++ " as an ordering. Expected: kbo|rpo|fuelN"
 
 ---------------------------------------------------------------------------------------
 
@@ -204,6 +227,10 @@ defConfig = Config {
   , json                     = False   &= help "Render result in JSON"
   , noLazyPLE                = False   &= help "Don't use lazy PLE"
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
+  , restOrdering             =
+      def
+        &= name "rest-ordering"
+        &= help "Ordering Constraint Algebra to use for REST"
   }
   &= verbosity
   &= program "fixpoint"
@@ -219,7 +246,7 @@ config :: Mode (CmdArgs Config)
 config = cmdArgsMode defConfig
 
 getOpts :: IO Config
-getOpts = do 
+getOpts = do
   md <- cmdArgs defConfig
   whenNormal (putStrLn banner)
   return md
