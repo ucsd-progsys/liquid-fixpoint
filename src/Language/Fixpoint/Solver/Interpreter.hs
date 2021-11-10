@@ -70,10 +70,14 @@ instance PPrint a => Evalable (SubcId, SimpC a) where
                      modify $ \s -> s{esubs = M.union subs (esubs s)}
                      rhs' <-  eval γ (_crhs c)
                      modify $ \s -> s{esubs = esubs s0}
-                     if isTautoPred rhs' 
+                     if isValid rhs' 
                        then modify $ \st -> st {eunsolved = eunsolved st L.\\ [i]}
                        else return ()
                      return (i, c{_crhs = traceEval ("\nRHS " ++ show i  ++ " is solved:" ++ showpp (isTautoPred rhs' ) ++ "\n" ++ showpp subs) (_crhs c) rhs'})
+
+isValid :: Expr -> Bool 
+isValid (PImp x y) = x == y || isValid y 
+isValid p          = isTautoPred p 
 
 instance Evalable Expr where 
   eval γ e0  = do st    <- get 
