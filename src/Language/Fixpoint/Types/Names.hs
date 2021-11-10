@@ -40,6 +40,8 @@ module Language.Fixpoint.Types.Names (
   , isNonSymbol
   , isLitSymbol
   , isTestSymbol
+  , isANFSymbol
+  , isDataconSymbol
   -- , isCtorSymbol
   , isNontrivialVV
   , isDummy
@@ -73,6 +75,7 @@ module Language.Fixpoint.Types.Names (
   , tempSymbol
   , gradIntSymbol
   , appendSymbolText
+  , dataconSymbol
 
   -- * Wrapping Symbols
   , litSymbol
@@ -489,13 +492,24 @@ gradIntSymbol = intSymbol gradPrefix
 bindSymbol :: Integer -> Symbol
 bindSymbol = intSymbol bindPrefix
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix, bindPrefix :: Symbol
+tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix, bindPrefix, dataconPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
+dataconPrefix = "lq_dc$"
 litPrefix    = "lit$"
 gradPrefix   = "grad$"
 bindPrefix   = "b$"
+
+dataconSymbol :: Integer -> Symbol 
+dataconSymbol = intSymbol dataconPrefix
+isDataconSymbol :: Symbol -> Bool
+isDataconSymbol = isPrefixOfSym dataconPrefix
+
+
+isANFSymbol :: Symbol -> Bool
+isANFSymbol = isPrefixOfSym anfPrefix
+
 
 testPrefix  :: Symbol
 testPrefix   = "is$"

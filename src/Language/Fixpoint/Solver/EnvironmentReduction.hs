@@ -55,6 +55,7 @@ import           Language.Fixpoint.Types.Names
   , isPrefixOfSym
   , prefixOfSym
   , symbolText
+  , vvName
   )
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
@@ -618,13 +619,13 @@ inlineInExpr :: HashMap Symbol (m, SortedReft) -> Expr -> Expr
 inlineInExpr env = simplify . mapExprOnExpr inlineExpr
   where
     inlineExpr (EVar sym)
-      | anfPrefix `isPrefixOfSym` sym
+      | (anfPrefix `isPrefixOfSym` sym) || (vvName `isPrefixOfSym` sym)
       , Just (_, sr) <- HashMap.lookup sym env
       , let r = sr_reft sr
       , Just e <- isSingletonE (reftBind r) (reftPred r)
       = wrapWithCoercion Eq (sr_sort sr) e
     inlineExpr (PAtom br e0 e1@(dropECst -> EVar sym))
-      | anfPrefix `isPrefixOfSym` sym
+      | (anfPrefix `isPrefixOfSym` sym) || (vvName `isPrefixOfSym` sym)
       , isEq br
       , Just (_, sr) <- HashMap.lookup sym env
       , let r = sr_reft sr

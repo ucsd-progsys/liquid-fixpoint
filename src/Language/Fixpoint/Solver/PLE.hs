@@ -75,7 +75,7 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 {-# SCC instantiate #-}
 instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
-instantiate cfg fi' subcIds = do
+instantiate cfg fi subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm fi)
@@ -92,7 +92,6 @@ instantiate cfg fi' subcIds = do
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
     aEnv   = ae fi
-    fi     = normalize fi'
 
 savePLEEqualities :: Config -> SInfo a -> InstRes -> IO ()
 savePLEEqualities cfg fi res = when (save cfg) $ do
@@ -422,6 +421,8 @@ isGoodApp γ e
   = length es >= i
   | otherwise
   = False
+
+
 
 
 
@@ -1124,62 +1125,6 @@ applyConstantFolding bop e1 e2 =
         getOp' op  = getOp op
 
 
--------------------------------------------------------------------------------
--- | Normalization of Equation: make their arguments unique -------------------
--------------------------------------------------------------------------------
-
-class Normalizable a where
-  normalize :: a -> a
-
-instance Normalizable (GInfo c a) where
-  normalize si = si {ae = normalize $ ae si}
-
-instance Normalizable AxiomEnv where
-  normalize aenv = aenv { aenvEqs   = mytracepp "aenvEqs"  (normalize <$> aenvEqs   aenv)
-                        , aenvSimpl = mytracepp "aenvSimpl" (normalize <$> aenvSimpl aenv) }
-
-instance Normalizable Rewrite where
-  normalize rw = rw { smArgs = xs', smBody = normalizeBody (smName rw) $ subst su $ smBody rw }
-    where
-      su  = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
-      xs  = smArgs rw
-      xs' = zipWith mkSymbol xs [0..]
-      mkSymbol x i = x `suffixSymbol` intSymbol (smName rw) i
-
-
-instance Normalizable Equation where
-  normalize eq = eq {eqArgs = zip xs' ss, eqBody = normalizeBody (eqName eq) $ subst su $ eqBody eq }
-    where
-      su      = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
-      (xs,ss) = unzip (eqArgs eq)
-      xs'     = zipWith mkSymbol xs [0..]
-      mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i
-
-
-normalizeBody :: Symbol -> Expr -> Expr
-normalizeBody f = go
-  where
-    go e
-      | any (== f) (syms e)
-      = go' e
-    go e
-      = e
-
-    go' (PAnd [PImp c e1,PImp (PNot c') e2])
-      | c == c' = EIte c e1 (go' e2)
-    go' e = e
-
-_splitBranches :: Symbol -> Expr -> [(Expr, Expr)]
-_splitBranches f = go
-  where
-    go (PAnd es)
-      | any (== f) (syms es)
-      = go' <$> es
-    go e
-      = [(PTrue, e)]
-
-    go' (PImp c e) = (c, e)
-    go' e          = (PTrue, e)
 
 -- -- TODO:FUEL Config
 -- maxFuel :: Int
