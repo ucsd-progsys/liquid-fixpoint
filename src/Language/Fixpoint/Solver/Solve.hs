@@ -36,13 +36,14 @@ import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import qualified Language.Fixpoint.Types.Config as C
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
---import Debug.Trace                      (trace)
+import Debug.Trace                      (trace)
+import Language.Fixpoint.Solver.Normalize 
 
 mytrace :: String -> a -> a
-mytrace =  {-trace-} flip const
+mytrace =  {- trace -} flip const
 
 --------------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a, PPrint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 
 solve cfg fi = do
@@ -84,11 +85,11 @@ solverInfo cfg fI
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
-doInterpret :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM (F.SInfo a)
+doInterpret :: (F.Loc a, Fixpoint a, PPrint a) => Config -> F.SInfo a -> [F.SubcId] -> SolveM (F.SInfo a, [Integer])
 doInterpret cfg fi0 subcIds = do
-  fi <- liftIO $ instInterpreter cfg fi0 (Just subcIds)
+  (fi, solved) <- liftIO $ instInterpreter cfg fi0 subcIds
   modify $ update' fi
-  return fi  
+  return (fi, solved)  
   where
     update' fi ss = ss{ssBinds = F.bs fi'}
       where
@@ -108,7 +109,7 @@ doPLE cfg fi0 subcIds = do
 
 --------------------------------------------------------------------------------
 {-# SCC solve_ #-}
-solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
+solve_ :: (NFData a, F.Fixpoint a, F.Loc a, Show a, PPrint a)
        => Config
        -> F.SInfo a
        -> Sol.Solution
@@ -124,30 +125,34 @@ solve_ cfg fi s0 ks wkl = do
     s3       <- {- SCC "sol-refine" #-} refine bindingsInSmt s2 wkl
     res0     <- {- SCC "sol-result" #-} result bindingsInSmt cfg wkl s3
     return (s3, res0)
+  let finormalized = normalize fi
+  liftIO $ printUnsafe "ORG" (resStatus res0) 
   res <- case resStatus res0 of
-    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && useInterpreter cfg -> do
-      fi' <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
-      (s4, res1) <-  sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
-        s4    <- {- SCC "sol-refine" #-} refine bindingsInSmt s3 wkl
-        res1  <- {- SCC "sol-result" #-} result bindingsInSmt cfg wkl s4
-        return (s4, res1)
-      res2  <- case resStatus res1 of
-        Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
-          doPLE cfg fi' (map fst $ mytrace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
-          sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
-            s5    <- {- SCC "sol-refine" #-} refine bindingsInSmt s4 wkl
-            result bindingsInSmt cfg wkl s5
-        _ -> return $ mytrace "all checked with interpreter" res1
-      return res2
-                  | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
-      doPLE cfg fi (map fst bads)
+    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
+      goods <- if (useInterpreter cfg) 
+                 then snd <$> doInterpret cfg finormalized (fst <$> bads)
+                 else return [] 
+      liftIO $ printUnsafe "INT" (markSafe goods $ resStatus res0) 
+      doPLE cfg finormalized (map fst bads L.\\ goods)
       sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
         s4 <- {- SCC "sol-refine" #-} refine bindingsInSmt s3 wkl
-        result bindingsInSmt cfg wkl s4
-    _ -> return $ mytrace "all checked without any PLE" res0
+        r4 <- result bindingsInSmt cfg wkl s4
+        liftIO $ printUnsafe "PLE" (markSafe goods $ resStatus r4) 
+        return r4{resStatus = markSafe goods $ resStatus r4}
+    _ -> return res0
   st      <- stats
   let res' = {- SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
+
+printUnsafe :: String -> FixResult (SubcId, a) -> IO ()
+printUnsafe s (Unsafe _ ids) = putStrLn (s ++ " " ++ show (L.sort (fst <$> ids)))
+printUnsafe s _ = putStrLn ( s ++  " All SAFE") 
+
+markSafe :: [SubcId] -> FixResult (SubcId, a) -> FixResult (SubcId, a)
+markSafe sids (Unsafe s ids) = case filter (\(i,_) -> i `notElem` sids) ids of 
+                                 []    -> F.Safe s
+                                 rest  -> Unsafe s rest
+markSafe _ r = r 
 
 --------------------------------------------------------------------------------
 -- | tidyResult ensures we replace the temporary kVarArg names introduced to

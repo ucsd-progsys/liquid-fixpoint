@@ -639,6 +639,7 @@ isContraPred z = eqC z || (z `elem` contras)
 isTautoPred   :: Expr -> Bool
 isTautoPred z  = z == PTop || z == PTrue || eqT z
   where
+    eqT (PImp x y) = x == y || isTautoPred y 
     eqT (PAnd [])
                = True
     eqT (PAtom Le x y)
