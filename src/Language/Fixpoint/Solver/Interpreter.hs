@@ -26,17 +26,17 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
-import           Debug.Trace                              (trace)
+-- import           Debug.Trace                              (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp 
 
 traceEval :: String -> Expr -> Expr -> Expr 
-traceEval str e1 e2 
-  | False 
-  = trace (str ++ "EVAL\n" ++ showpp (unElab e1) ++ "\n~>\n" ++ showpp (unElab e2)) e2 
+traceEval _str _e1 e2 
+{-   | False 
+  = trace (_str ++ "EVAL\n" ++ showpp (unElab _e1) ++ "\n~>\n" ++ showpp (unElab e2)) e2 
   | otherwise 
-  = e2 
+-}  = e2 
 
 _mytrace :: String -> a -> a
 _mytrace = {-trace-} flip const
