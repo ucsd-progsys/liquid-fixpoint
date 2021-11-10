@@ -8,5 +8,4 @@ haskell.lib.buildStackProject ({
   name = "liquid-fixpoint-stack";
   buildInputs = [ hostname z3 ];
   ghc = ghc;
-  LANG = "en_US.utf8";
 })
