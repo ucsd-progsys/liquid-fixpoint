@@ -6,6 +6,11 @@ with pkgs;
 
 haskell.lib.buildStackProject {
   name = "liquid-fixpoint-stack";
-  buildInputs = [ hostname z3 ];
+
+  buildInputs = [
+    # z3 is necessary for tests and `stack exec fixpoint` to run.
+    z3
+  ];
+
   ghc = ghc;
 }
