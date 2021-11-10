@@ -34,10 +34,21 @@ Simply do:
 ```
 $ git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
 $ cd liquid-fixpoint
-$ stack install
+$ stack install # alternatively, use `cabal install`.
 ```
 
-or (`cabal` instead of `stack` if you prefer.)
+A reproducible Nix environment is provided as well:
+
+```
+# Build with:
+$ nix-shell --pure --run "stack build"
+
+# Test with:
+$ nix-shell --pure --run "stack test"
+
+# Run with:
+$ nix-shell --pure --run "stack exec fixpoint -- tests/pos/adt.fq"
+```
 
 
 Using SMTLIB-based SMT Solvers
