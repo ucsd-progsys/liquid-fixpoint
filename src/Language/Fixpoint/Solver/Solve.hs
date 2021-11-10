@@ -36,11 +36,11 @@ import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import qualified Language.Fixpoint.Types.Config as C
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
-import Debug.Trace                      (trace)
+-- import Debug.Trace                      (trace)
 import Language.Fixpoint.Solver.Normalize 
 
-mytrace :: String -> a -> a
-mytrace =  {- trace -} flip const
+-- mytrace :: String -> a -> a
+-- mytrace =  {- trace -} flip const
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a, PPrint a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
