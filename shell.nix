@@ -1,3 +1,11 @@
+# This Nix file provides an environment for running stack.
+#
+# Example usage:
+#
+#     nix-shell --pure --run "stack build"
+#     nix-shell --pure --run "stack test"
+#     nix-shell --pure --run "stack exec fixpoint -- tests/pos/adt.fq"
+
 {pkgs ? import ./nixpkgs.nix {}}:
 
 with pkgs;
@@ -8,7 +16,10 @@ mkShell {
   buildInputs = [
     haskell.compiler.ghc8107
 
-    # z3 must be on the PATH so the `fixpoint` executable can find it.
-    z3
+    # nix is required because we use stack in "Nix mode", whereby stack invokes
+    # `nix-shell` to create the reproducible build environment.
+    nix
+
+    stack
   ];
 }
