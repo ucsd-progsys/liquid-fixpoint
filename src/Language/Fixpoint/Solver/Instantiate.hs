@@ -11,7 +11,6 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}

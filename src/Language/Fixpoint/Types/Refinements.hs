@@ -1,8 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -13,7 +10,6 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE PatternSynonyms            #-}
 
 -- | This module has the types for representing terms in the refinement logic.

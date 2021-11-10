@@ -8,13 +8,10 @@
 --     2. "Reasoning about Functions", VMCAI 2018, https://ranjitjhala.github.io/static/reasoning-about-functions.pdf
 --------------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}

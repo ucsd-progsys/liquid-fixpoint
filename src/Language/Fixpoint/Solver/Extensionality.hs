@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
