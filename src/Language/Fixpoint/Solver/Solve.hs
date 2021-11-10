@@ -1,5 +1,4 @@
 {-# LANGUAGE PatternGuards     #-}
-{-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}

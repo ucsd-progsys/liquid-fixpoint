@@ -3,10 +3,8 @@
 --   either as .fq files or as FInfo.
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DoAndIfThenElse     #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ViewPatterns        #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo

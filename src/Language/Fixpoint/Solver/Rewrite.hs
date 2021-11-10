@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}

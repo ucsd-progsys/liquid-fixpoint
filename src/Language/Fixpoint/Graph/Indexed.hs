@@ -4,7 +4,6 @@
 --   succ, pred lookup
 --------------------------------------------------------------------------------
 
-{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Fixpoint.Graph.Indexed (
   -- * (Abstract) Indexed Graphs
