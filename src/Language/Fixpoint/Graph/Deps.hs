@@ -60,9 +60,9 @@ import           Debug.Trace (trace)
 --------------------------------------------------------------------------------
 slice :: (F.TaggedC c a) => Config -> F.GInfo c a -> F.GInfo c a
 --------------------------------------------------------------------------------
-slice cfg fi 
-  | noslice cfg 
-  = fi 
+slice cfg fi
+  | noslice cfg
+  = fi
   | otherwise
   = fi { F.cm = cm'
        , F.ws = ws' }

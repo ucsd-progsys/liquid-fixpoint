@@ -50,13 +50,13 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ.Compat
-import qualified Data.List                as L 
+import qualified Data.List                as L
 import           Data.Text (Text)
 import qualified Data.Text                as Text
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Store              as S
 import qualified Data.HashMap.Strict      as M
-import qualified Language.Fixpoint.Misc   as Misc 
+import qualified Language.Fixpoint.Misc   as Misc
 import Data.Functor.Contravariant (Contravariant(contramap))
 
 --------------------------------------------------------------------------------
@@ -65,7 +65,7 @@ import Data.Functor.Contravariant (Contravariant(contramap))
 type Raw = LT.Text
 
 instance S.Store Raw where
-  peek = LT.fromStrict <$> S.peek  
+  peek = LT.fromStrict <$> S.peek
   poke = S.poke . LT.toStrict
   size = contramap LT.toStrict S.size
 
@@ -106,13 +106,13 @@ symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
     xEnv'                 = unionSEnv xEnv wiredInEnv
     dEnv                  = fromListSEnv [(symbol d, d) | d <- ds]
     sortMap               = M.fromList (zip smts [0..])
-    smts                  = funcSorts dEnv ts 
+    smts                  = funcSorts dEnv ts
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNININTERPRETED but POLYMORPHIC, hence need to go through
 --   the apply-defunc stuff.
 wiredInEnv :: M.HashMap Symbol Sort
-wiredInEnv = M.fromList 
+wiredInEnv = M.fromList
   [ (toIntName, mkFFunc 1 [FVar 0, FInt])
   , (tyCastName, FAbs 0 $ FAbs 1 $ FFunc (FVar 0) (FVar 1))
   ]
@@ -158,7 +158,7 @@ insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
 
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
-insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env) 
+insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
 symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Text
 symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
@@ -178,7 +178,7 @@ funcSortIndex env e z = M.lookupDefault err z (seAppls env)
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = {- tracepp ("ffuncSort " ++ showpp (t1,t2)) -} (tx t1, tx t2)
   where
-    tx               = applySmtSort (seData env) 
+    tx               = applySmtSort (seData env)
     (t1, t2)         = args t
     args (FFunc a b) = (a, b)
     args _           = (FInt, FInt)
@@ -258,13 +258,13 @@ instance S.Store SmtSort
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
 sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) else id) $ -}  go . unAbs $ t
   where
-    m = sortAbs t 
+    m = sortAbs t
     go (FFunc _ _)    = SInt
     go FInt           = SInt
     go FReal          = SReal
     go t
       | t == boolSort = SBool
-      | isString t    = SString 
+      | isString t    = SString
     go (FVar i)
       | poly, i < m   = SVar i
       | otherwise     = SInt

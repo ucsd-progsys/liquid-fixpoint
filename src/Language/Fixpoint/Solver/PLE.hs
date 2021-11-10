@@ -428,6 +428,8 @@ isGoodApp γ e
 
 
 
+
+
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 
@@ -1124,7 +1126,6 @@ applyConstantFolding bop e1 e2 =
 
         getOp' Mod = Just mod
         getOp' op  = getOp op
-
 
 
 

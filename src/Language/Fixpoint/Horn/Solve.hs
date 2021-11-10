@@ -29,12 +29,12 @@ solveHorn :: F.Config -> IO ExitCode
 ----------------------------------------------------------------------------------
 solveHorn cfg = do
   (q, opts) <- parseQuery cfg
-  
+
   -- If you want to set --eliminate=none, you better make it a pragma
   cfg <- if F.eliminate cfg == F.None
            then pure (cfg { F.eliminate =  F.Some })
            else pure cfg
-  
+
   cfg <- F.withPragmas cfg opts
 
   when (F.save cfg) (saveHornQuery cfg q)
@@ -43,7 +43,7 @@ solveHorn cfg = do
   Solver.resultExitCode cfg r
 
 parseQuery :: F.Config -> IO (H.Query H.Tag, [String])
-parseQuery cfg 
+parseQuery cfg
   | F.stdin cfg = Parse.parseFromStdIn H.hornP
   | otherwise   = Parse.parseFromFile H.hornP (F.srcFile cfg)
 

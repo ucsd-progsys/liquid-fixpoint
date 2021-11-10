@@ -33,7 +33,7 @@ import Test.Tasty.Runners.AntXML
 import Paths_liquid_fixpoint
 
 main :: IO ()
-main    = do 
+main    = do
   run =<< group "Tests" [unitTests]
   where
     run = defaultMainWithIngredients [
@@ -92,7 +92,7 @@ skipNativePos = ["NonLinear-pack.fq"]
 ---------------------------------------------------------------------------
 dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
-dirTests testCmd root ignored code = do 
+dirTests testCmd root ignored code = do
   files    <- walkDirectory root
   let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
   return    $ mkTest testCmd code root <$> tests
@@ -333,7 +333,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup group children = Traversal $ Functor.Compose $ do
+    runGroup _ group children = Traversal $ Functor.Compose $ do
       Const soFar <- Functor.getCompose $ getTraversal children
       pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
 

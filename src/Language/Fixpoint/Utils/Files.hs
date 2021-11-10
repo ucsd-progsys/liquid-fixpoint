@@ -74,7 +74,7 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | Js       -- ^ JavaScript source
          | Ts       -- ^ Typescript source
          | Spec     -- ^ Spec file (e.g. include/Prelude.spec)
-         | BinSpec  -- ^ Lifted-Spec file, containing automatically generated specifications 
+         | BinSpec  -- ^ Lifted-Spec file, containing automatically generated specifications
          | Hquals   -- ^ Qualifiers file (e.g. include/Prelude.hquals)
          | Result   -- ^ Final result: SAFE/UNSAFE
          | Cst      -- ^ HTML file with templates?

@@ -28,16 +28,16 @@ withProgress n act = do
       r <- act
       progressClose
       return r
-  
+
 progressInit :: Int -> IO ()
 progressInit n = do
-  normal <- isNormal 
+  normal <- isNormal
   when normal $ do
     pr <- mkPB n
     writeIORef pbRef (Just pr)
 
 mkPB   :: Int -> IO ProgressBar
-mkPB n = newProgressBar def 
+mkPB n = newProgressBar def
   { pgWidth       = 80
   , pgTotal       = {- traceShow "MAKE-PROGRESS" -} (toInteger n)
   , pgFormat      = "Working :percent [:bar]"
@@ -51,15 +51,15 @@ progressTick    = go =<< readIORef pbRef
    go (Just pr) = incTick pr
    go _         = return ()
 
-incTick :: ProgressBar -> IO () 
+incTick :: ProgressBar -> IO ()
 incTick pb = do
-  st <- getProgressStats pb 
+  st <- getProgressStats pb
   when (incomplete st) (tick pb)
     -- then tick pb -- putStrLn (show (stPercent st, stTotal st, stCompleted st)) >> (tick pb)
-    -- else return () 
+    -- else return ()
 
-incomplete :: Stats -> Bool 
-incomplete st = {- traceShow "INCOMPLETE" -} (stRemaining st) > 0 
+incomplete :: Stats -> Bool
+incomplete st = {- traceShow "INCOMPLETE" -} (stRemaining st) > 0
 -- incomplete st = stPercent st < 100
 
 
