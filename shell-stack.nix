@@ -4,8 +4,8 @@
 
 with pkgs;
 
-haskell.lib.buildStackProject ({
+haskell.lib.buildStackProject {
   name = "liquid-fixpoint-stack";
   buildInputs = [ hostname z3 ];
   ghc = ghc;
-})
+}

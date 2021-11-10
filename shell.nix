@@ -10,5 +10,4 @@ mkShell {
     ghc
     ghcid
   ];
-
 }
