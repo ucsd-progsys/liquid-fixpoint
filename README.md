@@ -45,7 +45,7 @@ Using SMTLIB-based SMT Solvers
 
 You can use one of several SMTLIB2 compliant solvers, by:
 
-    fixpoint --smtsolver=z3 path/to/file.hs
+    fixpoint --solver=z3 path/to/file.hs
 
 Currently, we support
 
