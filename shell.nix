@@ -7,6 +7,8 @@ mkShell {
 
   buildInputs = [
     haskell.compiler.ghc8107
+
+    # z3 must be on the PATH so the `fixpoint` executable can find it.
     z3
   ];
 }
