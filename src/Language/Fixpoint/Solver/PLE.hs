@@ -90,7 +90,7 @@ instantiate cfg fi' subcIds = do
   where
     withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
     withRESTSolver f | null (concat $ M.elems $ aenvAutoRW aEnv) = f Nothing
-    withRESTSolver f  = withZ3 (f . Just)
+    withRESTSolver f = withZ3 (f . Just)
 
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
@@ -472,7 +472,7 @@ evalOne γ env ctx i e | i > 0 || null (getAutoRws γ ctx) = do
     ((e', _), st) <- runStateT (eval γ ctx NoRW e) (env { evFuel = icFuel ctx })
     let evAcc' = if mytracepp ("evalOne: " ++ showpp e) e' == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st)
-evalOne γ env ctx _ e  = do
+evalOne γ env ctx _ e = do
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
@@ -723,7 +723,7 @@ deANF ctx = subst' where
       isVar (EVar _) = True
       isVar _        = False
 
-  getBest ts  = head ts
+  getBest ts = head ts
 
 -- |
 -- Adds to the monad state all the subexpressions that have been rewritten
@@ -781,7 +781,7 @@ evalREST γ ctx rp =
         RWTerminationCheckEnabled  -> shouldExplore (convert e) (c rp) et
 
     allowed (rwE, _) | rwE `elem` pathExprs = return False
-    allowed (_, c)    = termCheck c
+    allowed (_, c)   = termCheck c
     termCheck c = passesTerminationCheck (oc rp) rwArgs c
 
     notVisitedFirst et rws =
@@ -960,7 +960,7 @@ knowledge cfg ctx si = KN
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
                                  ++ rwSyms
   , knDCs                      = S.fromList (smDC <$> sims)
-  , knSels                     = Mb.mapMaybe makeSel sims
+  , knSels                     = Mb.mapMaybe makeSel  sims
   , knConsts                   = Mb.mapMaybe makeCons sims
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
@@ -981,7 +981,7 @@ knowledge cfg ctx si = KN
 
     lhsHead :: Expr -> Maybe Symbol
     lhsHead e | (EVar f, _) <- splitEApp e = Just f
-    lhsHead _  = Nothing
+    lhsHead _ = Nothing
 
 
     rwSyms = filter (inRewrites . fst) $ map toSum (toListSEnv (gLits si))
