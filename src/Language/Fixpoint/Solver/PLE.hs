@@ -87,7 +87,7 @@ instantiate cfg fi' subcIds = do
   where
     withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
     withRESTSolver f | null (concat $ M.elems $ aenvAutoRW aEnv) = f Nothing
-    withRESTSolver f | otherwise = withZ3 (\z3 -> f (Just z3))
+    withRESTSolver f = withZ3 (f . Just)
 
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
@@ -188,7 +188,7 @@ loopB env ctx delta iMb res b = case b of
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do
                   progressTick
-                  (snd <$> ple1 env ctx' iMb res)
+                  snd <$> ple1 env ctx' iMb res
 
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
@@ -225,7 +225,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
       let
         rws = [rewrite e (knSims γ) | e <- S.toList (snd `S.map` exprs)]
       in
-        exprs <> (S.fromList $ concat rws)
+        exprs <> S.fromList (concat rws)
     go ictx _ | S.null (icCands ictx) = return ictx
     go ictx i =  do
                   let cands = icCands ictx
@@ -256,7 +256,7 @@ evalOneCandStep γ env' i (ictx, acc) e = do
   return (ictx { icFuel = fm}, res : acc)
 
 rewrite :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)]
-rewrite e rwEnv = concat $ map (`rewriteTop` rwEnv) (notGuardedApps e)
+rewrite e rwEnv = concatMap (`rewriteTop` rwEnv) (notGuardedApps e)
 
 rewriteTop :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)]
 rewriteTop e rwEnv =
@@ -467,9 +467,9 @@ getAutoRws γ ctx =
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Int -> Expr -> IO (EvAccum, FuelCount)
 evalOne γ env ctx i e | i > 0 || null (getAutoRws γ ctx) = do
     ((e', _), st) <- runStateT (eval γ ctx NoRW e) (env { evFuel = icFuel ctx })
-    let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
+    let evAcc' = if mytracepp ("evalOne: " ++ showpp e) e' == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st)
-evalOne γ env ctx _ e | otherwise = do
+evalOne γ env ctx _ e = do
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
@@ -477,10 +477,7 @@ evalOne γ env ctx _ e | otherwise = do
     oc = ordConstraints (Mb.fromJust $ restSolver env)
 
     rp = RP oc [(e, PLE)] constraints
-    constraints = foldl go (OC.top oc) []
-      where
-        go c (t, u) = refine oc c t u
-
+    constraints = OC.top oc
 
 -- | @notGuardedApps e@ yields all the subexpressions that are
 -- applications not under an if-then-else, lambda abstraction, type abstraction,
@@ -580,7 +577,7 @@ feVal :: FinalExpand -> Bool
 feVal (FE f) = f
 
 feAny :: [FinalExpand] -> FinalExpand
-feAny xs = FE $ any id (map feVal xs)
+feAny xs = FE $ any feVal xs
 
 (<|>) :: FinalExpand -> FinalExpand -> FinalExpand
 (<|>) (FE True) _ = expand
@@ -637,22 +634,21 @@ eval γ ctx et e =
           -- if necessary
           do
             (es', fe) <- feSeq <$> mapM (eval γ ctx et) es
-            r <- if es /= es'
+            if es /= es'
               then return (eApps f es', fe)
               else do
                 (f', fe)  <- eval γ ctx et f
                 (e', fe') <- evalApp γ ctx f' es et
-                return $ (e', fe <|> fe')
-            return r
+                return (e', fe <|> fe')
        (f, es) ->
           do
-            ((f':es'), fe) <- feSeq <$> mapM (eval γ ctx et) (f:es)
+            (f':es', fe) <- feSeq <$> mapM (eval γ ctx et) (f:es)
             (e', fe') <- evalApp γ ctx f' es' et
-            return $ (e', fe <|> fe')
+            return (e', fe <|> fe')
 
     go e@(PAtom r e1 e2) = evalBoolOr e (binOp (PAtom r) e1 e2)
     go (ENeg e)         = do (e', fe)  <- eval γ ctx et e
-                             return $ ((ENeg e'), fe)
+                             return (ENeg e', fe)
     go (EBin o e1 e2)   = do (e1', fe1) <- eval γ ctx et e1
                              (e2', fe2) <- eval γ ctx et e2
                              return (EBin o e1' e2', fe1 <|> fe2)
@@ -698,10 +694,10 @@ getANFSubs _                                           = []
 
 -- Reverse the ANF transformation
 deANF :: ICtx -> Expr -> Expr
-deANF ctx e = subst' e where
+deANF ctx = subst' where
   ints  = concatMap getANFSubs (S.toList $ icANFs ctx)
   ints' = map go (L.groupBy (\x y -> fst x == fst y) $ L.sortOn fst $ L.nub ints) where
-    go ([(t, u)]) = (t, u)
+    go [(t, u)] = (t, u)
     go ts         = (fst (head ts), getBest (map snd ts))
   su          = Su (M.fromList ints')
   subst' ee =
@@ -724,7 +720,7 @@ deANF ctx e = subst' e where
       isVar (EVar _) = True
       isVar _        = False
 
-  getBest ts | otherwise = head ts
+  getBest ts = head ts
 
 -- |
 -- Adds to the monad state all the subexpressions that have been rewritten
@@ -757,7 +753,7 @@ evalREST γ ctx rp =
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
-      let evAccum'      = S.fromList $ map (e,) $ exprsToAdd
+      let evAccum'      = S.fromList $ map (e,) exprsToAdd
 
       modify (\st ->
                 st {
@@ -774,7 +770,7 @@ evalREST γ ctx rp =
           then eval γ (addConst (e, e')) NoRW e' >> return ()
           else evalREST γ (addConst (e, e')) (rpEval e')
 
-      mapM_ (\rw -> evalREST γ ctx (rpRW rw)) rws
+      mapM_ (evalREST γ ctx . rpRW) rws
   where
     shouldExploreTerm et e =
       case rwTerminationOpts rwArgs of
@@ -782,7 +778,7 @@ evalREST γ ctx rp =
         RWTerminationCheckEnabled  -> shouldExplore (convert e) (c rp) et
 
     allowed (rwE, _) | rwE `elem` pathExprs = return False
-    allowed (_, c)   | otherwise = termCheck c
+    allowed (_, c)   = termCheck c
     termCheck c = passesTerminationCheck (oc rp) rwArgs c
 
     notVisitedFirst et rws =
@@ -813,7 +809,7 @@ evalREST γ ctx rp =
 
     getRWs =
       do
-        ok <- if (isRW $ last (path rp)) then (return True) else (liftIO $ termCheck (c rp))
+        ok <- if isRW $ last (path rp) then return True else liftIO $ termCheck (c rp)
         if ok
           then
             do
@@ -844,18 +840,17 @@ evalApp γ ctx (EVar f) es et
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                 shortcut (substEq env eq es1) es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-         else return $ (eApps (EVar f) es, noExpand)
+         else return (eApps (EVar f) es, noExpand)
   where
     shortcut (EIte i e1 e2) es2 = do
       (b, _) <- eval γ ctx et i
-      b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValid γ b)
-      nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (i, PNot b)) <$> isValid γ (PNot b))
-      r <- if b'
+      b'  <- liftIO (mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValid γ b)
+      nb' <- liftIO (mytracepp ("evalEIt NEG " ++ showpp (i, PNot b)) <$> isValid γ (PNot b))
+      if b'
         then shortcut e1 es2
         else if nb' then shortcut e2 es2
-        else return $ (eApps (EIte b e1 e2) es2, expand)
-      return r
-    shortcut e' es2 = return $ (eApps e' es2, noExpand)
+        else return (eApps (EIte b e1 e2) es2, expand)
+    shortcut e' es2 = return (eApps e' es2, noExpand)
 
 evalApp γ _ (EVar f) (e:es) _
   | (EVar dc, as) <- splitEApp e
@@ -865,7 +860,7 @@ evalApp γ _ (EVar f) (e:es) _
   = return (eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es, noExpand)
 
 evalApp _ _ e es _
-  = return $ (eApps e es, noExpand)
+  = return (eApps e es, noExpand)
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -919,12 +914,12 @@ evalBool γ e = do
 evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> Expr -> Expr -> EvalST (Expr, FinalExpand)
 evalIte γ ctx et b0 e1 e2 = do
   (b, fe) <- eval γ ctx et b0
-  b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
-  nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
+  b'  <- liftIO (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
+  nb' <- liftIO (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if b'
     then return (e1, noExpand)
-    else if nb' then return $ (e2, noExpand)
-    else return $ (EIte b e1 e2, fe)
+    else if nb' then return (e2, noExpand)
+    else return (EIte b e1 e2, fe)
 
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
@@ -962,11 +957,11 @@ knowledge cfg ctx si = KN
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
                                  ++ rwSyms
   , knDCs                      = S.fromList (smDC <$> sims)
-  , knSels                     = Mb.catMaybes $ map makeSel  sims
-  , knConsts                   = Mb.catMaybes $ map makeCons sims
+  , knSels                     = Mb.mapMaybe makeSel  sims
+  , knConsts                   = Mb.mapMaybe makeCons sims
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
-      if (rwTerminationCheck cfg)
+      if rwTerminationCheck cfg
       then RWTerminationCheckEnabled
       else RWTerminationCheckDisabled
   }
@@ -977,13 +972,13 @@ knowledge cfg ctx si = KN
     inRewrites :: Symbol -> Bool
     inRewrites e =
       let
-        syms = Mb.catMaybes $ map (lhsHead . arLHS) $ concat $ M.elems $ aenvAutoRW aenv
+        syms = Mb.mapMaybe (lhsHead . arLHS) (concat $ M.elems $ aenvAutoRW aenv)
       in
         e `L.elem` syms
 
     lhsHead :: Expr -> Maybe Symbol
     lhsHead e | (EVar f, _) <- splitEApp e = Just f
-    lhsHead _ | otherwise = Nothing
+    lhsHead _ = Nothing
 
 
     rwSyms = filter (inRewrites . fst) $ map toSum (toListSEnv (gLits si))
@@ -1086,13 +1081,13 @@ instance Simplifiable Expr where
 applyConstantFolding :: Bop -> Expr -> Expr -> Expr
 applyConstantFolding bop e1 e2 =
   case (e1, e2) of
-    ((ECon (R left)), (ECon (R right))) ->
+    (ECon (R left), ECon (R right)) ->
       Mb.fromMaybe e (cfR bop left right)
-    ((ECon (R left)), (ECon (I right))) ->
+    (ECon (R left), ECon (I right)) ->
       Mb.fromMaybe e (cfR bop left (fromIntegral right))
-    ((ECon (I left)), (ECon (R right))) ->
+    (ECon (I left), ECon (R right)) ->
       Mb.fromMaybe e (cfR bop (fromIntegral left) right)
-    ((ECon (I left)), (ECon (I right))) ->
+    (ECon (I left), ECon (I right)) ->
       Mb.fromMaybe e (cfI bop left right)
     _ -> e
   where
@@ -1160,7 +1155,7 @@ normalizeBody :: Symbol -> Expr -> Expr
 normalizeBody f = go
   where
     go e
-      | any (== f) (syms e)
+      | f `elem` syms e
       = go' e
     go e
       = e
@@ -1173,7 +1168,7 @@ _splitBranches :: Symbol -> Expr -> [(Expr, Expr)]
 _splitBranches f = go
   where
     go (PAnd es)
-      | any (== f) (syms es)
+      | f `elem` syms es
       = go' <$> es
     go e
       = [(PTrue, e)]
