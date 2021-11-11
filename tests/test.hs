@@ -357,8 +357,6 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
         tree
 
   return $ \_elapsedTime -> do
-    -- get some semblance of a hostname
-    host <- takeWhile (/='.') . takeWhile (not . isSpace) <$> readProcess "hostname" [] []
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     -- build header
@@ -373,12 +371,10 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
                        "test, time(s), result"]
 
 
-    let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
     writeFile smry $ unlines
                    $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
-    -- system $ "cp -r tests/logs/cur " ++ dir
     (==0) <$> computeFailures smap
 
 
