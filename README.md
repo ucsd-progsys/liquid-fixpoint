@@ -18,8 +18,8 @@ Requirements
 
 In addition to the .cabal dependencies you require an SMTLIB2 compatible solver binary:
 
-- [Z3](http://z3.codeplex.com)
-- [CVC4](http://cvc4.cs.nyu.edu)
+- [Z3](https://github.com/Z3Prover/z3)
+- [CVC4](https://cvc4.github.io/)
 - [MathSat](http://mathsat.fbk.eu/download.html)
 
 If on Windows, please make sure to place the binary and any associated DLLs somewhere
@@ -71,7 +71,7 @@ See the examples in `tests/horn/{pos, neg}` eg
 
 - [sum](tests/horn/pos/ple_sum.smt2)
 - [list00](tests/horn/pos/ple_list00.smt2)
-- [list03](tests/horn/pos/ple_list03.smt2)
+- [list03](tests/horn/neg/ple_list03.smt2)
 
 For how to write VCs "by hand".
 
