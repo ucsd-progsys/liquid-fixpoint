@@ -71,6 +71,7 @@ See the examples in `tests/horn/{pos, neg}` eg
 
 - [sum](tests/horn/pos/ple_sum.smt2)
 - [list00](tests/horn/pos/ple_list00.smt2)
+- [list03](tests/horn/neg/ple_list03.smt2)
 
 For how to write VCs "by hand".
 
