@@ -254,7 +254,7 @@ updCtx (InstEnv {..}) ctx delta cidMb
           , icEquals = initEqs                    <> icEquals ctx
           , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
           , icSubcId = cidMb -- fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
-          }                  -- ^^ eliminate if nothing broken ^^
+          }                  -- eliminate above if nothing broken 
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
                                                   , rw <- snd <$> M.toList (knSims ieKnowl)]
