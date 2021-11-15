@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns          #-}
-{-# LANGUAGE TupleSections         #-}
 
 module Language.Fixpoint.Solver.Worklist
        ( -- * Worklist type is opaque

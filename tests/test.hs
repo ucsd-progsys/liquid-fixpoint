@@ -33,7 +33,7 @@ import Test.Tasty.Runners.AntXML
 import Paths_liquid_fixpoint
 
 main :: IO ()
-main    = do 
+main    = do
   run =<< group "Tests" [unitTests]
   where
     run = defaultMainWithIngredients [
@@ -92,7 +92,7 @@ skipNativePos = ["NonLinear-pack.fq"]
 ---------------------------------------------------------------------------
 dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
-dirTests testCmd root ignored code = do 
+dirTests testCmd root ignored code = do
   files    <- walkDirectory root
   let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
   return    $ mkTest testCmd code root <$> tests
@@ -333,7 +333,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup group children = Traversal $ Functor.Compose $ do
+    runGroup _ group children = Traversal $ Functor.Compose $ do
       Const soFar <- Functor.getCompose $ getTraversal children
       pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
 
@@ -357,8 +357,6 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
         tree
 
   return $ \_elapsedTime -> do
-    -- get some semblance of a hostname
-    host <- takeWhile (/='.') . takeWhile (not . isSpace) <$> readProcess "hostname" [] []
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     -- build header
@@ -373,12 +371,10 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
                        "test, time(s), result"]
 
 
-    let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
     writeFile smry $ unlines
                    $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
-    -- system $ "cp -r tests/logs/cur " ++ dir
     (==0) <$> computeFailures smap
 
 

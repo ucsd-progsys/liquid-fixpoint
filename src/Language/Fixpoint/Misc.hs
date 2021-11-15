@@ -56,14 +56,14 @@ traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
 hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
 
-findNearest :: (Ord i, Num i) => i -> [(i, a)] -> Maybe a 
+findNearest :: (Ord i, Num i) => i -> [(i, a)] -> Maybe a
 findNearest key kvs = argMin [ (abs (key - k), v) | (k, v) <- kvs ]
 
-argMin :: (Ord k) => [(k, v)] -> Maybe v 
+argMin :: (Ord k) => [(k, v)] -> Maybe v
 argMin = fmap snd . headMb . L.sortBy (compare `on` fst)
 
-headMb :: [a] -> Maybe a 
-headMb []    = Nothing 
+headMb :: [a] -> Maybe a
+headMb []    = Nothing
 headMb (x:_) = Just x
 ---------------------------------------------------------------
 -- | Unique Int -----------------------------------------------
@@ -150,7 +150,7 @@ repeats n  = concat . replicate n
 
 
 errorP :: String -> String -> a
-errorP p s = error (p ++ s)   
+errorP p s = error (p ++ s)
 
 errorstar :: (?callStack :: CallStack) => String -> a
 errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n")
@@ -224,7 +224,7 @@ hashNubWith :: (Eq b, Hashable b) => (a -> b) -> [a] -> [a]
 hashNubWith f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
 
 mFromList :: (Eq k, Hashable k) => [(k, v)] -> M.HashMap k v
-mFromList = M.fromList 
+mFromList = M.fromList
 
 duplicates :: (Eq k, Hashable k) => [k] -> [k]
 duplicates xs = [ x | (x, n) <- count xs, 1 < n ]
@@ -265,7 +265,7 @@ safeFromList msg kvs = applyNonNull (M.fromList kvs) err dups
     -- dups             = duplicates . fmap fst
     dups             = [ x | (x, n) <- count (fst <$> kvs), 1 < n ]
     err              = errorstar . wrap "safeFromList with duplicates" msg . show
-    wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2 
+    wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2
 
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
@@ -325,10 +325,10 @@ whenM cond act = do
   b <- cond
   when b act
 
-ifM :: (Monad m) => m Bool -> m a -> m a -> m a 
-ifM c t e = do 
-  b <- c 
-  if b then t else e 
+ifM :: (Monad m) => m Bool -> m a -> m a -> m a
+ifM c t e = do
+  b <- c
+  if b then t else e
 
 mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
 mapEither _ []     = ([], [])
@@ -338,8 +338,8 @@ mapEither f (x:xs) = case f x of
                      where
                        (ys, zs) = mapEither f xs
 
-isRight :: Either a b -> Bool 
-isRight (Right _) = True 
+isRight :: Either a b -> Bool
+isRight (Right _) = True
 isRight _         = False
 
 componentsWith :: (Ord c) => (a -> [(b, c, [c])]) -> a -> [[b]]
@@ -357,8 +357,8 @@ topoSortWith vF xs = fst3 . f <$> G.topSort g
 -- |
 -- >>> let em = M.fromList [ (1, [2, 3]), (2, [1, 3]), (3, []   ) ]
 -- >>> let ef = \v -> (v, M.lookupDefault [] v em)
--- >>> sccsWith ef [1,2,3]  
--- [[3],[1,2]] 
+-- >>> sccsWith ef [1,2,3]
+-- [[3],[1,2]]
 
 sccsWith :: (Ord v) => (a -> (v, [v])) -> [a] -> [[a]]
 sccsWith vF xs     = map (fst3 . f) <$> (T.flatten <$> G.scc g)
@@ -446,15 +446,15 @@ revMapM f          = go []
     go !acc (x:xs) = do {!y <- f x; go (y:acc) xs}
 
 -- Null if first is a subset of second
-nubDiff :: (Eq a, Hashable a) => [a] -> [a] -> S.HashSet a 
+nubDiff :: (Eq a, Hashable a) => [a] -> [a] -> S.HashSet a
 nubDiff a b = a' `S.difference` b'
   where
     a' = S.fromList a
     b' = S.fromList b
 
 
-fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a 
+fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
 fold1M _ []         = errorstar $ "fold1M with empty list"
-fold1M _ [x]        = return x 
-fold1M f (x1:x2:xs) = do { x <- f x1 x2; fold1M f (x:xs) }  
+fold1M _ [x]        = return x
+fold1M f (x1:x2:xs) = do { x <- f x1 x2; fold1M f (x:xs) }
 

@@ -3,10 +3,8 @@
 --   either as .fq files or as FInfo.
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DoAndIfThenElse     #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ViewPatterns        #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
@@ -74,18 +72,18 @@ solveFQ cfg = do
     file    = srcFile      cfg
 
 ---------------------------------------------------------------------------
-resultExitCode :: (Fixpoint a, NFData a, ToJSON a) => Config -> Result a 
+resultExitCode :: (Fixpoint a, NFData a, ToJSON a) => Config -> Result a
                -> IO ExitCode
 ---------------------------------------------------------------------------
-resultExitCode cfg r = do 
+resultExitCode cfg r = do
   whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
   when (json cfg) $ LT.putStrLn jStr
   return (eCode r)
-  where 
+  where
     jStr    = LT.decodeUtf8 . encode $ r
     stat    = resStatus $!! r
     eCode   = resultExit . resStatus
-    statStr = render . resultDoc 
+    statStr = render . resultDoc
 
 ignoreQualifiers :: Config -> FInfo a -> FInfo a
 ignoreQualifiers cfg fi
@@ -130,11 +128,11 @@ readFq file = do
   return (fioFI q, fioOpts q)
 
 readBinFq :: FilePath -> IO (FInfo ())
-readBinFq file = {-# SCC "parseBFq" #-} do 
+readBinFq file = {-# SCC "parseBFq" #-} do
   bs <- B.readFile file
-  case S.decode bs of 
+  case S.decode bs of
     Right fi -> return fi
-    Left err -> error ("Error decoding .bfq: " ++ show err) 
+    Left err -> error ("Error decoding .bfq: " ++ show err)
 
 --------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
