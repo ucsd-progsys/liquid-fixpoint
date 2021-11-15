@@ -24,7 +24,6 @@ import           Language.Fixpoint.Types.Solutions (CMap)
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc
 import qualified Language.Fixpoint.Smt.Interface as SMT
-import           Language.Fixpoint.Smt.Theories
 import           Language.Fixpoint.Defunctionalize
 import qualified Language.Fixpoint.Utils.Files   as Files
 import qualified Language.Fixpoint.Utils.Trie    as T
@@ -44,7 +43,6 @@ import Language.REST.SMT (withZ3, SolverHandle)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Bifunctor (second)
-import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
@@ -59,7 +57,7 @@ import           Text.PrettyPrint.HughesPJ.Compat
 type OCType = ConstraintsADT
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = notracepp 
+mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e')
@@ -120,8 +118,8 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
   where
     bEnv              = bs fi
     aEnv              = ae fi
-    γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) M.empty et restSolver
+    γ                 = knowledge cfg ctx fi
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver
     et                = fmap makeET restSolver
     makeET solver     =
       ET.empty (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
@@ -314,7 +312,7 @@ data ICtx    = ICtx
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
 ----------------------------------------------------------------------------------------------
 
-type InstRes = M.HashMap BindId Expr 
+type InstRes = M.HashMap BindId Expr
 
 ----------------------------------------------------------------------------------------------
 -- | @Unfold is the result of running PLE at a single equality;
@@ -441,7 +439,6 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
-  , evGuards   :: GuardCache
 
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm (OCType Op) IO)
@@ -456,8 +453,6 @@ data FuelCount = FC
 
 defFuelCount :: Config -> FuelCount
 defFuelCount cfg = FC mempty (fuel cfg)
-
-type GuardCache = M.HashMap Pred (Maybe Pred) 
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
@@ -844,9 +839,7 @@ evalApp γ ctx (EVar f) es et
          then do
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
-                let ges       = substEq env eq es1
-                e <- unfoldExpr γ ctx env ges 
-                shortcut e es2  -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                shortcut (substEq env eq es1) es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          else return (eApps (EVar f) es, noExpand)
   where
     shortcut (EIte i e1 e2) es2 = do
@@ -874,17 +867,6 @@ evalApp _ _ e es _
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-
-unfoldExpr :: Knowledge -> ICtx -> SEnv Sort -> Expr -> EvalST Expr
-unfoldExpr γ ctx env (EIte e0 e1 e2) = do let g = e0 
-                                          g' <- evalBool γ g
-                                          if g' == Just PTrue
-                                             then unfoldExpr γ ctx env e1
-                                             else do if g' == Just PFalse
-                                                        then unfoldExpr γ ctx env e2
-                                                        else return $ EIte g e1 e2
-unfoldExpr _ _   _   e               = return e
-
 substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
 substEq env eq es = subst su (substEqCoerce env eq es)
   where su = mkSubst $ zip (eqArgNames eq) es
@@ -920,20 +902,15 @@ matchSorts s1 s2 = go s1 s2
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
-evalBool :: Knowledge -> Expr -> EvalST (Maybe Expr) 
-evalBool γ e = do 
-  gc <- gets evGuards
-  if M.member e gc 
-    then return $ M.lookupDefault Nothing e gc
-    else do bt <- liftIO $ isValid γ e
-            if bt then do modify $ \st -> st { evGuards = M.insert e (Just PTrue) (evGuards st) }
-                          return $ Just PTrue 
-                  else do bf <- liftIO $ isValid γ (PNot e)
-                          if bf then do modify $ \st -> st { evGuards = M.insert e (Just PFalse) (evGuards st) }
-                                        return $ Just PFalse 
-                                else do modify $ \st -> st { evGuards = M.insert e Nothing (evGuards st) }
-                                        return Nothing
-               
+evalBool :: Knowledge -> Expr -> EvalST (Maybe Expr)
+evalBool γ e = do
+  bt <- liftIO $ isValid γ e
+  if bt then return $ Just PTrue
+   else do
+    bf <- liftIO $ isValid γ (PNot e)
+    if bf then return $ Just PFalse
+          else return Nothing
+
 evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> Expr -> Expr -> EvalST (Expr, FinalExpand)
 evalIte γ ctx et b0 e1 e2 = do
   (b, fe) <- eval γ ctx et b0
@@ -980,8 +957,8 @@ knowledge cfg ctx si = KN
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
                                  ++ rwSyms
   , knDCs                      = S.fromList (smDC <$> sims)
-  , knSels                     = M.fromList . Mb.catMaybes $ map makeSel  sims 
-  , knConsts                   = M.fromList . Mb.catMaybes $ map makeCons sims 
+  , knSels                     = Mb.mapMaybe makeSel  sims
+  , knConsts                   = Mb.mapMaybe makeCons sims
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
       if rwTerminationCheck cfg
@@ -1055,10 +1032,10 @@ withCtx cfg file env k = do
   return res
 
 
--- (sel_i, D, i), meaning sel_i (D x1 .. xn) = xi, 
--- i.e., sel_i selects the ith value for the data constructor D  
-type SelectorMap = M.HashMap Symbol (Symbol, Int)
-type ConstDCMap  = M.HashMap Symbol (Symbol, Expr)
+-- (sel_i, D, i), meaning sel_i (D x1 .. xn) = xi,
+-- i.e., sel_i selects the ith value for the data constructor D
+type SelectorMap = [(Symbol, (Symbol, Int))]
+type ConstDCMap = [(Symbol, (Symbol, Expr))]
 
 -- ValueMap maps expressions to constants (including data constructors)
 type ConstMap = M.HashMap Expr Expr
@@ -1084,76 +1061,22 @@ instance Simplifiable Expr where
         = e'
       tx (EBin bop e1 e2) = applyConstantFolding bop e1 e2
       tx (ENeg e)         = applyConstantFolding Minus (ECon (I 0)) e
-      tx (EApp e1 e2)
-        | isSetPred e1    = applySetFolding e1 e2
       tx (EApp (EVar f) a)
-        | Just (dc, c)  <- M.lookup f (knConsts γ) 
+        | Just (dc, c)  <- L.lookup f (knConsts γ)
         , (EVar dc', _) <- splitEApp a
         , dc == dc'
         = c
       tx (EIte b e1 e2)
         | isTautoPred b  = e1
         | isContraPred b = e2
-      tx (ECst e s)       = simplifyCasts e s
       tx (ECoerc s t e)
         | s == t = e
       tx (EApp (EVar f) a)
-        | Just (dc, i)  <- M.lookup f (knSels γ) 
+        | Just (dc, i)  <- L.lookup f (knSels γ)
         , (EVar dc', es) <- splitEApp a
         , dc == dc'
         = es!!i
-      tx (PAnd es)         = go [] (reverse es)
-        where
-          go []  []     = PTrue
-          go [p] []     = p
-          go acc []     = PAnd acc
-          go acc (e:es) = if e == PTrue then go acc es
-                                  else if e == PFalse then PFalse else go (e:acc) es
-      tx (POr es)          = go [] (reverse es)
-        where
-          go []  []     = PFalse
-          go [p] []     = p
-          go acc []     = POr acc
-          go acc (e:es) = if e == PTrue then PTrue
-                                  else if e == PFalse then go acc es else go (e:acc) es
-      tx (PNot e)          = if e == PTrue then PFalse 
-                                else if e == PFalse then PTrue 
-                                else PNot e
-      tx (PAtom rel e1 e2) = applyBooleanFolding rel e1 e2
       tx e = e
-      
-applyBooleanFolding :: Brel -> Expr -> Expr -> Expr
-applyBooleanFolding brel e1 e2 = 
-  case (e1, e2) of 
-    ((ECon (R left)), (ECon (R right))) ->
-      Mb.fromMaybe e (bfR brel left right)
-    ((ECon (R left)), (ECon (I right))) ->
-      Mb.fromMaybe e (bfR brel left (fromIntegral right))
-    ((ECon (I left)), (ECon (R right))) ->
-      Mb.fromMaybe e (bfR brel (fromIntegral left) right)
-    ((ECon (I left)), (ECon (I right))) ->
-      Mb.fromMaybe e (bfI brel left right)
-    _ -> if isTautoPred e then PTrue else 
-           if isContraPred e then PFalse else e
-  where
-    e = PAtom brel e1 e2
-    
-    getOp :: Ord a => Brel -> (a -> a -> Bool)
-    getOp Gt   =  (>)
-    getOp Ge   =  (>=)
-    getOp Lt   =  (<)
-    getOp Le   =  (<=)
-    getOp Eq   =  (==)
-    getOp Ne   =  (/=)
-    getOp Ueq  =  (==)
-    getOp Une  =  (/=)
-
-    bfR :: Brel -> Double -> Double -> Maybe Expr
-    bfR brel left right = if (getOp brel) left right then Just PTrue else Just PFalse
-
-    bfI :: Brel -> Integer -> Integer -> Maybe Expr
-    bfI brel left right = if (getOp brel) left right then Just PTrue else Just PFalse
-        
 
 applyConstantFolding :: Bop -> Expr -> Expr -> Expr
 applyConstantFolding bop e1 e2 =
@@ -1166,30 +1089,8 @@ applyConstantFolding bop e1 e2 =
       Mb.fromMaybe e (cfR bop (fromIntegral left) right)
     (ECon (I left), ECon (I right)) ->
       Mb.fromMaybe e (cfI bop left right)
-    (EBin Mod  _   _              , _)  -> e
-    (EBin bop1 e11 (ECon (R left)), ECon (R right))
-      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) left right))
-      | otherwise   -> e
-    (EBin bop1 e11 (ECon (R left)), ECon (I right))
-      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) left (fromIntegral right)))
-      | otherwise   -> e
-    (EBin bop1 e11 (ECon (I left)), ECon (R right))
-      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) (fromIntegral left) right))
-      | otherwise   -> e
-    (EBin bop1 e11 (ECon (I left)), ECon (I right))
-      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfI (rop bop) left right))
-      | otherwise   -> e
     _ -> e
   where
-    
-    rop :: Bop -> Bop
-    rop Plus   = Plus
-    rop Minus  = Plus
-    rop Times  = Times
-    rop Div    = Times
-    rop RTimes = RTimes
-    rop RDiv   = RTimes
-    rop Mod    = Mod  -- excluded, Mod not associative
 
     e = EBin bop e1 e2
 
@@ -1217,55 +1118,6 @@ applyConstantFolding bop e1 e2 =
         getOp' Mod = Just mod
         getOp' op  = getOp op
 
-isSetPred :: Expr -> Bool
-isSetPred (EVar s) | s == setEmp          = True
-isSetPred (EApp e1 _) = case e1 of
-  (EVar s) | s == setMem || s == setSub  -> True
-  _                                      -> False
-isSetPred _                               = False
-
--- Note: this is currently limited to sets of integer constants
-applySetFolding :: Expr -> Expr -> Expr
-applySetFolding e1 e2   = case e1 of
-    (EVar s) | s == setEmp
-      -> Mb.fromMaybe e $ pure (fromBool . S.null)   <*> evalSetI e2
-    (EApp (EVar s) e1') | s == setMem
-      -> Mb.fromMaybe e $ fromBool <$> (S.member <$> getInt e1' <*> evalSetI e2)
-                        | s == setEmp
-      -> Mb.fromMaybe e $ fromBool <$> (S.null <$> (S.difference <$> evalSetI e1' <*> evalSetI e2))
-                        | otherwise
-      -> e
-    _                   -> e
-  where
-    e = EApp e1 e2
-
-    fromBool True  = PTrue
-    fromBool False = PFalse
-
-    getInt :: Expr -> Maybe Integer
-    getInt (ECon (I n)) = Just n
-    getInt _            = Nothing
-    
-    getOp :: (Eq a, Hashable a) => Symbol -> Maybe (S.HashSet a -> S.HashSet a -> S.HashSet a)
-    getOp s | s == setCup = Just S.union
-            | s == setCap = Just S.intersection
-            | s == setDif = Just S.difference
-            | otherwise      = Nothing
-
-    evalSetI :: Expr -> Maybe (S.HashSet Integer)
-    evalSetI (EApp e1 e2) = case e1 of
-      (EVar s) | s == setEmpty -> Just S.empty
-               | s == setSng   -> case e2 of
-        (ECon (I n))             -> Just $ S.singleton n
-        _                        -> Nothing
-      (EApp (EVar f) e1')   -> getOp f <*> evalSetI e1' <*> evalSetI e2
-      _                     -> Nothing   
-    evalSetI _            = Nothing
-
-simplifyCasts :: Expr -> Sort -> Expr
-simplifyCasts (ECon (I n)) FInt  = ECon (I n)
-simplifyCasts (ECon (R x)) FReal = ECon (R x)
-simplifyCasts e            s     = ECst e s
 
 -------------------------------------------------------------------------------
 -- | Normalization of Equation: make their arguments unique -------------------
@@ -1289,14 +1141,15 @@ instance Normalizable Rewrite where
       xs' = zipWith mkSymbol xs [0..]
       mkSymbol x i = x `suffixSymbol` intSymbol (smName rw) i
 
-instance Normalizable Equation where 
-  normalize eq = eq {eqArgs = zip xs' ss, 
-                     eqBody = normalizeBody (eqName eq) $ subst su $ eqBody eq }
-    where 
-      su           = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
-      (xs,ss)      = unzip (eqArgs eq) 
-      xs'          = zipWith mkSymbol xs [0..]
-      mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i 
+
+instance Normalizable Equation where
+  normalize eq = eq {eqArgs = zip xs' ss, eqBody = normalizeBody (eqName eq) $ subst su $ eqBody eq }
+    where
+      su      = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
+      (xs,ss) = unzip (eqArgs eq)
+      xs'     = zipWith mkSymbol xs [0..]
+      mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i
+
 
 normalizeBody :: Symbol -> Expr -> Expr
 normalizeBody f = go
