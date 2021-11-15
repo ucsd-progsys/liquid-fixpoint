@@ -34,7 +34,6 @@ import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
-import           Language.Fixpoint.Solver.Rewrite
 import           Control.Monad.State
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
@@ -46,8 +45,8 @@ import qualified Data.Maybe           as Mb
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp 
 
-mytrace :: String -> a -> a
-mytrace = {-trace-} flip const
+--mytrace :: String -> a -> a
+--mytrace = {-trace-} flip const
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
@@ -57,10 +56,10 @@ instInterpreter cfg fi' subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm fi)
-    let t  = mkCTrie (M.toList cs)                          -- 1. BUILD the Trie
+    let t  = mkCTrie (M.toList cs)                      -- 1. BUILD the Trie
     res   <- withProgress (1 + M.size cs) $ 
-               pleTrie t $ instEnv cfg fi cs sEnv           -- 2. TRAVERSE Trie to compute InstRes
-    return $ resSInfo cfg sEnv fi res                       -- 3. STRENGTHEN SInfo using InstRes
+               pleTrie t $ instEnv fi cs sEnv           -- 2. TRAVERSE Trie to compute InstRes
+    return $ resSInfo cfg sEnv fi res                   -- 3. STRENGTHEN SInfo using InstRes
   where
     sEnv   = symbolEnv cfg fi
     aEnv   = ae fi 
@@ -68,13 +67,13 @@ instInterpreter cfg fi' subcIds = do
 
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
-instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> SymEnv -> InstEnv a 
-instEnv cfg fi cs sEnv = InstEnv cfg bEnv aEnv cs γ s0
+instEnv :: (Loc a) => SInfo a -> CMap (SimpC a) -> SymEnv -> InstEnv a 
+instEnv fi cs sEnv = InstEnv bEnv aEnv cs γ s0
   where
     csBinds           = M.foldl' (\acc c -> unionIBindEnv acc (senv c)) emptyIBindEnv cs
     bEnv              = filterBindEnv (\i _ _ -> memberIBindEnv i csBinds) (bs fi)
     aEnv              = ae fi
-    γ                 = knowledge cfg fi  
+    γ                 = knowledge fi  
     s0                = EvalEnv sEnv mempty 
 
 ---------------------------------------------------------------------------------------------- 
@@ -186,8 +185,7 @@ resSInfo cfg env fi res = strengthenBinds fi res'
 ---------------------------------------------------------------------------------------------- 
 
 data InstEnv a = InstEnv 
-  { ieCfg   :: !Config
-  , ieBEnv  :: !BindEnv
+  { ieBEnv  :: !BindEnv
   , ieAenv  :: !AxiomEnv 
   , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
@@ -199,8 +197,7 @@ data InstEnv a = InstEnv
 ---------------------------------------------------------------------------------------------- 
 
 data ICtx    = ICtx 
-  { icAssms    :: S.HashSet Pred            -- ^ Equalities converted to SMT format
-  , icCands    :: S.HashSet Expr            -- ^ "Candidates" for unfolding
+  { icCands    :: S.HashSet Expr            -- ^ "Candidates" for unfolding
   , icEquals   :: EvAccum                   -- ^ Accumulated equalities
   , icSolved   :: S.HashSet Expr            -- ^ Terms that we have already expanded
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
@@ -225,8 +222,7 @@ type Diff    = [BindId]    -- ^ in "reverse" order
 
 initCtx :: InstEnv a -> [(Expr,Expr)] -> ICtx
 initCtx _   es   = ICtx 
-  { icAssms  = mempty 
-  , icCands  = mempty 
+  { icCands  = mempty 
   , icEquals = S.fromList es
   , icSolved = mempty
   , icSimpl  = mempty 
@@ -530,12 +526,10 @@ data Knowledge = KN
   , knAllDCs            :: !(S.HashSet Symbol)  -- ^ 
   , knSels              :: !SelectorMap 
   , knConsts            :: !ConstDCMap
-  , knAutoRWs           :: M.HashMap SubcId [AutoRewrite]
-  , knRWTerminationOpts :: RWTerminationOpts
   }
 
-knowledge :: Config -> SInfo a -> Knowledge
-knowledge cfg si = KN 
+knowledge :: SInfo a -> Knowledge
+knowledge si = KN 
   { knSims                     = M.fromList $ (\r -> ((smName r, smDC r), r)) <$> sims 
   , knAms                      = M.fromList $ (\a -> (eqName a, a)) <$> aenvEqs aenv
   , knLams                     = [] 
@@ -545,10 +539,6 @@ knowledge cfg si = KN
   , knAllDCs                   = S.fromList $ (val . dcName) <$> concatMap ddCtors (ddecls si)
   , knSels                     = M.fromList . Mb.catMaybes $ map makeSel  sims 
   , knConsts                   = M.fromList . Mb.catMaybes $ map makeCons sims 
-  , knAutoRWs                  = aenvAutoRW aenv
-  , knRWTerminationOpts        = if (rwTerminationCheck cfg)
-                                   then RWTerminationCheckEnabled 
-                                   else RWTerminationCheckDisabled
   } 
   where 
     sims = aenvSimpl aenv  
