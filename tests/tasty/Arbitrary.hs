@@ -1,20 +1,17 @@
 module Arbitrary where
 
 import Control.Monad                    (forM_, liftM)
-import qualified Data.Functor.Compose   as Functor
-
 import Data.Monoid (Sum(..), (<>))
 import qualified Data.Text                 as Text
 import qualified Data.HashMap.Strict       as M
+import Test.Tasty.QuickCheck
 
 import Language.Fixpoint.Types.Refinements as R
-
 import Language.Fixpoint.Parse             (isNotReserved, rr)
-import Test.Tasty.QuickCheck
 import Language.Fixpoint.Types             as T hiding (Result)
-import Language.Fixpoint.Types.Spans        as Spans
-import Language.Fixpoint.Types.Refinements  (Expr(PKVar))
-import Language.Fixpoint.Types.Names        (isFixKey)
+import Language.Fixpoint.Types.Spans       as Spans
+import Language.Fixpoint.Types.Refinements (Expr(PKVar))
+import Language.Fixpoint.Types.Names       (isFixKey)
 
 {-
 
@@ -134,7 +131,7 @@ instance Arbitrary Bop where
   arbitrary = oneof (map return [Plus, Minus, Times, Div, Mod])
 
 instance Arbitrary SymConst where
-  arbitrary = fmap SL arbitrary
+  arbitrary = SL <$> arbitrary
 
 instance Arbitrary Symbol where
   arbitrary = (symbol :: Text.Text -> Symbol) <$> arbitrary
