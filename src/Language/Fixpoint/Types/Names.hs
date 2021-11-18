@@ -43,6 +43,7 @@ module Language.Fixpoint.Types.Names (
   -- , isCtorSymbol
   , isNontrivialVV
   , isDummy
+  , isFixKey
 
   -- * Destructors
   , prefixOfSym
