@@ -18,8 +18,8 @@ Requirements
 
 In addition to the .cabal dependencies you require an SMTLIB2 compatible solver binary:
 
-- [Z3](http://z3.codeplex.com)
-- [CVC4](http://cvc4.cs.nyu.edu)
+- [Z3](https://github.com/Z3Prover/z3)
+- [CVC4](https://cvc4.github.io/)
 - [MathSat](http://mathsat.fbk.eu/download.html)
 
 If on Windows, please make sure to place the binary and any associated DLLs somewhere
@@ -34,10 +34,21 @@ Simply do:
 ```
 $ git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
 $ cd liquid-fixpoint
-$ stack install
+$ stack install # alternatively, use `cabal install`.
 ```
 
-or (`cabal` instead of `stack` if you prefer.)
+A reproducible Nix environment is provided as well:
+
+```
+# Build with:
+$ nix-shell --pure --run "stack build"
+
+# Test with:
+$ nix-shell --pure --run "stack test"
+
+# Run with:
+$ nix-shell --pure --run "stack exec fixpoint -- tests/pos/adt.fq"
+```
 
 
 Using SMTLIB-based SMT Solvers
@@ -45,7 +56,7 @@ Using SMTLIB-based SMT Solvers
 
 You can use one of several SMTLIB2 compliant solvers, by:
 
-    fixpoint --smtsolver=z3 path/to/file.hs
+    fixpoint --solver=z3 path/to/file.hs
 
 Currently, we support
 
@@ -60,7 +71,7 @@ See the examples in `tests/horn/{pos, neg}` eg
 
 - [sum](tests/horn/pos/ple_sum.smt2)
 - [list00](tests/horn/pos/ple_list00.smt2)
-- [list03](tests/horn/pos/ple_list03.smt2)
+- [list03](tests/horn/neg/ple_list03.smt2)
 
 For how to write VCs "by hand".
 

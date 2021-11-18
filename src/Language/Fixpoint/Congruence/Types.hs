@@ -3,15 +3,15 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fixpoint.Congruence.Types 
-  ( -- * Queries 
+module Language.Fixpoint.Congruence.Types
+  ( -- * Queries
     CongQuery (..)
   , Equality (..)
   , Disequality (..)
-    
-    -- * Terms 
-  , Term 
-  , identity 
+
+    -- * Terms
+  , Term
+  , identity
 
     -- * Constructors
   , app
@@ -22,17 +22,17 @@ import Data.Function (on)
 import Data.Hashable
 import Data.Interned
 
-import qualified Language.Fixpoint.Types as F 
+import qualified Language.Fixpoint.Types as F
 
 -- 1.  x = y => f x = f y
--- 2.  f(f(f(x))) = x => f(f(f(f(f(x))))) = x => f(x) = a 
+-- 2.  f(f(f(x))) = x => f(f(f(f(f(x))))) = x => f(x) = a
 
 _examples = [t1, t2]
-  where 
-    t1   = app "f" [var "x", var "y"] 
-    t2   = app "f" [var "x", var "y"] 
+  where
+    t1   = app "f" [var "x", var "y"]
+    t2   = app "f" [var "x", var "y"]
 
-data CongQuery   = Query [Equality] [Disequality]  
+data CongQuery   = Query [Equality] [Disequality]
 data Equality    = Eq    Term Term
 data Disequality = Diseq Term Term
 
@@ -48,23 +48,23 @@ var x = intern (BVar x)
 --------------------------------------------------------------------------------
 -- | Hash-consed Term DataType
 --------------------------------------------------------------------------------
-data Term 
-  = Var   {-# UNPACK #-} !Id !F.Symbol 
+data Term
+  = Var   {-# UNPACK #-} !Id !F.Symbol
   | App   {-# UNPACK #-} !Id !F.Symbol [Term]
 --------------------------------------------------------------------------------
 
 data UninternedTerm
-  = BVar !F.Symbol 
-  | BApp !F.Symbol [Term] 
+  = BVar !F.Symbol
+  | BApp !F.Symbol [Term]
 
 instance Interned Term where
   type Uninterned Term  = UninternedTerm
   data Description Term = DVar F.Symbol
                         | DApp F.Symbol [Id]
                           deriving Show
-  describe (BApp f as)  = DApp f (identity <$> as) 
+  describe (BApp f as)  = DApp f (identity <$> as)
   describe (BVar x)     = DVar x
-  identify i            = go 
+  identify i            = go
     where
       go (BApp f as)    = App i f as
       go (BVar x)       = Var i x

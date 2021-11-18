@@ -1,9 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ViewPatterns #-}
 
 -- | Functions to make environments easier to read
 module Language.Fixpoint.Solver.Prettify (savePrettifiedQuery) where
@@ -220,7 +217,7 @@ proposeRenamings = toSymMap . toPrefixSuffixMap
 --
 -- > forall ss.
 -- > Set.fromList ss == Set.fromList $ concat [ xs | m <- elems (toPrefixSuffixMap ss), xs <- elems m ]
--- 
+--
 -- > forall ss.
 -- > and [ all (pfx `isPrefixOfSym`) xs && all (sfx `isSuffixOfSym`) xs
 -- >     | (pfx, m) <- toList (toPrefixSuffixMap ss)

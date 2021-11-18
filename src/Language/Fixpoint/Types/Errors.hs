@@ -102,7 +102,7 @@ newtype Error = Error [Error1]
 
 
 errs :: Error -> [Error1]
-errs (Error es) = es 
+errs (Error es) = es
 
 data Error1 = Error1
   { errLoc :: SrcSpan
@@ -184,7 +184,7 @@ instance (NFData a) => NFData (FixResult a)
 
 instance Eq a => Eq (FixResult a) where
   Crash xs _   == Crash ys _         = xs == ys
-  Unsafe s1 xs == Unsafe s2 ys       = xs == ys && s1 == s2 
+  Unsafe s1 xs == Unsafe s2 ys       = xs == ys && s1 == s2
   Safe s1      == Safe s2            = s1 == s2
   _            == _                  = False
 
@@ -208,11 +208,11 @@ instance Functor FixResult where
 -- instance (ToJSON a) => ToJSON (FixResult a) where
 --   toJSON (Safe _ )      = object [ "result"  .= String "safe"   ]
 
---   toJSON (Unsafe _ ts)  = object [ "result"  .= String "unsafe" 
+--   toJSON (Unsafe _ ts)  = object [ "result"  .= String "unsafe"
 --                                  , "tags"    .= toJSON ts
 --                                  ]
 --   toJSON (Crash ts msg) = object [ "result"  .= String "crash"
---                                  , "message" .= msg 
+--                                  , "message" .= msg
 --                                  , "tags"    .= toJSON ts
 --                                  ]
 
@@ -221,7 +221,7 @@ instance (ToJSON a) => ToJSON (FixResult a) where
   toEncoding = genericToEncoding defaultOptions
 
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
-resultDoc (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)" 
+resultDoc (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)"
 resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : ((("CRASH:" <+>) . toFix) <$> xs)
 resultDoc (Unsafe _ xs)    = vcat $ text "Unsafe:"           : ((("WARNING:" <+>) . toFix) <$> xs)
 

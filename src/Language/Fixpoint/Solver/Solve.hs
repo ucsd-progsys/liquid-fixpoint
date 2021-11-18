@@ -1,5 +1,4 @@
 {-# LANGUAGE PatternGuards     #-}
-{-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -30,7 +29,7 @@ import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
--- import qualified Data.Maybe          as Mb 
+-- import qualified Data.Maybe          as Mb
 import qualified Data.List           as L
 import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import qualified Language.Fixpoint.Types.Config as C
@@ -59,7 +58,7 @@ solve cfg fi = do
 -- | Progress Bar
 --------------------------------------------------------------------------------
 withProgressFI :: SolverInfo a b -> IO b -> IO b
-withProgressFI = withProgress . (+ 1) . fromIntegral . cNumScc . siDeps  
+withProgressFI = withProgress . (+ 1) . fromIntegral . cNumScc . siDeps
 --------------------------------------------------------------------------------
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
@@ -244,9 +243,9 @@ result_ bindingsInSmt cfg w s = do
     res sts cs' = F.Unsafe sts cs'
 
 isChecked :: Config -> [F.SimpC a] -> [F.SimpC a]
-isChecked cfg cs = case checkCstr cfg of 
-  []   -> cs 
-  ids  -> let s = S.fromList ids in 
+isChecked cfg cs = case checkCstr cfg of
+  []   -> cs
+  ids  -> let s = S.fromList ids in
           [c | c <- cs, S.member (F.subcId c) s ]
 
 --------------------------------------------------------------------------------

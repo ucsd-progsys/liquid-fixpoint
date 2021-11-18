@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
@@ -18,7 +17,7 @@ import           GHC.Generics              (Generic)
 import           Text.PrettyPrint.HughesPJ
 
 import Language.Fixpoint.Types.Refinements
-import Language.Fixpoint.Types.PrettyPrint 
+import Language.Fixpoint.Types.PrettyPrint
 import Language.Fixpoint.Misc              (errorstar)
 
 
@@ -28,10 +27,10 @@ data Triggered a = TR Trigger a
 data Trigger = NoTrigger | LeftHandSide
   deriving (Eq, Show, Generic)
 
-instance PPrint Trigger where 
-  pprintTidy _ = text . show 
+instance PPrint Trigger where
+  pprintTidy _ = text . show
 
-instance PPrint a => PPrint (Triggered a) where 
+instance PPrint a => PPrint (Triggered a) where
   pprintTidy k (TR t x) = parens (pprintTidy k t <+> text ":" <+> pprintTidy k x)
 
 noTrigger :: e -> Triggered e

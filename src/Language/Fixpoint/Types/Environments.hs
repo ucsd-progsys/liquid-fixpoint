@@ -109,7 +109,7 @@ splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> not (elem k
                                    , EB $ BE i $ M.filterWithKey (\k _ -> elem k ebs) bs
                                    )
 
--- data SolEnv        = SolEnv { soeBinds :: !BindEnv } 
+-- data SolEnv        = SolEnv { soeBinds :: !BindEnv }
 --                     deriving (Eq, Show, Generic)
 
 instance PPrint a => PPrint (SEnv a) where

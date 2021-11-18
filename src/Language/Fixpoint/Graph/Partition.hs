@@ -59,7 +59,7 @@ import           Data.List (sortBy)
 data CPart c a = CPart { pws :: !(M.HashMap F.KVar (F.WfC a))
                        , pcm :: !(M.HashMap Integer (c a))
                        }
-  
+
 instance Semigroup (CPart c a) where
   l <> r = CPart { pws = pws l <> pws r
                  , pcm = pcm l <> pcm r
@@ -68,7 +68,7 @@ instance Semigroup (CPart c a) where
 instance Monoid (CPart c a) where
    mempty      = CPart mempty mempty
    mappend     = (<>)
-   
+
 --------------------------------------------------------------------------------
 -- | Multicore info ------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -101,7 +101,7 @@ partition cfg fi
 --   produce the maximum possible number of partitions. Or a MultiCore Info
 --   to control the partitioning
 ------------------------------------------------------------------------------
-partition' :: (F.TaggedC c a) 
+partition' :: (F.TaggedC c a)
            => Maybe MCInfo -> F.GInfo c a -> [F.GInfo c a]
 ------------------------------------------------------------------------------
 partition' mn fi  = case mn of
@@ -154,7 +154,7 @@ cpartSize c = (M.size . pcm) c + (length . pws) c
 
 -- | Convert a CPart to an FInfo
 cpartToFinfo :: F.GInfo c a -> CPart c a -> F.GInfo c a
-cpartToFinfo fi p = fi {F.ws = pws p, F.cm = pcm p} 
+cpartToFinfo fi p = fi {F.ws = pws p, F.cm = pcm p}
 
 -- | Convert an FInfo to a CPart
 finfoToCpart :: F.GInfo c a -> CPart c a

@@ -18,7 +18,7 @@ import Data.Aeson
 import           Data.Semigroup            (Semigroup (..))
 #endif
 
-data Stats = Stats 
+data Stats = Stats
   { numCstr      :: !Int -- ^ # Horn Constraints
   , numIter      :: !Int -- ^ # Refine Iterations
   , numBrkt      :: !Int -- ^ # smtBracket    calls (push/pop)
@@ -39,7 +39,7 @@ instance F.PTable Stats where
                         ]
 
 instance Semigroup Stats where
-  s1 <> s2 = 
+  s1 <> s2 =
     Stats { numCstr      = numCstr s1      + numCstr s2
           , numIter      = numIter s1      + numIter s2
           , numBrkt      = numBrkt s1      + numBrkt s2

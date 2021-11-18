@@ -75,7 +75,7 @@ import           Prelude hiding (lookup)
 import           GHC.Generics
 import           Control.DeepSeq
 import           Data.Hashable
-import qualified Data.Maybe                 as Mb 
+import qualified Data.Maybe                 as Mb
 import qualified Data.HashMap.Strict        as M
 import qualified Data.List                  as L
 import           Data.Generics             (Data)
@@ -87,7 +87,7 @@ import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Spans 
+import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Theories
@@ -181,8 +181,8 @@ instance PPrint QBind where
 
 --------------------------------------------------------------------------------
 -- | An `EbindSol` contains the relevant information for an existential-binder;
---   (See tests/pos/ebind-*.fq for examples.) This is either 
---   1. the constraint whose HEAD is a singleton that defines the binder, OR 
+--   (See tests/pos/ebind-*.fq for examples.) This is either
+--   1. the constraint whose HEAD is a singleton that defines the binder, OR
 --   2. the solved out TERM that we should use in place of the ebind at USES.
 --------------------------------------------------------------------------------
 data EbindSol
@@ -192,19 +192,19 @@ data EbindSol
   | EbIncr                 -- ^ EBinds not to be solved for (because they're currently being solved for)
    deriving (Show, Generic, NFData)
 
-instance PPrint EbindSol where 
+instance PPrint EbindSol where
   pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x
   pprintTidy k (EbSol e)   = "EbSol:" <+> pprintTidy k e
   pprintTidy _ (EbIncr)    = "EbIncr"
 
 --------------------------------------------------------------------------------
-updateEbind :: Sol a b -> BindId -> Pred -> Sol a b 
+updateEbind :: Sol a b -> BindId -> Pred -> Sol a b
 --------------------------------------------------------------------------------
-updateEbind s i !e = case M.lookup i (sEbd s) of 
+updateEbind s i !e = case M.lookup i (sEbd s) of
   Nothing         -> errorstar $ "updateEBind: Unknown ebind " ++ show i
-  Just (EbSol e0) -> errorstar $ "updateEBind: Re-assigning ebind " ++ show i ++ " with solution: " ++ show e0 
+  Just (EbSol e0) -> errorstar $ "updateEBind: Re-assigning ebind " ++ show i ++ " with solution: " ++ show e0
   Just _          -> s { sEbd = M.insert i (EbSol e) (sEbd s) }
-    
+
 --------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
 --   in particular, to compute `lhsPred` for any given constraint.
@@ -233,16 +233,16 @@ instance Semigroup (Sol a b) where
                  , gMap  = (gMap s1)  <> (gMap s2)
                  , sHyp  = (sHyp s1)  <> (sHyp s2)
                  , sScp  = (sScp s1)  <> (sScp s2)
-                 , sEbd  = (sEbd s1)  <> (sEbd s2) 
-                 , sxEnv = (sxEnv s1) <> (sxEnv s2) 
+                 , sEbd  = (sEbd s1)  <> (sEbd s2)
+                 , sxEnv = (sxEnv s1) <> (sxEnv s2)
                  }
 
 instance Monoid (Sol a b) where
-  mempty = Sol { sEnv = mempty 
-               , sMap = mempty 
-               , gMap = mempty 
-               , sHyp = mempty 
-               , sScp = mempty 
+  mempty = Sol { sEnv = mempty
+               , sMap = mempty
+               , gMap = mempty
+               , sHyp = mempty
+               , sScp = mempty
                , sEbd = mempty
                , sxEnv = mempty
                }
@@ -253,7 +253,7 @@ instance Functor (Sol a) where
 
 instance (PPrint a, PPrint b) => PPrint (Sol a b) where
   pprintTidy k s = vcat [ "sMap :=" <+> pprintTidy k (sMap s)
-                        , "sEbd :=" <+> pprintTidy k (sEbd s) 
+                        , "sEbd :=" <+> pprintTidy k (sEbd s)
                         ]
 
 --------------------------------------------------------------------------------
@@ -291,11 +291,11 @@ resultGradual s = fmap go' (gMap s)
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: SymEnv 
-         -> [(KVar, a)] 
-         -> [(KVar, b)] 
-         -> [(KVar, Hyp)] 
-         -> M.HashMap KVar IBindEnv 
+fromList :: SymEnv
+         -> [(KVar, a)]
+         -> [(KVar, b)]
+         -> [(KVar, Hyp)]
+         -> M.HashMap KVar IBindEnv
          -> [(BindId, EbindSol)]
          -> SEnv (BindId, Sort)
          -> Sol a b
@@ -312,9 +312,9 @@ qbPreds :: String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
 qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
-    elabPred eq           = elaborate (atLoc eq $ "qbPreds:" ++ msg) env 
-                          . subst su 
-                          . eqPred 
+    elabPred eq           = elaborate (atLoc eq $ "qbPreds:" ++ msg) env
+                          . subst su
+                          . eqPred
                           $ eq
     env                   = sEnv s
 
@@ -379,8 +379,8 @@ data EQual = EQL
   , _eqArgs :: ![Expr]
   } deriving (Eq, Show, Data, Typeable, Generic)
 
-instance Loc EQual where 
-  srcSpan = srcSpan . eqQual 
+instance Loc EQual where
+  srcSpan = srcSpan . eqQual
 
 trueEqual :: EQual
 trueEqual = EQL trueQual mempty []

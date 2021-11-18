@@ -43,12 +43,13 @@ module Language.Fixpoint.Types.Names (
   -- , isCtorSymbol
   , isNontrivialVV
   , isDummy
+  , isFixKey
 
   -- * Destructors
   , prefixOfSym
   , suffixOfSym
   , stripPrefix
-  , stripSuffix 
+  , stripSuffix
   , consSym
   , unconsSym
   , dropSym
@@ -82,7 +83,7 @@ module Language.Fixpoint.Types.Names (
   , kArgSymbol
   , existSymbol
   , suffixSymbol
-  , mappendSym 
+  , mappendSym
 
   -- * Unwrapping Symbols
   , unLitSymbol
@@ -640,11 +641,11 @@ mulFuncName, divFuncName :: Symbol
 mulFuncName  = "Z3_OP_MUL"
 divFuncName  = "Z3_OP_DIV"
 
-isPrim :: Symbol -> Bool 
-isPrim x = S.member x prims 
+isPrim :: Symbol -> Bool
+isPrim x = S.member x prims
 
 prims :: S.HashSet Symbol
-prims = S.fromList 
+prims = S.fromList
   [ propConName
   , _hpropConName
   , vvName
