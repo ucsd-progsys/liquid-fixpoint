@@ -1157,20 +1157,20 @@ instance Normalizable Equation where
       xs'     = zipWith mkSymbol xs [0..]
       mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i
 
-
+-- | Normalize the given named expression if it is recursive.
 normalizeBody :: Symbol -> Expr -> Expr
-normalizeBody f = go
+normalizeBody f e | f `elem` syms e = go e
   where
-    -- Q: Why do we only simplify the expression if f is a free symbol in it?
-    go e | f `elem` syms e = go' e
-    go e                   = e
-
-    -- | Simplifies a particular logical pattern:
-    -- (c => e1) /\ ((not c) => e2) --> if c then e1 else e2
+    -- @go@ performs this simplification:
+    --     (c => e1) /\ ((not c) => e2) --> if c then e1 else e2
+    -- and then recurses into  e2.
     --
-    -- Q: Why do we recurse into the right expression (only)?
-    go' (PAnd [PImp c e1, PImp (PNot c') e2]) | c == c' = EIte c e1 (go' e2)
-    go' e                                               = e
+    -- The expressions originate from Haskell's reflect annotations, so we know
+    -- that e1 is a conjunction of data constructor checkers and we do not need
+    -- to recurse into e1.
+    go (PAnd [PImp c e1, PImp (PNot c') e2]) | c == c' = EIte c e1 (go e2)
+    go e                                               = e
+normalizeBody _ e = e -- The expression is not recursive, return it unchanged.
 
 -- -- TODO:FUEL Config
 -- maxFuel :: Int
