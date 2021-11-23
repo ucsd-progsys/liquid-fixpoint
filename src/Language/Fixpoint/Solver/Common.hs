@@ -2,10 +2,10 @@
 
 module Language.Fixpoint.Solver.Common (askSMT, toSMT) where
 
-import Language.Fixpoint.Types.Config
-import Language.Fixpoint.Smt.Interface
+import Language.Fixpoint.Types.Config (Config)
+import Language.Fixpoint.Smt.Interface (Context(..), checkValidWithContext)
 import Language.Fixpoint.Types
-import qualified Language.Fixpoint.Types.Visitor as Vis
+import Language.Fixpoint.Types.Visitor (kvarsExpr)
 import Language.Fixpoint.Defunctionalize (defuncAny)
 import Language.Fixpoint.SortCheck (elaborate)
 
@@ -14,10 +14,10 @@ mytracepp = notracepp
 
 askSMT :: Config -> Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
---   | isContraPred e      = return False
-  | isTautoPred  e         = return True
-  | null (Vis.kvarsExpr e) = checkValidWithContext ctx [] PTrue e'
-  | otherwise              = return False
+--   | isContraPred e  = return False
+  | isTautoPred  e     = return True
+  | null (kvarsExpr e) = checkValidWithContext ctx [] PTrue e'
+  | otherwise          = return False
   where
     e' = toSMT "askSMT" cfg ctx bs e
 
