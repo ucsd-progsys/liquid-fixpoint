@@ -17,15 +17,9 @@
 module Language.Fixpoint.Solver.Simplify (applyBooleanFolding, applyConstantFolding, applySetFolding, isSetPred) where
 
 import           Language.Fixpoint.Types hiding (simplify)
-import qualified Language.Fixpoint.Types.Visitor as Vis
-import qualified Language.Fixpoint.Misc          as Misc 
 import           Language.Fixpoint.Smt.Theories
-import           Language.Fixpoint.SortCheck
-import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Data.Hashable
-import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
-import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
 
       
