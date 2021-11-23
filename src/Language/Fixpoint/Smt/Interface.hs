@@ -332,9 +332,8 @@ makeProcess cfg
                   , ctxTVar    = queueTVar
                   }
 
---------------------------------------------------------------------------
+-- | Close file handles and wait for the solver process to terminate.
 cleanupContext :: Context -> IO ExitCode
---------------------------------------------------------------------------
 cleanupContext (Ctx {..}) = do
   cancel ctxAsync
   hCloseMe "ctxCin"  ctxCin

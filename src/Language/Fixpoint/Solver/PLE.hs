@@ -913,6 +913,7 @@ matchSorts s1 s2 = go s1 s2
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
+-- | Evaluate a boolean expression.
 evalBool :: Knowledge -> Expr -> EvalST (Maybe Expr)
 evalBool γ e = do
   bt <- liftIO $ isValid γ e
@@ -922,6 +923,10 @@ evalBool γ e = do
     if bf then return $ Just PFalse
           else return Nothing
 
+-- | Evaluate @if b then e1 else e2@.
+--
+-- If @b@ is valid, simplifies to @e1@; if @not b@ is valid, simplifies to @e2@.
+-- Otherwise the ITE is kept.
 evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> Expr -> Expr -> EvalST (Expr, FinalExpand)
 evalIte γ ctx et b0 e1 e2 = do
   (b, fe) <- eval γ ctx et b0
@@ -1113,42 +1118,36 @@ instance Normalizable Equation where
 normalizeBody :: Symbol -> Expr -> Expr
 normalizeBody f = go
   where
-    go e
-      | f `elem` syms e
-      = go' e
-    go e
-      = e
+    -- Q: Why do we only simplify the expression if f is a free symbol in it?
+    go e | f `elem` syms e = go' e
+    go e                   = e
 
-    go' (PAnd [PImp c e1,PImp (PNot c') e2])
-      | c == c' = EIte c e1 (go' e2)
-    go' e = e
-
-_splitBranches :: Symbol -> Expr -> [(Expr, Expr)]
-_splitBranches f = go
-  where
-    go (PAnd es)
-      | f `elem` syms es
-      = go' <$> es
-    go e
-      = [(PTrue, e)]
-
-    go' (PImp c e) = (c, e)
-    go' e          = (PTrue, e)
+    -- | Simplifies a particular logical pattern:
+    -- (c => e1) /\ ((not c) => e2) --> if c then e1 else e2
+    --
+    -- Q: Why do we recurse into the right expression (only)?
+    go' (PAnd [PImp c e1, PImp (PNot c') e2]) | c == c' = EIte c e1 (go' e2)
+    go' e                                               = e
 
 -- -- TODO:FUEL Config
 -- maxFuel :: Int
 -- maxFuel = 11
 
+-- | Increment the fuel count of the given symbol in the current evaluation
+-- environment.
 useFuel :: Symbol -> EvalST ()
 useFuel f = do
   modify (\st -> st { evFuel = useFuelCount f (evFuel st) })
 
+-- | Increment the fuel count.
 useFuelCount :: Symbol -> FuelCount -> FuelCount
 useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
   where
     k             = M.lookupDefault 0 f m
     m             = fcMap fc
 
+-- | Returns False if there is a fuel count in the evaluation environment and
+-- the fuel count exceeds the maximum. Returns True otherwise.
 checkFuel :: Symbol -> EvalST Bool
 checkFuel f = do
   fc <- gets evFuel
