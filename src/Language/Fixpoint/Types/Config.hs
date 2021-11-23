@@ -184,7 +184,7 @@ defConfig = Config {
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting"
-  , useInterpreter           = False &= help "Use the interpreter to assist PLE"
+  , useInterpreter           = True &= help "Use the interpreter to assist PLE"
   , oldPLE                   = False &= help "Use old version of PLE"
   , noIncrPle                = False &= help "Don't use incremental PLE"
   , noEnvironmentReduction   =
