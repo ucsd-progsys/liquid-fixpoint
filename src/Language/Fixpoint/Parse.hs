@@ -950,8 +950,7 @@ tupleP = do
   return $ mkEApp (Loc l1 l2 cons) (first : rest)
 
 
--- TODO:AZ: The comment says BitVector literal, but it accepts any @Sort@
--- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
+-- | Parser for literals of all sorts.
 litP :: Parser Expr
 litP = do reserved "lit"
           l <- stringLiteral

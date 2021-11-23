@@ -31,6 +31,8 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
+import qualified Language.Fixpoint.Solver.Common as Common (toSMT)
+import           Language.Fixpoint.Solver.Common          (askSMT)
 import           Control.Monad.State
 import           Data.Bifunctor (second)
 import qualified Data.Text            as T
@@ -699,19 +701,8 @@ initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dc
 -- totality-effecting one.
 -- RJ: What does "totality effecting" mean?
 
-askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-askSMT cfg ctx bs e
-  | isTautoPred  e     = return True
-  | null (Vis.kvarsExpr e) = SMT.checkValidWithContext ctx [] PTrue e'
-  | otherwise          = return False
-  where
-    e'                 = toSMT cfg ctx bs e
-
 toSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
-toSMT cfg ctx bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
-  where
-    elabEnv      = insertsSymEnv senv
-    senv         = SMT.ctxSymEnv ctx
+toSMT = Common.toSMT "Instantiate.toSMT"
 
 makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
 makeSimplifications sis (dc, es, e)
