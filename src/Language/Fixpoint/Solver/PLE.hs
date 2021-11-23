@@ -30,6 +30,7 @@ import qualified Language.Fixpoint.Utils.Trie    as T
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget)
+import           Language.Fixpoint.Solver.Common          (askSMT, toSMT)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Rewrite
 
@@ -1001,23 +1002,6 @@ knowledge cfg ctx si = KN
       = (smName rw,) . (smDC rw,) <$> L.elemIndex x (smArgs rw)
       | otherwise
       = Nothing
-
-askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-askSMT cfg ctx bs e
---   | isContraPred e     = return False
-  | isTautoPred  e     = return True
-  | null (Vis.kvarsExpr e) = SMT.checkValidWithContext ctx [] PTrue e'
-  | otherwise          = return False
-  where
-    e'                 = toSMT "askSMT" cfg ctx bs e
-
-toSMT :: String ->  Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
-toSMT msg cfg ctx bs e = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs) . mytracepp ("toSMT from " ++ msg ++ showpp e)
-                          $ e
-  where
-    elabEnv      = insertsSymEnv senv
-    senv         = SMT.ctxSymEnv ctx
-
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
