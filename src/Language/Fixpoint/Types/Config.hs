@@ -110,7 +110,7 @@ instance Default Config where
 
 ---------------------------------------------------------------------------------------
 
-data RESTOrdering = RESTKBO | RESTRPO | RESTFuel Int
+data RESTOrdering = RESTKBO | RESTLPO | RESTRPO | RESTFuel Int
                  deriving (Eq, Data, Typeable, Generic)
 
 instance Default RESTOrdering where
@@ -118,14 +118,16 @@ instance Default RESTOrdering where
 
 instance Show RESTOrdering where
   show RESTKBO      = "kbo"
+  show RESTLPO      = "lpo"
   show RESTRPO      = "rpo"
   show (RESTFuel n) = "fuel" ++ show n
 
 instance Read RESTOrdering where
   readsPrec _ "kbo" = [(RESTKBO, "")]
+  readsPrec _ "lpo" = [(RESTLPO, "")]
   readsPrec _ "rpo" = [(RESTRPO, "")]
   readsPrec _ xs    | "fuel" `L.isPrefixOf` xs = [(RESTFuel (read (drop 4 xs)), "")]
-  readsPrec _ xs    = error $ "Cannot parse " ++ xs ++ " as an ordering. Expected: kbo|rpo|fuelN"
+  readsPrec _ xs    = error $ "Cannot parse " ++ xs ++ " as an ordering. Expected: kbo|lpo|rpo|fuelN"
 
 ---------------------------------------------------------------------------------------
 

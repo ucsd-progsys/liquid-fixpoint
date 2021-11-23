@@ -472,9 +472,7 @@ evalOne γ env ctx _ e | otherwise = do
     oc = ordConstraints (restOCA env) (Mb.fromJust $ restSolver env)
 
     rp = RP oc [(e, PLE)] constraints
-    constraints = foldl go (OC.top oc) []
-      where
-        go c (t, u) = refine oc c t u
+    constraints = OC.top oc
 
 
 -- | @notGuardedApps e@ yields all the subexpressions that are
@@ -714,6 +712,7 @@ evalREST γ ctx rp =
     when se $ do
       possibleRWs <- getRWs
       rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
+      -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
       (e', FE fe) <- do
         r@(ec, _) <- eval γ ctx FuncNormal e
         if ec /= e
@@ -778,7 +777,12 @@ evalREST γ ctx rp =
 
     getRWs =
       do
-        ok <- if (isRW $ last (path rp)) then (return True) else (liftIO $ termCheck (c rp))
+        -- Optimization: If we got here via rewriting, then the current constraints
+        -- are satisfiable; otherwise double-check that rewriting is still allowed
+        ok <-
+          if (isRW $ last (path rp))
+            then (return True)
+            else (liftIO $ termCheck (c rp))
         if ok
           then
             do

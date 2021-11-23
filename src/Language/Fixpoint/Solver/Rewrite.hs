@@ -18,7 +18,7 @@ module Language.Fixpoint.Solver.Rewrite
   , RESTOrdering(..)
   ) where
 
-import           Control.Monad.State
+import           Control.Monad.State (guard)
 import           Control.Monad.Trans.Maybe
 import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
@@ -29,10 +29,12 @@ import           Language.Fixpoint.Types.Config (RESTOrdering(..))
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.REST
 import           Language.REST.KBO (kbo)
-import           Language.REST.OCAlgebra
+import           Language.REST.LPO (lpo)
+import           Language.REST.OCAlgebra as OC
+import           Language.REST.OCToAbstract (lift)
 import           Language.REST.Op
 import           Language.REST.SMT (SMTExpr)
-import           Language.REST.WQOConstraints.ADT (ConstraintsADT)
+import           Language.REST.WQOConstraints.ADT (ConstraintsADT, adtOC)
 import qualified Language.REST.RuntimeTerm as RT
 
 type SubExpr = (Expr, Expr -> Expr)
@@ -57,6 +59,7 @@ data RewriteArgs = RWArgs
 -- Also helps since GHC doesn't support impredicate polymorphism (yet)
 data OCType =
     RPO (ConstraintsADT Op)
+  | LPO (ConstraintsADT Op)
   | KBO (SMTExpr Bool)
   | Fuel Int
   deriving (Eq, Show)
@@ -71,6 +74,11 @@ ordConstraints RESTKBO      solver = bimapConstraints KBO asKBO $ contramap conv
   where
     asKBO (KBO t) = t
     asKBO _       = undefined
+
+ordConstraints RESTLPO      solver = bimapConstraints LPO asLPO $ contramap convert (lift (adtOC solver) lpo)
+  where
+    asLPO (LPO t) = t
+    asLPO _       = undefined
 
 ordConstraints (RESTFuel n) _      = bimapConstraints Fuel asFuel $ fuelOC n
   where
