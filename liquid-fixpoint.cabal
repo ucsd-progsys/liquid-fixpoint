@@ -196,11 +196,15 @@ test-suite tasty
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
   other-modules:    ParserTests
+                    Arbitrary
                     ShareMapReference
                     ShareMapTests
-                    Arbitrary
+                    SimplifiableTests
+                    SimplifyInterpreter
+                    SimplifyPLE
   hs-source-dirs:   tests/tasty
   build-depends:    base            >= 4.9.1.0 && < 5
+                  , containers
                   , hashable
                   , liquid-fixpoint
                   , tasty           >= 0.10

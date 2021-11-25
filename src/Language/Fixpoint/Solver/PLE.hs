@@ -16,7 +16,16 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Language.Fixpoint.Solver.PLE (instantiate) where
+module Language.Fixpoint.Solver.PLE
+  ( instantiate
+
+  -- The following exports are for property testing.
+  , FuelCount(..)
+  , ICtx(..)
+  , Knowledge(..)
+  , Simplifiable(..)
+  )
+  where
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC

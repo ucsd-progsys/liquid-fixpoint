@@ -1,4 +1,4 @@
-module Arbitrary where
+module Arbitrary (subexprs) where
 
 import Control.Monad                    (forM_, liftM)
 import Data.Monoid (Sum(..), (<>))
