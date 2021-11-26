@@ -27,6 +27,7 @@ module Language.Fixpoint.Solver.Interpreter
   , ICtx(..)
   , Knowledge(..)
   , Simplifiable(..)
+  , interpret
   ) where
 
 import           Language.Fixpoint.Types hiding (simplify)
