@@ -28,8 +28,7 @@ tests =
     testGroup
       "simplify does not increase expression size"
       [ testProperty "PLE" (prop_no_increase SimplifyPLE.simplify'),
-        testProperty "Interpreter" (prop_no_increase SimplifyInterpreter.simplify'),
-        testProperty "Interpreter" (prop_fixpoint SimplifyInterpreter.interpret')
+        testProperty "Interpreter" (prop_no_increase SimplifyInterpreter.simplify')
       ]
   where
     withOptions tests = localOption (QuickCheckMaxSize 4) (localOption (QuickCheckTests 500) tests)
@@ -47,9 +46,6 @@ prop_no_increase f e =
               ]
           )
           (simplifiedSize <= originalSize)
-
-prop_fixpoint :: (Expr -> Expr) -> Expr -> Property
-prop_fixpoint f e = f e === f (f e)
 
 exprSize :: Expr -> Int
 -- Undo the removal of ENeg in @simplify@ so it does not count as increasing the size of the expression.
