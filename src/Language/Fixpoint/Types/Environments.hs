@@ -16,7 +16,8 @@
 module Language.Fixpoint.Types.Environments (
 
   -- * Environments
-    SEnv, SESearch(..)
+    SEnv(..)
+  , SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv, fromMapSEnv
   , mapSEnvWithKey, mapSEnv, mapMSEnv
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv, unionSEnv, unionSEnv'

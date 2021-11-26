@@ -20,7 +20,15 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Language.Fixpoint.Solver.Interpreter (instInterpreter) where
+module Language.Fixpoint.Solver.Interpreter
+  ( instInterpreter
+
+  -- The following exports are for property testing.
+  , ICtx(..)
+  , Knowledge(..)
+  , Simplifiable(..)
+  , interpret
+  ) where
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
@@ -503,18 +511,20 @@ interpret ie γ ctx env   (ETApp e1 t)   = let e1' = interpret' ie γ ctx env e1
 interpret ie γ ctx env   (ETAbs e1 sy)  = let e1' = interpret' ie γ ctx env e1 in ETAbs e1' sy
 interpret ie γ ctx env   (PAnd es)      = let es' = map (interpret' ie γ ctx env) es in go [] (reverse es')
   where
-    go []  []     = PTrue
-    go [p] []     = interpret' ie γ ctx env p
-    go acc []     = PAnd acc
-    go acc (e:es) = if e == PTrue then go acc es
-                                  else if e == PFalse then PFalse else go (e:acc) es
+    go []  []         = PTrue
+    go [p] []         = interpret' ie γ ctx env p
+    go acc []         = PAnd acc
+    go acc (PTrue:es) = go acc es
+    go _   (PFalse:_) = PFalse
+    go acc (e:es)     = go (e:acc) es
 interpret ie γ ctx env (POr es)         = let es' = map (interpret' ie γ ctx env) es in go [] (reverse es')
   where
-    go []  []     = PFalse
-    go [p] []     = interpret' ie γ ctx env p
-    go acc []     = POr acc
-    go acc (e:es) = if e == PTrue then PTrue
-                                  else if e == PFalse then go acc es else go (e:acc) es
+    go []  []          = PFalse
+    go [p] []          = interpret' ie γ ctx env p
+    go acc []          = POr acc
+    go _   (PTrue:_)   = PTrue
+    go acc (PFalse:es) = go acc es
+    go acc (e:es)      = go (e:acc) es
 interpret ie γ ctx env (PNot e)         = let e' = interpret' ie γ ctx env e in case e' of
     (PNot e'')    -> e''
     PTrue         -> PFalse 
