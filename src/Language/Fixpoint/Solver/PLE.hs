@@ -44,10 +44,10 @@ import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Simplify
 import           Language.Fixpoint.Solver.Rewrite
 
-import Language.REST.AbstractOC as OC
+import Language.REST.OCAlgebra as OC
 import Language.REST.ExploredTerms as ET
 import Language.REST.RuntimeTerm as RT
-import Language.REST.OrderingConstraints.ADT (ConstraintsADT)
+import Language.REST.WQOConstraints.ADT (ConstraintsADT)
 import Language.REST.Op
 import Language.REST.SMT (withZ3, SolverHandle)
 
@@ -133,7 +133,9 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver
     et                = fmap makeET restSolver
     makeET solver     =
-      ET.empty (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
+      ET.empty
+        (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
+        ET.ExploreWhenNeeded
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -484,7 +486,7 @@ evalOne γ env ctx _ e = do
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
-    oc :: AbstractOC (OCType Op) Expr IO
+    oc :: OCAlgebra (OCType Op) Expr IO
     oc = ordConstraints (Mb.fromJust $ restSolver env)
 
     rp = RP oc [(e, PLE)] constraints
@@ -690,7 +692,7 @@ eval γ ctx et e =
         Nothing -> fallback
 
 data RESTParams oc = RP
-  { oc   :: AbstractOC oc Expr IO
+  { oc   :: OCAlgebra oc Expr IO
   , path :: [(Expr, TermOrigin)]
   , c    :: oc
   }

@@ -25,10 +25,10 @@ import           GHC.IO.Handle.Types (Handle)
 import           Text.PrettyPrint (text)
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.REST
-import           Language.REST.AbstractOC
+import           Language.REST.OCAlgebra
 import qualified Language.REST.RuntimeTerm as RT
 import           Language.REST.Op
-import           Language.REST.OrderingConstraints.ADT (ConstraintsADT)
+import           Language.REST.WQOConstraints.ADT (ConstraintsADT)
 
 type SubExpr = (Expr, Expr -> Expr)
 
@@ -47,7 +47,7 @@ data RewriteArgs = RWArgs
  , rwTerminationOpts  :: RWTerminationOpts
  }
 
-ordConstraints :: (Handle, Handle) -> AbstractOC (ConstraintsADT Op) Expr IO
+ordConstraints :: (Handle, Handle) -> OCAlgebra (ConstraintsADT Op) Expr IO
 ordConstraints solver = contramap convert (adtRPO solver)
 
 
@@ -66,14 +66,14 @@ convert (ESym (SL tx)) = RT.App (Op tx) []
 convert (ECst t _)     = convert t
 convert e              = error (show e)
 
-passesTerminationCheck :: AbstractOC oc a IO -> RewriteArgs -> oc -> IO Bool
+passesTerminationCheck :: OCAlgebra oc a IO -> RewriteArgs -> oc -> IO Bool
 passesTerminationCheck aoc rwArgs c =
   case rwTerminationOpts rwArgs of
     RWTerminationCheckEnabled  -> isSat aoc c
     RWTerminationCheckDisabled -> return True
 
 getRewrite ::
-     AbstractOC oc Expr IO
+     OCAlgebra oc Expr IO
   -> RewriteArgs
   -> oc
   -> SubExpr
