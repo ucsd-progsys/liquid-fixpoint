@@ -83,22 +83,23 @@ data Config = Config
   , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
   , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
   , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
-  , etaElim     :: Bool                -- ^ eta eliminate function definitions 
+  , etaElim     :: Bool                -- ^ eta eliminate function definitions
   , gradual     :: Bool                -- ^ solve "gradual" constraints
   , ginteractive :: Bool                -- ^ interactive gradual solving
   , autoKuts         :: Bool           -- ^ ignore given kut variables
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
+  , useInterpreter   :: Bool           -- ^ Use the interpreter to assist PLE
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , noEnvironmentReduction :: Bool     -- ^ Don't use environment reduction
   , inlineANFBindings :: Bool          -- ^ Inline ANF bindings.
                                        -- Sometimes improves performance and sometimes worsens it.
-  , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
+  , checkCstr        :: [Integer]      -- ^ Only check these specific constraints
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
   , rwTerminationCheck  :: Bool        -- ^ Enable termination checking for rewriting
-  , stdin               :: Bool        -- ^ Read input query from stdin  
+  , stdin               :: Bool        -- ^ Read input query from stdin
   , json                :: Bool        -- ^ Render output in JSON format
   , noLazyPLE           :: Bool
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
@@ -208,6 +209,7 @@ defConfig = Config {
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting"
+  , useInterpreter           = True &= help "Use the interpreter to assist PLE"
   , oldPLE                   = False &= help "Use old version of PLE"
   , noIncrPle                = False &= help "Don't use incremental PLE"
   , noEnvironmentReduction   =
@@ -222,7 +224,7 @@ defConfig = Config {
           , "Sometimes improves performance and sometimes worsens it."
           , "Disabled by --no-environment-reduction"
           ])
-  , checkCstr                = []    &= help "Only check these specific constraint-ids" 
+  , checkCstr                = []    &= help "Only check these specific constraint-ids"
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
   , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"

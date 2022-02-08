@@ -555,7 +555,7 @@ declare me = do
     thyXTs     =                    filter (isKind 1) xts
     qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
-    xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env) 
+    xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env)
     tx         = elaborate    "declare" env
     ats        = funcSortVars env
 

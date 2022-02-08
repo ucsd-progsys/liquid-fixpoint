@@ -1,40 +1,38 @@
 
 -------------------------------------------------------------------------------
--- | This module formalizes the key datatypes needed to represent Horn NNF 
+-- | This module formalizes the key datatypes needed to represent Horn NNF
 --   constraints as described in "Local Refinement Typing", ICFP 2017
 -------------------------------------------------------------------------------
 
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 
-module Language.Fixpoint.Horn.Types 
+module Language.Fixpoint.Horn.Types
   ( -- * Horn Constraints and their components
     Query (..)
   , Cstr  (..)
   , Pred  (..)
   , Bind  (..)
-  , Var   (..) 
+  , Var   (..)
 
     -- * Raw Query
   , Tag (..)
   , TagVar
-  , TagQuery 
+  , TagQuery
 
     -- * accessing constraint labels
   , cLabel
 
-    -- * invariants (refinements) on constraints 
-  , okCstr 
+    -- * invariants (refinements) on constraints
+  , okCstr
   , dummyBind
 
-    -- * extract qualifiers 
+    -- * extract qualifiers
   , quals
-  ) 
-  where 
+  )
+  where
 
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
@@ -50,7 +48,7 @@ import qualified Data.HashMap.Strict as M
 import           Data.Aeson
 
 -------------------------------------------------------------------------------
--- | @HVar@ is a Horn variable 
+-- | @HVar@ is a Horn variable
 -------------------------------------------------------------------------------
 data Var a = HVar
   { hvName :: !F.Symbol                         -- ^ name of the variable $k1, $k2 etc.
@@ -60,19 +58,19 @@ data Var a = HVar
   deriving (Eq, Ord, Data, Typeable, Generic, Functor)
 
 -------------------------------------------------------------------------------
--- | @HPred@ is a Horn predicate that appears as LHS (body) or RHS (head) of constraints 
+-- | @HPred@ is a Horn predicate that appears as LHS (body) or RHS (head) of constraints
 -------------------------------------------------------------------------------
-data Pred 
-  = Reft  !F.Expr                               -- ^ r 
-  | Var   !F.Symbol ![F.Symbol]                 -- ^ $k(y1..yn) 
-  | PAnd  ![Pred]                               -- ^ p1 /\ .../\ pn 
+data Pred
+  = Reft  !F.Expr                               -- ^ r
+  | Var   !F.Symbol ![F.Symbol]                 -- ^ $k(y1..yn)
+  | PAnd  ![Pred]                               -- ^ p1 /\ .../\ pn
   deriving (Data, Typeable, Generic, Eq)
 
 
 instance Semigroup Pred where
   p1 <> p2 = PAnd [p1, p2]
 
-instance Monoid Pred where 
+instance Monoid Pred where
   mempty = Reft mempty
 
 instance F.Subable Pred where
@@ -97,21 +95,21 @@ instance F.Subable Pred where
   subst1 (Var k xs) su = Var k [F.subst1 x su | x <- xs]
 
 -------------------------------------------------------------------------------
-quals :: Cstr a -> [F.Qualifier] 
+quals :: Cstr a -> [F.Qualifier]
 -------------------------------------------------------------------------------
-quals = F.tracepp "horn.quals" . cstrQuals F.emptySEnv F.vv_  
+quals = F.tracepp "horn.quals" . cstrQuals F.emptySEnv F.vv_
 
-cstrQuals :: F.SEnv F.Sort -> F.Symbol -> Cstr a -> [F.Qualifier] 
-cstrQuals = go 
+cstrQuals :: F.SEnv F.Sort -> F.Symbol -> Cstr a -> [F.Qualifier]
+cstrQuals = go
   where
     go env v (Head p _)  = predQuals env v p
     go env v (CAnd   cs) = concatMap (go env v) cs
-    go env _ (All  b c)  = bindQuals env b c 
+    go env _ (All  b c)  = bindQuals env b c
     go env _ (Any  b c)  = bindQuals env b c
 
-bindQuals  :: F.SEnv F.Sort -> Bind -> Cstr a -> [F.Qualifier] 
-bindQuals env b c = predQuals env' bx (bPred b) ++ cstrQuals env' bx c 
-  where 
+bindQuals  :: F.SEnv F.Sort -> Bind -> Cstr a -> [F.Qualifier]
+bindQuals env b c = predQuals env' bx (bPred b) ++ cstrQuals env' bx c
+  where
     env'          = F.insertSEnv bx bt env
     bx            = bSym b
     bt            = bSort b
@@ -119,24 +117,24 @@ bindQuals env b c = predQuals env' bx (bPred b) ++ cstrQuals env' bx c
 predQuals :: F.SEnv F.Sort -> F.Symbol -> Pred -> [F.Qualifier]
 predQuals env v (Reft p)  = exprQuals env v p
 predQuals env v (PAnd ps) = concatMap (predQuals env v) ps
-predQuals _   _ _         = [] 
+predQuals _   _ _         = []
 
 exprQuals :: F.SEnv F.Sort -> F.Symbol -> F.Expr -> [F.Qualifier]
 exprQuals env v e = mkQual env v <$> F.conjuncts e
 
 mkQual :: F.SEnv F.Sort -> F.Symbol -> F.Expr -> F.Qualifier
 mkQual env v p = case envSort env <$> (v:xs) of
-                   (_,so):xts -> F.mkQ "Auto" ((v, so) : xts) p junk 
+                   (_,so):xts -> F.mkQ "Auto" ((v, so) : xts) p junk
                    _          -> F.panic "impossible"
   where
     xs         = L.delete v $ Misc.hashNub (F.syms p)
-    junk       = F.dummyPos "mkQual" 
+    junk       = F.dummyPos "mkQual"
 
 envSort :: F.SEnv F.Sort -> F.Symbol -> (F.Symbol, F.Sort)
 envSort env x = case F.lookupSEnv x env of
-                   Just t -> (x, t) 
+                   Just t -> (x, t)
                    _      -> F.panic $ "unbound symbol in scrape: " ++ F.showpp x
-{- 
+{-
   | Just _ <- lookupSEnv x lEnv = Nothing
   | otherwise                   = Just (x, ai)
   where
@@ -146,29 +144,31 @@ envSort env x = case F.lookupSEnv x env of
 
 
 --------------------------------------------------------------------------------
--- | @Cst@ is an NNF Horn Constraint. 
+-- | @Cst@ is an NNF Horn Constraint.
 -------------------------------------------------------------------------------
 -- Note that a @Bind@ is a simplified @F.SortedReft@ ...
-data Bind = Bind 
-  { bSym  :: !F.Symbol 
-  , bSort :: !F.Sort 
-  , bPred :: !Pred 
+data Bind = Bind
+  { bSym  :: !F.Symbol
+  , bSort :: !F.Sort
+  , bPred :: !Pred
   }
   deriving (Data, Typeable, Generic, Eq)
 
 instance F.Subable Bind where
-    syms = undefined
-    substa = undefined
-    substf = undefined
-    subst su (Bind x t p) = (Bind x t (F.subst su p))
+    syms     (Bind x _ p) = x : F.syms p
+    substa f (Bind v t p) = Bind (f v) t (F.substa f p)
+    substf f (Bind v t p) = Bind v t (F.substf (F.substfExcept f [v]) p)
+    -- subst su (Bind x t p) = (Bind x t (F.subst su p))
+    subst su (Bind v t p)  = Bind v t (F.subst (F.substExcept su [v]) p)
+    subst1 (Bind v t p) su = Bind v t (F.subst1Except [v] p su)
 
-dummyBind :: Bind 
-dummyBind = Bind F.dummySymbol F.intSort (PAnd []) 
+dummyBind :: Bind
+dummyBind = Bind F.dummySymbol F.intSort (PAnd [])
 
 -- Can we enforce the invariant that CAnd has len > 1?
 data Cstr a
   = Head  !Pred a               -- ^ p
-  | CAnd  ![(Cstr a)]           -- ^ c1 /\ ... /\ cn
+  | CAnd  ![Cstr a]             -- ^ c1 /\ ... /\ cn
   | All   !Bind  !(Cstr a)      -- ^ \all x:t. p => c
   | Any   !Bind  !(Cstr a)      -- ^ \exi x:t. p /\ c or is it \exi x:t. p => c?
   deriving (Data, Typeable, Generic, Functor, Eq)
@@ -184,24 +184,26 @@ cLabel cstr = case go cstr of
     go (Any _ c)    = go c
 
 -- We want all valid constraints to start with a binding at the top
+
 okCstr :: Cstr a -> Bool 
-okCstr (All {}) = True 
-okCstr (Any {}) = True 
-okCstr _        = False 
+okCstr All {} = True 
+okCstr Any {} = True 
+okCstr _      = False 
+
 
 -------------------------------------------------------------------------------
--- | @Query@ is an NNF Horn Constraint. 
+-- | @Query@ is an NNF Horn Constraint.
 -------------------------------------------------------------------------------
 
 data Query a = Query 
-  { qQuals :: ![F.Qualifier]                    -- ^ qualifiers over which to solve cstrs
-  , qVars  :: ![Var a]                          -- ^ kvars, with parameter-sorts
-  , qCstr  :: !(Cstr a)                         -- ^ list of constraints
-  , qCon   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
-  , qDis   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
-  , qEqns  :: ![F.Equation]                     -- ^ list of equations
-  , qMats  :: ![F.Rewrite]                      -- ^ list of match-es
-  , qData  :: ![F.DataDecl]                     -- ^ list of data-declarations
+  { qQuals :: ![F.Qualifier]             -- ^ qualifiers over which to solve cstrs
+  , qVars  :: ![Var a]                   -- ^ kvars, with parameter-sorts
+  , qCstr  :: !(Cstr a)                  -- ^ list of constraints
+  , qCon   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (uninterpreted functions
+  , qDis   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (uninterpreted functions
+  , qEqns  :: ![F.Equation]              -- ^ list of equations
+  , qMats  :: ![F.Rewrite]               -- ^ list of match-es
+  , qData  :: ![F.DataDecl]              -- ^ list of data-declarations
   }
   deriving (Data, Typeable, Generic, Functor)
 
@@ -210,7 +212,7 @@ data Query a = Query
 type TagVar   = Var Tag
 type TagQuery = Query Tag
 data Tag      = NoTag | Tag String
-  deriving (Data, Typeable, Generic, Show) 
+  deriving (Data, Typeable, Generic, Show)
 
 instance NFData Tag
 
@@ -218,19 +220,19 @@ instance F.Loc Tag where
   srcSpan _ = F.dummySpan
 
 instance F.Fixpoint Tag where
-  toFix NoTag   = "\"\"" 
+  toFix NoTag   = "\"\""
   toFix (Tag s) = "\"" <> P.text s <> "\""
-  
+
 instance F.PPrint Tag where
   pprintPrec _ _ NoTag   = mempty
-  pprintPrec _ _ (Tag s) = P.ptext s 
+  pprintPrec _ _ (Tag s) = P.ptext s
 
 instance ToJSON Tag where
   toJSON NoTag   = Null
-  toJSON (Tag s) = String (T.pack s) 
+  toJSON (Tag s) = String (T.pack s)
 
-instance F.PPrint (Query a) where 
-  pprintPrec k t q = P.vcat $ L.intersperse " " 
+instance F.PPrint (Query a) where
+  pprintPrec k t q = P.vcat $ L.intersperse " "
     [ P.vcat   (ppQual <$> qQuals q)
     , P.vcat   [ppVar k   | k <- qVars q]
     , P.vcat   [ppCon x t | (x, t) <- M.toList (qCon q)]
@@ -241,22 +243,24 @@ instance F.PPrint (Query a) where
 
 ppThings :: F.PPrint a => Maybe P.Doc -> [a] -> P.Doc
 ppThings pfx qs = P.vcat [ P.parens $ prefix P.<-> F.pprint q | q <- qs]
-  where 
-    prefix      = fromMaybe "" pfx 
+  where
+    prefix      = fromMaybe "" pfx
 
 ppCon :: F.Symbol -> F.Sort -> P.Doc
 ppCon x t = P.parens ("constant" P.<+> F.pprint x P.<+> P.parens (F.pprint t))
 
 ppQual :: F.Qualifier -> P.Doc
 ppQual (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (ppArg <$> xts) P.<+> P.parens (F.pprint p))
-  where 
+  where
     ppArg qp    = F.pprint (F.qpSym qp) P.<+> P.parens (F.pprint (F.qpSort qp))
 
 ppVar :: Var a -> P.Doc
-ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks ((P.parens . F.pprint) <$> ts)) 
+ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts)) 
+
 
 ppBlanks :: [P.Doc] -> P.Doc
 ppBlanks ds = P.parens (P.hcat (L.intersperse " " ds))
+
 -------------------------------------------------------------------------------
 -- Pretty Printing
 -------------------------------------------------------------------------------

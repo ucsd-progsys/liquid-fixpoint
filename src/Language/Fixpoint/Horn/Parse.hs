@@ -30,8 +30,8 @@ mkQuery things = H.Query
   , H.qCstr  = H.CAnd     [ c     | HCstr c  <- things ]
   , H.qCon   = M.fromList [ (x,t) | HCon x t <- things ]
   , H.qDis   = M.fromList [ (x,t) | HDis x t <- things ]
-  , H.qEqns  =            [ e     | HDef e  <- things ] 
-  , H.qMats  =            [ m     | HMat m  <- things ] 
+  , H.qEqns  =            [ e     | HDef e  <- things ]
+  , H.qMats  =            [ m     | HMat m  <- things ]
   , H.qData  =            [ dd    | HDat dd <- things ]
   }
 
@@ -46,7 +46,7 @@ data HThing a
   -- for uninterpred functions and ADT constructors
   | HCon  F.Symbol F.Sort
   | HDis  F.Symbol F.Sort
-  | HDef  F.Equation 
+  | HDef  F.Equation
   | HMat  F.Rewrite
   | HDat  F.DataDecl
   | HOpt !String
@@ -113,7 +113,7 @@ mkParam (x, t) = F.QP x F.PatNone t
 -------------------------------------------------------------------------------
 
 hVarP :: Parser (H.Var H.Tag)
-hVarP = H.HVar <$> kvSymP <*> parens (some (parens sortP)) <*> pure H.NoTag 
+hVarP = H.HVar <$> kvSymP <*> parens (some (parens sortP)) <*> pure H.NoTag
 
 -------------------------------------------------------------------------------
 -- | Helpers

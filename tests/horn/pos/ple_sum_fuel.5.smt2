@@ -1,6 +1,7 @@
 (fixpoint "--rewrite")
 (fixpoint "--save")
 (fixpoint "--fuel=6")
+(fixpoint "--useinterpreter=False")
 
 (constant sum  (func(0, [int, int])))
 

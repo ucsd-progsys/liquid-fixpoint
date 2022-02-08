@@ -16,7 +16,8 @@
 module Language.Fixpoint.Types.Environments (
 
   -- * Environments
-    SEnv, SESearch(..)
+    SEnv(..)
+  , SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv, fromMapSEnv
   , mapSEnvWithKey, mapSEnv, mapMSEnv
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv, unionSEnv, unionSEnv'
@@ -109,7 +110,7 @@ splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> not (elem k
                                    , EB $ BE i $ M.filterWithKey (\k _ -> elem k ebs) bs
                                    )
 
--- data SolEnv        = SolEnv { soeBinds :: !BindEnv } 
+-- data SolEnv        = SolEnv { soeBinds :: !BindEnv }
 --                     deriving (Eq, Show, Generic)
 
 instance PPrint a => PPrint (SEnv a) where

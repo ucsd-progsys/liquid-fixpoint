@@ -1,9 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE LambdaCase  #-}
 {-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE TupleSections  #-}
 module Language.Fixpoint.Horn.Transformations (
     uniq
   , flatten

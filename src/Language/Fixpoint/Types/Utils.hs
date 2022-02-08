@@ -58,9 +58,9 @@ sortedReftConcKVars x sr = go [] [] [] ves
     rs                   = reftConjuncts (sr_reft sr)
     t                    = sr_sort sr
 
-    go ps ks gs ((v, PKVar k su    ):xs) = go ps (KVS v t k su:ks) gs xs 
-    go ps ks gs ((v, PGrad k su _ _):xs) = go ps ks (KVS v t k su:gs) xs 
-    go ps ks gs ((_, p):xs)              = go (p:ps) ks gs xs 
+    go ps ks gs ((v, PKVar k su    ):xs) = go ps (KVS v t k su:ks) gs xs
+    go ps ks gs ((v, PGrad k su _ _):xs) = go ps ks (KVS v t k su:gs) xs
+    go ps ks gs ((_, p):xs)              = go (p:ps) ks gs xs
     go ps ks gs []                       = (ps, ks, gs)
 
 
@@ -78,17 +78,17 @@ isRegular :: [DataDecl] -> Bool
 -------------------------------------------------------------------------------
 
 isRegular []       = error "impossible: isRegular"
-isRegular ds@(d:_) = all (\d' -> ddVars d' == nArgs) ds   -- same number of tyArgs 
+isRegular ds@(d:_) = all (\d' -> ddVars d' == nArgs) ds   -- same number of tyArgs
                   && all isRegApp fldSortApps         -- 'regular' application (tc @0 ... @n)
   where
     nArgs          = ddVars d
     tcs            = S.fromList ( symbol . ddTyCon <$> ds)
     fldSortApps    = [ (c,ts) | d           <- ds
                               , ctor        <- ddCtors d
-                              , DField _ t  <- dcFields ctor 
+                              , DField _ t  <- dcFields ctor
                               , (c, ts)     <- sortApps t
-                     ]         
-    isRegApp cts   = case cts of 
+                     ]
+    isRegApp cts   = case cts of
                         (FTC c, ts) -> not (S.member (symbol c) tcs) || isRegularArgs nArgs ts
                         _           -> False
 
@@ -98,17 +98,17 @@ isRegularArgs n ts = ts == [FVar i | i <- [0 .. (n-1)]]
 type SortApp = (Sort, [Sort])
 
 sortApps :: Sort -> [SortApp]
-sortApps = go 
-  where 
+sortApps = go
+  where
     go t@FApp {}     = (f, ts) : concatMap go ts where (f, ts) = splitApp t
     go (FFunc t1 t2) = go t1 ++ go t2
     go (FAbs _ t)    = go t
     go _             = []
 
-splitApp :: Sort -> SortApp 
+splitApp :: Sort -> SortApp
 splitApp = go []
   where
-    go stk (FApp t1 t2) = go (t2:stk) t1  
+    go stk (FApp t1 t2) = go (t2:stk) t1
     go stk t            = (t, stk)
 
 --------------------------------------------------------------------------------
@@ -140,5 +140,5 @@ sortFTycons = go
     go (FTC c)       = [c]
     go (FApp  t1 t2) = go t1 ++ go t2
     go (FFunc t1 t2) = go t1 ++ go t2
-    go (FAbs _ t)    = go t 
+    go (FAbs _ t)    = go t
     go _             = []

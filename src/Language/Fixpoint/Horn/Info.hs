@@ -1,6 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 
@@ -37,12 +34,12 @@ hornFInfo cfg q = mempty
     (be2, ebs, cs) = hornSubCs be1 kve hCst
     hCst           = H.qCstr q
 
-axEnv :: F.Config -> H.Query a -> M.HashMap F.SubcId b -> F.AxiomEnv 
-axEnv cfg q cs = mempty 
+axEnv :: F.Config -> H.Query a -> M.HashMap F.SubcId b -> F.AxiomEnv
+axEnv cfg q cs = mempty
   { F.aenvEqs    = H.qEqns q
   , F.aenvSimpl  = H.qMats q
   , F.aenvExpand = if F.rewriteAxioms cfg then const True <$> cs else mempty
-  } 
+  }
 
 ----------------------------------------------------------------------------------
 hornSubCs :: F.BindEnv -> KVEnv a -> H.Cstr a

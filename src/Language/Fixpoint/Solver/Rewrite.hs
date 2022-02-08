@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -53,7 +52,6 @@ data RewriteArgs = RWArgs
  { isRWValid          :: Expr -> IO Bool
  , rwTerminationOpts  :: RWTerminationOpts
  }
-
 
 -- Monomorphize ordering constraints so we don't litter PLE with type variables
 -- Also helps since GHC doesn't support impredicate polymorphism (yet)
@@ -161,7 +159,7 @@ subExprs' (EBin op lhs rhs) = lhs'' ++ rhs''
     lhs'' = map (\(e, f) -> (e, \e' -> EBin op (f e') rhs)) lhs'
     rhs'' :: [SubExpr]
     rhs'' = map (\(e, f) -> (e, \e' -> EBin op lhs (f e'))) rhs'
-    
+
 subExprs' (PImp lhs rhs) = lhs'' ++ rhs''
   where
     lhs' = subExprs lhs
@@ -170,7 +168,7 @@ subExprs' (PImp lhs rhs) = lhs'' ++ rhs''
     lhs'' = map (\(e, f) -> (e, \e' -> PImp (f e') rhs)) lhs'
     rhs'' :: [SubExpr]
     rhs'' = map (\(e, f) -> (e, \e' -> PImp lhs (f e'))) rhs'
-    
+
 subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
   where
     lhs' = subExprs lhs
