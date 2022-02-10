@@ -33,7 +33,6 @@ import qualified Data.Text                                         as T
 import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
-import Language.Fixpoint.Types.Constraints (TaggedC(crhs))
 
 type SanitizeM a = Either E.Error a
 
