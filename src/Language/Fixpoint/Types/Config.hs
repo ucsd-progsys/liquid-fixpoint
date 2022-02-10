@@ -103,7 +103,7 @@ data Config = Config
   , json                :: Bool        -- ^ Render output in JSON format
   , noLazyPLE           :: Bool
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
-  , restOrdering        :: RESTOrdering
+  , restOrdering        :: String      -- ^ Term ordering for use in REST
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -231,8 +231,7 @@ defConfig = Config {
   , json                     = False   &= help "Render result in JSON"
   , noLazyPLE                = False   &= help "Don't use lazy PLE"
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
-  , restOrdering             =
-      def
+  , restOrdering             = def
         &= name "rest-ordering"
         &= help "Ordering Constraint Algebra to use for REST"
   }
