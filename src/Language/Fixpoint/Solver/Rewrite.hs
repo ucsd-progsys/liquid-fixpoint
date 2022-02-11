@@ -72,6 +72,14 @@ passesTerminationCheck aoc rwArgs c =
     RWTerminationCheckEnabled  -> isSat aoc c
     RWTerminationCheckDisabled -> return True
 
+-- | Yields the result of rewriting an expression with an autorewrite equation.
+--
+-- Yields nothing if:
+--
+--  * The result of the rewrite is identical to the original expression
+--  * Any of the arguments of the autorewrite has a refinement type which is
+--    not satisfied in the current context.
+--
 getRewrite ::
      OCAlgebra oc Expr IO
   -> RewriteArgs
