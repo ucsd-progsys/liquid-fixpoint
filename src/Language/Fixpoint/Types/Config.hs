@@ -14,7 +14,9 @@ module Language.Fixpoint.Types.Config (
   -- * SMT Solver options
   , SMTSolver (..)
 
+  -- REST Options
   , RESTOrdering (..)
+  , restOC
 
   -- * Eliminate options
   , Eliminate (..)
@@ -124,11 +126,13 @@ instance Show RESTOrdering where
   show (RESTFuel n) = "fuel" ++ show n
 
 instance Read RESTOrdering where
-  readsPrec _ "kbo" = [(RESTKBO, "")]
-  readsPrec _ "lpo" = [(RESTLPO, "")]
-  readsPrec _ "rpo" = [(RESTRPO, "")]
-  readsPrec _ xs    | "fuel" `L.isPrefixOf` xs = [(RESTFuel (read (drop 4 xs)), "")]
-  readsPrec _ xs    = error $ "Cannot parse " ++ xs ++ " as an ordering. Expected: kbo|lpo|rpo|fuelN"
+  readsPrec _ s | "kbo" `L.isPrefixOf` s = [(RESTKBO, drop 3 s)]
+  readsPrec _ s | "lbo" `L.isPrefixOf` s = [(RESTLPO, drop 3 s)]
+  readsPrec _ s | "rpo" `L.isPrefixOf` s = [(RESTRPO, drop 3 s)]
+  readsPrec n s | "fuel" `L.isPrefixOf` s = do
+                        (fuel, rest) <- readsPrec n (drop 4 s)
+                        return $ (RESTFuel fuel, rest)
+  readsPrec _ _ = []
 
 ---------------------------------------------------------------------------------------
 
@@ -226,12 +230,12 @@ defConfig = Config {
           ])
   , checkCstr                = []    &= help "Only check these specific constraint-ids"
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
-  , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
+  , rwTerminationCheck       = False   &= help "Enable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"
   , json                     = False   &= help "Render result in JSON"
   , noLazyPLE                = False   &= help "Don't use lazy PLE"
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
-  , restOrdering             = def
+  , restOrdering             = "rpo"
         &= name "rest-ordering"
         &= help "Ordering Constraint Algebra to use for REST"
   }
@@ -257,6 +261,9 @@ getOpts = do
 banner :: String
 banner =  "\n\nLiquid-Fixpoint Copyright 2013-21 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
+
+restOC :: Config -> RESTOrdering
+restOC cfg = read (restOrdering cfg)
 
 multicore :: Config -> Bool
 multicore cfg = cores cfg /= Just 1

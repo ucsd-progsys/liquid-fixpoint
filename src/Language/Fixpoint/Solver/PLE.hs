@@ -122,7 +122,7 @@ savePLEEqualities cfg fi res = when (save cfg) $ do
 instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> InstEnv a
 instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
   where
-    restOC            = read (restOrdering cfg)
+    restOC            = FC.restOC cfg
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi
