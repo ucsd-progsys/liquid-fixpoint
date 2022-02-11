@@ -112,7 +112,7 @@ instance Defunc (SimpC a) where
   defunc sc = do crhs' <- defunc $ _crhs sc
                  return $ sc {_crhs = crhs'}
 
-instance Defunc (WfC a)   where
+instance Defunc (WfC a) where
   defunc wf@(WfC {}) = do
     let (x, t, k) = wrft wf
     t' <- defunc t
@@ -141,7 +141,7 @@ instance Defunc Expr where
 instance Defunc a => Defunc (SEnv a) where
   defunc = mapMSEnv defunc
 
-instance Defunc BindEnv   where
+instance Defunc BindEnv where
   defunc bs = do dfbs <- gets dfBEnv
                  let f (i, xs) = if i `memberIBindEnv` dfbs
                                        then  (i,) <$> defunc xs
@@ -152,7 +152,7 @@ instance Defunc BindEnv   where
     -- the bind does not appear in any contraint,
     -- thus unique binders does not perform properly
     -- The sort should be defunc, to ensure same sort on double binders
-    matchSort (x, RR s r) = ((x,) . (`RR` r)) <$> defunc s
+    matchSort (x, RR s r) = (x,) . (`RR` r) <$> defunc s
 
 -- Sort defunctionalization [should be done by elaboration]
 instance Defunc Sort where
@@ -164,7 +164,7 @@ instance Defunc a => Defunc [a] where
 instance (Defunc a, Eq k, Hashable k) => Defunc (M.HashMap k a) where
   defunc m = M.fromList <$> mapM (secondM defunc) (M.toList m)
 
-type DF    = State DFST
+type DF = State DFST
 
 data DFST = DFST
   { dfFresh :: !Int
@@ -182,7 +182,7 @@ makeDFState cfg env ibind = DFST
   , dfEnv   = env
   , dfBEnv  = ibind
   , dfHO    = allowHO cfg  || defunction cfg
-  -- INVARIANT: lambads and redexes are not defunctionalized
+  -- INVARIANT: lambdas and redexes are not defunctionalized
   , dfLams  = []
   , dfRedex = []
   , dfBinds = mempty
@@ -203,8 +203,3 @@ freshSym t = do
   let x = intSymbol "lambda_fun_" n
   modify $ \s -> s {dfFresh = n + 1, dfBinds = insertSEnv x t (dfBinds s)}
   return x
-
-
--- | getLams and getRedexes return the (previously seen) lambdas and redexes,
---   after "closing" them by quantifying out free vars corresponding to the
---   fresh binders in `dfBinds`.

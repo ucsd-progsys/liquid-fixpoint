@@ -56,6 +56,8 @@ applyBooleanFolding brel e1 e2 =
     bfI brel left right = if (getOp brel) left right then Just PTrue else Just PFalse
         
 
+-- | Replace constant integer and floating point expressions by constant values
+-- where possible.
 applyConstantFolding :: Bop -> Expr -> Expr -> Expr
 applyConstantFolding bop e1 e2 =
   case (e1, e2) of

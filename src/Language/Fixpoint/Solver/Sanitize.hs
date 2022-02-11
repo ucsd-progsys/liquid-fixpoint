@@ -339,6 +339,7 @@ cNoFreeVars fi known c = if S.null fv then Nothing else Just (S.toList fv)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
+        ++ F.syms (F.crhs c)
     fv   = (`Misc.nubDiff` cDom) . filter (not . known) $ cRng
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
