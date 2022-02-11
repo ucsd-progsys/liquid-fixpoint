@@ -318,7 +318,7 @@ data ICtx    = ICtx
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   , icFuel     :: !FuelCount                -- ^ Current fuel-count
-  , icANFs     :: S.HashSet Pred            -- Hopefully contain only ANF things
+  , icANFs     :: [[(Symbol, SortedReft)]]  -- Hopefully contain only ANF things
   }
 
 ----------------------------------------------------------------------------------------------
@@ -346,7 +346,7 @@ initCtx env es   = ICtx
   , icSimpl  = mempty
   , icSubcId = Nothing
   , icFuel   = evFuel (ieEvEnv env)
-  , icANFs   = mempty
+  , icANFs   = []
   }
 
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
@@ -374,11 +374,10 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
                     , icSubcId = cidMb
-                    , icANFs   = anfs <> icANFs ctx
+                    , icANFs   = bs : icANFs ctx
                     }
   where
     initEqs   = S.fromList $ concat [rewrite e (knSims ieKnowl) | e  <- cands]
-    anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub [ expr xr | xr <- bs ])
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
@@ -699,16 +698,14 @@ data RESTParams oc = RP
 
 getANFSubs :: Expr -> [(Symbol, Expr)]
 getANFSubs (PAnd es)                                   = concatMap getANFSubs es
-getANFSubs (EEq lhs rhs) | (EVar v) <- unElab lhs
-                           , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
-getANFSubs (EEq lhs rhs) | (EVar v) <- unElab rhs
-                           , anfPrefix `isPrefixOfSym` v = [(v, unElab lhs)]
+getANFSubs (EEq (EVar v) rhs) | anfPrefix `isPrefixOfSym` v = [(v, rhs)]
+getANFSubs (EEq lhs (EVar v)) | anfPrefix `isPrefixOfSym` v = [(v, lhs)]
 getANFSubs _                                           = []
 
 -- Reverse the ANF transformation
 deANF :: ICtx -> Expr -> Expr
 deANF ctx = subst' where
-  ints  = concatMap getANFSubs (S.toList $ icANFs ctx)
+  ints  = concatMap getANFSubs (map expr $ S.toList $ S.unions $ map S.fromList $ icANFs ctx)
   ints' = map go (L.groupBy (\x y -> fst x == fst y) $ L.sortOn fst $ L.nub ints) where
     go [(t, u)] = (t, u)
     go ts         = (fst (head ts), getBest (map snd ts))
