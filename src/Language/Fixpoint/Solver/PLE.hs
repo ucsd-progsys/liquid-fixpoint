@@ -34,6 +34,7 @@ import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
+import           Language.Fixpoint.Solver.EnvironmentReduction (inlineInExpr, undoANF)
 import qualified Language.Fixpoint.Utils.Files   as Files
 import qualified Language.Fixpoint.Utils.Trie    as T
 import           Language.Fixpoint.Utils.Progress
@@ -55,12 +56,12 @@ import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Bifunctor (second)
 import qualified Data.HashMap.Strict  as M
+import qualified Data.HashMap.Lazy  as HashMap.Lazy
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe           as Mb
-import qualified Data.Text            as Tx
 import           Debug.Trace          (trace)
 import           Text.PrettyPrint.HughesPJ.Compat
 
@@ -696,41 +697,11 @@ data RESTParams oc = RP
   , c    :: oc
   }
 
-getANFSubs :: Expr -> [(Symbol, Expr)]
-getANFSubs (PAnd es)                                   = concatMap getANFSubs es
-getANFSubs (EEq (EVar v) rhs) | anfPrefix `isPrefixOfSym` v = [(v, rhs)]
-getANFSubs (EEq lhs (EVar v)) | anfPrefix `isPrefixOfSym` v = [(v, lhs)]
-getANFSubs _                                           = []
-
 -- Reverse the ANF transformation
 deANF :: ICtx -> Expr -> Expr
-deANF ctx = subst' where
-  ints  = concatMap getANFSubs (map expr $ S.toList $ S.unions $ map S.fromList $ icANFs ctx)
-  ints' = map go (L.groupBy (\x y -> fst x == fst y) $ L.sortOn fst $ L.nub ints) where
-    go [(t, u)] = (t, u)
-    go ts         = (fst (head ts), getBest (map snd ts))
-  su          = Su (M.fromList ints')
-  subst' ee =
-    let
-      ee' = subst su ee
-    in
-      if ee == ee'
-        then ee
-        else subst' ee'
-
-  getBest ts | Just t <- L.find isVar ts = t
-    where
-      -- Hack : Vars starting with ds_ are probably constants
-      isVar (EVar t) = not $ Tx.isPrefixOf "ds_" (symbolText t)
-      isVar _        = False
-
-  -- If the only match is a ds_ var, use it
-  getBest ts | Just t <- L.find isVar ts = t
-    where
-      isVar (EVar _) = True
-      isVar _        = False
-
-  getBest ts = head ts
+deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
+  where
+    bindEnv = HashMap.Lazy.unions $ map HashMap.Lazy.fromList $ icANFs ctx
 
 -- |
 -- Adds to the monad state all the subexpressions that have been rewritten

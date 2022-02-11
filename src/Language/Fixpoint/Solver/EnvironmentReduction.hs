@@ -11,6 +11,7 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   ( reduceEnvironments
   , simplifyBindings
   , dropLikelyIrrelevantBindings
+  , inlineInExpr
   , inlineInSortedReft
   , mergeDuplicatedBindings
   , simplifyBooleanRefts
