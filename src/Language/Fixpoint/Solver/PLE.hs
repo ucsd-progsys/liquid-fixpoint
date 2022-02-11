@@ -42,10 +42,10 @@ import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Common          (askSMT, toSMT)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Simplify
-import           Language.Fixpoint.Solver.Rewrite
+import           Language.Fixpoint.Solver.Rewrite as Rewrite
 
 import Language.REST.OCAlgebra as OC
-import Language.REST.ExploredTerms as ET
+import Language.REST.ExploredTerms as ExploredTerms
 import Language.REST.RuntimeTerm as RT
 import Language.REST.WQOConstraints.ADT (ConstraintsADT)
 import Language.REST.Op
@@ -133,9 +133,9 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver
     et                = fmap makeET restSolver
     makeET solver     =
-      ET.empty
+      ExploredTerms.empty
         (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
-        ET.ExploreWhenNeeded
+        ExploredTerms.ExploreWhenNeeded
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -771,10 +771,10 @@ evalREST γ ctx rp =
       modify (\st ->
                 st {
                   evAccum  = S.union evAccum' (evAccum st)
-                , explored = Just $ ET.insert
-                  (convert e)
+                , explored = Just $ ExploredTerms.insert
+                  (Rewrite.convert e)
                   (c rp)
-                  (S.insert (convert e') $ S.fromList (map (convert . fst) possibleRWs))
+                  (S.insert (Rewrite.convert e') $ S.fromList (map (Rewrite.convert . fst) possibleRWs))
                   (Mb.fromJust $ explored st)
                 })
 
@@ -785,18 +785,20 @@ evalREST γ ctx rp =
 
       mapM_ (evalREST γ ctx . rpRW) rws
   where
-    shouldExploreTerm et e =
+    shouldExploreTerm exploredTerms e =
       case rwTerminationOpts rwArgs of
-        RWTerminationCheckDisabled -> return $ not $ visited (convert e) et
-        RWTerminationCheckEnabled  -> shouldExplore (convert e) (c rp) et
+        RWTerminationCheckDisabled ->
+          return $ not $ ExploredTerms.visited (Rewrite.convert e) exploredTerms
+        RWTerminationCheckEnabled  ->
+          ExploredTerms.shouldExplore (Rewrite.convert e) (c rp) exploredTerms
 
     allowed (rwE, _) | rwE `elem` pathExprs = return False
     allowed (_, c)   = termCheck c
-    termCheck c = passesTerminationCheck (oc rp) rwArgs c
+    termCheck c = Rewrite.passesTerminationCheck (oc rp) rwArgs c
 
-    notVisitedFirst et rws =
+    notVisitedFirst exploredTerms rws =
       let
-        (v, nv) = L.partition (\(e, _) -> visited (convert e) et) rws
+        (v, nv) = L.partition (\(e, _) -> ExploredTerms.visited (Rewrite.convert e) exploredTerms) rws
       in
         nv ++ v
 
@@ -827,7 +829,7 @@ evalREST γ ctx rp =
           then
             do
               let e'         = deANF ctx e
-              let getRW e ar = getRewrite (oc rp) rwArgs (c rp) e ar
+              let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
               concat <$> mapM getRWs' (subExprs e')
           else return []
