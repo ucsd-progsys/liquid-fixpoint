@@ -82,7 +82,7 @@ prettyConstraint bindEnv c =
             , let (s, sr) = lookupBindEnv bId bindEnv
             ]
       mergedEnv = mergeDuplicatedBindings env
-      undoANFEnv = HashMap.union (undoANF mergedEnv) mergedEnv
+      undoANFEnv = undoANF mergedEnv
       boolSimplEnv = HashMap.union (simplifyBooleanRefts undoANFEnv) undoANFEnv
 
       simplifiedLhs = inlineInSortedReft boolSimplEnv (slhs c)

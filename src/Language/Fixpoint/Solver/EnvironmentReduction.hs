@@ -17,6 +17,7 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   ) where
 
 import           Control.Monad (guard, mplus, msum)
+import           Data.Bifunctor (second)
 import           Data.Char (isUpper)
 import           Data.Hashable (Hashable)
 import           Data.HashMap.Lazy (HashMap)
@@ -501,7 +502,7 @@ simplifyBindings cfg fi =
 
           mergedEnv = mergeDuplicatedBindings env
           undoANFEnv =
-            if inlineANFBindings cfg then undoANF mergedEnv else HashMap.empty
+            if inlineANFBindings cfg then undoANFOnlyModified mergedEnv else HashMap.empty
           boolSimplEnv =
             simplifyBooleanRefts $ HashMap.union undoANFEnv mergedEnv
 
@@ -563,8 +564,6 @@ mergeDuplicatedBindings xs =
 -- | Inlines some of the bindings introduced by ANF normalization
 -- at their use sites.
 --
--- Only modified bindings are returned.
---
 -- Only bindings with prefix lq_anf... might be inlined.
 --
 -- This function is used to produced the prettified output, and the user
@@ -575,28 +574,25 @@ undoANF :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
 undoANF env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (inlineInSortedReftChanged env') env
-     in HashMap.mapMaybe dropUnchanged env'
-  where
-    dropUnchanged ((m, b), sr) = do
-      guard b
-      Just (m, sr)
+    let env' = HashMap.map (second (inlineInSortedReft env')) env
+     in env'
 
-inlineInSortedReft
-  :: HashMap Symbol (m, SortedReft) -> SortedReft -> SortedReft
-inlineInSortedReft env sr =
-  snd $ inlineInSortedReftChanged env (error "never should evaluate", sr)
+-- | Like 'undoANF' but returns only modified bindings
+undoANFOnlyModified :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
+undoANFOnlyModified env =
+    let undoANFEnv = undoANF env
+     in HashMap.differenceWith dropUnchanged env undoANFEnv
+  where
+    dropUnchanged (_, a) v@(_, b) | a == b = Just v
+      | otherwise = Nothing
 
 -- | Inlines bindings in env in the given 'SortedReft'.
--- Attaches a 'Bool' telling if the 'SortedReft' was changed.
-inlineInSortedReftChanged
+inlineInSortedReft
   :: HashMap Symbol (a, SortedReft)
-  -> (m, SortedReft)
-  -> ((m, Bool), SortedReft)
-inlineInSortedReftChanged env (m, sr) =
-  let e = reftPred (sr_reft sr)
-      e' = inlineInExpr env e
-   in ((m, e /= e'), sr { sr_reft = mapPredReft (const e') (sr_reft sr) })
+  -> SortedReft
+  -> SortedReft
+inlineInSortedReft env sr =
+    sr { sr_reft = mapPredReft (inlineInExpr env) (sr_reft sr) }
 
 -- | Inlines bindings preffixed with @lq_anf@ in the given expression
 -- if they appear in equalities.
