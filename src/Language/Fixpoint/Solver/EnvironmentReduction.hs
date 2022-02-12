@@ -609,7 +609,13 @@ inlineInSortedReft
   -> SortedReft
   -> SortedReft
 inlineInSortedReft srLookup sr =
-    sr { sr_reft = mapPredReft (inlineInExpr srLookup) (sr_reft sr) }
+    let reft = sr_reft sr
+     in sr { sr_reft = mapPredReft (inlineInExpr (filterBind (reftBind reft) srLookup)) reft }
+  where
+    filterBind b srLookup sym = do
+      guard (sym /= b)
+      srLookup sym
+
 
 -- | Inlines bindings given by @srLookup@ in the given expression
 -- if they appear in equalities.
