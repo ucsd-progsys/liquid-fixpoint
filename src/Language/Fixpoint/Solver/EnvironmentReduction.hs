@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ViewPatterns #-}
 
 -- | Functions to make environments smaller
@@ -18,7 +19,6 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   ) where
 
 import           Control.Monad (guard, mplus, msum)
-import           Data.Bifunctor (second)
 import           Data.Char (isUpper)
 import           Data.Hashable (Hashable)
 import           Data.HashMap.Lazy (HashMap)
@@ -81,6 +81,8 @@ import           Language.Fixpoint.Types.Refinements
   )
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
 import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
+import           Lens.Family2 (Lens', view, (%~))
+import           Lens.Family2.Stock (_2)
 
 -- | Strips from all the constraint environments the bindings that are
 -- irrelevant for their respective constraints.
@@ -566,17 +568,18 @@ mergeDuplicatedBindings xs =
 --
 -- Only works if the bindings don't form cycles.
 substBindings
-  :: (Symbol -> Bool)
-  -> HashMap Symbol (m, SortedReft)
-  -> HashMap Symbol (m, SortedReft)
-substBindings p env =
+  :: Lens' v SortedReft
+  -> (Symbol -> Bool)
+  -> HashMap Symbol v
+  -> HashMap Symbol v
+substBindings vLens p env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (second (inlineInSortedReft (srLookup filteredEnv))) env
+    let env' = HashMap.map (vLens %~ inlineInSortedReft (srLookup filteredEnv)) env
         filteredEnv = HashMap.filterWithKey (\sym _v -> p sym) env'
      in env'
   where
-    srLookup env' sym = snd <$> HashMap.lookup sym env'
+    srLookup env' sym = view vLens <$> HashMap.lookup sym env'
 
 -- | Like 'substBindings' but specialized for ANF bindings.
 --
@@ -592,12 +595,12 @@ undoANF vLens = substBindings vLens $ \sym -> anfPrefix `isPrefixOfSym` sym
 -- @--inline-anf-bindings@. However, using it in the verification
 -- pipeline causes some tests in liquidhaskell to blow up.
 undoANFAndVV :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
-undoANFAndVV = substBindings $ \sym -> anfPrefix `isPrefixOfSym` sym || vvName `isPrefixOfSym` sym
+undoANFAndVV = substBindings _2 $ \sym -> anfPrefix `isPrefixOfSym` sym || vvName `isPrefixOfSym` sym
 
 -- | Like 'undoANF' but returns only modified bindings
 undoANFOnlyModified :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
 undoANFOnlyModified env =
-    let undoANFEnv = undoANF env
+    let undoANFEnv = undoANF _2 env
      in HashMap.differenceWith dropUnchanged env undoANFEnv
   where
     dropUnchanged (_, a) v@(_, b) | a == b = Just v
