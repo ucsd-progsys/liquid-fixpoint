@@ -20,7 +20,7 @@ import           Language.Fixpoint.Solver.EnvironmentReduction
   , inlineInSortedReft
   , mergeDuplicatedBindings
   , simplifyBooleanRefts
-  , undoANF
+  , undoANFAndVV
   )
 import           Language.Fixpoint.Types.Config (Config, queryFile)
 import           Language.Fixpoint.Types.Constraints
@@ -82,15 +82,16 @@ prettyConstraint bindEnv c =
             , let (s, sr) = lookupBindEnv bId bindEnv
             ]
       mergedEnv = mergeDuplicatedBindings env
-      undoANFEnv = HashMap.union (undoANF mergedEnv) mergedEnv
-      boolSimplEnv = HashMap.union (simplifyBooleanRefts undoANFEnv) undoANFEnv
+      undoANFEnv = undoANFAndVV mergedEnv
+      boolSimplEnv = HashMap.map snd $ simplifyBooleanRefts undoANFEnv
 
-      simplifiedLhs = inlineInSortedReft boolSimplEnv (slhs c)
-      simplifiedRhs = inlineInSortedReft boolSimplEnv (srhs c)
+      simplifiedLhs = inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (slhs c)
+      simplifiedRhs = inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (srhs c)
 
       prunedEnv =
-        dropLikelyIrrelevantBindings (constraintSymbols simplifiedLhs simplifiedRhs) $
-        HashMap.map snd boolSimplEnv
+        dropLikelyIrrelevantBindings
+          (constraintSymbols simplifiedLhs simplifiedRhs)
+          boolSimplEnv
       (renamedEnv, c') =
         shortenVarNames prunedEnv c { slhs = simplifiedLhs, srhs = simplifiedRhs }
       prettyEnv =

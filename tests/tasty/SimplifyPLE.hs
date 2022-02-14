@@ -38,7 +38,7 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
           icSimpl = SM.empty, -- :: !ConstMap
           icSubcId = Nothing, -- :: Maybe SubcId
           icFuel = emptyFuelCount, -- :: !FuelCount
-          icANFs = S.empty -- :: S.HashSet Pred
+          icANFs = []         -- :: [[(Symbol, SortedReft)]]
         }
 
     emptyFuelCount :: PLE.FuelCount
