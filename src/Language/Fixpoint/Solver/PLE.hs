@@ -34,6 +34,7 @@ import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
+import           Language.Fixpoint.Solver.EnvironmentReduction (inlineInExpr, undoANF)
 import qualified Language.Fixpoint.Utils.Files   as Files
 import qualified Language.Fixpoint.Utils.Trie    as T
 import           Language.Fixpoint.Utils.Progress
@@ -42,10 +43,10 @@ import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Common          (askSMT, toSMT)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Simplify
-import           Language.Fixpoint.Solver.Rewrite
+import           Language.Fixpoint.Solver.Rewrite as Rewrite
 
 import Language.REST.OCAlgebra as OC
-import Language.REST.ExploredTerms as ET
+import Language.REST.ExploredTerms as ExploredTerms
 import Language.REST.RuntimeTerm as RT
 import Language.REST.WQOConstraints.ADT (ConstraintsADT)
 import Language.REST.Op
@@ -55,12 +56,12 @@ import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Bifunctor (second)
 import qualified Data.HashMap.Strict  as M
+import qualified Data.HashMap.Lazy  as HashMap.Lazy
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe           as Mb
-import qualified Data.Text            as Tx
 import           Debug.Trace          (trace)
 import           Text.PrettyPrint.HughesPJ.Compat
 
@@ -133,9 +134,9 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver
     et                = fmap makeET restSolver
     makeET solver     =
-      ET.empty
+      ExploredTerms.empty
         (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
-        ET.ExploreWhenNeeded
+        ExploredTerms.ExploreWhenNeeded
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -318,7 +319,7 @@ data ICtx    = ICtx
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   , icFuel     :: !FuelCount                -- ^ Current fuel-count
-  , icANFs     :: S.HashSet Pred            -- Hopefully contain only ANF things
+  , icANFs     :: [[(Symbol, SortedReft)]]  -- Hopefully contain only ANF things
   }
 
 ----------------------------------------------------------------------------------------------
@@ -346,7 +347,7 @@ initCtx env es   = ICtx
   , icSimpl  = mempty
   , icSubcId = Nothing
   , icFuel   = evFuel (ieEvEnv env)
-  , icANFs   = mempty
+  , icANFs   = []
   }
 
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
@@ -374,11 +375,10 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
                     , icSubcId = cidMb
-                    , icANFs   = anfs <> icANFs ctx
+                    , icANFs   = bs : icANFs ctx
                     }
   where
     initEqs   = S.fromList $ concat [rewrite e (knSims ieKnowl) | e  <- cands]
-    anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub [ expr xr | xr <- bs ])
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
@@ -697,43 +697,11 @@ data RESTParams oc = RP
   , c    :: oc
   }
 
-getANFSubs :: Expr -> [(Symbol, Expr)]
-getANFSubs (PAnd es)                                   = concatMap getANFSubs es
-getANFSubs (EEq lhs rhs) | (EVar v) <- unElab lhs
-                           , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
-getANFSubs (EEq lhs rhs) | (EVar v) <- unElab rhs
-                           , anfPrefix `isPrefixOfSym` v = [(v, unElab lhs)]
-getANFSubs _                                           = []
-
 -- Reverse the ANF transformation
 deANF :: ICtx -> Expr -> Expr
-deANF ctx = subst' where
-  ints  = concatMap getANFSubs (S.toList $ icANFs ctx)
-  ints' = map go (L.groupBy (\x y -> fst x == fst y) $ L.sortOn fst $ L.nub ints) where
-    go [(t, u)] = (t, u)
-    go ts         = (fst (head ts), getBest (map snd ts))
-  su          = Su (M.fromList ints')
-  subst' ee =
-    let
-      ee' = subst su ee
-    in
-      if ee == ee'
-        then ee
-        else subst' ee'
-
-  getBest ts | Just t <- L.find isVar ts = t
-    where
-      -- Hack : Vars starting with ds_ are probably constants
-      isVar (EVar t) = not $ Tx.isPrefixOf "ds_" (symbolText t)
-      isVar _        = False
-
-  -- If the only match is a ds_ var, use it
-  getBest ts | Just t <- L.find isVar ts = t
-    where
-      isVar (EVar _) = True
-      isVar _        = False
-
-  getBest ts = head ts
+deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
+  where
+    bindEnv = HashMap.Lazy.unions $ map HashMap.Lazy.fromList $ icANFs ctx
 
 -- |
 -- Adds to the monad state all the subexpressions that have been rewritten
@@ -771,10 +739,10 @@ evalREST γ ctx rp =
       modify (\st ->
                 st {
                   evAccum  = S.union evAccum' (evAccum st)
-                , explored = Just $ ET.insert
-                  (convert e)
+                , explored = Just $ ExploredTerms.insert
+                  (Rewrite.convert e)
                   (c rp)
-                  (S.insert (convert e') $ S.fromList (map (convert . fst) possibleRWs))
+                  (S.insert (Rewrite.convert e') $ S.fromList (map (Rewrite.convert . fst) possibleRWs))
                   (Mb.fromJust $ explored st)
                 })
 
@@ -785,18 +753,20 @@ evalREST γ ctx rp =
 
       mapM_ (evalREST γ ctx . rpRW) rws
   where
-    shouldExploreTerm et e =
+    shouldExploreTerm exploredTerms e =
       case rwTerminationOpts rwArgs of
-        RWTerminationCheckDisabled -> return $ not $ visited (convert e) et
-        RWTerminationCheckEnabled  -> shouldExplore (convert e) (c rp) et
+        RWTerminationCheckDisabled ->
+          return $ not $ ExploredTerms.visited (Rewrite.convert e) exploredTerms
+        RWTerminationCheckEnabled  ->
+          ExploredTerms.shouldExplore (Rewrite.convert e) (c rp) exploredTerms
 
     allowed (rwE, _) | rwE `elem` pathExprs = return False
     allowed (_, c)   = termCheck c
-    termCheck c = passesTerminationCheck (oc rp) rwArgs c
+    termCheck c = Rewrite.passesTerminationCheck (oc rp) rwArgs c
 
-    notVisitedFirst et rws =
+    notVisitedFirst exploredTerms rws =
       let
-        (v, nv) = L.partition (\(e, _) -> visited (convert e) et) rws
+        (v, nv) = L.partition (\(e, _) -> ExploredTerms.visited (Rewrite.convert e) exploredTerms) rws
       in
         nv ++ v
 
@@ -827,7 +797,7 @@ evalREST γ ctx rp =
           then
             do
               let e'         = deANF ctx e
-              let getRW e ar = getRewrite (oc rp) rwArgs (c rp) e ar
+              let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
               concat <$> mapM getRWs' (subExprs e')
           else return []
