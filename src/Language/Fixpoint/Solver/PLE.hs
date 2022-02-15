@@ -133,7 +133,7 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
       let
         oc = ordConstraints restOC solver
       in
-        ET.empty (EF (OC.union oc) (OC.notStrongerThan oc)) ExploreWhenNeeded
+        ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc)) ExploreWhenNeeded
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
