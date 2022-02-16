@@ -48,8 +48,6 @@ import           Language.Fixpoint.Solver.Rewrite as Rewrite
 import Language.REST.OCAlgebra as OC
 import Language.REST.ExploredTerms as ExploredTerms
 import Language.REST.RuntimeTerm as RT
-import Language.REST.WQOConstraints.ADT (ConstraintsADT)
-import Language.REST.Op
 import Language.REST.SMT (withZ3, SolverHandle)
 
 import           Control.Monad.State
@@ -64,9 +62,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe           as Mb
 import           Debug.Trace          (trace)
 import           Text.PrettyPrint.HughesPJ.Compat
-
--- Type of Ordering Constraints for REST
-type OCType = ConstraintsADT
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -128,15 +123,17 @@ savePLEEqualities cfg fi res = when (save cfg) $ do
 instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> InstEnv a
 instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
   where
+    restOC            = FC.restOC cfg
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver restOC
     et                = fmap makeET restSolver
     makeET solver     =
-      ExploredTerms.empty
-        (EF (OC.union (ordConstraints solver)) (OC.notStrongerThan (ordConstraints solver)))
-        ExploredTerms.ExploreWhenNeeded
+      let
+        oc = ordConstraints restOC solver
+      in
+        ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc)) ExploreWhenNeeded
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -454,8 +451,9 @@ data EvalEnv = EvalEnv
   , evFuel     :: FuelCount
 
   -- REST parameters
-  , explored   :: Maybe (ExploredTerms RuntimeTerm (OCType Op) IO)
+  , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
   , restSolver :: Maybe SolverHandle
+  , restOCA    :: RESTOrdering
   }
 
 data FuelCount = FC
@@ -486,11 +484,12 @@ evalOne γ env ctx _ e = do
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
-    oc :: OCAlgebra (OCType Op) Expr IO
-    oc = ordConstraints (Mb.fromJust $ restSolver env)
+    oc :: OCAlgebra OCType Expr IO
+    oc = ordConstraints (restOCA env) (Mb.fromJust $ restSolver env)
 
     rp = RP oc [(e, PLE)] constraints
     constraints = OC.top oc
+
 
 -- | @notGuardedApps e@ yields all the subexpressions that are
 -- applications not under an if-then-else, lambda abstraction, type abstraction,
@@ -712,7 +711,7 @@ deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
 -- The main difference with 'eval' is that 'evalREST' takes into account
 -- autorewrites.
 --
-evalREST :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
+evalREST :: Knowledge -> ICtx -> RESTParams OCType -> EvalST ()
 evalREST _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
@@ -726,6 +725,7 @@ evalREST γ ctx rp =
     when se $ do
       possibleRWs <- getRWs
       rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
+      -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
       (e', FE fe) <- do
         r@(ec, _) <- eval γ ctx FuncNormal e
         if ec /= e
@@ -792,7 +792,12 @@ evalREST γ ctx rp =
 
     getRWs =
       do
-        ok <- if isRW $ last (path rp) then return True else liftIO $ termCheck (c rp)
+        -- Optimization: If we got here via rewriting, then the current constraints
+        -- are satisfiable; otherwise double-check that rewriting is still allowed
+        ok <-
+          if (isRW $ last (path rp))
+            then (return True)
+            else (liftIO $ termCheck (c rp))
         if ok
           then
             do

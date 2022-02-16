@@ -14,6 +14,10 @@ module Language.Fixpoint.Types.Config (
   -- * SMT Solver options
   , SMTSolver (..)
 
+  -- REST Options
+  , RESTOrdering (..)
+  , restOC
+
   -- * Eliminate options
   , Eliminate (..)
   , useElim
@@ -26,6 +30,7 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
+import qualified Data.List as L
 import Data.Serialize                (Serialize (..))
 import Control.Monad
 import GHC.Generics
@@ -100,10 +105,34 @@ data Config = Config
   , json                :: Bool        -- ^ Render output in JSON format
   , noLazyPLE           :: Bool
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
+  , restOrdering        :: String      -- ^ Term ordering for use in REST
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
   def = defConfig
+
+---------------------------------------------------------------------------------------
+
+data RESTOrdering = RESTKBO | RESTLPO | RESTRPO | RESTFuel Int
+                 deriving (Eq, Data, Typeable, Generic)
+
+instance Default RESTOrdering where
+  def = RESTRPO
+
+instance Show RESTOrdering where
+  show RESTKBO      = "kbo"
+  show RESTLPO      = "lpo"
+  show RESTRPO      = "rpo"
+  show (RESTFuel n) = "fuel" ++ show n
+
+instance Read RESTOrdering where
+  readsPrec _ s | "kbo" `L.isPrefixOf` s = [(RESTKBO, drop 3 s)]
+  readsPrec _ s | "lbo" `L.isPrefixOf` s = [(RESTLPO, drop 3 s)]
+  readsPrec _ s | "rpo" `L.isPrefixOf` s = [(RESTRPO, drop 3 s)]
+  readsPrec n s | "fuel" `L.isPrefixOf` s = do
+                        (fuel, rest) <- readsPrec n (drop 4 s)
+                        return $ (RESTFuel fuel, rest)
+  readsPrec _ _ = []
 
 ---------------------------------------------------------------------------------------
 
@@ -201,11 +230,14 @@ defConfig = Config {
           ])
   , checkCstr                = []    &= help "Only check these specific constraint-ids"
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
-  , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
+  , rwTerminationCheck       = False   &= help "Enable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"
   , json                     = False   &= help "Render result in JSON"
   , noLazyPLE                = False   &= help "Don't use lazy PLE"
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
+  , restOrdering             = "rpo"
+        &= name "rest-ordering"
+        &= help "Ordering Constraint Algebra to use for REST"
   }
   &= verbosity
   &= program "fixpoint"
@@ -229,6 +261,9 @@ getOpts = do
 banner :: String
 banner =  "\n\nLiquid-Fixpoint Copyright 2013-21 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
+
+restOC :: Config -> RESTOrdering
+restOC cfg = read (restOrdering cfg)
 
 multicore :: Config -> Bool
 multicore cfg = cores cfg /= Just 1

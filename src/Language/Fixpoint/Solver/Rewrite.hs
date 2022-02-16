@@ -4,7 +4,6 @@
 
 module Language.Fixpoint.Solver.Rewrite
   ( getRewrite
-  -- , getRewrite'
   , subExprs
   , unify
   , ordConstraints
@@ -14,21 +13,28 @@ module Language.Fixpoint.Solver.Rewrite
   , RWTerminationOpts(..)
   , SubExpr
   , TermOrigin(..)
+  , OCType
+  , RESTOrdering(..)
   ) where
 
-import           Control.Monad.State
+import           Control.Monad.State (guard)
 import           Control.Monad.Trans.Maybe
 import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
 import qualified Data.Text as TX
 import           GHC.IO.Handle.Types (Handle)
 import           Text.PrettyPrint (text)
+import           Language.Fixpoint.Types.Config (RESTOrdering(..))
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.REST
-import           Language.REST.OCAlgebra
-import qualified Language.REST.RuntimeTerm as RT
+import           Language.REST.KBO (kbo)
+import           Language.REST.LPO (lpo)
+import           Language.REST.OCAlgebra as OC
+import           Language.REST.OCToAbstract (lift)
 import           Language.REST.Op
-import           Language.REST.WQOConstraints.ADT (ConstraintsADT)
+import           Language.REST.SMT (SMTExpr)
+import           Language.REST.WQOConstraints.ADT (ConstraintsADT, adtOC)
+import qualified Language.REST.RuntimeTerm as RT
 
 type SubExpr = (Expr, Expr -> Expr)
 
@@ -47,8 +53,35 @@ data RewriteArgs = RWArgs
  , rwTerminationOpts  :: RWTerminationOpts
  }
 
-ordConstraints :: (Handle, Handle) -> OCAlgebra (ConstraintsADT Op) Expr IO
-ordConstraints solver = contramap convert (adtRPO solver)
+-- Monomorphize ordering constraints so we don't litter PLE with type variables
+-- Also helps since GHC doesn't support impredicate polymorphism (yet)
+data OCType =
+    RPO (ConstraintsADT Op)
+  | LPO (ConstraintsADT Op)
+  | KBO (SMTExpr Bool)
+  | Fuel Int
+  deriving (Eq, Show)
+
+ordConstraints :: RESTOrdering -> (Handle, Handle) -> OCAlgebra OCType Expr IO
+ordConstraints RESTRPO      solver = bimapConstraints RPO asRPO $ contramap convert (adtRPO solver)
+  where
+    asRPO (RPO t) = t
+    asRPO _       = undefined
+
+ordConstraints RESTKBO      solver = bimapConstraints KBO asKBO $ contramap convert (kbo solver)
+  where
+    asKBO (KBO t) = t
+    asKBO _       = undefined
+
+ordConstraints RESTLPO      solver = bimapConstraints LPO asLPO $ contramap convert (lift (adtOC solver) lpo)
+  where
+    asLPO (LPO t) = t
+    asLPO _       = undefined
+
+ordConstraints (RESTFuel n) _      = bimapConstraints Fuel asFuel $ fuelOC n
+  where
+    asFuel (Fuel n) = n
+    asFuel _        = undefined
 
 
 convert :: Expr -> RT.RuntimeTerm
