@@ -16,13 +16,13 @@ module Language.Fixpoint.Solver.Sanitize
   ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor 
+import           Language.Fixpoint.Types.Visitor
 import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirstOrder)
--- import           Language.Fixpoint.Defunctionalize 
+-- import           Language.Fixpoint.Defunctionalize
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config)
-import qualified Language.Fixpoint.Types.Config as Cfg 
+import qualified Language.Fixpoint.Types.Config as Cfg
 import qualified Language.Fixpoint.Types.Errors                    as E
 import qualified Language.Fixpoint.Smt.Theories                    as Thy
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
@@ -88,11 +88,11 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
 
 cancelCoercion :: F.SInfo a -> F.SInfo a
 cancelCoercion = mapExpr (trans (defaultVisitor { txExpr = go }) () ())
-  where 
-    go _ (F.ECoerc t1 t2 (F.ECoerc t2' t1' e)) 
+  where
+    go _ (F.ECoerc t1 t2 (F.ECoerc t2' t1' e))
       | t1 == t1' && t2 == t2'
-      = e 
-    go _ e = e 
+      = e
+    go _ e = e
 
 --------------------------------------------------------------------------------
 -- | `eliminateEta` converts equations of the form f x = g x into f = g
@@ -100,13 +100,13 @@ cancelCoercion = mapExpr (trans (defaultVisitor { txExpr = go }) () ())
 eliminateEta :: Config -> F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
 eliminateEta cfg si
-  | Cfg.etaElim cfg 
+  | Cfg.etaElim cfg
   , Cfg.oldPLE  cfg
   = si { F.ae = ae' }
-  | Cfg.etaElim cfg 
+  | Cfg.etaElim cfg
   = si { F.ae = (ae {F.aenvEqs = etaElimNEW `fmap` F.aenvEqs ae }) }
-  | otherwise 
-  = si 
+  | otherwise
+  = si
   where
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
@@ -153,12 +153,12 @@ eliminateEta cfg si
                      , F.eqBody = F.eApps f1 args1'}
       where argsAndSorts = F.eqArgs eq
             args  = fst <$> argsAndSorts
-            args0 = reverse args 
+            args0 = reverse args
             sort  = F.eqSort eq
-            
+
     fapp :: F.Expr -> (F.Expr, [F.Symbol])
     fapp ee = fromMaybe (ee, []) (fapp' ee)
-    
+
     fapp' :: F.Expr -> Maybe (F.Expr, [F.Symbol])
     fapp' (F.EApp e0 (F.EVar arg)) = do
       (fvar, args) <- fapp' e0
@@ -339,7 +339,8 @@ cNoFreeVars fi known c = if S.null fv then Nothing else Just (S.toList fv)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
-    fv   = (`Misc.nubDiff` cDom) . filter (not . known) $ cRng 
+        ++ F.syms (F.crhs c)
+    fv   = (`Misc.nubDiff` cDom) . filter (not . known) $ cRng
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
@@ -350,7 +351,7 @@ badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
 banIrregularData :: F.SInfo a -> SanitizeM (F.SInfo a)
 banIrregularData fi = Misc.applyNonNull (Right fi) (Left . badDataDecl) bads
   where
-    bads = F.checkRegular (F.ddecls fi ) 
+    bads = F.checkRegular (F.ddecls fi )
 
 badDataDecl :: Misc.ListNE F.DataDecl -> E.Error
 badDataDecl ds = E.catErrors [ E.errBadDataDecl d | d <- ds ]
@@ -363,8 +364,8 @@ banQualifFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
     bads    = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
-    free q  = filter (not . isLit) (F.syms q) 
-    isLit x = F.memberSEnv x (F.gLits fi) 
+    free q  = filter (not . isLit) (F.syms q)
+    isLit x = F.memberSEnv x (F.gLits fi)
     -- lits    = fst <$> F.toListSEnv (F.gLits fi)
     -- free q  = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (F.qpSym <$> F.qParams q))
 
@@ -394,14 +395,14 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 -- | symbol |-> sort for EVERY variable in the SInfo; 'symbolEnv' can ONLY be
 --   called with **sanitized** environments (post the uniqification etc.) or
 --   else you get duplicate sorts and other such errors.
---   We do this peculiar dance with `env0` to extract the apply-sorts from the 
---   function definitions inside the `AxiomEnv` which cannot be elaborated as 
+--   We do this peculiar dance with `env0` to extract the apply-sorts from the
+--   function definitions inside the `AxiomEnv` which cannot be elaborated as
 --   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
 symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
   where
-    ts'          = applySorts ae' 
+    ts'          = applySorts ae'
     ae'          = elaborate (F.atLoc E.dummySpan "symbolEnv") env0 (F.ae si)
     env0         = F.symEnv sEnv tEnv ds lits ts
     tEnv         = Thy.theorySymbols ds

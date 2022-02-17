@@ -30,7 +30,7 @@ import Language.Fixpoint.SortCheck
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> [(F.KVar, (F.GWInfo, [F.Expr]))]
 --------------------------------------------------------------------------------
-init cfg si = map (elab . refineG si qs genv) gs `using` parList rdeepseq 
+init cfg si = map (elab . refineG si qs genv) gs `using` parList rdeepseq
   where
     qs         = F.quals si
     gs         = snd <$> gs0
@@ -39,7 +39,7 @@ init cfg si = map (elab . refineG si qs genv) gs `using` parList rdeepseq
     gs0        = L.filter (isGWfc . snd) $ M.toList (F.ws si)
 
     elab (k,(x,es)) = ((k,) . (x,)) $ (elaborate (F.atLoc F.dummySpan "init") (sEnv (gsym x) (gsort x)) <$> es)
-    
+
     sEnv x s    = isEnv {F.seSort = F.insertSEnv x s (F.seSort isEnv)}
     isEnv       = symbolEnv cfg si
 
@@ -47,8 +47,8 @@ init cfg si = map (elab . refineG si qs genv) gs `using` parList rdeepseq
 --------------------------------------------------------------------------------
 refineG :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, (F.GWInfo, [F.Expr]))
 refineG fi qs genv w = (k, (F.gwInfo w, Sol.qbExprs qb))
-  where 
-    (k, qb) = refine fi qs genv w 
+  where
+    (k, qb) = refine fi qs genv w
 
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
 refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
@@ -112,7 +112,7 @@ match _   _   xs []
 --------------------------------------------------------------------------------
 candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
 --------------------------------------------------------------------------------
-candidates env tyss tx = 
+candidates env tyss tx =
     [(su, y) | (t, ys) <- tyss
              , su      <- maybeToList $ So.unifyFast mono env tx t
              , y       <- ys                                   ]
@@ -126,6 +126,6 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-    tc            = So.checkSorted F.dummySpan env sr 
+    tc            = So.checkSorted F.dummySpan env sr
 
 

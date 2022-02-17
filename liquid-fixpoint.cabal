@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquid-fixpoint
-version:            0.8.10.2.1
+version:            0.8.10.7.1
 synopsis:           Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 description:
   This package implements an SMTLIB based Horn-Clause\/Logical Implication constraint
@@ -21,7 +21,7 @@ license-file:       LICENSE
 copyright:          2010-17 Ranjit Jhala, University of California, San Diego.
 author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         jhala@cs.ucsd.edu
-tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4, GHC == 8.10.1
+tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4, GHC == 8.10.1, GHC == 8.10.7
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquid-fixpoint
 build-type:         Simple
@@ -65,15 +65,18 @@ library
                     Language.Fixpoint.Smt.Theories
                     Language.Fixpoint.Smt.Types
                     Language.Fixpoint.Solver
+                    Language.Fixpoint.Solver.Common
                     Language.Fixpoint.Solver.Eliminate
                     Language.Fixpoint.Solver.EnvironmentReduction
                     Language.Fixpoint.Solver.GradualSolution
                     Language.Fixpoint.Solver.Instantiate
+                    Language.Fixpoint.Solver.Interpreter
                     Language.Fixpoint.Solver.PLE
                     Language.Fixpoint.Solver.Monad
                     Language.Fixpoint.Solver.Rewrite
                     Language.Fixpoint.Solver.Prettify
                     Language.Fixpoint.Solver.Sanitize
+                    Language.Fixpoint.Solver.Simplify
                     Language.Fixpoint.Solver.Solution
                     Language.Fixpoint.Solver.Solve
                     Language.Fixpoint.Solver.Stats
@@ -127,18 +130,21 @@ library
                   , filepath
                   , hashable
                   , intern
+                  , lens-family
                   , mtl
                   , parallel
                   , parser-combinators
-                  , megaparsec           >= 7.0.0 && < 9
+                  , megaparsec           >= 7.0.0 && < 10
                   , pretty               >= 1.1.3.1
                   , process
+                  , stm
                   , syb
                   , syb
                   , text
                   , transformers
                   , unordered-containers
                   , aeson
+                  , rest-rewrite >= 0.1.1
   default-language: Haskell98
   ghc-options:      -W -fno-warn-missing-methods -fwarn-missing-signatures
 
@@ -191,15 +197,22 @@ test-suite tasty
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
   other-modules:    ParserTests
+                    Arbitrary
+                    InterpretTests
                     ShareMapReference
                     ShareMapTests
+                    SimplifyInterpreter
+                    SimplifyPLE
+                    SimplifyTests
   hs-source-dirs:   tests/tasty
   build-depends:    base            >= 4.9.1.0 && < 5
+                  , containers
                   , hashable
                   , liquid-fixpoint
                   , tasty           >= 0.10
                   , tasty-quickcheck
                   , tasty-hunit     >= 0.9
+                  , text
                   , unordered-containers
   default-language: Haskell98
   ghc-options:      -threaded

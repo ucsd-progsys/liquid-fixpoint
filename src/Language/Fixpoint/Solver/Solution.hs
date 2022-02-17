@@ -52,7 +52,7 @@ init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solutio
 init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
   where
     keqs       = map (refine si qcs genv) ws `using` parList rdeepseq
-    qcs        = {- trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ -} qcs_ 
+    qcs        = {- trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ -} qcs_
     qcs_       = mkQCluster qs_
     qs_        = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w), k `S.member` ks ]
@@ -64,7 +64,7 @@ init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
 
 --------------------------------------------------------------------------------
 -- | [NOTE:qual-cluster] It is wasteful to perform instantiation *individually*
---   on each qualifier, as many qualifiers have "equivalent" parameters, and 
+--   on each qualifier, as many qualifiers have "equivalent" parameters, and
 --   so have the "same" instances in an environment. To exploit this structure,
 --
 --   1. Group the [Qualifier] into a QCluster
@@ -79,7 +79,7 @@ mkQCluster :: [Qualifier] -> QCluster
 mkQCluster = Misc.groupMap qualSig
 
 qualSig :: Qualifier -> QCSig
-qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ] 
+qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ]
 
 --------------------------------------------------------------------------------
 
@@ -107,30 +107,30 @@ instK :: Bool
       -> F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
-      -> QCluster 
+      -> QCluster
       -> Sol.QBind
 --------------------------------------------------------------------------------
-instK ho env v t qc = Sol.qb . unique $ 
-  [ Sol.eQual q xs 
+instK ho env v t qc = Sol.qb . unique $
+  [ Sol.eQual q xs
       | (sig, qs) <- M.toList qc
-      , xs        <- instKSig ho env v t sig 
+      , xs        <- instKSig ho env v t sig
       , q         <- qs
   ]
 
 unique :: [Sol.EQual] -> [Sol.EQual]
-unique = L.nubBy ((. Sol.eqPred) . (==) . Sol.eqPred)
+unique qs = M.elems $ M.fromList [ (Sol.eqPred q, q) | q <- qs ]
 
 instKSig :: Bool
          -> F.SEnv F.Sort
          -> F.Symbol
          -> F.Sort
-         -> QCSig 
+         -> QCSig
          -> [[F.Symbol]]
-instKSig ho env v t qsig = do 
+instKSig ho env v t qsig = do
   (su0, i0, qs0) <- candidatesP senv [(0, t, [v])] qp
-  ixs       <- matchP senv tyss [(i0, qs0)] (applyQPP su0 <$> qps) 
+  ixs       <- matchP senv tyss [(i0, qs0)] (applyQPP su0 <$> qps)
   -- return     $ F.notracepp msg (reverse ixs)
-  ys        <- instSymbol tyss (tail $ reverse ixs) 
+  ys        <- instSymbol tyss (tail $ reverse ixs)
   return (v:ys)
   where
     -- msg        = "instKSig " ++ F.showpp qsig
@@ -139,12 +139,12 @@ instKSig ho env v t qsig = do
     senv       = (`F.lookupSEnvWithDistance` env)
 
 instSymbol :: [(SortIdx, a, [F.Symbol])] -> [(SortIdx, QualPattern)] -> [[F.Symbol]]
-instSymbol tyss = go 
+instSymbol tyss = go
   where
     m = M.fromList [(i, ys) | (i,_,ys) <- tyss]
-    go [] = 
+    go [] =
       return []
-    go ((i,qp):is) = do 
+    go ((i,qp):is) = do
       y   <- M.lookupDefault [] i m
       qsu <- maybeToList (matchSym qp y)
       ys  <- go [ (i', applyQPSubst qsu  qp') | (i', qp') <- is]
@@ -156,9 +156,9 @@ instSymbol tyss = go
 --        -> F.Sort
 --        -> F.Qualifier
 --        -> [Sol.EQual]
--- instKQ ho env v t q = do 
+-- instKQ ho env v t q = do
 --   (su0, qsu0, v0) <- candidates senv [(t, [v])] qp
---   xs              <- match senv tyss [v0] (applyQP su0 qsu0 <$> qps) 
+--   xs              <- match senv tyss [v0] (applyQP su0 qsu0 <$> qps)
 --   return           $ Sol.eQual q (F.notracepp msg (reverse xs))
 --   where
 --     msg        = "instKQ " ++ F.showpp (F.qName q) ++ F.showpp (F.qParams q)
@@ -176,18 +176,18 @@ instCands ho env = filter isOk tyss
 
 type SortIdx = Int
 
-matchP :: So.Env -> [(SortIdx, F.Sort, a)] -> [(SortIdx, QualPattern)] -> [F.QualParam] -> 
+matchP :: So.Env -> [(SortIdx, F.Sort, a)] -> [(SortIdx, QualPattern)] -> [F.QualParam] ->
           [[(SortIdx, QualPattern)]]
 matchP env tyss = go
-  where 
+  where
     go' !i !p !is !qps  = go ((i, p):is) qps
     go is (qp : qps) = do (su, i, pat) <- candidatesP env tyss qp
                           go' i pat is (applyQPP su <$> qps)
     go is []         = return is
 
 applyQPP :: So.TVSubst -> F.QualParam -> F.QualParam
-applyQPP su qp = qp 
-  { qpSort = So.apply     su  (qpSort qp) 
+applyQPP su qp = qp
+  { qpSort = So.apply     su  (qpSort qp)
   }
 
 -- match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.QualParam] -> [[F.Symbol]]
@@ -198,17 +198,17 @@ applyQPP su qp = qp
 --   = return xs
 
 -- applyQP :: So.TVSubst -> QPSubst -> F.QualParam -> F.QualParam
--- applyQP su qsu qp = qp 
---   { qpSort = So.apply     su  (qpSort qp) 
---   , qpPat  = applyQPSubst qsu (qpPat qp) 
+-- applyQP su qsu qp = qp
+--   { qpSort = So.apply     su  (qpSort qp)
+--   , qpPat  = applyQPSubst qsu (qpPat qp)
 --   }
 
 --------------------------------------------------------------------------------
-candidatesP :: So.Env -> [(SortIdx, F.Sort, a)] -> F.QualParam -> 
+candidatesP :: So.Env -> [(SortIdx, F.Sort, a)] -> F.QualParam ->
                [(So.TVSubst, SortIdx, QualPattern)]
 --------------------------------------------------------------------------------
 candidatesP env tyss x =
-    [(su, idx, qPat) 
+    [(su, idx, qPat)
         | (idx, t,_)  <- tyss
         , su          <- maybeToList (So.unifyFast mono env xt t)
     ]
@@ -216,42 +216,42 @@ candidatesP env tyss x =
     xt   = F.qpSort x
     qPat = F.qpPat  x
     mono = So.isMono xt
-    
+
 
 
 -- --------------------------------------------------------------------------------
--- candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam 
+-- candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam
 --            -> [(So.TVSubst, QPSubst, F.Symbol)]
 -- --------------------------------------------------------------------------------
 -- candidates env tyss x = -- traceShow _msg
 --     [(su, qsu, y) | (t, ys)  <- tyss
 --                   , su       <- maybeToList (So.unifyFast mono env xt t)
 --                   , y        <- ys
---                   , qsu      <- maybeToList (matchSym x y)                                     
+--                   , qsu      <- maybeToList (matchSym x y)
 --     ]
 --   where
 --     xt   = F.qpSort x
 --     mono = So.isMono xt
 --     _msg = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp xt
 
-matchSym :: F.QualPattern -> F.Symbol -> Maybe QPSubst 
+matchSym :: F.QualPattern -> F.Symbol -> Maybe QPSubst
 matchSym qp y' = case qp of
-  F.PatPrefix s i -> JustSub i <$> F.stripPrefix s y 
-  F.PatSuffix i s -> JustSub i <$> F.stripSuffix s y 
-  F.PatNone       -> Just NoSub 
-  F.PatExact s    -> if s == y then Just NoSub else Nothing 
-  where 
+  F.PatPrefix s i -> JustSub i <$> F.stripPrefix s y
+  F.PatSuffix i s -> JustSub i <$> F.stripSuffix s y
+  F.PatNone       -> Just NoSub
+  F.PatExact s    -> if s == y then Just NoSub else Nothing
+  where
     y             =  F.tidySymbol y'
 
-data QPSubst = NoSub | JustSub Int F.Symbol  
+data QPSubst = NoSub | JustSub Int F.Symbol
 
-applyQPSubst :: QPSubst -> F.QualPattern -> F.QualPattern 
-applyQPSubst (JustSub i x) (F.PatPrefix s j) 
-  | i == j = F.PatExact (F.mappendSym s x) 
-applyQPSubst (JustSub i x) (F.PatSuffix j s) 
-  | i == j = F.PatExact (F.mappendSym x s) 
-applyQPSubst _ p 
-  = p 
+applyQPSubst :: QPSubst -> F.QualPattern -> F.QualPattern
+applyQPSubst (JustSub i x) (F.PatPrefix s j)
+  | i == j = F.PatExact (F.mappendSym s x)
+applyQPSubst (JustSub i x) (F.PatSuffix j s)
+  | i == j = F.PatExact (F.mappendSym x s)
+applyQPSubst _ p
+  = p
 
 --------------------------------------------------------------------------------
 okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool
@@ -260,29 +260,40 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-    tc            = So.checkSorted (F.srcSpan eq) env sr 
+    tc            = So.checkSorted (F.srcSpan eq) env sr
     -- _msg          = printf "okInst: t = %s, eq = %s, env = %s" (F.showpp t) (F.showpp eq) (F.showpp env)
 
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-lhsPred :: (F.Loc a) => F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
+{-# SCC lhsPred #-}
+lhsPred
+  :: (F.Loc a)
+  => F.IBindEnv
+  -> F.BindEnv
+  -> Sol.Solution
+  -> F.SimpC a
+  -> F.Expr
+lhsPred bindingsInSmt be s c = F.notracepp _msg $ fst $ apply g s bs
   where
-    g          = CEnv ci be bs (F.srcSpan c)
+    g          = CEnv ci be bs (F.srcSpan c) bindingsInSmt
     bs         = F.senv c
     ci         = sid c
     _msg       = "LhsPred for id = " ++ show (sid c) ++ " with SOLUTION = " ++ F.showpp s
 
-data CombinedEnv = CEnv 
+data CombinedEnv = CEnv
   { ceCid  :: !Cid
   , ceBEnv :: !F.BindEnv
-  , ceIEnv :: !F.IBindEnv 
+  , ceIEnv :: !F.IBindEnv
   , ceSpan :: !F.SrcSpan
+    -- | These are the bindings that the smt solver knows about and can be
+    -- referred as @EVar (bindSymbol <bindId>)@ instead of serializing them
+    -- again.
+  , ceBindingsInSmt :: !F.IBindEnv
   }
 
-instance F.Loc CombinedEnv where 
+instance F.Loc CombinedEnv where
   srcSpan = ceSpan
 
 type Cid         = Maybe Integer
@@ -291,7 +302,10 @@ type ExprInfo    = (F.Expr, KInfo)
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
 apply g s bs      = (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
   where
-    (pks, kI)     = applyKVars g s ks  
+    -- Clear the "known" bindings for applyKVars, since it depends on
+    -- using the fully expanded representation of the predicates to bind their
+    -- variables with quantifiers.
+    (pks, kI)     = applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
     (ps,  ks, _)  = envConcKVars g s bs
 
 
@@ -303,11 +317,13 @@ envConcKVars g s bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F
     is              = F.elemsIBindEnv bs
 
 lookupBindEnvExt :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> (F.Symbol, F.SortedReft)
-lookupBindEnvExt g s i 
-  | Just p <- ebSol g s i = (x, sr { F.sr_reft = F.Reft (x, p) }) 
+lookupBindEnvExt g s i
+  | Just p <- ebSol g {ceBindingsInSmt = F.emptyIBindEnv} s i = (x, sr { F.sr_reft = F.Reft (x, p) })
+  | F.memberIBindEnv i (ceBindingsInSmt g) =
+      (x, sr { F.sr_reft = F.Reft (x, F.EVar (F.bindSymbol (fromIntegral i)))})
   | otherwise             = (x, sr)
-   where 
-      (x, sr)              = F.lookupBindEnv i (ceBEnv g) 
+   where
+      (x, sr)              = F.lookupBindEnv i (ceBEnv g)
 
 ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
 ebSol g s i = case  M.lookup i sebds of
@@ -318,7 +334,7 @@ ebSol g s i = case  M.lookup i sebds of
     sebds = Sol.sEbd s
 
     ebReft s (i,c) = exElim (Sol.sxEnv s) (senv c) i (ebindReft g s c)
-    cSol c = if sid c == ceCid g 
+    cSol c = if sid c == ceCid g
                 then F.PFalse
                 else ebReft s' (i, c)
 
@@ -327,7 +343,7 @@ ebSol g s i = case  M.lookup i sebds of
 ebindReft :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.SimpC () -> F.Pred
 ebindReft g s c = F.pAnd [ fst $ apply g' s bs, F.crhs c ]
   where
-    g'          = g { ceCid = sid c, ceIEnv = bs } 
+    g'          = g { ceCid = sid c, ceIEnv = bs }
     bs          = F.senv c
 
 exElim :: F.SEnv (F.BindId, F.Sort) -> F.IBindEnv -> F.BindId -> F.Pred -> F.Pred
@@ -340,18 +356,18 @@ exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
                             , yi `F.memberIBindEnv` ienv                  ]
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
-applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
+applyKVars g s = mrExprInfos (applyKVar g s) F.pAndNoDedup mconcat
 
 applyKVar :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Left cs   -> hypPred g s ksu cs
-  Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
+  Right eqs -> (F.pAndNoDedup $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
     msg     = "applyKVar: " ++ show (ceCid g)
 
 nonCutsResult :: F.BindEnv -> Sol.Sol a Sol.QBind -> M.HashMap F.KVar F.Expr
 nonCutsResult be s =
-  let g = CEnv Nothing be F.emptyIBindEnv F.dummySpan
+  let g = CEnv Nothing be F.emptyIBindEnv F.dummySpan F.emptyIBindEnv
    in M.mapWithKey (mkNonCutsExpr g) $ Sol.sHyp s
   where
     mkNonCutsExpr g k cs = F.pOr $ map (bareCubePred g s k) cs
@@ -430,7 +446,7 @@ cubePredExc :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> F.IB
 
 cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
   where
-    cubeP           = (xts, psu, elabExist sp s yts' (p' &.& psu') )
+    cubeP           = (xts, psu, elabExist sp s yts' (F.pAndNoDedup [p', psu']) )
     sp              = F.srcSpan g
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
@@ -521,9 +537,9 @@ isClass _       = False
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
 combinedSEnv g = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
-  where 
-    be         = ceBEnv g 
-    bs         = ceIEnv g 
+  where
+    be         = ceBEnv g
+    bs         = ceIEnv g
 
 addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
 addCEnv g bs' = g { ceIEnv = F.unionIBindEnv (ceIEnv g) bs' }
@@ -539,7 +555,7 @@ symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
 symSorts g bs = second F.sr_sort <$> F.envCs (ceBEnv g) bs
 
 _noKvars :: F.Expr -> Bool
-_noKvars = null . V.kvars
+_noKvars = null . V.kvarsExpr
 
 --------------------------------------------------------------------------------
 -- | Information about size of formula corresponding to an "eliminated" KVar.
@@ -580,7 +596,7 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
     (es, is)              = unzip $ map mF xs
 
 --------------------------------------------------------------------------------
--- | `ebindInfo` constructs the information about the "ebind-definitions". 
+-- | `ebindInfo` constructs the information about the "ebind-definitions".
 --------------------------------------------------------------------------------
 ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
 ebindInfo si = group [((bid, x), cons cid) | (bid, cid, x) <- ebindDefs si]
@@ -594,29 +610,29 @@ ebindInfo si = group [((bid, x), cons cid) | (bid, cid, x) <- ebindDefs si]
 ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId, F.Symbol)]
 ebindDefs si = [ (bid, cid, x) | (cid, x) <- cDefs
                                , bid      <- maybeToList (M.lookup x ebSyms)]
-  where 
-    ebSyms   = ebindSyms si 
-    cDefs    = cstrDefs  si 
+  where
+    ebSyms   = ebindSyms si
+    cDefs    = cstrDefs  si
 
 ebindSyms :: F.SInfo a -> M.HashMap F.Symbol F.BindId
 ebindSyms si = M.fromList [ (xi, bi) | bi        <- ebinds si
-                                     , let (xi,_) = F.lookupBindEnv bi be ] 
+                                     , let (xi,_) = F.lookupBindEnv bi be ]
   where
-    be       = F.bs si 
- 
+    be       = F.bs si
+
 cstrDefs :: F.SInfo a -> [(F.SubcId, F.Symbol)]
 cstrDefs si = [(cid, x) | (cid, c) <- M.toList (cm si)
                         , x <- maybeToList (cstrDef be c) ]
-  where 
+  where
     be      = F.bs si
 
-cstrDef :: F.BindEnv -> F.SimpC a -> Maybe F.Symbol 
-cstrDef be c 
-  | Just (F.EVar x) <- e = Just x 
-  | otherwise            = Nothing 
-  where 
-    (v,_)              = F.lookupBindEnv (cbind c) be 
-    e                  = F.notracepp _msg $ F.isSingletonExpr v rhs 
-    _msg                = "cstrDef: " ++ show (stag c) ++ " crhs = " ++ F.showpp rhs 
+cstrDef :: F.BindEnv -> F.SimpC a -> Maybe F.Symbol
+cstrDef be c
+  | Just (F.EVar x) <- e = Just x
+  | otherwise            = Nothing
+  where
+    (v,_)              = F.lookupBindEnv (cbind c) be
+    e                  = F.notracepp _msg $ F.isSingletonExpr v rhs
+    _msg                = "cstrDef: " ++ show (stag c) ++ " crhs = " ++ F.showpp rhs
     rhs                = V.stripCasts (crhs c)
 

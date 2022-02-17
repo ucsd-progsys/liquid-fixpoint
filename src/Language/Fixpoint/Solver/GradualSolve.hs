@@ -1,7 +1,4 @@
-{-# LANGUAGE PatternGuards     #-}
-{-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 --------------------------------------------------------------------------------
 -- | Solve a system of horn-clause constraints ---------------------------------

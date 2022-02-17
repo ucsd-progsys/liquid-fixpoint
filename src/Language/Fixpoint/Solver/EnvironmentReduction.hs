@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ViewPatterns #-}
 
 -- | Functions to make environments smaller
@@ -10,10 +11,12 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   ( reduceEnvironments
   , simplifyBindings
   , dropLikelyIrrelevantBindings
+  , inlineInExpr
   , inlineInSortedReft
   , mergeDuplicatedBindings
   , simplifyBooleanRefts
   , undoANF
+  , undoANFAndVV
   ) where
 
 import           Control.Monad (guard, mplus, msum)
@@ -55,6 +58,7 @@ import           Language.Fixpoint.Types.Names
   , isPrefixOfSym
   , prefixOfSym
   , symbolText
+  , vvName
   )
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
@@ -77,7 +81,9 @@ import           Language.Fixpoint.Types.Refinements
   , subst1
   )
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
-import           Language.Fixpoint.Types.Visitor (mapExpr)
+import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
+import           Lens.Family2 (Lens', view, (%~))
+import           Lens.Family2.Stock (_2)
 
 -- | Strips from all the constraint environments the bindings that are
 -- irrelevant for their respective constraints.
@@ -446,7 +452,7 @@ reachableSymbols ss0 outgoingEdges = go HashSet.empty ss0
 -- It runs 'mergeDuplicatedBindings' and 'simplifyBooleanRefts'
 -- on the environment of each constraint.
 --
--- If 'inlineANFBindings cfg' is on, also runs 'undoANF' to inline
+-- If 'inlineANFBindings cfg' is on, also runs 'undoANFAndVV' to inline
 -- @lq_anf@ bindings.
 simplifyBindings :: Config -> FInfo a -> FInfo a
 simplifyBindings cfg fi =
@@ -500,7 +506,7 @@ simplifyBindings cfg fi =
 
           mergedEnv = mergeDuplicatedBindings env
           undoANFEnv =
-            if inlineANFBindings cfg then undoANF mergedEnv else HashMap.empty
+            if inlineANFBindings cfg then undoANFOnlyModified mergedEnv else HashMap.empty
           boolSimplEnv =
             simplifyBooleanRefts $ HashMap.union undoANFEnv mergedEnv
 
@@ -559,45 +565,63 @@ mergeDuplicatedBindings xs =
           ]
         )
 
--- | Inlines some of the bindings introduced by ANF normalization
--- at their use sites.
+-- | Inlines some of the bindings whose symbol satisfies a given predicate.
 --
--- Only modified bindings are returned.
+-- Only works if the bindings don't form cycles.
+substBindings
+  :: Lens' v SortedReft
+  -> (Symbol -> Bool)
+  -> HashMap Symbol v
+  -> HashMap Symbol v
+substBindings vLens p env =
+    -- Circular program here. This should terminate as long as the
+    -- bindings introduced by ANF don't form cycles.
+    let env' = HashMap.map (vLens %~ inlineInSortedReft (srLookup filteredEnv)) env
+        filteredEnv = HashMap.filterWithKey (\sym _v -> p sym) env'
+     in env'
+  where
+    srLookup env' sym = view vLens <$> HashMap.lookup sym env'
+
+-- | Like 'substBindings' but specialized for ANF bindings.
 --
 -- Only bindings with prefix lq_anf... might be inlined.
+--
+undoANF :: Lens' v SortedReft -> HashMap Symbol v -> HashMap Symbol v
+undoANF vLens = substBindings vLens $ \sym -> anfPrefix `isPrefixOfSym` sym
+
+-- | Like 'undoANF' but also inlines VV bindings
 --
 -- This function is used to produced the prettified output, and the user
 -- can request to use it in the verification pipeline with
 -- @--inline-anf-bindings@. However, using it in the verification
 -- pipeline causes some tests in liquidhaskell to blow up.
-undoANF :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
-undoANF env =
-    -- Circular program here. This should terminate as long as the
-    -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (inlineInSortedReftChanged env') env
-     in HashMap.mapMaybe dropUnchanged env'
-  where
-    dropUnchanged ((m, b), sr) = do
-      guard b
-      Just (m, sr)
+undoANFAndVV :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
+undoANFAndVV = substBindings _2 $ \sym -> anfPrefix `isPrefixOfSym` sym || vvName `isPrefixOfSym` sym
 
-inlineInSortedReft
-  :: HashMap Symbol (m, SortedReft) -> SortedReft -> SortedReft
-inlineInSortedReft env sr =
-  snd $ inlineInSortedReftChanged env (error "never should evaluate", sr)
+-- | Like 'undoANF' but returns only modified bindings
+undoANFOnlyModified :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
+undoANFOnlyModified env =
+    let undoANFEnv = undoANF _2 env
+     in HashMap.differenceWith dropUnchanged env undoANFEnv
+  where
+    dropUnchanged (_, a) v@(_, b) | a == b = Just v
+      | otherwise = Nothing
 
 -- | Inlines bindings in env in the given 'SortedReft'.
--- Attaches a 'Bool' telling if the 'SortedReft' was changed.
-inlineInSortedReftChanged
-  :: HashMap Symbol (a, SortedReft)
-  -> (m, SortedReft)
-  -> ((m, Bool), SortedReft)
-inlineInSortedReftChanged env (m, sr) =
-  let e = reftPred (sr_reft sr)
-      e' = inlineInExpr env e
-   in ((m, e /= e'), sr { sr_reft = mapPredReft (const e') (sr_reft sr) })
+inlineInSortedReft
+  :: (Symbol -> Maybe SortedReft)
+  -> SortedReft
+  -> SortedReft
+inlineInSortedReft srLookup sr =
+    let reft = sr_reft sr
+     in sr { sr_reft = mapPredReft (inlineInExpr (filterBind (reftBind reft) srLookup)) reft }
+  where
+    filterBind b srLookup sym = do
+      guard (sym /= b)
+      srLookup sym
 
--- | Inlines bindings preffixed with @lq_anf@ in the given expression
+
+-- | Inlines bindings given by @srLookup@ in the given expression
 -- if they appear in equalities.
 --
 -- Given a binding like @a : { v | v = e1 && e2 }@ and an expression @... e0 = a ...@,
@@ -610,23 +634,17 @@ inlineInSortedReftChanged env (m, sr) =
 -- Given a binding like @a : { v | v = e1 }@ and an expression @... a ...@,
 -- this function produces the expression @... e1 ...@ if @v@ does not
 -- appear free in @e1@.
---
--- The first parameter indicates the maximum amount of conjuncts that a
--- binding is allowed to have. If the binding exceeds this threshold, it
--- is not inlined.
-inlineInExpr :: HashMap Symbol (m, SortedReft) -> Expr -> Expr
-inlineInExpr env = simplify . mapExpr inlineExpr
+inlineInExpr :: (Symbol -> Maybe SortedReft) -> Expr -> Expr
+inlineInExpr srLookup = simplify . mapExprOnExpr inlineExpr
   where
     inlineExpr (EVar sym)
-      | anfPrefix `isPrefixOfSym` sym
-      , Just (_, sr) <- HashMap.lookup sym env
+      | Just sr <- srLookup sym
       , let r = sr_reft sr
       , Just e <- isSingletonE (reftBind r) (reftPred r)
       = wrapWithCoercion Eq (sr_sort sr) e
     inlineExpr (PAtom br e0 e1@(dropECst -> EVar sym))
-      | anfPrefix `isPrefixOfSym` sym
-      , isEq br
-      , Just (_, sr) <- HashMap.lookup sym env
+      | isEq br
+      , Just sr <- srLookup sym
       , let r = sr_reft sr
       , Just e <- isSingletonE (reftBind r) (reftPred r)
       =

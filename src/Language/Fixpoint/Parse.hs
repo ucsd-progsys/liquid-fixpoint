@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -952,8 +950,7 @@ tupleP = do
   return $ mkEApp (Loc l1 l2 cons) (first : rest)
 
 
--- TODO:AZ: The comment says BitVector literal, but it accepts any @Sort@
--- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
+-- | Parser for literals of all sorts.
 litP :: Parser Expr
 litP = do reserved "lit"
           l <- stringLiteral
@@ -979,8 +976,8 @@ funcSortP :: Parser Sort
 funcSortP = parens $ mkFFunc <$> intP <* comma <*> sortsP
 
 sortsP :: Parser [Sort]
-sortsP = try (brackets (sepBy sortP semi)) 
-      <|> (brackets (sepBy sortP comma)) 
+sortsP = try (brackets (sepBy sortP semi))
+      <|> (brackets (sepBy sortP comma))
 
 -- | Parser for sorts (types).
 sortP    :: Parser Sort
@@ -1256,7 +1253,7 @@ matchP :: Parser Rewrite
 matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
 
 pairsP :: Parser a -> Parser b -> Parser [(a, b)]
-pairsP aP bP = brackets $ sepBy1 (pairP aP (reserved ":") bP) semi
+pairsP aP bP = brackets $ sepBy (pairP aP (reserved ":") bP) semi
 ---------------------------------------------------------------------
 -- | Parsing Constraints (.fq files) --------------------------------
 ---------------------------------------------------------------------

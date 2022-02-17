@@ -100,7 +100,7 @@ notracepp _ x = x
 instance PPrint Doc where
   pprintTidy _ = id
 
-instance (PPrint a, PPrint b) => PPrint (Either a b) where 
+instance (PPrint a, PPrint b) => PPrint (Either a b) where
   pprintTidy k (Left  a) = "Left"  <+> pprintTidy k a
   pprintTidy k (Right b) = "Right" <+> pprintTidy k b
 

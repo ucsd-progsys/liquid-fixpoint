@@ -1,9 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ViewPatterns #-}
 
 -- | Functions to make environments easier to read
 module Language.Fixpoint.Solver.Prettify (savePrettifiedQuery) where
@@ -23,7 +20,7 @@ import           Language.Fixpoint.Solver.EnvironmentReduction
   , inlineInSortedReft
   , mergeDuplicatedBindings
   , simplifyBooleanRefts
-  , undoANF
+  , undoANFAndVV
   )
 import           Language.Fixpoint.Types.Config (Config, queryFile)
 import           Language.Fixpoint.Types.Constraints
@@ -85,15 +82,16 @@ prettyConstraint bindEnv c =
             , let (s, sr) = lookupBindEnv bId bindEnv
             ]
       mergedEnv = mergeDuplicatedBindings env
-      undoANFEnv = HashMap.union (undoANF mergedEnv) mergedEnv
-      boolSimplEnv = HashMap.union (simplifyBooleanRefts undoANFEnv) undoANFEnv
+      undoANFEnv = undoANFAndVV mergedEnv
+      boolSimplEnv = HashMap.map snd $ simplifyBooleanRefts undoANFEnv
 
-      simplifiedLhs = inlineInSortedReft boolSimplEnv (slhs c)
-      simplifiedRhs = inlineInSortedReft boolSimplEnv (srhs c)
+      simplifiedLhs = inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (slhs c)
+      simplifiedRhs = inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (srhs c)
 
       prunedEnv =
-        dropLikelyIrrelevantBindings (constraintSymbols simplifiedLhs simplifiedRhs) $
-        HashMap.map snd boolSimplEnv
+        dropLikelyIrrelevantBindings
+          (constraintSymbols simplifiedLhs simplifiedRhs)
+          boolSimplEnv
       (renamedEnv, c') =
         shortenVarNames prunedEnv c { slhs = simplifiedLhs, srhs = simplifiedRhs }
       prettyEnv =
@@ -220,7 +218,7 @@ proposeRenamings = toSymMap . toPrefixSuffixMap
 --
 -- > forall ss.
 -- > Set.fromList ss == Set.fromList $ concat [ xs | m <- elems (toPrefixSuffixMap ss), xs <- elems m ]
--- 
+--
 -- > forall ss.
 -- > and [ all (pfx `isPrefixOfSym`) xs && all (sfx `isSuffixOfSym`) xs
 -- >     | (pfx, m) <- toList (toPrefixSuffixMap ss)
