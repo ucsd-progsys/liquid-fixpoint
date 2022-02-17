@@ -10,14 +10,21 @@
   outputs = { self, nixpkgs, flake-utils }:
     let
       composeOverlays = funs: builtins.foldl' nixpkgs.lib.composeExtensions (self: super: { }) funs;
-      haskellPackagesOverlay = compiler: final: prev: overrides: {
-        haskell = prev.haskell // {
-          packages = prev.haskell.packages // {
-            ${compiler} = prev.haskell.packages.${compiler}.extend overrides;
+      haskellOverlay = compiler: final: prev: new:
+        let new-overrides = new.overrides or (a: b: { }); in
+        {
+          haskell = prev.haskell // {
+            packages = prev.haskell.packages // {
+              ${compiler} = prev.haskell.packages.${compiler}.override
+                (old: old // new // {
+                  overrides = self: super: old.overrides self super // new-overrides self super;
+                });
+            };
           };
         };
-      };
-      ghc = "ghc8104"; # TODO: make this an input?
+      haskellPackagesOverlay = compiler: final: prev: cur-packages-overlay:
+        haskellOverlay compiler final prev { overrides = cur-packages-overlay; };
+      ghc = "ghc8107"; # Based on https://github.com/ucsd-progsys/liquid-fixpoint/blob/develop/stack.yaml#L3
       mkOutputs = system: {
 
         defaultPackage = (import nixpkgs {
@@ -28,11 +35,28 @@
         devShell = self.defaultPackage.${system}.env;
 
         overlay = composeOverlays [
+          self.overlays.${system}.updateAllCabalHashes
+          self.overlays.${system}.addRestRewrite
           self.overlays.${system}.patchHaskellGit
           self.overlays.${system}.addLiquidFixpoint
         ];
 
         overlays = {
+          updateAllCabalHashes = final: prev:
+            {
+              all-cabal-hashes = final.fetchurl {
+                # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/commits/hackage as of Thu Feb 17 07:38:07 PM UTC 2022
+                url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/0c6e849a2c97f511653d375f51636b51fc429dc4.tar.gz";
+                sha256 = "0xdnhagd9xj93p3zd6r84x4nr18spwjmhs8dxzq7n199q32snkha";
+              };
+            };
+          addRestRewrite = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
+            with prev.haskell.lib; {
+              rest-rewrite = overrideCabal (selfH.callHackage "rest-rewrite" "0.2.0" { }) (old: {
+                buildTools = [ prev.z3 ];
+                doCheck = false; # rest: graphs/fig4.dot: openFile: does not exist (No such file or directory)
+              });
+            });
           patchHaskellGit = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
             with prev.haskell.lib; {
               # liquid-fixpoint relies on an old version of megaparsec
@@ -65,8 +89,6 @@
             with prev.haskell.lib; {
               liquid-fixpoint = overrideCabal (callCabal2nix "liquid-fixpoint" self { }) (old: {
                 buildTools = [ prev.z3 ];
-                doCheck = false; # FIXME: there's a bug in tests/test.hs
-                doHaddock = true;
                 # bring the `fixpoint` binary into scope for tests run by nix-build
                 preCheck = ''export PATH="$PWD/dist/build/fixpoint:$PATH"'';
               });
