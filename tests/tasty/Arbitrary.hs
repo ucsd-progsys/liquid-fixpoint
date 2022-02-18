@@ -1,17 +1,29 @@
-module Arbitrary (subexprs) where
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TupleSections #-}
+
+module Arbitrary
+  ( subexprs
+  , Env(..)
+  , NoAnfEnv(..)
+  , AnfSymbol(..)
+  , FlatAnfEnv(..)
+  , ChainedAnfEnv(..)
+  ) where
 
 import Control.Monad                    (forM_, liftM)
 import Data.Monoid (Sum(..), (<>))
 import qualified Data.Text                 as Text
 import qualified Data.HashMap.Strict       as M
 import Test.Tasty.QuickCheck
+import GHC.Generics
 
 import Language.Fixpoint.Types.Refinements as R
 import Language.Fixpoint.Parse             (isNotReserved, rr)
 import Language.Fixpoint.Types             as T hiding (Result)
 import Language.Fixpoint.Types.Spans       as Spans
-import Language.Fixpoint.Types.Refinements (Expr(PKVar))
+import Language.Fixpoint.Types.Refinements (Expr(PKVar, EVar))
 import Language.Fixpoint.Types.Names       (isFixKey)
+import Data.Traversable                    (for)
 
 {-
 
@@ -65,9 +77,9 @@ subexprs (PGrad _ _ _ e) = [e]
 subexprs (ECoerc _ _ e)  = [e]
 
 -- TODO: Adjust frequencies
-arbitraryExpr :: Int -> Gen Expr
-arbitraryExpr 0 = oneof [ESym <$> arbitrary, ECon <$> arbitrary, EVar <$> arbitrary]
-arbitraryExpr n = frequency
+arbitraryExpr_ :: Gen Expr -> Int -> Gen Expr
+arbitraryExpr_ zeroExprGen 0 = zeroExprGen
+arbitraryExpr_ _ n = frequency
   [ (1, EApp <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, ENeg <$> arbitraryExpr')
   , (1, EBin <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
@@ -92,6 +104,12 @@ arbitraryExpr n = frequency
     arbitraryExpr' = arbitraryExpr (n `div` 2)
     arbitraryList :: Arbitrary a => Gen [a]
     arbitraryList = choose (2, 3) >>= (`vectorOf` arbitrary)
+
+arbitraryExpr :: Int -> Gen Expr
+arbitraryExpr = arbitraryExpr_ (oneof [ESym <$> arbitrary, ECon <$> arbitrary, EVar <$> arbitrary])
+
+arbitraryExprInvolving :: Symbol -> Int -> Gen Expr
+arbitraryExprInvolving sym = arbitraryExpr_ . pure $ EVar sym
 
 instance Arbitrary KVar where
   arbitrary = KV <$> arbitrary
@@ -133,15 +151,16 @@ instance Arbitrary Bop where
 instance Arbitrary SymConst where
   arbitrary = SL <$> arbitrary
 
+-- | Note that we rely below on the property that the Arbitrary instance for
+-- Symbol cannot create lq_anf$ vars.
 instance Arbitrary Symbol where
   arbitrary = (symbol :: Text.Text -> Symbol) <$> arbitrary
 
 instance Arbitrary Text.Text where
-  arbitrary = choose (1,4) >>= \n -> Text.pack <$> (vectorOf n char `suchThat` valid)
+  arbitrary = choose (1, 12) >>= \n -> Text.pack <$> (vectorOf n char `suchThat` valid)
     where
       char = elements ['a'..'z']
       valid x = isNotReserved x && not (isFixKey (Text.pack x))
-
 
 instance Arbitrary FTycon where
   arbitrary = do
@@ -155,3 +174,109 @@ instance Arbitrary Constant where
                     , L <$> arbitrary <*> arbitrary
                     ]
   shrink = genericShrink
+
+-- | Used in UndoANFTests.
+newtype AnfSymbol = AnfSymbol { unAnfSymbol :: Symbol }
+  deriving (Eq, Show, Generic)
+instance Arbitrary AnfSymbol where
+  arbitrary = AnfSymbol . mappendSym anfPrefix <$> arbitrary
+
+-- | This instance does **not** create Refts with anf symbols.
+instance Arbitrary Reft where
+  arbitrary = reft <$> arbitrary <*> arbitrary
+
+-- | This instance does **not** create SortedRefts with anf symbols.
+instance Arbitrary SortedReft where
+  arbitrary = arbitrarySortedReft (const arbitrary) 1
+
+arbitrarySortedReft :: (Int -> Gen Symbol) -> Int -> Gen SortedReft
+arbitrarySortedReft symGen = \i -> do
+  sort <- arbitrary
+  eq <- oneof $ pure <$> [Eq, Ueq]
+  sym <- symGen i
+  expr <- arbitrary
+  pure $ RR sort $ reft sym (PAtom eq (EVar sym) expr)
+
+-- | Base environment with no declared properties; do not add an Arbitrary
+-- instance to this and instead use newtypes.
+newtype Env = Env { unEnv :: M.HashMap Symbol SortedReft }
+  deriving (Eq, Show, Generic)
+
+-- | Env without anf vars.
+newtype NoAnfEnv = NoAnfEnv { unNoAnfEnv :: Env }
+  deriving (Eq, Show, Generic)
+instance Arbitrary NoAnfEnv where
+  arbitrary = NoAnfEnv <$> (arbitraryEnv 4 gen)
+    where
+      -- | Note that this relies on the property that the Arbitrary instance for
+      -- Symbol cannot create lq_anf$ vars.
+      symGen = const arbitrary
+      reftGen = const arbitrary
+      gen = fmap pure . (pairGen symGen reftGen)
+
+pairGen :: (Int -> Gen a) -> (Int -> Gen b) -> Int -> Gen (a, b)
+pairGen aGen bGen = \i -> do
+  a <- aGen i
+  b <- bGen i
+  pure (a, b)
+
+-- | Env with anf vars that do not reference further anf vars.
+newtype FlatAnfEnv = FlatAnfEnv { unFlatAnfEnv :: Env }
+  deriving (Eq, Show, Generic)
+instance Arbitrary FlatAnfEnv where
+  arbitrary = FlatAnfEnv <$> (arbitraryEnv 4 gen)
+    where
+      symGen = const arbitrary
+      anfGen' = anfGen symGen (const arbitrary)
+      gen = finalAnfGen (fmap pure . anfGen')
+
+anfGen :: (Int -> Gen AnfSymbol) -> (Int -> Gen SortedReft) -> Int -> Gen (Symbol, SortedReft)
+anfGen symGen sreftGen = \i -> do
+  sym <- unAnfSymbol <$> symGen i
+  sreft <- sreftGen i
+  pure $ (sym, sreft)
+
+finalAnfGen :: (Int -> Gen [(Symbol, SortedReft)]) -> Int -> Gen [(Symbol, SortedReft)]
+finalAnfGen anfsGen = \i -> do
+  anfs <- anfsGen i
+  case anfs of
+    [] -> pure []
+    ((penultimateSym, _):_) -> do
+      ultimateAnf <- do
+        sym <- arbitrary
+        (,) <$> arbitrary {- symbol -} <*> (
+          RR <$> arbitrary {- sort -} <*> (
+            pure $ reft sym (PAtom Eq (EVar sym) (EVar penultimateSym))))
+      pure $ ultimateAnf : anfs
+
+-- | Create an arbitrary env up to size k with the given generator for Symbols
+-- and SortedRefts
+arbitraryEnv :: Int -> (Int -> Gen [(Symbol, SortedReft)]) -> Gen Env
+arbitraryEnv k gen = Env . M.fromList <$> (choose (0, k) >>= gen)
+
+-- | Env with anf vars that form a list of references.
+newtype ChainedAnfEnv = ChainedAnfEnv { unChainedAnfEnv :: Env }
+  deriving (Eq, Show, Generic)
+instance Arbitrary ChainedAnfEnv where
+  arbitrary = ChainedAnfEnv <$> (arbitraryEnv 8 gen)
+    where
+      gen = finalAnfGen $ chainedAnfGen anfSymNGen
+
+chainedAnfGen :: (Int -> Gen AnfSymbol) -> Int -> Gen [(Symbol, SortedReft)]
+chainedAnfGen symGen = \i -> do
+  syms <- fmap unAnfSymbol <$> (for [0..i] symGen)
+  let symPairs :: [(Symbol, Symbol)]
+      symPairs = pairs syms
+      anfPairs :: Gen [(Symbol, SortedReft)]
+      anfPairs = traverse (\(sym, prevSym) -> do
+                              otherSym <- arbitrary
+                              (sym,) <$> (RR <$> arbitrary <*> (reft otherSym <$> (PAtom Eq (EVar otherSym) <$> (arbitraryExprInvolving prevSym i))))) symPairs
+  anfPairs
+  where
+    pairs xs = zip xs (tail xs)
+
+-- This is not random, but is simplified so that you can make chains more
+-- easily.
+anfSymNGen :: Int -> Gen AnfSymbol
+anfSymNGen i = pure . AnfSymbol . mappendSym anfPrefix . symbol . show $ i
+
