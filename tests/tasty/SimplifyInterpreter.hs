@@ -8,7 +8,7 @@ import Language.Fixpoint.Types.Environments (SEnv (..))
 import Language.Fixpoint.Types.Refinements (Expr)
 
 interpret' :: Expr -> Expr
-interpret' = Interpreter.interpret emptyConstMap emptyKnowledge emptyICtx emptySEnv
+interpret' = Interpreter.interpret emptyKnowledge emptyICtx emptySEnv
   where
     emptyConstMap = M.empty
     emptySEnv = SE M.empty

@@ -130,10 +130,10 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = act $
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
 ple1 (InstEnv {..}) ctx i res = 
-  updCtxRes res i <$> evalCandsLoop {-anfEnv-} M.empty ctx ieKnowl ieEvEnv 
+  updCtxRes res i <$> evalCandsLoop ctx ieKnowl ieEvEnv
 
-evalCandsLoop :: ConstMap -> ICtx -> Knowledge -> EvalEnv -> IO ICtx 
-evalCandsLoop ie ictx0 γ env = go ictx0 
+evalCandsLoop :: ICtx -> Knowledge -> EvalEnv -> IO ICtx
+evalCandsLoop ictx0 γ env = go ictx0
   where
     withRewrites exprs =
       let
@@ -145,7 +145,7 @@ evalCandsLoop ie ictx0 γ env = go ictx0
     go ictx =  do let cands = icCands ictx
                   let env' = env { evAccum = icEquals ictx <> evAccum env }
                   (ictx', evalResults)  <- 
-                               foldM (evalOneCandStep ie γ env') (ictx, []) (S.toList cands) 
+                               foldM (evalOneCandStep γ env') (ictx, []) (S.toList cands)
                   let us = mconcat evalResults 
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx 
@@ -158,9 +158,9 @@ evalCandsLoop ie ictx0 γ env = go ictx0
                                  
 -- evalOneCands :: Knowledge -> EvalEnv -> ICtx -> [Expr] -> IO (ICtx, [EvAccum])
 -- evalOneCands γ env' ictx = foldM step (ictx, [])
-evalOneCandStep :: ConstMap -> Knowledge -> EvalEnv -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
-evalOneCandStep env γ env' (ictx, acc) e = do 
-  res <- evalOne env γ env' ictx e 
+evalOneCandStep :: Knowledge -> EvalEnv -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
+evalOneCandStep γ env' (ictx, acc) e = do
+  res <- evalOne γ env' ictx e
   return (ictx, res : acc)
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
@@ -336,9 +336,9 @@ type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
 
-evalOne :: ConstMap -> Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvAccum
-evalOne ienv γ env ctx e {- null (getAutoRws γ ctx) -} = do
-    (e', st) <- runStateT (fastEval ienv γ ctx e) env  
+evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvAccum
+evalOne γ env ctx e {- null (getAutoRws γ ctx) -} = do
+    (e', st) <- runStateT (fastEval γ ctx e) env
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return evAcc' 
 
@@ -396,10 +396,10 @@ largestApps = flip go []
       PExist _ _ -> acc
       PGrad{} -> acc
 
-fastEval :: ConstMap -> Knowledge -> ICtx -> Expr -> EvalST Expr
-fastEval ienv γ ctx e 
+fastEval :: Knowledge -> ICtx -> Expr -> EvalST Expr
+fastEval γ ctx e
     = do env  <- gets (seSort . evEnv)
-         return $ mytracepp ("evaluating" ++ show e) $ interpret ienv γ ctx env $ simplify γ ctx e
+         return $ mytracepp ("evaluating" ++ show e) $ interpret γ ctx env $ simplify γ ctx e
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -407,14 +407,14 @@ fastEval ienv γ ctx e
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
 
-unfoldExpr :: ConstMap -> Knowledge -> ICtx -> SEnv Sort -> Expr -> {-EvalST-} Expr
-unfoldExpr ie γ ctx env (EIte e0 e1 e2) = let g' = interpret' ie γ ctx env e0 in
+unfoldExpr :: Knowledge -> ICtx -> SEnv Sort -> Expr -> {-EvalST-} Expr
+unfoldExpr γ ctx env (EIte e0 e1 e2) = let g' = interpret' γ ctx env e0 in
                                              if g' == PTrue
-                                                then unfoldExpr ie γ ctx env e1
+                                                then unfoldExpr γ ctx env e1
                                                 else if g' == PFalse
-                                                        then unfoldExpr ie γ ctx env e2
+                                                        then unfoldExpr γ ctx env e2
                                                         else EIte g' e1 e2
-unfoldExpr _  _ _   _   e               = e
+unfoldExpr _ _   _   e               = e
 
 substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
 substEq env eq es = subst su (substEqCoerce env eq es)
@@ -451,110 +451,110 @@ matchSorts s1 s2 = go s1 s2
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
-interpret' :: ConstMap -> Knowledge -> ICtx -> SEnv Sort -> Expr -> Expr
-interpret' ie γ ctx env e = mytracepp ("Interpreting " ++ show e) $ interpret ie γ ctx env e
+interpret' :: Knowledge -> ICtx -> SEnv Sort -> Expr -> Expr
+interpret' γ ctx env e = mytracepp ("Interpreting " ++ show e) $ interpret γ ctx env e
 
-interpret :: ConstMap -> Knowledge -> ICtx -> SEnv Sort -> Expr -> Expr
-interpret _  _ _   _   e@(ESym _)       = e
-interpret _  _ _   _   e@(ECon _)       = e
-interpret ie γ ctx env (EVar sym)
+interpret :: Knowledge -> ICtx -> SEnv Sort -> Expr -> Expr
+interpret _ _   _   e@(ESym _)       = e
+interpret _ _   _   e@(ECon _)       = e
+interpret γ ctx env (EVar sym)
     | Just e' <- M.lookup (EVar sym) (icSimpl ctx)
-    = interpret' ie γ ctx env e'
-interpret _  _ _   _   e@(EVar _)       = e
-interpret ie γ ctx env   (EApp e1 e2)
-  | isSetPred e1                        = let e2' = interpret' ie γ ctx env e2 in 
+    = interpret' γ ctx env e'
+interpret _ _   _   e@(EVar _)       = e
+interpret γ ctx env   (EApp e1 e2)
+  | isSetPred e1                        = let e2' = interpret' γ ctx env e2 in
                                              applySetFolding e1 e2'
-interpret ie γ ctx env e@(EApp _ _)     = case splitEApp e of
-  (f, es) -> let (f':es') = map (interpret' ie γ ctx env) (f:es) in interpretApp ie γ ctx env f' es'
+interpret γ ctx env e@(EApp _ _)     = case splitEApp e of
+  (f, es) -> let (f':es') = map (interpret' γ ctx env) (f:es) in interpretApp γ ctx env f' es'
     where
-      interpretApp ie γ ctx env (EVar f) es
+      interpretApp γ ctx env (EVar f) es
         | Just eq <- M.lookup f (knAms γ)
         , length (eqArgs eq) <= length es 
         = let (es1,es2) = splitAt (length (eqArgs eq)) es
               ges       = substEq env eq es1
-              exp       = unfoldExpr ie γ ctx env ges 
+              exp       = unfoldExpr γ ctx env ges
               exp'      = eApps exp es2 in  --exp' -- TODO undo
-            if (eApps (EVar f) es) == exp' then exp' else interpret' ie γ ctx env exp'
+            if (eApps (EVar f) es) == exp' then exp' else interpret' γ ctx env exp'
 
-      interpretApp ie γ ctx env (EVar f) (e1:es)
+      interpretApp γ ctx env (EVar f) (e1:es)
         | (EVar dc, as) <- splitEApp e1
         , Just rw <- M.lookup (f, dc) (knSims γ)
         , length as == length (smArgs rw)
         = let e' = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es in --e' -- TODO undo
-            if (eApps (EVar f) es) == e' then e' else interpret' ie γ ctx env e' 
+            if (eApps (EVar f) es) == e' then e' else interpret' γ ctx env e'
 
-      interpretApp _  γ _   _   (EVar f) ([e0])
+      interpretApp γ _   _   (EVar f) ([e0])
         | (EVar dc, _as) <- splitEApp e0
         , isTestSymbol f
         = if testSymbol dc == f then PTrue else 
             if S.member dc (knAllDCs γ) then PFalse else {-simplify γ ctx $-} eApps (EVar f) [e0]
 
-      interpretApp _  _ _   _   f        es     = {-simplify γ ctx $-} eApps f es
-interpret ie γ ctx env   (ENeg e1)      = let e1' = interpret' ie γ ctx env e1 in
+      interpretApp _ _   _   f        es     = {-simplify γ ctx $-} eApps f es
+interpret γ ctx env   (ENeg e1)      = let e1' = interpret' γ ctx env e1 in
                                             applyConstantFolding Minus (ECon (I 0)) e1'
 --                                          simplify γ ctx (ENeg e1')
-interpret ie γ ctx env   (EBin o e1 e2) = let e1' = interpret' ie γ ctx env e1 
-                                              e2' = interpret' ie γ ctx env e2 in
+interpret γ ctx env   (EBin o e1 e2) = let e1' = interpret' γ ctx env e1
+                                           e2' = interpret' γ ctx env e2 in
                                             applyConstantFolding o e1' e2'
 --                                          simplify γ ctx (EBin o e1' e2')
-interpret ie γ ctx env   (EIte g e1 e2) = let b = interpret' ie γ ctx env g in
-                                            if b == PTrue then interpret' ie γ ctx env e1 else
-                                              if b == PFalse then interpret' ie γ ctx env e2 else 
+interpret γ ctx env   (EIte g e1 e2) = let b = interpret' γ ctx env g in
+                                            if b == PTrue then interpret' γ ctx env e1 else
+                                              if b == PFalse then interpret' γ ctx env e2 else
                                                 simplify γ ctx $ EIte b e1 e2
 --                                          EIte b (interpret' γ ctx env e1) (interpret' γ ctx env e2)
-interpret ie γ ctx env   (ECst e1 s)    = let e1' = interpret' ie γ ctx env e1 in
+interpret γ ctx env   (ECst e1 s)    = let e1' = interpret' γ ctx env e1 in
                                             simplifyCasts e1' s -- ECst e1' s
-interpret ie γ ctx env (ELam (x,s) e)   = let γ' = γ { knLams = (x, s) : knLams γ }
-                                              e' = interpret' ie γ' ctx env e in 
+interpret γ ctx env (ELam (x,s) e)   = let γ' = γ { knLams = (x, s) : knLams γ }
+                                           e' = interpret' γ' ctx env e in
                                             ELam (x, s) e'
-interpret ie γ ctx env   (ETApp e1 t)   = let e1' = interpret' ie γ ctx env e1 in ETApp e1' t
-interpret ie γ ctx env   (ETAbs e1 sy)  = let e1' = interpret' ie γ ctx env e1 in ETAbs e1' sy
-interpret ie γ ctx env   (PAnd es)      = let es' = map (interpret' ie γ ctx env) es in go [] (reverse es')
+interpret γ ctx env   (ETApp e1 t)   = let e1' = interpret' γ ctx env e1 in ETApp e1' t
+interpret γ ctx env   (ETAbs e1 sy)  = let e1' = interpret' γ ctx env e1 in ETAbs e1' sy
+interpret γ ctx env   (PAnd es)      = let es' = map (interpret' γ ctx env) es in go [] (reverse es')
   where
     go []  []         = PTrue
-    go [p] []         = interpret' ie γ ctx env p
+    go [p] []         = interpret' γ ctx env p
     go acc []         = PAnd acc
     go acc (PTrue:es) = go acc es
     go _   (PFalse:_) = PFalse
     go acc (e:es)     = go (e:acc) es
-interpret ie γ ctx env (POr es)         = let es' = map (interpret' ie γ ctx env) es in go [] (reverse es')
+interpret γ ctx env (POr es)         = let es' = map (interpret' γ ctx env) es in go [] (reverse es')
   where
     go []  []          = PFalse
-    go [p] []          = interpret' ie γ ctx env p
+    go [p] []          = interpret' γ ctx env p
     go acc []          = POr acc
     go _   (PTrue:_)   = PTrue
     go acc (PFalse:es) = go acc es
     go acc (e:es)      = go (e:acc) es
-interpret ie γ ctx env (PNot e)         = let e' = interpret' ie γ ctx env e in case e' of
+interpret γ ctx env (PNot e)         = let e' = interpret' γ ctx env e in case e' of
     (PNot e'')    -> e''
     PTrue         -> PFalse 
     PFalse        -> PTrue 
     _             -> PNot e'
-interpret ie γ ctx env (PImp e1 e2)     = let e1' = interpret' ie γ ctx env e1 
-                                              e2' = interpret' ie γ ctx env e2 in
+interpret γ ctx env (PImp e1 e2)     = let e1' = interpret' γ ctx env e1
+                                           e2' = interpret' γ ctx env e2 in
                                             if e1' == PFalse || e2' == PTrue then PTrue else
                                               if e1' == PTrue then e2' else
-                                                if e2' == PFalse then interpret' ie γ ctx env (PNot e1') else 
+                                                if e2' == PFalse then interpret' γ ctx env (PNot e1') else
                                                   PImp e1' e2'
-interpret ie γ ctx env (PIff e1 e2)     = let e1' = interpret' ie γ ctx env e1 
-                                              e2' = interpret' ie γ ctx env e2 in
+interpret γ ctx env (PIff e1 e2)     = let e1' = interpret' γ ctx env e1
+                                           e2' = interpret' γ ctx env e2 in
                                             if e1' == PTrue then e2' else
                                               if e2' == PTrue then e1' else
-                                                if e1' == PFalse then interpret' ie γ ctx env (PNot e2') else
-                                                  if e2' == PFalse then interpret' ie γ ctx env (PNot e1') else
+                                                if e1' == PFalse then interpret' γ ctx env (PNot e2') else
+                                                  if e2' == PFalse then interpret' γ ctx env (PNot e1') else
                                                     PIff e1' e2'
-interpret ie γ ctx env (PAtom o e1 e2)  = let e1' = interpret' ie γ ctx env e1
-                                              e2' = interpret' ie γ ctx env e2 in
+interpret γ ctx env (PAtom o e1 e2)  = let e1' = interpret' γ ctx env e1
+                                           e2' = interpret' γ ctx env e2 in
                                             applyBooleanFolding o e1' e2'
-interpret _  _ _   _   e@(PKVar _ _)    = e
-interpret ie γ ctx env e@(PAll xss e1)  = case xss of
-  [] -> interpret' ie γ ctx env e1
+interpret _ _   _   e@(PKVar _ _)    = e
+interpret γ ctx env e@(PAll xss e1)  = case xss of
+  [] -> interpret' γ ctx env e1
   _  -> e
-interpret ie γ ctx env e@(PExist xss e1) = case xss of
-  [] -> interpret' ie γ ctx env e1
+interpret γ ctx env e@(PExist xss e1) = case xss of
+  [] -> interpret' γ ctx env e1
   _  -> e
-interpret _  _ _   _   e@(PGrad _ _ _ _) = e
-interpret ie γ ctx env (ECoerc s t e)    = let e' = interpret' ie γ ctx env e in
+interpret _ _   _   e@(PGrad _ _ _ _) = e
+interpret γ ctx env (ECoerc s t e)    = let e' = interpret' γ ctx env e in
                                              if s == t then e' else (ECoerc s t e')
 
         
