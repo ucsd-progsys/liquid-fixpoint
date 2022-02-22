@@ -18,6 +18,8 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   , undoANF
   , undoANFAndVV
 
+  , mkSortedReftSimplifier
+
   -- for use in tests
   , undoANFSimplifyingWith
   ) where
@@ -585,7 +587,10 @@ substBindingsSimplifyingWith simplifier vLens p env =
      in env'
   where
     srLookup env' sym = view vLens <$> HashMap.lookup sym env'
-    sortedReftSimplifier (RR s r) = RR s (reft (reftBind r) (simplifier (reftPred r)))
+    sortedReftSimplifier = mkSortedReftSimplifier simplifier
+
+mkSortedReftSimplifier :: (Expr -> Expr) -> SortedReft -> SortedReft
+mkSortedReftSimplifier simplifier (RR s r) = RR s (reft (reftBind r) (simplifier (reftPred r)))
 
 substBindings
   :: Lens' v SortedReft
@@ -651,7 +656,7 @@ inlineInSortedReft srLookup sr =
 -- this function produces the expression @... e1 ...@ if @v@ does not
 -- appear free in @e1@.
 inlineInExpr :: (Symbol -> Maybe SortedReft) -> Expr -> Expr
-inlineInExpr srLookup = simplify . mapExprOnExpr inlineExpr
+inlineInExpr srLookup = mapExprOnExpr inlineExpr
   where
     inlineExpr (EVar sym)
       | Just sr <- srLookup sym
