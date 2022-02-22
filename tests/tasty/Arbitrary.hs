@@ -223,7 +223,7 @@ newtype Env = Env { unEnv :: M.HashMap Symbol SortedReft }
 newtype NoAnfEnv = NoAnfEnv { unNoAnfEnv :: Env }
   deriving (Eq, Show, Generic)
 instance Arbitrary NoAnfEnv where
-  arbitrary = NoAnfEnv <$> (arbitraryEnv gen 4)
+  arbitrary = sized (fmap NoAnfEnv . arbitraryEnv gen)
     where
       -- | Note that this relies on the property that the Arbitrary instance for
       -- Symbol cannot create lq_anf$ vars.
@@ -233,7 +233,7 @@ instance Arbitrary NoAnfEnv where
 newtype FlatAnfEnv = FlatAnfEnv { unFlatAnfEnv :: Env }
   deriving (Eq, Show, Generic)
 instance Arbitrary FlatAnfEnv where
-  arbitrary = FlatAnfEnv <$> (arbitraryEnv gen 2)
+  arbitrary = sized (fmap FlatAnfEnv . arbitraryEnv gen)
     where
       arbs n = vectorOf n ((,) <$> arbitrary <*> arbitrary)
       anfsGen n = fmap (\(a, b) -> (unAnfSymbol a, b)) <$> arbs n
@@ -269,7 +269,7 @@ arbitraryEnv gen = \k -> Env . M.fromList <$> (choose (0, k) >>= gen)
 newtype ChainedAnfEnv = ChainedAnfEnv { unChainedAnfEnv :: Env }
   deriving (Eq, Show, Generic)
 instance Arbitrary ChainedAnfEnv where
-  arbitrary = ChainedAnfEnv <$> (arbitraryEnv gen 4)
+  arbitrary = sized (fmap ChainedAnfEnv . arbitraryEnv gen)
     where
       gen = finalAnfGen (chainedAnfGen anfSymNGen) finalChainedGen
       finalChainedGen :: [(Symbol, SortedReft)] -> Gen (Symbol, SortedReft)
