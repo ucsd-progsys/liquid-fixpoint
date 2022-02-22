@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
-module UndoANFTests where
+module UndoANFTests(tests) where
 
 import Language.Fixpoint.Types (SortedReft(..), Sort, Reft(..), Symbol, Expr(..),
-                                reft, isPrefixOfSym, anfPrefix)
+                                reft, isPrefixOfSym, anfPrefix, syms)
 import Language.Fixpoint.Solver.EnvironmentReduction (undoANFSimplifyingWith)
 import qualified Language.Fixpoint.Types.Visitor as Visitor
 import Arbitrary
@@ -36,33 +36,29 @@ tests =
           ]
       ]
   where
-    withOptions = localOption (Q.QuickCheckMaxSize 4) . localOption (Q.QuickCheckTests 500)
+    withOptions = localOption (Q.QuickCheckMaxSize 8) . localOption (Q.QuickCheckTests 500)
+
+-- | 5 seconds (in microseconds).
+timeout :: Int
+timeout = 5000000
 
 prop_no_change :: (Q.Arbitrary e, Eq e, Show e) => (e -> e) -> e -> Q.Property
-prop_no_change f e = Q.within 1000000 $ f e === e
+prop_no_change f e = Q.within timeout $ f e === e
 
 prop_no_anfs :: (Q.Arbitrary e, Eq e, Show e) => (e -> Env) -> (e -> e) -> e -> Q.Property
-prop_no_anfs toEnv f e = Q.within 1000000 . checkNoAnfs . toEnv . f $ e
+prop_no_anfs toEnv f e = Q.within timeout . checkNoAnfs . toEnv . f $ e
   where
-    checkNoAnfs (Env m) =
-      let symbolsAndSortedRefts = M.toList m
-          isAnfVar = isPrefixOfSym anfPrefix
-          toAnfVarSymbols (_, sr) = sortedReftAnfVarSymbols sr
-          anfVarSymbolVisitor :: Visitor.Visitor [Symbol] ()
-          anfVarSymbolVisitor =
-            (Visitor.defaultVisitor :: Visitor.Visitor [Symbol] ()) { Visitor.accExpr = \_ -> \case
-                                       EVar v | isAnfVar v -> [v]
-                                       _ -> []
-                                   }
-          sortedReftAnfVarSymbols = Visitor.fold anfVarSymbolVisitor () mempty
-      in
-        (concatMap toAnfVarSymbols symbolsAndSortedRefts) === []
+    checkNoAnfs (Env m) = M.filter (any isAnfVar . syms) m === M.empty
+    isAnfVar = isPrefixOfSym anfPrefix
 
 -- | We perform tests with only trivial lenses (i.e. id)
 simpleUndoANF :: M.HashMap Symbol SortedReft -> M.HashMap Symbol SortedReft
 simpleUndoANF = undoANFSimplifyingWith id id
 
+----------------------------------------------------
 -- | simpleUndoANF conjugated with various newtypes
+----------------------------------------------------
+
 simpleUndoANFEnv :: Env -> Env
 simpleUndoANFEnv = Env . simpleUndoANF . unEnv
 

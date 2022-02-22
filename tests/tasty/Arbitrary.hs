@@ -77,9 +77,14 @@ subexprs (PGrad _ _ _ e) = [e]
 subexprs (ECoerc _ _ e)  = [e]
 
 -- TODO: Adjust frequencies
-arbitraryExpr_ :: Gen Expr -> Int -> Gen Expr
-arbitraryExpr_ zeroExprGen 0 = zeroExprGen
-arbitraryExpr_ _ n = frequency
+-- | To ensure this reliably terminates we require that `zeroExprGen` generates
+-- atomic expressions.
+arbitraryFiniteExpr
+  :: Gen Expr -- ^ called when the Int is zero.
+  -> Int
+  -> Gen Expr
+arbitraryFiniteExpr zeroExprGen 0 = zeroExprGen
+arbitraryFiniteExpr zeroExprGen n = frequency
   [ (1, EApp <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, ENeg <$> arbitraryExpr')
   , (1, EBin <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
@@ -88,28 +93,39 @@ arbitraryExpr_ _ n = frequency
   , (1, ELam <$> arbitrary <*> arbitraryExpr')
   , (1, ETApp <$> arbitraryExpr' <*> arbitrary)
   , (1, ETAbs <$> arbitraryExpr' <*> arbitrary)
-  , (1, T.PAnd <$> arbitraryList)
-  , (1, T.POr <$> arbitraryList)
+  , (1, T.PAnd <$> arbitraryExprList)
+  , (1, T.POr <$> arbitraryExprList)
   , (1, T.PNot <$> arbitraryExpr')
   , (1, PImp <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, PIff <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, PAtom <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
   , (1, PKVar <$> arbitrary <*> arbitrary)
-  , (1, PAll <$> arbitraryList <*> arbitraryExpr')
-  , (1, PExist <$> arbitraryList <*> arbitraryExpr')
+  , (1, PAll <$> arbitraryList arbitrary <*> arbitraryExpr')
+  , (1, PExist <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, PGrad <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitraryExpr')
   , (1, ECoerc <$> arbitrary <*> arbitrary <*> arbitraryExpr')
   ]
   where
-    arbitraryExpr' = arbitraryExpr (n `div` 2)
-    arbitraryList :: Arbitrary a => Gen [a]
-    arbitraryList = choose (2, 3) >>= (`vectorOf` arbitrary)
+    arbitraryExpr' = arbitraryFiniteExpr zeroExprGen (n `div` 2)
+    arbitraryList :: Gen a -> Gen [a]
+    arbitraryList gen = choose (2, 3) >>= (`vectorOf` gen)
+    arbitraryExprList = arbitraryList arbitraryExpr'
 
+-- | Generates a finite expression, with the logarithm of the Int given
+-- suggesting the depth of the expression tree.
 arbitraryExpr :: Int -> Gen Expr
-arbitraryExpr = arbitraryExpr_ (oneof [ESym <$> arbitrary, ECon <$> arbitrary, EVar <$> arbitrary])
+arbitraryExpr = arbitraryFiniteExpr arbitraryAtomicExpr
 
+arbitraryAtomicExpr :: Gen Expr
+arbitraryAtomicExpr = (oneof [ESym <$> arbitrary, ECon <$> arbitrary, EVar <$> arbitrary])
+
+arbitraryEqualityConstraint :: Gen Brel
+arbitraryEqualityConstraint = oneof [pure Eq, pure Ueq]
+
+-- | Generates an expression that involves the given Symbol in an Eq or Ueq
+-- PAtom with an arbitrary non-lq_anf$ EVar.
 arbitraryExprInvolving :: Symbol -> Int -> Gen Expr
-arbitraryExprInvolving sym = arbitraryExpr_ . pure $ EVar sym
+arbitraryExprInvolving sym = arbitraryFiniteExpr . pure $ EVar sym
 
 instance Arbitrary KVar where
   arbitrary = KV <$> arbitrary
@@ -134,7 +150,7 @@ arbitrarySort 0 = oneof (pure <$> [FInt, FReal, FNum, FFrac])
 arbitrarySort n = frequency
   [ (1, FObj <$> arbitrary)
   , (1, FVar <$> arbitrary)
-  , (1, FFunc <$> arbitrarySort' <*> arbitrarySort')
+  -- , (1, FFunc <$> arbitrarySort' <*> arbitrarySort')
   , (1, FAbs <$> arbitrary <*> arbitrarySort')
   , (1, FTC <$> arbitrary)
   , (1, FApp <$> arbitrarySort' <*> arbitrarySort')
@@ -156,8 +172,10 @@ instance Arbitrary SymConst where
 instance Arbitrary Symbol where
   arbitrary = (symbol :: Text.Text -> Symbol) <$> arbitrary
 
+-- | This instances is assumed to only produce Text containing lowercase
+-- letters.
 instance Arbitrary Text.Text where
-  arbitrary = choose (1, 12) >>= \n -> Text.pack <$> (vectorOf n char `suchThat` valid)
+  arbitrary = choose (5, 12) >>= \n -> Text.pack <$> (vectorOf n char `suchThat` valid)
     where
       char = elements ['a'..'z']
       valid x = isNotReserved x && not (isFixKey (Text.pack x))
@@ -190,10 +208,10 @@ instance Arbitrary SortedReft where
   arbitrary = arbitrarySortedReft (const arbitrary) 1
 
 arbitrarySortedReft :: (Int -> Gen Symbol) -> Int -> Gen SortedReft
-arbitrarySortedReft symGen = \i -> do
+arbitrarySortedReft symGen = \n -> do
   sort <- arbitrary
-  eq <- oneof $ pure <$> [Eq, Ueq]
-  sym <- symGen i
+  eq <- arbitraryEqualityConstraint
+  sym <- symGen n
   expr <- arbitrary
   pure $ RR sort $ reft sym (PAtom eq (EVar sym) expr)
 
@@ -206,72 +224,84 @@ newtype Env = Env { unEnv :: M.HashMap Symbol SortedReft }
 newtype NoAnfEnv = NoAnfEnv { unNoAnfEnv :: Env }
   deriving (Eq, Show, Generic)
 instance Arbitrary NoAnfEnv where
-  arbitrary = NoAnfEnv <$> (arbitraryEnv 4 gen)
+  arbitrary = NoAnfEnv <$> (arbitraryEnv gen 4)
     where
       -- | Note that this relies on the property that the Arbitrary instance for
       -- Symbol cannot create lq_anf$ vars.
-      symGen = const arbitrary
-      reftGen = const arbitrary
-      gen = fmap pure . (pairGen symGen reftGen)
-
-pairGen :: (Int -> Gen a) -> (Int -> Gen b) -> Int -> Gen (a, b)
-pairGen aGen bGen = \i -> do
-  a <- aGen i
-  b <- bGen i
-  pure (a, b)
+      gen _ = (\a b -> [(a, b)]) <$> arbitrary <*> arbitrary
 
 -- | Env with anf vars that do not reference further anf vars.
 newtype FlatAnfEnv = FlatAnfEnv { unFlatAnfEnv :: Env }
   deriving (Eq, Show, Generic)
 instance Arbitrary FlatAnfEnv where
-  arbitrary = FlatAnfEnv <$> (arbitraryEnv 4 gen)
+  arbitrary = FlatAnfEnv <$> (arbitraryEnv gen 2)
     where
-      symGen = const arbitrary
-      anfGen' = anfGen symGen (const arbitrary)
-      gen = finalAnfGen (fmap pure . anfGen')
-
-anfGen :: (Int -> Gen AnfSymbol) -> (Int -> Gen SortedReft) -> Int -> Gen (Symbol, SortedReft)
-anfGen symGen sreftGen = \i -> do
-  sym <- unAnfSymbol <$> symGen i
-  sreft <- sreftGen i
-  pure $ (sym, sreft)
-
-finalAnfGen :: (Int -> Gen [(Symbol, SortedReft)]) -> Int -> Gen [(Symbol, SortedReft)]
-finalAnfGen anfsGen = \i -> do
-  anfs <- anfsGen i
-  case anfs of
-    [] -> pure []
-    ((penultimateSym, _):_) -> do
-      ultimateAnf <- do
+      arbs n = vectorOf n ((,) <$> arbitrary <*> arbitrary)
+      anfsGen n = fmap (\(a, b) -> (unAnfSymbol a, b)) <$> arbs n
+      gen = finalAnfGen anfsGen finalFlatGen
+      finalFlatGen :: [(Symbol, SortedReft)] -> Gen (Symbol, SortedReft)
+      -- This creates a final symbol which is either the conjunction or
+      -- disjunction of all the anf symbols.
+      finalFlatGen anfs = do
+        conjOrDisj <- oneof $ pure <$> [T.PAnd, T.POr]
+        let ultimateAnfExpr = conjOrDisj $ EVar . fst <$> anfs
         sym <- arbitrary
-        (,) <$> arbitrary {- symbol -} <*> (
-          RR <$> arbitrary {- sort -} <*> (
-            pure $ reft sym (PAtom Eq (EVar sym) (EVar penultimateSym))))
-      pure $ ultimateAnf : anfs
+        ultimateAnfSym <- arbitrary
+        sort <- arbitrary
+        pure $ (sym, RR sort $ reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr))
+
+-- | Given a generator for a bunch of (Symbol, SortedReft) pairs which bind
+-- lq_anf$ vars, and another generator that takes those pairs and binds a
+-- non-lq_anf$ var to some subset of them, this function generates those pairs
+-- plus the "final" non-lq_anf$ expression, which represents the "original"
+-- expression brought to ANF.
+finalAnfGen :: (Int -> Gen [(Symbol, SortedReft)]) -> ([(Symbol, SortedReft)] -> Gen (Symbol, SortedReft)) -> Int -> Gen [(Symbol, SortedReft)]
+finalAnfGen anfsGen finalGen = \n -> do
+  anfs <- anfsGen n
+  ultimateAnf <- finalGen anfs
+  pure $ ultimateAnf : anfs
 
 -- | Create an arbitrary env up to size k with the given generator for Symbols
 -- and SortedRefts
-arbitraryEnv :: Int -> (Int -> Gen [(Symbol, SortedReft)]) -> Gen Env
-arbitraryEnv k gen = Env . M.fromList <$> (choose (0, k) >>= gen)
+arbitraryEnv :: (Int -> Gen [(Symbol, SortedReft)]) -> Int -> Gen Env
+arbitraryEnv gen = \k -> Env . M.fromList <$> (choose (0, k) >>= gen)
 
 -- | Env with anf vars that form a list of references.
 newtype ChainedAnfEnv = ChainedAnfEnv { unChainedAnfEnv :: Env }
   deriving (Eq, Show, Generic)
 instance Arbitrary ChainedAnfEnv where
-  arbitrary = ChainedAnfEnv <$> (arbitraryEnv 8 gen)
+  arbitrary = ChainedAnfEnv <$> (arbitraryEnv gen 4)
     where
-      gen = finalAnfGen $ chainedAnfGen anfSymNGen
+      gen = finalAnfGen (chainedAnfGen anfSymNGen) finalChainedGen
+      finalChainedGen :: [(Symbol, SortedReft)] -> Gen (Symbol, SortedReft)
+      finalChainedGen anfs =
+        case anfs of
+          -- No ANFs, so just an arbitrary expression will do
+          [] -> arbitrary
+          ((penultimateSym, _):_) -> do
+            sym <- arbitrary
+            (,) <$> arbitrary {- symbol -} <*> (
+              RR <$> arbitrary {- sort -} <*> (
+                pure $ reft sym (PAtom Eq (EVar sym) (EVar penultimateSym))))
 
+-- | Creates a "chain" of referencing `lq_anf$` var Symbols of length `n` such
+-- that the first symbol references the second which references the third, and
+-- so on.  The last symbol is bound to an arbitrary non-lq_anf$ var.
+--
+-- This list is in an acceptable form to be passed to `finalAnfGen` to close the
+-- loop.
 chainedAnfGen :: (Int -> Gen AnfSymbol) -> Int -> Gen [(Symbol, SortedReft)]
-chainedAnfGen symGen = \i -> do
-  syms <- fmap unAnfSymbol <$> (for [0..i] symGen)
+chainedAnfGen _ 0 = pure []
+chainedAnfGen symGen n = do
+  syms <- fmap unAnfSymbol <$> (for [1..n+1] symGen)
+  finalSym <- arbitrary
   let symPairs :: [(Symbol, Symbol)]
-      symPairs = pairs syms
-      anfPairs :: Gen [(Symbol, SortedReft)]
-      anfPairs = traverse (\(sym, prevSym) -> do
-                              otherSym <- arbitrary
-                              (sym,) <$> (RR <$> arbitrary <*> (reft otherSym <$> (PAtom Eq (EVar otherSym) <$> (arbitraryExprInvolving prevSym i))))) symPairs
-  anfPairs
+      symPairs = pairs syms ++ [(last syms, finalSym)]
+  for symPairs $ \(sym, prevSym) -> do
+    otherSym <- arbitrary
+    sort <- arbitrary
+    prevSymExpr <- arbitraryExprInvolving prevSym n
+    pure (sym, RR sort (reft otherSym (PAtom Eq (EVar otherSym) prevSymExpr)))
   where
     pairs xs = zip xs (tail xs)
 
