@@ -129,7 +129,6 @@ arbitraryExprInvolving sym = arbitraryFiniteExpr . pure $ EVar sym
 
 instance Arbitrary KVar where
   arbitrary = KV <$> arbitrary
-  shrink (KV s) = KV <$> genericShrink s
 
 -- NOTE: This dummy Arbitrary instance returns a constant GradInfo.
 instance Arbitrary GradInfo where
@@ -165,17 +164,18 @@ instance Arbitrary Bop where
   arbitrary = oneof (map return [Plus, Minus, Times, Div, Mod])
 
 instance Arbitrary SymConst where
-  arbitrary = SL <$> arbitrary
+  arbitrary = SL . unShortLowercaseAlphabeticText <$> arbitrary
 
 -- | Note that we rely below on the property that the Arbitrary instance for
 -- Symbol cannot create lq_anf$ vars.
 instance Arbitrary Symbol where
-  arbitrary = (symbol :: Text.Text -> Symbol) <$> arbitrary
+  arbitrary = (symbol :: Text.Text -> Symbol) . unShortLowercaseAlphabeticText <$> arbitrary
 
--- | This instances is assumed to only produce Text containing lowercase
--- letters.
-instance Arbitrary Text.Text where
-  arbitrary = choose (5, 12) >>= \n -> Text.pack <$> (vectorOf n char `suchThat` valid)
+newtype ShortLowercaseAlphabeticText = ShortLowercaseAlphabeticText { unShortLowercaseAlphabeticText :: Text.Text }
+  deriving (Eq, Show, Generic)
+
+instance Arbitrary ShortLowercaseAlphabeticText where
+  arbitrary = ShortLowercaseAlphabeticText <$> (choose (5, 12) >>= \n -> Text.pack <$> (vectorOf n char `suchThat` valid))
     where
       char = elements ['a'..'z']
       valid x = isNotReserved x && not (isFixKey (Text.pack x))
@@ -183,15 +183,14 @@ instance Arbitrary Text.Text where
 instance Arbitrary FTycon where
   arbitrary = do
     c <- elements ['A'..'Z']
-    t <- arbitrary
+    t <- unShortLowercaseAlphabeticText <$> arbitrary
     return $ symbolFTycon $ dummyLoc $ symbol $ c `Text.cons` t
 
 instance Arbitrary Constant where
   arbitrary = oneof [ I <$> arbitrary `suchThat` (>= 0) -- Negative values use `ENeg`
                     , R <$> arbitrary `suchThat` (>= 0) -- Negative values use `ENeg`
-                    , L <$> arbitrary <*> arbitrary
+                    , L . unShortLowercaseAlphabeticText <$> arbitrary <*> arbitrary
                     ]
-  shrink = genericShrink
 
 -- | Used in UndoANFTests.
 newtype AnfSymbol = AnfSymbol { unAnfSymbol :: Symbol }
