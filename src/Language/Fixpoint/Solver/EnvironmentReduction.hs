@@ -580,11 +580,12 @@ substBindingsSimplifyingWith
 substBindingsSimplifyingWith simplifier vLens p env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (vLens %~ inlineInSortedReftSimplifyingWith simplifier (srLookup filteredEnv)) env
+    let env' = HashMap.map (vLens %~ sortedReftSimplifier . inlineInSortedReft (srLookup filteredEnv)) env
         filteredEnv = HashMap.filterWithKey (\sym _v -> p sym) env'
      in env'
   where
     srLookup env' sym = view vLens <$> HashMap.lookup sym env'
+    sortedReftSimplifier (RR s r) = RR s (reft (reftBind r) (simplifier (reftPred r)))
 
 substBindings
   :: Lens' v SortedReft
@@ -624,24 +625,17 @@ undoANFOnlyModified env =
       | otherwise = Nothing
 
 -- | Inlines bindings in env in the given 'SortedReft'.
-inlineInSortedReftSimplifyingWith
-  :: (Expr -> Expr)
-  -> (Symbol -> Maybe SortedReft)
-  -> SortedReft
-  -> SortedReft
-inlineInSortedReftSimplifyingWith simplifier srLookup sr =
-    let reft = sr_reft sr
-     in sr { sr_reft = mapPredReft (inlineInExprSimplifyingWith simplifier (filterBind (reftBind reft) srLookup)) reft }
-  where
-    filterBind b srLookup sym = do
-      guard (sym /= b)
-      srLookup sym
-
 inlineInSortedReft
   :: (Symbol -> Maybe SortedReft)
   -> SortedReft
   -> SortedReft
-inlineInSortedReft = inlineInSortedReftSimplifyingWith simplify
+inlineInSortedReft srLookup sr =
+    let reft = sr_reft sr
+     in sr { sr_reft = mapPredReft (inlineInExpr (filterBind (reftBind reft) srLookup)) reft }
+  where
+    filterBind b srLookup sym = do
+      guard (sym /= b)
+      srLookup sym
 
 -- | Inlines bindings given by @srLookup@ in the given expression
 -- if they appear in equalities.
@@ -656,8 +650,8 @@ inlineInSortedReft = inlineInSortedReftSimplifyingWith simplify
 -- Given a binding like @a : { v | v = e1 }@ and an expression @... a ...@,
 -- this function produces the expression @... e1 ...@ if @v@ does not
 -- appear free in @e1@.
-inlineInExprSimplifyingWith :: (Expr -> Expr) -> (Symbol -> Maybe SortedReft) -> Expr -> Expr
-inlineInExprSimplifyingWith simplifier srLookup = simplifier . mapExprOnExpr inlineExpr
+inlineInExpr :: (Symbol -> Maybe SortedReft) -> Expr -> Expr
+inlineInExpr srLookup = simplify . mapExprOnExpr inlineExpr
   where
     inlineExpr (EVar sym)
       | Just sr <- srLookup sym
@@ -691,9 +685,6 @@ inlineInExprSimplifyingWith simplifier srLookup = simplifier . mapExprOnExpr inl
     wrapWithCoercion br to e = case exprSort_maybe e of
       Just from -> if from /= to then ECoerc from to e else e
       Nothing -> if br == Ueq then ECst e to else e
-
-inlineInExpr :: (Symbol -> Maybe SortedReft) -> Expr -> Expr
-inlineInExpr = inlineInExprSimplifyingWith simplify
 
 dropECst :: Expr -> Expr
 dropECst = \case
