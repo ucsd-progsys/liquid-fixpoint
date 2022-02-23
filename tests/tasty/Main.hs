@@ -6,6 +6,7 @@ import qualified ParserTests
 import qualified ShareMapTests
 import qualified SimplifyTests
 import qualified InterpretTests
+import qualified UndoANFTests
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -15,4 +16,5 @@ main = defaultMain $ testGroup "Tests"
   , ShareMapTests.tests
   , SimplifyTests.tests
   , InterpretTests.tests
+  , UndoANFTests.tests
   ]
