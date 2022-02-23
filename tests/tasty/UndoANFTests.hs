@@ -9,7 +9,7 @@ import Language.Fixpoint.Solver.EnvironmentReduction (undoANFSimplifyingWith)
 import qualified Language.Fixpoint.Types.Visitor as Visitor
 import Arbitrary
 import qualified Data.HashMap.Strict as M
-import Test.Tasty (TestTree, testGroup, localOption)
+import Test.Tasty (TestTree, testGroup, adjustOption, localOption)
 import Test.Tasty.HUnit ((@?=))
 import qualified Test.Tasty.HUnit as H
 import Test.Tasty.QuickCheck ((===))
@@ -36,7 +36,8 @@ tests =
           ]
       ]
   where
-    withOptions = localOption (Q.QuickCheckMaxSize 8) . localOption (Q.QuickCheckTests 500)
+    withOptions = localOption (Q.QuickCheckMaxSize 8) -- localOption because default value is larger than 8.
+                  . adjustOption (max (Q.QuickCheckTests 500)) -- adjustOption . max because we may want larger on the command line.
 
 -- | 5 seconds (in microseconds).
 timeout :: Int

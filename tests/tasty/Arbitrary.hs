@@ -295,7 +295,7 @@ chainedAnfGen symGen n = do
   syms <- fmap unAnfSymbol <$> (for [1..n+1] symGen)
   finalSym <- arbitrary
   let symPairs :: [(Symbol, Symbol)]
-      symPairs = pairs syms ++ [(last syms, finalSym)]
+      symPairs = pairs (syms ++ [finalSym])
   for symPairs $ \(sym, prevSym) -> do
     otherSym <- arbitrary
     sort <- arbitrary
