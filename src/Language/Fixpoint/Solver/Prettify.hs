@@ -20,7 +20,6 @@ import           Language.Fixpoint.Solver.EnvironmentReduction
   , inlineInSortedReft
   , mergeDuplicatedBindings
   , simplifyBooleanRefts
-  , mkSortedReftSimplifier
   , undoANFAndVV
   )
 import           Language.Fixpoint.Types.Config (Config, queryFile)
@@ -86,8 +85,8 @@ prettyConstraint bindEnv c =
       undoANFEnv = undoANFAndVV mergedEnv
       boolSimplEnv = HashMap.map snd $ simplifyBooleanRefts undoANFEnv
 
-      simplifiedLhs = sortedReftSimplify $ inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (slhs c)
-      simplifiedRhs = sortedReftSimplify $ inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (srhs c)
+      simplifiedLhs = simplify $ inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (slhs c)
+      simplifiedRhs = simplify $ inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (srhs c)
 
       prunedEnv =
         dropLikelyIrrelevantBindings
@@ -113,8 +112,6 @@ prettyConstraint bindEnv c =
       ]
 
     elidedMessage = "// elided some likely irrelevant bindings"
-
-    sortedReftSimplify = mkSortedReftSimplifier simplify
 
     constraintSymbols sr0 sr1 =
       HashSet.union (sortedReftSymbols sr0) (sortedReftSymbols sr1)

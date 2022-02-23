@@ -18,8 +18,6 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   , undoANF
   , undoANFAndVV
 
-  , mkSortedReftSimplifier
-
   -- for use in tests
   , undoANFSimplifyingWith
   ) where
