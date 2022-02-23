@@ -149,7 +149,7 @@ arbitrarySort 0 = oneof (pure <$> [FInt, FReal, FNum, FFrac])
 arbitrarySort n = frequency
   [ (1, FObj <$> arbitrary)
   , (1, FVar <$> arbitrary)
-  -- , (1, FFunc <$> arbitrarySort' <*> arbitrarySort')
+  , (1, FFunc <$> arbitrarySort' <*> arbitrarySort')
   , (1, FAbs <$> arbitrary <*> arbitrarySort')
   , (1, FTC <$> arbitrary)
   , (1, FApp <$> arbitrarySort' <*> arbitrarySort')
@@ -204,15 +204,21 @@ instance Arbitrary Reft where
 
 -- | This instance does **not** create SortedRefts with anf symbols.
 instance Arbitrary SortedReft where
-  arbitrary = arbitrarySortedReft (const arbitrary) 1
+  arbitrary = sized $ arbitrarySortedReft (const arbitrary) (const arbitrary)
 
-arbitrarySortedReft :: (Int -> Gen Symbol) -> Int -> Gen SortedReft
-arbitrarySortedReft symGen = \n -> do
-  sort <- arbitrary
+arbitrarySortedReft :: (Int -> Gen Sort) -> (Int -> Gen Symbol) -> Int -> Gen SortedReft
+arbitrarySortedReft sortGen symGen = \n -> do
+  sort <- sortGen n
   eq <- arbitraryEqualityConstraint
   sym <- symGen n
   expr <- arbitrary
   pure $ RR sort $ reft sym (PAtom eq (EVar sym) expr)
+
+newtype IntSortedReft = IntSortedReft { unIntSortedReft :: SortedReft }
+  deriving (Eq, Show)
+
+instance Arbitrary IntSortedReft where
+  arbitrary = sized $ fmap IntSortedReft . arbitrarySortedReft (const . pure $ FInt) (const arbitrary)
 
 -- | Base environment with no declared properties; do not add an Arbitrary
 -- instance to this and instead use newtypes.
@@ -227,7 +233,7 @@ instance Arbitrary NoAnfEnv where
     where
       -- | Note that this relies on the property that the Arbitrary instance for
       -- Symbol cannot create lq_anf$ vars.
-      gen n = vectorOf n ((,) <$> arbitrary <*> arbitrary)
+      gen n = vectorOf n ((\a b -> (a, unIntSortedReft b)) <$> arbitrary <*> arbitrary)
 
 -- | Env with anf vars that do not reference further anf vars.
 newtype FlatAnfEnv = FlatAnfEnv { unFlatAnfEnv :: Env }
@@ -235,8 +241,7 @@ newtype FlatAnfEnv = FlatAnfEnv { unFlatAnfEnv :: Env }
 instance Arbitrary FlatAnfEnv where
   arbitrary = sized (fmap FlatAnfEnv . arbitraryEnv gen)
     where
-      arbs n = vectorOf n ((,) <$> arbitrary <*> arbitrary)
-      anfsGen n = fmap (\(a, b) -> (unAnfSymbol a, b)) <$> arbs n
+      anfsGen n = vectorOf n ((\a b -> (unAnfSymbol a, unIntSortedReft b)) <$> arbitrary <*> arbitrary)
       gen = finalAnfGen anfsGen finalFlatGen
       finalFlatGen :: [(Symbol, SortedReft)] -> Gen (Symbol, SortedReft)
       -- This creates a final symbol which is either the conjunction or
@@ -246,8 +251,7 @@ instance Arbitrary FlatAnfEnv where
         let ultimateAnfExpr = conjOrDisj $ EVar . fst <$> anfs
         sym <- arbitrary
         ultimateAnfSym <- arbitrary
-        sort <- arbitrary
-        pure $ (sym, RR sort $ reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr))
+        pure $ (sym, RR FInt (reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr)))
 
 -- | Given a generator for a bunch of (Symbol, SortedReft) pairs which bind
 -- lq_anf$ vars, and another generator that takes those pairs and binds a
@@ -275,13 +279,12 @@ instance Arbitrary ChainedAnfEnv where
       finalChainedGen :: [(Symbol, SortedReft)] -> Gen (Symbol, SortedReft)
       finalChainedGen anfs =
         case anfs of
-          -- No ANFs, so just an arbitrary expression will do
-          [] -> arbitrary
+          -- No ANFs, so just an arbitrary int sorted expression will do
+          [] -> fmap unIntSortedReft <$> arbitrary
           ((penultimateSym, _):_) -> do
             sym <- arbitrary
-            (,) <$> arbitrary {- symbol -} <*> (
-              RR <$> arbitrary {- sort -} <*> (
-                pure $ reft sym (PAtom Eq (EVar sym) (EVar penultimateSym))))
+            let sreft = RR FInt (reft sym (PAtom Eq (EVar sym) (EVar penultimateSym)))
+            (, sreft) <$> arbitrary
 
 -- | Creates a "chain" of referencing `lq_anf$` var Symbols of length `n` such
 -- that the first symbol references the second which references the third, and
@@ -298,9 +301,8 @@ chainedAnfGen symGen n = do
       symPairs = pairs (syms ++ [finalSym])
   for symPairs $ \(sym, prevSym) -> do
     otherSym <- arbitrary
-    sort <- arbitrary
     prevSymExpr <- arbitraryExprInvolving prevSym n
-    pure (sym, RR sort (reft otherSym (PAtom Eq (EVar otherSym) prevSymExpr)))
+    pure (sym, RR FInt (reft otherSym (PAtom Eq (EVar otherSym) prevSymExpr)))
   where
     pairs xs = zip xs (tail xs)
 
