@@ -36,7 +36,7 @@ tests =
           ]
       ]
   where
-    withOptions = localOption (Q.QuickCheckMaxSize 8) -- localOption because default value is larger than 8.
+    withOptions = adjustOption (min (Q.QuickCheckMaxSize 8))   -- adjustOption . min because we don't want to default to the enormous value.
                   . adjustOption (max (Q.QuickCheckTests 500)) -- adjustOption . max because we may want larger on the command line.
 
 -- | 5 seconds (in microseconds).
