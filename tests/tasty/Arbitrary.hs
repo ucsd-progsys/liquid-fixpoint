@@ -227,7 +227,7 @@ instance Arbitrary NoAnfEnv where
     where
       -- | Note that this relies on the property that the Arbitrary instance for
       -- Symbol cannot create lq_anf$ vars.
-      gen _ = (\a b -> [(a, b)]) <$> arbitrary <*> arbitrary
+      gen n = vectorOf n ((,) <$> arbitrary <*> arbitrary)
 
 -- | Env with anf vars that do not reference further anf vars.
 newtype FlatAnfEnv = FlatAnfEnv { unFlatAnfEnv :: Env }
