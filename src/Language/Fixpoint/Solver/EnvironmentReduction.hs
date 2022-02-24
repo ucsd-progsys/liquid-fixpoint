@@ -18,8 +18,6 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   , undoANF
   , undoANFAndVV
 
-  , mkSortedReftSimplifier
-
   -- for use in tests
   , undoANFSimplifyingWith
   ) where
@@ -574,7 +572,7 @@ mergeDuplicatedBindings xs =
 --
 -- Only works if the bindings don't form cycles.
 substBindingsSimplifyingWith
-  :: (Expr -> Expr)
+  :: (SortedReft -> SortedReft)
   -> Lens' v SortedReft
   -> (Symbol -> Bool)
   -> HashMap Symbol v
@@ -582,15 +580,11 @@ substBindingsSimplifyingWith
 substBindingsSimplifyingWith simplifier vLens p env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (vLens %~ sortedReftSimplifier . inlineInSortedReft (srLookup filteredEnv)) env
+    let env' = HashMap.map (vLens %~ simplifier . inlineInSortedReft (srLookup filteredEnv)) env
         filteredEnv = HashMap.filterWithKey (\sym _v -> p sym) env'
      in env'
   where
     srLookup env' sym = view vLens <$> HashMap.lookup sym env'
-    sortedReftSimplifier = mkSortedReftSimplifier simplifier
-
-mkSortedReftSimplifier :: (Expr -> Expr) -> SortedReft -> SortedReft
-mkSortedReftSimplifier simplifier (RR s r) = RR s (reft (reftBind r) (simplifier (reftPred r)))
 
 substBindings
   :: Lens' v SortedReft
@@ -603,7 +597,7 @@ substBindings = substBindingsSimplifyingWith simplify
 --
 -- Only bindings with prefix lq_anf$... might be inlined.
 --
-undoANFSimplifyingWith :: (Expr -> Expr) -> Lens' v SortedReft -> HashMap Symbol v -> HashMap Symbol v
+undoANFSimplifyingWith :: (SortedReft -> SortedReft) -> Lens' v SortedReft -> HashMap Symbol v -> HashMap Symbol v
 undoANFSimplifyingWith simplifier vLens = substBindingsSimplifyingWith simplifier vLens $ \sym -> anfPrefix `isPrefixOfSym` sym
 
 undoANF :: Lens' v SortedReft -> HashMap Symbol v -> HashMap Symbol v

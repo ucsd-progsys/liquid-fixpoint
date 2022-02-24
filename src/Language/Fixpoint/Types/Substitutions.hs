@@ -274,6 +274,7 @@ instance Fixpoint SortedReft where
   toFix (RR so (Reft (v, ra)))
     = braces
     $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> toFix (conjuncts ra)
+  simplify (RR so (Reft (v, ra))) = RR (simplify so) (Reft (simplify v, simplify ra))
 
 instance Show Reft where
   show = showFix
