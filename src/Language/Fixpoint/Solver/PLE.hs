@@ -447,7 +447,8 @@ type EvAccum = S.HashSet (Expr, Expr)
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
-  , evAccum    :: EvAccum
+  , evAccum    :: EvAccum -- ^ A cache of equalities between expressions that are
+                          -- known to hold.
   , evFuel     :: FuelCount
 
   -- REST parameters
