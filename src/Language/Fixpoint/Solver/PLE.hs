@@ -478,9 +478,8 @@ getAutoRws γ ctx =
 
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Int -> Expr -> IO (EvAccum, FuelCount)
 evalOne γ env ctx i e | i > 0 || null (getAutoRws γ ctx) = do
-    ((e', _), st) <- runStateT (eval γ ctx NoRW e) (env { evFuel = icFuel ctx })
-    let evAcc' = if mytracepp ("evalOne: " ++ showpp e) e' == e then evAccum st else S.insert (e, e') (evAccum st)
-    return (evAcc', evFuel st)
+    st <- execStateT (eval γ ctx NoRW e) (env { evFuel = icFuel ctx })
+    return (evAccum st, evFuel st)
 evalOne γ env ctx _ e = do
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
