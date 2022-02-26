@@ -243,13 +243,12 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                   let env' = env { evAccum = icEquals ictx <> evAccum env
                                  , evFuel  = icFuel   ictx
                                  }
-                  (ictx', evalResults)  <- do
+                  (ictx', env'')  <- do
                                SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
                                let ictx' = ictx { icAssms = mempty }
-                               foldM (evalOneCandStep γ env' i) (ictx', []) (S.toList cands)
-                               -- foldM (\ictx e -> undefined)
-                               -- mapM (evalOne γ env' ictx) (S.toList cands)
-                  let us = mconcat evalResults
+                               env'' <- execStateT (mapM_ (evalOne γ ictx' i) (S.toList cands)) env'
+                               return (ictx' { icFuel = evFuel env'' }, env'')
+                  let us = evAccum env''
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx
                         else do  let oks      = fst `S.map` us
@@ -260,11 +259,6 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                                                       , icAssms  = S.filter (not . isTautoPred) eqsSMT }
                                  let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` us)))
                                  go (ictx'' { icCands = S.fromList newcands}) (i + 1)
-
-evalOneCandStep :: Knowledge -> EvalEnv -> Int -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
-evalOneCandStep γ env' i (ictx, acc) e = do
-  (res, fm) <- evalOne γ env' ictx i e
-  return (ictx { icFuel = fm}, res : acc)
 
 rewrite :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)]
 rewrite e rwEnv = concatMap (`rewriteTop` rwEnv) (notGuardedApps e)
@@ -476,20 +470,16 @@ getAutoRws γ ctx =
     cid <- icSubcId ctx
     M.lookup cid $ knAutoRWs γ
 
-evalOne :: Knowledge -> EvalEnv -> ICtx -> Int -> Expr -> IO (EvAccum, FuelCount)
-evalOne γ env ctx i e | i > 0 || null (getAutoRws γ ctx) = do
-    st <- execStateT (eval γ ctx NoRW e) (env { evFuel = icFuel ctx })
-    return (evAccum st, evFuel st)
-evalOne γ env ctx _ e = do
-  env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
-  return (evAccum env', evFuel env')
-  where
-    oc :: OCAlgebra OCType Expr IO
-    oc = ordConstraints (restOCA env) (Mb.fromJust $ restSolver env)
-
-    rp = RP oc [(e, PLE)] constraints
-    constraints = OC.top oc
-
+evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST ()
+evalOne γ ctx i e
+  | i > 0 || null (getAutoRws γ ctx) = void $ eval γ ctx NoRW e
+evalOne γ ctx _ e = do
+    env <- get
+    let oc :: OCAlgebra OCType Expr IO
+        oc = ordConstraints (restOCA env) (Mb.fromJust $ restSolver env)
+        rp = RP oc [(e, PLE)] constraints
+        constraints = OC.top oc
+    void $ evalREST γ ctx rp
 
 -- | @notGuardedApps e@ yields all the subexpressions that are
 -- applications not under an if-then-else, lambda abstraction, type abstraction,
