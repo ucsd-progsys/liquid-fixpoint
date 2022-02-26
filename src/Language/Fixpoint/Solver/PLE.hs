@@ -127,7 +127,7 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) et restSolver restOC
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty (defFuelCount cfg) et restSolver restOC
     et                = fmap makeET restSolver
     makeET solver     =
       let
@@ -248,7 +248,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                                let ictx' = ictx { icAssms = mempty }
                                env'' <- execStateT (mapM_ (evalOne γ ictx' i) (S.toList cands)) env'
                                return (ictx' { icFuel = evFuel env'' }, env'')
-                  let us = evAccum env''
+                  let us = evNewEqualities env''
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx
                         else do  let oks      = fst `S.map` us
@@ -443,6 +443,8 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum -- ^ A cache of equalities between expressions that are
                           -- known to hold.
+  , evNewEqualities :: EvAccum -- ^ Equalities discovered during a traversal of
+                               -- an expression
   , evFuel     :: FuelCount
 
   -- REST parameters
@@ -617,7 +619,10 @@ eval γ ctx et e =
             then
               case et of
                 NoRW -> do
-                  modify (\st -> st { evAccum = S.insert (traceE (e, e')) (evAccum st) })
+                  modify (\st -> st
+                    { evAccum = S.insert (traceE (e, e')) (evAccum st)
+                    , evNewEqualities = S.insert (e, e') (evNewEqualities st)
+                    })
                   (e'',  fe') <- eval γ (addConst (e,e') ctx) et e'
                   return (e'', fe <|> fe')
                 _ -> return (e', fe)
@@ -706,7 +711,10 @@ evalREST _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
   , Just v    <- M.lookup e (icSimpl ctx)
-  = when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
+  = when (v /= e) $ modify (\st -> st
+      { evAccum = S.insert (e, v) (evAccum st)
+      , evNewEqualities = S.insert (e, v) (evNewEqualities st)
+      })
 
 evalREST γ ctx rp =
   do
@@ -729,6 +737,7 @@ evalREST γ ctx rp =
       modify (\st ->
                 st {
                   evAccum  = S.union evAccum' (evAccum st)
+                , evNewEqualities  = S.union evAccum' (evNewEqualities st)
                 , explored = Just $ ExploredTerms.insert
                   (Rewrite.convert e)
                   (c rp)
