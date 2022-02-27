@@ -239,7 +239,11 @@ evalCandsLoop cfg ictx0 ctx γ env0 =
       in
         exprs <> S.fromList (concat rws)
     go ictx _ | S.null (icCands ictx) = return ictx
-    go ictx i =  do
+    go ictx i = do
+      inconsistentEnv <- testForInconsistentEnvironment
+      if inconsistentEnv
+        then return ictx
+        else do
                   let cands = icCands ictx
                   liftIO $ SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
                   let ictx' = ictx { icAssms = mempty }
@@ -256,6 +260,9 @@ evalCandsLoop cfg ictx0 ctx γ env0 =
                                                       , icAssms  = S.filter (not . isTautoPred) eqsSMT }
                                  let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` us)))
                                  go (ictx'' { icCands = S.fromList newcands}) (i + 1)
+
+    testForInconsistentEnvironment =
+      liftIO $ knPreds γ (knContext γ) (knLams γ) PFalse
 
 rewrite :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)]
 rewrite e rwEnv = concatMap (`rewriteTop` rwEnv) (notGuardedApps e)
@@ -929,11 +936,7 @@ data Knowledge = KN
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
-isValid γ e = do
-  contra <- knPreds γ (knContext γ) (knLams γ) PFalse
-  if contra
-    then return False
-    else knPreds γ (knContext γ) (knLams γ) e
+isValid γ e = knPreds γ (knContext γ) (knLams γ) e
 
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN
