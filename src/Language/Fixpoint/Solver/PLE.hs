@@ -127,7 +127,7 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty (defFuelCount cfg) et restSolver restOC
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty mempty (defFuelCount cfg) et restSolver restOC
     et                = fmap makeET restSolver
     makeET solver     =
       let
@@ -447,6 +447,7 @@ data EvalEnv = EvalEnv
                           -- known to hold.
   , evNewEqualities :: EvAccum -- ^ Equalities discovered during a traversal of
                                -- an expression
+  , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
 
   -- REST parameters
@@ -835,12 +836,11 @@ evalApp γ ctx (EVar f) es et
   where
     shortcut (EIte i e1 e2) es2 = do
       (b, _) <- eval γ ctx et i
-      b'  <- liftIO (mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValid γ b)
-      nb' <- liftIO (mytracepp ("evalEIt NEG " ++ showpp (i, PNot b)) <$> isValid γ (PNot b))
-      if b'
-        then shortcut e1 es2
-        else if nb' then shortcut e2 es2
-        else return (eApps (EIte b e1 e2) es2, expand)
+      b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
+      case b' of
+        Just True -> shortcut e1 es2
+        Just False -> shortcut e2 es2
+        _ -> return (eApps (EIte b e1 e2) es2, expand)
     shortcut e' es2 = return (eApps e' es2, noExpand)
 
 evalApp γ _ (EVar f) (e:es) _
@@ -896,12 +896,35 @@ eqArgNames = map fst . eqArgs
 -- | Evaluate a boolean expression.
 evalBool :: Knowledge -> Expr -> EvalST (Maybe Expr)
 evalBool γ e = do
-  bt <- liftIO $ isValid γ e
-  if bt then return $ Just PTrue
-   else do
-    bf <- liftIO $ isValid γ (PNot e)
-    if bf then return $ Just PFalse
-          else return Nothing
+  bt <- isValidCached γ e
+  case bt of
+    Just True -> return $ Just PTrue
+    Just False -> return $ Just PFalse
+    _ -> return Nothing
+
+isValidCached :: Knowledge -> Expr -> EvalST (Maybe Bool)
+isValidCached γ e = do
+  env <- get
+  case M.lookup e (evSMTCache env) of
+    Nothing -> do
+      let isFreeInE (s, _) = not (S.member s (exprSymbolsSet e))
+      b <- liftIO $ knPreds γ (knContext γ) (knLams γ) e
+      if b
+        then do
+          when (all isFreeInE (knLams γ)) $
+            put (env { evSMTCache = M.insert e True (evSMTCache env) })
+          return (Just True)
+        else do
+          b2 <- liftIO $ knPreds γ (knContext γ) (knLams γ) (PNot e)
+          if b2
+            then do
+              when (all isFreeInE (knLams γ)) $
+                put (env { evSMTCache = M.insert e False (evSMTCache env) })
+              return (Just False)
+            else
+              return Nothing
+
+    mb -> return mb
 
 -- | Evaluate @if b then e1 else e2@.
 --
@@ -910,12 +933,11 @@ evalBool γ e = do
 evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> Expr -> Expr -> EvalST (Expr, FinalExpand)
 evalIte γ ctx et b0 e1 e2 = do
   (b, fe) <- eval γ ctx et b0
-  b'  <- liftIO (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
-  nb' <- liftIO (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
-  if b'
-    then return (e1, noExpand)
-    else if nb' then return (e2, noExpand)
-    else return (EIte b e1 e2, fe)
+  b'  <- mytracepp ("evalEIt POS " ++ showpp b) <$> isValidCached γ b
+  case b' of
+    Just True -> return (e1, noExpand)
+    Just False -> return (e2, noExpand)
+    _ -> return (EIte b e1 e2, fe)
 
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
