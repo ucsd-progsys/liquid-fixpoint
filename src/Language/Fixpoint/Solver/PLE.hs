@@ -164,7 +164,7 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where
     diff0        = []
     res0         = M.empty
-    ctx0         = initCtx env ((mkEq <$> es0) ++ (mkEq' <$> es0'))
+    ctx0         = initCtx ((mkEq <$> es0) ++ (mkEq' <$> es0'))
     es0          = L.filter (null . eqArgs) (aenvEqs   . ieAenv $ env)
     es0'         = L.filter (null . smArgs) (aenvSimpl . ieAenv $ env)
     mkEq  eq     = (EVar $ eqName eq, eqBody eq)
@@ -230,7 +230,8 @@ evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
 evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
 
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx
-evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
+evalCandsLoop cfg ictx0 ctx γ env0 =
+    evalStateT (go ictx0 0) env0 { evAccum = icEquals ictx0 <> evAccum env0 }
   where
     withRewrites exprs =
       let
@@ -240,15 +241,11 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
     go ictx _ | S.null (icCands ictx) = return ictx
     go ictx i =  do
                   let cands = icCands ictx
-                  let env' = env { evAccum = icEquals ictx <> evAccum env
-                                 , evFuel  = icFuel   ictx
-                                 }
-                  (ictx', env'')  <- do
-                               SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
-                               let ictx' = ictx { icAssms = mempty }
-                               env'' <- execStateT (mapM_ (evalOne γ ictx' i) (S.toList cands)) env'
-                               return (ictx' { icFuel = evFuel env'' }, env'')
-                  let us = evNewEqualities env''
+                  liftIO $ SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
+                  let ictx' = ictx { icAssms = mempty }
+                  mapM_ (evalOne γ ictx' i) (S.toList cands)
+                  us <- gets evNewEqualities
+                  modify $ \st -> st { evNewEqualities = mempty }
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx
                         else do  let oks      = fst `S.map` us
@@ -309,7 +306,6 @@ data ICtx    = ICtx
   , icSolved   :: S.HashSet Expr            -- ^ Terms that we have already expanded
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
-  , icFuel     :: !FuelCount                -- ^ Current fuel-count
   , icANFs     :: [[(Symbol, SortedReft)]]  -- Hopefully contain only ANF things
   }
 
@@ -329,15 +325,14 @@ type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
 
-initCtx :: InstEnv a -> [(Expr,Expr)] -> ICtx
-initCtx env es   = ICtx
+initCtx :: [(Expr,Expr)] -> ICtx
+initCtx es   = ICtx
   { icAssms  = mempty
   , icCands  = mempty
   , icEquals = S.fromList es
   , icSolved = mempty
   , icSimpl  = mempty
   , icSubcId = Nothing
-  , icFuel   = evFuel (ieEvEnv env)
   , icANFs   = []
   }
 
@@ -481,7 +476,9 @@ evalOne γ ctx _ e = do
         oc = ordConstraints (restOCA env) (Mb.fromJust $ restSolver env)
         rp = RP oc [(e, PLE)] constraints
         constraints = OC.top oc
-    void $ evalREST γ ctx rp
+        emptyET = ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc)) ExploreWhenNeeded
+    evalREST γ ctx rp
+    modify $ \st -> st { explored = Just emptyET }
 
 -- | @notGuardedApps e@ yields all the subexpressions that are
 -- applications not under an if-then-else, lambda abstraction, type abstraction,
