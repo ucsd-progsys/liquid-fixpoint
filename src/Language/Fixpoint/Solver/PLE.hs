@@ -211,16 +211,16 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
-ple1 (InstEnv {..}) ctx i res =
-  updCtxRes res i <$> evalCandsLoop ieCfg ctx ieSMT ieKnowl ieEvEnv
-
+ple1 (InstEnv {..}) ctx i res = do
+  let env = ieEvEnv { evAccum = M.fromList (S.toList (icEquals ctx)) <> evAccum ieEvEnv }
+  ctx <- evalStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) env
+  return (ctx, updCtxRes res i ctx)
 
 evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
 evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
 
-evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx
-evalCandsLoop cfg ictx0 ctx γ env0 =
-    evalStateT (go ictx0 0) env0 { evAccum = M.fromList (S.toList (icEquals ictx0)) <> evAccum env0 }
+evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalST ICtx
+evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
   where
     withRewrites exprs =
       let
@@ -335,10 +335,9 @@ initCtx es   = ICtx
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- S.toList eqs, e1 /= e2 ]
 
-updCtxRes :: InstRes -> Maybe BindId -> ICtx -> (ICtx, InstRes)
-updCtxRes res iMb ctx = (ctx, res')
-  where
-    res' = updRes res iMb (pAnd $ equalitiesPred $ icEquals ctx)
+updCtxRes :: InstRes -> Maybe BindId -> ICtx -> InstRes
+updCtxRes res iMb ctx =
+  updRes res iMb $ pAnd $ equalitiesPred $ icEquals ctx
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
