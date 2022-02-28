@@ -240,15 +240,16 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
                   mapM_ (evalOne γ ictx' i) (S.toList cands)
                   us <- gets evNewEqualities
                   modify $ \st -> st { evNewEqualities = mempty }
-                  if S.null (us `S.difference` icEquals ictx)
+                  let unknownEqs = us `S.difference` icEquals ictx
+                  if S.null unknownEqs
                         then return ictx
-                        else do  let oks      = fst `S.map` us
-                                 let us'      = withRewrites us
+                        else do  let oks      = fst `S.map` unknownEqs
+                                 let us'      = withRewrites unknownEqs
                                  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us'
                                  let ictx''   = ictx' { icSolved = icSolved ictx <> oks
                                                       , icEquals = icEquals ictx <> us'
                                                       , icAssms  = S.filter (not . isTautoPred) eqsSMT }
-                                 let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` us)))
+                                 let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` unknownEqs)))
                                  go (ictx'' { icCands = S.fromList newcands}) (i + 1)
 
     testForInconsistentEnvironment =
