@@ -174,8 +174,8 @@ loopT env ctx delta i res t = case t of
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
   T.Node bs  -> withAssms env ctx delta Nothing $ \env' ctx' -> do
-                  (ctx'', res') <- ple1 env' ctx' i res
-                  foldM (loopB env' ctx'' [] i) res' bs
+                  (ctx'', env'', res') <- ple1 env' ctx' i res
+                  foldM (loopB env'' ctx'' [] i) res' bs
 
 loopB
   :: InstEnv a
@@ -190,7 +190,7 @@ loopB env ctx delta iMb res b = case b of
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \env' ctx' -> do
                   progressTick
-                  snd <$> ple1 env' ctx' iMb res
+                  (\(_, _, r) -> r) <$> ple1 env' ctx' iMb res
 
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
@@ -212,10 +212,10 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
     act env' ctx' { icAssms = mempty }
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
-ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
-ple1 (InstEnv {..}) ctx i res = do
-  ctx <- evalStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
-  return (ctx, updCtxRes res i ctx)
+ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
+ple1 ie@InstEnv {..} ctx i res = do
+  (ctx, env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
+  return (ctx, ie { ieEvEnv = env }, updCtxRes res i ctx)
 
 evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
 evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
