@@ -61,22 +61,10 @@ import qualified Data.List            as L
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe           as Mb
-import           Debug.Trace          (trace)
 import           Text.PrettyPrint.HughesPJ.Compat
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
-
-traceE :: (Expr,Expr) -> (Expr,Expr)
-traceE (e,e')
-  | isEnabled
-  , e /= e'
-  = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e')
-  | otherwise
-  = (e,e')
-  where
-    isEnabled :: Bool
-    isEnabled = False
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE
@@ -232,7 +220,7 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx
 evalCandsLoop cfg ictx0 ctx γ env0 =
-    evalStateT (go ictx0 0) env0 { evAccum = icEquals ictx0 <> evAccum env0 }
+    evalStateT (go ictx0 0) env0 { evAccum = M.fromList (S.toList (icEquals ictx0)) <> evAccum env0 }
   where
     withRewrites exprs =
       let
@@ -444,8 +432,9 @@ type EvAccum = S.HashSet (Expr, Expr)
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
-  , evAccum    :: EvAccum -- ^ A cache of equalities between expressions that are
-                          -- known to hold.
+  -- | A cache of equalities between expressions that are
+  -- known to hold.
+  , evAccum    :: M.HashMap Expr Expr
   , evNewEqualities :: EvAccum -- ^ Equalities discovered during a traversal of
                                -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
@@ -614,8 +603,8 @@ eval _ ctx _ e
   = return (v, noExpand)
 
 eval γ ctx et e =
-  do acc <- gets (S.toList . evAccum)
-     case L.lookup e acc of
+  do acc <- gets evAccum
+     case M.lookup e acc of
         -- If rewriting, don't lookup, as evAccum may contain loops
         Just e' | null (getAutoRws γ ctx) -> eval γ ctx et e'
         _ -> do
@@ -626,7 +615,7 @@ eval γ ctx et e =
               case et of
                 NoRW -> do
                   modify (\st -> st
-                    { evAccum = S.insert (traceE (e, e')) (evAccum st)
+                    { evAccum = M.insert e e' (evAccum st)
                     , evNewEqualities = S.insert (e, e') (evNewEqualities st)
                     })
                   (e'',  fe') <- eval γ (addConst (e,e') ctx) et e'
@@ -727,7 +716,7 @@ evalRESTWithCache cacheRef _ ctx rp
   = do
     smtCache <- liftIO $ readIORef cacheRef
     when (v /= e) $ modify (\st -> st
-      { evAccum = S.insert (e, v) (evAccum st)
+      { evAccum = M.insert e v (evAccum st)
       , evNewEqualities = S.insert (e, v) (evNewEqualities st)
       , evSMTCache = smtCache
       })
@@ -748,13 +737,12 @@ evalRESTWithCache cacheRef γ ctx rp =
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
-      let evAccum'      = S.fromList $ map (e,) exprsToAdd
 
       smtCache <- liftIO $ readIORef cacheRef
       modify (\st ->
                 st {
-                  evAccum  = S.union evAccum' (evAccum st)
-                , evNewEqualities  = S.union evAccum' (evNewEqualities st)
+                  evAccum = foldr (M.insert e) (evAccum st) exprsToAdd
+                , evNewEqualities  = foldr (S.insert . (,) e) (evNewEqualities st) exprsToAdd
                 , evSMTCache = smtCache
                 , explored = Just $ ExploredTerms.insert
                   (Rewrite.convert e)
