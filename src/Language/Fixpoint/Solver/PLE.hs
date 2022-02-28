@@ -56,6 +56,7 @@ import           Data.Bifunctor (second)
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashMap.Lazy  as HashMap.Lazy
 import qualified Data.HashSet         as S
+import           Data.IORef
 import qualified Data.List            as L
 import           Data.Map (Map)
 import qualified Data.Map as Map
@@ -712,16 +713,26 @@ deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
 -- autorewrites.
 --
 evalREST :: Knowledge -> ICtx -> RESTParams OCType -> EvalST ()
-evalREST _ ctx rp
+evalREST γ ctx rp = do
+  env <- get
+  cacheRef <- liftIO $ newIORef $ evSMTCache env
+  evalRESTWithCache cacheRef γ ctx rp
+
+evalRESTWithCache
+  :: IORef (M.HashMap Expr Bool) -> Knowledge -> ICtx -> RESTParams OCType -> EvalST ()
+evalRESTWithCache cacheRef _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
   , Just v    <- M.lookup e (icSimpl ctx)
-  = when (v /= e) $ modify (\st -> st
+  = do
+    smtCache <- liftIO $ readIORef cacheRef
+    when (v /= e) $ modify (\st -> st
       { evAccum = S.insert (e, v) (evAccum st)
       , evNewEqualities = S.insert (e, v) (evNewEqualities st)
+      , evSMTCache = smtCache
       })
 
-evalREST γ ctx rp =
+evalRESTWithCache cacheRef γ ctx rp =
   do
     Just exploredTerms <- gets explored
     se <- liftIO (shouldExploreTerm exploredTerms e)
@@ -739,10 +750,12 @@ evalREST γ ctx rp =
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
       let evAccum'      = S.fromList $ map (e,) exprsToAdd
 
+      smtCache <- liftIO $ readIORef cacheRef
       modify (\st ->
                 st {
                   evAccum  = S.union evAccum' (evAccum st)
                 , evNewEqualities  = S.union evAccum' (evNewEqualities st)
+                , evSMTCache = smtCache
                 , explored = Just $ ExploredTerms.insert
                   (Rewrite.convert e)
                   (c rp)
@@ -753,9 +766,9 @@ evalREST γ ctx rp =
       when evalIsNewExpr $
         if fe && any isRW (path rp)
           then eval γ (addConst (e, e')) NoRW e' >> return ()
-          else evalREST γ (addConst (e, e')) (rpEval e')
+          else evalRESTWithCache cacheRef γ (addConst (e, e')) (rpEval e')
 
-      mapM_ (evalREST γ ctx . rpRW) rws
+      mapM_ (evalRESTWithCache cacheRef γ ctx . rpRW) rws
   where
     shouldExploreTerm exploredTerms e =
       case rwTerminationOpts rwArgs of
@@ -792,7 +805,7 @@ evalREST γ ctx rp =
     e               = last pathExprs
     autorws         = getAutoRws γ ctx
 
-    rwArgs = RWArgs (isValid γ) $ knRWTerminationOpts γ
+    rwArgs = RWArgs (isValid cacheRef γ) $ knRWTerminationOpts γ
 
     getRWs =
       do
@@ -957,8 +970,16 @@ data Knowledge = KN
   , knRWTerminationOpts :: RWTerminationOpts
   }
 
-isValid :: Knowledge -> Expr -> IO Bool
-isValid γ e = knPreds γ (knContext γ) (knLams γ) e
+isValid :: IORef (M.HashMap Expr Bool) -> Knowledge -> Expr -> IO Bool
+isValid cacheRef γ e = do
+    smtCache <- readIORef cacheRef
+    case M.lookup e smtCache of
+      Nothing -> do
+        b <- knPreds γ (knContext γ) (knLams γ) e
+        when b $
+          writeIORef cacheRef (M.insert e True smtCache)
+        return b
+      mb -> return (mb == Just True)
 
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN
