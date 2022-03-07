@@ -270,15 +270,15 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
     testForInconsistentEnvironment =
       liftIO $ knPreds γ (knContext γ) (knLams γ) PFalse
 
-rewrite :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)]
+rewrite :: Expr -> Map Symbol ([Rewrite], IsUserDataSMeasure) -> [(Expr,Expr)]
 rewrite e rwEnv = concatMap (`rewriteTop` rwEnv) (notGuardedApps e)
 
-rewriteTop :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)]
+rewriteTop :: Expr -> Map Symbol ([Rewrite], IsUserDataSMeasure) -> [(Expr,Expr)]
 rewriteTop e rwEnv =
   [ (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
   | (ef, es) <- [splitEAppThroughECst e]
   , EVar f <- [dropECst ef]
-  , Just rws <- [Map.lookup f rwEnv]
+  , Just (rws, NoUserDataSMeasure) <- [Map.lookup f rwEnv]
   , rw <- rws
   , length es == length (smArgs rw)
   ]
@@ -480,7 +480,6 @@ defFuelCount cfg = FC mempty (fuel cfg)
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
-
 
 getAutoRws :: Knowledge -> ICtx -> [AutoRewrite]
 getAutoRws γ ctx =
@@ -877,13 +876,16 @@ evalApp γ _ e0 args@(e:es) _
   | EVar f <- dropECst e0
   , (d, as) <- splitEAppThroughECst e
   , EVar dc <- dropECst d
-  , Just rws <- Map.lookup dc (knSims γ)
+  , Just (rws, isUserDataSMeasure) <- Map.lookup dc (knSims γ)
   , Just rw <- L.find (\rw -> smName rw == f) rws
   , length as == length (smArgs rw)
   = do
     let newE = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es
-    modify $ \st ->
-      st { evNewEqualities = S.insert (eApps e0 args, newE) (evNewEqualities st) }
+    when (isUserDataSMeasure == NoUserDataSMeasure) $
+      -- User data measures aren't sent to the SMT solver because
+      -- it knows already about selectors and constructor tests.
+      modify $ \st ->
+        st { evNewEqualities = S.insert (eApps e0 args, newE) (evNewEqualities st) }
     return (Just newE, noExpand)
 
 evalApp _ _ _e _es _
@@ -983,8 +985,12 @@ evalIte γ ctx et b0 e1 e2 = do
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
 data Knowledge = KN
-  { knSims              :: Map Symbol [Rewrite]   -- ^ Rewrites rules came from match and data type definitions
-                                                  --   They are grouped by the data constructor that they unfold
+  { -- | Rewrites rules came from match definitions
+    --
+    -- They are grouped by the data constructor that they unfold, and are
+    -- augmented with an attribute that say whether they originate from a
+    -- user data declaration.
+    knSims              :: Map Symbol ([Rewrite], IsUserDataSMeasure)
   , knAms               :: Map Symbol Equation -- ^ All function definitions
   , knContext           :: SMT.Context
   , knPreds             :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
@@ -996,6 +1002,11 @@ data Knowledge = KN
   , knAutoRWs           :: M.HashMap SubcId [AutoRewrite]
   , knRWTerminationOpts :: RWTerminationOpts
   }
+
+-- | A type to express whether SMeasures originate from data definitions.
+-- That is whether they are constructor tests, selectors, or something else.
+data IsUserDataSMeasure = NoUserDataSMeasure | UserDataSMeasure
+  deriving (Eq, Show)
 
 isValid :: IORef (M.HashMap Expr Bool) -> Knowledge -> Expr -> IO Bool
 isValid cacheRef γ e = do
@@ -1010,7 +1021,9 @@ isValid cacheRef γ e = do
 
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN
-  { knSims                     = Map.fromListWith (++) [ (smDC rw, [rw]) | rw <- sims]
+  { knSims                     = Map.fromListWith (\(rw0, dms) (rw1, _) -> (rw0 ++ rw1, dms)) $
+                                   [ (smDC rw, ([rw], NoUserDataSMeasure)) | rw <- sims ] ++
+                                   [ (smDC rw, ([rw], UserDataSMeasure)) | rw <- dataSims ]
   , knAms                      = Map.fromList [(eqName eq, eq) | eq <- aenvEqs aenv]
   , knContext                  = ctx
   , knPreds                    = askSMT  cfg
@@ -1028,7 +1041,11 @@ knowledge cfg ctx si = KN
       else RWTerminationCheckDisabled
   }
   where
-    sims = aenvSimpl aenv
+    (simDCTests, sims0) =
+      partitionUserDataConstructorTests (ddecls si) $ aenvSimpl aenv
+    (simDCSelectors, sims) =
+      partitionUserDataConstructorSelectors (ddecls si) sims0
+    dataSims = simDCTests ++ simDCSelectors
     aenv = ae si
 
     inRewrites :: Symbol -> Bool
@@ -1063,6 +1080,37 @@ knowledge cfg ctx si = KN
       = (smName rw,) . (smDC rw,) <$> L.elemIndex x (smArgs rw)
       | otherwise
       = Nothing
+
+-- | Partitions the input rewrites into constructor tests and others.
+--
+-- We don't need to deal in PLE with data constructor tests. That is,
+-- functions of the form @isCons :: List a -> Bool@ or @isNil :: List a -> Bool@
+-- when @List a@ is defined by the user.
+--
+-- The SMT solver knows about these functions when datatypes are declared to it,
+-- so PLE doesn't need to unfold them.
+--
+-- Non-user defined datatypes like @[a]@ still need to have tests unfolded
+-- because they are not declared as datatypes to the SMT solver.
+--
+-- Also, REST could need this functions unfolded since otherwise it may not
+-- discover possible rewrites.
+--
+partitionUserDataConstructorTests :: [DataDecl] -> [Rewrite] -> ([Rewrite], [Rewrite])
+partitionUserDataConstructorTests dds rws = L.partition isDataConstructorTest rws
+  where
+    isDataConstructorTest sm = isTestSymbol (smName sm) && S.member (smDC sm) userDefinedDcs
+    userDefinedDcs =
+      S.fromList [ symbol (dcName dc) | dd <- dds, dc <- ddCtors dd ]
+
+-- | Like 'partitionUserDataConstructorTests' but for selectors.
+partitionUserDataConstructorSelectors :: [DataDecl] -> [Rewrite] -> ([Rewrite], [Rewrite])
+partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
+  where
+    isSelector sm = S.member (smName sm) userDefinedDcFieldsSelectors
+    userDefinedDcFieldsSelectors =
+      S.fromList [ symbol dcf | dd <- dds, dc <- ddCtors dd, dcf <- dcFields dc ]
+
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
