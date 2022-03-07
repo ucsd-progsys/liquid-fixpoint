@@ -637,7 +637,6 @@ eval γ ctx et e =
                 NoRW -> do
                   modify (\st -> st
                     { evAccum = M.insert e e' (evAccum st)
-                    , evNewEqualities = S.insert (e, e') (evNewEqualities st)
                     })
                   (e'',  fe') <- eval γ (addConst (e,e') ctx) et e'
                   return (e'', fe <|> fe')
@@ -843,7 +842,7 @@ f <$$> xs = f Misc.<$$> xs
 -- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
 -- and equations
 evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Expr, FinalExpand)
-evalApp γ ctx (EVar f) es et
+evalApp γ ctx e0@(EVar f) es et
   | Just eq <- Map.lookup f (knAms γ)
   , length (eqArgs eq) <= length es
   = do
@@ -853,7 +852,11 @@ evalApp γ ctx (EVar f) es et
          then do
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
-                shortcut (substEq env eq es1) es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                    newE = substEq env eq es1
+                (e', fe) <- shortcut newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                modify $ \st ->
+                  st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
+                return (e', fe)
          else return (eApps (EVar f) es, noExpand)
   where
     shortcut (EIte i e1 e2) es2 = do
@@ -865,12 +868,16 @@ evalApp γ ctx (EVar f) es et
         _ -> return (eApps (EIte b e1 e2) es2, expand)
     shortcut e' es2 = return (eApps e' es2, noExpand)
 
-evalApp γ _ (EVar f) (e:es) _
+evalApp γ _ e0@(EVar f) args@(e:es) _
   | (EVar dc, as) <- splitEApp e
   , Just rws <- Map.lookup dc (knSims γ)
   , Just rw <- L.find (\rw -> smName rw == f) rws
   , length as == length (smArgs rw)
-  = return (eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es, noExpand)
+  = do
+    let newE = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es
+    modify $ \st ->
+      st { evNewEqualities = S.insert (eApps e0 args, newE) (evNewEqualities st) }
+    return (newE, noExpand)
 
 evalApp _ _ e es _
   = return (eApps e es, noExpand)
