@@ -392,7 +392,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
                   ])
     bs        = second unElabSortedReft <$> binds
     rhs       = unElab eRhs
-    es        = unElab <$> (expr <$> binds)
+    es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
     subMb     = getCstr ieCstrs <$> cidMb
