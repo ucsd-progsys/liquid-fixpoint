@@ -77,6 +77,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Destructing
   , flattenRefas
   , conjuncts
+  , dropECst
   , eApps
   , eAppC
   , exprKVars
@@ -431,6 +432,11 @@ splitEApp = go []
   where
     go acc (EApp f e) = go (e:acc) f
     go acc e          = (e, acc)
+
+dropECst :: Expr -> Expr
+dropECst e = case e of
+  ECst e' _ -> dropECst e'
+  _ -> e
 
 splitPAnd :: Expr -> [Expr]
 splitPAnd (PAnd es) = concatMap splitPAnd es
