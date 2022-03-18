@@ -276,7 +276,8 @@ rewrite e rwEnv = concatMap (`rewriteTop` rwEnv) (notGuardedApps e)
 rewriteTop :: Expr -> Map Symbol [Rewrite] -> [(Expr,Expr)]
 rewriteTop e rwEnv =
   [ (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
-  | (EVar f, es) <- [splitEApp e]
+  | (ef, es) <- [splitEAppThroughECst e]
+  , EVar f <- [dropECst ef]
   , Just rws <- [Map.lookup f rwEnv]
   , rw <- rws
   , length es == length (smArgs rw)
@@ -390,8 +391,8 @@ updCtx env@InstEnv{..} ctx delta cidMb
                   , equalitiesPred sims
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
                   ])
-    bs        = second unElabSortedReft <$> binds
-    rhs       = unElab eRhs
+    bs        = second unApplySortedReft <$> binds
+    rhs       = unApply eRhs
     es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
@@ -433,7 +434,8 @@ isRedex γ e = isGoodApp γ e || isIte e
 
 isGoodApp :: Knowledge -> Expr -> Bool
 isGoodApp γ e
-  | (EVar f, es) <- splitEApp e
+  | (ef, es) <- splitEAppThroughECst e
+  , EVar f <- dropECst ef
   , Just i       <- L.lookup f (knSummary γ)
   = length es >= i
   | otherwise
@@ -650,7 +652,7 @@ eval γ ctx et e =
     go (EIte b e1 e2) = evalIte γ ctx et b e1 e2
     go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
     go e@(EApp _ _)     =
-      case splitEApp e of
+      case splitEAppThroughECst e of
        (f, es) | et == RWNormal ->
           -- Just evaluate the arguments first, to give rewriting a chance to step in
           -- if necessary
@@ -681,6 +683,8 @@ eval γ ctx et e =
     go e@(PIff e1 e2)   = evalBoolOr e (binOp PIff e1 e2)
     go e@(PAnd es)      = evalBoolOr e (efAll PAnd (go  <$$> es))
     go e@(POr es)       = evalBoolOr e (efAll POr (go <$$> es))
+    go (ECst e t)       = do (e', fe) <- eval γ ctx et e
+                             return (ECst e' t, fe)
     go e                = return (e, noExpand)
 
     binOp f e1 e2 = do
@@ -842,8 +846,9 @@ f <$$> xs = f Misc.<$$> xs
 -- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
 -- and equations
 evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Expr, FinalExpand)
-evalApp γ ctx e0@(EVar f) es et
-  | Just eq <- Map.lookup f (knAms γ)
+evalApp γ ctx e0 es et
+  | EVar f <- dropECst e0
+  , Just eq <- Map.lookup f (knAms γ)
   , length (eqArgs eq) <= length es
   = do
        env  <- gets (seSort . evEnv)
@@ -857,7 +862,7 @@ evalApp γ ctx e0@(EVar f) es et
                 modify $ \st ->
                   st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
                 return (e', fe)
-         else return (eApps (EVar f) es, noExpand)
+         else return (eApps e0 es, noExpand)
   where
     shortcut (EIte i e1 e2) es2 = do
       (b, _) <- eval γ ctx et i
@@ -868,8 +873,10 @@ evalApp γ ctx e0@(EVar f) es et
         _ -> return (eApps (EIte b e1 e2) es2, expand)
     shortcut e' es2 = return (eApps e' es2, noExpand)
 
-evalApp γ _ e0@(EVar f) args@(e:es) _
-  | (EVar dc, as) <- splitEApp e
+evalApp γ _ e0 args@(e:es) _
+  | EVar f <- dropECst e0
+  , (d, as) <- splitEAppThroughECst e
+  , EVar dc <- dropECst d
   , Just rws <- Map.lookup dc (knSims γ)
   , Just rw <- L.find (\rw -> smName rw == f) rws
   , length as == length (smArgs rw)
@@ -1032,7 +1039,7 @@ knowledge cfg ctx si = KN
         e `L.elem` syms
 
     lhsHead :: Expr -> Maybe Symbol
-    lhsHead e | (EVar f, _) <- splitEApp e = Just f
+    lhsHead e | (ef, _) <- splitEAppThroughECst e, EVar f <- dropECst ef = Just f
     lhsHead _ = Nothing
 
 
@@ -1104,9 +1111,11 @@ instance Simplifiable Expr where
       tx (EApp e1 e2)
         | isSetPred e1    = applySetFolding e1 e2
 
-      tx (EApp (EVar f) a)
-        | Just (dc, c)  <- L.lookup f (knConsts γ)
-        , (EVar dc', _) <- splitEApp a
+      tx (EApp ef a)
+        | EVar f <- dropECst ef
+        , Just (dc, c)  <- L.lookup f (knConsts γ)
+        , (ed, _) <- splitEAppThroughECst a
+        , EVar dc' <- dropECst ed
         , dc == dc'
         = c
       tx (EIte b e1 e2)
@@ -1114,9 +1123,11 @@ instance Simplifiable Expr where
         | isContraPred b = e2
       tx (ECoerc s t e)
         | s == t = e
-      tx (EApp (EVar f) a)
-        | Just (dc, i)  <- L.lookup f (knSels γ)
-        , (EVar dc', es) <- splitEApp a
+      tx (EApp ef a)
+        | EVar f <- dropECst ef
+        , Just (dc, i)  <- L.lookup f (knSels γ)
+        , (ed, es) <- splitEAppThroughECst a
+        , EVar dc' <- dropECst ed
         , dc == dc'
         = es!!i
       tx e = e

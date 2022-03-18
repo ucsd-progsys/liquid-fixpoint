@@ -93,7 +93,7 @@ ordConstraints (RESTFuel n) _      = bimapConstraints Fuel asFuel $ fuelOC n
 
 convert :: Expr -> RT.RuntimeTerm
 convert (EIte i t e)   = RT.App "$ite" $ map convert [i,t,e]
-convert e@EApp{}       | (EVar fName, terms) <- splitEApp e
+convert e@EApp{}       | (f, terms) <- splitEAppThroughECst e, EVar fName <- dropECst f
                        = RT.App (Op (symbolText fName)) $ map convert terms
 convert (EVar s)       = RT.App (Op (symbolText s)) []
 convert (PNot e)       = RT.App "$not" [ convert e ]
@@ -205,6 +205,9 @@ subExprs' e@EApp{} =
       replace (i, arg) = do
         (subArg, toArg) <- subExprs arg
         return (subArg, \subArg' -> eApps f $ take i es ++ toArg subArg' : drop (i+1) es)
+
+subExprs' (ECst e t) =
+    [ (e', \subE -> ECst (toE subE) t) | (e', toE) <- subExprs' e ]
 
 subExprs' _ = []
 

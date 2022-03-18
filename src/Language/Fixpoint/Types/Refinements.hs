@@ -11,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 {-# OPTIONS_GHC -Wno-orphans            #-}
 
@@ -84,6 +85,7 @@ module Language.Fixpoint.Types.Refinements (
   , exprKVars
   , exprSymbolsSet
   , splitEApp
+  , splitEAppThroughECst
   , splitPAnd
   , reftConjuncts
   , sortedReftSymbols
@@ -432,6 +434,12 @@ splitEApp :: Expr -> (Expr, [Expr])
 splitEApp = go []
   where
     go acc (EApp f e) = go (e:acc) f
+    go acc e          = (e, acc)
+
+splitEAppThroughECst :: Expr -> (Expr, [Expr])
+splitEAppThroughECst = go []
+  where
+    go acc (dropECst -> (EApp f e)) = go (e:acc) f
     go acc e          = (e, acc)
 
 dropECst :: Expr -> Expr

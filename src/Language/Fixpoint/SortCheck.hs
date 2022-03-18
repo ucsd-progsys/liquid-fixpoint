@@ -50,7 +50,14 @@ module Language.Fixpoint.SortCheck  (
   -- * Sort-Directed Transformations
   , Elaborate (..)
   , applySorts
-  , unElab, unElabSortedReft, unApplyAt
+  , elabApply
+  , elabExpr
+  , elabNumeric
+  , unApply
+  , unElab
+  , unElabSortedReft
+  , unApplySortedReft
+  , unApplyAt
   , toInt
 
   -- * Predicates on Sorts
@@ -701,6 +708,9 @@ unElab = Vis.stripCasts . unApply
 
 unElabSortedReft :: SortedReft -> SortedReft
 unElabSortedReft sr = sr { sr_reft = mapPredReft unElab (sr_reft sr) }
+
+unApplySortedReft :: SortedReft -> SortedReft
+unApplySortedReft sr = sr { sr_reft = mapPredReft unApply (sr_reft sr) }
 
 unApply :: Expr -> Expr
 unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
