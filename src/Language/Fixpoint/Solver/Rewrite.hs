@@ -42,6 +42,7 @@ import           Language.REST.SMT (SMTExpr)
 import           Language.REST.WQOConstraints.ADT (ConstraintsADT, adtOC)
 import qualified Language.REST.RuntimeTerm as RT
 
+-- | @(e, f)@ asserts that @e@ is a subexpression of @f e@
 type SubExpr = (Expr, Expr -> Expr)
 
 data TermOrigin = PLE | RW deriving (Show, Eq)
