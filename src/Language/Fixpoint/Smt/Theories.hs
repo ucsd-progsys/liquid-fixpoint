@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 {-# OPTIONS_GHC -Wno-orphans           #-}
 {-# OPTIONS_GHC -Wno-name-shadowing    #-}
@@ -301,7 +302,7 @@ type VarAs = SymEnv -> Symbol -> Sort -> Builder
 --------------------------------------------------------------------------------
 smt2App :: VarAs -> SymEnv -> Expr -> [Builder] -> Maybe Builder
 --------------------------------------------------------------------------------
-smt2App _ _ (ECst (EVar f) _) [d]
+smt2App _ _ (dropECst -> EVar f) [d]
   | f == setEmpty = Just (bb emp)
   | f == setEmp   = Just (key2 "=" (bb emp) d)
   | f == setSng   = Just (key (bb sng) d) -- Just (key2 (bb add) (bb emp) d)
@@ -313,7 +314,7 @@ smt2App k env f (d:ds)
 smt2App _ _ _ _    = Nothing
 
 smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe Builder
-smt2AppArg k env (ECst (EVar f) t)
+smt2AppArg k env (ECst (dropECst -> EVar f) t)
   | Just fThy <- symEnvTheory f env
   = Just $ if isPolyCtor fThy t
             then k env f (ffuncOut t)
