@@ -469,17 +469,17 @@ elab f@(_, g) e@(EBin o e1 e2) = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s <- checkOpTy g e s1 s2
-  return (EBin o (ECst e1' s1) (ECst e2' s2), s)
+  return (EBin o (eCst e1' s1) (eCst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
-  let e = eAppC s e1' (ECst e2' s2)
+  let e = eAppC s e1' (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  let e = eAppC s (ECst e1' s1) (ECst e2' s2)
+  let e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
@@ -510,22 +510,22 @@ elab f (ENeg e) = do
 
 elab f@(_,g) (ECst (EIte p e1 e2) t) = do
   (p', _)   <- elab f p
-  (e1', s1) <- elab f (ECst e1 t)
-  (e2', s2) <- elab f (ECst e2 t)
+  (e1', s1) <- elab f (eCst e1 t)
+  (e2', s2) <- elab f (eCst e2 t)
   s         <- checkIteTy g p e1' e2' s1 s2
-  return (EIte p' (cast e1' s) (cast e2' s), t)
+  return (EIte p' (eCst e1' s) (eCst e2' s), t)
 
 elab f@(_,g) (EIte p e1 e2) = do
   t <- getIte g e1 e2
   (p', _)   <- elab f p
-  (e1', s1) <- elab f (ECst e1 t)
-  (e2', s2) <- elab f (ECst e2 t)
+  (e1', s1) <- elab f (eCst e1 t)
+  (e2', s2) <- elab f (eCst e2 t)
   s         <- checkIteTy g p e1' e2' s1 s2
-  return (EIte p' (cast e1' s) (cast e2' s), s)
+  return (EIte p' (eCst e1' s) (eCst e2' s), s)
 
 elab f (ECst e t) = do
   (e', _) <- elab f e
-  return (ECst e' t, t)
+  return (eCst e' t, t)
 
 elab f (PNot p) = do
   (e', _) <- elab f p
@@ -583,7 +583,7 @@ elab f (PAll bs e) = do
 elab f (ELam (x,t) e) = do
   (e', s) <- elab (elabAddEnv f [(x, t)]) e
   let t' = elaborate "ELam Arg" mempty t
-  return (ELam (x, t') (ECst e' s), FFunc t s)
+  return (ELam (x, t') (eCst e' s), FFunc t s)
 
 elab f (ECoerc s t e) = do
   (e', _) <- elab f e
@@ -611,10 +611,6 @@ isUndef s = case bkAbs s of
 
 elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
-
-cast :: Expr -> Sort -> Expr
-cast (ECst e _) t = ECst e t
-cast e          t = ECst e t
 
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
 elabAs f t e = notracepp _msg <$>  go e
