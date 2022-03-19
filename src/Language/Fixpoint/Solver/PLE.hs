@@ -155,7 +155,9 @@ mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
 ----------------------------------------------------------------------------------------------
 -- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
 pleTrie :: CTrie -> InstEnv a -> IO InstRes
-pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
+pleTrie t env =
+    withEqualities env' (S.toList $ icEquals ctx0) $
+      loopT env' ctx0 diff0 Nothing res0 t
   where
     env'         = env { ieEvEnv = (ieEvEnv env) { evAccum = accum }}
     accum        = M.fromList (S.toList $ icEquals ctx0) <> evAccum (ieEvEnv env)
@@ -216,6 +218,13 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT)
     act env' ctx' { icAssms = mempty }
+
+withEqualities :: InstEnv a -> [(Expr, Expr)] -> IO b -> IO b
+withEqualities env es m = do
+  let assms = toSMT "withEqualities" (ieCfg env) (ieSMT env) [] <$> equalitiesPred es
+  SMT.smtBracket (ieSMT env) "PLE.withEqualities" $ do
+    forM_ assms (SMT.smtAssert (ieSMT env))
+    m
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
@@ -340,12 +349,12 @@ initCtx es   = ICtx
   , icANFs   = []
   }
 
-equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
-equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- S.toList eqs, e1 /= e2 ]
+equalitiesPred :: [(Expr, Expr)] -> [Expr]
+equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 
 updCtxRes :: InstRes -> Maybe BindId -> ICtx -> InstRes
 updCtxRes res iMb ctx =
-  updRes res iMb $ pAnd $ equalitiesPred $ icEquals ctx
+  updRes res iMb $ pAnd $ equalitiesPred $ S.toList $ icEquals ctx
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
@@ -363,23 +372,22 @@ updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx, InstEnv a)
 updCtx env@InstEnv{..} ctx delta cidMb
             = ( ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
                     , icCands  = S.fromList cands           <> icCands  ctx
-                    , icEquals = initEqs                    <> icEquals ctx
-                    , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
+                    , icEquals = S.fromList initEqs         <> icEquals ctx
+                    , icSimpl  = M.fromList sims <> icSimpl ctx <> econsts
                     , icSubcId = cidMb
                     , icANFs   = bs : icANFs ctx
                     }
               , env { ieEvEnv = ieEvEnv { evAccum = accum } }
               )
   where
-    accum     = M.fromList (S.toList initEqs) <> evAccum ieEvEnv
-    initEqs   = S.fromList $ concat [rewrite e (knSims ieKnowl) | e  <- cands]
+    accum     = M.fromList initEqs <> evAccum ieEvEnv
+    initEqs   = concat [rewrite e (knSims ieKnowl) | e  <- cands]
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
-    sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
+    sims      = filter (isSimplification (knDCs ieKnowl)) initEqs
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat
                   [ equalitiesPred initEqs
                   , equalitiesPred sims
-                  , equalitiesPred (icEquals ctx)
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
                   ])
     bs        = second unElabSortedReft <$> binds
