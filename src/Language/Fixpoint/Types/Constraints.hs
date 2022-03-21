@@ -984,6 +984,7 @@ instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
       fixRW rw@(AutoRewrite args lhs rhs) =
           text ("autorewrite " ++ show (hash rw))
           <+> hsep (map toFix args)
+          <+> text "="
           <+> text "{"
           <+> toFix lhs
           <+> text "="
