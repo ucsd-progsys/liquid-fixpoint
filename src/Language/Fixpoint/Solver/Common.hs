@@ -26,7 +26,7 @@ askSMT cfg ctx bs e
 toSMT :: String -> Config -> Context -> [(Symbol, Sort)] -> Expr -> Pred
 toSMT msg cfg ctx bs e =
     defuncAny cfg senv .
-        elaborate "makeKnowledge" (elabEnv bs) .
+        elaborate (dummyLoc msg) (elabEnv bs) .
             mytracepp ("toSMT from " ++ msg ++ showpp e) $
                 e
   where
