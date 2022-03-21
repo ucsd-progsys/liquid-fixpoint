@@ -106,7 +106,7 @@ savePLEEqualities cfg fi res = when (save cfg) $ do
       (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i res] ])
     renderConstraintRewrite (cid, eqs) =
       "constraint id" <+> text (show cid ++ ":")
-      $+$ nest 2 (toFix (pAnd eqs))
+      $+$ nest 2 (vcat $ L.intersperse "" $ map (toFix . unElab) $ concatMap conjuncts eqs)
       $+$ ""
 
 -------------------------------------------------------------------------------
