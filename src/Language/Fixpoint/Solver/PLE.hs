@@ -662,13 +662,13 @@ eval γ ctx et e =
               then return (eApps f es', fe)
               else do
                 (f', fe)  <- eval γ ctx et f
-                (e', fe') <- evalApp γ ctx f' es et
-                return (e', fe <|> fe')
+                (me', fe') <- evalApp γ ctx f' es et
+                return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
        (f, es) ->
           do
             (f':es', fe) <- feSeq <$> mapM (eval γ ctx et) (f:es)
-            (e', fe') <- evalApp γ ctx f' es' et
-            return (e', fe <|> fe')
+            (me', fe') <- evalApp γ ctx f' es' et
+            return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
 
     go e@(PAtom r e1 e2) = evalBoolOr e (binOp (PAtom r) e1 e2)
     go (ENeg e)         = do (e', fe)  <- eval γ ctx et e
@@ -845,7 +845,7 @@ f <$$> xs = f Misc.<$$> xs
 
 -- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
 -- and equations
-evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Expr, FinalExpand)
+evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Maybe Expr, FinalExpand)
 evalApp γ ctx e0 es et
   | EVar f <- dropECst e0
   , Just eq <- Map.lookup f (knAms γ)
@@ -861,8 +861,8 @@ evalApp γ ctx e0 es et
                 (e', fe) <- shortcut newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                 modify $ \st ->
                   st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
-                return (e', fe)
-         else return (eApps e0 es, noExpand)
+                return (Just e', fe)
+         else return (Nothing, noExpand)
   where
     shortcut (EIte i e1 e2) es2 = do
       (b, _) <- eval γ ctx et i
@@ -884,10 +884,10 @@ evalApp γ _ e0 args@(e:es) _
     let newE = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es
     modify $ \st ->
       st { evNewEqualities = S.insert (eApps e0 args, newE) (evNewEqualities st) }
-    return (newE, noExpand)
+    return (Just newE, noExpand)
 
-evalApp _ _ e es _
-  = return (eApps e es, noExpand)
+evalApp _ _ _e _es _
+  = return (Nothing, noExpand)
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
