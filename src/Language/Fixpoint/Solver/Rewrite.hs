@@ -219,6 +219,13 @@ unifyAll freeVars (template:xs) (seen:ys) =
     return $ Su (M.union s1 s2)
 unifyAll _ _ _ = undefined
 
+-- | @unify vs template e = Just su@ yields a substitution @su@
+-- such that subst su template == e
+--
+-- Moreover, @su@ is constraint to only substitute variables in @vs@.
+--
+-- Yields @Nothing@ if no substitution exists.
+--
 unify :: [Symbol] -> Expr -> Expr -> Maybe Subst
 unify _ template seenExpr | template == seenExpr = Just (Su M.empty)
 unify freeVars template seenExpr = case (template, seenExpr) of
