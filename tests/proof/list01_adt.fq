@@ -7,7 +7,7 @@ data Vec 1 = [
 
 constant len: (func(1, [(Vec @(0)); int]))
 
-define len(l: [a]) : int = {
+define len(l: Vec a) : int = {
   if (is$VNil l) then 0 else (1 + len(tail l))
 }
 
