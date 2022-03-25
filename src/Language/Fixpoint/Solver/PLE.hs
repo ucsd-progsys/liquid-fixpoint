@@ -903,8 +903,7 @@ mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys
     unite ts    = Mb.fromMaybe (uError ts) (unifyTo1 senv ts)
     senv        = mkSearchEnv env
     uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts)
-    xys         = Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
-    (_xTs,_eTs) = (xTs, eTs)
+    xys         = Misc.sortNub $ concat $ zipWith matchSorts xTs eTs
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
 matchSorts s1 s2 = go s1 s2
