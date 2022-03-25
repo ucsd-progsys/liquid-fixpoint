@@ -228,48 +228,51 @@ unifyAll _ _ _ = undefined
 --
 unify :: [Symbol] -> Expr -> Expr -> Maybe Subst
 unify _ template seenExpr | template == seenExpr = Just (Su M.empty)
-unify freeVars template seenExpr = case (template, seenExpr) of
+unify freeVars template seenExpr = case (dropECst template, seenExpr) of
+  -- preserve seen casts if possible
   (EVar rwVar, _) | rwVar `elem` freeVars ->
     return $ Su (M.singleton rwVar seenExpr)
-  (EVar lhs, EVar rhs) | removeModName lhs == removeModName rhs ->
-                         Just (Su M.empty)
-    where
-      removeModName ts = go "" (symbolString ts) where
-        go buf []         = buf
-        go _   ('.':rest) = go [] rest
-        go buf (x:xs)     = go (buf ++ [x]) xs
-  (EApp templateF templateBody, EApp seenF seenBody) ->
-    unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
-  (ENeg rw, ENeg seen) ->
-    unify freeVars rw seen
-  (EBin op rwLeft rwRight, EBin op' seenLeft seenRight) | op == op' ->
-    unifyAll freeVars [rwLeft, rwRight] [seenLeft, seenRight]
-  (EIte cond rwLeft rwRight, EIte seenCond seenLeft seenRight) ->
-    unifyAll freeVars [cond, rwLeft, rwRight] [seenCond, seenLeft, seenRight]
-  (ECst rw _, ECst seen _) ->
-    unify freeVars rw seen
-  (ETApp rw _, ETApp seen _) ->
-    unify freeVars rw seen
-  (ETAbs rw _, ETAbs seen _) ->
-    unify freeVars rw seen
-  (PAnd rw, PAnd seen ) ->
-    unifyAll freeVars rw seen
-  (POr rw, POr seen ) ->
-    unifyAll freeVars rw seen
-  (PNot rw, PNot seen) ->
-    unify freeVars rw seen
-  (PImp templateF templateBody, PImp seenF seenBody) ->
-    unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
-  (PIff templateF templateBody, PIff seenF seenBody) ->
-    unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
-  (PAtom rel templateF templateBody, PAtom rel' seenF seenBody) | rel == rel' ->
-    unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
-  (PAll _ rw, PAll _ seen) ->
-    unify freeVars rw seen
-  (PExist _ rw, PExist _ seen) ->
-    unify freeVars rw seen
-  (PGrad _ _ _ rw, PGrad _ _ _ seen) ->
-    unify freeVars rw seen
-  (ECoerc _ _ rw, ECoerc _ _ seen) ->
-    unify freeVars rw seen
-  _ -> Nothing
+  -- otherwise discard the seen casts
+  (template', _) -> case (template', dropECst seenExpr) of
+    (EVar lhs, EVar rhs) | removeModName lhs == removeModName rhs ->
+                           Just (Su M.empty)
+      where
+        removeModName ts = go "" (symbolString ts) where
+          go buf []         = buf
+          go _   ('.':rest) = go [] rest
+          go buf (x:xs)     = go (buf ++ [x]) xs
+    (EApp templateF templateBody, EApp seenF seenBody) ->
+      unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
+    (ENeg rw, ENeg seen) ->
+      unify freeVars rw seen
+    (EBin op rwLeft rwRight, EBin op' seenLeft seenRight) | op == op' ->
+      unifyAll freeVars [rwLeft, rwRight] [seenLeft, seenRight]
+    (EIte cond rwLeft rwRight, EIte seenCond seenLeft seenRight) ->
+      unifyAll freeVars [cond, rwLeft, rwRight] [seenCond, seenLeft, seenRight]
+    (ECst rw _, seen) ->
+      unify freeVars rw seen
+    (ETApp rw _, ETApp seen _) ->
+      unify freeVars rw seen
+    (ETAbs rw _, ETAbs seen _) ->
+      unify freeVars rw seen
+    (PAnd rw, PAnd seen ) ->
+      unifyAll freeVars rw seen
+    (POr rw, POr seen ) ->
+      unifyAll freeVars rw seen
+    (PNot rw, PNot seen) ->
+      unify freeVars rw seen
+    (PImp templateF templateBody, PImp seenF seenBody) ->
+      unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
+    (PIff templateF templateBody, PIff seenF seenBody) ->
+      unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
+    (PAtom rel templateF templateBody, PAtom rel' seenF seenBody) | rel == rel' ->
+      unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
+    (PAll _ rw, PAll _ seen) ->
+      unify freeVars rw seen
+    (PExist _ rw, PExist _ seen) ->
+      unify freeVars rw seen
+    (PGrad _ _ _ rw, PGrad _ _ _ seen) ->
+      unify freeVars rw seen
+    (ECoerc _ _ rw, ECoerc _ _ seen) ->
+      unify freeVars rw seen
+    _ -> Nothing
