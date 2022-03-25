@@ -892,6 +892,11 @@ substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
     eTs   = sortExpr sp env <$> es
     coSub = mkCoSub env eTs ts
 
+-- | @mkCoSub senv eTs xTs = su@ creates a substitution @su@ such that
+-- @subst su xTs == eTs@.
+--
+-- The variables in the domain of the substitution are those that appear
+-- as @FObj symbol@ in @xTs@.
 mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ]
   where
