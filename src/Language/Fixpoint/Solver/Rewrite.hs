@@ -126,21 +126,22 @@ getRewrite ::
   -> oc
   -> SubExpr
   -> AutoRewrite
-  -> MaybeT IO (Expr, oc)
+  -> MaybeT IO ((Expr, Expr), Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
   do
     su <- MaybeT $ return $ unify freeVars lhs subE
     let subE' = subst su rhs
     guard $ subE /= subE'
     let expr' = toE subE'
+        eqn = (subst su lhs, subE')
     mapM_ (checkSubst su) exprs
     return $ case rwTerminationOpts rwArgs of
       RWTerminationCheckEnabled ->
         let
           c' = refine aoc c subE subE'
         in
-          (expr', c')
-      RWTerminationCheckDisabled -> (expr', c)
+          (eqn, expr', c')
+      RWTerminationCheckDisabled -> (eqn, expr', c)
   where
     check :: Expr -> MaybeT IO ()
     check e = do

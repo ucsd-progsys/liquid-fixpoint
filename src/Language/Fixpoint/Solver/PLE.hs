@@ -759,18 +759,20 @@ evalRESTWithCache cacheRef γ ctx rp =
           else eval γ ctx RWNormal e
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
-      let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
+      let exprsToAdd    = [e' | evalIsNewExpr]  ++ map (\(_, e, _) -> e) rws
+          eqnToAdd = map (\(eqn, _, _) -> eqn) rws
 
       smtCache <- liftIO $ readIORef cacheRef
       modify (\st ->
-                st {
-                  evAccum = foldr (M.insert e) (evAccum st) exprsToAdd
-                , evNewEqualities  = foldr (S.insert . (,) e) (evNewEqualities st) exprsToAdd
+            let evAccum1 = foldr (M.insert e) (evAccum st) exprsToAdd
+             in st {
+                  evAccum = foldr (uncurry M.insert) evAccum1 eqnToAdd
+                , evNewEqualities  = foldr S.insert (evNewEqualities st) eqnToAdd
                 , evSMTCache = smtCache
                 , explored = Just $ ExploredTerms.insert
                   (Rewrite.convert e)
                   (c rp)
-                  (S.insert (Rewrite.convert e') $ S.fromList (map (Rewrite.convert . fst) possibleRWs))
+                  (S.insert (Rewrite.convert e') $ S.fromList (map (Rewrite.convert . (\(_, e, _) -> e)) possibleRWs))
                   (Mb.fromJust $ explored st)
                 })
 
@@ -788,13 +790,13 @@ evalRESTWithCache cacheRef γ ctx rp =
         RWTerminationCheckEnabled  ->
           ExploredTerms.shouldExplore (Rewrite.convert e) (c rp) exploredTerms
 
-    allowed (rwE, _) | rwE `elem` pathExprs = return False
-    allowed (_, c)   = termCheck c
+    allowed (_, rwE, _) | rwE `elem` pathExprs = return False
+    allowed (_, _, c)   = termCheck c
     termCheck c = Rewrite.passesTerminationCheck (oc rp) rwArgs c
 
     notVisitedFirst exploredTerms rws =
       let
-        (v, nv) = L.partition (\(e, _) -> ExploredTerms.visited (Rewrite.convert e) exploredTerms) rws
+        (v, nv) = L.partition (\(_, e, _) -> ExploredTerms.visited (Rewrite.convert e) exploredTerms) rws
       in
         nv ++ v
 
@@ -810,7 +812,7 @@ evalRESTWithCache cacheRef γ ctx rp =
 
     isRW (_, r) = r == RW
 
-    rpRW (e', c') = rp{path = path rp ++ [(e', RW)], c = c' }
+    rpRW (_, e', c') = rp{path = path rp ++ [(e', RW)], c = c' }
 
     pathExprs       = map fst (mytracepp "EVAL2: path" $ path rp)
     e               = last pathExprs
