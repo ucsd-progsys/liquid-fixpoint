@@ -734,13 +734,20 @@ evalApp γ ctx e0 es et
        okFuel <- checkFuel f
        if okFuel && et /= FuncNormal
          then do
-                useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
-                (e', fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                 modify $ \st ->
                   st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
-                return (Just e', fe)
+                if changed
+                  then do
+                    useFuel f
+                    return (Just e', fe)
+                  else
+                    -- Don't unfold the expression if there is an if-then-else
+                    -- guarding it, just to preserve the size of further
+                    -- rewrites.
+                    return (Nothing, noExpand)
          else return (Nothing, noExpand)
 
 evalApp γ _ e0 args@(e:es) _
@@ -769,12 +776,19 @@ evalApp γ ctx e0 (e1:es2) et
        okFuel <- checkFuel f
        if okFuel && et /= FuncNormal
          then do
-                useFuel f
                 let newE = substRW γ rws e1
-                (e', fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                 modify $ \st ->
                   st { evNewEqualities = S.insert (eApps e0 (e1:es2), e') (evNewEqualities st) }
-                return (Just e', fe)
+                if changed
+                  then do
+                    useFuel f
+                    return (Just e', fe)
+                  else
+                    -- Don't unfold the expression if there is an if-then-else
+                    -- guarding it, just to preserve the size of further
+                    -- rewrites.
+                    return (Nothing, noExpand)
          else return (Nothing, noExpand)
 
 evalApp γ _ctx e0 es _et
@@ -787,15 +801,18 @@ evalApp γ _ctx e0 es _et
 evalApp _ _ _e _es _
   = return (Nothing, noExpand)
 
-shortcut :: Knowledge -> ICtx -> EvalType -> Expr -> [Expr] -> EvalST (Expr, FinalExpand)
+-- | Gives the rewritten expression together with an indication of whether
+-- it is an if-then-else that can't be reduced
+shortcut :: Knowledge -> ICtx -> EvalType -> Expr -> [Expr] -> EvalST (Expr, Bool, FinalExpand)
 shortcut γ ctx et (EIte i e1 e2) es2 = do
       (b, _) <- eval γ ctx et i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
+      let changed (a, _, c) = (a, True, c)
       case b' of
-        Just True -> shortcut γ ctx et e1 es2
-        Just False -> shortcut γ ctx et e2 es2
-        _ -> return (eApps (EIte b e1 e2) es2, expand)
-shortcut _ _ _ e' es2 = return (eApps e' es2, noExpand)
+        Just True -> changed <$> shortcut γ ctx et e1 es2
+        Just False -> changed <$> shortcut γ ctx et e2 es2
+        _ -> return (eApps (EIte b e1 e2) es2, False, expand)
+shortcut _ _ _ e' es2 = return (eApps e' es2, True, noExpand)
 
 -- | unfolds a measure when the argument is not a known
 -- constructor
