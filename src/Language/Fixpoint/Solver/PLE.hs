@@ -515,7 +515,7 @@ eval γ ctx et e =
           return (e', fe)
   where
     go (ELam (x,s) e)   = mapFE (ELam (x, s)) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
-    go (EIte b e1 e2) = evalIte γ ctx et b e1 e2
+    go (EIte b e1 e2) = evalIte b e1 e2
     go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
     go e@(EApp _ _)     =
       case splitEAppThroughECst e of
@@ -569,6 +569,19 @@ eval γ ctx et e =
       case b of
         Just r  -> return (r, noExpand)
         Nothing -> fallback
+
+    -- | Evaluate @if b then e1 else e2@.
+    --
+    -- If @b@ is valid, simplifies to @e1@; if @not b@ is valid, simplifies to @e2@.
+    -- Otherwise the ITE is kept.
+    evalIte :: Expr -> Expr -> Expr -> EvalST (Expr, FinalExpand)
+    evalIte b0 e1 e2 = do
+      (b, fe) <- eval γ ctx et b0
+      b'  <- mytracepp ("evalEIt POS " ++ showpp b) <$> isValidCached γ b
+      case b' of
+        Just True -> return (e1, noExpand)
+        Just False -> return (e2, noExpand)
+        _ -> return (EIte b e1 e2, fe)
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
@@ -901,19 +914,6 @@ isValidCached γ e = do
               return Nothing
 
     mb -> return mb
-
--- | Evaluate @if b then e1 else e2@.
---
--- If @b@ is valid, simplifies to @e1@; if @not b@ is valid, simplifies to @e2@.
--- Otherwise the ITE is kept.
-evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> Expr -> Expr -> EvalST (Expr, FinalExpand)
-evalIte γ ctx et b0 e1 e2 = do
-  (b, fe) <- eval γ ctx et b0
-  b'  <- mytracepp ("evalEIt POS " ++ showpp b) <$> isValidCached γ b
-  case b' of
-    Just True -> return (e1, noExpand)
-    Just False -> return (e2, noExpand)
-    _ -> return (EIte b e1 e2, fe)
 
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
