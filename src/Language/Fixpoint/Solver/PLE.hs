@@ -244,25 +244,26 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
       if inconsistentEnv
         then return ictx
         else do
-                  let cands = icCands ictx
                   liftIO $ SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
                   let ictx' = ictx { icAssms = mempty }
-                  mapM_ (evalOne γ ictx' i) (S.toList cands)
+                      cands = S.toList $ icCands ictx
+                  candss <- mapM (evalOne γ ictx' i) cands
                   us <- gets evNewEqualities
                   modify $ \st -> st { evNewEqualities = mempty }
-                  let unknownEqs = us `S.difference` icEquals ictx
-                  if S.null unknownEqs
+                  let noCandidateChanged = and (zipWith eqCand candss cands)
+                      unknownEqs = us `S.difference` icEquals ictx
+                  if S.null unknownEqs && noCandidateChanged
                         then return ictx
-                        else do  let oks      = fst `S.map` unknownEqs
-                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
-                                 let ictx''   = ictx' { icSolved = icSolved ictx <> oks
-                                                      , icEquals = icEquals ictx <> unknownEqs
+                        else do  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
+                                 let ictx''   = ictx' { icEquals = icEquals ictx <> unknownEqs
                                                       , icAssms  = S.filter (not . isTautoPred) eqsSMT }
-                                 let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` unknownEqs)))
-                                 go (ictx'' { icCands = S.fromList newcands}) (i + 1)
+                                 go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
 
     testForInconsistentEnvironment =
       liftIO $ knPreds γ (knContext γ) (knLams γ) PFalse
+
+    eqCand [e0] e1 = e0 == e1
+    eqCand _ _ = False
 
 ----------------------------------------------------------------------------------------------
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo
@@ -298,7 +299,6 @@ data ICtx    = ICtx
   { icAssms    :: S.HashSet Pred            -- ^ Equalities converted to SMT format
   , icCands    :: S.HashSet Expr            -- ^ "Candidates" for unfolding
   , icEquals   :: EvAccum                   -- ^ Accumulated equalities
-  , icSolved   :: S.HashSet Expr            -- ^ Terms that we have already expanded
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   , icANFs     :: [[(Symbol, SortedReft)]]  -- Hopefully contain only ANF things
@@ -360,7 +360,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
               )
   where
     accum     = evAccum ieEvEnv
-    cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
+    cands     = rhs:es
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
                   [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
@@ -383,39 +383,6 @@ findConstants γ es = [(EVar x, c) | (x,c) <- go [] (concatMap splitPAnd es)]
     makeSu exprs  = [(x,c) | (EEq (EVar x) c) <- exprs
                            , isConstant (knDCs γ) c
                            , EVar x /= c ]
-
-makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
-makeCandidates γ ctx expr
-  = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
-  where
-    cands =
-      filter (\e -> isRedex γ e && not (e `S.member` icSolved ctx)) (notGuardedApps expr) ++
-      filter (\e -> hasConstructors γ e && not (e `S.member` icSolved ctx)) (largestApps expr)
-
-    -- Constructor occurrences need to be considered as candidadates since
-    -- they identify relevant measure equations. The function 'rewrite'
-    -- introduces these equations.
-    hasConstructors :: Knowledge -> Expr -> Bool
-    hasConstructors γ e =  not $ S.null $ S.intersection (exprSymbolsSet e) (knDCs γ)
-
-isRedex :: Knowledge -> Expr -> Bool
-isRedex γ e = isGoodApp γ e || isIte e
-  where
-    isIte EIte {} = True
-    isIte _       = False
-
-
-isGoodApp :: Knowledge -> Expr -> Bool
-isGoodApp γ e
-  | (ef, es) <- splitEAppThroughECst e
-  , EVar f <- dropECst ef
-  , Just i       <- L.lookup f (knSummary γ)
-  = length es >= i
-  | otherwise
-  = False
-
-
-
 
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
@@ -460,9 +427,9 @@ getAutoRws γ ctx =
     cid <- icSubcId ctx
     M.lookup cid $ knAutoRWs γ
 
-evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST ()
+evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
-  | i > 0 || null (getAutoRws γ ctx) = void $ eval γ ctx NoRW e
+  | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW e
 evalOne γ ctx _ e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
@@ -470,69 +437,9 @@ evalOne γ ctx _ e = do
         rp = RP (contramap Rewrite.convert oc) [(e, PLE)] constraints
         constraints = OC.top oc
         emptyET = ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc) (OC.refine oc)) ExploreWhenNeeded
-    evalREST γ ctx rp
+    es <- evalREST γ ctx rp
     modify $ \st -> st { explored = Just emptyET }
-
--- | @notGuardedApps e@ yields all the subexpressions that are
--- applications not under an if-then-else, lambda abstraction, type abstraction,
--- type application, or quantifier.
-notGuardedApps :: Expr -> [Expr]
-notGuardedApps = flip go []
-  where
-    go e0 acc = case e0 of
-      EApp e1 e2 -> e0 : go e1 (go e2 acc)
-      PAnd es    -> foldr go acc es
-      POr es     -> foldr go acc es
-      PAtom _ e1 e2 -> go e1 $ go e2 acc
-      PIff e1 e2 -> go e1 $ go e2 acc
-      PImp e1 e2 -> go e1 $ go e2 acc
-      EBin  _ e1 e2 -> go e1 $ go e2 acc
-      PNot e -> go e acc
-      ENeg e -> go e acc
-      EIte b _ _ -> go b $ e0 : acc
-      ECoerc _ _ e -> go e acc
-      ECst e _ -> go e acc
-      ESym _ -> acc
-      ECon _ -> acc
-      EVar _ -> acc
-      ELam _ _ -> acc
-      ETApp _ _ -> acc
-      ETAbs _ _ -> acc
-      PKVar _ _ -> acc
-      PAll _ _ -> acc
-      PExist _ _ -> acc
-      PGrad{} -> acc
-
--- | @largestApps e@ yields all the largest subexpressions that are
--- applications not under an if-then-else, lambda abstraction, type abstraction,
--- type application, or quantifier.
-largestApps :: Expr -> [Expr]
-largestApps = flip go []
-  where
-    go e0 acc = case e0 of
-      EApp _ _ -> e0 : acc
-      PAnd es -> foldr go acc es
-      POr es -> foldr go acc es
-      PAtom _ e1 e2 -> go e1 $ go e2 acc
-      PIff e1 e2 -> go e1 $ go e2 acc
-      PImp e1 e2 -> go e1 $ go e2 acc
-      EBin  _ e1 e2 -> go e1 $ go e2 acc
-      PNot e -> go e acc
-      ENeg e -> go e acc
-      EIte b _ _ -> go b $ e0 : acc
-      ECoerc _ _ e -> go e acc
-      ECst e _ -> go e acc
-      ESym _ -> acc
-      ECon _ -> acc
-      EVar _ -> e0 : acc
-      ELam _ _ -> acc
-      ETApp _ _ -> acc
-      ETAbs _ _ -> acc
-      PKVar _ _ -> acc
-      PAll _ _ -> acc
-      PExist _ _ -> acc
-      PGrad{} -> acc
-
+    return es
 
 -- The FuncNormal and RWNormal evaluation strategies are used for REST
 -- For example, consider the following function:
@@ -605,21 +512,8 @@ eval γ ctx et e =
         _ -> do
           (e0', fe)  <- go e
           let e' = simplify γ ctx e0'
-          if e /= e'
-            then
-              case et of
-                NoRW -> do
-                  modify (\st -> st
-                    { evAccum = M.insert e e' (evAccum st)
-                    })
-                  (e'',  fe') <- eval γ (addConst (e,e') ctx) et e'
-                  return (e'', fe <|> fe')
-                _ -> return (e', fe)
-            else
-              return (e, fe)
+          return (e', fe)
   where
-    addConst (e,e') ctx = if isConstant (knDCs γ) e'
-                           then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx
     go (ELam (x,s) e)   = mapFE (ELam (x, s)) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
     go (EIte b e1 e2) = evalIte γ ctx et b e1 e2
     go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
@@ -697,15 +591,15 @@ deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
 -- The main difference with 'eval' is that 'evalREST' takes into account
 -- autorewrites.
 --
-evalREST :: Knowledge -> ICtx -> RESTParams OCType -> EvalST ()
+evalREST :: Knowledge -> ICtx -> RESTParams OCType -> EvalST [Expr]
 evalREST γ ctx rp = do
   env <- get
   cacheRef <- liftIO $ newIORef $ evSMTCache env
-  evalRESTWithCache cacheRef γ ctx rp
+  evalRESTWithCache cacheRef γ ctx [] rp
 
 evalRESTWithCache
-  :: IORef (M.HashMap Expr Bool) -> Knowledge -> ICtx -> RESTParams OCType -> EvalST ()
-evalRESTWithCache cacheRef _ ctx rp
+  :: IORef (M.HashMap Expr Bool) -> Knowledge -> ICtx -> [Expr] -> RESTParams OCType -> EvalST [Expr]
+evalRESTWithCache cacheRef _ ctx acc rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
   , Just v    <- M.lookup e (icSimpl ctx)
@@ -716,12 +610,13 @@ evalRESTWithCache cacheRef _ ctx rp
       , evNewEqualities = S.insert (e, v) (evNewEqualities st)
       , evSMTCache = smtCache
       })
+    return (v : acc)
 
-evalRESTWithCache cacheRef γ ctx rp =
+evalRESTWithCache cacheRef γ ctx acc rp =
   do
     Just exploredTerms <- gets explored
     se <- liftIO (shouldExploreTerm exploredTerms e)
-    when se $ do
+    if se then do
       possibleRWs <- getRWs
       rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
       -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
@@ -733,6 +628,7 @@ evalRESTWithCache cacheRef γ ctx rp =
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map (\(_, e, _) -> e) rws
+          acc' = exprsToAdd ++ acc
           eqnToAdd = map (\(eqn, _, _) -> eqn) rws
 
       smtCache <- liftIO $ readIORef cacheRef
@@ -749,12 +645,15 @@ evalRESTWithCache cacheRef γ ctx rp =
                   (Mb.fromJust $ explored st)
                 })
 
-      when evalIsNewExpr $
-        if fe && any isRW (path rp)
-          then void (eval γ (addConst (e, e')) NoRW e')
-          else evalRESTWithCache cacheRef γ (addConst (e, e')) (rpEval e')
+      acc'' <- if evalIsNewExpr
+        then if fe && any isRW (path rp)
+          then (:[]) . fst <$> eval γ (addConst (e, e')) NoRW e'
+          else evalRESTWithCache cacheRef γ (addConst (e, e')) acc' (rpEval e')
+        else return acc'
 
-      mapM_ (evalRESTWithCache cacheRef γ ctx . rpRW) rws
+      foldM (\r rw -> evalRESTWithCache cacheRef γ ctx r (rpRW rw)) acc'' rws
+     else
+      return acc
   where
     shouldExploreTerm exploredTerms e =
       case rwTerminationOpts rwArgs of
