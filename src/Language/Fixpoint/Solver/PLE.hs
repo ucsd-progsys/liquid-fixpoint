@@ -238,11 +238,6 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalST ICtx
 evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
   where
-    withRewrites exprs =
-      let
-        rws = [rewrite e (knSims γ) | e <- S.toList (snd `S.map` exprs)]
-      in
-        exprs <> S.fromList (concat rws)
     go ictx _ | S.null (icCands ictx) = return ictx
     go ictx i = do
       inconsistentEnv <- testForInconsistentEnvironment
@@ -259,29 +254,15 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
                   if S.null unknownEqs
                         then return ictx
                         else do  let oks      = fst `S.map` unknownEqs
-                                 let us'      = withRewrites unknownEqs
-                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us'
+                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
                                  let ictx''   = ictx' { icSolved = icSolved ictx <> oks
-                                                      , icEquals = icEquals ictx <> us'
+                                                      , icEquals = icEquals ictx <> unknownEqs
                                                       , icAssms  = S.filter (not . isTautoPred) eqsSMT }
                                  let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` unknownEqs)))
                                  go (ictx'' { icCands = S.fromList newcands}) (i + 1)
 
     testForInconsistentEnvironment =
       liftIO $ knPreds γ (knContext γ) (knLams γ) PFalse
-
-rewrite :: Expr -> Map Symbol ([Rewrite], IsUserDataSMeasure) -> [(Expr,Expr)]
-rewrite e rwEnv = concatMap (`rewriteTop` rwEnv) (notGuardedApps e)
-
-rewriteTop :: Expr -> Map Symbol ([Rewrite], IsUserDataSMeasure) -> [(Expr,Expr)]
-rewriteTop e rwEnv =
-  [ (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
-  | (ef, es) <- [splitEAppThroughECst e]
-  , EVar f <- [dropECst ef]
-  , Just (rws, NoUserDataSMeasure) <- [Map.lookup f rwEnv]
-  , rw <- rws
-  , length es == length (smArgs rw)
-  ]
 
 ----------------------------------------------------------------------------------------------
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo
@@ -365,32 +346,24 @@ updRes res  Nothing _ = res
 ----------------------------------------------------------------------------------------------
 -- | @updCtx env ctx delta cidMb@ adds the assumptions and candidates from @delta@ and @cidMb@
 --   to the context.
---
---  Keeps the invariant @icEquals ctx@ must be included in @evAccum (ieEvEnv env)@
 ----------------------------------------------------------------------------------------------
 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx, InstEnv a)
 updCtx env@InstEnv{..} ctx delta cidMb
             = ( ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
                     , icCands  = S.fromList cands           <> icCands  ctx
-                    , icEquals = S.fromList initEqs         <> icEquals ctx
-                    , icSimpl  = M.fromList sims <> icSimpl ctx <> econsts
+                    , icSimpl  = icSimpl ctx <> econsts
                     , icSubcId = cidMb
                     , icANFs   = bs : icANFs ctx
                     }
               , env { ieEvEnv = ieEvEnv { evAccum = accum } }
               )
   where
-    accum     = M.fromList initEqs <> evAccum ieEvEnv
-    initEqs   = concat [rewrite e (knSims ieKnowl) | e  <- cands]
+    accum     = evAccum ieEvEnv
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
-    sims      = filter (isSimplification (knDCs ieKnowl)) initEqs
     econsts   = M.fromList $ findConstants ieKnowl es
-    ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat
-                  [ equalitiesPred initEqs
-                  , equalitiesPred sims
-                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
-                  ])
+    ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
+                  [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
     bs        = second unApplySortedReft <$> binds
     rhs       = unApply eRhs
     es        = expr <$> bs
@@ -859,39 +832,99 @@ evalApp γ ctx e0 es et
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
-                (e', fe) <- shortcut newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                (e', fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                 modify $ \st ->
                   st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
                 return (Just e', fe)
          else return (Nothing, noExpand)
-  where
-    shortcut (EIte i e1 e2) es2 = do
-      (b, _) <- eval γ ctx et i
-      b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
-      case b' of
-        Just True -> shortcut e1 es2
-        Just False -> shortcut e2 es2
-        _ -> return (eApps (EIte b e1 e2) es2, expand)
-    shortcut e' es2 = return (eApps e' es2, noExpand)
 
 evalApp γ _ e0 args@(e:es) _
   | EVar f <- dropECst e0
   , (d, as) <- splitEAppThroughECst e
   , EVar dc <- dropECst d
-  , Just (rws, isUserDataSMeasure) <- Map.lookup dc (knSims γ)
-  , Just rw <- L.find (\rw -> smName rw == f) rws
+  , Just rws <- Map.lookup dc (knSims γ)
+  , Just (rw, isUserDataSMeasure) <- L.find (\(rw, _) -> smName rw == f) rws
   , length as == length (smArgs rw)
   = do
     let newE = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es
-    when (isUserDataSMeasure == NoUserDataSMeasure) $
-      -- User data measures aren't sent to the SMT solver because
-      -- it knows already about selectors and constructor tests.
-      modify $ \st ->
-        st { evNewEqualities = S.insert (eApps e0 args, newE) (evNewEqualities st) }
+        measureEqs = nonUserDataMeasureEqs γ e
+        eqs = if isUserDataSMeasure == NoUserDataSMeasure
+                -- User data measures aren't sent to the SMT solver because
+                -- it knows already about selectors and constructor tests.
+                then (eApps e0 args, newE) : measureEqs
+                else measureEqs
+    modify $ \st ->
+      st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs }
     return (Just newE, noExpand)
+
+evalApp γ ctx e0 (e1:es2) et
+  | EVar f <- dropECst e0
+  , Just (rws, NoUserDataSMeasure) <- Map.lookup f (knSimsByMeasureName γ)
+  = do
+       okFuel <- checkFuel f
+       if okFuel && et /= FuncNormal
+         then do
+                useFuel f
+                let newE = substRW γ rws e1
+                (e', fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                modify $ \st ->
+                  st { evNewEqualities = S.insert (eApps e0 (e1:es2), e') (evNewEqualities st) }
+                return (Just e', fe)
+         else return (Nothing, noExpand)
+
+evalApp γ _ctx e0 es _et
+  | eqs@(_:_) <- nonUserDataMeasureEqs γ (eApps e0 es)
+  = do
+       modify $ \st ->
+         st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs }
+       return (Nothing, noExpand)
 
 evalApp _ _ _e _es _
   = return (Nothing, noExpand)
+
+shortcut :: Knowledge -> ICtx -> EvalType -> Expr -> [Expr] -> EvalST (Expr, FinalExpand)
+shortcut γ ctx et (EIte i e1 e2) es2 = do
+      (b, _) <- eval γ ctx et i
+      b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
+      case b' of
+        Just True -> shortcut γ ctx et e1 es2
+        Just False -> shortcut γ ctx et e2 es2
+        _ -> return (eApps (EIte b e1 e2) es2, expand)
+shortcut _ _ _ e' es2 = return (eApps e' es2, noExpand)
+
+-- | unfolds a measure when the argument is not a known
+-- constructor
+substRW :: Knowledge -> [Rewrite] -> Expr -> Expr
+substRW γ rws0 e1 = go rws0
+  where
+    go [rw] = mkBranch rw
+    go (rw:rws) = EIte (EApp (testConstructor (smDC rw)) e1) (mkBranch rw) (go rws)
+    go [] = error "substRW: Unexpected empty rewrites"
+
+    mkBranch rw =
+      let mdc = M.lookup (smDC rw) (knDataCtors γ)
+          su = [ (s, mkSelector mdc (smDC rw) i e1) | (i, s) <- zip [0..] (smArgs rw) ]
+       in subst (mkSubst su) (smBody rw)
+
+    mkSelector mdc dcname i =
+      case mdc of
+        Just dc -> EApp (EVar $ val $ dfName $ dcFields dc !! i)
+        Nothing -> case L.find (\(_, (dc, si)) -> i == si && dc == dcname) (knSels γ) of
+          Just (selname, _) -> EApp (EVar selname)
+          Nothing -> error $ "substRW: can't find selector for " ++ show dcname
+    testConstructor = EVar . testSymbol
+
+-- | Creates equations that explain how to rewrite a given constructor
+-- application with all non-user data measures
+nonUserDataMeasureEqs :: Knowledge -> Expr -> [(Expr,Expr)]
+nonUserDataMeasureEqs γ e =
+  [ (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
+  | (ef, es) <- [splitEAppThroughECst e]
+  , EVar f <- [dropECst ef]
+  , Just rws <- [Map.lookup f (knNonUserDataMeasures γ)]
+  , rw <- rws
+  , length es == length (smArgs rw)
+  ]
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -992,13 +1025,19 @@ data Knowledge = KN
     -- They are grouped by the data constructor that they unfold, and are
     -- augmented with an attribute that say whether they originate from a
     -- user data declaration.
-    knSims              :: Map Symbol ([Rewrite], IsUserDataSMeasure)
+    knSims              :: Map Symbol [(Rewrite, IsUserDataSMeasure)]
+    -- | Like 'knSims' but rewrites are grouped by measure name, and this
+    -- does not include non-user-defined data measures
+  , knSimsByMeasureName :: Map Symbol ([Rewrite], IsUserDataSMeasure)
+    -- | Non-user-defined data measures. e.g. null, head, and tail
+  , knNonUserDataMeasures :: Map Symbol [Rewrite]
   , knAms               :: Map Symbol Equation -- ^ All function definitions
   , knContext           :: SMT.Context
   , knPreds             :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
   , knLams              :: ![(Symbol, Sort)]
   , knSummary           :: ![(Symbol, Int)]     -- ^ summary of functions to be evaluates (knSims and knAsms) with their arity
   , knDCs               :: !(S.HashSet Symbol)  -- ^ data constructors drawn from Rewrite
+  , knDataCtors         :: !(M.HashMap Symbol DataCtor) -- ^ data constructors by name
   , knSels              :: !SelectorMap
   , knConsts            :: !ConstDCMap
   , knAutoRWs           :: M.HashMap SubcId [AutoRewrite]
@@ -1023,9 +1062,21 @@ isValid cacheRef γ e = do
 
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN
-  { knSims                     = Map.fromListWith (\(rw0, dms) (rw1, _) -> (rw0 ++ rw1, dms)) $
-                                   [ (smDC rw, ([rw], NoUserDataSMeasure)) | rw <- sims ] ++
-                                   [ (smDC rw, ([rw], UserDataSMeasure)) | rw <- dataSims ]
+  { knSims                     = Map.fromListWith (++) $
+                                   [ (smDC rw, [(rw, NoUserDataSMeasure)]) | rw <- sims ] ++
+                                   [ (smDC rw, [(rw, UserDataSMeasure)]) | rw <- dataSims ]
+  , knSimsByMeasureName        = Map.fromListWith (\(rw0, dms) (rw1, _) -> (rw0 ++ rw1, dms)) $
+                                   [ (smName rw, ([rw], NoUserDataSMeasure))
+                                   | rw <- sims
+                                   , not (isTestSymbol (smName rw)) -- not a constructor test
+                                   , not (isSelector rw)
+                                   ] ++
+                                   [ (smName rw, ([rw], UserDataSMeasure)) | rw <- dataSims ]
+  , knNonUserDataMeasures      = Map.fromListWith (++) [ (smDC rw, [rw])
+                                   | rw <- sims
+                                   , isTestSymbol (smName rw) -- a constructor test
+                                     || isSelector rw
+                                   ]
   , knAms                      = Map.fromList [(eqName eq, eq) | eq <- aenvEqs aenv]
   , knContext                  = ctx
   , knPreds                    = askSMT  cfg
@@ -1034,6 +1085,7 @@ knowledge cfg ctx si = KN
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
                                  ++ rwSyms
   , knDCs                      = S.fromList (smDC <$> sims)
+  , knDataCtors                = M.fromList [ (val (dcName dc), dc) | dd <- ddecls si, dc <- ddCtors dd ]
   , knSels                     = Mb.mapMaybe makeSel  sims
   , knConsts                   = Mb.mapMaybe makeCons sims
   , knAutoRWs                  = aenvAutoRW aenv
@@ -1043,6 +1095,11 @@ knowledge cfg ctx si = KN
       else RWTerminationCheckDisabled
   }
   where
+    isEVar (EVar _) = True
+    isEVar _ = False
+
+    isSelector rw = isEVar (smBody rw) && elem (smBody rw) (map EVar (smArgs rw))
+
     (simDCTests, sims0) =
       partitionUserDataConstructorTests (ddecls si) $ aenvSimpl aenv
     (simDCSelectors, sims) =
@@ -1135,10 +1192,6 @@ type ConstDCMap = [(Symbol, (Symbol, Expr))]
 -- ValueMap maps expressions to constants (including data constructors)
 type ConstMap = M.HashMap Expr Expr
 type LDataCon = Symbol              -- Data Constructors
-
-isSimplification :: S.HashSet LDataCon -> (Expr,Expr) -> Bool
-isSimplification dcs (_,c) = isConstant dcs c
-
 
 isConstant :: S.HashSet LDataCon -> Expr -> Bool
 isConstant dcs e = S.null (S.difference (exprSymbolsSet e) dcs)
