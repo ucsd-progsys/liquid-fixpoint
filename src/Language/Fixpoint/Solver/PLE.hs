@@ -536,7 +536,7 @@ eval γ ctx et e =
             (me', fe') <- evalApp γ ctx f' es' et
             return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
 
-    go e@(PAtom r e1 e2) = evalBoolOr e (binOp (PAtom r) e1 e2)
+    go (PAtom r e1 e2) = binOp (PAtom r) e1 e2
     go (ENeg e)         = do (e', fe)  <- eval γ ctx et e
                              return (ENeg e', fe)
     go (EBin o e1 e2)   = do (e1', fe1) <- eval γ ctx et e1
@@ -544,11 +544,11 @@ eval γ ctx et e =
                              return (EBin o e1' e2', fe1 <|> fe2)
     go (ETApp e t)      = mapFE (`ETApp` t) <$> go e
     go (ETAbs e s)      = mapFE (`ETAbs` s) <$> go e
-    go e@(PNot e')      = evalBoolOr e (mapFE PNot <$> go e')
-    go e@(PImp e1 e2)   = evalBoolOr e (binOp PImp e1 e2)
-    go e@(PIff e1 e2)   = evalBoolOr e (binOp PIff e1 e2)
-    go e@(PAnd es)      = evalBoolOr e (efAll PAnd (go  <$$> es))
-    go e@(POr es)       = evalBoolOr e (efAll POr (go <$$> es))
+    go (PNot e')        = mapFE PNot <$> go e'
+    go (PImp e1 e2)     = binOp PImp e1 e2
+    go (PIff e1 e2)     = binOp PIff e1 e2
+    go (PAnd es)        = efAll PAnd (go  <$$> es)
+    go (POr es)         = efAll POr (go <$$> es)
     go (ECst e t)       = do (e', fe) <- eval γ ctx et e
                              return (ECst e' t, fe)
     go e                = return (e, noExpand)
@@ -562,13 +562,6 @@ eval γ ctx et e =
       xs <- mes
       let (xs', fe) = feSeq xs
       return (f xs', fe)
-
-    evalBoolOr :: Expr -> EvalST (Expr, FinalExpand) -> EvalST (Expr, FinalExpand)
-    evalBoolOr ee fallback = do
-      b <- evalBool γ ee
-      case b of
-        Just r  -> return (r, noExpand)
-        Nothing -> fallback
 
     -- | Evaluate @if b then e1 else e2@.
     --
@@ -881,15 +874,6 @@ matchSorts s1 s2 = go s1 s2
 
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
-
--- | Evaluate a boolean expression.
-evalBool :: Knowledge -> Expr -> EvalST (Maybe Expr)
-evalBool γ e = do
-  bt <- isValidCached γ e
-  case bt of
-    Just True -> return $ Just PTrue
-    Just False -> return $ Just PFalse
-    _ -> return Nothing
 
 isValidCached :: Knowledge -> Expr -> EvalST (Maybe Bool)
 isValidCached γ e = do
