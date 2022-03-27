@@ -737,11 +737,15 @@ evalApp γ ctx e0 es et
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
                 (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-                modify $ \st ->
-                  st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
+                unless (eqRec eq) $
+                  modify $ \st ->
+                    st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
                 if changed
                   then do
                     useFuel f
+                    when (eqRec eq) $
+                      modify $ \st ->
+                        st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
                     return (Just e', fe)
                   else
                     -- Don't unfold the expression if there is an if-then-else
@@ -778,11 +782,11 @@ evalApp γ ctx e0 (e1:es2) et
          then do
                 let newE = substRW γ rws e1
                 (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-                modify $ \st ->
-                  st { evNewEqualities = S.insert (eApps e0 (e1:es2), e') (evNewEqualities st) }
                 if changed
                   then do
                     useFuel f
+                    modify $ \st ->
+                      st { evNewEqualities = S.insert (eApps e0 (e1:es2), e') (evNewEqualities st) }
                     return (Just e', fe)
                   else
                     -- Don't unfold the expression if there is an if-then-else
