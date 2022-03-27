@@ -118,7 +118,7 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty mempty (defFuelCount cfg) et restSolver restOC
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty (defFuelCount cfg) et restSolver restOC
 
     -- REST Params
     et :: Maybe (ExploredTerms RuntimeTerm OCType IO)
@@ -159,8 +159,7 @@ pleTrie t env =
     withEqualities env' (S.toList $ icEquals ctx0) $
       loopT env' ctx0 diff0 Nothing res0 t
   where
-    env'         = env { ieEvEnv = (ieEvEnv env) { evAccum = accum }}
-    accum        = M.fromList (S.toList $ icEquals ctx0) <> evAccum (ieEvEnv env)
+    env'         = env
     diff0        = []
     res0         = M.empty
     ctx0         = initCtx ((mkEq <$> es0) ++ (mkEq' <$> es0'))
@@ -356,10 +355,9 @@ updCtx env@InstEnv{..} ctx delta cidMb
                     , icSubcId = cidMb
                     , icANFs   = bs : icANFs ctx
                     }
-              , env { ieEvEnv = ieEvEnv { evAccum = accum } }
+              , env
               )
   where
-    accum     = evAccum ieEvEnv
     cands     = rhs:es
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
@@ -395,9 +393,6 @@ type EvAccum = S.HashSet (Expr, Expr)
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
-  -- | A cache of equalities between expressions that are
-  -- known to hold.
-  , evAccum    :: M.HashMap Expr Expr
   , evNewEqualities :: EvAccum -- ^ Equalities discovered during a traversal of
                                -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
@@ -500,19 +495,10 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 -- as pairs @(original_subexpression, rewritten_subexpression)@.
 --
 eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
-eval _ ctx _ e
-  | Just v <- M.lookup e (icSimpl ctx)
-  = return (v, noExpand)
-
-eval γ ctx et e =
-  do acc <- gets evAccum
-     case M.lookup e acc of
-        -- If rewriting, don't lookup, as evAccum may contain loops
-        Just e' | null (getAutoRws γ ctx) -> eval γ ctx et e'
-        _ -> do
-          (e0', fe)  <- go e
-          let e' = simplify γ ctx e0'
-          return (e', fe)
+eval γ ctx et e0 =
+  do (e0', fe)  <- go e0
+     let e' = simplify γ ctx e0'
+     return (e', fe)
   where
     go (ELam (x,s) e)   = mapFE (ELam (x, s)) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
     go (EIte b e1 e2) = evalIte b e1 e2
@@ -612,8 +598,7 @@ evalRESTWithCache cacheRef _ ctx acc rp
   = do
     smtCache <- liftIO $ readIORef cacheRef
     when (v /= e) $ modify (\st -> st
-      { evAccum = M.insert e v (evAccum st)
-      , evNewEqualities = S.insert (e, v) (evNewEqualities st)
+      { evNewEqualities = S.insert (e, v) (evNewEqualities st)
       , evSMTCache = smtCache
       })
     return (v : acc)
@@ -639,10 +624,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
       smtCache <- liftIO $ readIORef cacheRef
       modify (\st ->
-            let evAccum1 = foldr (M.insert e) (evAccum st) exprsToAdd
-             in st {
-                  evAccum = foldr (uncurry M.insert) evAccum1 eqnToAdd
-                , evNewEqualities  = foldr S.insert (evNewEqualities st) eqnToAdd
+             st { evNewEqualities  = foldr S.insert (evNewEqualities st) eqnToAdd
                 , evSMTCache = smtCache
                 , explored = Just $ ExploredTerms.insert
                   (Rewrite.convert e)
