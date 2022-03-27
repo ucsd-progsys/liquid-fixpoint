@@ -757,10 +757,15 @@ evalApp γ _ e0 args@(e:es) _
 
 evalApp γ ctx e0 (e1:es2) et
   | EVar f <- dropECst e0
-  , Just (rws, NoUserDataSMeasure) <- Map.lookup f (knSimsByMeasureName γ)
+  , Just (rws0, NoUserDataSMeasure) <- Map.lookup f (knSimsByMeasureName γ)
   = do
+       env <- gets (seSort . evEnv)
+       -- polymorphic measures like @prop :: a -> b@ might offer equations for
+       -- constructors of different sorts, here we select the equations that
+       -- match the sort of e1
+       let rws = filter (rwMatchesExpr env e1) rws0
        okFuel <- checkFuel f
-       if okFuel && et /= FuncNormal
+       if okFuel && et /= FuncNormal && not (null rws)
          then do
                 let newE = substRW γ rws e1
                 (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
@@ -833,6 +838,19 @@ nonUserDataMeasureEqs γ e =
   , rw <- rws
   , length es == length (smArgs rw)
   ]
+
+-- | @rwMatchesExpr env e rw@ is true when the sort of @e@
+-- unifies with the sort returned by @smDC rw@.
+rwMatchesExpr :: SEnv Sort -> Expr -> Rewrite -> Bool
+rwMatchesExpr senv e rw =
+  let sp = panicSpan "rwMatchesExpr"
+      et = sortExpr sp senv e
+      rSort = resultSort $ sortExpr sp senv $ EVar (smDC rw)
+   in Mb.isJust (unifySorts rSort et)
+  where
+    resultSort (FFunc _ t) = resultSort t
+    resultSort (FAbs _ t) = resultSort t
+    resultSort t = t
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
