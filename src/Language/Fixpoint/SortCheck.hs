@@ -219,14 +219,14 @@ elabExpr msg env e = case elabExprE msg env e of
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
-  case runCM0 (srcSpan msg) (elab (env, f) e) of
+  case runCM0 (srcSpan msg) (elab (env, envLookup) e) of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
     Right s  -> Right (fst s)
   where
     sEnv = seSort env
-    f    = (`lookupSEnvWithDistance` sEnv)
+    envLookup = (`lookupSEnvWithDistance` sEnv)
     d m  = vcat [ "elaborate" <+> text (val msg) <+> "failed on:"
                 , nest 4 (pprint e)
                 , "with error"
