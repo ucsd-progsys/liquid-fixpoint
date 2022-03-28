@@ -535,6 +535,9 @@ eval γ ctx et e0 =
     go (PIff e1 e2)     = binOp PIff e1 e2
     go (PAnd es)        = efAll PAnd (go  <$$> es)
     go (POr es)         = efAll POr (go <$$> es)
+    go e | EVar _ <- dropECst e = do
+      (me', fe) <- evalApp γ ctx e [] et
+      return (Mb.fromMaybe e me', fe)
     go (ECst e t)       = do (e', fe) <- eval γ ctx et e
                              return (ECst e' t, fe)
     go e                = return (e, noExpand)
