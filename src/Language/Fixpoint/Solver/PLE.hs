@@ -25,7 +25,7 @@ module Language.Fixpoint.Solver.PLE
   , FuelCount(..)
   , ICtx(..)
   , Knowledge(..)
-  , Simplifiable(..)
+  , simplify
   )
   where
 
@@ -1104,12 +1104,8 @@ type LDataCon = Symbol              -- Data Constructors
 isConstant :: S.HashSet LDataCon -> Expr -> Bool
 isConstant dcs e = S.null (S.difference (exprSymbolsSet e) dcs)
 
-class Simplifiable a where
-  simplify :: Knowledge -> ICtx -> a -> a
-
-
-instance Simplifiable Expr where
-  simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExprOnExpr tx) e
+simplify :: Knowledge -> ICtx -> Expr -> Expr
+simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExprOnExpr tx) e
     where
       fix f e = if e == e' then e else fix f e' where e' = f e
       tx e
