@@ -718,7 +718,7 @@ unApplySortedReft :: SortedReft -> SortedReft
 unApplySortedReft sr = sr { sr_reft = mapPredReft unApply (sr_reft sr) }
 
 unApply :: Expr -> Expr
-unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
+unApply = Vis.mapExprOnExpr go
   where
     go (ECst (EApp (EApp f e1) e2) _)
       | Just _ <- unApplyAt f = EApp e1 e2
