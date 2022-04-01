@@ -652,7 +652,8 @@ elabAppSort f e1 e2 s1 s2 = do
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
-defuncEApp env e es = L.foldl' makeApplication e' es'
+defuncEApp _env e [] = e
+defuncEApp env e es = eCst (L.foldl' makeApplication e' es') (snd $ last es)
   where
     (e', es')       = takeArgs (seTheory env) e es
 
