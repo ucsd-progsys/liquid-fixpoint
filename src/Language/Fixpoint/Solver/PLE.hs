@@ -646,12 +646,13 @@ evalRESTWithCache cacheRef γ ctx acc rp =
      else
       return acc
   where
-    shouldExploreTerm exploredTerms e =
+    shouldExploreTerm exploredTerms e | Vis.isConc e =
       case rwTerminationOpts rwArgs of
         RWTerminationCheckDisabled ->
           return $ not $ ExploredTerms.visited (Rewrite.convert e) exploredTerms
         RWTerminationCheckEnabled  ->
           ExploredTerms.shouldExplore (Rewrite.convert e) (c rp) exploredTerms
+    shouldExploreTerm _ _ = return False
 
     allowed (_, rwE, _) | rwE `elem` pathExprs = return False
     allowed (_, _, c)   = termCheck c
