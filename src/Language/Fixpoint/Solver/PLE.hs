@@ -497,7 +497,7 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
 eval γ ctx et = go
   where
-    go (ELam (x,s) e)   = mapFE (ELam (x, s)) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
+    go (ELam (x,s) e)   = evalELam γ ctx et (x, s) e
     go (EIte b e1 e2) = evalIte b e1 e2
     go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
     go e@(EApp _ _)     =
@@ -561,6 +561,18 @@ eval γ ctx et = go
         Just True -> return (e1, noExpand)
         Just False -> return (e2, noExpand)
         _ -> return (EIte b e1 e2, fe)
+
+-- | 'evalELamb' produces equations that preserve the context of a rewrite
+-- so equations include any necessary lambda bindings.
+evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (Expr, FinalExpand)
+evalELam γ ctx et (x, s) e = do
+    oldEqs <- gets evNewEqualities
+    (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
+    let e2' = simplify γ ctx e'
+        elam = ELam (x, s) e
+    -- Discard the old equalities which miss the lambda binding
+    modify $ \st -> st { evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs }
+    return (elam, fe)
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
