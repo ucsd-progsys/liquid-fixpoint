@@ -105,6 +105,7 @@ convert (ECon c)       = RT.App (Op $ "$econ" `TX.append` (TX.pack . show) c) []
 convert (ESym (SL tx)) = RT.App (Op tx) []
 convert (ECst t _)     = convert t
 convert (PIff e0 e1)   = convert (PAtom Eq e0 e1)
+convert (PImp e0 e1)   = convert (POr [PNot e0, e1])
 convert e              = error (show e)
 
 passesTerminationCheck :: OCAlgebra oc a IO -> RewriteArgs -> oc -> IO Bool
