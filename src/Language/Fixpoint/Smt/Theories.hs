@@ -332,7 +332,7 @@ ffuncOut t = maybe t (last . snd) (bkFFunc t)
 --------------------------------------------------------------------------------
 isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
 --------------------------------------------------------------------------------
-isSmt2App g  (EVar f)
+isSmt2App g  (dropECst -> EVar f)
   | f == setEmpty = Just 1
   | f == setEmp   = Just 1
   | f == setSng   = Just 1
