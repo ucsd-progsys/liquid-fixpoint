@@ -155,18 +155,19 @@ mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
 ----------------------------------------------------------------------------------------------
 -- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
 pleTrie :: CTrie -> InstEnv a -> IO InstRes
-pleTrie t env =
-    withEqualities env' (S.toList $ icEquals ctx0) $
-      loopT env' ctx0 diff0 Nothing res0 t
+pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
   where
     env'         = env
     diff0        = []
     res0         = M.empty
-    ctx0         = initCtx ((mkEq <$> es0) ++ (mkEq' <$> es0'))
-    es0          = L.filter (null . eqArgs) (aenvEqs   . ieAenv $ env)
-    es0'         = L.filter (null . smArgs) (aenvSimpl . ieAenv $ env)
-    mkEq  eq     = (EVar $ eqName eq, eqBody eq)
-    mkEq' rw     = (EApp (EVar $ smName rw) (EVar $ smDC rw), smBody rw)
+    ctx0         = ICtx
+      { icAssms  = mempty
+      , icCands  = mempty
+      , icEquals = mempty
+      , icSimpl  = mempty
+      , icSubcId = Nothing
+      , icANFs   = []
+      }
 
 loopT
   :: InstEnv a
@@ -217,13 +218,6 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT)
     act env' ctx' { icAssms = mempty }
-
-withEqualities :: InstEnv a -> [(Expr, Expr)] -> IO b -> IO b
-withEqualities env es m = do
-  let assms = toSMT "withEqualities" (ieCfg env) (ieSMT env) [] <$> equalitiesPred es
-  SMT.smtBracket (ieSMT env) "PLE.withEqualities" $ do
-    forM_ assms (SMT.smtAssert (ieSMT env))
-    m
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
@@ -318,17 +312,6 @@ type InstRes = M.HashMap BindId Expr
 type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
-
-initCtx :: [(Expr,Expr)] -> ICtx
-initCtx es   = ICtx
-  { icAssms  = mempty
-  , icCands  = mempty
-  , icEquals = S.fromList es
-  , icSolved = mempty
-  , icSimpl  = mempty
-  , icSubcId = Nothing
-  , icANFs   = []
-  }
 
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
