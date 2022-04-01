@@ -495,10 +495,7 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 -- as pairs @(original_subexpression, rewritten_subexpression)@.
 --
 eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
-eval γ ctx et e0 =
-  do (e0', fe)  <- go e0
-     let e' = simplify γ ctx e0'
-     return (e', fe)
+eval γ ctx et = go
   where
     go (ELam (x,s) e)   = mapFE (ELam (x, s)) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
     go (EIte b e1 e2) = evalIte b e1 e2
@@ -623,7 +620,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map (\(_, e, _) -> e) rws
           acc' = exprsToAdd ++ acc
-          eqnToAdd = map (\(eqn, _, _) -> eqn) rws
+          eqnToAdd = [ (e1, simplify γ ctx e2) | ((e1, e2), _, _) <- rws ]
 
       smtCache <- liftIO $ readIORef cacheRef
       modify (\st ->
@@ -723,15 +720,16 @@ evalApp γ ctx e0 es et
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
                 (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                let e2' = simplify γ ctx e' -- reduces a bit the equations
                 unless (eqRec eq) $
                   modify $ \st ->
-                    st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
+                    st { evNewEqualities = S.insert (eApps e0 es, e2') (evNewEqualities st) }
                 if changed
                   then do
                     useFuel f
                     when (eqRec eq) $
                       modify $ \st ->
-                        st { evNewEqualities = S.insert (eApps e0 es, e') (evNewEqualities st) }
+                        st { evNewEqualities = S.insert (eApps e0 es, e2') (evNewEqualities st) }
                     return (Just e', fe)
                   else
                     -- Don't unfold the expression if there is an if-then-else
@@ -740,7 +738,7 @@ evalApp γ ctx e0 es et
                     return (Nothing, noExpand)
          else return (Nothing, noExpand)
 
-evalApp γ _ e0 args@(e:es) _
+evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
   , (d, as) <- splitEAppThroughECst e
   , EVar dc <- dropECst d
@@ -753,7 +751,7 @@ evalApp γ _ e0 args@(e:es) _
         eqs = if isUserDataSMeasure == NoUserDataSMeasure
                 -- User data measures aren't sent to the SMT solver because
                 -- it knows already about selectors and constructor tests.
-                then (eApps e0 args, newE) : measureEqs
+                then map (second $ simplify γ ctx) $ (eApps e0 args, newE) : measureEqs
                 else measureEqs
     modify $ \st ->
       st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs }
@@ -773,11 +771,12 @@ evalApp γ ctx e0 (e1:es2) et
          then do
                 let newE = substRW γ rws e1
                 (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                let e2' = simplify γ ctx e' -- reduces a bit the equations
                 if changed
                   then do
                     useFuel f
                     modify $ \st ->
-                      st { evNewEqualities = S.insert (eApps e0 (e1:es2), e') (evNewEqualities st) }
+                      st { evNewEqualities = S.insert (eApps e0 (e1:es2), e2') (evNewEqualities st) }
                     return (Just e', fe)
                   else
                     -- Don't unfold the expression if there is an if-then-else
@@ -786,11 +785,12 @@ evalApp γ ctx e0 (e1:es2) et
                     return (Nothing, noExpand)
          else return (Nothing, noExpand)
 
-evalApp γ _ctx e0 es _et
+evalApp γ ctx e0 es _et
   | eqs@(_:_) <- nonUserDataMeasureEqs γ (eApps e0 es)
   = do
+       let eqs' = map (second $ simplify γ ctx) eqs
        modify $ \st ->
-         st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs }
+         st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs' }
        return (Nothing, noExpand)
 
 evalApp _ _ _e _es _
