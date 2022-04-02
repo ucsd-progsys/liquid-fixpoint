@@ -187,6 +187,15 @@ subExprs' (PImp lhs rhs) = lhs'' ++ rhs''
     rhs'' :: [SubExpr]
     rhs'' = map (\(e, f) -> (e, \e' -> PImp lhs (f e'))) rhs'
 
+subExprs' (PIff lhs rhs) = lhs'' ++ rhs''
+  where
+    lhs' = subExprs lhs
+    rhs' = subExprs rhs
+    lhs'' :: [SubExpr]
+    lhs'' = map (\(e, f) -> (e, \e' -> PIff (f e') rhs)) lhs'
+    rhs'' :: [SubExpr]
+    rhs'' = map (\(e, f) -> (e, \e' -> PIff lhs (f e'))) rhs'
+
 subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
   where
     lhs' = subExprs lhs
@@ -212,7 +221,25 @@ subExprs' e@EApp{} =
 subExprs' (ECst e t) =
     [ (e', \subE -> ECst (toE subE) t) | (e', toE) <- subExprs' e ]
 
+subExprs' (PAnd es) = [ (e, PAnd . f) | (e, f) <- subs es ]
+
+subExprs' (POr es) = [ (e, POr . f) | (e, f) <- subs es ]
+
 subExprs' _ = []
+
+-- | Computes the subexpressions of a list of expressions.
+-- Each subexpression comes with a function that rebuilds the
+-- context in which the subexpression occurs.
+--
+-- > and [ es == f e | (e, f) <- subs es ]
+--
+subs :: [Expr] -> [(Expr, Expr -> [Expr])]
+subs [] = []
+subs [x] = [ (s, \e -> [f e]) | (s, f) <- subExprs x ]
+subs (x:xs) = [ (s, \e -> f e : xs) | (s, f) <- subExprs x ]
+              ++
+              [ (s, \e -> x : f e) | (s, f) <- subs xs ]
+
 
 unifyAll :: [Symbol] -> [Expr] -> [Expr] -> Maybe Subst
 unifyAll _ []     []               = Just (Su M.empty)
