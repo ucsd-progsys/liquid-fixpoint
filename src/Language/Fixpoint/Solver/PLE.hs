@@ -79,7 +79,9 @@ instantiate cfg fi' subcIds = do
                (cm fi)
     let t  = mkCTrie (M.toList cs)                                          -- 1. BUILD the Trie
     res   <- withRESTSolver $ \solver -> withProgress (1 + M.size cs) $
-               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs solver) -- 2. TRAVERSE Trie to compute InstRes
+               withCtx cfg file sEnv $ \ctx -> do
+                  env <- instEnv cfg fi cs solver ctx
+                  pleTrie t env                                             -- 2. TRAVERSE Trie to compute InstRes
     savePLEEqualities cfg fi res
     return $ resSInfo cfg sEnv fi res                                       -- 3. STRENGTHEN SInfo using InstRes
   where
@@ -111,31 +113,37 @@ savePLEEqualities cfg fi res = when (save cfg) $ do
 
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
-instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> InstEnv a
-instEnv cfg fi cs restSolver ctx =
+instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> IO (InstEnv a)
+instEnv cfg fi cs restSolver ctx = do
+    refRESTCache <- newIORef mempty
+    refRESTSatCache <- newIORef mempty
     let
         restOC = FC.restOC cfg
-        et :: Maybe (ExploredTerms RuntimeTerm OCType IO)
-        et = case restSolver of
-               Just solver ->
-                 let oc = ordConstraints restOC solver
-                  in Just $ ExploredTerms.empty
-                       EF
-                         { ExploredTerms.union = OC.union oc
-                         , ExploredTerms.subsumes = OC.notStrongerThan oc
-                         }
-                       ExploreWhenNeeded
-               Nothing -> Nothing
+        oc0 = ordConstraints restOC $ Mb.fromJust restSolver
+        oc :: OCAlgebra OCType RuntimeTerm IO
+        oc = oc0
+             { OC.isSat = cachedIsSat refRESTSatCache oc0
+             , OC.notStrongerThan = cachedNotStrongerThan refRESTCache oc0
+             }
+        et :: ExploredTerms RuntimeTerm OCType IO
+        et = ExploredTerms.empty
+               EF
+                 { ExploredTerms.union = OC.union oc
+                 , ExploredTerms.subsumes = OC.notStrongerThan oc
+                 , exRefine = OC.refine oc
+                 }
+                 ExploreWhenNeeded
         s0 = EvalEnv
               { evEnv = SMT.ctxSymEnv ctx
               , evNewEqualities = mempty
               , evSMTCache = mempty
               , evFuel = defFuelCount cfg
-              , explored = et
+              , explored = Just et
               , restSolver = restSolver
               , restOCA = restOC
+              , evOCAlgebra = oc
               }
-     in InstEnv
+    return $ InstEnv
        { ieCfg = cfg
        , ieSMT = ctx
        , ieBEnv = bs fi
@@ -144,6 +152,26 @@ instEnv cfg fi cs restSolver ctx =
        , ieKnowl = knowledge cfg ctx fi
        , ieEvEnv = s0
        }
+  where
+    cachedNotStrongerThan refRESTCache oc a b = do
+      m <- readIORef refRESTCache
+      case M.lookup (a, b) m of
+        Nothing -> do
+          nst <- OC.notStrongerThan oc a b
+          writeIORef refRESTCache (M.insert (a, b) nst m)
+          return nst
+        Just nst ->
+          return nst
+
+    cachedIsSat refRESTSatCache oc a = do
+      m <- readIORef refRESTSatCache
+      case M.lookup a m of
+        Nothing -> do
+          sat <- OC.isSat oc a
+          writeIORef refRESTSatCache (M.insert a sat m)
+          return sat
+        Just sat ->
+          return sat
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -400,6 +428,7 @@ data EvalEnv = EvalEnv
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
   , restSolver :: Maybe SolverHandle
   , restOCA    :: RESTOrdering
+  , evOCAlgebra :: OCAlgebra OCType RuntimeTerm IO
   }
 
 data FuelCount = FC
@@ -426,7 +455,7 @@ evalOne γ ctx i e
 evalOne γ ctx _ e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
-        oc = ordConstraints (restOCA env) (Mb.fromJust $ restSolver env)
+        oc = evOCAlgebra env
         rp = RP (contramap Rewrite.convert oc) [(e, PLE)] constraints
         constraints = OC.top oc
         emptyET = ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc) (OC.refine oc)) ExploreWhenNeeded
