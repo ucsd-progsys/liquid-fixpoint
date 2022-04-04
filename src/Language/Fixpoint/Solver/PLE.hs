@@ -112,23 +112,38 @@ savePLEEqualities cfg fi res = when (save cfg) $ do
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
 instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> InstEnv a
-instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
-  where
-    restOC            = FC.restOC cfg
-    bEnv              = bs fi
-    aEnv              = ae fi
-    γ                 = knowledge cfg ctx fi
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty (defFuelCount cfg) et restSolver restOC
-
-    -- REST Params
-    et :: Maybe (ExploredTerms RuntimeTerm OCType IO)
-    et                = fmap makeET restSolver
-    makeET :: SolverHandle -> ExploredTerms RuntimeTerm OCType IO
-    makeET solver     =
-      let
-        oc = ordConstraints restOC solver
-      in
-        ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc) (OC.refine oc)) ExploreWhenNeeded
+instEnv cfg fi cs restSolver ctx =
+    let
+        restOC = FC.restOC cfg
+        et :: Maybe (ExploredTerms RuntimeTerm OCType IO)
+        et = case restSolver of
+               Just solver ->
+                 let oc = ordConstraints restOC solver
+                  in Just $ ExploredTerms.empty
+                       EF
+                         { ExploredTerms.union = OC.union oc
+                         , ExploredTerms.subsumes = OC.notStrongerThan oc
+                         }
+                       ExploreWhenNeeded
+               Nothing -> Nothing
+        s0 = EvalEnv
+              { evEnv = SMT.ctxSymEnv ctx
+              , evNewEqualities = mempty
+              , evSMTCache = mempty
+              , evFuel = defFuelCount cfg
+              , explored = et
+              , restSolver = restSolver
+              , restOCA = restOC
+              }
+     in InstEnv
+       { ieCfg = cfg
+       , ieSMT = ctx
+       , ieBEnv = bs fi
+       , ieAenv = ae fi
+       , ieCstrs = cs
+       , ieKnowl = knowledge cfg ctx fi
+       , ieEvEnv = s0
+       }
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
