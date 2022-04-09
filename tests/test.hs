@@ -14,7 +14,10 @@ import Control.Monad.Trans.Class (lift)
 import Data.Char
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..), (<>))
+import Data.Proxy
+import Data.Tagged
 import Control.Applicative
+import Options.Applicative
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -36,11 +39,9 @@ main :: IO ()
 main    = do
   run =<< group "Tests" [unitTests]
   where
-    run = defaultMainWithIngredients [
-                testRunner
-            --  , includingOptions [ Option (Proxy :: Proxy NumThreads)
-            --                     , Option (Proxy :: Proxy LiquidOpts)
-            --                     , Option (Proxy :: Proxy SmtSolver) ]
+    run = defaultMainWithIngredients
+              [ testRunner
+              , includingOptions [ Option (Proxy :: Proxy FixpointOpts) ]
               ]
 
 testRunner :: Ingredient
@@ -89,6 +90,28 @@ unitTests
 skipNativePos :: [FilePath]
 skipNativePos = ["NonLinear-pack.fq"]
 
+newtype FixpointOpts = LO String deriving (Show, Read, Eq, Ord)
+
+instance Semigroup FixpointOpts where
+  (LO "") <> y       = y
+  x       <> (LO "") = x
+  (LO x)  <> (LO y)  = LO $ x ++ (' ' : y)
+
+instance Monoid FixpointOpts where
+  mempty = LO ""
+  mappend = (<>)
+
+instance IsOption FixpointOpts where
+  defaultValue = LO ""
+  parseValue = Just . LO
+  optionName = return "fixpoint-opts"
+  optionHelp = return "Extra options to pass to fixpoint"
+  optionCLParser =
+    option (fmap LO str)
+      (  long (untag (optionName :: Tagged FixpointOpts String))
+      <> help (untag (optionHelp :: Tagged FixpointOpts String))
+      )
+
 ---------------------------------------------------------------------------
 dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
@@ -104,7 +127,9 @@ isTest f = takeExtension f `elem` [".fq", ".smt2"]
 mkTest :: TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
 mkTest testCmd code dir file
-  = testCase file $
+  =
+    askOption $ \opts ->
+    testCase file $
       if test `elem` knownToFail
       then do
         printf "%s is known to fail: SKIPPING" test
@@ -112,7 +137,7 @@ mkTest testCmd code dir file
       else do
         createDirectoryIfMissing True $ takeDirectory log
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd "fixpoint" dir file
+          let cmd     = testCmd opts "fixpoint" dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           assertEqual "Wrong exit code" code c
@@ -122,13 +147,15 @@ mkTest testCmd code dir file
 
 knownToFail = []
 ---------------------------------------------------------------------------
-type TestCmd = FilePath -> FilePath -> FilePath -> String
+type TestCmd = FixpointOpts -> FilePath -> FilePath -> FilePath -> String
 
 nativeCmd :: TestCmd
-nativeCmd bin dir file = printf "cd %s && %s %s" dir bin file
+nativeCmd (LO opts) bin dir file =
+  printf "cd %s && %s %s %s" dir bin opts file
 
 elimCmd :: TestCmd
-elimCmd bin dir file = printf "cd %s && %s --eliminate=some %s" dir bin file
+elimCmd (LO opts) bin dir file =
+  printf "cd %s && %s --eliminate=some %s %s" dir bin opts file
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers

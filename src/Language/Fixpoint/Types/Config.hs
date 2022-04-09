@@ -92,7 +92,7 @@ data Config = Config
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
-  , useInterpreter   :: Bool           -- ^ Use the interpreter to assist PLE
+  , noInterpreter    :: Bool           -- ^ Do not use the interpreter to assist PLE
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , noEnvironmentReduction :: Bool     -- ^ Don't use environment reduction
@@ -213,7 +213,10 @@ defConfig = Config {
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting"
-  , useInterpreter           = True &= help "Use the interpreter to assist PLE"
+  , noInterpreter            =
+      False
+        &= name "no-interpreter"
+        &= help "Do not use the interpreter to assist PLE"
   , oldPLE                   = False &= help "Use old version of PLE"
   , noIncrPle                = False &= help "Don't use incremental PLE"
   , noEnvironmentReduction   =
