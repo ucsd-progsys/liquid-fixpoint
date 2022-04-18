@@ -9,13 +9,10 @@
 --   expressions and generate equalities. 
 --------------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}

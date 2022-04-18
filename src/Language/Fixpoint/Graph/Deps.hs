@@ -2,7 +2,6 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ConstraintKinds       #-}
-{-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE RecordWildCards       #-}
 
 module Language.Fixpoint.Graph.Deps (

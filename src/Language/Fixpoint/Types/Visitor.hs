@@ -1,11 +1,9 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns  #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Language.Fixpoint.Types.Visitor (
   -- * Visitor

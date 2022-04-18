@@ -1,7 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE PatternGuards     #-}
 
 module Language.Fixpoint.Solver.Solution
