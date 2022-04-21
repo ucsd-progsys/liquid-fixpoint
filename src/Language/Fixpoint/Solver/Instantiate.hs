@@ -776,7 +776,6 @@ assertSelectors γ e = do
     -- cfg  <- gets evCfg
     -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (mytracepp  "assertSelector" e) sims
     forM_ sims $ \s -> Vis.mapMExpr (go s) e
-    return ()
   where
     go :: Rewrite -> Expr -> EvalST Expr
     go (SMeasure f dc xs bd) e@(EApp _ _)
