@@ -281,8 +281,8 @@ instance PPrint KVSub where
 
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
-data SymConst = SL !Text
-              deriving (Eq, Ord, Show, Data, Typeable, Generic)
+newtype SymConst = SL Text
+                   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Constant = I !Integer
               | R !Double

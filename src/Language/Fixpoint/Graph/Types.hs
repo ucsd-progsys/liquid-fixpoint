@@ -79,7 +79,7 @@ instance PPrint CVertex where
 
 instance Hashable CVertex
 
-data KVGraph    = KVGraph { kvgEdges :: [(CVertex, CVertex, [CVertex])] }
+newtype KVGraph = KVGraph { kvgEdges :: [(CVertex, CVertex, [CVertex])] }
 type CEdge      = (CVertex, CVertex)
 type Comps a    = [[a]]
 type KVComps    = Comps CVertex
