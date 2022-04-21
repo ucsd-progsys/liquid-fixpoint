@@ -207,7 +207,7 @@ instance Arbitrary SortedReft where
   arbitrary = sized $ arbitrarySortedReft (const arbitrary) (const arbitrary)
 
 arbitrarySortedReft :: (Int -> Gen Sort) -> (Int -> Gen Symbol) -> Int -> Gen SortedReft
-arbitrarySortedReft sortGen symGen = \n -> do
+arbitrarySortedReft sortGen symGen n = do
   sort <- sortGen n
   eq <- arbitraryEqualityConstraint
   sym <- symGen n
@@ -259,7 +259,7 @@ instance Arbitrary FlatAnfEnv where
 -- plus the "final" non-lq_anf$ expression, which represents the "original"
 -- expression brought to ANF.
 finalAnfGen :: (Int -> Gen [(Symbol, SortedReft)]) -> ([(Symbol, SortedReft)] -> Gen (Symbol, SortedReft)) -> Int -> Gen [(Symbol, SortedReft)]
-finalAnfGen anfsGen finalGen = \n -> do
+finalAnfGen anfsGen finalGen n = do
   anfs <- anfsGen n
   ultimateAnf <- finalGen anfs
   pure $ ultimateAnf : anfs
@@ -267,7 +267,7 @@ finalAnfGen anfsGen finalGen = \n -> do
 -- | Create an arbitrary env up to size k with the given generator for Symbols
 -- and SortedRefts
 arbitraryEnv :: (Int -> Gen [(Symbol, SortedReft)]) -> Int -> Gen Env
-arbitraryEnv gen = \k -> Env . M.fromList <$> (choose (0, k) >>= gen)
+arbitraryEnv gen k = Env . M.fromList <$> (choose (0, k) >>= gen)
 
 -- | Env with anf vars that form a list of references.
 newtype ChainedAnfEnv = ChainedAnfEnv { unChainedAnfEnv :: Env }
