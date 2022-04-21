@@ -597,8 +597,8 @@ knowledge si = KN
       | otherwise 
       = Nothing 
 
-    constNames si = (S.fromList . fst . unzip . toListSEnv . gLits $ si) `S.union`
-                      (S.fromList . fst . unzip . toListSEnv . dLits $ si)
+    constNames si = (S.fromList . map fst . toListSEnv . gLits $ si) `S.union`
+                      (S.fromList . map fst . toListSEnv . dLits $ si)
 -- testSymbol (from names)
 
 
