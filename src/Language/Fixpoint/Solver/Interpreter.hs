@@ -161,7 +161,7 @@ evalOneCandStep env γ env' (ictx, acc) e = do
   return (ictx, res : acc)
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
-rewrite e rw = Mb.catMaybes $ map (`rewriteTop` rw) (notGuardedApps e)
+rewrite e rw = Mb.mapMaybe (`rewriteTop` rw) (notGuardedApps e)
 
 rewriteTop :: Expr -> Rewrite -> Maybe (Expr,Expr) 
 rewriteTop e rw
