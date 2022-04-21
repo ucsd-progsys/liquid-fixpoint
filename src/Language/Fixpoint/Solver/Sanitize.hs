@@ -425,8 +425,7 @@ symbolSorts' _cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs
     defs            = F.toListSEnv . F.gLits $ fi
-    txFun
-      | True        = id
+    txFun           = id
 
 unShadow :: (F.Sort -> F.Sort) -> M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
 unShadow tx dm (x, t)
