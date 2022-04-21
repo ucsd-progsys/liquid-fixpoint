@@ -13,7 +13,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Data.Foldable       (foldl')
-import           Data.Maybe          (catMaybes, fromJust, isJust)
+import           Data.Maybe          (catMaybes, mapMaybe, fromJust, isJust)
 import           Data.Hashable       (Hashable)
 import           GHC.Generics        (Generic)
 import           Control.Arrow       (second)
@@ -123,7 +123,7 @@ updateRef :: RenameMap -> SInfo a -> Ref -> S.HashSet BindId -> SInfo a
 updateRef rnMap fi rf bset = applySub (mkSubst subs) fi rf
   where
     symTList = [second sr_sort $ lookupBindEnv i $ bs fi | i <- S.toList bset]
-    subs     = catMaybes $ mkSubUsing rnMap <$> symTList
+    subs     = mapMaybe (mkSubUsing rnMap) symTList
 
 mkSubUsing :: RenameMap -> (Symbol, Sort) -> Maybe (Symbol, Expr)
 mkSubUsing m (sym, t) = do

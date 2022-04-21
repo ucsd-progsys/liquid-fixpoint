@@ -578,8 +578,8 @@ knowledge si = KN
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
   , knDCs                      = S.fromList (smDC <$> sims)  <> constNames si
   , knAllDCs                   = S.fromList $ (val . dcName) <$> concatMap ddCtors (ddecls si)
-  , knSels                     = M.fromList . Mb.catMaybes $ map makeSel  sims 
-  , knConsts                   = M.fromList . Mb.catMaybes $ map makeCons sims 
+  , knSels                     = M.fromList $ Mb.mapMaybe makeSel  sims 
+  , knConsts                   = M.fromList $ Mb.mapMaybe makeCons sims 
   } 
   where 
     sims = aenvSimpl aenv  
