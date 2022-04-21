@@ -48,13 +48,15 @@ trace _msg v = v
 printPiSols :: (F.PPrint a1, F.PPrint a2, F.PPrint a3) =>
                M.HashMap a1 ((a4, a2), a3) -> IO ()
 printPiSols piSols =
-  sequence_ $ ((\(piVar, ((_, args), cstr)) -> do
+  mapM_
+    (\(piVar, ((_, args), cstr)) -> do
                   putStr $ F.showpp piVar
                   putStr " := "
                   putStrLn $ F.showpp args
                   putStrLn $ F.showpp cstr
                   putStr "\n"
-                  hFlush stdout) <$> M.toList piSols)
+                  hFlush stdout)
+    (M.toList piSols)
 ---------------
 
 -- type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
