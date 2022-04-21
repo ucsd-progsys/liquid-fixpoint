@@ -407,7 +407,7 @@ pushCS (fs, r) f = (f:fs, r)
 recurCS :: CStack -> Symbol -> Bool
 recurCS (_,  Ok) _ = True
 -- recurCS (_,  _ ) _ = False -- not (f `elem` fs)
-recurCS (fs, _) f  = not (f `elem` fs)
+recurCS (fs, _) f  = f `notElem` fs
 
 noRecurCS :: CStack -> CStack
 noRecurCS (fs, _) = (fs, Stop)

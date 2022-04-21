@@ -104,7 +104,7 @@ type BindEnv       = SizedEnv (Symbol, SortedReft)
 newtype EBindEnv   = EB BindEnv
 
 splitByQuantifiers :: BindEnv -> [BindId] -> (BindEnv, EBindEnv)
-splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> not (elem k ebs)) bs
+splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> notElem k ebs) bs
                                    , EB $ BE i $ M.filterWithKey (\k _ -> elem k ebs) bs
                                    )
 
