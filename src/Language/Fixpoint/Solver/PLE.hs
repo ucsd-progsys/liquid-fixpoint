@@ -759,7 +759,7 @@ evalRESTWithCache cacheRef γ ctx rp =
 
       when evalIsNewExpr $
         if fe && any isRW (path rp)
-          then eval γ (addConst (e, e')) NoRW e' >> return ()
+          then void (eval γ (addConst (e, e')) NoRW e')
           else evalRESTWithCache cacheRef γ (addConst (e, e')) (rpEval e')
 
       mapM_ (evalRESTWithCache cacheRef γ ctx . rpRW) rws

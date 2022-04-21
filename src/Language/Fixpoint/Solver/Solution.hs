@@ -18,6 +18,7 @@ module Language.Fixpoint.Solver.Solution
 
 import           Control.Parallel.Strategies
 import           Control.Arrow (second, (***))
+import           Control.Monad (void)
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
@@ -599,7 +600,7 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
 --------------------------------------------------------------------------------
 ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
 ebindInfo si = group [((bid, x), cons cid) | (bid, cid, x) <- ebindDefs si]
-  where cons cid = const () <$> Misc.safeLookup "ebindInfo" cid cs
+  where cons cid = void (Misc.safeLookup "ebindInfo" cid cs)
         cs = F.cm si
         cmpByFst x y = fst ( fst x ) == fst ( fst y )
         group xs = (\ys -> ( (fst $ fst $ head ys)
