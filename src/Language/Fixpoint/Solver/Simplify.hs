@@ -3,15 +3,8 @@
 --     Simplifiable Expr in both Interpreter.hs and PLE.hs.
 --------------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE ViewPatterns              #-}
-{-# LANGUAGE PatternGuards             #-}
-{-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
 module Language.Fixpoint.Solver.Simplify (applyBooleanFolding, applyConstantFolding, applySetFolding, isSetPred) where

@@ -5,11 +5,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE PatternGuards              #-}
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE TupleSections              #-}
 
 -- | This module contains the top-level SOLUTION data types,
