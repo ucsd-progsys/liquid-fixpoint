@@ -82,7 +82,7 @@ instantiate cfg fi' subcIds = do
     return $ resSInfo cfg sEnv fi res                                       -- 3. STRENGTHEN SInfo using InstRes
   where
     withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
-    withRESTSolver f | null (concat $ M.elems $ aenvAutoRW aEnv) = f Nothing
+    withRESTSolver f | all null (M.elems $ aenvAutoRW aEnv) = f Nothing
     withRESTSolver f = withZ3 (f . Just)
 
     file   = srcFile cfg ++ ".evals"

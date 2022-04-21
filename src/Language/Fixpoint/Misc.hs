@@ -412,7 +412,7 @@ mapSnd f (x, y) = (x, f y)
 
 {-@ allCombinations :: xss:[[a]] -> [{v:[a]| len v == len xss}] @-}
 allCombinations :: [[a]] -> [[a]]
-allCombinations xs = assert (and . map (((length xs) == ) . length)) $ go xs
+allCombinations xs = assert (all (((length xs) == ) . length)) $ go xs
   where
    go []          = [[]]
    go [[]]        = []
