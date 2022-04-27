@@ -137,7 +137,7 @@ evalCandsLoop ie ictx0 γ env = go ictx0
         rws = [rewrite e rw | rw <- snd <$> M.toList (knSims γ)
                             ,  e <- S.toList (snd `S.map` exprs)]
       in 
-        exprs <> (S.fromList $ concat rws)
+        exprs <> S.fromList (concat rws)
     go ictx | S.null (icCands ictx) = return ictx 
     go ictx =  do let cands = icCands ictx
                   let env' = env { evAccum = icEquals ictx <> evAccum env }

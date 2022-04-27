@@ -740,7 +740,7 @@ getDC _ _
   = Nothing
 
 isUpperSymbol :: Symbol -> Bool
-isUpperSymbol x = (0 < lengthSym x') && (isUpper $ headSym x')
+isUpperSymbol x = (0 < lengthSym x') && isUpper (headSym x')
   where
     x' = dropModuleNames x
 
@@ -804,6 +804,6 @@ withCtx cfg file env k = do
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (e, _str) ~> e' = do
   let msg = "PLE: " ++ _str ++ showpp (e, e')
-  modify (\st -> st {evId = (mytracepp msg $ evId st) + 1})
+  modify (\st -> st {evId = mytracepp msg (evId st) + 1})
   return e'
 
