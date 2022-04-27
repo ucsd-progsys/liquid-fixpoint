@@ -87,7 +87,9 @@ arbitraryFiniteExpr zeroExprGen 0 = zeroExprGen
 arbitraryFiniteExpr zeroExprGen n = frequency
   [ (1, EApp <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, ENeg <$> arbitraryExpr')
-  , (1, EBin <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
+  , (1, do
+          e <- EBin <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr'
+          return $ if divZero e then discard e else e)
   , (1, EIte <$> arbitraryExpr' <*> arbitraryExpr' <*> arbitraryExpr')
   , (1, ECst <$> arbitraryExpr' <*> arbitrary)
   , (1, ELam <$> arbitrary <*> arbitraryExpr')
@@ -110,6 +112,13 @@ arbitraryFiniteExpr zeroExprGen n = frequency
     arbitraryList :: Gen a -> Gen [a]
     arbitraryList gen = choose (2, 3) >>= (`vectorOf` gen)
     arbitraryExprList = arbitraryList arbitraryExpr'
+
+    divZero :: Expr -> Bool
+    divZero (EBin Mod (ECon (I _)) (ECon (I 0))) = True
+    divZero (EBin Mod (ECon (R _)) (ECon (R 0.0))) = True
+    divZero (EBin Div (ECon (I _)) (ECon (I 0))) = True
+    divZero (EBin Div (ECon (R _)) (ECon (R 0.0))) = True
+    divZero _ = False
 
 -- | Generates a finite expression, with the logarithm of the Int given
 -- suggesting the depth of the expression tree.
