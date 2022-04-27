@@ -20,14 +20,14 @@ pbRef = unsafePerformIO (newIORef Nothing)
 withProgress :: Int -> IO a -> IO a
 withProgress n act = do
   showBar <- ((/=) Quiet) <$> getVerbosity
-  case showBar of
-    False -> act
-    True  -> displayConsoleRegions $ do
+  if showBar
+    then displayConsoleRegions $ do
       -- putStrLn $ "withProgress: " ++ show n
       progressInit n
       r <- act
       progressClose
       return r
+    else act
 
 progressInit :: Int -> IO ()
 progressInit n = do

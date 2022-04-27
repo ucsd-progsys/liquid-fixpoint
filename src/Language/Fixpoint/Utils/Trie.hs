@@ -21,8 +21,8 @@ import qualified Language.Fixpoint.Misc as Misc
 type Key  = Int
 type Path = [Key]
 
-data Trie a
-  = Node ![Branch a]
+newtype Trie a
+  = Node [Branch a]
   deriving (Eq, Show)
 
 data Branch a

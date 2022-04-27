@@ -48,13 +48,15 @@ trace _msg v = v
 printPiSols :: (F.PPrint a1, F.PPrint a2, F.PPrint a3) =>
                M.HashMap a1 ((a4, a2), a3) -> IO ()
 printPiSols piSols =
-  sequence_ $ ((\(piVar, ((_, args), cstr)) -> do
+  mapM_
+    (\(piVar, ((_, args), cstr)) -> do
                   putStr $ F.showpp piVar
                   putStr " := "
                   putStrLn $ F.showpp args
                   putStrLn $ F.showpp cstr
                   putStr "\n"
-                  hFlush stdout) <$> M.toList piSols)
+                  hFlush stdout)
+    (M.toList piSols)
 ---------------
 
 -- type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
@@ -854,7 +856,7 @@ doelim k bss (All (Bind x t p) c) =
   where
     demorgan :: F.Symbol -> F.Sort -> [(F.Symbol, [F.Symbol])] -> [Pred] -> Cstr a -> [([Bind], [F.Expr])] -> Cstr a
     demorgan x t kvars preds c bss = mkAnd $ cubeSol <$> bss
-      where su = F.Su $ M.fromList $ concat $ map (\(k, xs) -> zip (kargs k) (F.EVar <$> xs)) kvars
+      where su = F.Su $ M.fromList $ concatMap (\(k, xs) -> zip (kargs k) (F.EVar <$> xs)) kvars
             mkAnd [c] = c
             mkAnd cs = CAnd cs
             cubeSol ((b:bs), eqs) = All b $ cubeSol (bs, eqs)
@@ -878,8 +880,8 @@ findKVarInGuard k (PAnd ps) =
     else Left $ (newLefts, newRights)
   where findResults = findKVarInGuard k <$> ps
         (lefts, rights) = partitionEithers findResults
-        newLefts = concat $ map fst lefts
-        newRights = concat (snd <$> lefts) ++ rights
+        newLefts = concatMap fst lefts
+        newRights = concatMap snd lefts ++ rights
 findKVarInGuard k p@(Var k' xs)
   | k == k' = Left ([(k', xs)], [])
   | otherwise = Right p

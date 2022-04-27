@@ -433,7 +433,7 @@ vv (Just i)         = intSymbol vvName i
 vv Nothing          = vvName
 
 isNontrivialVV      :: Symbol -> Bool
-isNontrivialVV      = not . (vv Nothing ==)
+isNontrivialVV      = (vv Nothing /=)
 
 vvCon, dummySymbol :: Symbol
 vvCon       = vvName `suffixSymbol` "F"

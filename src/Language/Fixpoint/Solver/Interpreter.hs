@@ -161,7 +161,7 @@ evalOneCandStep env γ env' (ictx, acc) e = do
   return (ictx, res : acc)
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
-rewrite e rw = Mb.catMaybes $ map (`rewriteTop` rw) (notGuardedApps e)
+rewrite e rw = Mb.mapMaybe (`rewriteTop` rw) (notGuardedApps e)
 
 rewriteTop :: Expr -> Rewrite -> Maybe (Expr,Expr) 
 rewriteTop e rw
@@ -578,8 +578,8 @@ knowledge si = KN
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
   , knDCs                      = S.fromList (smDC <$> sims)  <> constNames si
   , knAllDCs                   = S.fromList $ (val . dcName) <$> concatMap ddCtors (ddecls si)
-  , knSels                     = M.fromList . Mb.catMaybes $ map makeSel  sims 
-  , knConsts                   = M.fromList . Mb.catMaybes $ map makeCons sims 
+  , knSels                     = M.fromList $ Mb.mapMaybe makeSel  sims 
+  , knConsts                   = M.fromList $ Mb.mapMaybe makeCons sims 
   } 
   where 
     sims = aenvSimpl aenv  
@@ -597,8 +597,8 @@ knowledge si = KN
       | otherwise 
       = Nothing 
 
-    constNames si = (S.fromList . fst . unzip . toListSEnv . gLits $ si) `S.union`
-                      (S.fromList . fst . unzip . toListSEnv . dLits $ si)
+    constNames si = (S.fromList . map fst . toListSEnv . gLits $ si) `S.union`
+                      (S.fromList . map fst . toListSEnv . dLits $ si)
 -- testSymbol (from names)
 
 
@@ -714,7 +714,7 @@ normalizeBody :: Symbol -> Expr -> Expr
 normalizeBody f = go   
   where 
     go e 
-      | any (== f) (syms e) 
+      | elem f (syms e) 
       = go' e 
     go e 
       = e 

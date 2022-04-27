@@ -407,7 +407,7 @@ pushCS (fs, r) f = (f:fs, r)
 recurCS :: CStack -> Symbol -> Bool
 recurCS (_,  Ok) _ = True
 -- recurCS (_,  _ ) _ = False -- not (f `elem` fs)
-recurCS (fs, _) f  = not (f `elem` fs)
+recurCS (fs, _) f  = f `notElem` fs
 
 noRecurCS :: CStack -> CStack
 noRecurCS (fs, _) = (fs, Stop)
@@ -776,7 +776,6 @@ assertSelectors γ e = do
     -- cfg  <- gets evCfg
     -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (mytracepp  "assertSelector" e) sims
     forM_ sims $ \s -> Vis.mapMExpr (go s) e
-    return ()
   where
     go :: Rewrite -> Expr -> EvalST Expr
     go (SMeasure f dc xs bd) e@(EApp _ _)
