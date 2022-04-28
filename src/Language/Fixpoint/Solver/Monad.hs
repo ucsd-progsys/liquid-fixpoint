@@ -243,7 +243,7 @@ filterValidOne_ p qs me = do
     smtBracket me "filterValidRHS" $ do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
-      return $ ((q, x), valid)
+      return ((q, x), valid)
 
 smtEnablembqi :: SolveM ()
 smtEnablembqi

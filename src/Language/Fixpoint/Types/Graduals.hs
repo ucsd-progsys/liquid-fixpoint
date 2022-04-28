@@ -198,7 +198,7 @@ freshK k  = do
 
 freshK' k = do
   i <- freshId <$> get
-  modify $ (\s -> s{freshId = i + 1})
+  modify (\s -> s{freshId = i + 1})
   let k' = KV $ gradIntSymbol i
   addK k k'
   addCache k k'
@@ -206,7 +206,7 @@ freshK' k = do
 
 addK :: KVar -> KVar -> UniqueM ()
 addK key val =
-  modify $ (\s -> s{kmap = M.insertWith (++) key [(val, uloc s)] (kmap s)})
+  modify (\s -> s{kmap = M.insertWith (++) key [(val, uloc s)] (kmap s)})
 
 -------------------------------------------------------------------------------
 -- | expandWF -----------------------------------------------------------------
@@ -217,7 +217,7 @@ expandWF :: (NFData a, Fixpoint a)
          -> M.HashMap KVar (WfC a)
          -> M.HashMap KVar (WfC a)
 expandWF km ws
-  = M.fromList $
+  = M.fromList
        ([(k, updateKVar k src w) | (i, w) <- gws, (kw, ks) <- km', kw == i, (k, src) <- ks]
         ++ kws)
   where

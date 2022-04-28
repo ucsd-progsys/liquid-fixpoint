@@ -38,7 +38,7 @@ init cfg si = map (elab . refineG si qs genv) gs `using` parList rdeepseq
 
     gs0        = L.filter (isGWfc . snd) $ M.toList (F.ws si)
 
-    elab (k,(x,es)) = ((k,) . (x,)) $ (elaborate (F.atLoc F.dummySpan "init") (sEnv (gsym x) (gsort x)) <$> es)
+    elab (k,(x,es)) = ((k,) . (x,)) (elaborate (F.atLoc F.dummySpan "init") (sEnv (gsym x) (gsort x)) <$> es)
 
     sEnv x s    = isEnv {F.seSort = F.insertSEnv x s (F.seSort isEnv)}
     isEnv       = symbolEnv cfg si

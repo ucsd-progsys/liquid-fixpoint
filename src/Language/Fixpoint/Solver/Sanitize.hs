@@ -414,7 +414,7 @@ symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
     alits        = litsAEnv $ F.ae si
 
 litsAEnv :: F.AxiomEnv -> [(F.Symbol, F.Sort)]
-litsAEnv ae = zip (F.symbol <$> (symConsts ae)) (repeat $ F.strSort)
+litsAEnv ae = zip (F.symbol <$> (symConsts ae)) (repeat F.strSort)
 
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi

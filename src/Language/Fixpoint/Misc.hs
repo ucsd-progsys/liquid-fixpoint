@@ -454,7 +454,7 @@ nubDiff a b = a' `S.difference` b'
 
 
 fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
-fold1M _ []         = errorstar $ "fold1M with empty list"
+fold1M _ []         = errorstar "fold1M with empty list"
 fold1M _ [x]        = return x
 fold1M f (x1:x2:xs) = do { x <- f x1 x2; fold1M f (x:xs) }
 

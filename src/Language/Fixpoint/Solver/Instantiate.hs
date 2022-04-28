@@ -567,7 +567,7 @@ mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys
     senv        = mkSearchEnv env
     uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts)
     xys         = mytracepp "mkCoSubXXX" $ Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
-    (_xTs,_eTs) = mytracepp "mkCoSub:MATCH" $ (xTs, eTs)
+    (_xTs,_eTs) = mytracepp "mkCoSub:MATCH" (xTs, eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
 matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ showpp (s1, s2)) $ go s1 s2

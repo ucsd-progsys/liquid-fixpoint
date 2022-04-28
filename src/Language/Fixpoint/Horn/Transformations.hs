@@ -122,7 +122,7 @@ solveEbs cfg query@(Query qs vs c cons dist eqns mats dds) = do
   let solvedSide = substPiSols solvedPiCstrs side'
   whenLoud $ putStrLn $ F.showpp solvedSide
 
-  pure $ (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist eqns mats dds)
+  pure (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist eqns mats dds)
 
 -- | Collects the defining constraint for π
 -- that is, given `∀ Γ.∀ n.π => c`, returns `((π, n:Γ), c)`
@@ -159,7 +159,7 @@ solPis measures piSols = go (M.toList piSols) piSols
 
 -- TODO: rewrite to use CC
 solPi :: S.Set F.Symbol -> F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
-solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp (sols n) <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
+solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp (sols n) <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd rewritten
   where
     rewritten = rewriteWithEqualities measures n args equalities
     equalities = (nub . fst) $ go (S.singleton basePi) c
@@ -877,7 +877,7 @@ findKVarInGuard :: F.Symbol -> Pred -> Either ([(F.Symbol, [F.Symbol])], [Pred])
 findKVarInGuard k (PAnd ps) =
   if null lefts
     then Right (PAnd ps) -- kvar not found
-    else Left $ (newLefts, newRights)
+    else Left (newLefts, newRights)
   where findResults = findKVarInGuard k <$> ps
         (lefts, rights) = partitionEithers findResults
         newLefts = concatMap fst lefts

@@ -317,7 +317,7 @@ instance Arbitrary FlatAnfEnv where
         let ultimateAnfExpr = conjOrDisj $ EVar . fst <$> anfs
         sym <- arbitrary
         ultimateAnfSym <- arbitrary
-        pure $ (sym, RR FInt (reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr)))
+        pure (sym, RR FInt (reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr)))
   -- TODO
   shrink (FlatAnfEnv (Env (x:xs))) = pure . FlatAnfEnv . Env $ xs
   shrink _ = mempty
