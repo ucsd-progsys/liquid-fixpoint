@@ -104,16 +104,16 @@ loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO Ins
 loopT env ctx delta i res t = case t of 
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
-  T.Node bs  -> (withAssms env ctx delta Nothing $ \ctx' -> do 
+  T.Node bs  -> withAssms env ctx delta Nothing $ \ctx' -> do 
                   (ctx'', res') <- ple1 env ctx' i res 
-                  foldM (loopB env ctx'' [] i) res' bs)
+                  foldM (loopB env ctx'' [] i) res' bs
 
 loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
 loopB env ctx delta iMb res b = case b of 
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
                   progressTick
-                  (snd <$> ple1 env ctx' iMb res) 
+                  snd <$> ple1 env ctx' iMb res 
 
 -- Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
@@ -121,12 +121,12 @@ loopB env ctx delta iMb res b = case b of
 -- Adds to @ctx@ assumptions from @env@ and @delta@ plus rewrites that
 -- candidates can use
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
-withAssms env@(InstEnv {..}) ctx delta cidMb act = act $
+withAssms env@InstEnv{..} ctx delta cidMb act = act $
   updCtx env ctx delta cidMb 
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
-ple1 (InstEnv {..}) ctx i res = 
+ple1 InstEnv{..} ctx i res = 
   updCtxRes res i <$> evalCandsLoop {-anfEnv-} M.empty ctx ieKnowl ieEvEnv 
 
 evalCandsLoop :: ConstMap -> ICtx -> Knowledge -> EvalEnv -> IO ICtx 
@@ -253,7 +253,7 @@ updRes res  Nothing _ = res
 ---------------------------------------------------------------------------------------------- 
 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
-updCtx (InstEnv {..}) ctx delta cidMb 
+updCtx InstEnv{..} ctx delta cidMb 
     = ctx { icCands  = S.fromList cands           <> icCands  ctx
           , icEquals = initEqs                    <> icEquals ctx
           , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
@@ -336,7 +336,7 @@ type EvalST a = StateT EvalEnv IO a
 evalOne :: ConstMap -> Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvAccum
 evalOne ienv γ env ctx e {- null (getAutoRws γ ctx) -} = do
     (e', st) <- runStateT (fastEval ienv γ ctx e) env  
-    let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
+    let evAcc' = if mytracepp ("evalOne: " ++ showpp e) e' == e then evAccum st else S.insert (e, e') (evAccum st)
     return evAcc' 
 
 notGuardedApps :: Expr -> [Expr]
@@ -471,16 +471,16 @@ interpret ie γ ctx env e@(EApp _ _)     = case splitEApp e of
               ges       = substEq env eq es1
               exp       = unfoldExpr ie γ ctx env ges 
               exp'      = eApps exp es2 in  --exp' -- TODO undo
-            if (eApps (EVar f) es) == exp' then exp' else interpret' ie γ ctx env exp'
+            if eApps (EVar f) es == exp' then exp' else interpret' ie γ ctx env exp'
 
       interpretApp ie γ ctx env (EVar f) (e1:es)
         | (EVar dc, as) <- splitEApp e1
         , Just rw <- M.lookup (f, dc) (knSims γ)
         , length as == length (smArgs rw)
         = let e' = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es in --e' -- TODO undo
-            if (eApps (EVar f) es) == e' then e' else interpret' ie γ ctx env e' 
+            if eApps (EVar f) es == e' then e' else interpret' ie γ ctx env e' 
 
-      interpretApp _  γ _   _   (EVar f) ([e0])
+      interpretApp _  γ _   _   (EVar f) [e0]
         | (EVar dc, _as) <- splitEApp e0
         , isTestSymbol f
         = if testSymbol dc == f then PTrue else 
@@ -552,7 +552,7 @@ interpret ie γ ctx env e@(PExist xss e1) = case xss of
   _  -> e
 interpret _  _ _   _   e@(PGrad _ _ _ _) = e
 interpret ie γ ctx env (ECoerc s t e)    = let e' = interpret' ie γ ctx env e in
-                                             if s == t then e' else (ECoerc s t e')
+                                             if s == t then e' else ECoerc s t e'
 
         
 --------------------------------------------------------------------------------
@@ -577,7 +577,7 @@ knowledge si = KN
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims) 
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
   , knDCs                      = S.fromList (smDC <$> sims)  <> constNames si
-  , knAllDCs                   = S.fromList $ (val . dcName) <$> concatMap ddCtors (ddecls si)
+  , knAllDCs                   = S.fromList $ val . dcName <$> concatMap ddCtors (ddecls si)
   , knSels                     = M.fromList $ Mb.mapMaybe makeSel  sims 
   , knConsts                   = M.fromList $ Mb.mapMaybe makeCons sims 
   } 

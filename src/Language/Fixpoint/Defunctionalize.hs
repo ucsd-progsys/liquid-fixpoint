@@ -52,7 +52,7 @@ defuncExpr = mapMExpr reBind
          >=> mapMExpr (fM normalizeLams)
 
 reBind :: Expr -> DF Expr
-reBind (ELam (x, s) e) = ((\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s)
+reBind (ELam (x, s) e) = (\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s
 reBind e               = return e
 shiftLam :: Int -> Symbol -> Sort -> Expr -> Expr
 shiftLam i x t e = ELam (x_i, t) (e `subst1` (x, x_i_t))
@@ -113,11 +113,11 @@ instance Defunc (SimpC a) where
                  return $ sc {_crhs = crhs'}
 
 instance Defunc (WfC a) where
-  defunc wf@(WfC {}) = do
+  defunc wf@WfC{} = do
     let (x, t, k) = wrft wf
     t' <- defunc t
     return $ wf { wrft = (x, t', k) }
-  defunc wf@(GWfC {}) = do
+  defunc wf@GWfC{} = do
     let (x, t, k) = wrft wf
     t' <- defunc t
     e' <- defunc $ wexpr wf

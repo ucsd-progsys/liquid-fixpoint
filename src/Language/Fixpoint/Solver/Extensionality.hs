@@ -70,19 +70,19 @@ extendExpr p e
 
 getArg :: Sort -> Maybe Sort
 getArg s = case bkFFunc s of
-             Just (_,(a:_:_)) -> Just a
+             Just (_, a:_:_) -> Just a
              _                -> Nothing
 
 extendRHS, extendLHS :: Brel -> Expr -> Expr -> Sort -> Ex Expr
 extendRHS b e1 e2 s =
   do es <- generateArguments s
-     (mytracepp "extendRHS = " . pAnd) <$> mapM (makeEq b e1 e2) es
+     mytracepp "extendRHS = " . pAnd <$> mapM (makeEq b e1 e2) es
 
 extendLHS b e1 e2 s =
   do es  <- generateArguments s
      dds <- exddecl <$> get
      is  <- instantiate dds s
-     (mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:)) <$> mapM (makeEq b e1 e2) (es ++ is)
+     mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
 
 
 generateArguments :: Sort -> Ex [Expr]
@@ -108,7 +108,7 @@ instantiateOne (Right s) = do
   xss <- excbs <$> get
   return [EVar x | (x,xs) <- xss, xs == s ]
 instantiateOne (Left [(dc, ts)]) =
-  (map (mkEApp dc) . combine) <$>  mapM instantiateOne (Right <$> ts)
+  map (mkEApp dc) . combine <$>  mapM instantiateOne (Right <$> ts)
 instantiateOne _ = undefined
 
 combine :: [[a]] -> [[a]]
@@ -223,8 +223,8 @@ freshArgOne s = do
   modify (\st -> st{ exenv   = insertSymEnv x s (exenv st)
                    , exbenv  = benv'
                    , exbinds = insertsIBindEnv [id] (exbinds st)
-                   , unique   = 1 + (unique st)
-                   , excbs = (x,s):(excbs st)
+                   , unique   = 1 + unique st
+                   , excbs = (x,s) : excbs st
                    })
   return x
 
@@ -233,7 +233,7 @@ breakSort :: [DataDecl] -> Sort -> Either [(LocSymbol, [Sort])] Sort
 breakSort ddecls s
     | Just (tc, ts) <- splitTC s
     , [(dds,i)] <- [ (ddCtors dd,ddVars dd) | dd <- ddecls, ddTyCon dd == tc ]
-    = Left ((\dd -> (dcName dd, (instSort  (Sub $ zip [0..(i-1)] ts)) <$> dfSort <$> dcFields dd)) <$> dds)
+    = Left ((\dd -> (dcName dd, instSort  (Sub $ zip [0..(i-1)] ts) <$> dfSort <$> dcFields dd)) <$> dds)
     | otherwise
     = Right s
 

@@ -374,9 +374,9 @@ isConcC :: (TaggedC c a) => c a -> Bool
 isConcC = all isConc . conjuncts . crhs
 
 isKvar :: Expr -> Bool
-isKvar (PKVar {}) = True
-isKvar (PGrad {}) = True
-isKvar _          = False
+isKvar PKVar{} = True
+isKvar PGrad{} = True
+isKvar _       = False
 
 isConc :: Expr -> Bool
 isConc = null . kvarsExpr
@@ -407,7 +407,7 @@ applyCoSub coSub      = mapExpr fE
     fE (ELam (x,t) e) = ELam (x, txS t)         e
     fE e              = e
     txS               = mapSort fS
-    fS (FObj a)       = {- FObj -} (txV a)
+    fS (FObj a)       = {- FObj -} txV a
     fS t              = t
     txV a             = M.lookupDefault (FObj a) a coSub
 

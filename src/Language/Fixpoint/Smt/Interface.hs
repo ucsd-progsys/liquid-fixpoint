@@ -210,7 +210,7 @@ smtRead me = {- SCC "smtRead" #-} do
   case A.eitherResult res of
     Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
     Right r -> do
-      maybe (return ()) (\h -> LTIO.hPutStrLn h $ blt ("; SMT Says: " <> (bShow r))) (ctxLog me)
+      maybe (return ()) (\h -> LTIO.hPutStrLn h $ blt ("; SMT Says: " <> bShow r)) (ctxLog me)
       when (ctxVerbose me) $ LTIO.putStrLn $ blt ("SMT Says: " <> bShow r)
       return r
 
@@ -334,7 +334,7 @@ makeProcess cfg
 
 -- | Close file handles and wait for the solver process to terminate.
 cleanupContext :: Context -> IO ExitCode
-cleanupContext (Ctx {..}) = do
+cleanupContext Ctx{..} = do
   cancel ctxAsync
   hCloseMe "ctxCin"  ctxCin
   hCloseMe "ctxCout" ctxCout
@@ -511,7 +511,7 @@ interact' me cmd  = void $ command me cmd
 
 makeTimeout :: Config -> [LT.Text]
 makeTimeout cfg
-  | Just i <- smtTimeout cfg = [ LT.pack ("\n(set-option :timeout " ++ (show i) ++ ")\n")]
+  | Just i <- smtTimeout cfg = [ LT.pack ("\n(set-option :timeout " ++ show i ++ ")\n")]
   | otherwise                = [""]
 
 

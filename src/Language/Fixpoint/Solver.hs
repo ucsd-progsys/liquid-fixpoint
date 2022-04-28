@@ -179,7 +179,7 @@ inParallelUsing f xs = do
 --------------------------------------------------------------------------------
 solveNative, solveNative' :: (NFData a, Fixpoint a, Show a, Loc a) => Solver a
 --------------------------------------------------------------------------------
-solveNative !cfg !fi0 = (solveNative' cfg fi0)
+solveNative !cfg !fi0 = solveNative' cfg fi0
                           `catch`
                              (return . result)
 

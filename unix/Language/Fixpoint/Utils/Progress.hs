@@ -39,7 +39,7 @@ progressInit n = do
 mkPB   :: Int -> IO ProgressBar
 mkPB n = newProgressBar def
   { pgWidth       = 80
-  , pgTotal       = {- traceShow "MAKE-PROGRESS" -} (toInteger n)
+  , pgTotal       = {- traceShow "MAKE-PROGRESS" -} toInteger n
   , pgFormat      = "Working :percent [:bar]"
   , pgPendingChar = '.'
   , pgOnCompletion = Nothing
@@ -59,7 +59,7 @@ incTick pb = do
     -- else return ()
 
 incomplete :: Stats -> Bool
-incomplete st = {- traceShow "INCOMPLETE" -} (stRemaining st) > 0
+incomplete st = {- traceShow "INCOMPLETE" -} stRemaining st > 0
 -- incomplete st = stPercent st < 100
 
 

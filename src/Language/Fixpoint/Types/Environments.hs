@@ -240,7 +240,7 @@ mapBindEnv f (BE n m) = BE n $ M.mapWithKey f m
 --    msg i z = "beMap " ++ show i ++ " " ++ show z
 
 mapWithKeyMBindEnv :: (Monad m) => ((BindId, (Symbol, SortedReft)) -> m (BindId, (Symbol, SortedReft))) -> BindEnv -> m BindEnv
-mapWithKeyMBindEnv f (BE n m) = (BE n . M.fromList) <$> mapM f (M.toList m)
+mapWithKeyMBindEnv f (BE n m) = BE n . M.fromList <$> mapM f (M.toList m)
 
 lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
 lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
@@ -308,7 +308,7 @@ instance Monoid BindEnv where
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
-instance Fixpoint (IBindEnv) where
+instance Fixpoint IBindEnv where
   toFix (FB ids) = text "env" <+> toFix ids
 
 --------------------------------------------------------------------------------
@@ -334,7 +334,7 @@ newtype Packs = Packs { packm :: M.HashMap KVar Int }
                deriving (Eq, Show, Generic)
 
 instance Fixpoint Packs where
-  toFix (Packs m) = vcat $ (("pack" <+>) . toFix) <$> kIs
+  toFix (Packs m) = vcat $ ("pack" <+>) . toFix <$> kIs
     where
       kIs = L.sortBy (compare `on` snd) . M.toList $ m
 

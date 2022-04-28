@@ -317,7 +317,7 @@ smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe Builder
 smt2AppArg k env (ECst (EVar f) t)
   | Just fThy <- symEnvTheory f env
   = Just $ if isPolyCtor fThy t
-            then (k env f (ffuncOut t))
+            then k env f (ffuncOut t)
             else bb (tsRaw fThy)
 
 smt2AppArg _ _ _

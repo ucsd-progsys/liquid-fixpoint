@@ -80,7 +80,7 @@ makeSolutions cfg fi kes
 -------------------------------------------------------------------------------
 -- |  Make each gradual appearence unique -------------------------------------
 -------------------------------------------------------------------------------
-uniquify :: (NFData a, Fixpoint a, Loc a) => SInfo a -> (SInfo a)
+uniquify :: (NFData a, Fixpoint a, Loc a) => SInfo a -> SInfo a
 
 uniquify fi = fi{cm = cm', ws = ws', bs = bs'}
   where
@@ -133,7 +133,7 @@ instance Unique SortedReft where
   uniq (RR s r) = RR s <$> uniq r
 
 instance Unique Reft where
-  uniq (Reft (x,e)) = (Reft . (x,)) <$> uniq e
+  uniq (Reft (x,e)) = Reft . (x,) <$> uniq e
 
 instance Unique Expr where
   uniq = mapMExpr go
@@ -176,7 +176,7 @@ addCache :: KVar -> KVar -> UniqueM ()
 addCache k k' = modify $ \s -> s{cache = M.insert k k' (cache s)}
 
 updateBEnv :: BindId -> BindEnv -> UniqueM ()
-updateBEnv i bs = modify $ \s -> s{benv = bs, ubs = i:(ubs s)}
+updateBEnv i bs = modify $ \s -> s{benv = bs, ubs = i : ubs s}
 
 setChange :: UniqueM ()
 setChange = modify $ \s -> s{change = True}

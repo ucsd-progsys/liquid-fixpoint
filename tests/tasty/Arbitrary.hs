@@ -129,7 +129,7 @@ arbitraryExpr :: Int -> Gen Expr
 arbitraryExpr = arbitraryFiniteExpr arbitraryAtomicExpr
 
 arbitraryAtomicExpr :: Gen Expr
-arbitraryAtomicExpr = (oneof [ESym <$> arbitrary, ECon <$> arbitrary, EVar <$> arbitrary])
+arbitraryAtomicExpr = oneof [ESym <$> arbitrary, ECon <$> arbitrary, EVar <$> arbitrary]
 
 arbitraryEqualityConstraint :: Gen Brel
 arbitraryEqualityConstraint = oneof [pure Eq, pure Ueq]
@@ -368,7 +368,7 @@ instance Arbitrary ChainedAnfEnv where
 chainedAnfGen :: (Int -> Gen AnfSymbol) -> Int -> Gen [(Symbol, SortedReft)]
 chainedAnfGen _ 0 = pure []
 chainedAnfGen symGen n = do
-  syms <- fmap unAnfSymbol <$> (for [1..n+1] symGen)
+  syms <- fmap unAnfSymbol <$> for [1..n+1] symGen
   finalSym <- arbitrary
   let symPairs :: [(Symbol, Symbol)]
       symPairs = pairs (syms ++ [finalSym])

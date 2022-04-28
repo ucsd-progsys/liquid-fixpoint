@@ -924,7 +924,7 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
                  , FInfix  (Just 9) "."   applyCompose        AssocRight
                  ]
     applyCompose :: Maybe (Expr -> Expr -> Expr)
-    applyCompose = (\f x y -> (f `eApps` [x,y])) <$> cmpFun
+    applyCompose = (\f x y -> f `eApps` [x,y]) <$> cmpFun
 
 -- | Parser for function applications.
 --
@@ -977,7 +977,7 @@ funcSortP = parens $ mkFFunc <$> intP <* comma <*> sortsP
 
 sortsP :: Parser [Sort]
 sortsP = try (brackets (sepBy sortP semi))
-      <|> (brackets (sepBy sortP comma))
+      <|> brackets (sepBy sortP comma)
 
 -- | Parser for sorts (types).
 sortP    :: Parser Sort
@@ -1048,7 +1048,7 @@ pred0P =  trueP -- constant "true"
       <|> kvarPredP
       <|> fastIfP pIte predP -- "if-then-else", starts with "if"
       <|> try predrP -- binary relation, starts with anything that an expr can start with
-      <|> (parens predP) -- parenthesised predicate, starts with "("
+      <|> parens predP -- parenthesised predicate, starts with "("
       <|> (reservedOp "?" *> exprP)
       <|> try funAppP
       <|> EVar <$> symbolP -- identifier, starts with any letter or underscore
