@@ -188,7 +188,7 @@ shortenVarNames env c =
           sortSubst = FObj . (at symMap)
        in reft (at m (reftBind r)) $
             substSortInExpr sortSubst $
-            (substf (EVar . (at m)) $ reftPred r)
+            substf (EVar . (at m)) (reftPred r)
 
     at :: HashMap Symbol Symbol -> Symbol -> Symbol
     at m k = fromMaybe k $ HashMap.lookup k m

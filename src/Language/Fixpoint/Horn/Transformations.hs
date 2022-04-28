@@ -630,10 +630,10 @@ rewriteWithEqualities measures n args equalities = preds
       Nothing -> []
       Just vertex -> nub $ filter (/= F.EVar x) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph vertex]
 
-    argsAndPrims = args `S.union` (S.fromList $ map fst $ F.toListSEnv $ F.theorySymbols []) `S.union`measures
+    argsAndPrims = args `S.union` S.fromList (map fst $ F.toListSEnv $ F.theorySymbols []) `S.union`measures
 
     isWellFormed :: F.Expr -> Bool
-    isWellFormed e = (S.fromList $ F.syms e) `S.isSubsetOf` argsAndPrims
+    isWellFormed e = S.fromList (F.syms e) `S.isSubsetOf` argsAndPrims
 
     makeWellFormed :: Int -> [F.Expr] -> [F.Expr]
     makeWellFormed 0 es = filter isWellFormed es -- We solved it. Maybe.
@@ -641,7 +641,7 @@ rewriteWithEqualities measures n args equalities = preds
       where
         go e = if isWellFormed e then [e] else rewrite rewrites [e]
           where
-            needSolving = (S.fromList $ F.syms e) `S.difference` argsAndPrims
+            needSolving = S.fromList (F.syms e) `S.difference` argsAndPrims
             rewrites = (\x -> (x, filter (/= F.EVar x) $ sols x)) <$> S.toList needSolving
             rewrite [] es = es
             rewrite ((x, rewrites):rewrites') es = rewrite rewrites' $ [F.subst (F.mkSubst [(x, e')]) e | e' <- rewrites, e <- es]
@@ -1013,7 +1013,7 @@ hornify (Head (PAnd ps) a) = CAnd (flip Head a <$> ps')
         split kacc pacc ((Var x xs):qs) = split ((Var x xs):kacc) pacc qs
         split kacc pacc (q:qs) = split kacc (q:pacc) qs
         split kacc pacc [] = (kacc, pacc)
-hornify (Head (Reft r) a) = CAnd (flip Head a <$> ((Reft $ F.PAnd ps):(Reft <$> ks)))
+hornify (Head (Reft r) a) = CAnd (flip Head a <$> (Reft (F.PAnd ps):(Reft <$> ks)))
   where (ks, ps) = split [] [] $ F.splitPAnd r
         split kacc pacc (r@F.PKVar{}:rs) = split (r:kacc) pacc rs
         split kacc pacc (r:rs) = split kacc (r:pacc) rs
