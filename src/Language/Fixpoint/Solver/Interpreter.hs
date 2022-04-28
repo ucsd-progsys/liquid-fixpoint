@@ -550,7 +550,7 @@ interpret ie γ ctx env e@(PAll xss e1)  = case xss of
 interpret ie γ ctx env e@(PExist xss e1) = case xss of
   [] -> interpret' ie γ ctx env e1
   _  -> e
-interpret _  _ _   _   e@(PGrad _ _ _ _) = e
+interpret _  _ _   _   e@PGrad{}         = e
 interpret ie γ ctx env (ECoerc s t e)    = let e' = interpret' ie γ ctx env e in
                                              if s == t then e' else ECoerc s t e'
 

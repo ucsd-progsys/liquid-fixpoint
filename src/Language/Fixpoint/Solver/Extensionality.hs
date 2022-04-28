@@ -163,12 +163,12 @@ normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
     go e@(ENeg _)        = e
     go (PNot e)          = PImp e PFalse
     go e@(ECst _ _)      = e
-    go e@(ECoerc _ _ _)  = e
+    go e@ECoerc{}        = e
     go e@(EApp _ _)      = e
-    go e@(EBin _ _ _)    = e
+    go e@EBin{}          = e
     go (PImp p1 p2)      = PImp (go p1) (go p2)
     go (PIff p1 p2)      = PAnd [PImp p1' p2', PImp p2' p1'] where (p1', p2') = (go p1, go p2)
-    go e@(PAtom _ _ _)   = e
+    go e@PAtom{}         = e
     go (EIte e e1 e2)    = go $ PAnd [PImp e e1, PImp (PNot e) e2]
     go (PAnd ps)         = pAnd (go <$> ps)
     go (POr  ps)         = foldl (\x y -> PImp (PImp (go x) PFalse) y) PFalse ps
@@ -177,7 +177,7 @@ normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
     go e@(PExist _ _)    = e -- Cannot appear
     go e@(ETApp _ _)     = e -- Cannot appear
     go e@(ETAbs _ _)     = e -- Cannot appear
-    go e@(PGrad _ _ _ _) = e -- Cannot appear
+    go e@PGrad{}         = e -- Cannot appear
 
 
 type Ex    = State ExSt
