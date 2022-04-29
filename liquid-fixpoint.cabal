@@ -32,16 +32,36 @@ extra-source-files: tests/neg/*.fq
                     tests/logs/cur/pin
                     Makefile
 
+common warnings
+  ghc-options:
+    -Wall
+    -- TODO: Remove each -Wno-* suppression of a warning we have.
+    -Wno-incomplete-uni-patterns
+    -Wno-incomplete-record-updates
+    -Wno-name-shadowing
+    -Wno-orphans
+    -Wno-type-defaults
+    -Wno-unused-do-bind
+    -Wno-unused-record-wildcards
+    -Wno-unused-imports
+    -Wno-unused-top-binds
+    -Wno-unused-local-binds
+    -Wno-unused-matches
+    -Wno-missing-signatures
+
 source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquid-fixpoint/
 
 flag devel
-  default:     False
+  -- TODO: -Werror while removing -Wno-* warnings so please reset default to
+  -- False afterwards.
+  default:     True
   manual:      True
   description: turn on stricter error reporting for development
 
 library
+  import: warnings
   autogen-modules:  Paths_liquid_fixpoint
   exposed-modules:  Data.ShareMap
                     Language.Fixpoint.Defunctionalize
@@ -145,7 +165,6 @@ library
                   , aeson
                   , rest-rewrite >= 0.1.1
   default-language: Haskell98
-  ghc-options:      -W -fno-warn-missing-methods -fwarn-missing-signatures
 
   if flag(devel)
     ghc-options: -Werror
@@ -158,6 +177,7 @@ library
     hs-source-dirs: win
 
 executable fixpoint
+  import: warnings
   main-is:          Fixpoint.hs
   hs-source-dirs:   bin
   build-depends:    base >= 4.9.1.0 && < 5, liquid-fixpoint
@@ -168,6 +188,7 @@ executable fixpoint
     ghc-options: -Werror
 
 test-suite test
+  import: warnings
   type:             exitcode-stdio-1.0
   main-is:          test.hs
   other-modules:    Paths_liquid_fixpoint
@@ -194,6 +215,7 @@ test-suite test
     ghc-options: -Werror
 
 test-suite tasty
+  import: warnings
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
   other-modules:    ParserTests
