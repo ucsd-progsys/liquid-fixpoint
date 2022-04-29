@@ -839,7 +839,7 @@ sol1 _ (Head _ _) = []
 sol1 _ (Any _ _) =  error "ebinds don't work with old elim"
 
 kargs :: F.Symbol -> [F.Symbol]
-kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1..]
+kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1 :: Integer ..]
 
 -- |
 -- >>> LET c = doParse' hCstrP "" "(forall ((z Int) ($k0 z)) ((z = x)))"

@@ -249,7 +249,7 @@ toSymMap prefixMap = HashMap.fromList
 
     renameWithAppendages pfx (sfx, ss) = zip ss $ case ss of
       [_s] -> [pfx `suffixIfNotNull` sfx]
-      ss -> zipWith (rename pfx sfx) [1..] ss
+      ss -> zipWith (rename pfx sfx) [1 :: Integer ..] ss
 
     rename pfx sfx i _s =
       pfx `suffixIfNotNull` sfx `suffixSymbol` symbol (show i)

@@ -363,7 +363,7 @@ _evalLoop cfg ctx γ s0 ctxEqs cands = loop 0 [] cands
                             eqs' -> do let acc'   = acc ++ eqs'
                                        let oks    = S.fromList (fst <$> eqs')
                                        let cands' = [ e | e <- cands, not (S.member e oks) ]
-                                       loop (i+1) acc' cands'
+                                       loop (i + 1 :: Integer) acc' cands'
 
 
 
