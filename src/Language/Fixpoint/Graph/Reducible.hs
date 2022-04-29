@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- | This module a test for whether the constraint dependencies form a
 --   reducible graph.
@@ -53,9 +54,11 @@ contains :: [T.Tree Node] -> Node -> Bool
 contains t x = x `elem` concatMap T.flatten t
 
 isBackEdge :: [(Node, [Node])] -> Edge -> Bool
-isBackEdge t (u,v) = v `elem` xs
-  where
-    (Just xs) = lookup u t
+isBackEdge t (u,v) = case lookup u t of
+  Just xs -> v `elem` xs
+  -- REVIEW: Would False work instead of error?
+  Nothing -> error "Unable to lookup back edge"
+
 
 subcEdges' :: (F.TaggedC c a) => (F.KVar -> Node) -> F.BindEnv -> c a -> [(Node, Node)]
 subcEdges' kvI be c = [(kvI k1, kvI k2) | k1 <- V.envKVars be c

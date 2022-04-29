@@ -1318,9 +1318,11 @@ wfCP :: Parser (WfC ())
 wfCP = do reserved "env"
           env <- envP
           reserved "reft"
-          r   <- sortedReftP
-          let [w] = wfC env r ()
-          return w
+          r <- sortedReftP
+          case wfC env r () of
+            [w]   -> return w
+            []    -> error "Unexpected empty list in wfCP"
+            _:_:_ -> error "Expected a single element list in wfCP"
 
 subCP :: Parser (SubC ())
 subCP = do pos <- getSourcePos

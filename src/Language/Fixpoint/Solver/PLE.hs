@@ -356,7 +356,7 @@ updRes res  Nothing _ = res
 ----------------------------------------------------------------------------------------------
 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx, InstEnv a)
-updCtx env@InstEnv {..} ctx delta cidMb
+updCtx env@InstEnv{..} ctx delta cidMb
             = ( ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
                     , icCands  = S.fromList cands           <> icCands  ctx
                     , icEquals = initEqs                    <> icEquals ctx
@@ -379,7 +379,8 @@ updCtx env@InstEnv {..} ctx delta cidMb
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
                   ])
     bs        = second unElabSortedReft <$> binds
-    (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
+    rhs       = unElab eRhs
+    es        = unElab <$> (expr <$> binds)
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
     subMb     = getCstr ieCstrs <$> cidMb
