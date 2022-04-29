@@ -778,7 +778,7 @@ singletonListP e = do
 exprCastP :: Parser Expr
 exprCastP
   = do e  <- exprP
-       try dcolon <|> colon -- allow : or :: *and* allow following symbols
+       _ <- try dcolon <|> colon -- allow : or :: *and* allow following symbols
        so <- sortP
        return $ ECst e so
 
@@ -962,7 +962,7 @@ lamP :: Parser Expr
 lamP
   = do reservedOp "\\"
        x <- symbolP
-       colon -- TODO: this should probably be reservedOp instead
+       _ <- colon -- TODO: this should probably be reservedOp instead
        t <- sortP
        reservedOp "->"
        e  <- exprP

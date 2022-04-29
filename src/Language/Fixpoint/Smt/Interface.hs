@@ -237,11 +237,11 @@ valuesP = A.many1' pairP <* A.char ')'
 pairP :: SmtParser (Symbol, T.Text)
 pairP = {- SCC "pairP" #-}
   do A.skipSpace
-     A.char '('
+     _ <- A.char '('
      !x <- symbolP
      A.skipSpace
      !v <- valueP
-     A.char ')'
+     _ <- A.char ')'
      return (x,v)
 
 symbolP :: SmtParser Symbol
