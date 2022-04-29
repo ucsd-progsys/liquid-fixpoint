@@ -3,7 +3,7 @@ module SimplifyPLE (simplify') where
 import qualified Data.HashMap.Strict as SM
 import qualified Data.HashSet as S
 import qualified Data.Map as M
-import Language.Fixpoint.Solver.PLE (FuelCount (..), ICtx (..), Knowledge (..))
+import Language.Fixpoint.Solver.PLE (ICtx (..), Knowledge (..))
 import qualified Language.Fixpoint.Solver.PLE as PLE
 import Language.Fixpoint.Types.Refinements (Expr)
 
@@ -38,11 +38,4 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
           icSimpl = SM.empty, -- :: !ConstMap
           icSubcId = Nothing, -- :: Maybe SubcId
           icANFs = []         -- :: [[(Symbol, SortedReft)]]
-        }
-
-    emptyFuelCount :: PLE.FuelCount
-    emptyFuelCount =
-      FC
-        { fcMap = SM.empty, -- :: M.HashMap Symbol Int
-          fcMax = Nothing -- :: Maybe Int
         }
