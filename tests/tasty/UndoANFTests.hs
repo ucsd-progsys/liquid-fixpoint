@@ -21,17 +21,17 @@ tests =
     testGroup
       "undoANFSimplifyingWith id id"
       [ H.testCase "id on empty env" $
-          simpleUndoANF M.empty @?= M.empty
+          simpleUndoANF [] @?= M.empty
       , Q.testProperty "id when env contains no lq_anf$* bindings" $
-          prop_no_change simpleUndoANFNoAnfEnv
+          prop_no_change (M.fromList . unEnv . unNoAnfEnv) simpleUndoANFNoAnfEnv
       , testGroup
           "zero anf vars left afterwards, starting with:"
           [ Q.testProperty "no anf vars" $
-              prop_no_anfs unNoAnfEnv simpleUndoANFNoAnfEnv
+              prop_no_anfs simpleUndoANFNoAnfEnv
           , Q.testProperty "single-level anf vars" $
-              prop_no_anfs unFlatAnfEnv simpleUndoANFFlatAnfEnv
+              prop_no_anfs simpleUndoANFFlatAnfEnv
           , Q.testProperty "chained anf vars" $
-              prop_no_anfs unChainedAnfEnv simpleUndoANFChainedAnfEnv
+              prop_no_anfs simpleUndoANFChainedAnfEnv
           ]
       ]
   where
@@ -42,31 +42,31 @@ tests =
 timeout :: Int
 timeout = 5000000
 
-prop_no_change :: (Q.Arbitrary e, Eq e, Show e) => (e -> e) -> e -> Q.Property
-prop_no_change f e = Q.within timeout $ f e === e
+prop_no_change :: (Q.Arbitrary e, Eq e, Show e) => (e -> M.HashMap Symbol SortedReft) -> (e -> M.HashMap Symbol SortedReft) -> e -> Q.Property
+prop_no_change toHashMap f e = Q.within timeout $ f e === toHashMap e
 
-prop_no_anfs :: (Q.Arbitrary e, Eq e, Show e) => (e -> Env) -> (e -> e) -> e -> Q.Property
-prop_no_anfs toEnv f e = Q.within timeout . checkNoAnfs . toEnv . f $ e
+prop_no_anfs :: (Q.Arbitrary e, Eq e, Show e) => (e -> M.HashMap Symbol SortedReft) -> e -> Q.Property
+prop_no_anfs f e = Q.within timeout . checkNoAnfs . f $ e
   where
-    checkNoAnfs (Env m) = M.filter (any isAnfVar . syms) m === M.empty
+    checkNoAnfs m = M.filter (any isAnfVar . syms) m === M.empty
     isAnfVar = isPrefixOfSym anfPrefix
 
 -- | We perform tests with only trivial lenses (i.e. id)
-simpleUndoANF :: M.HashMap Symbol SortedReft -> M.HashMap Symbol SortedReft
-simpleUndoANF = undoANFSimplifyingWith id id
+simpleUndoANF :: [(Symbol, SortedReft)] -> M.HashMap Symbol SortedReft
+simpleUndoANF = undoANFSimplifyingWith id id . M.fromList
 
 ----------------------------------------------------
 -- | simpleUndoANF conjugated with various newtypes
 ----------------------------------------------------
 
-simpleUndoANFEnv :: Env -> Env
-simpleUndoANFEnv = Env . simpleUndoANF . unEnv
+simpleUndoANFEnv :: Env -> M.HashMap Symbol SortedReft
+simpleUndoANFEnv = simpleUndoANF . unEnv
 
-simpleUndoANFNoAnfEnv :: NoAnfEnv -> NoAnfEnv
-simpleUndoANFNoAnfEnv = NoAnfEnv . simpleUndoANFEnv . unNoAnfEnv
+simpleUndoANFNoAnfEnv :: NoAnfEnv -> M.HashMap Symbol SortedReft
+simpleUndoANFNoAnfEnv = simpleUndoANFEnv . unNoAnfEnv
 
-simpleUndoANFFlatAnfEnv :: FlatAnfEnv -> FlatAnfEnv
-simpleUndoANFFlatAnfEnv = FlatAnfEnv . simpleUndoANFEnv . unFlatAnfEnv
+simpleUndoANFFlatAnfEnv :: FlatAnfEnv -> M.HashMap Symbol SortedReft
+simpleUndoANFFlatAnfEnv = simpleUndoANFEnv . unFlatAnfEnv
 
-simpleUndoANFChainedAnfEnv :: ChainedAnfEnv -> ChainedAnfEnv
-simpleUndoANFChainedAnfEnv = ChainedAnfEnv . simpleUndoANFEnv . unChainedAnfEnv
+simpleUndoANFChainedAnfEnv :: ChainedAnfEnv -> M.HashMap Symbol SortedReft
+simpleUndoANFChainedAnfEnv = simpleUndoANFEnv . unChainedAnfEnv
