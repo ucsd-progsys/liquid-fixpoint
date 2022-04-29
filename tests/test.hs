@@ -62,6 +62,7 @@ combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
       return $ \smap -> f1 smap >> f2 smap
 combineReporters _ _ = error "combineReporters needs TestReporters"
 
+unitTests :: IO TestTree
 unitTests
   = group "Unit" [
       testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
@@ -141,6 +142,7 @@ mkTest testCmd code dir file
     test = dir </> file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
+knownToFail :: [a]
 knownToFail = []
 ---------------------------------------------------------------------------
 type TestCmd = FixpointOpts -> FilePath -> FilePath -> FilePath -> String
@@ -157,6 +159,7 @@ elimCmd (LO opts) bin dir file =
 -- Generic Helpers
 ----------------------------------------------------------------------------------------
 
+group :: Monad f => TestName -> [f TestTree] -> f TestTree
 group n xs = testGroup n <$> sequence xs
 
 ----------------------------------------------------------------------------------------
