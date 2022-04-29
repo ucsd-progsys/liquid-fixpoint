@@ -242,7 +242,6 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
   return $ \_elapsedTime -> do
     -- don't use the `time` package, major api differences between ghc 708 and 710
-    time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     -- build header
     ref <- gitRef
     timestamp <- gitTimestamp
