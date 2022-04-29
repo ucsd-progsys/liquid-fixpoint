@@ -223,9 +223,11 @@ expandWF km ws
   where
     (gws, kws)       = L.partition (isGWfc . snd) $ M.toList ws
     km'              = M.toList km
-    updateKVar k src wfc = wfc { wrft = (\(v,s,_) -> (v,s,k)) $ wrft wfc
-                               , wloc = (wloc wfc){gused = src}
-                               }
+
+    updateKVar k src wfc = let wrft' = (\(v,s,_) -> (v,s,k)) $ wrft wfc in
+      case wfc of
+        GWfC{} -> wfc { wrft = wrft', wloc = (wloc wfc){gused = src} }
+        WfC{}  -> wfc { wrft = wrft' }
 
 -------------------------------------------------------------------------------
 -- |  Substitute Gradual Solution ---------------------------------------------
