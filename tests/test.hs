@@ -7,13 +7,11 @@ module Main where
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Functor.Compose   as Functor
 import qualified Data.IntMap            as IntMap
-import qualified Data.Map               as Map
 import qualified Control.Monad.State    as State
 import Control.Monad.Trans.Class (lift)
 
-import Data.Char
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Sum(..), (<>))
+import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.Tagged
 import Control.Applicative
@@ -21,7 +19,6 @@ import Options.Applicative
 import System.Directory
 import System.Exit
 import System.FilePath
-import System.Environment
 import System.IO
 import System.IO.Error
 import System.Process
@@ -33,7 +30,6 @@ import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
-import Paths_liquid_fixpoint
 
 main :: IO ()
 main    = do

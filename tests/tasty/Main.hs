@@ -8,7 +8,6 @@ import qualified SimplifyTests
 import qualified InterpretTests
 import qualified UndoANFTests
 import Test.Tasty
-import Test.Tasty.HUnit
 
 main :: IO ()
 main = defaultMain $ testGroup "Tests"

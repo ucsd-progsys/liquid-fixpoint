@@ -10,19 +10,15 @@ module Arbitrary
   , ChainedAnfEnv(..)
   ) where
 
-import Control.Monad                    (forM_, liftM)
-import Data.Monoid (Sum(..), (<>))
 import qualified Data.Text                 as Text
 import qualified Data.HashMap.Strict       as M
 import Test.Tasty.QuickCheck
 import GHC.Generics
 
 import Language.Fixpoint.Types.Refinements as R
-import Language.Fixpoint.Parse             (isNotReserved, rr)
+import Language.Fixpoint.Parse             (isNotReserved)
 import Language.Fixpoint.Types             as T hiding (Result)
 import Language.Fixpoint.Types.Spans       as Spans
-import Language.Fixpoint.Types.Refinements (Expr(PKVar, EVar))
-import Language.Fixpoint.Types.Names       (isFixKey)
 import Data.Traversable                    (for)
 
 {-

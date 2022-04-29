@@ -1,9 +1,6 @@
 module SimplifyTests (tests) where
 
 import Arbitrary (subexprs)
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet as S
-import GHC.IO (unsafePerformIO)
 import Language.Fixpoint.Types.Refinements (Bop (Minus), Constant (I), Expr (..))
 import qualified SimplifyInterpreter
 import qualified SimplifyPLE
@@ -19,7 +16,6 @@ import Test.Tasty.QuickCheck
     counterexample,
     label,
     testProperty,
-    (===),
   )
 
 tests :: TestTree

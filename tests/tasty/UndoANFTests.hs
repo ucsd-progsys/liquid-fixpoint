@@ -2,13 +2,12 @@
 
 module UndoANFTests(tests) where
 
-import Language.Fixpoint.Types (SortedReft(..), Sort, Reft(..), Symbol, Expr(..),
-                                reft, isPrefixOfSym, anfPrefix, syms)
+import Language.Fixpoint.Types (SortedReft(..), Symbol,
+                                isPrefixOfSym, anfPrefix, syms)
 import Language.Fixpoint.Solver.EnvironmentReduction (undoANFSimplifyingWith)
-import qualified Language.Fixpoint.Types.Visitor as Visitor
 import Arbitrary
 import qualified Data.HashMap.Strict as M
-import Test.Tasty (TestTree, testGroup, adjustOption, localOption)
+import Test.Tasty (TestTree, testGroup, adjustOption)
 import Test.Tasty.HUnit ((@?=))
 import qualified Test.Tasty.HUnit as H
 import Test.Tasty.QuickCheck ((===))
