@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- | This module a test for whether the constraint dependencies form a
 --   reducible graph.
