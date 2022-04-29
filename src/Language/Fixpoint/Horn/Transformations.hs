@@ -2,6 +2,9 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE FlexibleInstances  #-}
+
+{-# OPTIONS_GHC -Wno-orphans    #-}
+
 module Language.Fixpoint.Horn.Transformations (
     uniq
   , flatten

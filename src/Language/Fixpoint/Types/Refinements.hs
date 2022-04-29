@@ -12,6 +12,8 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternSynonyms            #-}
 
+{-# OPTIONS_GHC -Wno-orphans            #-}
+
 -- | This module has the types for representing terms in the refinement logic.
 
 module Language.Fixpoint.Types.Refinements (
@@ -130,7 +132,6 @@ import qualified Data.Binary as B
 
 
 instance NFData KVar
-instance NFData SrcSpan
 instance NFData Subst
 instance NFData GradInfo
 instance NFData Constant
@@ -145,8 +146,6 @@ instance NFData SortedReft
   -- put = B.put . M.toList
   -- get = M.fromList <$> B.get
 
-instance (Eq a, Hashable a, S.Store a) => S.Store (TCEmb a)
-instance S.Store SrcSpan
 instance S.Store KVar
 instance S.Store Subst
 instance S.Store GradInfo
@@ -161,7 +160,6 @@ instance S.Store SortedReft
 instance B.Binary SymConst
 instance B.Binary Constant
 instance B.Binary Bop
-instance B.Binary SrcSpan
 instance B.Binary GradInfo
 instance B.Binary Brel
 instance B.Binary KVar
@@ -175,8 +173,6 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
 instance B.Binary Subst
 instance B.Binary Expr
 instance B.Binary Reft
-instance B.Binary TCArgs
-instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a)
 
 
 reftConjuncts :: Reft -> [Reft]
@@ -478,6 +474,8 @@ newtype Reft = Reft (Symbol, Expr)
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Ord, Data, Typeable, Generic)
 
+instance Hashable SortedReft
+
 sortedReftSymbols :: SortedReft -> HashSet Symbol
 sortedReftSymbols sr =
   HashSet.union
@@ -664,12 +662,6 @@ instance PPrint Brel where
 
 instance PPrint Bop where
   pprintTidy _  = toFix
-
-instance PPrint Sort where
-  pprintTidy _ = toFix
-
-instance PPrint a => PPrint (TCEmb a) where
-  pprintTidy k = pprintTidy k . tceToList
 
 instance PPrint KVar where
   pprintTidy _ (KV x) = text "$" <-> pprint x
@@ -1035,3 +1027,6 @@ class (Monoid r, Subable r) => Reftable r where
   toReft  :: r -> Reft
   ofReft  :: Reft -> r
   params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
+
+instance Fixpoint Doc where
+  toFix = id

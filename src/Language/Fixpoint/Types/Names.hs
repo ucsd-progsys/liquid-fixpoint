@@ -9,6 +9,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE PatternGuards              #-}
 
+{-# OPTIONS_GHC -Wno-orphans            #-}
 
 -- | This module contains Haskell variables representing globally visible names.
 --   Rather than have strings floating around the system, all constant names

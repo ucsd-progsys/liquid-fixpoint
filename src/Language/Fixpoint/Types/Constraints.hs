@@ -915,14 +915,10 @@ instance S.Store AutoRewrite
 instance S.Store AxiomEnv
 instance S.Store Rewrite
 instance S.Store Equation
-instance S.Store SMTSolver
-instance S.Store Eliminate
 instance NFData AutoRewrite
 instance NFData AxiomEnv
 instance NFData Rewrite
 instance NFData Equation
-instance NFData SMTSolver
-instance NFData Eliminate
 
 dedupAutoRewrites :: M.HashMap SubcId [AutoRewrite] -> [AutoRewrite]
 dedupAutoRewrites = Set.toList . Set.unions . map Set.fromList . M.elems
@@ -976,7 +972,6 @@ data AutoRewrite = AutoRewrite
   , arRHS  :: Expr
 } deriving (Eq, Ord, Show, Generic)
 
-instance Hashable SortedReft
 instance Hashable AutoRewrite
 
 
@@ -1022,9 +1017,6 @@ instance Fixpoint AxiomEnv where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
       renderExpand [] = empty
       renderExpand xs = text "expand" <+> toFix xs
-
-instance Fixpoint Doc where
-  toFix = id
 
 instance Fixpoint Equation where
   toFix (Equ f xs e s _) = "define" <+> toFix f <+> ppArgs xs <+> ":" <+> toFix s <+> text "=" <+> braces (parens (toFix e))

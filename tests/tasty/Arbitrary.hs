@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Arbitrary
   ( subexprs
   , Env(..)

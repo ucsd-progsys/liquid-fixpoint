@@ -30,9 +30,11 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
+import qualified Data.Store as S
 import qualified Data.List as L
 import Data.Serialize                (Serialize (..))
 import Control.Monad
+import Control.DeepSeq
 import GHC.Generics
 import System.Console.CmdArgs
 import System.Console.CmdArgs.Explicit
@@ -147,6 +149,8 @@ instance Show SMTSolver where
   show Cvc4    = "cvc4"
   show Mathsat = "mathsat"
 
+instance S.Store SMTSolver
+
 ---------------------------------------------------------------------------------------
 -- | Eliminate describes the number of KVars to eliminate:
 --   None = use PA/Quals for ALL k-vars, i.e. no eliminate
@@ -164,6 +168,9 @@ data Eliminate
   deriving (Eq, Data, Typeable, Generic)
 
 instance Serialize Eliminate
+instance S.Store Eliminate
+instance NFData SMTSolver
+instance NFData Eliminate
 
 instance Default Eliminate where
   def = None
