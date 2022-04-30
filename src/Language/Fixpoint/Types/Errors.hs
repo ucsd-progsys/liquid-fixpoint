@@ -58,10 +58,6 @@ import           Data.Serialize                (Serialize (..))
 import           Data.Aeson                    hiding (Error, Result)
 import           Data.Generics                 (Data)
 import           Data.Typeable
-#if !MIN_VERSION_base(4,14,0)
-import           Data.Semigroup                (Semigroup (..))
-#endif
-
 import           Control.DeepSeq
 -- import           Data.Hashable
 import qualified Data.Store                   as S

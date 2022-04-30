@@ -14,10 +14,6 @@ import qualified Data.Store              as S
 import qualified Language.Fixpoint.Types.PrettyPrint as F
 import Data.Aeson
 
-#if !MIN_VERSION_base(4,14,0)
-import           Data.Semigroup            (Semigroup (..))
-#endif
-
 data Stats = Stats
   { numCstr      :: !Int -- ^ # Horn Constraints
   , numIter      :: !Int -- ^ # Refine Iterations
