@@ -42,10 +42,6 @@ import qualified Data.List                 as L
 
 import Control.Monad.State.Lazy
 import Data.Maybe (fromMaybe)
-#if !MIN_VERSION_base(4,14,0)
-import Data.Semigroup (Semigroup (..))
-#endif
-
 import qualified Language.Fixpoint.SortCheck       as So
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 

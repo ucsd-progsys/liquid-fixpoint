@@ -20,9 +20,6 @@ import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
-#if !MIN_VERSION_base(4,14,0)
-import           Data.Semigroup                 (Semigroup (..))
-#endif
 
 -- import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)

@@ -70,10 +70,6 @@ import qualified Data.HashMap.Strict       as M
 import           Data.IORef
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
-#if !MIN_VERSION_base(4,14,0)
-import           Data.Semigroup            (Semigroup (..))
-#endif
-
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
