@@ -7,10 +7,9 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Minimize ( minQuery, minQuals, minKvars ) where
 
+import Prelude hiding (min, init)
 import qualified Data.HashMap.Strict                as M
 import           Control.Monad                      (filterM)
 import           Language.Fixpoint.Types.Visitor    (mapKVars)
@@ -18,7 +17,7 @@ import           Language.Fixpoint.Types.Config     (Config (..), queryFile)
 import           Language.Fixpoint.Misc             (safeHead)
 import           Language.Fixpoint.Utils.Files      hiding (Result)
 import           Language.Fixpoint.Graph
-import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types            hiding (fi)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
@@ -81,7 +80,7 @@ minQuery cfg solve fi = do
   failFis  <- filterM (fmap (not . isSafe) . solve cfg') fis
   let failFi = safeHead "--minimize can only be called on UNSAT fq" failFis
   let format _ cs = "Minimized Constraints: " ++ show (fst <$> cs)
-  let update fi cs = fi { cm = M.fromList cs }
+  let update fi' cs = fi' { cm = M.fromList cs }
   commonDebug (M.toList . cm) update (not . isSafe) True cfg' solve failFi Min format
 
 ---------------------------------------------------------------------------
@@ -90,9 +89,9 @@ minQuals :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
 ---------------------------------------------------------------------------
 minQuals cfg solve fi = do
   let cfg'  = cfg { minimizeQs = False }
-  let format fi qs = "Required Qualifiers: " ++ show (length qs)
-                  ++ "; Total Qualifiers: "  ++ show (length $ quals fi)
-  let update fi qs = fi { quals = qs }
+  let format fi' qs = "Required Qualifiers: " ++ show (length qs)
+                  ++ "; Total Qualifiers: "  ++ show (length $ quals fi')
+  let update fi' qs = fi' { quals = qs }
   commonDebug quals update isSafe False cfg' solve fi MinQuals format
 
 ---------------------------------------------------------------------------
@@ -101,8 +100,8 @@ minKvars :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
 ---------------------------------------------------------------------------
 minKvars cfg solve fi = do
   let cfg'  = cfg { minimizeKs = False }
-  let format fi ks = "Required KVars: " ++ show (length ks)
-                  ++ "; Total KVars: "  ++ show (length $ ws fi)
+  let format fi' ks = "Required KVars: " ++ show (length ks)
+                  ++ "; Total KVars: "  ++ show (length $ ws fi')
   commonDebug (M.keys . ws) removeOtherKs isSafe False cfg' solve fi MinKVars format
 
 removeOtherKs :: FInfo a -> [KVar] -> FInfo a
