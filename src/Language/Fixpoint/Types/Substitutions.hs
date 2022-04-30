@@ -21,10 +21,6 @@ module Language.Fixpoint.Types.Substitutions (
 import           Data.Maybe
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
-#if !MIN_VERSION_base(4,14,0)
-import           Data.Semigroup            (Semigroup (..))
-#endif
-
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts

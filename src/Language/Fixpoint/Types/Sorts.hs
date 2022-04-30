@@ -88,11 +88,6 @@ import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
-
-#if !MIN_VERSION_base(4,14,0)
-import           Data.Semigroup            (Semigroup (..))
-#endif
-
 import           Data.Hashable
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
