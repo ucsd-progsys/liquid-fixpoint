@@ -27,7 +27,7 @@ tests =
         testProperty "Interpreter" (prop_no_increase SimplifyInterpreter.simplify')
       ]
   where
-    withOptions tests = localOption (QuickCheckMaxSize 4) (localOption (QuickCheckTests 500) tests)
+    withOptions tests' = localOption (QuickCheckMaxSize 4) (localOption (QuickCheckTests 500) tests')
 
 prop_no_increase :: (Expr -> Expr) -> Expr -> Property
 prop_no_increase f e =

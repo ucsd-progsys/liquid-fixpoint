@@ -218,7 +218,7 @@ emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
 filterBindEnv   :: (BindId -> Symbol -> SortedReft -> Bool) -> BindEnv -> BindEnv
-filterBindEnv f (BE n be) = BE n (M.filterWithKey (\ n (x, r) -> f n x r) be)
+filterBindEnv f (BE n be) = BE n (M.filterWithKey (\ n' (x, r) -> f n' x r) be)
 
 bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
 bindEnvFromList [] = emptyBindEnv

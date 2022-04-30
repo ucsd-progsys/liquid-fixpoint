@@ -10,6 +10,7 @@ import qualified Data.IntMap            as IntMap
 import qualified Control.Monad.State    as State
 import Control.Monad.Trans.Class (lift)
 
+import Prelude hiding (log)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
 import Data.Proxy
@@ -217,9 +218,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup _ group children = Traversal $ Functor.Compose $ do
+    runGroup _ group' children = Traversal $ Functor.Compose $ do
       Const soFar <- Functor.getCompose $ getTraversal children
-      pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
+      pure $ Const $ map (\(n,t,s) -> (group' </> n,t,s)) soFar
 
     computeFailures :: StatusMap -> IO Int
     computeFailures = fmap getSum . getApp . foldMap (\var -> Ap $

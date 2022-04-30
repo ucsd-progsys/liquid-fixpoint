@@ -8,6 +8,8 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE PatternGuards             #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
 --   2. computing satisfying assignments

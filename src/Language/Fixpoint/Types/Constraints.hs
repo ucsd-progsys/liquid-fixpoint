@@ -12,6 +12,8 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing     #-}
+
 -- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
 module Language.Fixpoint.Types.Constraints (

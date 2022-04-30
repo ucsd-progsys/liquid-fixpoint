@@ -2,6 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Arbitrary
   ( subexprs

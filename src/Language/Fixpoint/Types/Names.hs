@@ -555,7 +555,7 @@ symbolBuilder = Builder.fromText . symbolSafeText . symbol
 buildMany :: [Builder.Builder] -> Builder.Builder
 buildMany []     = mempty
 buildMany [b]    = b
-buildMany (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
+buildMany (b:bs) = b <> mconcat [ " " <> b' | b' <- bs ]
 
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------

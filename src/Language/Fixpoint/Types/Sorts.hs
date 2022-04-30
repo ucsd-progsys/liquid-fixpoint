@@ -11,6 +11,8 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing     #-}
+
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
 --   implication (i.e. subtyping) and well-formedness

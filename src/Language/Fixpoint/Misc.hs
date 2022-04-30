@@ -8,6 +8,8 @@
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE ImplicitParams            #-} -- ignore hlint
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Misc where
 
 -- import           System.IO.Unsafe            (unsafePerformIO)

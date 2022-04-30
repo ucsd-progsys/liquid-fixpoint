@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 
 {-# OPTIONS_GHC -Wno-orphans            #-}
+{-# OPTIONS_GHC -Wno-name-shadowing     #-}
 
 -- | This module contains the types defining an SMTLIB2 interface.
 

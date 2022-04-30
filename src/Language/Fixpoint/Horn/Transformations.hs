@@ -3,7 +3,8 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE FlexibleInstances  #-}
 
-{-# OPTIONS_GHC -Wno-orphans    #-}
+{-# OPTIONS_GHC -Wno-orphans        #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Fixpoint.Horn.Transformations (
     uniq

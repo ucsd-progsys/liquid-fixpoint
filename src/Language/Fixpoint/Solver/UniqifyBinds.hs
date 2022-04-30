@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE PatternGuards #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- This module makes it so no binds with different sorts have the same name.
 
 module Language.Fixpoint.Solver.UniqifyBinds (renameAll) where

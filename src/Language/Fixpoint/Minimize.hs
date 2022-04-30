@@ -7,6 +7,8 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Minimize ( minQuery, minQuals, minKvars ) where
 
 import qualified Data.HashMap.Strict                as M

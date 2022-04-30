@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -------------------------------------------------------------------------------
 -- | This module defines a function to solve NNF constraints,
 --   by reducing them to the standard FInfo.

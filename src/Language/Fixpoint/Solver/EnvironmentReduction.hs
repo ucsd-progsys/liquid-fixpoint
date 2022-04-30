@@ -7,6 +7,8 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TupleSections #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | Functions to make environments smaller
 module Language.Fixpoint.Solver.EnvironmentReduction
   ( reduceEnvironments
