@@ -265,8 +265,9 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
 ple1 ie@InstEnv {..} ctx i res = do
-  (ctx, env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
-  return (ctx, ie { ieEvEnv = env }, updCtxRes res i ctx)
+  (ctx', env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
+  let newEqs = S.toList $ S.difference (icEquals ctx') (icEquals ctx)
+  return (ctx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
 
 evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
 evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
@@ -359,9 +360,8 @@ type Diff    = [BindId]    -- ^ in "reverse" order
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 
-updCtxRes :: InstRes -> Maybe BindId -> ICtx -> InstRes
-updCtxRes res iMb ctx =
-  updRes res iMb $ pAnd $ equalitiesPred $ S.toList $ icEquals ctx
+updCtxRes :: InstRes -> Maybe BindId -> [(Expr, Expr)] -> InstRes
+updCtxRes res iMb = updRes res iMb . pAndNoDedup . equalitiesPred
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
