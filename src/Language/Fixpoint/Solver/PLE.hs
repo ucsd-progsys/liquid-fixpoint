@@ -660,8 +660,8 @@ eval γ ctx et e =
     go (EBin o e1 e2)   = do (e1', fe1) <- eval γ ctx et e1
                              (e2', fe2) <- eval γ ctx et e2
                              return (EBin o e1' e2', fe1 <|> fe2)
-    go (ETApp e t)      = mapFE (flip ETApp t) <$> go e
-    go (ETAbs e s)      = mapFE (flip ETAbs s) <$> go e
+    go (ETApp e t)      = mapFE (`ETApp` t) <$> go e
+    go (ETAbs e s)      = mapFE (`ETAbs` s) <$> go e
     go e@(PNot e')      = evalBoolOr e (mapFE PNot <$> go e')
     go e@(PImp e1 e2)   = evalBoolOr e (binOp PImp e1 e2)
     go e@(PIff e1 e2)   = evalBoolOr e (binOp PIff e1 e2)

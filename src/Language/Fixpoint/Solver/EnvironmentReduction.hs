@@ -5,6 +5,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Functions to make environments smaller
 module Language.Fixpoint.Solver.EnvironmentReduction
@@ -491,7 +492,7 @@ simplifyBindings cfg fi =
              HashMap.foldlWithKey' simplifyConstraintBindings (be, [], []) cs
           oldToNew =
             HashMap.fromListWith (++) $
-            concatMap (\(n, olds) -> map (\o -> (o, [n])) olds) newToOld
+            concatMap (\(n, olds) -> map (, [n]) olds) newToOld
        in
           (be', HashMap.fromList cs', oldToNew)
 
