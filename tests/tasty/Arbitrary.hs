@@ -169,28 +169,34 @@ instance Arbitrary Sort where
 arbitrarySort :: Int -> Gen Sort
 arbitrarySort = arbitrarySortPossiblyInvolving Nothing
 
--- | Create an arbitrary sort, possibly involving the first argument if Just.
--- Can possibly create a `FAbs` that will also possibly reference the new
--- variable in an `FVar`, even when the first argument is Nothing.
-arbitrarySortPossiblyInvolving :: Maybe Sort -> Int -> Gen Sort
-arbitrarySortPossiblyInvolving Nothing n = frequency
+-- | Create an arbitrary sort, possibly involving the variables represented by
+-- the list of Ints. Can possibly create a `FAbs` that will also possibly
+-- reference the new variable in an `FVar`, even when the first argument is
+-- [].
+arbitrarySortPossiblyInvolving :: [Int] -> Int -> Gen Sort
+arbitrarySortPossiblyInvolving [] n = frequency
   [ (4, arbitrarySortNoAbs n)
   , (1, newAbs n) ]
-arbitrarySortPossiblyInvolving (Just s) n = frequency
-  [ (1, arbitrarySortNoAbs n)
-  , (1, FFunc <$> pure s <*> (arbitrarySortPossiblyInvolving (Just s) (n `div` 2)))
-  , (1, FFunc <$> (arbitrarySortPossiblyInvolving (Just s) (n `div` 2)) <*> pure s)
-  , (1, FApp <$> pure s <*> (arbitrarySortPossiblyInvolving (Just s) (n `div` 2)))
-  , (1, FApp <$> (arbitrarySortPossiblyInvolving (Just s) (n `div` 2)) <*> pure s)
-  , (1, pure s)
-  , (1, newAbs n)
-  ]
+arbitrarySortPossiblyInvolving vars n = do
+  let fvar = oneof $ pure . FVar <$> vars
+  frequency
+    [ (1, arbitrarySortNoAbs n)
+    , (1, FFunc <$> fvar <*> (arbitrarySortPossiblyInvolving vars (n `div` 2)))
+    , (1, FFunc <$> (arbitrarySortPossiblyInvolving vars (n `div` 2)) <*> fvar)
+    , (1, FApp <$> fvar <*> (arbitrarySortPossiblyInvolving vars (n `div` 2)))
+    , (1, FApp <$> (arbitrarySortPossiblyInvolving vars (n `div` 2)) <*> fvar)
+    , (1, fvar)
+    , (1, newAbs vars n)
+    ]
 
--- | Create a new FAbs sort whose body might involve the newly created variable
-newAbs :: Int -> Gen Sort
-newAbs n = do
+-- | Create a new FAbs sort whose body might involve the newly created variable.
+-- First argument is the variables already in scope.
+newAbs :: [Int] -> Int -> Gen Sort
+newAbs vars n = do
   v <- arbitrary
-  FAbs <$> pure v <*> (arbitrarySortPossiblyInvolving (Just $ FVar v) (n `div` 2))
+  if v `elem` vars
+    then discard v
+    else FAbs <$> pure v <*> (arbitrarySortPossiblyInvolving (v:vars) (n `div` 2))
 
 -- | Does not create FObj, FAbs, or FVar
 arbitrarySortNoAbs :: Int -> Gen Sort
