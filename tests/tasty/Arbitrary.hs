@@ -166,7 +166,7 @@ instance Arbitrary Sort where
 -- The sort is \"well-formed\" in the sense that all `FVar`s have an enclosing
 -- `FAbs` bringing them into scope.
 arbitrarySort :: Int -> Gen Sort
-arbitrarySort = arbitrarySortPossiblyInvolving Nothing
+arbitrarySort = arbitrarySortPossiblyInvolving []
 
 -- | Create an arbitrary sort, possibly involving the variables represented by
 -- the list of Ints. Can possibly create a `FAbs` that will also possibly
