@@ -42,9 +42,8 @@ prop_pprint_parse_inv_expr expr = expr == rr (showpp expr)
 
 -}
 
--- NOTE: Arbitrary instances in this file with an _explicit_ implementation of
--- `shrink _ = mempty` are known to not have useful shrinker. Instances without
--- an _explicit_ implementation have simply not been given a shrinker yet.
+-- NOTE: `shrink _ = mempty` is identical to the default (implicit) shrink implementation.
+-- We prefer to make it explicit.
 
 instance Arbitrary Expr where
   arbitrary = sized arbitraryExpr
