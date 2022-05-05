@@ -176,7 +176,7 @@ arbitrarySort = arbitrarySortPossiblyInvolving Nothing
 arbitrarySortPossiblyInvolving :: [Int] -> Int -> Gen Sort
 arbitrarySortPossiblyInvolving [] n = frequency
   [ (4, arbitrarySortNoAbs n)
-  , (1, newAbs n) ]
+  , (1, newAbs [] n) ]
 arbitrarySortPossiblyInvolving vars n = do
   let fvar = oneof $ pure . FVar <$> vars
   frequency
