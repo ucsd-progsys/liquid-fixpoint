@@ -42,6 +42,9 @@ prop_pprint_parse_inv_expr expr = expr == rr (showpp expr)
 
 -}
 
+-- NOTE: `shrink _ = mempty` is identical to the default (implicit) shrink implementation.
+-- We prefer to make it explicit.
+
 instance Arbitrary Expr where
   arbitrary = sized arbitraryExpr
   shrink x = filter valid $ genericShrink x
@@ -143,34 +146,75 @@ instance Arbitrary KVar where
 instance Arbitrary GradInfo where
   arbitrary = pure $ GradInfo (SS pos pos) Nothing
     where pos = Spans.dummyPos "<unknown>"
+  shrink _ = mempty
 
 instance Arbitrary Subst where
   arbitrary = do
     n <- choose (0, 3)
     l <- vectorOf n arbitrary
     return $ Su $ M.fromList l
+  shrink _ = mempty
 
+-- | This instance only creates `FVar` when they would be in scope from an
+-- enclosing `FAbs`, and does not create `FObj`s
 instance Arbitrary Sort where
   arbitrary = sized arbitrarySort
+  shrink = genericShrink
 
+-- | Create an arbitrary well-formed sort that does not contain `FObj`s.
+--
+-- The sort is \"well-formed\" in the sense that all `FVar`s have an enclosing
+-- `FAbs` bringing them into scope.
 arbitrarySort :: Int -> Gen Sort
-arbitrarySort 0 = oneof (pure <$> [FInt, FReal, FNum, FFrac])
-arbitrarySort n = frequency
-  [ (1, FObj <$> arbitrary)
-  , (1, FVar <$> arbitrary)
-  , (1, FFunc <$> arbitrarySort' <*> arbitrarySort')
-  , (1, FAbs <$> arbitrary <*> arbitrarySort')
+arbitrarySort = arbitrarySortPossiblyInvolving []
+
+-- | Create an arbitrary sort, possibly involving the variables represented by
+-- the list of Ints. Can possibly create a `FAbs` that will also possibly
+-- reference the new variable in an `FVar`, even when the first argument is
+-- [].
+arbitrarySortPossiblyInvolving :: [Int] -> Int -> Gen Sort
+arbitrarySortPossiblyInvolving [] n = frequency
+  [ (4, arbitrarySortNoAbs n)
+  , (1, newAbs [] n) ]
+arbitrarySortPossiblyInvolving vars n = do
+  let fvar = oneof $ pure . FVar <$> vars
+  frequency
+    [ (1, arbitrarySortNoAbs n)
+    , (1, FFunc <$> fvar <*> (arbitrarySortPossiblyInvolving vars (n `div` 2)))
+    , (1, FFunc <$> (arbitrarySortPossiblyInvolving vars (n `div` 2)) <*> fvar)
+    , (1, FApp <$> fvar <*> (arbitrarySortPossiblyInvolving vars (n `div` 2)))
+    , (1, FApp <$> (arbitrarySortPossiblyInvolving vars (n `div` 2)) <*> fvar)
+    , (1, fvar)
+    , (1, newAbs vars n)
+    ]
+
+-- | Create a new FAbs sort whose body might involve the newly created variable.
+-- First argument is the variables already in scope.
+newAbs :: [Int] -> Int -> Gen Sort
+newAbs vars n = do
+  v <- arbitrary
+  if v `elem` vars
+    then discard v
+    else FAbs <$> pure v <*> (arbitrarySortPossiblyInvolving (v:vars) (n `div` 2))
+
+-- | Does not create FObj, FAbs, or FVar
+arbitrarySortNoAbs :: Int -> Gen Sort
+arbitrarySortNoAbs 0 = oneof (pure <$> [FInt, FReal, FNum, FFrac])
+arbitrarySortNoAbs n = frequency
+  [ (1, FFunc <$> arbitrarySortNoAbs' <*> arbitrarySortNoAbs')
   , (1, FTC <$> arbitrary)
-  , (1, FApp <$> arbitrarySort' <*> arbitrarySort')
+  , (1, FApp <$> arbitrarySortNoAbs' <*> arbitrarySortNoAbs')
   ]
   where
-    arbitrarySort' = arbitrarySort (n `div` 2)
+    arbitrarySortNoAbs' = arbitrarySortNoAbs (n `div` 2)
 
 instance Arbitrary Brel where
   arbitrary = oneof (map return [Eq, Ne, Gt, Ge, Lt, Le, Ueq, Une])
+  shrink _ = mempty
 
 instance Arbitrary Bop where
   arbitrary = oneof (map return [Plus, Minus, Times, Div, Mod])
+  shrink _ = mempty
 
 instance Arbitrary SymConst where
   arbitrary = SL . unShortLowercaseAlphabeticText <$> arbitrary
@@ -179,6 +223,7 @@ instance Arbitrary SymConst where
 -- Symbol cannot create lq_anf$ vars.
 instance Arbitrary Symbol where
   arbitrary = (symbol :: Text.Text -> Symbol) . unShortLowercaseAlphabeticText <$> arbitrary
+  shrink _ = mempty
 
 newtype ShortLowercaseAlphabeticText = ShortLowercaseAlphabeticText { unShortLowercaseAlphabeticText :: Text.Text }
   deriving (Eq, Show, Generic)
@@ -188,32 +233,40 @@ instance Arbitrary ShortLowercaseAlphabeticText where
     where
       char = elements ['a'..'z']
       valid x = isNotReserved x && not (isFixKey (Text.pack x))
+  shrink _ = mempty
 
 instance Arbitrary FTycon where
   arbitrary = do
     c <- elements ['A'..'Z']
     t <- unShortLowercaseAlphabeticText <$> arbitrary
     return $ symbolFTycon $ dummyLoc $ symbol $ c `Text.cons` t
+  shrink _ = mempty
 
 instance Arbitrary Constant where
   arbitrary = oneof [ I <$> arbitrary `suchThat` (>= 0) -- Negative values use `ENeg`
                     , R <$> arbitrary `suchThat` (>= 0) -- Negative values use `ENeg`
                     , L . unShortLowercaseAlphabeticText <$> arbitrary <*> arbitrary
                     ]
+  shrink (I x) = I <$> shrink x
+  shrink (R x) = R <$> shrink x
+  shrink (L x y) = (L <$> pure x <*> shrink y)
 
 -- | Used in UndoANFTests.
 newtype AnfSymbol = AnfSymbol { unAnfSymbol :: Symbol }
   deriving (Eq, Show, Generic)
 instance Arbitrary AnfSymbol where
   arbitrary = AnfSymbol . mappendSym anfPrefix <$> arbitrary
+  shrink = mempty
 
 -- | This instance does **not** create Refts with anf symbols.
 instance Arbitrary Reft where
   arbitrary = reft <$> arbitrary <*> arbitrary
+  shrink = genericShrink
 
 -- | This instance does **not** create SortedRefts with anf symbols.
 instance Arbitrary SortedReft where
   arbitrary = sized $ arbitrarySortedReft (const arbitrary) (const arbitrary)
+  shrink = genericShrink
 
 arbitrarySortedReft :: (Int -> Gen Sort) -> (Int -> Gen Symbol) -> Int -> Gen SortedReft
 arbitrarySortedReft sortGen symGen n = do
@@ -231,8 +284,11 @@ instance Arbitrary IntSortedReft where
 
 -- | Base environment with no declared properties; do not add an Arbitrary
 -- instance to this and instead use newtypes.
-newtype Env = Env { unEnv :: M.HashMap Symbol SortedReft }
+newtype Env = Env { unEnv :: [(Symbol, SortedReft)] }
   deriving (Eq, Show, Generic)
+
+shrinkEnv :: Env -> [Env]
+shrinkEnv = fmap Env . traverse (traverse shrink) . unEnv
 
 -- | Env without anf vars.
 newtype NoAnfEnv = NoAnfEnv { unNoAnfEnv :: Env }
@@ -243,6 +299,7 @@ instance Arbitrary NoAnfEnv where
       -- | Note that this relies on the property that the Arbitrary instance for
       -- Symbol cannot create lq_anf$ vars.
       gen n = vectorOf n ((\a b -> (a, unIntSortedReft b)) <$> arbitrary <*> arbitrary)
+  shrink = fmap NoAnfEnv . shrinkEnv . unNoAnfEnv
 
 -- | Env with anf vars that do not reference further anf vars.
 newtype FlatAnfEnv = FlatAnfEnv { unFlatAnfEnv :: Env }
@@ -261,11 +318,14 @@ instance Arbitrary FlatAnfEnv where
         sym <- arbitrary
         ultimateAnfSym <- arbitrary
         pure $ (sym, RR FInt (reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr)))
+  -- TODO
+  shrink (FlatAnfEnv (Env (x:xs))) = pure . FlatAnfEnv . Env $ xs
+  shrink _ = mempty
 
--- | Given a generator for a bunch of (Symbol, SortedReft) pairs which bind
+-- | Given a generator for a bunch of (`Symbol`, `SortedReft`) pairs which bind
 -- lq_anf$ vars, and another generator that takes those pairs and binds a
 -- non-lq_anf$ var to some subset of them, this function generates those pairs
--- plus the "final" non-lq_anf$ expression, which represents the "original"
+-- plus the \"final\" non-lq_anf$ expression, which represents the \"original\"
 -- expression brought to ANF.
 finalAnfGen :: (Int -> Gen [(Symbol, SortedReft)]) -> ([(Symbol, SortedReft)] -> Gen (Symbol, SortedReft)) -> Int -> Gen [(Symbol, SortedReft)]
 finalAnfGen anfsGen finalGen n = do
@@ -276,7 +336,8 @@ finalAnfGen anfsGen finalGen n = do
 -- | Create an arbitrary env up to size k with the given generator for Symbols
 -- and SortedRefts
 arbitraryEnv :: (Int -> Gen [(Symbol, SortedReft)]) -> Int -> Gen Env
-arbitraryEnv gen k = Env . M.fromList <$> (choose (0, k) >>= gen)
+
+arbitraryEnv gen k = Env <$> (choose (0, k) >>= gen)
 
 -- | Env with anf vars that form a list of references.
 newtype ChainedAnfEnv = ChainedAnfEnv { unChainedAnfEnv :: Env }
@@ -294,6 +355,9 @@ instance Arbitrary ChainedAnfEnv where
             sym <- arbitrary
             let sreft = RR FInt (reft sym (PAtom Eq (EVar sym) (EVar penultimateSym)))
             (, sreft) <$> arbitrary
+  -- TODO
+  shrink (ChainedAnfEnv (Env (x:xs))) = pure . ChainedAnfEnv . Env $ xs
+  shrink _ = mempty
 
 -- | Creates a "chain" of referencing `lq_anf$` var Symbols of length `n` such
 -- that the first symbol references the second which references the third, and
@@ -319,4 +383,3 @@ chainedAnfGen symGen n = do
 -- easily.
 anfSymNGen :: Int -> Gen AnfSymbol
 anfSymNGen i = pure . AnfSymbol . mappendSym anfPrefix . symbol . show $ i
-

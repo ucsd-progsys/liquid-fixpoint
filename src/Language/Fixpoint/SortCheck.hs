@@ -1131,7 +1131,7 @@ unifySorts :: Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unifySorts   = unifyFast False emptyEnv
   where
-    emptyEnv = const $ die $ err dummySpan "SortChecl: lookup in Empty Env "
+    emptyEnv x = die $ err dummySpan $ "SortCheck: lookup in Empty Env: " <> pprint x
 
 
 --------------------------------------------------------------------------------
