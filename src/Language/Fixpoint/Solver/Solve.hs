@@ -22,6 +22,7 @@ import qualified Language.Fixpoint.Solver.Worklist  as W
 import qualified Language.Fixpoint.Solver.Eliminate as E
 import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Utils.Progress
+import           Language.Fixpoint.Utils.Profile
 import           Language.Fixpoint.Graph
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
@@ -44,7 +45,7 @@ mytrace = {- trace -} flip const
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 
-solve cfg fi = do
+solve cfg fi = profileIO (profile cfg) "solve profile: " $ do
     whenLoud $ donePhase Misc.Loud "Worklist Initialize"
     vb <- getVerbosity
     (res, stat) <- (if (Quiet == vb || gradual cfg) then id else withProgressFI sI) $ runSolverM cfg sI act
@@ -115,7 +116,7 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
-solve_ cfg fi s0 ks wkl = do
+solve_ cfg fi s0 ks wkl = profileIO (profile cfg) "solve_ profile: " $ do
   let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
   let s2   = mappend s0 s1
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
@@ -124,7 +125,7 @@ solve_ cfg fi s0 ks wkl = do
     res0     <- {- SCC "sol-result" #-} result bindingsInSmt cfg wkl s3
     return (s3, res0)
 
-  (fi1, s4, res1) <- case resStatus res0 of  {- first run the interpreter -}
+  (fi1, s4, res1) <- profileIO (profile cfg) "ple interpreter profile: " $ case resStatus res0 of  {- first run the interpreter -}
     Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && not (noInterpreter cfg) -> do
       fi1 <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
       (s4, res1) <-  sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
@@ -134,7 +135,7 @@ solve_ cfg fi s0 ks wkl = do
       return (fi1, s4, res1)
     _ -> return  (fi, s3, mytrace "all checked before interpreter" res0)
 
-  res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
+  res2  <- profileIO (profile cfg) "ple profile: " $ case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
     Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
       doPLE cfg fi1 (map fst $ mytrace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
       sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do

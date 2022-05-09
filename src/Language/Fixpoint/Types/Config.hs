@@ -77,6 +77,7 @@ data Config = Config
   , smtTimeout  :: Maybe Int           -- ^ smt timeout in msec
   , elimStats   :: Bool                -- ^ print eliminate stats
   , solverStats :: Bool                -- ^ print solver stats
+  , profile     :: Bool                -- ^ print profiling info
   , metadata    :: Bool                -- ^ print meta-data associated with constraints
   , stats       :: Bool                -- ^ compute constraint statistics
   , parts       :: Bool                -- ^ partition FInfo into separate fq files
@@ -196,6 +197,7 @@ defConfig = Config {
   , elimStats                = False   &= help "(alpha) Print eliminate stats"
   , solverStats              = False   &= help "Print solver stats"
   , save                     = False   &= help "Save Query as .fq and .bfq files"
+  , profile                  = False   &= help "Profile the execution of fixpoint"
   , metadata                 = False   &= help "Print meta-data associated with constraints"
   , stats                    = False   &= help "Compute constraint statistics"
   , etaElim                  = False   &= help "eta elimination in function definition"
