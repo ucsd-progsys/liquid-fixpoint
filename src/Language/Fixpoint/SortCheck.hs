@@ -341,18 +341,23 @@ act `withError` msg = do
          in atLoc e (val e ++ "\n  because\n" ++ msg)
     )
 
+-- XXX: Why start at 42?
+{-# NOINLINE varCounterRef #-}
+varCounterRef :: IORef Int
+varCounterRef = unsafePerformIO $ newIORef 42
+
+-- XXX: Since 'varCounterRef' was made global, this
+-- function is not referentially transparent.
+-- Each evaluation of the function starts with a different
+-- value of counter.
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = unsafePerformIO $ do
-  rn <- newIORef 42
-  try (runReaderT act (ChS rn sp))
+  try (runReaderT act (ChS varCounterRef sp))
 
 fresh :: CheckM Int
 fresh = do
   rn <- asks chCount
-  liftIO $ do
-    n <- readIORef rn
-    writeIORef rn (n + 1)
-    return n
+  liftIO $ atomicModifyIORef' rn $ \n -> (n+1, n)
 
 --------------------------------------------------------------------------------
 -- | Checking Refinements ------------------------------------------------------
