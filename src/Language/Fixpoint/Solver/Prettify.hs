@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
@@ -40,9 +41,11 @@ import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
   ( Expr(..)
+  , pattern PFalse
   , Reft
   , SortedReft(..)
   , conjuncts
+  , expr
   , reft
   , reftBind
   , reftPred
@@ -84,14 +87,18 @@ prettyConstraint bindEnv c =
             ]
       mergedEnv = mergeDuplicatedBindings env
       undoANFEnv = undoANFAndVV mergedEnv
-      boolSimplEnv = HashMap.map snd $ simplifyBooleanRefts undoANFEnv
+      boolSimplEnvDiff = simplifyBooleanRefts undoANFEnv
+      boolSimplEnv = HashMap.map snd $ HashMap.union boolSimplEnvDiff undoANFEnv
 
       simplifiedLhs = simplify $ inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (slhs c)
       simplifiedRhs = simplify $ inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (srhs c)
 
       prunedEnv =
-        dropLikelyIrrelevantBindings
-          (constraintSymbols simplifiedLhs simplifiedRhs)
+        if expr simplifiedRhs /= PFalse then
+          dropLikelyIrrelevantBindings
+            (constraintSymbols simplifiedLhs simplifiedRhs)
+            boolSimplEnv
+        else
           boolSimplEnv
       (renamedEnv, c') =
         shortenVarNames prunedEnv c { slhs = simplifiedLhs, srhs = simplifiedRhs }
