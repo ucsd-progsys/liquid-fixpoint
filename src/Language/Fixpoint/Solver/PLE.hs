@@ -63,6 +63,7 @@ import qualified Data.List            as L
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe           as Mb
+import qualified Data.Set as Set
 import           Text.PrettyPrint.HughesPJ.Compat
 
 mytracepp :: (PPrint a) => String -> a -> a
@@ -82,7 +83,7 @@ instantiate cfg fi' subcIds = do
                withCtx cfg file sEnv $ \ctx -> do
                   env <- instEnv cfg fi cs solver ctx
                   pleTrie t env                                             -- 2. TRAVERSE Trie to compute InstRes
-    savePLEEqualities cfg fi res
+    savePLEEqualities cfg fi sEnv res
     return $ resSInfo cfg sEnv fi res                                       -- 3. STRENGTHEN SInfo using InstRes
   where
     withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
@@ -94,8 +95,8 @@ instantiate cfg fi' subcIds = do
     aEnv   = ae fi
     fi     = normalize fi'
 
-savePLEEqualities :: Config -> SInfo a -> InstRes -> IO ()
-savePLEEqualities cfg fi res = when (save cfg) $ do
+savePLEEqualities :: Config -> SInfo a -> SymEnv -> InstRes -> IO ()
+savePLEEqualities cfg fi sEnv res = when (save cfg) $ do
     let fq   = queryFile Files.Fq cfg ++ ".ple"
     putStrLn $ "\nSaving PLE equalities: "   ++ fq ++ "\n"
     Misc.ensurePath fq
@@ -108,7 +109,14 @@ savePLEEqualities cfg fi res = when (save cfg) $ do
       (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i res] ])
     renderConstraintRewrite (cid, eqs) =
       "constraint id" <+> text (show cid ++ ":")
-      $+$ nest 2 (vcat $ L.intersperse "" $ map (toFix . unElab) $ concatMap conjuncts eqs)
+      $+$ nest 2
+           (vcat $ L.intersperse "" $
+            map (toFix . unElab) $ Set.toList $ Set.fromList $
+            -- call elabExpr to try to bring equations that are missing
+            -- some casts into a fully annotated form for comparison
+            map (elabExpr "savePLEEqualities" sEnv) $
+            concatMap conjuncts eqs
+           )
       $+$ ""
 
 -------------------------------------------------------------------------------
