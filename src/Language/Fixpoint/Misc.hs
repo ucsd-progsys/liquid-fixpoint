@@ -412,7 +412,7 @@ mapSnd f (x, y) = (x, f y)
 
 {-@ allCombinations :: xss:[[a]] -> [{v:[a]| len v == len xss}] @-}
 allCombinations :: [[a]] -> [[a]]
-allCombinations xs = assert (all (((length xs) == ) . length)) $ go xs
+allCombinations xs = assert (all ((length xs == ) . length)) $ go xs
   where
    go []          = [[]]
    go [[]]        = []
@@ -435,7 +435,7 @@ _ <$$> []           = return []
 f <$$> [x1]         = singleton <$> f x1
 f <$$> [x1, x2]     = pair      <$> f x1 <*> f x2
 f <$$> [x1, x2, x3] = triple    <$> f x1 <*> f x2 <*> f x3
-f <$$> xs           = revMapM f ({- trace msg -} xs)
+f <$$> xs           = revMapM f {- trace msg -} xs
   where
     _msg            = "<$$> on " ++ show (length xs)
 
@@ -454,7 +454,7 @@ nubDiff a b = a' `S.difference` b'
 
 
 fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
-fold1M _ []         = errorstar $ "fold1M with empty list"
+fold1M _ []         = errorstar "fold1M with empty list"
 fold1M _ [x]        = return x
 fold1M f (x1:x2:xs) = do { x <- f x1 x2; fold1M f (x:xs) }
 

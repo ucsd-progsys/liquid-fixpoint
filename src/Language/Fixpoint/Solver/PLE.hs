@@ -204,7 +204,7 @@ loopB env ctx delta iMb res b = case b of
 -- and then pops the assumptions.
 --
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (InstEnv a -> ICtx -> IO b) -> IO b
-withAssms env@(InstEnv {..}) ctx delta cidMb act = do
+withAssms env@InstEnv{..} ctx delta cidMb act = do
   let (ctx', env')  = updCtx env ctx delta cidMb
   let assms = icAssms ctx'
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
@@ -806,9 +806,9 @@ evalRESTWithCache cacheRef γ ctx rp =
         -- Optimization: If we got here via rewriting, then the current constraints
         -- are satisfiable; otherwise double-check that rewriting is still allowed
         ok <-
-          if (isRW $ last (path rp))
-            then (return True)
-            else (liftIO $ termCheck (c rp))
+          if isRW $ last (path rp)
+            then return True
+            else liftIO $ termCheck (c rp)
         if ok
           then
             do

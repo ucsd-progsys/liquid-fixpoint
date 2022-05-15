@@ -513,7 +513,7 @@ cGraphCE cs = CGraph { gEdges = es
 -- The returned map tells for each coonstraint writing a kvar
 -- which constraints are reading the kvar.
 cSuccM      :: [CEdge] -> CMap [F.SubcId]
-cSuccM es    = (sortNub . concatMap kRdBy) <$> iWrites
+cSuccM es    = sortNub . concatMap kRdBy <$> iWrites
   where
     kRdBy k  = M.lookupDefault [] k kReads
     iWrites  = group [ (i, k) | (Cstr i, KVar k) <- es ]
@@ -565,7 +565,7 @@ data Stats = Stats {
   }
 
 instance PTable Stats where
-  ptable (Stats {..})  = DocTable [
+  ptable Stats{..}  = DocTable [
       ("# KVars [Cut]"    , pprint stNumKVCuts)
     , ("# KVars [NonLin]" , pprint stNumKVNonLin)
     , ("# KVars [All]"    , pprint stNumKVTotal)

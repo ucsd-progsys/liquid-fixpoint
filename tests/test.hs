@@ -285,7 +285,7 @@ gitRef = do
 
 -- | Calls `git` for info; returns `"plain"` if we are not in a git directory.
 gitProcess :: [String] -> IO String
-gitProcess args = (readProcess "git" args []) `catchIOError` const (return "plain")
+gitProcess args = readProcess "git" args [] `catchIOError` const (return "plain")
 
 notNoise :: Char -> Bool
 notNoise a = a /= '\"' && a /= '\n' && a /= '\r'

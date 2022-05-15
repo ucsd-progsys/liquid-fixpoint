@@ -131,7 +131,7 @@ instance Read RESTOrdering where
   readsPrec _ s | "rpo" `L.isPrefixOf` s = [(RESTRPO, drop 3 s)]
   readsPrec n s | "fuel" `L.isPrefixOf` s = do
                         (fuel, rest) <- readsPrec n (drop 4 s)
-                        return $ (RESTFuel fuel, rest)
+                        return (RESTFuel fuel, rest)
   readsPrec _ _ = []
 
 ---------------------------------------------------------------------------------------

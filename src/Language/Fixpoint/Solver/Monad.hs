@@ -228,7 +228,7 @@ filterValidGradual p qs = do
 
 filterValidGradual_ :: [F.Expr] -> F.Cand a -> Context -> IO [a]
 filterValidGradual_ ps qs me
-  = (map snd . fst) <$> foldM partitionCandidates ([], qs) ps
+  = map snd . fst <$> foldM partitionCandidates ([], qs) ps
   where
     partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> IO (F.Cand a, F.Cand a)
     partitionCandidates (ok, candidates) p = do
@@ -243,7 +243,7 @@ filterValidOne_ p qs me = do
     smtBracket me "filterValidRHS" $ do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
-      return $ ((q, x), valid)
+      return ((q, x), valid)
 
 smtEnablembqi :: SolveM ()
 smtEnablembqi

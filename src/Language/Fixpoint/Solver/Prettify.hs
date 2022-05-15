@@ -179,16 +179,16 @@ shortenVarNames env c =
     renameSortedReft
       :: HashMap Symbol Symbol -> SortedReft -> SortedReft
     renameSortedReft symMap (RR t r) =
-      let sortSubst = FObj . (at symMap)
+      let sortSubst = FObj . at symMap
        in RR (substSort sortSubst t) (renameReft symMap r)
 
     renameReft :: HashMap Symbol Symbol -> Reft -> Reft
     renameReft symMap r =
       let m = HashMap.insert (reftBind r) (prefixOfSym $ reftBind r) symMap
-          sortSubst = FObj . (at symMap)
+          sortSubst = FObj . at symMap
        in reft (at m (reftBind r)) $
             substSortInExpr sortSubst $
-            substf (EVar . (at m)) (reftPred r)
+            substf (EVar . at m) (reftPred r)
 
     at :: HashMap Symbol Symbol -> Symbol -> Symbol
     at m k = fromMaybe k $ HashMap.lookup k m

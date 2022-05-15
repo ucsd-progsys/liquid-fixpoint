@@ -153,7 +153,7 @@ sourcePosElts = ofSourcePos
 ppSourcePos :: SourcePos -> Doc
 ppSourcePos z = text (printf "%s:%d:%d" f l c)
   where
-    (f,l,c) = sourcePosElts $ z
+    (f,l,c) = sourcePosElts z
 
 instance Fixpoint SourcePos where
   toFix = text . show

@@ -80,7 +80,7 @@ makeSolutions cfg fi kes
 -------------------------------------------------------------------------------
 -- |  Make each gradual appearence unique -------------------------------------
 -------------------------------------------------------------------------------
-uniquify :: (NFData a, Fixpoint a, Loc a) => SInfo a -> (SInfo a)
+uniquify :: (NFData a, Fixpoint a, Loc a) => SInfo a -> SInfo a
 
 uniquify fi = fi{cm = cm', ws = ws', bs = bs'}
   where
@@ -133,7 +133,7 @@ instance Unique SortedReft where
   uniq (RR s r) = RR s <$> uniq r
 
 instance Unique Reft where
-  uniq (Reft (x,e)) = (Reft . (x,)) <$> uniq e
+  uniq (Reft (x,e)) = Reft . (x,) <$> uniq e
 
 instance Unique Expr where
   uniq = mapMExpr go
@@ -176,7 +176,7 @@ addCache :: KVar -> KVar -> UniqueM ()
 addCache k k' = modify $ \s -> s{cache = M.insert k k' (cache s)}
 
 updateBEnv :: BindId -> BindEnv -> UniqueM ()
-updateBEnv i bs = modify $ \s -> s{benv = bs, ubs = i:(ubs s)}
+updateBEnv i bs = modify $ \s -> s{benv = bs, ubs = i : ubs s}
 
 setChange :: UniqueM ()
 setChange = modify $ \s -> s{change = True}
@@ -198,7 +198,7 @@ freshK k  = do
 
 freshK' k = do
   i <- freshId <$> get
-  modify $ (\s -> s{freshId = i + 1})
+  modify (\s -> s{freshId = i + 1})
   let k' = KV $ gradIntSymbol i
   addK k k'
   addCache k k'
@@ -206,7 +206,7 @@ freshK' k = do
 
 addK :: KVar -> KVar -> UniqueM ()
 addK key val =
-  modify $ (\s -> s{kmap = M.insertWith (++) key [(val, uloc s)] (kmap s)})
+  modify (\s -> s{kmap = M.insertWith (++) key [(val, uloc s)] (kmap s)})
 
 -------------------------------------------------------------------------------
 -- | expandWF -----------------------------------------------------------------
@@ -217,7 +217,7 @@ expandWF :: (NFData a, Fixpoint a)
          -> M.HashMap KVar (WfC a)
          -> M.HashMap KVar (WfC a)
 expandWF km ws
-  = M.fromList $
+  = M.fromList
        ([(k, updateKVar k src w) | (i, w) <- gws, (kw, ks) <- km', kw == i, (k, src) <- ks]
         ++ kws)
   where

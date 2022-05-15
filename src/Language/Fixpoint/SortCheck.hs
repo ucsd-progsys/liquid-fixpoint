@@ -198,7 +198,7 @@ instance Elaborate SortedReft where
 instance Elaborate BindEnv where
   elaborate z env = mapBindEnv (\i (x, sr) -> (x, elaborate (z' i x sr) env sr))
     where
-      z' i  x sr  = z { val = (val z) ++ msg i x sr }
+      z' i  x sr  = z { val = val z ++ msg i x sr }
       msg i x sr  = unwords [" elabBE",  show i, show x, show sr]
 
 instance (Loc a) => Elaborate (SimpC a) where
@@ -257,10 +257,10 @@ elabApply env = go
     step (ELam b e)       = ELam b       (go e)
     step (ECoerc a t e)   = ECoerc a t   (go e)
     step (PGrad k su i e) = PGrad k su i (go e)
-    step e@(PKVar {})     = e
-    step e@(ESym {})      = e
-    step e@(ECon {})      = e
-    step e@(EVar {})      = e
+    step e@PKVar{}        = e
+    step e@ESym{}         = e
+    step e@ECon{}         = e
+    step e@EVar{}         = e
     -- ETApp, ETAbs, PAll, PExist
     step e                = error $ "TODO elabApply: " ++ showpp e
 
@@ -333,7 +333,7 @@ act `withError` msg = do
     (\(ChError f) ->
       throwIO $ ChError $ \_ ->
         let e = f ()
-         in (atLoc e (val e ++ "\n  because\n" ++ msg))
+         in atLoc e (val e ++ "\n  because\n" ++ msg)
     )
 
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
@@ -445,7 +445,7 @@ checkExpr f (PIff p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
 checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
-checkExpr _ (PKVar {})     = return boolSort
+checkExpr _ PKVar{}        = return boolSort
 checkExpr f (PGrad _ _ _ e)  = checkPred f e >> return boolSort
 
 checkExpr f (PAll  bs e )  = checkExpr (addEnv f bs) e
@@ -501,7 +501,7 @@ elab _ e@(PKVar _ _) =
   return (e, boolSort)
 
 elab f (PGrad k su i e) =
-  ((, boolSort) . PGrad k su i . fst) <$> elab f e
+  (, boolSort) . PGrad k su i . fst <$> elab f e
 
 elab (_, f) e@(EVar x) =
   (e,) <$> checkSym f x
@@ -554,7 +554,7 @@ elab f (POr ps) = do
 elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
   t1        <- checkExpr g e1
   t2        <- checkExpr g e2
-  (t1',t2') <- unite g e  t1 t2 `withError` (errElabExpr e)
+  (t1',t2') <- unite g e  t1 t2 `withError` errElabExpr e
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
   e1''      <- eCstAtom f e1' t1'
@@ -651,7 +651,7 @@ elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
   su'             <- unify1 f e su sIn s2
-  return           $ (applyExpr (Just su') e1, applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
+  return (applyExpr (Just su') e1, applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
 
 --------------------------------------------------------------------------------
@@ -721,7 +721,7 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
 
 
 unApplyAt :: Expr -> Maybe Sort
-unApplyAt (ECst (EVar f) t@(FFunc {}))
+unApplyAt (ECst (EVar f) t@FFunc{})
   | f == applyName = Just t
 unApplyAt _        = Nothing
 
@@ -915,7 +915,7 @@ getIte f e1 e2 = do
 
 checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
 checkIteTy f p e1 e2 t1 t2
-  = ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` (errIte e1 e2 t1 t2)
+  = ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` errIte e1 e2 t1 t2
   where
     e' = Just (EIte p e1 e2)
 
@@ -925,7 +925,7 @@ checkCst f t (EApp g e)
   = checkApp f (Just t) g e
 checkCst f t e
   = do t' <- checkExpr f e
-       ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` (errCast e t' t)
+       ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` errCast e t' t
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
@@ -1033,7 +1033,7 @@ checkRel :: HasCallStack => Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  su <- (unifys f (Just e) [t1] [t2]) `withError` (errRel e t1 t2)
+  su <- unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2
   _  <- checkExprAs f (apply su t1) e1
   _  <- checkExprAs f (apply su t2) e2
   checkRelTy f e Eq t1 t2
@@ -1050,16 +1050,16 @@ checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy _ e Ueq s1 s2     = checkURel e s1 s2
 checkRelTy _ e Une s1 s2     = checkURel e s1 s2
 checkRelTy f _ _ s1@(FObj l) s2@(FObj l') | l /= l'
-                             = (checkNumeric f s1 >> checkNumeric f s2) `withError` (errNonNumerics l l')
+                             = (checkNumeric f s1 >> checkNumeric f s2) `withError` errNonNumerics l l'
 checkRelTy _ _ _ FReal FReal = return ()
 checkRelTy _ _ _ FInt  FReal = return ()
 checkRelTy _ _ _ FReal FInt  = return ()
-checkRelTy f _ _ FInt  s2    = checkNumeric    f s2 `withError` (errNonNumeric s2)
-checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` (errNonNumeric s1)
-checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` (errNonFractional s2)
-checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` (errNonFractional s1)
-checkRelTy f e Eq t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
-checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
+checkRelTy f _ _ FInt  s2    = checkNumeric    f s2 `withError` errNonNumeric s2
+checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` errNonNumeric s1
+checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` errNonFractional s2
+checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` errNonFractional s1
+checkRelTy f e Eq t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2)
+checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2)
 checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwErrorAt $ errRel e t1 t2)
 
 checkURel :: Expr -> Sort -> Sort -> CheckM ()
@@ -1202,11 +1202,11 @@ unify1 _ _ !θ !FInt  !FReal = return θ
 unify1 _ _ !θ !FReal !FInt  = return θ
 
 unify1 f e !θ !t FInt = do
-  checkNumeric f t `withError` (errUnify e t FInt)
+  checkNumeric f t `withError` errUnify e t FInt
   return θ
 
 unify1 f e !θ !FInt !t = do
-  checkNumeric f t `withError` (errUnify e FInt t)
+  checkNumeric f t `withError` errUnify e FInt t
   return θ
 
 unify1 f e !θ (FFunc !t1 !t2) (FFunc !t1' !t2') = do

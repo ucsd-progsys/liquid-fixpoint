@@ -507,7 +507,7 @@ substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
 mkSubst :: F.SrcSpan -> F.SymEnv -> F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
 mkSubst sp env x tx ey ty
   | tx == ty    = F.EEq ex ey
-  | otherwise   = {- F.tracepp _msg -} (F.EEq ex' ey')
+  | otherwise   = {- F.tracepp _msg -} F.EEq ex' ey'
   where
     _msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
     ex          = F.expr x
@@ -603,7 +603,7 @@ ebindInfo si = group [((bid, x), cons cid) | (bid, cid, x) <- ebindDefs si]
   where cons cid = void (Misc.safeLookup "ebindInfo" cid cs)
         cs = F.cm si
         cmpByFst x y = fst ( fst x ) == fst ( fst y )
-        group xs = (\ys -> ( (fst $ fst $ head ys)
+        group xs = (\ys -> ( fst $ fst $ head ys
                            , Sol.EbDef (snd <$> ys) (snd $ fst $ head ys)))
                     <$> L.groupBy cmpByFst xs
 

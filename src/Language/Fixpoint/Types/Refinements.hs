@@ -182,7 +182,7 @@ instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a)
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
-    ras'                     = if null ps then ks else ((conj ps) : ks)  -- see [NOTE:pAnd-SLOW]
+    ras'                     = if null ps then ks else conj ps : ks  -- see [NOTE:pAnd-SLOW]
     (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
 
 
@@ -199,7 +199,7 @@ class HasGradual a where
   ungrad x = x
 
 instance HasGradual Expr where
-  isGradual (PGrad {}) = True
+  isGradual PGrad{} = True
   isGradual (PAnd xs)  = any isGradual xs
   isGradual _          = False
 
@@ -207,7 +207,7 @@ instance HasGradual Expr where
   gVars (PAnd xs)       = concatMap gVars xs
   gVars _               = []
 
-  ungrad (PGrad {}) = PTrue
+  ungrad PGrad{} = PTrue
   ungrad (PAnd xs)  = PAnd (ungrad <$> xs )
   ungrad e          = e
 
@@ -733,7 +733,7 @@ instance PPrint Expr where
     where zi = 1
 
   -- RJ: DO NOT DELETE!
-  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
+  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} pprintTidy k so
   -- pprintPrec z k (ECst e _)      = pprintPrec z k e
   pprintPrec _ _ PTrue           = trueD
   pprintPrec _ _ PFalse          = falseD
@@ -741,14 +741,14 @@ instance PPrint Expr where
                                    "not" <+> pprintPrec (zn+1) k p
     where zn = 8
   pprintPrec z k (PImp p1 p2)    = parensIf (z > zi) $
-                                   (pprintPrec (zi+1) k p1) <+>
+                                   pprintPrec (zi+1) k p1 <+>
                                    "=>"                     <+>
-                                   (pprintPrec (zi+1) k p2)
+                                   pprintPrec (zi+1) k p2
     where zi = 2
   pprintPrec z k (PIff p1 p2)    = parensIf (z > zi) $
-                                   (pprintPrec (zi+1) k p1) <+>
+                                   pprintPrec (zi+1) k p1 <+>
                                    "<=>"                    <+>
-                                   (pprintPrec (zi+1) k p2)
+                                   pprintPrec (zi+1) k p2
     where zi = 2
   pprintPrec z k (PAnd ps)       = parensIf (z > za) $
                                    pprintBin (za + 1) k trueD andD ps
@@ -765,7 +765,7 @@ instance PPrint Expr where
   pprintPrec _ k (PExist xts p)  = pprintQuant k "exists" xts p
   pprintPrec _ k (ELam (x,t) e)  = "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprintTidy k e
   pprintPrec _ k (ECoerc a t e)  = parens $ "coerce" <+> toFix a <+> "~" <+> toFix t <+> text "in" <+> pprintTidy k e
-  pprintPrec _ _ p@(PKVar {})    = toFix p
+  pprintPrec _ _ p@PKVar{}    = toFix p
   pprintPrec _ _ (ETApp e s)     = "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
   pprintPrec z k (PGrad x _ _ e) = pprintPrec z k e <+> "&&" <+> toFix x -- "??"
@@ -888,7 +888,7 @@ pOr           = simplify . POr
 (|.|) p q = pOr [p, q]
 
 pIte :: Pred -> Expr -> Expr -> Expr
-pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
+pIte p1 p2 p3 = pAnd [p1 `PImp` p2, PNot p1 `PImp` p3]
 
 pExist :: [(Symbol, Sort)] -> Pred -> Pred
 pExist []  p = p

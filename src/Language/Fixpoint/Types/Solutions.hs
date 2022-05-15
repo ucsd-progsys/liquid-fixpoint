@@ -140,7 +140,7 @@ emptyGMap :: GSolution -> GSolution
 emptyGMap sol = mapGMap sol (\(x,_) -> (x, GB []))
 
 updateGMapWithKey :: [(KVar, QBind)] -> GSolution -> GSolution
-updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, (QB eq)) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs }
+updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, QB eq) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs }
 
 qb :: [EQual] -> QBind
 qb = QB
@@ -195,7 +195,7 @@ data EbindSol
 instance PPrint EbindSol where
   pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x
   pprintTidy k (EbSol e)   = "EbSol:" <+> pprintTidy k e
-  pprintTidy _ (EbIncr)    = "EbIncr"
+  pprintTidy _ EbIncr    = "EbIncr"
 
 --------------------------------------------------------------------------------
 updateEbind :: Sol a b -> BindId -> Pred -> Sol a b
@@ -228,13 +228,13 @@ mapGMap :: Sol b a -> (b -> b) -> Sol b a
 mapGMap sol f = sol {gMap = M.map f (gMap sol)}
 
 instance Semigroup (Sol a b) where
-  s1 <> s2 = Sol { sEnv  = (sEnv s1)  <> (sEnv s2)
-                 , sMap  = (sMap s1)  <> (sMap s2)
-                 , gMap  = (gMap s1)  <> (gMap s2)
-                 , sHyp  = (sHyp s1)  <> (sHyp s2)
-                 , sScp  = (sScp s1)  <> (sScp s2)
-                 , sEbd  = (sEbd s1)  <> (sEbd s2)
-                 , sxEnv = (sxEnv s1) <> (sxEnv s2)
+  s1 <> s2 = Sol { sEnv  = sEnv s1  <> sEnv s2
+                 , sMap  = sMap s1  <> sMap s2
+                 , gMap  = gMap s1  <> gMap s2
+                 , sHyp  = sHyp s1  <> sHyp s2
+                 , sScp  = sScp s1  <> sScp s2
+                 , sEbd  = sEbd s1  <> sEbd s2
+                 , sxEnv = sxEnv s1 <> sxEnv s2
                  }
 
 instance Monoid (Sol a b) where
@@ -276,7 +276,7 @@ instance Show Cube where
 --------------------------------------------------------------------------------
 result :: Sol a QBind -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
-result s = sMap $ (pAnd . fmap eqPred . qbEQuals) <$> s
+result s = sMap $ pAnd . fmap eqPred . qbEQuals <$> s
 
 
 --------------------------------------------------------------------------------

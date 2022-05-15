@@ -351,7 +351,7 @@ isReal _              = False
 
 isString :: Sort -> Bool
 isString (FApp l c)     = (isList l && isChar c) || isString l
-isString (FTC (TC c i)) = (val c == strConName || tc_isString i)
+isString (FTC (TC c i)) = val c == strConName || tc_isString i
 isString (FAbs _ s)     = isString s
 isString _              = False
 

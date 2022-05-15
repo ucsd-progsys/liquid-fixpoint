@@ -129,7 +129,7 @@ arbitraryExpr :: Int -> Gen Expr
 arbitraryExpr = arbitraryFiniteExpr arbitraryAtomicExpr
 
 arbitraryAtomicExpr :: Gen Expr
-arbitraryAtomicExpr = (oneof [ESym <$> arbitrary, ECon <$> arbitrary, EVar <$> arbitrary])
+arbitraryAtomicExpr = oneof [ESym <$> arbitrary, ECon <$> arbitrary, EVar <$> arbitrary]
 
 arbitraryEqualityConstraint :: Gen Brel
 arbitraryEqualityConstraint = oneof [pure Eq, pure Ueq]
@@ -180,10 +180,10 @@ arbitrarySortPossiblyInvolving vars n = do
   let fvar = oneof $ pure . FVar <$> vars
   frequency
     [ (1, arbitrarySortNoAbs n)
-    , (1, FFunc <$> fvar <*> (arbitrarySortPossiblyInvolving vars (n `div` 2)))
-    , (1, FFunc <$> (arbitrarySortPossiblyInvolving vars (n `div` 2)) <*> fvar)
-    , (1, FApp <$> fvar <*> (arbitrarySortPossiblyInvolving vars (n `div` 2)))
-    , (1, FApp <$> (arbitrarySortPossiblyInvolving vars (n `div` 2)) <*> fvar)
+    , (1, FFunc <$> fvar <*> arbitrarySortPossiblyInvolving vars (n `div` 2))
+    , (1, FFunc <$> arbitrarySortPossiblyInvolving vars (n `div` 2) <*> fvar)
+    , (1, FApp <$> fvar <*> arbitrarySortPossiblyInvolving vars (n `div` 2))
+    , (1, FApp <$> arbitrarySortPossiblyInvolving vars (n `div` 2) <*> fvar)
     , (1, fvar)
     , (1, newAbs vars n)
     ]
@@ -195,7 +195,7 @@ newAbs vars n = do
   v <- arbitrary
   if v `elem` vars
     then discard v
-    else FAbs <$> pure v <*> (arbitrarySortPossiblyInvolving (v:vars) (n `div` 2))
+    else FAbs <$> pure v <*> arbitrarySortPossiblyInvolving (v:vars) (n `div` 2)
 
 -- | Does not create FObj, FAbs, or FVar
 arbitrarySortNoAbs :: Int -> Gen Sort
@@ -249,7 +249,7 @@ instance Arbitrary Constant where
                     ]
   shrink (I x) = I <$> shrink x
   shrink (R x) = R <$> shrink x
-  shrink (L x y) = (L <$> pure x <*> shrink y)
+  shrink (L x y) = L <$> pure x <*> shrink y
 
 -- | Used in UndoANFTests.
 newtype AnfSymbol = AnfSymbol { unAnfSymbol :: Symbol }
@@ -317,7 +317,7 @@ instance Arbitrary FlatAnfEnv where
         let ultimateAnfExpr = conjOrDisj $ EVar . fst <$> anfs
         sym <- arbitrary
         ultimateAnfSym <- arbitrary
-        pure $ (sym, RR FInt (reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr)))
+        pure (sym, RR FInt (reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr)))
   -- TODO
   shrink (FlatAnfEnv (Env (x:xs))) = pure . FlatAnfEnv . Env $ xs
   shrink _ = mempty
@@ -368,7 +368,7 @@ instance Arbitrary ChainedAnfEnv where
 chainedAnfGen :: (Int -> Gen AnfSymbol) -> Int -> Gen [(Symbol, SortedReft)]
 chainedAnfGen _ 0 = pure []
 chainedAnfGen symGen n = do
-  syms <- fmap unAnfSymbol <$> (for [1..n+1] symGen)
+  syms <- fmap unAnfSymbol <$> for [1..n+1] symGen
   finalSym <- arbitrary
   let symPairs :: [(Symbol, Symbol)]
       symPairs = pairs (syms ++ [finalSym])
