@@ -318,7 +318,7 @@ instance Arbitrary FlatAnfEnv where
         ultimateAnfSym <- arbitrary
         pure (sym, RR FInt (reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr)))
   -- TODO
-  shrink (FlatAnfEnv (Env (x:xs))) = pure . FlatAnfEnv . Env $ xs
+  shrink (FlatAnfEnv (Env (_x : xs))) = pure . FlatAnfEnv . Env $ xs
   shrink _ = mempty
 
 -- | Given a generator for a bunch of (`Symbol`, `SortedReft`) pairs which bind
@@ -355,7 +355,7 @@ instance Arbitrary ChainedAnfEnv where
             let sreft = RR FInt (reft sym (PAtom Eq (EVar sym) (EVar penultimateSym)))
             (, sreft) <$> arbitrary
   -- TODO
-  shrink (ChainedAnfEnv (Env (x:xs))) = pure . ChainedAnfEnv . Env $ xs
+  shrink (ChainedAnfEnv (Env (_x : xs))) = pure . ChainedAnfEnv . Env $ xs
   shrink _ = mempty
 
 -- | Creates a "chain" of referencing `lq_anf$` var Symbols of length `n` such
