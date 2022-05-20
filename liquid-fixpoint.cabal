@@ -37,16 +37,13 @@ common warnings
     -Wall
     -- TODO: Remove each -Wno-* suppression of a warning we have.
     -Wno-incomplete-uni-patterns
-    -Wno-name-shadowing
 
 source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquid-fixpoint/
 
 flag devel
-  -- TODO: -Werror while removing -Wno-* warnings so please reset default to
-  -- False afterwards.
-  default:     True
+  default:     False
   manual:      True
   description: turn on stricter error reporting for development
 
@@ -172,7 +169,7 @@ executable fixpoint
   hs-source-dirs:   bin
   build-depends:    base >= 4.9.1.0 && < 5, liquid-fixpoint
   default-language: Haskell98
-  ghc-options:      -threaded -W -fno-warn-missing-methods
+  ghc-options:      -threaded
 
   if flag(devel)
     ghc-options: -Werror
