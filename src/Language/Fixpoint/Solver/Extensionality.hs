@@ -235,7 +235,7 @@ breakSort :: [DataDecl] -> Sort -> Either [(LocSymbol, [Sort])] Sort
 breakSort ddecls s
     | Just (tc, ts) <- splitTC s
     , [(dds,i)] <- [ (ddCtors dd,ddVars dd) | dd <- ddecls, ddTyCon dd == tc ]
-    = Left ((\dd -> (dcName dd, instSort  (Sub $ zip [0..(i-1)] ts) <$> dfSort <$> dcFields dd)) <$> dds)
+    = Left ((\dd -> (dcName dd, instSort  (Sub $ zip [0..(i-1)] ts) . dfSort <$> dcFields dd)) <$> dds)
     | otherwise
     = Right s
 

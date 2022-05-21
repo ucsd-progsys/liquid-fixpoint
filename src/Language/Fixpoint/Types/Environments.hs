@@ -172,7 +172,7 @@ lookupSEnvWithDistance x (SE env)
      Nothing -> Alts $ symbol <$> alts
   where
     alts       = takeMin $ zip (editDistance x' <$> ss) ss
-    ss         = symbolString <$> fst <$> M.toList env
+    ss         = symbolString . fst <$> M.toList env
     x'         = symbolString x
     takeMin xs = [z | (d, z) <- xs, d == getMin xs]
     getMin     = minimum . (fst <$>)
@@ -356,3 +356,4 @@ makePack kvss = Packs (M.fromList kIs)
   where
     kIs       = [ (k, i) | (i, ks) <- kPacks, k <- ks ]
     kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss
+

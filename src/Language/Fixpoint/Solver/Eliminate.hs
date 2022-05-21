@@ -35,7 +35,7 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
     (es, cKs, nKs) = kutVars cfg  sI
     kS             = kvScopes     sI es
     sE             = symbolEnv   cfg sI
-    ebs            = S.fromList $ fst <$> flip lookupBindEnv (bs sI) <$> ebinds sI
+    ebs            = S.fromList $ fst . flip lookupBindEnv (bs sI) <$> ebinds sI
 
 
 --------------------------------------------------------------------------------
