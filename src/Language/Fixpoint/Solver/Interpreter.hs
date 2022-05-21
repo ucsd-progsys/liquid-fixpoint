@@ -267,7 +267,8 @@ updCtx InstEnv{..} ctx delta cidMb
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
-    (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
+    rhs       = unElab eRhs
+    es        = unElab . expr <$> binds
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
     subMb     = getCstr ieCstrs <$> cidMb
@@ -464,7 +465,8 @@ interpret ie γ ctx env   (EApp e1 e2)
   | isSetPred e1                        = let e2' = interpret' ie γ ctx env e2 in 
                                              applySetFolding e1 e2'
 interpret ie γ ctx env e@(EApp _ _)     = case splitEApp e of
-  (f, es) -> let (f':es') = map (interpret' ie γ ctx env) (f:es) in interpretApp ie γ ctx env f' es'
+  (f, es) -> let g = interpret' ie γ ctx env in
+    interpretApp ie γ ctx env (g f) (map g es)
     where
       interpretApp ie γ ctx env (EVar f) es
         | Just eq <- M.lookup f (knAms γ)

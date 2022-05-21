@@ -89,9 +89,13 @@ solveEbs cfg query@(Query qs vs c cons dist eqns mats dds) = do
   whenLoud $ putStrLn $ F.showpp poked
 
   whenLoud $ putStrLn "Skolemized + split:"
-  let (Just _horn, Just _side) = split poked
+  let (_horn, _side) = case split poked of
+                        (Just h, Just s) -> (h, s)
+                        _ -> error "Couldn't split poked in solveEbs"
+
   let horn = flatten . pruneTauts $ _horn
   let side = flatten . pruneTauts $ _side
+
   whenLoud $ putStrLn $ F.showpp (horn, side)
 
   -- collect predicate variables
@@ -382,7 +386,10 @@ elimPis :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
 elimPis [] cc = cc
 elimPis (n:ns) (horn, side) = elimPis ns (apply horn, apply side)
 -- TODO: handle this error?
-  where Just nSol = defs n horn
+  where nSol = case defs n horn of
+                 Just nSol -> nSol
+                 Nothing -> error "Unexpected nothing elimPis"
+
         apply = applyPi (piSym n) nSol
 
 -- TODO: PAnd may be a problem

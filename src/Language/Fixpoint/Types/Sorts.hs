@@ -10,6 +10,7 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing     #-}
 
@@ -433,11 +434,12 @@ toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (unFApp t)
 
 toFixAbsApp :: Sort -> Doc
-toFixAbsApp t = text "func" <-> parens (toFix n <+> text "," <+> toFix ts)
+toFixAbsApp (functionSort -> Just (vs, ss, s)) =
+  text "func" <-> parens (toFix n <+> text "," <+> toFix ts)
   where
-    Just (vs, ss, s) = functionSort t
     n                = length vs
     ts               = ss ++ [s]
+toFixAbsApp _ = error "Unexpected nothing function sort"
 
 toFixFApp            :: ListNE Sort -> Doc
 toFixFApp [t]        = toFixSort t

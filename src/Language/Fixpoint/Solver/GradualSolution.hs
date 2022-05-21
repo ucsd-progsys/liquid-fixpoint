@@ -88,14 +88,16 @@ instKQ :: Bool
        -> F.Sort
        -> F.Qualifier
        -> [Sol.EQual]
-instKQ ho env v t q
-  = do (su0, v0) <- candidates senv [(t, [v])] qt
-       xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
-       return     $ Sol.eQual q (reverse xs)
-    where
-       qt : qts   = qpSort <$> F.qParams q
-       tyss       = instCands ho env
-       senv       = (`F.lookupSEnvWithDistance` env)
+instKQ ho env v t q =
+  case qpSort <$> F.qParams q of
+    (qt:qts) -> do
+        (su0, v0) <- candidates senv [(t, [v])] qt
+        xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
+        return     $ Sol.eQual q (reverse xs)
+      where
+        tyss       = instCands ho env
+        senv       = (`F.lookupSEnvWithDistance` env)
+    [] -> error "Empty qpSort of qParams q"
 
 instCands :: Bool -> F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands ho env = filter isOk tyss

@@ -3,6 +3,8 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE OverloadedStrings    #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 --------------------------------------------------------------------------------
 -- | `defunctionalize` traverses the query to:
 --      1. "normalize" lambda terms by renaming binders,

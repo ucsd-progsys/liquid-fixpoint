@@ -128,7 +128,8 @@ instKSig :: Bool
          -> F.Sort
          -> QCSig
          -> [[F.Symbol]]
-instKSig ho env v t qsig = do
+instKSig _  _   _ _ [] = error "Empty qsig in Solution.instKSig"
+instKSig ho env v t (qp:qps) = do
   (su0, i0, qs0) <- candidatesP senv [(0, t, [v])] qp
   ixs       <- matchP senv tyss [(i0, qs0)] (applyQPP su0 <$> qps)
   -- return     $ F.notracepp msg (reverse ixs)
@@ -136,7 +137,6 @@ instKSig ho env v t qsig = do
   return (v:ys)
   where
     -- msg        = "instKSig " ++ F.showpp qsig
-    qp : qps   = qsig
     tyss       = zipWith (\i (t, ys) -> (i, t, ys)) [1..] (instCands ho env)
     senv       = (`F.lookupSEnvWithDistance` env)
 

@@ -270,7 +270,9 @@ sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) else id) $ -}
     go (FVar i)
       | poly, i < m   = SVar i
       | otherwise     = SInt
-    go t              = fappSmtSort poly m env ct ts where (ct:ts) = unFApp t
+    go t
+      | (ct:ts) <- unFApp t = fappSmtSort poly m env ct ts
+      | otherwise = error "Unexpected empty 'unFApp t'"
 
 fappSmtSort :: Bool -> Int -> SEnv DataDecl -> Sort -> [Sort] -> SmtSort
 fappSmtSort poly m env = go
