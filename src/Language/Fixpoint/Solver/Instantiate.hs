@@ -278,10 +278,12 @@ updCtx InstEnv {..} ctx delta cidMb
   where
     initEqs   = equalitiesPred (initEqualities ieSMT ieAenv bs)
     cands     = S.fromList (concatMap topApps es0) `S.difference` icSolved ctx
-    ctxEqs    = toSMT ieCfg ieSMT [] <$> concat
-                  [ initEqs
-                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
-                  ]
+    ctxEqs    = toSMT ieCfg ieSMT [] <$>
+                  (initEqs ++
+                  [ expr xr
+                  | xr@(_, r) <- bs
+                  , null (Vis.kvarsExpr $ reftPred $ sr_reft r)
+                  ])
     (bs, es0) = (second unElabSortedReft <$> binds, unElab <$> es)
     es        = eRhs : (expr <$> binds)
     eRhs      = maybe PTrue crhs subMb
