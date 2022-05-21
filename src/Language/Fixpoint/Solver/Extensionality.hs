@@ -131,29 +131,29 @@ mapMPosExpr p f = go p
     go p e@(ECon _)      = f p e
     go p e@(EVar _)      = f p e
     go p e@(PKVar _ _)   = f p e
-    go p (ENeg e)        = f p =<< (ENeg        <$>  go p e                     )
-    go p (ECst e t)      = f p =<< ((`ECst` t)  <$>  go p e                     )
-    go p (ECoerc a t e)  = f p =<< (ECoerc a t  <$>  go p e                     )
+    go p (ENeg e)        = f p . ENeg =<< go p e
+    go p (ECst e t)      = f p . (`ECst` t) =<< go p e
+    go p (ECoerc a t e)  = f p . ECoerc a t =<< go p e
     go p (EApp g e)      = f p =<< (EApp        <$>  go p g  <*> go p e             )
     go p (EBin o e1 e2)  = f p =<< (EBin o      <$>  go p e1 <*> go p e2            )
     go p (PAtom r e1 e2) = f p =<< (PAtom r     <$>  go p e1 <*> go p e2            )
 
     go p (PImp p1 p2)    = f p =<< (PImp        <$>  go (negatePos p) p1 <*> go p p2)
-    go p (PAnd ps)       = f p =<< (PAnd        <$> (go p <$$> ps)                  )
+    go p (PAnd ps)       = f p . PAnd =<< (go p <$$> ps)
 
     -- The below cannot appear due to normalization
-    go p (PNot e)        = f p =<< (PNot        <$>  go p e                     )
+    go p (PNot e)        = f p . PNot =<< go p e
     go p (PIff p1 p2)    = f p =<< (PIff        <$>  go p p1 <*> go p p2            )
     go p (EIte e e1 e2)  = f p =<< (EIte        <$>  go p e  <*> go p e1 <*> go p e2)
-    go p (POr  ps)       = f p =<< (POr         <$> (go p <$$> ps)                  )
+    go p (POr  ps)       = f p . POr =<< (go p <$$> ps)
 
     -- The following canot appear in general
-    go p (PAll xts e)    = f p =<< (PAll   xts  <$>  go p e                     )
-    go p (ELam (x,t) e)  = f p =<< (ELam (x,t)  <$>  go p e                     )
-    go p (PExist xts e)  = f p =<< (PExist xts  <$>  go p e                     )
-    go p (ETApp e s)     = f p =<< ((`ETApp` s) <$>  go p e                     )
-    go p (ETAbs e s)     = f p =<< ((`ETAbs` s) <$>  go p e                     )
-    go p (PGrad k s i e) = f p =<< (PGrad k s i <$>  go p e                     )
+    go p (PAll xts e)    = f p . PAll   xts =<< go p e
+    go p (ELam (x,t) e)  = f p . ELam (x,t) =<< go p e
+    go p (PExist xts e)  = f p . PExist xts =<< go p e
+    go p (ETApp e s)     = f p . (`ETApp` s) =<< go p e
+    go p (ETAbs e s)     = f p . (`ETAbs` s) =<< go p e
+    go p (PGrad k s i e) = f p . PGrad k s i =<< go p e
 
 normalize :: Expr -> Expr
 normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
