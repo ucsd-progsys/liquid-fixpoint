@@ -521,7 +521,7 @@ evalAppAc γ stk _ (EVar f, es)
   , length (eqArgs eq) == length es
   , f `notElem` syms bd               -- non-recursive equations << HACK! misses MUTUALLY RECURSIVE definitions!
   , recurCS stk f
-  = do env   <- seSort <$> gets evEnv
+  = do env   <- gets (seSort . evEnv)
        let ee = substEq env PopIf eq es bd
        assertSelectors γ ee
        eval γ (pushCS stk f) ee
@@ -531,7 +531,7 @@ evalAppAc γ stk _e (EVar f, es)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es   -- recursive equations
   , recurCS stk f
-  = do env      <- seSort <$> gets evEnv
+  = do env      <- gets (seSort . evEnv)
        mytracepp ("EVAL-REC-APP" ++ showpp (stk, _e))
          <$> evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
 
@@ -698,7 +698,7 @@ initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, E
 initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
   where
     dcEqs                  = Misc.hashNub (Mb.catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
-    atoms                  = splitPAnd =<< (expr <$> filter isProof es)
+    atoms                  = splitPAnd . expr =<< filter isProof es
     senv                   = SMT.ctxSymEnv ctx
 
 -- AT: Non-obvious needed invariant: askSMT True is always the
@@ -776,7 +776,7 @@ dropModuleNames = mungeNames (symbol . last) "."
 
 assertSelectors :: Knowledge -> Expr -> EvalST ()
 assertSelectors γ e = do
-    sims <- aenvSimpl <$> gets _evAEnv
+    sims <- gets (aenvSimpl . _evAEnv)
     -- cfg  <- gets evCfg
     -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (mytracepp  "assertSelector" e) sims
     forM_ sims $ \s -> Vis.mapMExpr (go s) e

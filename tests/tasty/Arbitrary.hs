@@ -194,7 +194,7 @@ newAbs vars n = do
   v <- arbitrary
   if v `elem` vars
     then discard v
-    else FAbs <$> pure v <*> arbitrarySortPossiblyInvolving (v:vars) (n `div` 2)
+    else FAbs v <$> arbitrarySortPossiblyInvolving (v:vars) (n `div` 2)
 
 -- | Does not create FObj, FAbs, or FVar
 arbitrarySortNoAbs :: Int -> Gen Sort
@@ -248,7 +248,7 @@ instance Arbitrary Constant where
                     ]
   shrink (I x) = I <$> shrink x
   shrink (R x) = R <$> shrink x
-  shrink (L x y) = L <$> pure x <*> shrink y
+  shrink (L x y) = L x <$> shrink y
 
 -- | Used in UndoANFTests.
 newtype AnfSymbol = AnfSymbol { unAnfSymbol :: Symbol }

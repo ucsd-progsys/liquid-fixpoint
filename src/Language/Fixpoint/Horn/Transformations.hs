@@ -723,7 +723,7 @@ uniq :: Cstr a -> Cstr a
 uniq c = evalState (uniq' c) M.empty
 
 uniq' :: Cstr a -> State RenameMap (Cstr a)
-uniq' (Head c a) = Head <$> gets (rename c) <*> pure a
+uniq' (Head c a) = gets (Head . rename c) <*> pure a
 uniq' (CAnd c) = CAnd <$> mapM uniq' c
 uniq' (All b@(Bind x _ _) c2) = do
     b' <- uBind b
