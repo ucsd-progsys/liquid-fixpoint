@@ -122,7 +122,8 @@ import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
 import qualified Language.Fixpoint.Misc      as Misc
 import           Language.Fixpoint.Smt.Types
-import           Language.Fixpoint.Types hiding    (mapSort)
+import           Language.Fixpoint.Types hiding    (mapSort, fi, params, GInfo(..))
+import qualified Language.Fixpoint.Types     as Types (GInfo(FI))
 import           Text.PrettyPrint.HughesPJ         (text, vcat, (<+>), Doc)
 
 import Control.Monad.State
@@ -778,7 +779,7 @@ singletonListP e = do
 exprCastP :: Parser Expr
 exprCastP
   = do e  <- exprP
-       try dcolon <|> colon -- allow : or :: *and* allow following symbols
+       _ <- try dcolon <|> colon -- allow : or :: *and* allow following symbols
        so <- sortP
        return $ ECst e so
 
@@ -962,7 +963,7 @@ lamP :: Parser Expr
 lamP
   = do reservedOp "\\"
        x <- symbolP
-       colon -- TODO: this should probably be reservedOp instead
+       _ <- colon -- TODO: this should probably be reservedOp instead
        t <- sortP
        reservedOp "->"
        e  <- exprP
@@ -1365,7 +1366,7 @@ boolP = (reserved "True" >> return True)
     <|> (reserved "False" >> return False)
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {- SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae
+defsFInfo defs = {- SCC "defsFI" #-} Types.FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae
   where
     cm         = Misc.safeFromList
                    "defs-cm"        [(cid c, c)         | Cst c       <- defs]
@@ -1386,12 +1387,12 @@ defsFInfo defs = {- SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts m
     rwEntries  =                    [(i, f)             | RWMap fs   <- defs, (i,f) <- fs]
     rwMap      = foldl insert (M.fromList []) rwEntries
                  where
-                   insert map (cid, arId) =
+                   insert map' (cid', arId) =
                      case M.lookup arId autoRWs of
                        Just rewrite ->
-                         M.insertWith (++) (fromIntegral cid) [rewrite] map
+                         M.insertWith (++) (fromIntegral cid') [rewrite] map'
                        Nothing ->
-                         map
+                         map'
     cid        = fromJust . sid
     ae         = AEnv eqs rews expand rwMap
     adts       =                    [d                  | Adt d       <- defs]

@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Arbitrary
   ( subexprs
   , Env(..)
@@ -10,19 +13,15 @@ module Arbitrary
   , ChainedAnfEnv(..)
   ) where
 
-import Control.Monad                    (forM_, liftM)
-import Data.Monoid (Sum(..), (<>))
 import qualified Data.Text                 as Text
 import qualified Data.HashMap.Strict       as M
 import Test.Tasty.QuickCheck
 import GHC.Generics
 
 import Language.Fixpoint.Types.Refinements as R
-import Language.Fixpoint.Parse             (isNotReserved, rr)
+import Language.Fixpoint.Parse             (isNotReserved)
 import Language.Fixpoint.Types             as T hiding (Result)
 import Language.Fixpoint.Types.Spans       as Spans
-import Language.Fixpoint.Types.Refinements (Expr(PKVar, EVar))
-import Language.Fixpoint.Types.Names       (isFixKey)
 import Data.Traversable                    (for)
 
 {-
@@ -319,7 +318,7 @@ instance Arbitrary FlatAnfEnv where
         ultimateAnfSym <- arbitrary
         pure (sym, RR FInt (reft ultimateAnfSym (PAtom Eq (EVar ultimateAnfSym) ultimateAnfExpr)))
   -- TODO
-  shrink (FlatAnfEnv (Env (x:xs))) = pure . FlatAnfEnv . Env $ xs
+  shrink (FlatAnfEnv (Env (_x : xs))) = pure . FlatAnfEnv . Env $ xs
   shrink _ = mempty
 
 -- | Given a generator for a bunch of (`Symbol`, `SortedReft`) pairs which bind
@@ -356,7 +355,7 @@ instance Arbitrary ChainedAnfEnv where
             let sreft = RR FInt (reft sym (PAtom Eq (EVar sym) (EVar penultimateSym)))
             (, sreft) <$> arbitrary
   -- TODO
-  shrink (ChainedAnfEnv (Env (x:xs))) = pure . ChainedAnfEnv . Env $ xs
+  shrink (ChainedAnfEnv (Env (_x : xs))) = pure . ChainedAnfEnv . Env $ xs
   shrink _ = mempty
 
 -- | Creates a "chain" of referencing `lq_anf$` var Symbols of length `n` such

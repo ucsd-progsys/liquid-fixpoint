@@ -4,6 +4,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards     #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Solver.Sanitize
   ( -- * Transform FInfo to enforce invariants
     sanitize

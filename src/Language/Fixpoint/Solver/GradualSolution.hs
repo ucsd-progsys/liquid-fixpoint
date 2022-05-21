@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE TupleSections      #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Solver.GradualSolution
   ( -- * Create Initial Solution
     init

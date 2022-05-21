@@ -2,6 +2,8 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Solver.Extensionality (expand) where
 
 import           Control.Monad.State

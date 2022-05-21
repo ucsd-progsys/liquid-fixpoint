@@ -15,6 +15,8 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE TupleSections              #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing     #-}
+
 -- | This module contains the top-level SOLUTION data types,
 --   including various indices used for solving.
 

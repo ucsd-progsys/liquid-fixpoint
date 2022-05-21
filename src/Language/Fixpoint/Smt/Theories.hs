@@ -5,6 +5,9 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE PatternGuards             #-}
 
+{-# OPTIONS_GHC -Wno-orphans           #-}
+{-# OPTIONS_GHC -Wno-name-shadowing    #-}
+
 module Language.Fixpoint.Smt.Theories
      (
        -- * Convert theory applications TODO: merge with smt2symbol

@@ -7,13 +7,12 @@ module Main where
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Functor.Compose   as Functor
 import qualified Data.IntMap            as IntMap
-import qualified Data.Map               as Map
 import qualified Control.Monad.State    as State
 import Control.Monad.Trans.Class (lift)
 
-import Data.Char
+import Prelude hiding (log)
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Sum(..), (<>))
+import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.Tagged
 import Control.Applicative
@@ -21,7 +20,6 @@ import Options.Applicative
 import System.Directory
 import System.Exit
 import System.FilePath
-import System.Environment
 import System.IO
 import System.IO.Error
 import System.Process
@@ -33,7 +31,6 @@ import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
-import Paths_liquid_fixpoint
 
 main :: IO ()
 main    = do
@@ -66,6 +63,7 @@ combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
       return $ \smap -> f1 smap >> f2 smap
 combineReporters _ _ = error "combineReporters needs TestReporters"
 
+unitTests :: IO TestTree
 unitTests
   = group "Unit" [
       testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
@@ -145,6 +143,7 @@ mkTest testCmd code dir file
     test = dir </> file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
+knownToFail :: [a]
 knownToFail = []
 ---------------------------------------------------------------------------
 type TestCmd = FixpointOpts -> FilePath -> FilePath -> FilePath -> String
@@ -161,6 +160,7 @@ elimCmd (LO opts) bin dir file =
 -- Generic Helpers
 ----------------------------------------------------------------------------------------
 
+group :: Monad f => TestName -> [f TestTree] -> f TestTree
 group n xs = testGroup n <$> sequence xs
 
 ----------------------------------------------------------------------------------------
@@ -218,9 +218,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup _ group children = Traversal $ Functor.Compose $ do
+    runGroup _ group' children = Traversal $ Functor.Compose $ do
       Const soFar <- Functor.getCompose $ getTraversal children
-      pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
+      pure $ Const $ map (\(n,t,s) -> (group' </> n,t,s)) soFar
 
     computeFailures :: StatusMap -> IO Int
     computeFailures = fmap getSum . getApp . foldMap (\var -> Ap $
@@ -243,7 +243,6 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
   return $ \_elapsedTime -> do
     -- don't use the `time` package, major api differences between ghc 708 and 710
-    time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     -- build header
     ref <- gitRef
     timestamp <- gitTimestamp

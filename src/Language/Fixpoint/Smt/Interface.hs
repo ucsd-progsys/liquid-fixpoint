@@ -8,6 +8,8 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE PatternGuards             #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
 --   2. computing satisfying assignments
@@ -237,11 +239,11 @@ valuesP = A.many1' pairP <* A.char ')'
 pairP :: SmtParser (Symbol, T.Text)
 pairP = {- SCC "pairP" #-}
   do A.skipSpace
-     A.char '('
+     _ <- A.char '('
      !x <- symbolP
      A.skipSpace
      !v <- valueP
-     A.char ')'
+     _ <- A.char ')'
      return (x,v)
 
 symbolP :: SmtParser Symbol

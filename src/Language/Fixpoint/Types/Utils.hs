@@ -83,8 +83,8 @@ isRegular ds@(d:_) = all (\d' -> ddVars d' == nArgs) ds   -- same number of tyAr
   where
     nArgs          = ddVars d
     tcs            = S.fromList ( symbol . ddTyCon <$> ds)
-    fldSortApps    = [ (c,ts) | d           <- ds
-                              , ctor        <- ddCtors d
+    fldSortApps    = [ (c,ts) | d'          <- ds
+                              , ctor        <- ddCtors d'
                               , DField _ t  <- dcFields ctor
                               , (c, ts)     <- sortApps t
                      ]

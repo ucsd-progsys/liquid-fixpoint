@@ -5,6 +5,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns  #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Types.Visitor (
   -- * Visitor
      Visitor (..)

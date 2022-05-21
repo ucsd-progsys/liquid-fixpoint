@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 {- | This module creates new bindings for each argument of each kvar.
      It also makes sure that all arguments to each kvar are explicit.
 

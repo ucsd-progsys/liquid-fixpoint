@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards     #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Solver.Solution
   ( -- * Create Initial Solution
     init

@@ -3,13 +3,11 @@
 module ShareMapTests where
 
 import Data.HashMap.Lazy (HashMap)
-import qualified Data.HashMap.Lazy as HashMap
 import Data.List (foldl', nub)
 import qualified Data.ShareMap as ShareMap
 import qualified ShareMapReference as Reference
 import Test.Tasty
 import Test.Tasty.QuickCheck
-import Test.Tasty.HUnit
 
 -- | Compare Data.ShareMap against a reference implementation
 tests :: TestTree

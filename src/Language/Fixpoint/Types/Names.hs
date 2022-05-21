@@ -9,6 +9,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE PatternGuards              #-}
 
+{-# OPTIONS_GHC -Wno-orphans            #-}
 
 -- | This module contains Haskell variables representing globally visible names.
 --   Rather than have strings floating around the system, all constant names
@@ -554,7 +555,7 @@ symbolBuilder = Builder.fromText . symbolSafeText . symbol
 buildMany :: [Builder.Builder] -> Builder.Builder
 buildMany []     = mempty
 buildMany [b]    = b
-buildMany (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
+buildMany (b:bs) = b <> mconcat [ " " <> b' | b' <- bs ]
 
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------

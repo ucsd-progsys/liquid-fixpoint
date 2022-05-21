@@ -52,7 +52,8 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr')
-import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types hiding (GInfo(..), fi)
+import qualified Language.Fixpoint.Types as Types (GInfo(..))
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
@@ -87,7 +88,7 @@ resultExitCode cfg r = do
 
 ignoreQualifiers :: Config -> FInfo a -> FInfo a
 ignoreQualifiers cfg fi
-  | eliminate cfg == All = fi { quals = [] }
+  | eliminate cfg == All = fi { Types.quals = [] }
   | otherwise            = fi
 
 
@@ -132,7 +133,7 @@ readBinFq file = {-# SCC "parseBFq" #-} do
   bs <- B.readFile file
   case S.decode bs of
     Right fi -> return fi
-    Left err -> error ("Error decoding .bfq: " ++ show err)
+    Left err' -> error ("Error decoding .bfq: " ++ show err')
 
 --------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
@@ -161,7 +162,7 @@ solveParWith s c fi0 = do
     [onePart] -> s c onePart
     _         -> inParallelUsing (f s c) $ zip [1..] fis
     where
-      f s c (j, fi) = s (c {srcFile = queryFile (Part j) c}) fi
+      f s' c' (j, fi) = s' (c {srcFile = queryFile (Part j) c'}) fi
 
 --------------------------------------------------------------------------------
 -- | Solve a list of FInfos using the provided solver function in parallel
@@ -203,7 +204,7 @@ simplifyFInfo !cfg !fi0 = do
   -- whenLoud $ print qs
   -- whenLoud $ putStrLn $ showFix (quals fi1)
   reducedFi <- reduceFInfo cfg fi0
-  let fi1   = reducedFi { quals = remakeQual <$> quals reducedFi }
+  let fi1   = reducedFi { Types.quals = remakeQual <$> Types.quals reducedFi }
   let si0   = {- SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
@@ -258,9 +259,9 @@ parseFI :: FilePath -> IO (FInfo a)
 parseFI f = do
   str   <- readFile f
   let fi = rr' f str :: FInfo ()
-  return $ mempty { quals = quals  fi
-                  , gLits = gLits  fi
-                  , dLits = dLits  fi }
+  return $ mempty { Types.quals = Types.quals  fi
+                  , Types.gLits = Types.gLits  fi
+                  , Types.dLits = Types.dLits  fi }
 
 saveSolution :: Config -> Result a -> IO ()
 saveSolution cfg res = when (save cfg) $ do

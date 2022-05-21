@@ -17,6 +17,8 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing    #-}
+
 module Language.Fixpoint.Solver.Instantiate (instantiate) where
 
 import           Language.Fixpoint.Types
@@ -363,7 +365,7 @@ _evalLoop cfg ctx γ s0 ctxEqs cands = loop 0 [] cands
                             eqs' -> do let acc'   = acc ++ eqs'
                                        let oks    = S.fromList (fst <$> eqs')
                                        let cands' = [ e | e <- cands, not (S.member e oks) ]
-                                       loop (i+1) acc' cands'
+                                       loop (i + 1 :: Integer) acc' cands'
 
 
 

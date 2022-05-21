@@ -11,6 +11,8 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing     #-}
+
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
 --   implication (i.e. subtyping) and well-formedness
@@ -266,6 +268,9 @@ data Sort = FInt
           | FTC   !FTycon
           | FApp  !Sort !Sort    -- ^ constructed type
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance PPrint Sort where
+  pprintTidy _ = toFix
 
 sortSymbols :: Sort -> HashSet Symbol
 sortSymbols = \case
@@ -530,6 +535,7 @@ instance S.Store Sub
 instance B.Binary TCInfo
 instance B.Binary FTycon
 instance B.Binary Sort
+instance (Eq a, Hashable a, B.Binary (M.HashMap a (Sort, TCArgs))) => B.Binary (TCEmb a)
 
 instance NFData FTycon where
   rnf (TC x i) = x `seq` i `seq` ()
@@ -561,11 +567,15 @@ newtype TCEmb a = TCE (M.HashMap a (Sort, TCArgs))
   deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Hashable a => Hashable (TCEmb a)
+instance PPrint a => PPrint (TCEmb a) where
+  pprintTidy k = pprintTidy k . tceToList
+
 
 data TCArgs = WithArgs | NoArgs
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Hashable TCArgs
+instance B.Binary TCArgs
 
 tceInsertWith :: (Eq a, Hashable a) => (Sort -> Sort -> Sort) -> a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsertWith f k t a (TCE m) = TCE (M.insertWith ff k (t, a) m)

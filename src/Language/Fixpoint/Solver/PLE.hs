@@ -16,6 +16,8 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing    #-}
+
 module Language.Fixpoint.Solver.PLE
   ( instantiate
 
@@ -1115,7 +1117,7 @@ instance Normalizable Rewrite where
     where
       su  = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       xs  = smArgs rw
-      xs' = zipWith mkSymbol xs [0..]
+      xs' = zipWith mkSymbol xs [0 :: Integer ..]
       mkSymbol x i = x `suffixSymbol` intSymbol (smName rw) i
 
 
@@ -1124,7 +1126,7 @@ instance Normalizable Equation where
     where
       su      = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       (xs,ss) = unzip (eqArgs eq)
-      xs'     = zipWith mkSymbol xs [0..]
+      xs'     = zipWith mkSymbol xs [0 :: Integer ..]
       mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i
 
 -- | Normalize the given named expression if it is recursive.

@@ -17,6 +17,8 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing    #-}
+
 module Language.Fixpoint.Solver.Interpreter
   ( instInterpreter
 
@@ -121,7 +123,7 @@ loopB env ctx delta iMb res b = case b of
 -- Adds to @ctx@ assumptions from @env@ and @delta@ plus rewrites that
 -- candidates can use
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
-withAssms env@InstEnv{..} ctx delta cidMb act = act $
+withAssms env@InstEnv{} ctx delta cidMb act = act $
   updCtx env ctx delta cidMb 
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
@@ -698,7 +700,7 @@ instance Normalizable Rewrite where
     where 
       su  = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       xs  = smArgs rw 
-      xs' = zipWith mkSymbol xs [0..]
+      xs' = zipWith mkSymbol xs [0 :: Integer ..]
       mkSymbol x i = x `suffixSymbol` intSymbol (smName rw) i 
 
 instance Normalizable Equation where 
@@ -707,7 +709,7 @@ instance Normalizable Equation where
     where 
       su           = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       (xs,ss)      = unzip (eqArgs eq) 
-      xs'          = zipWith mkSymbol xs [0..]
+      xs'          = zipWith mkSymbol xs [0 :: Integer ..]
       mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i 
 
 normalizeBody :: Symbol -> Expr -> Expr

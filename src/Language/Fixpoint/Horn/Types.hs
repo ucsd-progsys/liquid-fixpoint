@@ -9,6 +9,8 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Horn.Types
   ( -- * Horn Constraints and their components
     Query (..)

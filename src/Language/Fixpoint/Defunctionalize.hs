@@ -27,7 +27,8 @@ import           Data.Hashable
 import           Control.Monad.State
 import           Language.Fixpoint.Misc            (fM, secondM, mapSnd)
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
-import           Language.Fixpoint.Types        hiding (allowHO)
+import           Language.Fixpoint.Types        hiding (GInfo(..), allowHO, fi)
+import qualified Language.Fixpoint.Types           as Types (GInfo(..))
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Visitor   (mapMExpr)
 -- import Debug.Trace (trace)
@@ -68,7 +69,7 @@ normalizeLams e = snd $ normalizeLamsFromTo 1 e
 normalizeLamsFromTo :: Int -> Expr -> (Int, Expr)
 normalizeLamsFromTo i   = go
   where
-    go (ELam (y, sy) e) = (i + 1, shiftLam i y sy e') where (i, e') = go e
+    go (ELam (y, sy) e) = (i' + 1, shiftLam i' y sy e') where (i', e') = go e
                           -- let (i', e') = go e
                           --    y'       = lamArgSymbol i'  -- SHIFTLAM
                           -- in (i' + 1, ELam (y', sy) (e' `subst1` (y, EVar y')))
@@ -87,22 +88,22 @@ normalizeLamsFromTo i   = go
 class Defunc a where
   defunc :: a -> DF a
 
-instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
+instance (Defunc (c a), TaggedC c a) => Defunc (Types.GInfo c a) where
   defunc fi = do
-    cm'    <- defunc $ cm    fi
-    ws'    <- defunc $ ws    fi
+    cm'    <- defunc $ Types.cm    fi
+    ws'    <- defunc $ Types.ws    fi
     -- NOPROP setBinds $ mconcat ((senv <$> M.elems (cm fi)) ++ (wenv <$> M.elems (ws fi)))
-    gLits' <- defunc $ gLits fi
-    dLits' <- defunc $ dLits fi
-    bs'    <- defunc $ bs    fi
-    ass'   <- defunc $ asserts fi
+    gLits' <- defunc $ Types.gLits fi
+    dLits' <- defunc $ Types.dLits fi
+    bs'    <- defunc $ Types.bs    fi
+    ass'   <- defunc $ Types.asserts fi
     -- NOPROP quals' <- defunc $ quals fi
-    return $ fi { cm      = cm'
-                , ws      = ws'
-                , gLits   = gLits'
-                , dLits   = dLits'
-                , bs      = bs'
-                , asserts = ass'
+    return $ fi { Types.cm      = cm'
+                , Types.ws      = ws'
+                , Types.gLits   = gLits'
+                , Types.dLits   = dLits'
+                , Types.bs      = bs'
+                , Types.asserts = ass'
                 }
 
 instance (Defunc a) => Defunc (Triggered a) where
@@ -192,7 +193,7 @@ makeInitDFState :: Config -> SInfo a -> DFST
 makeInitDFState cfg si
   = makeDFState cfg
       (symbolEnv cfg si)
-      (mconcat ((senv <$> M.elems (cm si)) ++ (wenv <$> M.elems (ws si))))
+      (mconcat ((senv <$> M.elems (Types.cm si)) ++ (wenv <$> M.elems (Types.ws si))))
 
 --------------------------------------------------------------------------------
 -- | Low level monad manipulation ----------------------------------------------

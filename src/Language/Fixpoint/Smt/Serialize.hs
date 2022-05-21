@@ -5,6 +5,9 @@
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE DoAndIfThenElse      #-}
 
+{-# OPTIONS_GHC -Wno-orphans        #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
 --   typeclass. We split it into a separate module as it depends on

@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 --------------------------------------------------------------------------------
 -- | Solve a system of horn-clause constraints ---------------------------------
 --------------------------------------------------------------------------------

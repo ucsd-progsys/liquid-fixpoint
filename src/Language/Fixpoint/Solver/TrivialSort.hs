@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Solver.TrivialSort (nontrivsorts) where
 
 import           GHC.Generics        (Generic)

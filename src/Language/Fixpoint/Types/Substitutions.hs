@@ -1,10 +1,11 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
+
+{-# OPTIONS_GHC -Wno-orphans   #-}
 
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
 --   be in the same place as the @Term@ definitions.
-
-{-# LANGUAGE FlexibleInstances #-}
 module Language.Fixpoint.Types.Substitutions (
     mkSubst
   , isEmptySubst

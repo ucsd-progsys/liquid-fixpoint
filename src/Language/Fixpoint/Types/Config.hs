@@ -30,9 +30,11 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
+import qualified Data.Store as S
 import qualified Data.List as L
 import Data.Serialize                (Serialize (..))
 import Control.Monad
+import Control.DeepSeq
 import GHC.Generics
 import System.Console.CmdArgs
 import System.Console.CmdArgs.Explicit
@@ -130,8 +132,8 @@ instance Read RESTOrdering where
   readsPrec _ s | "lbo" `L.isPrefixOf` s = [(RESTLPO, drop 3 s)]
   readsPrec _ s | "rpo" `L.isPrefixOf` s = [(RESTRPO, drop 3 s)]
   readsPrec n s | "fuel" `L.isPrefixOf` s = do
-                        (fuel, rest) <- readsPrec n (drop 4 s)
-                        return (RESTFuel fuel, rest)
+                        (fuel', rest) <- readsPrec n (drop 4 s)
+                        return (RESTFuel fuel', rest)
   readsPrec _ _ = []
 
 ---------------------------------------------------------------------------------------
@@ -146,6 +148,8 @@ instance Show SMTSolver where
   show Z3      = "z3"
   show Cvc4    = "cvc4"
   show Mathsat = "mathsat"
+
+instance S.Store SMTSolver
 
 ---------------------------------------------------------------------------------------
 -- | Eliminate describes the number of KVars to eliminate:
@@ -164,6 +168,9 @@ data Eliminate
   deriving (Eq, Data, Typeable, Generic)
 
 instance Serialize Eliminate
+instance S.Store Eliminate
+instance NFData SMTSolver
+instance NFData Eliminate
 
 instance Default Eliminate where
   def = None

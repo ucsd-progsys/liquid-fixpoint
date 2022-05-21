@@ -75,7 +75,7 @@ import           Data.Semigroup            (Semigroup (..))
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types hiding   (subst)
+import           Language.Fixpoint.Types hiding   (subst, GInfo(..), senv)
 import qualified Language.Fixpoint.Types.Visitor  as Vis
 import qualified Language.Fixpoint.Smt.Theories   as Thy
 import           Text.PrettyPrint.HughesPJ.Compat
@@ -122,9 +122,9 @@ class Elaborate a where
 
 instance (Loc a) => Elaborate (SInfo a) where
   elaborate x senv si = si
-    { cm      = elaborate x senv <$> cm      si
-    , bs      = elaborate x senv  $  bs      si
-    , asserts = elaborate x senv <$> asserts si
+    { F.cm      = elaborate x senv <$> F.cm      si
+    , F.bs      = elaborate x senv  $  F.bs      si
+    , F.asserts = elaborate x senv <$> F.asserts si
     }
 
 instance (Elaborate e) => (Elaborate (Triggered e)) where
@@ -215,9 +215,9 @@ elabExpr msg env e = case elabExprE msg env e of
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
   case runCM0 (srcSpan msg) (elab (env, f) e) of
-    Left (ChError f) ->
-      let e = f ()
-       in Left $ err (srcSpan e) (d (val e))
+    Left (ChError f') ->
+      let e' = f' ()
+       in Left $ err (srcSpan e') (d (val e'))
     Right s  -> Right (fst s)
   where
     sEnv = seSort env
@@ -269,7 +269,7 @@ elabApply env = go
 --------------------------------------------------------------------------------
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
 sortExpr l γ e = case runCM0 l (checkExpr f e) of
-    Left (ChError f) -> die $ err l (d (val (f ())))
+    Left (ChError f') -> die $ err l (d (val (f' ())))
     Right s -> s
   where
     f   = (`lookupSEnvWithDistance` γ)
@@ -394,7 +394,7 @@ pruneUnsortedReft γ t (RR s (Reft (v, p)))
   where
     filterAny = mapMaybe (checkPred' f)
     filterWithTemplate e =  not (matchesTemplates t e) || isJust (checkPred' f e)
-    tx f = pAnd . f . conjuncts
+    tx f' = pAnd . f' . conjuncts
     f    = (`lookupSEnvWithDistance` γ')
     γ'   = insertSEnv v s γ
     -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
@@ -623,7 +623,7 @@ elabAs f t e = notracepp _msg <$>  go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
     go (EApp e1 e2)   = elabAppAs f t e1 e2
-    go e              = fst    <$> elab f e
+    go e'              = fst    <$> elab f e'
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
@@ -858,9 +858,9 @@ applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
 -- | Expressions sort  ---------------------------------------------------------
 --------------------------------------------------------------------------------
 exprSort :: String -> Expr -> Sort
-exprSort msg e = fromMaybe (panic err) (exprSort_maybe e)
+exprSort msg e = fromMaybe (panic err') (exprSort_maybe e)
   where
-    err        = printf "exprSort [%s] on unexpected expression %s" msg (show e)
+    err'        = printf "exprSort [%s] on unexpected expression %s" msg (show e)
 
 exprSort_maybe :: Expr -> Maybe Sort
 exprSort_maybe = go
@@ -882,10 +882,10 @@ unite f e t1 t2 = do
   return (apply su t1, apply su t2)
 
 throwErrorAt :: String -> CheckM a
-throwErrorAt ~err = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
+throwErrorAt ~err' = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
                        -- See Note [Lazy error messages]
   sp <- asks chSpan
-  liftIO $ throwIO (ChError (\_ -> atLoc sp err))
+  liftIO $ throwIO (ChError (\_ -> atLoc sp err'))
 
 -- Note [Lazy error messages]
 --
@@ -1253,12 +1253,12 @@ instantiate :: Sort -> CheckM Sort
 --------------------------------------------------------------------------------
 instantiate !t = go t
   where
-    go (FAbs !i !t) = do
-      !t'    <- instantiate t
+    go (FAbs !i !t') = do
+      !t''    <- instantiate t'
       !v     <- fresh
-      return  $ subst i (FVar v) t'
-    go !t =
-      return t
+      return  $ subst i (FVar v) t''
+    go !t' =
+      return t'
 
 unifyVar :: Env -> Maybe Expr -> TVSubst -> Int -> Sort -> CheckM TVSubst
 unifyVar _ _ θ !i !t@(FVar !j)
@@ -1286,8 +1286,8 @@ applyExpr :: Maybe TVSubst -> Expr -> Expr
 applyExpr Nothing e  = e
 applyExpr (Just θ) e = Vis.mapExprOnExpr f e
   where
-    f (ECst e s) = ECst e (apply θ s)
-    f e          = e
+    f (ECst e' s) = ECst e' (apply θ s)
+    f e'          = e'
 
 --------------------------------------------------------------------------------
 _applyCoercion :: Symbol -> Sort -> Sort -> Sort
