@@ -11,11 +11,11 @@ data IndPalindrome.PalP 1 = [
 
 match tail Cons lq_tmp$x##536 lq_tmp$x##537  =  (lq_tmp$x##537)
 match head Cons lq_tmp$x##536 lq_tmp$x##537  =  (lq_tmp$x##536)
-match isCons Cons lq_tmp$x##536 lq_tmp$x##537  =  (true)
-match isNil Cons lq_tmp$x##536 lq_tmp$x##537  =  (false)
+match is$Cons Cons lq_tmp$x##536 lq_tmp$x##537  =  (true)
+match is$Nil Cons lq_tmp$x##536 lq_tmp$x##537  =  (false)
 match len Cons lq_tmp$x##536 lq_tmp$x##537  =  ((1 + (len lq_tmp$x##537)))
-match isCons Nil  =  (false)
-match isNil Nil  =  (true)
+match is$Cons Nil  =  (false)
+match is$Nil Nil  =  (true)
 match len Nil  =  (0)
 match getPal IndPalindrome.Pal lq_tmp$x##540x  =  (lq_tmp$x##540x)
 match is$IndPalindrome.Pal IndPalindrome.Pal lq_tmp$x##540xx  =  (true)
@@ -32,7 +32,7 @@ match prop IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  ((IndPalindrome.Pa
 expand [23 : True]
 
 
-bind 137 l : {VV##890 : [a##a2pJ] | [((len VV##890) > 0); ((isCons VV##890) <=> true); ((isNil VV##890) <=> false)]}
+bind 137 l : {VV##890 : [a##a2pJ] | [((len VV##890) > 0); ((is$Cons VV##890) <=> true); ((is$Nil VV##890) <=> false)]}
 bind 138 d : {p : (IndPalindrome.Pal a##a2pJ) | [((prop p) = (IndPalindrome.Pal l)); 
                                                  ((is$IndPalindrome.Pals p) <=> false);
                                                  ((is$IndPalindrome.Pal0 p) <=> true);
@@ -46,7 +46,7 @@ constraint:
   env [137;
        138]
   lhs {VV##F##23 : [Char] | [true ]}
-  rhs {VV##F##23 : [Char] | [IndPalindrome.Pal0 = d && isCons l && (l == Nil) && false]}
+  rhs {VV##F##23 : [Char] | [IndPalindrome.Pal0 = d && is$Cons l && (l == Nil) && false]}
   id 23 tag [4]
 
 
@@ -69,7 +69,7 @@ constant GHC.Types.C# : (func(0 , [Char; Char]))
 constant GHC.List.drop : (func(1 , [int; [@(0)]; [@(0)]]))
 constant getPal : (func(1 , [(IndPalindrome.PalP @(0));
                                                                              [@(0)]]))
-constant isNil : (func(1 , [[@(0)]; bool]))
+constant is$Nil : (func(1 , [[@(0)]; bool]))
 constant Data.Foldable.length : (func(2 , [(@(1) @(0)); int]))
 constant x_Tuple33 : (func(3 , [(Tuple @(0) @(1) @(2)); @(2)]))
 constant is$36$GHC.Tuple.$40$$44$$41$ : (func(2 , [(Tuple @(0) @(1));
@@ -175,7 +175,7 @@ constant GHC.Integer.Type.Jn# : (func(0 , [GHC.Prim.ByteArray#;
 constant GHC.Classes.compare : (func(1 , [@(0);
                                           @(0);
                                           GHC.Types.Ordering]))
-constant isCons : (func(1 , [[@(0)]; bool]))
+constant is$Cons : (func(1 , [[@(0)]; bool]))
 constant papp2 : (func(4 , [(Pred @(0) @(1)); @(2); @(3); bool]))
 constant GHC.Stack.Types.EmptyCallStack : (GHC.Stack.Types.CallStack)
 constant GHC.Types.krep$36$$42$Arr$42$ : (GHC.Types.KindRep)
