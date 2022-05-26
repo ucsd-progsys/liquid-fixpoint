@@ -104,8 +104,8 @@ type BindEnv       = SizedEnv (Symbol, SortedReft)
 newtype EBindEnv   = EB BindEnv
 
 splitByQuantifiers :: BindEnv -> [BindId] -> (BindEnv, EBindEnv)
-splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> notElem k ebs) bs
-                                   , EB $ BE i $ M.filterWithKey (\k _ -> elem k ebs) bs
+splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> k `notElem` ebs) bs
+                                   , EB $ BE i $ M.filterWithKey (\k _ -> k `elem` ebs) bs
                                    )
 
 -- data SolEnv        = SolEnv { soeBinds :: !BindEnv }
@@ -356,4 +356,6 @@ makePack kvss = Packs (M.fromList kIs)
   where
     kIs       = [ (k, i) | (i, ks) <- kPacks, k <- ks ]
     kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss
+
+
 

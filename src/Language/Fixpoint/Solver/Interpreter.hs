@@ -723,7 +723,7 @@ normalizeBody :: Symbol -> Expr -> Expr
 normalizeBody f = go   
   where 
     go e 
-      | elem f (syms e) 
+      | f `elem` syms e
       = go' e 
     go e 
       = e 

@@ -60,7 +60,7 @@ merge u v = do
   unless (ui == vi) $ do
     uPs <- preds ui
     vPs <- preds vi
-    union u v
+    u `union` v
     forM_ uPs $ \u' ->
       forM_ vPs $ \v' ->
         congMerge u' v'
