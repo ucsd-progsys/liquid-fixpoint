@@ -85,6 +85,7 @@ module Language.Fixpoint.Smt.Interface (
 
     ) where
 
+import           Data.Functor (($>))
 import           Control.Concurrent.Async (async, cancel)
 import           Control.Concurrent.STM
   (TVar, atomically, modifyTVar, newTVarIO, readTVar, retry, writeTVar)
@@ -222,9 +223,9 @@ type SmtParser a = Parser T.Text a
 
 responseP :: SmtParser Response
 responseP = {- SCC "responseP" -} A.char '(' *> sexpP
-         <|> A.string "sat"     *> return Sat
-         <|> A.string "unsat"   *> return Unsat
-         <|> A.string "unknown" *> return Unknown
+         <|> A.string "sat" $> Sat
+         <|> A.string "unsat" $> Unsat
+         <|> A.string "unknown" $> Unknown
 
 sexpP :: SmtParser Response
 sexpP = {- SCC "sexpP" -} A.string "error" *> (Error <$> errorP)
@@ -610,4 +611,7 @@ distinctLiterals xts = [ es | (_, es) <- tess ]
     tess             = Misc.groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
     notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
     -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
+
+
+
 

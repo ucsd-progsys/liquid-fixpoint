@@ -104,6 +104,7 @@ module Language.Fixpoint.Parse (
 
   ) where
 
+import           Data.Functor (($>))
 import           Control.Monad.Combinators.Expr
 import qualified Data.IntMap.Strict          as IM
 import qualified Data.HashMap.Strict         as M
@@ -292,11 +293,11 @@ guardLayout = do
   stack <- gets layoutStack
   -- traceShow ("guardLayout", stack) $ pure ()
   case stack of
-    At i s    -> guardIndentLevel EQ i *> pure (modifyLayoutStack (const (After i (At i s))))
+    At i s    -> guardIndentLevel EQ i $> modifyLayoutStack (const (After i (At i s)))
       -- Note: above, we must really set the stack to 'After i (At i s)' explicitly.
       -- Otherwise, repeated calls to 'guardLayout' at the same column could push
       -- multiple 'After' entries on the stack.
-    After i _ -> guardIndentLevel GT i *> pure (pure ())
+    After i _ -> guardIndentLevel GT i $> pure ()
     _         -> pure (pure ())
 
 -- | Checks the current indentation level with respect to the
@@ -313,8 +314,8 @@ strictGuardLayout = do
   stack <- gets layoutStack
   -- traceShow ("strictGuardLayout", stack) $ pure ()
   case stack of
-    At i _    -> guardIndentLevel GT i *> pure ()
-    After i _ -> guardIndentLevel GT i *> pure ()
+    At i _    -> guardIndentLevel GT i $> ()
+    After i _ -> guardIndentLevel GT i $> ()
     _         -> pure ()
 
 

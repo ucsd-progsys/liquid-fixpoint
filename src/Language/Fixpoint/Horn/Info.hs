@@ -37,7 +37,7 @@ axEnv :: F.Config -> H.Query a -> M.HashMap F.SubcId b -> F.AxiomEnv
 axEnv cfg q cs = mempty
   { F.aenvEqs    = H.qEqns q
   , F.aenvSimpl  = H.qMats q
-  , F.aenvExpand = if F.rewriteAxioms cfg then const True <$> cs else mempty
+  , F.aenvExpand = if F.rewriteAxioms cfg then True <$ cs else mempty
   }
 
 ----------------------------------------------------------------------------------
