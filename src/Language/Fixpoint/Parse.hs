@@ -765,14 +765,14 @@ expr0P
 
 emptyListP :: Parser Expr
 emptyListP = do
-  e <- empList <$> get
+  e <- gets empList
   case e of
     Nothing -> fail "No parsing support for empty lists"
     Just s  -> return s
 
 singletonListP :: Expr -> Parser Expr
 singletonListP e = do
-  f <- singList <$> get
+  f <- gets singList
   case f of
     Nothing -> fail "No parsing support for singleton lists"
     Just s  -> return $ s e
@@ -861,7 +861,7 @@ addOperatorP op
 -- | Parses any of the known infix operators.
 infixSymbolP :: Parser Symbol
 infixSymbolP = do
-  ops <- infixOps <$> get
+  ops <- gets infixOps
   choice (reserved' <$> ops)
   where
     infixOps st = [s | FInfix _ s _ _ <- fixityOps st]
@@ -870,7 +870,7 @@ infixSymbolP = do
 -- | Located version of 'infixSymbolP'.
 locInfixSymbolP :: Parser (Located Symbol)
 locInfixSymbolP = do
-  ops <- infixOps <$> get
+  ops <- gets infixOps
   choice (reserved' <$> ops)
   where
     infixOps st = [s | FInfix _ s _ _ <- fixityOps st]
