@@ -32,7 +32,7 @@ import           Control.Monad.State
 import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
-import           Data.Bifunctor (second)
+import           Data.Bifunctor (first, second)
 import System.IO (hFlush, stdout)
 -- import qualified Debug.Trace as DBG
 
@@ -842,7 +842,7 @@ scope k cstr = case go cstr of
 
 sol1 :: F.Symbol -> Cstr a -> [([Bind], [F.Expr])]
 sol1 k (CAnd cs) = sol1 k =<< cs
-sol1 k (All b c) = (\(bs, eqs) -> (b:bs, eqs)) <$> sol1 k c
+sol1 k (All b c) = first (b :) <$> sol1 k c
 sol1 k (Head (Var k' ys) _) | k == k'
   = [([], zipWith (F.PAtom F.Eq) (F.EVar <$> xs) (F.EVar <$> ys))]
   where xs = zipWith const (kargs k) ys

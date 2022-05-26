@@ -25,6 +25,7 @@ import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
+import qualified Data.Bifunctor                 as Bifunctor (second)
 #if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup                 (Semigroup (..))
 #endif
@@ -605,8 +606,7 @@ ebindInfo si = group [((bid, x), cons cid) | (bid, cid, x) <- ebindDefs si]
   where cons cid = void (Misc.safeLookup "ebindInfo" cid cs)
         cs = F.cm si
         cmpByFst x y = fst ( fst x ) == fst ( fst y )
-        group xs = (\ys -> ( fst $ fst $ head ys
-                           , Sol.EbDef (snd <$> ys) (snd $ fst $ head ys)))
+        group xs = (\ys -> Bifunctor.second (Sol.EbDef (snd <$> ys)) (fst $ head ys))
                     <$> L.groupBy cmpByFst xs
 
 ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId, F.Symbol)]
@@ -637,4 +637,5 @@ cstrDef be c
     e                  = F.notracepp _msg $ F.isSingletonExpr v rhs
     _msg                = "cstrDef: " ++ show (stag c) ++ " crhs = " ++ F.showpp rhs
     rhs                = V.stripCasts (crhs c)
+
 
