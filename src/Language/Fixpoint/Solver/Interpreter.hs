@@ -664,18 +664,23 @@ instance Simplifiable Expr where
           go []  []     = PTrue
           go [p] []     = p
           go acc []     = PAnd acc
-          go acc (e:es) = if e == PTrue then go acc es
-                                  else if e == PFalse then PFalse else go (e:acc) es
+          go acc (e:es)
+            | e == PTrue = go acc es
+            | e == PFalse = PFalse
+            | otherwise = go (e:acc) es
       tx (POr es)          = go [] (reverse es)
         where
           go []  []     = PFalse
           go [p] []     = p
           go acc []     = POr acc
-          go acc (e:es) = if e == PTrue then PTrue
-                                  else if e == PFalse then go acc es else go (e:acc) es
-      tx (PNot e)          = if e == PTrue then PFalse 
-                                else if e == PFalse then PTrue 
-                                else PNot e
+          go acc (e:es)
+            | e == PTrue = PTrue
+            | e == PFalse = go acc es
+            | otherwise = go (e:acc) es
+      tx (PNot e)
+        | e == PTrue = PFalse
+        | e == PFalse = PTrue
+        | otherwise = PNot e
       tx e = e
       
 simplifyCasts :: Expr -> Sort -> Expr
