@@ -31,7 +31,7 @@ instance Extend (SInfo a) where
   extend si = do
     setBEnv (bs si)
     cm'      <- extend (cm si)
-    bs'      <- exbenv <$> get
+    bs'      <- gets exbenv
     return $ si{ cm = cm' , bs = bs' }
 
 instance (Extend a) => Extend (M.HashMap SubcId a) where
@@ -47,7 +47,7 @@ instance Extend (SimpC a) where
   extend c = do
     setExBinds (_cenv c)
     rhs <- extendExpr Pos (_crhs c)
-    is  <- exbinds <$> get
+    is  <- gets exbinds
     return $ c{_crhs = rhs, _cenv = is }
 
 
@@ -82,7 +82,7 @@ extendRHS b e1 e2 s =
 
 extendLHS b e1 e2 s =
   do es  <- generateArguments s
-     dds <- exddecl <$> get
+     dds <- gets exddecl
      is  <- instantiate dds s
      mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
 
@@ -96,7 +96,7 @@ generateArguments s = do
 
 makeEq :: Brel-> Expr -> Expr -> Expr -> Ex Expr
 makeEq b e1 e2 e = do
-  env <- exenv <$> get
+  env <- gets exenv
   let elab = elaborate (dummyLoc "extensionality") env
   return $ PAtom b (elab $ EApp (unElab e1) e)  (elab $ EApp (unElab e2) e)
 
@@ -107,7 +107,7 @@ instantiateOne :: Either [(LocSymbol, [Sort])] Sort  -> Ex [Expr]
 instantiateOne (Right s@(FVar _)) =
   (\x -> [EVar x]) <$> freshArgOne s
 instantiateOne (Right s) = do
-  xss <- excbs <$> get
+  xss <- gets excbs
   return [EVar x | (x,xs) <- xss, xs == s ]
 instantiateOne (Left [(dc, ts)]) =
   map (mkEApp dc) . combine <$>  mapM instantiateOne (Right <$> ts)
