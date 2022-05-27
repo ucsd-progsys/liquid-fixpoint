@@ -9,16 +9,15 @@
 --   expressions and generate equalities. 
 --------------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing    #-}
 
 module Language.Fixpoint.Solver.Interpreter
   ( instInterpreter
@@ -107,16 +106,16 @@ loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO Ins
 loopT env ctx delta i res t = case t of 
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
-  T.Node bs  -> (withAssms env ctx delta Nothing $ \ctx' -> do 
+  T.Node bs  -> withAssms env ctx delta Nothing $ \ctx' -> do 
                   (ctx'', res') <- ple1 env ctx' i res 
-                  foldM (loopB env ctx'' [] i) res' bs)
+                  foldM (loopB env ctx'' [] i) res' bs
 
 loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
 loopB env ctx delta iMb res b = case b of 
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
                   progressTick
-                  (snd <$> ple1 env ctx' iMb res) 
+                  snd <$> ple1 env ctx' iMb res 
 
 -- Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
@@ -124,12 +123,12 @@ loopB env ctx delta iMb res b = case b of
 -- Adds to @ctx@ assumptions from @env@ and @delta@ plus rewrites that
 -- candidates can use
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
-withAssms env@(InstEnv {..}) ctx delta cidMb act = act $
+withAssms env@InstEnv{} ctx delta cidMb act = act $
   updCtx env ctx delta cidMb 
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
-ple1 (InstEnv {..}) ctx i res = 
+ple1 InstEnv{..} ctx i res = 
   updCtxRes res i <$> evalCandsLoop {-anfEnv-} M.empty ctx ieKnowl ieEvEnv 
 
 evalCandsLoop :: ConstMap -> ICtx -> Knowledge -> EvalEnv -> IO ICtx 
@@ -140,7 +139,7 @@ evalCandsLoop ie ictx0 γ env = go ictx0
         rws = [rewrite e rw | rw <- snd <$> M.toList (knSims γ)
                             ,  e <- S.toList (snd `S.map` exprs)]
       in 
-        exprs <> (S.fromList $ concat rws)
+        exprs <> S.fromList (concat rws)
     go ictx | S.null (icCands ictx) = return ictx 
     go ictx =  do let cands = icCands ictx
                   let env' = env { evAccum = icEquals ictx <> evAccum env }
@@ -164,7 +163,7 @@ evalOneCandStep env γ env' (ictx, acc) e = do
   return (ictx, res : acc)
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
-rewrite e rw = Mb.catMaybes $ map (`rewriteTop` rw) (notGuardedApps e)
+rewrite e rw = Mb.mapMaybe (`rewriteTop` rw) (notGuardedApps e)
 
 rewriteTop :: Expr -> Rewrite -> Maybe (Expr,Expr) 
 rewriteTop e rw
@@ -256,7 +255,7 @@ updRes res  Nothing _ = res
 ---------------------------------------------------------------------------------------------- 
 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
-updCtx (InstEnv {..}) ctx delta cidMb 
+updCtx InstEnv{..} ctx delta cidMb 
     = ctx { icCands  = S.fromList cands           <> icCands  ctx
           , icEquals = initEqs                    <> icEquals ctx
           , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
@@ -268,7 +267,8 @@ updCtx (InstEnv {..}) ctx delta cidMb
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
-    (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
+    rhs       = unElab eRhs
+    es        = unElab . expr <$> binds
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
     subMb     = getCstr ieCstrs <$> cidMb
@@ -339,7 +339,7 @@ type EvalST a = StateT EvalEnv IO a
 evalOne :: ConstMap -> Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvAccum
 evalOne ienv γ env ctx e {- null (getAutoRws γ ctx) -} = do
     (e', st) <- runStateT (fastEval ienv γ ctx e) env  
-    let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
+    let evAcc' = if mytracepp ("evalOne: " ++ showpp e) e' == e then evAccum st else S.insert (e, e') (evAccum st)
     return evAcc' 
 
 notGuardedApps :: Expr -> [Expr]
@@ -465,7 +465,8 @@ interpret ie γ ctx env   (EApp e1 e2)
   | isSetPred e1                        = let e2' = interpret' ie γ ctx env e2 in 
                                              applySetFolding e1 e2'
 interpret ie γ ctx env e@(EApp _ _)     = case splitEApp e of
-  (f, es) -> let (f':es') = map (interpret' ie γ ctx env) (f:es) in interpretApp ie γ ctx env f' es'
+  (f, es) -> let g = interpret' ie γ ctx env in
+    interpretApp ie γ ctx env (g f) (map g es)
     where
       interpretApp ie γ ctx env (EVar f) es
         | Just eq <- M.lookup f (knAms γ)
@@ -474,16 +475,16 @@ interpret ie γ ctx env e@(EApp _ _)     = case splitEApp e of
               ges       = substEq env eq es1
               exp       = unfoldExpr ie γ ctx env ges 
               exp'      = eApps exp es2 in  --exp' -- TODO undo
-            if (eApps (EVar f) es) == exp' then exp' else interpret' ie γ ctx env exp'
+            if eApps (EVar f) es == exp' then exp' else interpret' ie γ ctx env exp'
 
       interpretApp ie γ ctx env (EVar f) (e1:es)
         | (EVar dc, as) <- splitEApp e1
         , Just rw <- M.lookup (f, dc) (knSims γ)
         , length as == length (smArgs rw)
         = let e' = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es in --e' -- TODO undo
-            if (eApps (EVar f) es) == e' then e' else interpret' ie γ ctx env e' 
+            if eApps (EVar f) es == e' then e' else interpret' ie γ ctx env e' 
 
-      interpretApp _  γ _   _   (EVar f) ([e0])
+      interpretApp _  γ _   _   (EVar f) [e0]
         | (EVar dc, _as) <- splitEApp e0
         , isTestSymbol f
         = if testSymbol dc == f then PTrue else 
@@ -553,9 +554,9 @@ interpret ie γ ctx env e@(PAll xss e1)  = case xss of
 interpret ie γ ctx env e@(PExist xss e1) = case xss of
   [] -> interpret' ie γ ctx env e1
   _  -> e
-interpret _  _ _   _   e@(PGrad _ _ _ _) = e
+interpret _  _ _   _   e@PGrad{}         = e
 interpret ie γ ctx env (ECoerc s t e)    = let e' = interpret' ie γ ctx env e in
-                                             if s == t then e' else (ECoerc s t e')
+                                             if s == t then e' else ECoerc s t e'
 
         
 --------------------------------------------------------------------------------
@@ -580,9 +581,9 @@ knowledge si = KN
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims) 
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
   , knDCs                      = S.fromList (smDC <$> sims)  <> constNames si
-  , knAllDCs                   = S.fromList $ (val . dcName) <$> concatMap ddCtors (ddecls si)
-  , knSels                     = M.fromList . Mb.catMaybes $ map makeSel  sims 
-  , knConsts                   = M.fromList . Mb.catMaybes $ map makeCons sims 
+  , knAllDCs                   = S.fromList $ val . dcName <$> concatMap ddCtors (ddecls si)
+  , knSels                     = M.fromList $ Mb.mapMaybe makeSel  sims 
+  , knConsts                   = M.fromList $ Mb.mapMaybe makeCons sims 
   } 
   where 
     sims = aenvSimpl aenv  
@@ -600,8 +601,8 @@ knowledge si = KN
       | otherwise 
       = Nothing 
 
-    constNames si = (S.fromList . fst . unzip . toListSEnv . gLits $ si) `S.union`
-                      (S.fromList . fst . unzip . toListSEnv . dLits $ si)
+    constNames si = (S.fromList . map fst . toListSEnv . gLits $ si) `S.union`
+                      (S.fromList . map fst . toListSEnv . dLits $ si)
 -- testSymbol (from names)
 
 
@@ -701,7 +702,7 @@ instance Normalizable Rewrite where
     where 
       su  = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       xs  = smArgs rw 
-      xs' = zipWith mkSymbol xs [0..]
+      xs' = zipWith mkSymbol xs [0 :: Integer ..]
       mkSymbol x i = x `suffixSymbol` intSymbol (smName rw) i 
 
 instance Normalizable Equation where 
@@ -710,14 +711,14 @@ instance Normalizable Equation where
     where 
       su           = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       (xs,ss)      = unzip (eqArgs eq) 
-      xs'          = zipWith mkSymbol xs [0..]
+      xs'          = zipWith mkSymbol xs [0 :: Integer ..]
       mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i 
 
 normalizeBody :: Symbol -> Expr -> Expr
 normalizeBody f = go   
   where 
     go e 
-      | any (== f) (syms e) 
+      | elem f (syms e) 
       = go' e 
     go e 
       = e 

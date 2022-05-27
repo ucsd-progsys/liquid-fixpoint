@@ -19,15 +19,15 @@ pbRef = unsafePerformIO (newIORef Nothing)
 
 withProgress :: Int -> IO a -> IO a
 withProgress n act = do
-  showBar <- ((/=) Quiet) <$> getVerbosity
-  case showBar of
-    False -> act
-    True  -> displayConsoleRegions $ do
+  showBar <- (Quiet /=) <$> getVerbosity
+  if showBar
+    then displayConsoleRegions $ do
       -- putStrLn $ "withProgress: " ++ show n
       progressInit n
       r <- act
       progressClose
       return r
+    else act
 
 progressInit :: Int -> IO ()
 progressInit n = do
@@ -39,7 +39,7 @@ progressInit n = do
 mkPB   :: Int -> IO ProgressBar
 mkPB n = newProgressBar def
   { pgWidth       = 80
-  , pgTotal       = {- traceShow "MAKE-PROGRESS" -} (toInteger n)
+  , pgTotal       = {- traceShow "MAKE-PROGRESS" -} toInteger n
   , pgFormat      = "Working :percent [:bar]"
   , pgPendingChar = '.'
   , pgOnCompletion = Nothing
@@ -59,7 +59,7 @@ incTick pb = do
     -- else return ()
 
 incomplete :: Stats -> Bool
-incomplete st = {- traceShow "INCOMPLETE" -} (stRemaining st) > 0
+incomplete st = {- traceShow "INCOMPLETE" -} stRemaining st > 0
 -- incomplete st = stPercent st < 100
 
 

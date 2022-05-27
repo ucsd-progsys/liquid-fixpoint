@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE DeriveFoldable            #-}
 {-# LANGUAGE DeriveTraversable         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -192,8 +191,8 @@ instance Semigroup (FixResult a) where
   Safe s1        <> Safe s2        = Safe (s1 <> s2)
   Safe _         <> x              = x
   x              <> Safe _         = x
-  _              <> c@(Crash{})    = c
-  c@(Crash{})    <> _              = c
+  _              <> c@Crash{}      = c
+  c@Crash{}      <> _              = c
   (Unsafe s1 xs) <> (Unsafe s2 ys) = Unsafe (s1 <> s2) (xs ++ ys)
 
 instance Monoid (FixResult a) where
@@ -222,8 +221,8 @@ instance (ToJSON a) => ToJSON (FixResult a) where
 
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)"
-resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : ((("CRASH:" <+>) . toFix) <$> xs)
-resultDoc (Unsafe _ xs)    = vcat $ text "Unsafe:"           : ((("WARNING:" <+>) . toFix) <$> xs)
+resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (("CRASH:" <+>) . toFix <$> xs)
+resultDoc (Unsafe _ xs)    = vcat $ text "Unsafe:"           : (("WARNING:" <+>) . toFix <$> xs)
 
 instance (Fixpoint a) => PPrint (FixResult a) where
   pprintTidy _ = resultDoc

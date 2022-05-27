@@ -5,12 +5,11 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
-{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE PatternGuards              #-}
 
+{-# OPTIONS_GHC -Wno-orphans            #-}
 
 -- | This module contains Haskell variables representing globally visible names.
 --   Rather than have strings floating around the system, all constant names
@@ -435,7 +434,7 @@ vv (Just i)         = intSymbol vvName i
 vv Nothing          = vvName
 
 isNontrivialVV      :: Symbol -> Bool
-isNontrivialVV      = not . (vv Nothing ==)
+isNontrivialVV      = (vv Nothing /=)
 
 vvCon, dummySymbol :: Symbol
 vvCon       = vvName `suffixSymbol` "F"
@@ -556,7 +555,7 @@ symbolBuilder = Builder.fromText . symbolSafeText . symbol
 buildMany :: [Builder.Builder] -> Builder.Builder
 buildMany []     = mempty
 buildMany [b]    = b
-buildMany (b:bs) = b <> mconcat [ " " <> b | b <- bs ]
+buildMany (b:bs) = b <> mconcat [ " " <> b' | b' <- bs ]
 
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------

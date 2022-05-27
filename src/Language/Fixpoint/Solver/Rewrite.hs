@@ -2,6 +2,8 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing    #-}
+
 module Language.Fixpoint.Solver.Rewrite
   ( getRewrite
   , subExprs
@@ -86,7 +88,7 @@ ordConstraints (RESTFuel n) _      = bimapConstraints Fuel asFuel $ fuelOC n
 
 convert :: Expr -> RT.RuntimeTerm
 convert (EIte i t e)   = RT.App "$ite" $ map convert [i,t,e]
-convert e@(EApp{})     | (EVar fName, terms) <- splitEApp e
+convert e@EApp{}       | (EVar fName, terms) <- splitEApp e
                        = RT.App (Op (symbolText fName)) $ map convert terms
 convert (EVar s)       = RT.App (Op (symbolText s)) []
 convert (PNot e)       = RT.App "$not" [ convert e ]
@@ -145,7 +147,7 @@ getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
 
     checkSubst su (s, e) =
       do
-        let su' = (catSubst su $ mkSubst [("VV", subst su (EVar s))])
+        let su' = catSubst su $ mkSubst [("VV", subst su (EVar s))]
         -- liftIO $ printf "Substitute %s in %s\n" (show su') (show e)
         check $ subst (catSubst su su') e
 
@@ -186,10 +188,10 @@ subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
     rhs'' :: [SubExpr]
     rhs'' = map (\(e, f) -> (e, \e' -> PAtom op lhs (f e'))) rhs'
 
-subExprs' e@(EApp{}) =
-  if (f == EVar "Language.Haskell.Liquid.ProofCombinators.===" ||
-      f == EVar "Language.Haskell.Liquid.ProofCombinators.==." ||
-      f == EVar "Language.Haskell.Liquid.ProofCombinators.?")
+subExprs' e@EApp{} =
+  if f == EVar "Language.Haskell.Liquid.ProofCombinators.===" ||
+     f == EVar "Language.Haskell.Liquid.ProofCombinators.==." ||
+     f == EVar "Language.Haskell.Liquid.ProofCombinators.?"
   then []
   else concatMap replace indexedArgs
     where
@@ -197,7 +199,7 @@ subExprs' e@(EApp{}) =
       indexedArgs      = zip [0..] es
       replace (i, arg) = do
         (subArg, toArg) <- subExprs arg
-        return (subArg, \subArg' -> eApps f $ (take i es) ++ (toArg subArg'):(drop (i+1) es))
+        return (subArg, \subArg' -> eApps f $ take i es ++ toArg subArg' : drop (i+1) es)
 
 subExprs' _ = []
 

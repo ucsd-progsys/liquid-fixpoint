@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Solver.Common (askSMT, toSMT) where
 
 import Language.Fixpoint.Types.Config (Config)

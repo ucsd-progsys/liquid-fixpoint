@@ -2,6 +2,8 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Solver.Extensionality (expand) where
 
 import           Control.Monad.State
@@ -70,19 +72,19 @@ extendExpr p e
 
 getArg :: Sort -> Maybe Sort
 getArg s = case bkFFunc s of
-             Just (_,(a:_:_)) -> Just a
+             Just (_, a:_:_) -> Just a
              _                -> Nothing
 
 extendRHS, extendLHS :: Brel -> Expr -> Expr -> Sort -> Ex Expr
 extendRHS b e1 e2 s =
   do es <- generateArguments s
-     (mytracepp "extendRHS = " . pAnd) <$> mapM (makeEq b e1 e2) es
+     mytracepp "extendRHS = " . pAnd <$> mapM (makeEq b e1 e2) es
 
 extendLHS b e1 e2 s =
   do es  <- generateArguments s
      dds <- exddecl <$> get
      is  <- instantiate dds s
-     (mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:)) <$> mapM (makeEq b e1 e2) (es ++ is)
+     mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
 
 
 generateArguments :: Sort -> Ex [Expr]
@@ -108,7 +110,7 @@ instantiateOne (Right s) = do
   xss <- excbs <$> get
   return [EVar x | (x,xs) <- xss, xs == s ]
 instantiateOne (Left [(dc, ts)]) =
-  (map (mkEApp dc) . combine) <$>  mapM instantiateOne (Right <$> ts)
+  map (mkEApp dc) . combine <$>  mapM instantiateOne (Right <$> ts)
 instantiateOne _ = undefined
 
 combine :: [[a]] -> [[a]]
@@ -129,29 +131,29 @@ mapMPosExpr p f = go p
     go p e@(ECon _)      = f p e
     go p e@(EVar _)      = f p e
     go p e@(PKVar _ _)   = f p e
-    go p (ENeg e)        = f p =<< (ENeg        <$>  go p e                     )
-    go p (ECst e t)      = f p =<< ((`ECst` t)  <$>  go p e                     )
-    go p (ECoerc a t e)  = f p =<< (ECoerc a t  <$>  go p e                     )
+    go p (ENeg e)        = f p . ENeg =<< go p e
+    go p (ECst e t)      = f p . (`ECst` t) =<< go p e
+    go p (ECoerc a t e)  = f p . ECoerc a t =<< go p e
     go p (EApp g e)      = f p =<< (EApp        <$>  go p g  <*> go p e             )
     go p (EBin o e1 e2)  = f p =<< (EBin o      <$>  go p e1 <*> go p e2            )
     go p (PAtom r e1 e2) = f p =<< (PAtom r     <$>  go p e1 <*> go p e2            )
 
     go p (PImp p1 p2)    = f p =<< (PImp        <$>  go (negatePos p) p1 <*> go p p2)
-    go p (PAnd ps)       = f p =<< (PAnd        <$> (go p <$$> ps)                  )
+    go p (PAnd ps)       = f p . PAnd =<< (go p <$$> ps)
 
     -- The below cannot appear due to normalization
-    go p (PNot e)        = f p =<< (PNot        <$>  go p e                     )
+    go p (PNot e)        = f p . PNot =<< go p e
     go p (PIff p1 p2)    = f p =<< (PIff        <$>  go p p1 <*> go p p2            )
     go p (EIte e e1 e2)  = f p =<< (EIte        <$>  go p e  <*> go p e1 <*> go p e2)
-    go p (POr  ps)       = f p =<< (POr         <$> (go p <$$> ps)                  )
+    go p (POr  ps)       = f p . POr =<< (go p <$$> ps)
 
     -- The following canot appear in general
-    go p (PAll xts e)    = f p =<< (PAll   xts  <$>  go p e                     )
-    go p (ELam (x,t) e)  = f p =<< (ELam (x,t)  <$>  go p e                     )
-    go p (PExist xts e)  = f p =<< (PExist xts  <$>  go p e                     )
-    go p (ETApp e s)     = f p =<< ((`ETApp` s) <$>  go p e                     )
-    go p (ETAbs e s)     = f p =<< ((`ETAbs` s) <$>  go p e                     )
-    go p (PGrad k s i e) = f p =<< (PGrad k s i <$>  go p e                     )
+    go p (PAll xts e)    = f p . PAll   xts =<< go p e
+    go p (ELam (x,t) e)  = f p . ELam (x,t) =<< go p e
+    go p (PExist xts e)  = f p . PExist xts =<< go p e
+    go p (ETApp e s)     = f p . (`ETApp` s) =<< go p e
+    go p (ETAbs e s)     = f p . (`ETAbs` s) =<< go p e
+    go p (PGrad k s i e) = f p . PGrad k s i =<< go p e
 
 normalize :: Expr -> Expr
 normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
@@ -163,12 +165,12 @@ normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
     go e@(ENeg _)        = e
     go (PNot e)          = PImp e PFalse
     go e@(ECst _ _)      = e
-    go e@(ECoerc _ _ _)  = e
+    go e@ECoerc{}        = e
     go e@(EApp _ _)      = e
-    go e@(EBin _ _ _)    = e
+    go e@EBin{}          = e
     go (PImp p1 p2)      = PImp (go p1) (go p2)
     go (PIff p1 p2)      = PAnd [PImp p1' p2', PImp p2' p1'] where (p1', p2') = (go p1, go p2)
-    go e@(PAtom _ _ _)   = e
+    go e@PAtom{}         = e
     go (EIte e e1 e2)    = go $ PAnd [PImp e e1, PImp (PNot e) e2]
     go (PAnd ps)         = pAnd (go <$> ps)
     go (POr  ps)         = foldl (\x y -> PImp (PImp (go x) PFalse) y) PFalse ps
@@ -177,7 +179,7 @@ normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
     go e@(PExist _ _)    = e -- Cannot appear
     go e@(ETApp _ _)     = e -- Cannot appear
     go e@(ETAbs _ _)     = e -- Cannot appear
-    go e@(PGrad _ _ _ _) = e -- Cannot appear
+    go e@PGrad{}         = e -- Cannot appear
 
 
 type Ex    = State ExSt
@@ -223,8 +225,8 @@ freshArgOne s = do
   modify (\st -> st{ exenv   = insertSymEnv x s (exenv st)
                    , exbenv  = benv'
                    , exbinds = insertsIBindEnv [id] (exbinds st)
-                   , unique   = 1 + (unique st)
-                   , excbs = (x,s):(excbs st)
+                   , unique   = 1 + unique st
+                   , excbs = (x,s) : excbs st
                    })
   return x
 
@@ -233,7 +235,7 @@ breakSort :: [DataDecl] -> Sort -> Either [(LocSymbol, [Sort])] Sort
 breakSort ddecls s
     | Just (tc, ts) <- splitTC s
     , [(dds,i)] <- [ (ddCtors dd,ddVars dd) | dd <- ddecls, ddTyCon dd == tc ]
-    = Left ((\dd -> (dcName dd, (instSort  (Sub $ zip [0..(i-1)] ts)) <$> dfSort <$> dcFields dd)) <$> dds)
+    = Left ((\dd -> (dcName dd, instSort  (Sub $ zip [0..(i-1)] ts) <$> dfSort <$> dcFields dd)) <$> dds)
     | otherwise
     = Right s
 

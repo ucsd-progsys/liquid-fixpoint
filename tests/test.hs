@@ -7,18 +7,19 @@ module Main where
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Functor.Compose   as Functor
 import qualified Data.IntMap            as IntMap
-import qualified Data.Map               as Map
 import qualified Control.Monad.State    as State
 import Control.Monad.Trans.Class (lift)
 
-import Data.Char
+import Prelude hiding (log)
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Sum(..), (<>))
+import Data.Monoid (Sum(..))
+import Data.Proxy
+import Data.Tagged
 import Control.Applicative
+import Options.Applicative
 import System.Directory
 import System.Exit
 import System.FilePath
-import System.Environment
 import System.IO
 import System.IO.Error
 import System.Process
@@ -30,17 +31,14 @@ import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
-import Paths_liquid_fixpoint
 
 main :: IO ()
 main    = do
   run =<< group "Tests" [unitTests]
   where
-    run = defaultMainWithIngredients [
-                testRunner
-            --  , includingOptions [ Option (Proxy :: Proxy NumThreads)
-            --                     , Option (Proxy :: Proxy LiquidOpts)
-            --                     , Option (Proxy :: Proxy SmtSolver) ]
+    run = defaultMainWithIngredients
+              [ testRunner
+              , includingOptions [ Option (Proxy :: Proxy FixpointOpts) ]
               ]
 
 testRunner :: Ingredient
@@ -65,6 +63,7 @@ combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
       return $ \smap -> f1 smap >> f2 smap
 combineReporters _ _ = error "combineReporters needs TestReporters"
 
+unitTests :: IO TestTree
 unitTests
   = group "Unit" [
       testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
@@ -89,6 +88,28 @@ unitTests
 skipNativePos :: [FilePath]
 skipNativePos = ["NonLinear-pack.fq"]
 
+newtype FixpointOpts = LO String deriving (Show, Read, Eq, Ord)
+
+instance Semigroup FixpointOpts where
+  (LO "") <> y       = y
+  x       <> (LO "") = x
+  (LO x)  <> (LO y)  = LO $ x ++ (' ' : y)
+
+instance Monoid FixpointOpts where
+  mempty = LO ""
+  mappend = (<>)
+
+instance IsOption FixpointOpts where
+  defaultValue = LO ""
+  parseValue = Just . LO
+  optionName = return "fixpoint-opts"
+  optionHelp = return "Extra options to pass to fixpoint"
+  optionCLParser =
+    option (fmap LO str)
+      (  long (untag (optionName :: Tagged FixpointOpts String))
+      <> help (untag (optionHelp :: Tagged FixpointOpts String))
+      )
+
 ---------------------------------------------------------------------------
 dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
@@ -104,7 +125,9 @@ isTest f = takeExtension f `elem` [".fq", ".smt2"]
 mkTest :: TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
 mkTest testCmd code dir file
-  = testCase file $
+  =
+    askOption $ \opts ->
+    testCase file $
       if test `elem` knownToFail
       then do
         printf "%s is known to fail: SKIPPING" test
@@ -112,7 +135,7 @@ mkTest testCmd code dir file
       else do
         createDirectoryIfMissing True $ takeDirectory log
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd "fixpoint" dir file
+          let cmd     = testCmd opts "fixpoint" dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           assertEqual "Wrong exit code" code c
@@ -120,20 +143,24 @@ mkTest testCmd code dir file
     test = dir </> file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
+knownToFail :: [a]
 knownToFail = []
 ---------------------------------------------------------------------------
-type TestCmd = FilePath -> FilePath -> FilePath -> String
+type TestCmd = FixpointOpts -> FilePath -> FilePath -> FilePath -> String
 
 nativeCmd :: TestCmd
-nativeCmd bin dir file = printf "cd %s && %s %s" dir bin file
+nativeCmd (LO opts) bin dir file =
+  printf "cd %s && %s %s %s" dir bin opts file
 
 elimCmd :: TestCmd
-elimCmd bin dir file = printf "cd %s && %s --eliminate=some %s" dir bin file
+elimCmd (LO opts) bin dir file =
+  printf "cd %s && %s --eliminate=some %s %s" dir bin opts file
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers
 ----------------------------------------------------------------------------------------
 
+group :: Monad f => TestName -> [f TestTree] -> f TestTree
 group n xs = testGroup n <$> sequence xs
 
 ----------------------------------------------------------------------------------------
@@ -191,9 +218,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup _ group children = Traversal $ Functor.Compose $ do
+    runGroup _ group' children = Traversal $ Functor.Compose $ do
       Const soFar <- Functor.getCompose $ getTraversal children
-      pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
+      pure $ Const $ map (\(n,t,s) -> (group' </> n,t,s)) soFar
 
     computeFailures :: StatusMap -> IO Int
     computeFailures = fmap getSum . getApp . foldMap (\var -> Ap $
@@ -216,7 +243,6 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
   return $ \_elapsedTime -> do
     -- don't use the `time` package, major api differences between ghc 708 and 710
-    time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     -- build header
     ref <- gitRef
     timestamp <- gitTimestamp
@@ -258,7 +284,7 @@ gitRef = do
 
 -- | Calls `git` for info; returns `"plain"` if we are not in a git directory.
 gitProcess :: [String] -> IO String
-gitProcess args = (readProcess "git" args []) `catchIOError` const (return "plain")
+gitProcess args = readProcess "git" args [] `catchIOError` const (return "plain")
 
 notNoise :: Char -> Bool
 notNoise a = a /= '\"' && a /= '\n' && a /= '\r'

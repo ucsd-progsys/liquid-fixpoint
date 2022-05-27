@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | Functions to make environments easier to read
 module Language.Fixpoint.Solver.Prettify (savePrettifiedQuery) where
 
@@ -85,8 +87,8 @@ prettyConstraint bindEnv c =
       undoANFEnv = undoANFAndVV mergedEnv
       boolSimplEnv = HashMap.map snd $ simplifyBooleanRefts undoANFEnv
 
-      simplifiedLhs = inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (slhs c)
-      simplifiedRhs = inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (srhs c)
+      simplifiedLhs = simplify $ inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (slhs c)
+      simplifiedRhs = simplify $ inlineInSortedReft (`HashMap.lookup` boolSimplEnv) (srhs c)
 
       prunedEnv =
         dropLikelyIrrelevantBindings
@@ -179,16 +181,16 @@ shortenVarNames env c =
     renameSortedReft
       :: HashMap Symbol Symbol -> SortedReft -> SortedReft
     renameSortedReft symMap (RR t r) =
-      let sortSubst = FObj . (at symMap)
+      let sortSubst = FObj . at symMap
        in RR (substSort sortSubst t) (renameReft symMap r)
 
     renameReft :: HashMap Symbol Symbol -> Reft -> Reft
     renameReft symMap r =
       let m = HashMap.insert (reftBind r) (prefixOfSym $ reftBind r) symMap
-          sortSubst = FObj . (at symMap)
+          sortSubst = FObj . at symMap
        in reft (at m (reftBind r)) $
             substSortInExpr sortSubst $
-            (substf (EVar . (at m)) $ reftPred r)
+            substf (EVar . at m) (reftPred r)
 
     at :: HashMap Symbol Symbol -> Symbol -> Symbol
     at m k = fromMaybe k $ HashMap.lookup k m
@@ -249,7 +251,7 @@ toSymMap prefixMap = HashMap.fromList
 
     renameWithAppendages pfx (sfx, ss) = zip ss $ case ss of
       [_s] -> [pfx `suffixIfNotNull` sfx]
-      ss -> zipWith (rename pfx sfx) [1..] ss
+      ss -> zipWith (rename pfx sfx) [1 :: Integer ..] ss
 
     rename pfx sfx i _s =
       pfx `suffixIfNotNull` sfx `suffixSymbol` symbol (show i)

@@ -32,6 +32,10 @@ extra-source-files: tests/neg/*.fq
                     tests/logs/cur/pin
                     Makefile
 
+common warnings
+  ghc-options:
+    -Wall
+
 source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquid-fixpoint/
@@ -42,6 +46,7 @@ flag devel
   description: turn on stricter error reporting for development
 
 library
+  import: warnings
   autogen-modules:  Paths_liquid_fixpoint
   exposed-modules:  Data.ShareMap
                     Language.Fixpoint.Defunctionalize
@@ -139,14 +144,12 @@ library
                   , process
                   , stm
                   , syb
-                  , syb
                   , text
                   , transformers
                   , unordered-containers
                   , aeson
                   , rest-rewrite >= 0.1.1
   default-language: Haskell98
-  ghc-options:      -W -fno-warn-missing-methods -fwarn-missing-signatures
 
   if flag(devel)
     ghc-options: -Werror
@@ -159,16 +162,18 @@ library
     hs-source-dirs: win
 
 executable fixpoint
+  import: warnings
   main-is:          Fixpoint.hs
   hs-source-dirs:   bin
   build-depends:    base >= 4.9.1.0 && < 5, liquid-fixpoint
   default-language: Haskell98
-  ghc-options:      -threaded -W -fno-warn-missing-methods
+  ghc-options:      -threaded
 
   if flag(devel)
     ghc-options: -Werror
 
 test-suite test
+  import: warnings
   type:             exitcode-stdio-1.0
   main-is:          test.hs
   other-modules:    Paths_liquid_fixpoint
@@ -179,11 +184,12 @@ test-suite test
                   , directory
                   , filepath
                   , mtl           >= 2.2.2
+                  , optparse-applicative
                   , process
                   , stm           >= 2.4
+                  , tagged
                   , tasty         >= 0.10
                   , tasty-ant-xml
-                  , tasty-hunit
                   , tasty-hunit   >= 0.9
                   , tasty-rerun   >= 1.1.12
                   , transformers  >= 0.5
@@ -194,6 +200,7 @@ test-suite test
     ghc-options: -Werror
 
 test-suite tasty
+  import: warnings
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
   other-modules:    ParserTests
@@ -204,6 +211,7 @@ test-suite tasty
                     SimplifyInterpreter
                     SimplifyPLE
                     SimplifyTests
+                    UndoANFTests
   hs-source-dirs:   tests/tasty
   build-depends:    base            >= 4.9.1.0 && < 5
                   , containers

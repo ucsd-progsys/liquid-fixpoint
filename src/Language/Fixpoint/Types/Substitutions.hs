@@ -1,10 +1,11 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
+
+{-# OPTIONS_GHC -Wno-orphans   #-}
 
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
 --   be in the same place as the @Term@ definitions.
-
-{-# LANGUAGE FlexibleInstances #-}
 module Language.Fixpoint.Types.Substitutions (
     mkSubst
   , isEmptySubst
@@ -274,6 +275,7 @@ instance Fixpoint SortedReft where
   toFix (RR so (Reft (v, ra)))
     = braces
     $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> toFix (conjuncts ra)
+  simplify (RR so (Reft (v, ra))) = RR (simplify so) (Reft (simplify v, simplify ra))
 
 instance Show Reft where
   show = showFix

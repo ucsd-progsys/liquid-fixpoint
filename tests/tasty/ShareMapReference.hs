@@ -71,8 +71,7 @@ mergeKeysWith f k0 k1 sm | k0 /= k1 =
        | otherwise ->
          let v0 = h HashMap.! k0
              v1 = maybe v0 (f v0) $ HashMap.lookup k1 h
-             keys'
-               | otherwise = case break (HashSet.member k1) (before0 ++ after0) of
+             keys' = case break (HashSet.member k1) (before0 ++ after0) of
                  (before1, []) ->
                     HashSet.insert k1 keys0 : before1
                  (before1, keys1 : after1)->

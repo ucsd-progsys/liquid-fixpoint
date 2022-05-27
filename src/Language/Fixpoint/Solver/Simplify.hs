@@ -3,16 +3,11 @@
 --     Simplifiable Expr in both Interpreter.hs and PLE.hs.
 --------------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE ViewPatterns              #-}
-{-# LANGUAGE PatternGuards             #-}
-{-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing    #-}
 
 module Language.Fixpoint.Solver.Simplify (applyBooleanFolding, applyConstantFolding, applySetFolding, isSetPred) where
 
@@ -26,13 +21,13 @@ import qualified Data.Maybe           as Mb
 applyBooleanFolding :: Brel -> Expr -> Expr -> Expr
 applyBooleanFolding brel e1 e2 = 
   case (e1, e2) of 
-    ((ECon (R left)), (ECon (R right))) ->
+    (ECon (R left), ECon (R right)) ->
       Mb.fromMaybe e (bfR brel left right)
-    ((ECon (R left)), (ECon (I right))) ->
+    (ECon (R left), ECon (I right)) ->
       Mb.fromMaybe e (bfR brel left (fromIntegral right))
-    ((ECon (I left)), (ECon (R right))) ->
+    (ECon (I left), ECon (R right)) ->
       Mb.fromMaybe e (bfR brel (fromIntegral left) right)
-    ((ECon (I left)), (ECon (I right))) ->
+    (ECon (I left), ECon (I right)) ->
       Mb.fromMaybe e (bfI brel left right)
     _ -> if isTautoPred e then PTrue else 
            if isContraPred e then PFalse else e
@@ -50,10 +45,10 @@ applyBooleanFolding brel e1 e2 =
     getOp Une  =  (/=)
 
     bfR :: Brel -> Double -> Double -> Maybe Expr
-    bfR brel left right = if (getOp brel) left right then Just PTrue else Just PFalse
+    bfR brel left right = if getOp brel left right then Just PTrue else Just PFalse
 
     bfI :: Brel -> Integer -> Integer -> Maybe Expr
-    bfI brel left right = if (getOp brel) left right then Just PTrue else Just PFalse
+    bfI brel left right = if getOp brel left right then Just PTrue else Just PFalse
         
 
 -- | Replace constant integer and floating point expressions by constant values
@@ -61,26 +56,26 @@ applyBooleanFolding brel e1 e2 =
 applyConstantFolding :: Bop -> Expr -> Expr -> Expr
 applyConstantFolding bop e1 e2 =
   case (e1, e2) of
-    ((ECon (R left)), (ECon (R right))) ->
+    (ECon (R left), ECon (R right)) ->
       Mb.fromMaybe e (cfR bop left right)
-    ((ECon (R left)), (ECon (I right))) ->
+    (ECon (R left), ECon (I right)) ->
       Mb.fromMaybe e (cfR bop left (fromIntegral right))
-    ((ECon (I left)), (ECon (R right))) ->
+    (ECon (I left), ECon (R right)) ->
       Mb.fromMaybe e (cfR bop (fromIntegral left) right)
-    ((ECon (I left)), (ECon (I right))) ->
+    (ECon (I left), ECon (I right)) ->
       Mb.fromMaybe e (cfI bop left right)
     (EBin Mod  _   _              , _)  -> e
     (EBin bop1 e11 (ECon (R left)), ECon (R right))
-      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) left right))
+      | bop == bop1 -> Mb.fromMaybe e (EBin bop e11 <$> cfR (rop bop) left right)
       | otherwise   -> e
     (EBin bop1 e11 (ECon (R left)), ECon (I right))
-      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) left (fromIntegral right)))
+      | bop == bop1 -> Mb.fromMaybe e (EBin bop e11 <$> cfR (rop bop) left (fromIntegral right))
       | otherwise   -> e
     (EBin bop1 e11 (ECon (I left)), ECon (R right))
-      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfR (rop bop) (fromIntegral left) right))
+      | bop == bop1 -> Mb.fromMaybe e (EBin bop e11 <$> cfR (rop bop) (fromIntegral left) right)
       | otherwise   -> e
     (EBin bop1 e11 (ECon (I left)), ECon (I right))
-      | bop == bop1 -> Mb.fromMaybe e ((EBin bop e11) <$> (cfI (rop bop) left right))
+      | bop == bop1 -> Mb.fromMaybe e (EBin bop e11 <$> cfI (rop bop) left right)
       | otherwise   -> e
     _ -> e
   where

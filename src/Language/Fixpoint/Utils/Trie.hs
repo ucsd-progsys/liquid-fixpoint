@@ -21,8 +21,8 @@ import qualified Language.Fixpoint.Misc as Misc
 type Key  = Int
 type Path = [Key]
 
-data Trie a
-  = Node ![Branch a]
+newtype Trie a
+  = Node [Branch a]
   deriving (Eq, Show)
 
 data Branch a
@@ -38,7 +38,7 @@ empty = Node []
 -------------------------------------------------------------------------------
 insert :: Path -> a -> Trie a -> Trie a
 -------------------------------------------------------------------------------
-insert []     v (Node ts) = Node ((Val v) : ts)
+insert []     v (Node ts) = Node (Val v : ts)
 insert (i:is) v (Node ts) = Node (insertKey i is v ts)
 
 

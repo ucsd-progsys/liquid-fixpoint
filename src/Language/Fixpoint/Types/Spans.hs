@@ -4,6 +4,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
+{-# OPTIONS_GHC -Wno-orphans           #-}
+
 module Language.Fixpoint.Types.Spans (
 
   -- * Concrete Location Type
@@ -153,7 +155,7 @@ sourcePosElts = ofSourcePos
 ppSourcePos :: SourcePos -> Doc
 ppSourcePos z = text (printf "%s:%d:%d" f l c)
   where
-    (f,l,c) = sourcePosElts $ z
+    (f,l,c) = sourcePosElts z
 
 instance Fixpoint SourcePos where
   toFix = text . show
@@ -224,7 +226,10 @@ data SrcSpan = SS { sp_start :: !SourcePos
                   , sp_stop  :: !SourcePos}
                  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance NFData SrcSpan
+instance S.Store SrcSpan
 instance Serialize SrcSpan
+instance B.Binary SrcSpan
 
 instance PPrint SrcSpan where
   pprintTidy _ = ppSrcSpan

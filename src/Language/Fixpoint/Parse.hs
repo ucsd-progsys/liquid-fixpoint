@@ -5,6 +5,8 @@
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Parse (
 
   -- * Top Level Class for Parseable Values
@@ -122,7 +124,8 @@ import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
 import qualified Language.Fixpoint.Misc      as Misc
 import           Language.Fixpoint.Smt.Types
-import           Language.Fixpoint.Types hiding    (mapSort)
+import           Language.Fixpoint.Types hiding    (mapSort, fi, params, GInfo(..))
+import qualified Language.Fixpoint.Types     as Types (GInfo(FI))
 import           Text.PrettyPrint.HughesPJ         (text, vcat, (<+>), Doc)
 
 import Control.Monad.State
@@ -778,7 +781,7 @@ singletonListP e = do
 exprCastP :: Parser Expr
 exprCastP
   = do e  <- exprP
-       try dcolon <|> colon -- allow : or :: *and* allow following symbols
+       _ <- try dcolon <|> colon -- allow : or :: *and* allow following symbols
        so <- sortP
        return $ ECst e so
 
@@ -924,7 +927,7 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
                  , FInfix  (Just 9) "."   applyCompose        AssocRight
                  ]
     applyCompose :: Maybe (Expr -> Expr -> Expr)
-    applyCompose = (\f x y -> (f `eApps` [x,y])) <$> cmpFun
+    applyCompose = (\f x y -> f `eApps` [x,y]) <$> cmpFun
 
 -- | Parser for function applications.
 --
@@ -962,7 +965,7 @@ lamP :: Parser Expr
 lamP
   = do reservedOp "\\"
        x <- symbolP
-       colon -- TODO: this should probably be reservedOp instead
+       _ <- colon -- TODO: this should probably be reservedOp instead
        t <- sortP
        reservedOp "->"
        e  <- exprP
@@ -977,7 +980,7 @@ funcSortP = parens $ mkFFunc <$> intP <* comma <*> sortsP
 
 sortsP :: Parser [Sort]
 sortsP = try (brackets (sepBy sortP semi))
-      <|> (brackets (sepBy sortP comma))
+      <|> brackets (sepBy sortP comma)
 
 -- | Parser for sorts (types).
 sortP    :: Parser Sort
@@ -1048,7 +1051,7 @@ pred0P =  trueP -- constant "true"
       <|> kvarPredP
       <|> fastIfP pIte predP -- "if-then-else", starts with "if"
       <|> try predrP -- binary relation, starts with anything that an expr can start with
-      <|> (parens predP) -- parenthesised predicate, starts with "("
+      <|> parens predP -- parenthesised predicate, starts with "("
       <|> (reservedOp "?" *> exprP)
       <|> try funAppP
       <|> EVar <$> symbolP -- identifier, starts with any letter or underscore
@@ -1315,9 +1318,11 @@ wfCP :: Parser (WfC ())
 wfCP = do reserved "env"
           env <- envP
           reserved "reft"
-          r   <- sortedReftP
-          let [w] = wfC env r ()
-          return w
+          r <- sortedReftP
+          case wfC env r () of
+            [w]   -> return w
+            []    -> error "Unexpected empty list in wfCP"
+            _:_:_ -> error "Expected a single element list in wfCP"
 
 subCP :: Parser (SubC ())
 subCP = do pos <- getSourcePos
@@ -1365,7 +1370,7 @@ boolP = (reserved "True" >> return True)
     <|> (reserved "False" >> return False)
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {- SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae
+defsFInfo defs = {- SCC "defsFI" #-} Types.FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae
   where
     cm         = Misc.safeFromList
                    "defs-cm"        [(cid c, c)         | Cst c       <- defs]
@@ -1386,12 +1391,12 @@ defsFInfo defs = {- SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts m
     rwEntries  =                    [(i, f)             | RWMap fs   <- defs, (i,f) <- fs]
     rwMap      = foldl insert (M.fromList []) rwEntries
                  where
-                   insert map (cid, arId) =
+                   insert map' (cid', arId) =
                      case M.lookup arId autoRWs of
                        Just rewrite ->
-                         M.insertWith (++) (fromIntegral cid) [rewrite] map
+                         M.insertWith (++) (fromIntegral cid') [rewrite] map'
                        Nothing ->
-                         map
+                         map'
     cid        = fromJust . sid
     ae         = AEnv eqs rews expand rwMap
     adts       =                    [d                  | Adt d       <- defs]

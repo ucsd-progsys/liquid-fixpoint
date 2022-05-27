@@ -17,6 +17,8 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing    #-}
+
 module Language.Fixpoint.Solver.Instantiate (instantiate) where
 
 import           Language.Fixpoint.Types
@@ -130,11 +132,11 @@ loopB env ctx delta iMb res b = case b of
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do
                   progressTick
-                  (snd <$> ple1 env ctx' iMb (Just cid) res)
+                  snd <$> ple1 env ctx' iMb (Just cid) res
 
 
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b
-withAssms env@(InstEnv {..}) ctx delta cidMb act = do
+withAssms env@InstEnv{..} ctx delta cidMb act = do
   let ctx'  = updCtx env ctx delta cidMb
   let assms = mytracepp  ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
@@ -143,7 +145,7 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
-ple1 env@(InstEnv {..}) ctx i cidMb res = do
+ple1 env@InstEnv{..} ctx i cidMb res = do
   let cands = mytracepp  ("ple1-cands: "  ++ show cidMb) $ S.toList (icCands ctx)
   -- unfolds  <- evalCands ieKnowl ieEvEnv cands
   unfolds  <- evalCandsLoop ieCfg ieSMT ieKnowl ieEvEnv cands
@@ -236,7 +238,7 @@ updCtxRes env ctx res iMb cidMb us
   where
     _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs)
-    _cands'             = ((icCands ctx) `S.union` newCands) `S.difference` solved'
+    _cands'             = (icCands ctx `S.union` newCands) `S.difference` solved'
     solved'            = S.union (icSolved ctx) solvedCands
     newCands           = S.fromList (concatMap topApps newEqs)
     solvedCands        = S.fromList [ e | (Just e, _) <- okUnfolds ]
@@ -255,7 +257,7 @@ mkUnfolds us = [ (eMb, ps)  | (eMb, eqs) <- us
                ]
 
 debugResult :: InstEnv a -> InstRes -> SubcId -> String
-debugResult (InstEnv {..}) res i = msg
+debugResult InstEnv{..} res i = msg
   where
     msg                          = "INCR-INSTANTIATE i = " ++ show i ++ ": " ++ showpp cidEqs
     cidEqs                       = pAnd [ e | i <- cBinds, e <- Mb.maybeToList $ M.lookup i res ]
@@ -275,11 +277,13 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icEquals = initEqs <> icEquals ctx }
   where
     initEqs   = equalitiesPred (initEqualities ieSMT ieAenv bs)
-    cands     = (S.fromList (concatMap topApps es0)) `S.difference` (icSolved ctx)
-    ctxEqs    = toSMT ieCfg ieSMT [] <$> concat
-                  [ initEqs
-                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
-                  ]
+    cands     = S.fromList (concatMap topApps es0) `S.difference` icSolved ctx
+    ctxEqs    = toSMT ieCfg ieSMT [] <$>
+                  (initEqs ++
+                  [ expr xr
+                  | xr@(_, r) <- bs
+                  , null (Vis.kvarsExpr $ reftPred $ sr_reft r)
+                  ])
     (bs, es0) = (second unElabSortedReft <$> binds, unElab <$> es)
     es        = eRhs : (expr <$> binds)
     eRhs      = maybe PTrue crhs subMb
@@ -301,7 +305,7 @@ instantiate' cfg fi subcIds = sInfo cfg env fi <$> withCtx cfg file env act
                                ,  maybe True (i `L.elem`) subcIds ]
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
-    aenv            = {- mytracepp  "AXIOM-ENV" -} (ae fi)
+    aenv            = {- mytracepp  "AXIOM-ENV" -} ae fi
 
 sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
 sInfo cfg env fi ips = strengthenHyp fi (mytracepp  "ELAB-INST:  " $ zip (fst <$> is) ps'')
@@ -326,7 +330,7 @@ isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
 cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
 cstrExprs bds sub = (second unElabSortedReft <$> binds, unElab <$> es)
   where
-    es            = (crhs sub) : (expr <$> binds)
+    es            = crhs sub : (expr <$> binds)
     binds         = envCs bds (senv sub)
 
 --------------------------------------------------------------------------------
@@ -363,7 +367,7 @@ _evalLoop cfg ctx γ s0 ctxEqs cands = loop 0 [] cands
                             eqs' -> do let acc'   = acc ++ eqs'
                                        let oks    = S.fromList (fst <$> eqs')
                                        let cands' = [ e | e <- cands, not (S.member e oks) ]
-                                       loop (i+1) acc' cands'
+                                       loop (i + 1 :: Integer) acc' cands'
 
 
 
@@ -407,7 +411,7 @@ pushCS (fs, r) f = (f:fs, r)
 recurCS :: CStack -> Symbol -> Bool
 recurCS (_,  Ok) _ = True
 -- recurCS (_,  _ ) _ = False -- not (f `elem` fs)
-recurCS (fs, _) f  = not (f `elem` fs)
+recurCS (fs, _) f  = f `notElem` fs
 
 noRecurCS :: CStack -> CStack
 noRecurCS (fs, _) = (fs, Stop)
@@ -495,7 +499,7 @@ evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
 -- evalApp γ stk e (e1, es) = tracepp ("evalApp:END" ++ showpp (e1,es)) <$> (evalAppAc γ stk e (e1, es))
 evalApp γ stk e (e1, es) = do
   res     <- evalAppAc γ stk e (e1, es)
-  let diff = (res /= (eApps e1 es))
+  let diff = res /= eApps e1 es
   return   $ mytracepp ("evalApp:END:" ++ showpp diff) res
 
 evalAppAc :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
@@ -517,7 +521,7 @@ evalAppAc γ stk _ (EVar f, es)
   , length (eqArgs eq) == length es
   , f `notElem` syms bd               -- non-recursive equations << HACK! misses MUTUALLY RECURSIVE definitions!
   , recurCS stk f
-  = do env   <- seSort <$> gets evEnv
+  = do env   <- gets (seSort . evEnv)
        let ee = substEq env PopIf eq es bd
        assertSelectors γ ee
        eval γ (pushCS stk f) ee
@@ -527,7 +531,7 @@ evalAppAc γ stk _e (EVar f, es)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es   -- recursive equations
   , recurCS stk f
-  = do env      <- seSort <$> gets evEnv
+  = do env      <- gets (seSort . evEnv)
        mytracepp ("EVAL-REC-APP" ++ showpp (stk, _e))
          <$> evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
 
@@ -567,7 +571,7 @@ mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys
     senv        = mkSearchEnv env
     uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts)
     xys         = mytracepp "mkCoSubXXX" $ Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
-    (_xTs,_eTs) = mytracepp "mkCoSub:MATCH" $ (xTs, eTs)
+    (_xTs,_eTs) = mytracepp "mkCoSub:MATCH" (xTs, eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
 matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ showpp (s1, s2)) $ go s1 s2
@@ -617,16 +621,16 @@ evalRecApplication γ stk e (EIte b e1 e2) = do
             b1 <- liftIO (isValid γ b')
             if b1
               then addEquality γ e e1 >>
-                   ({- SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
+                   {- SCC "assertSelectors-1" #-} assertSelectors γ e1 >>
                    eval γ stk (mytracepp ("evalREC-1: " ++ showpp stk) e1) >>=
                    ((e, "App1: ") ~>)
               else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
-                           ({- SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
+                           {- SCC "assertSelectors-2" #-} assertSelectors γ e2 >>
                            eval γ stk (mytracepp ("evalREC-2: " ++ showpp stk) e2) >>=
-                           ((e, ("App2: " ++ showpp stk ) ) ~>)
+                           ((e, "App2: " ++ showpp stk ) ~>)
                       else return e
 evalRecApplication _ _ _ e
   = return e
@@ -694,7 +698,7 @@ initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, E
 initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
   where
     dcEqs                  = Misc.hashNub (Mb.catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
-    atoms                  = splitPAnd =<< (expr <$> filter isProof es)
+    atoms                  = splitPAnd . expr =<< filter isProof es
     senv                   = SMT.ctxSymEnv ctx
 
 -- AT: Non-obvious needed invariant: askSMT True is always the
@@ -740,7 +744,7 @@ getDC _ _
   = Nothing
 
 isUpperSymbol :: Symbol -> Bool
-isUpperSymbol x = (0 < lengthSym x') && (isUpper $ headSym x')
+isUpperSymbol x = (0 < lengthSym x') && isUpper (headSym x')
   where
     x' = dropModuleNames x
 
@@ -772,11 +776,10 @@ dropModuleNames = mungeNames (symbol . last) "."
 
 assertSelectors :: Knowledge -> Expr -> EvalST ()
 assertSelectors γ e = do
-    sims <- aenvSimpl <$> gets _evAEnv
+    sims <- gets (aenvSimpl . _evAEnv)
     -- cfg  <- gets evCfg
     -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (mytracepp  "assertSelector" e) sims
     forM_ sims $ \s -> Vis.mapMExpr (go s) e
-    return ()
   where
     go :: Rewrite -> Expr -> EvalST Expr
     go (SMeasure f dc xs bd) e@(EApp _ _)
@@ -805,6 +808,6 @@ withCtx cfg file env k = do
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (e, _str) ~> e' = do
   let msg = "PLE: " ++ _str ++ showpp (e, e')
-  modify (\st -> st {evId = (mytracepp msg $ evId st) + 1})
+  modify (\st -> st {evId = mytracepp msg (evId st) + 1})
   return e'
 

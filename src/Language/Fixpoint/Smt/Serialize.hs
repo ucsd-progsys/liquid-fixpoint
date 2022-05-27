@@ -1,10 +1,12 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE DoAndIfThenElse      #-}
+
+{-# OPTIONS_GHC -Wno-orphans        #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
@@ -242,13 +244,13 @@ instance SMTLIB2 Command where
     | length az < 2            = ""
     | otherwise                = key "assert" (key "distinct" (smt2s env az))
   smt2 env (AssertAx t)        = key "assert" (smt2 env t)
-  smt2 _   (Push)              = "(push 1)"
-  smt2 _   (Pop)               = "(pop 1)"
-  smt2 _   (CheckSat)          = "(check-sat)"
+  smt2 _   Push                = "(push 1)"
+  smt2 _   Pop                 = "(pop 1)"
+  smt2 _   CheckSat            = "(check-sat)"
   smt2 env (GetValue xs)       = key "key-value" (parens (smt2s env xs))
   smt2 env (CMany cmds)        = smt2many (smt2 env <$> cmds)
-  smt2 _   (Exit)              = "(exit)"
-  smt2 _   (SetMbqi)           = "(set-option :smt.mbqi true)"
+  smt2 _   Exit                = "(exit)"
+  smt2 _   SetMbqi             = "(set-option :smt.mbqi true)"
 
 instance SMTLIB2 (Triggered Expr) where
   smt2 env (TR NoTrigger e)       = smt2 env e

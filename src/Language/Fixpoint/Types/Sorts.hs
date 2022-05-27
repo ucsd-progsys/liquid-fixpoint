@@ -2,7 +2,6 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE LambdaCase                 #-}
@@ -11,6 +10,9 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE ViewPatterns               #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing     #-}
 
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
@@ -268,6 +270,9 @@ data Sort = FInt
           | FApp  !Sort !Sort    -- ^ constructed type
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance PPrint Sort where
+  pprintTidy _ = toFix
+
 sortSymbols :: Sort -> HashSet Symbol
 sortSymbols = \case
   FObj s -> HashSet.singleton s
@@ -352,7 +357,7 @@ isReal _              = False
 
 isString :: Sort -> Bool
 isString (FApp l c)     = (isList l && isChar c) || isString l
-isString (FTC (TC c i)) = (val c == strConName || tc_isString i)
+isString (FTC (TC c i)) = val c == strConName || tc_isString i
 isString (FAbs _ s)     = isString s
 isString _              = False
 
@@ -429,11 +434,12 @@ toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (unFApp t)
 
 toFixAbsApp :: Sort -> Doc
-toFixAbsApp t = text "func" <-> parens (toFix n <+> text "," <+> toFix ts)
+toFixAbsApp (functionSort -> Just (vs, ss, s)) =
+  text "func" <-> parens (toFix n <+> text "," <+> toFix ts)
   where
-    Just (vs, ss, s) = functionSort t
     n                = length vs
     ts               = ss ++ [s]
+toFixAbsApp _ = error "Unexpected nothing function sort"
 
 toFixFApp            :: ListNE Sort -> Doc
 toFixFApp [t]        = toFixSort t
@@ -531,6 +537,7 @@ instance S.Store Sub
 instance B.Binary TCInfo
 instance B.Binary FTycon
 instance B.Binary Sort
+instance (Eq a, Hashable a, B.Binary (M.HashMap a (Sort, TCArgs))) => B.Binary (TCEmb a)
 
 instance NFData FTycon where
   rnf (TC x i) = x `seq` i `seq` ()
@@ -562,11 +569,15 @@ newtype TCEmb a = TCE (M.HashMap a (Sort, TCArgs))
   deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Hashable a => Hashable (TCEmb a)
+instance PPrint a => PPrint (TCEmb a) where
+  pprintTidy k = pprintTidy k . tceToList
+
 
 data TCArgs = WithArgs | NoArgs
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Hashable TCArgs
+instance B.Binary TCArgs
 
 tceInsertWith :: (Eq a, Hashable a) => (Sort -> Sort -> Sort) -> a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsertWith f k t a (TCE m) = TCE (M.insertWith ff k (t, a) m)

@@ -5,6 +5,9 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TupleSections #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | Functions to make environments smaller
 module Language.Fixpoint.Solver.EnvironmentReduction
@@ -17,6 +20,9 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   , simplifyBooleanRefts
   , undoANF
   , undoANFAndVV
+
+  -- for use in tests
+  , undoANFSimplifyingWith
   ) where
 
 import           Control.Monad (guard, mplus, msum)
@@ -189,8 +195,7 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
         HashMap.map (sortSymbols . (\(_, b, _) -> b) . wrft) wfs
 
       kvarsRelevantBinds =
-        HashMap.unionWith HashSet.union wfBindsPlusSortSymbols $
-        kvarSubstSymbols
+        HashMap.unionWith HashSet.union wfBindsPlusSortSymbols kvarSubstSymbols
 
       ws' =
         HashMap.mapWithKey
@@ -488,7 +493,7 @@ simplifyBindings cfg fi =
              HashMap.foldlWithKey' simplifyConstraintBindings (be, [], []) cs
           oldToNew =
             HashMap.fromListWith (++) $
-            concatMap (\(n, olds) -> map (\o -> (o, [n])) olds) newToOld
+            concatMap (\(n, olds) -> map (, [n]) olds) newToOld
        in
           (be', HashMap.fromList cs', oldToNew)
 
@@ -568,26 +573,37 @@ mergeDuplicatedBindings xs =
 -- | Inlines some of the bindings whose symbol satisfies a given predicate.
 --
 -- Only works if the bindings don't form cycles.
-substBindings
-  :: Lens' v SortedReft
+substBindingsSimplifyingWith
+  :: (SortedReft -> SortedReft)
+  -> Lens' v SortedReft
   -> (Symbol -> Bool)
   -> HashMap Symbol v
   -> HashMap Symbol v
-substBindings vLens p env =
+substBindingsSimplifyingWith simplifier vLens p env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (vLens %~ inlineInSortedReft (srLookup filteredEnv)) env
+    let env' = HashMap.map (vLens %~ simplifier . inlineInSortedReft (srLookup filteredEnv)) env
         filteredEnv = HashMap.filterWithKey (\sym _v -> p sym) env'
      in env'
   where
     srLookup env' sym = view vLens <$> HashMap.lookup sym env'
 
+substBindings
+  :: Lens' v SortedReft
+  -> (Symbol -> Bool)
+  -> HashMap Symbol v
+  -> HashMap Symbol v
+substBindings = substBindingsSimplifyingWith simplify
+
 -- | Like 'substBindings' but specialized for ANF bindings.
 --
--- Only bindings with prefix lq_anf... might be inlined.
+-- Only bindings with prefix lq_anf$... might be inlined.
 --
+undoANFSimplifyingWith :: (SortedReft -> SortedReft) -> Lens' v SortedReft -> HashMap Symbol v -> HashMap Symbol v
+undoANFSimplifyingWith simplifier vLens = substBindingsSimplifyingWith simplifier vLens $ \sym -> anfPrefix `isPrefixOfSym` sym
+
 undoANF :: Lens' v SortedReft -> HashMap Symbol v -> HashMap Symbol v
-undoANF vLens = substBindings vLens $ \sym -> anfPrefix `isPrefixOfSym` sym
+undoANF = undoANFSimplifyingWith simplify
 
 -- | Like 'undoANF' but also inlines VV bindings
 --
@@ -595,13 +611,15 @@ undoANF vLens = substBindings vLens $ \sym -> anfPrefix `isPrefixOfSym` sym
 -- can request to use it in the verification pipeline with
 -- @--inline-anf-bindings@. However, using it in the verification
 -- pipeline causes some tests in liquidhaskell to blow up.
+--
+-- Note: This function simplifies.
 undoANFAndVV :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
 undoANFAndVV = substBindings _2 $ \sym -> anfPrefix `isPrefixOfSym` sym || vvName `isPrefixOfSym` sym
 
--- | Like 'undoANF' but returns only modified bindings
+-- | Like 'undoANF' but returns only modified bindings and **DOES NOT SIMPLIFY**.
 undoANFOnlyModified :: HashMap Symbol (m, SortedReft) -> HashMap Symbol (m, SortedReft)
 undoANFOnlyModified env =
-    let undoANFEnv = undoANF _2 env
+    let undoANFEnv = undoANFSimplifyingWith id _2 env
      in HashMap.differenceWith dropUnchanged env undoANFEnv
   where
     dropUnchanged (_, a) v@(_, b) | a == b = Just v
@@ -620,7 +638,6 @@ inlineInSortedReft srLookup sr =
       guard (sym /= b)
       srLookup sym
 
-
 -- | Inlines bindings given by @srLookup@ in the given expression
 -- if they appear in equalities.
 --
@@ -635,7 +652,7 @@ inlineInSortedReft srLookup sr =
 -- this function produces the expression @... e1 ...@ if @v@ does not
 -- appear free in @e1@.
 inlineInExpr :: (Symbol -> Maybe SortedReft) -> Expr -> Expr
-inlineInExpr srLookup = simplify . mapExprOnExpr inlineExpr
+inlineInExpr srLookup = mapExprOnExpr inlineExpr
   where
     inlineExpr (EVar sym)
       | Just sr <- srLookup sym

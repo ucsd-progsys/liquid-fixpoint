@@ -1,11 +1,11 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns  #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.Fixpoint.Types.Visitor (
   -- * Visitor
@@ -268,24 +268,24 @@ mapMExpr f = go
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
     go e@(PKVar _ _)   = f e
-    go (PGrad k s i e) = f =<< (PGrad k s i <$>  go e                     )
-    go (ENeg e)        = f =<< (ENeg        <$>  go e                     )
-    go (PNot p)        = f =<< (PNot        <$>  go p                     )
-    go (ECst e t)      = f =<< ((`ECst` t)  <$>  go e                     )
-    go (PAll xts p)    = f =<< (PAll   xts  <$>  go p                     )
-    go (ELam (x,t) e)  = f =<< (ELam (x,t)  <$>  go e                     )
-    go (ECoerc a t e)  = f =<< (ECoerc a t  <$>  go e                     )
-    go (PExist xts p)  = f =<< (PExist xts  <$>  go p                     )
-    go (ETApp e s)     = f =<< ((`ETApp` s) <$>  go e                     )
-    go (ETAbs e s)     = f =<< ((`ETAbs` s) <$>  go e                     )
+    go (PGrad k s i e) = f . PGrad k s i =<< go e
+    go (ENeg e)        = f . ENeg =<< go e
+    go (PNot p)        = f . PNot =<< go p
+    go (ECst e t)      = f . (`ECst` t) =<< go e
+    go (PAll xts p)    = f . PAll   xts =<< go p
+    go (ELam (x,t) e)  = f . ELam (x,t) =<< go e
+    go (ECoerc a t e)  = f . ECoerc a t =<< go e
+    go (PExist xts p)  = f . PExist xts =<< go p
+    go (ETApp e s)     = f . (`ETApp` s) =<< go e
+    go (ETAbs e s)     = f . (`ETAbs` s) =<< go e
     go (EApp g e)      = f =<< (EApp        <$>  go g  <*> go e           )
     go (EBin o e1 e2)  = f =<< (EBin o      <$>  go e1 <*> go e2          )
     go (PImp p1 p2)    = f =<< (PImp        <$>  go p1 <*> go p2          )
     go (PIff p1 p2)    = f =<< (PIff        <$>  go p1 <*> go p2          )
     go (PAtom r e1 e2) = f =<< (PAtom r     <$>  go e1 <*> go e2          )
     go (EIte p e1 e2)  = f =<< (EIte        <$>  go p  <*> go e1 <*> go e2)
-    go (PAnd  ps)      = f =<< (PAnd        <$> (go <$$> ps)              )
-    go (POr  ps)       = f =<< (POr         <$> (go <$$> ps)              )
+    go (PAnd  ps)      = f . PAnd =<< (go <$$> ps)
+    go (POr  ps)       = f . POr =<< (go <$$> ps)
 
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f          = trans kvVis () ()
@@ -376,9 +376,9 @@ isConcC :: (TaggedC c a) => c a -> Bool
 isConcC = all isConc . conjuncts . crhs
 
 isKvar :: Expr -> Bool
-isKvar (PKVar {}) = True
-isKvar (PGrad {}) = True
-isKvar _          = False
+isKvar PKVar{} = True
+isKvar PGrad{} = True
+isKvar _       = False
 
 isConc :: Expr -> Bool
 isConc = null . kvarsExpr
@@ -409,7 +409,7 @@ applyCoSub coSub      = mapExpr fE
     fE (ELam (x,t) e) = ELam (x, txS t)         e
     fE e              = e
     txS               = mapSort fS
-    fS (FObj a)       = {- FObj -} (txV a)
+    fS (FObj a)       = {- FObj -} txV a
     fS t              = t
     txV a             = M.lookupDefault (FObj a) a coSub
 
@@ -500,3 +500,15 @@ getSymConsts         = fold scVis () []
     scVis            = (defaultVisitor :: Visitor [SymConst] t)  { accExpr = sc }
     sc _ (ESym c)    = [c]
     sc _ _           = []
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,5 +1,6 @@
 Liquid Fixpoint [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint) 
 [![CircleCI](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint.svg?style=svg)](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint)
+[![hlint](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/hlint-ci.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/hlint-ci.yml)
 ===============
 
 
@@ -145,26 +146,26 @@ You can use the `.smt2` interface from the command-line as follows:
 Use `--stdin` to read files from `stdin`
 
 ```
-$ more tests/horn/pos/test01.smt | fixpoint --stdin
+$ more tests/horn/pos/test01.smt2 | fixpoint --stdin
 
-Liquid-Fixpoint Copyright 2013-15 Regents of the University of California.
+Liquid-Fixpoint Copyright 2013-21 Regents of the University of California.
 All Rights Reserved.
 
-Working 175% [==================================================================================================================]
-Safe ( 3  constraints checked)
+Working 166% [===============================================================]
+Safe ( 2  constraints checked)
 ```
 
 Use `-q` to disable all output (banner, progress bar etc.)
 
 ```
-$ more tests/horn/pos/test01.smt | fixpoint -q --stdin
+$ more tests/horn/pos/test01.smt2 | fixpoint -q --stdin
 ```
 
 Use `--json` to get the output as a JSON object (rendered to `stdout`)
 
 ```
 $ more tests/horn/pos/abs02-re.smt2 | stack exec -- fixpoint -q --json --stdin
-"{\"result\":\"safe\"}"
+{"contents":{"numIter":3,"numCstr":3,"numChck":3,"numBrkt":3,"numVald":3},"tag":"Safe"}
 ```
 
 

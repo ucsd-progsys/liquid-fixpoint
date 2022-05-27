@@ -8,6 +8,7 @@
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE ImplicitParams            #-} -- ignore hlint
 
+
 module Language.Fixpoint.Misc where
 
 -- import           System.IO.Unsafe            (unsafePerformIO)
@@ -264,8 +265,8 @@ safeFromList msg kvs = applyNonNull (M.fromList kvs) err dups
   where
     -- dups             = duplicates . fmap fst
     dups             = [ x | (x, n) <- count (fst <$> kvs), 1 < n ]
-    err              = errorstar . wrap "safeFromList with duplicates" msg . show
-    wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2
+    err              = errorstar . wrapMsg "safeFromList with duplicates" msg . show
+    wrapMsg m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2
 
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
@@ -412,12 +413,12 @@ mapSnd f (x, y) = (x, f y)
 
 {-@ allCombinations :: xss:[[a]] -> [{v:[a]| len v == len xss}] @-}
 allCombinations :: [[a]] -> [[a]]
-allCombinations xs = assert (and . map (((length xs) == ) . length)) $ go xs
+allCombinations xs = assert (all ((length xs == ) . length)) $ go xs
   where
-   go []          = [[]]
-   go [[]]        = []
-   go ([]:_)      = []
-   go ((x:xs):ys) = ((x:) <$> go ys) ++ go (xs:ys)
+   go []           = [[]]
+   go [[]]         = []
+   go ([]:_)       = []
+   go ((x:xs'):ys) = ((x:) <$> go ys) ++ go (xs':ys)
 
    assert b x = if b x then x else errorstar "allCombinations: assertion violation"
 
@@ -435,7 +436,7 @@ _ <$$> []           = return []
 f <$$> [x1]         = singleton <$> f x1
 f <$$> [x1, x2]     = pair      <$> f x1 <*> f x2
 f <$$> [x1, x2, x3] = triple    <$> f x1 <*> f x2 <*> f x3
-f <$$> xs           = revMapM f ({- trace msg -} xs)
+f <$$> xs           = revMapM f {- trace msg -} xs
   where
     _msg            = "<$$> on " ++ show (length xs)
 
@@ -454,7 +455,7 @@ nubDiff a b = a' `S.difference` b'
 
 
 fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
-fold1M _ []         = errorstar $ "fold1M with empty list"
+fold1M _ []         = errorstar "fold1M with empty list"
 fold1M _ [x]        = return x
 fold1M f (x1:x2:xs) = do { x <- f x1 x2; fold1M f (x:xs) }
 

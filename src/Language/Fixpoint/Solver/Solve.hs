@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 --------------------------------------------------------------------------------
 -- | Solve a system of horn-clause constraints ---------------------------------
 --------------------------------------------------------------------------------
@@ -47,7 +49,7 @@ solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO 
 solve cfg fi = do
     whenLoud $ donePhase Misc.Loud "Worklist Initialize"
     vb <- getVerbosity
-    (res, stat) <- (if (Quiet == vb || gradual cfg) then id else withProgressFI sI) $ runSolverM cfg sI act
+    (res, stat) <- (if Quiet == vb || gradual cfg then id else withProgressFI sI) $ runSolverM cfg sI act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
@@ -125,7 +127,7 @@ solve_ cfg fi s0 ks wkl = do
     return (s3, res0)
 
   (fi1, s4, res1) <- case resStatus res0 of  {- first run the interpreter -}
-    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && useInterpreter cfg -> do
+    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && not (noInterpreter cfg) -> do
       fi1 <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
       (s4, res1) <-  sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
         s4    <- {- SCC "sol-refine" #-} refine bindingsInSmt s3 wkl
@@ -333,7 +335,7 @@ rhsPred c
 --------------------------------------------------------------------------------
 isValid :: F.SrcSpan -> F.Expr -> F.Expr -> SolveM Bool
 --------------------------------------------------------------------------------
-isValid sp p q = (not . null) <$> filterValid sp p [(q, ())]
+isValid sp p q = not . null <$> filterValid sp p [(q, ())]
 
 cstrSpan :: (F.Loc a) => F.SimpC a -> F.SrcSpan
 cstrSpan = F.srcSpan . F.sinfo
@@ -382,7 +384,7 @@ mergePartitions i j fis
   = zip [1..] ((takei i `mappend` (takei j){F.bs = mempty}):rest)
   where
     takei i = snd (fis L.!! (i - 1))
-    rest = snd <$> filter (\(k,_) -> (k /= i && k /= j)) fis
+    rest = snd <$> filter (\(k,_) -> k /= i && k /= j) fis
 
 partitionInfo :: (Int, F.SInfo a) -> String
 partitionInfo (i, fi)

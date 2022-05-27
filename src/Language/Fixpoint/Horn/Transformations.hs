@@ -2,6 +2,10 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE FlexibleInstances  #-}
+
+{-# OPTIONS_GHC -Wno-orphans        #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Horn.Transformations (
     uniq
   , flatten
@@ -48,13 +52,15 @@ trace _msg v = v
 printPiSols :: (F.PPrint a1, F.PPrint a2, F.PPrint a3) =>
                M.HashMap a1 ((a4, a2), a3) -> IO ()
 printPiSols piSols =
-  sequence_ $ ((\(piVar, ((_, args), cstr)) -> do
+  mapM_
+    (\(piVar, ((_, args), cstr)) -> do
                   putStr $ F.showpp piVar
                   putStr " := "
                   putStrLn $ F.showpp args
                   putStrLn $ F.showpp cstr
                   putStr "\n"
-                  hFlush stdout) <$> M.toList piSols)
+                  hFlush stdout)
+    (M.toList piSols)
 ---------------
 
 -- type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
@@ -83,9 +89,13 @@ solveEbs cfg query@(Query qs vs c cons dist eqns mats dds) = do
   whenLoud $ putStrLn $ F.showpp poked
 
   whenLoud $ putStrLn "Skolemized + split:"
-  let (Just _horn, Just _side) = split poked
+  let (_horn, _side) = case split poked of
+                        (Just h, Just s) -> (h, s)
+                        _ -> error "Couldn't split poked in solveEbs"
+
   let horn = flatten . pruneTauts $ _horn
   let side = flatten . pruneTauts $ _side
+
   whenLoud $ putStrLn $ F.showpp (horn, side)
 
   -- collect predicate variables
@@ -120,7 +130,7 @@ solveEbs cfg query@(Query qs vs c cons dist eqns mats dds) = do
   let solvedSide = substPiSols solvedPiCstrs side'
   whenLoud $ putStrLn $ F.showpp solvedSide
 
-  pure $ (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist eqns mats dds)
+  pure (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist eqns mats dds)
 
 -- | Collects the defining constraint for π
 -- that is, given `∀ Γ.∀ n.π => c`, returns `((π, n:Γ), c)`
@@ -157,7 +167,7 @@ solPis measures piSols = go (M.toList piSols) piSols
 
 -- TODO: rewrite to use CC
 solPi :: S.Set F.Symbol -> F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
-solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp (sols n) <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
+solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp (sols n) <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd rewritten
   where
     rewritten = rewriteWithEqualities measures n args equalities
     equalities = (nub . fst) $ go (S.singleton basePi) c
@@ -231,7 +241,7 @@ pokec = go mempty
   where
     go _ (Head c l) = Head c l
     go xs (CAnd c)   = CAnd (go xs <$> c)
-    go xs (All b c2) = All b $ go ((bSym b):xs) c2
+    go xs (All b c2) = All b $ go (bSym b : xs) c2
     go xs (Any b@(Bind x t p) c2) = CAnd [All b' $ CAnd [Head p l, go (x:xs) c2], Any b (Head pi l)]
       -- TODO: actually use the renamer?
       where
@@ -376,7 +386,10 @@ elimPis :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
 elimPis [] cc = cc
 elimPis (n:ns) (horn, side) = elimPis ns (apply horn, apply side)
 -- TODO: handle this error?
-  where Just nSol = defs n horn
+  where nSol = case defs n horn of
+                 Just nSol -> nSol
+                 Nothing -> error "Unexpected nothing elimPis"
+
         apply = applyPi (piSym n) nSol
 
 -- TODO: PAnd may be a problem
@@ -619,7 +632,7 @@ rewriteWithEqualities measures n args equalities = preds
     nResult = (n, makeWellFormed 15 $ sols n)
     argResults = map (\arg -> (arg, makeWellFormed 15 $ sols arg)) (S.toList args)
 
-    preds = (mconcat $ (\(x, es) -> mconcat $ mkEquality x <$> es) <$> (nResult:argResults))
+    preds = mconcat $ (\(x, es) -> mconcat $ mkEquality x <$> es) <$> (nResult:argResults)
 
     mkEquality x e = [Reft (F.PAtom F.Eq (F.EVar x) e)]
 
@@ -628,10 +641,10 @@ rewriteWithEqualities measures n args equalities = preds
       Nothing -> []
       Just vertex -> nub $ filter (/= F.EVar x) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph vertex]
 
-    argsAndPrims = args `S.union` (S.fromList $ map fst $ F.toListSEnv $ F.theorySymbols []) `S.union`measures
+    argsAndPrims = args `S.union` S.fromList (map fst $ F.toListSEnv $ F.theorySymbols []) `S.union`measures
 
     isWellFormed :: F.Expr -> Bool
-    isWellFormed e = (S.fromList $ F.syms e) `S.isSubsetOf` argsAndPrims
+    isWellFormed e = S.fromList (F.syms e) `S.isSubsetOf` argsAndPrims
 
     makeWellFormed :: Int -> [F.Expr] -> [F.Expr]
     makeWellFormed 0 es = filter isWellFormed es -- We solved it. Maybe.
@@ -639,7 +652,7 @@ rewriteWithEqualities measures n args equalities = preds
       where
         go e = if isWellFormed e then [e] else rewrite rewrites [e]
           where
-            needSolving = (S.fromList $ F.syms e) `S.difference` argsAndPrims
+            needSolving = S.fromList (F.syms e) `S.difference` argsAndPrims
             rewrites = (\x -> (x, filter (/= F.EVar x) $ sols x)) <$> S.toList needSolving
             rewrite [] es = es
             rewrite ((x, rewrites):rewrites') es = rewrite rewrites' $ [F.subst (F.mkSubst [(x, e')]) e | e' <- rewrites, e <- es]
@@ -710,7 +723,7 @@ uniq :: Cstr a -> Cstr a
 uniq c = evalState (uniq' c) M.empty
 
 uniq' :: Cstr a -> State RenameMap (Cstr a)
-uniq' (Head c a) = Head <$> gets (rename c) <*> pure a
+uniq' (Head c a) = gets (Head . rename c) <*> pure a
 uniq' (CAnd c) = CAnd <$> mapM uniq' c
 uniq' (All b@(Bind x _ _) c2) = do
     b' <- uBind b
@@ -794,7 +807,7 @@ scope k cstr = case go cstr of
       | k' == k = Right c
     go (Head _ l) = Left l
     go c@(All (Bind _ _ p) c') =
-      if k `S.member` (pKVars p) then Right c else go c'
+      if k `S.member` pKVars p then Right c else go c'
     go Any{} = error "any should not appear after poke"
 
     -- if kvar doesn't appear, then just return the left
@@ -837,7 +850,7 @@ sol1 _ (Head _ _) = []
 sol1 _ (Any _ _) =  error "ebinds don't work with old elim"
 
 kargs :: F.Symbol -> [F.Symbol]
-kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1..]
+kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1 :: Integer ..]
 
 -- |
 -- >>> LET c = doParse' hCstrP "" "(forall ((z Int) ($k0 z)) ((z = x)))"
@@ -854,10 +867,10 @@ doelim k bss (All (Bind x t p) c) =
   where
     demorgan :: F.Symbol -> F.Sort -> [(F.Symbol, [F.Symbol])] -> [Pred] -> Cstr a -> [([Bind], [F.Expr])] -> Cstr a
     demorgan x t kvars preds c bss = mkAnd $ cubeSol <$> bss
-      where su = F.Su $ M.fromList $ concat $ map (\(k, xs) -> zip (kargs k) (F.EVar <$> xs)) kvars
+      where su = F.Su $ M.fromList $ concatMap (\(k, xs) -> zip (kargs k) (F.EVar <$> xs)) kvars
             mkAnd [c] = c
             mkAnd cs = CAnd cs
-            cubeSol ((b:bs), eqs) = All b $ cubeSol (bs, eqs)
+            cubeSol (b:bs, eqs) = All b $ cubeSol (bs, eqs)
             cubeSol ([], eqs) = All (Bind x t (PAnd $ (Reft <$> F.subst su eqs) ++ (F.subst su <$> preds))) c
 doelim k _ (Head (Var k' _) a)
   | k == k'
@@ -875,11 +888,11 @@ findKVarInGuard :: F.Symbol -> Pred -> Either ([(F.Symbol, [F.Symbol])], [Pred])
 findKVarInGuard k (PAnd ps) =
   if null lefts
     then Right (PAnd ps) -- kvar not found
-    else Left $ (newLefts, newRights)
+    else Left (newLefts, newRights)
   where findResults = findKVarInGuard k <$> ps
         (lefts, rights) = partitionEithers findResults
-        newLefts = concat $ map fst lefts
-        newRights = concat (snd <$> lefts) ++ rights
+        newLefts = concatMap fst lefts
+        newRights = concatMap snd lefts ++ rights
 findKVarInGuard k p@(Var k' xs)
   | k == k' = Left ([(k', xs)], [])
   | otherwise = Right p
@@ -922,7 +935,7 @@ calculateCuts :: F.Config -> Query a -> Cstr a -> S.Set F.Symbol
 calculateCuts cfg (Query qs vs _ cons dist eqns mats dds) nnf = convert $ FG.depCuts deps
   where
     (_, deps) = elimVars cfg (hornFInfo cfg $ Query qs vs nnf cons dist eqns mats dds)
-    convert hashset = S.fromList $ F.kv <$> (HS.toList hashset)
+    convert hashset = S.fromList $ F.kv <$> HS.toList hashset
 
 forgetPiVars :: S.Set F.Symbol -> Cstr a -> Cstr a
 forgetPiVars _ c@Head{} = c
@@ -1008,10 +1021,10 @@ hornify :: Cstr a -> Cstr a
 hornify (Head (PAnd ps) a) = CAnd (flip Head a <$> ps')
   where ps' = let (ks, qs) = split [] [] (flatten ps) in PAnd qs : ks
 
-        split kacc pacc ((Var x xs):qs) = split ((Var x xs):kacc) pacc qs
+        split kacc pacc ((Var x xs):qs) = split (Var x xs : kacc) pacc qs
         split kacc pacc (q:qs) = split kacc (q:pacc) qs
         split kacc pacc [] = (kacc, pacc)
-hornify (Head (Reft r) a) = CAnd (flip Head a <$> ((Reft $ F.PAnd ps):(Reft <$> ks)))
+hornify (Head (Reft r) a) = CAnd (flip Head a <$> (Reft (F.PAnd ps):(Reft <$> ks)))
   where (ks, ps) = split [] [] $ F.splitPAnd r
         split kacc pacc (r@F.PKVar{}:rs) = split (r:kacc) pacc rs
         split kacc pacc (r:rs) = split kacc (r:pacc) rs

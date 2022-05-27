@@ -12,6 +12,8 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternSynonyms            #-}
 
+{-# OPTIONS_GHC -Wno-orphans            #-}
+
 -- | This module has the types for representing terms in the refinement logic.
 
 module Language.Fixpoint.Types.Refinements (
@@ -130,7 +132,6 @@ import qualified Data.Binary as B
 
 
 instance NFData KVar
-instance NFData SrcSpan
 instance NFData Subst
 instance NFData GradInfo
 instance NFData Constant
@@ -145,8 +146,6 @@ instance NFData SortedReft
   -- put = B.put . M.toList
   -- get = M.fromList <$> B.get
 
-instance (Eq a, Hashable a, S.Store a) => S.Store (TCEmb a)
-instance S.Store SrcSpan
 instance S.Store KVar
 instance S.Store Subst
 instance S.Store GradInfo
@@ -161,7 +160,6 @@ instance S.Store SortedReft
 instance B.Binary SymConst
 instance B.Binary Constant
 instance B.Binary Bop
-instance B.Binary SrcSpan
 instance B.Binary GradInfo
 instance B.Binary Brel
 instance B.Binary KVar
@@ -175,14 +173,12 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
 instance B.Binary Subst
 instance B.Binary Expr
 instance B.Binary Reft
-instance B.Binary TCArgs
-instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a)
 
 
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
-    ras'                     = if null ps then ks else ((conj ps) : ks)  -- see [NOTE:pAnd-SLOW]
+    ras'                     = if null ps then ks else conj ps : ks  -- see [NOTE:pAnd-SLOW]
     (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
 
 
@@ -199,7 +195,7 @@ class HasGradual a where
   ungrad x = x
 
 instance HasGradual Expr where
-  isGradual (PGrad {}) = True
+  isGradual PGrad{} = True
   isGradual (PAnd xs)  = any isGradual xs
   isGradual _          = False
 
@@ -207,7 +203,7 @@ instance HasGradual Expr where
   gVars (PAnd xs)       = concatMap gVars xs
   gVars _               = []
 
-  ungrad (PGrad {}) = PTrue
+  ungrad PGrad{} = PTrue
   ungrad (PAnd xs)  = PAnd (ungrad <$> xs )
   ungrad e          = e
 
@@ -281,8 +277,8 @@ instance PPrint KVSub where
 
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
-data SymConst = SL !Text
-              deriving (Eq, Ord, Show, Data, Typeable, Generic)
+newtype SymConst = SL Text
+                   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Constant = I !Integer
               | R !Double
@@ -478,6 +474,8 @@ newtype Reft = Reft (Symbol, Expr)
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Ord, Data, Typeable, Generic)
 
+instance Hashable SortedReft
+
 sortedReftSymbols :: SortedReft -> HashSet Symbol
 sortedReftSymbols sr =
   HashSet.union
@@ -665,12 +663,6 @@ instance PPrint Brel where
 instance PPrint Bop where
   pprintTidy _  = toFix
 
-instance PPrint Sort where
-  pprintTidy _ = toFix
-
-instance PPrint a => PPrint (TCEmb a) where
-  pprintTidy k = pprintTidy k . tceToList
-
 instance PPrint KVar where
   pprintTidy _ (KV x) = text "$" <-> pprint x
 
@@ -733,7 +725,7 @@ instance PPrint Expr where
     where zi = 1
 
   -- RJ: DO NOT DELETE!
-  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
+  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} pprintTidy k so
   -- pprintPrec z k (ECst e _)      = pprintPrec z k e
   pprintPrec _ _ PTrue           = trueD
   pprintPrec _ _ PFalse          = falseD
@@ -741,14 +733,14 @@ instance PPrint Expr where
                                    "not" <+> pprintPrec (zn+1) k p
     where zn = 8
   pprintPrec z k (PImp p1 p2)    = parensIf (z > zi) $
-                                   (pprintPrec (zi+1) k p1) <+>
+                                   pprintPrec (zi+1) k p1 <+>
                                    "=>"                     <+>
-                                   (pprintPrec (zi+1) k p2)
+                                   pprintPrec (zi+1) k p2
     where zi = 2
   pprintPrec z k (PIff p1 p2)    = parensIf (z > zi) $
-                                   (pprintPrec (zi+1) k p1) <+>
+                                   pprintPrec (zi+1) k p1 <+>
                                    "<=>"                    <+>
-                                   (pprintPrec (zi+1) k p2)
+                                   pprintPrec (zi+1) k p2
     where zi = 2
   pprintPrec z k (PAnd ps)       = parensIf (z > za) $
                                    pprintBin (za + 1) k trueD andD ps
@@ -765,7 +757,7 @@ instance PPrint Expr where
   pprintPrec _ k (PExist xts p)  = pprintQuant k "exists" xts p
   pprintPrec _ k (ELam (x,t) e)  = "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprintTidy k e
   pprintPrec _ k (ECoerc a t e)  = parens $ "coerce" <+> toFix a <+> "~" <+> toFix t <+> text "in" <+> pprintTidy k e
-  pprintPrec _ _ p@(PKVar {})    = toFix p
+  pprintPrec _ _ p@PKVar{}    = toFix p
   pprintPrec _ _ (ETApp e s)     = "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
   pprintPrec z k (PGrad x _ _ e) = pprintPrec z k e <+> "&&" <+> toFix x -- "??"
@@ -888,7 +880,7 @@ pOr           = simplify . POr
 (|.|) p q = pOr [p, q]
 
 pIte :: Pred -> Expr -> Expr -> Expr
-pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
+pIte p1 p2 p3 = pAnd [p1 `PImp` p2, PNot p1 `PImp` p3]
 
 pExist :: [(Symbol, Sort)] -> Pred -> Pred
 pExist []  p = p
@@ -1035,3 +1027,6 @@ class (Monoid r, Subable r) => Reftable r where
   toReft  :: r -> Reft
   ofReft  :: Reft -> r
   params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
+
+instance Fixpoint Doc where
+  toFix = id

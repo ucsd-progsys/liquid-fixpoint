@@ -8,6 +8,8 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE PatternGuards             #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
 --   2. computing satisfying assignments
@@ -210,7 +212,7 @@ smtRead me = {- SCC "smtRead" #-} do
   case A.eitherResult res of
     Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
     Right r -> do
-      maybe (return ()) (\h -> LTIO.hPutStrLn h $ blt ("; SMT Says: " <> (bShow r))) (ctxLog me)
+      maybe (return ()) (\h -> LTIO.hPutStrLn h $ blt ("; SMT Says: " <> bShow r)) (ctxLog me)
       when (ctxVerbose me) $ LTIO.putStrLn $ blt ("SMT Says: " <> bShow r)
       return r
 
@@ -237,11 +239,11 @@ valuesP = A.many1' pairP <* A.char ')'
 pairP :: SmtParser (Symbol, T.Text)
 pairP = {- SCC "pairP" #-}
   do A.skipSpace
-     A.char '('
+     _ <- A.char '('
      !x <- symbolP
      A.skipSpace
      !v <- valueP
-     A.char ')'
+     _ <- A.char ')'
      return (x,v)
 
 symbolP :: SmtParser Symbol
@@ -334,7 +336,7 @@ makeProcess cfg
 
 -- | Close file handles and wait for the solver process to terminate.
 cleanupContext :: Context -> IO ExitCode
-cleanupContext (Ctx {..}) = do
+cleanupContext Ctx{..} = do
   cancel ctxAsync
   hCloseMe "ctxCin"  ctxCin
   hCloseMe "ctxCout" ctxCout
@@ -511,7 +513,7 @@ interact' me cmd  = void $ command me cmd
 
 makeTimeout :: Config -> [LT.Text]
 makeTimeout cfg
-  | Just i <- smtTimeout cfg = [ LT.pack ("\n(set-option :timeout " ++ (show i) ++ ")\n")]
+  | Just i <- smtTimeout cfg = [ LT.pack ("\n(set-option :timeout " ++ show i ++ ")\n")]
   | otherwise                = [""]
 
 

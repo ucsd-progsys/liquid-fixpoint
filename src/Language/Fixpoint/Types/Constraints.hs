@@ -12,6 +12,8 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing     #-}
+
 -- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
 module Language.Fixpoint.Types.Constraints (
@@ -156,12 +158,12 @@ gwInfo _
   = errorstar "gwInfo"
 
 updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a
-updateWfCExpr _ w@(WfC {})  = w
-updateWfCExpr f w@(GWfC {}) = w{wexpr = f (wexpr w)}
+updateWfCExpr _ w@WfC{}  = w
+updateWfCExpr f w@GWfC{} = w{wexpr = f (wexpr w)}
 
 isGWfc :: WfC a -> Bool
-isGWfc (GWfC {}) = True
-isGWfc (WfC  {}) = False
+isGWfc GWfC{} = True
+isGWfc WfC{}  = False
 
 instance HasGradual (WfC a) where
   isGradual = isGWfc
@@ -291,10 +293,10 @@ instance ToJSON a => ToJSON (Result a) where
 instance Semigroup (Result a) where
   r1 <> r2  = Result stat soln nonCutsSoln gsoln
     where
-      stat  = (resStatus r1)    <> (resStatus r2)
-      soln  = (resSolution r1)  <> (resSolution r2)
+      stat  = resStatus r1    <> resStatus r2
+      soln  = resSolution r1  <> resSolution r2
       nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
-      gsoln = (gresSolution r1) <> (gresSolution r2)
+      gsoln = gresSolution r1 <> gresSolution r2
 
 instance Monoid (Result a) where
   mempty        = Result mempty mempty mempty mempty
@@ -362,7 +364,7 @@ instance Fixpoint a => Fixpoint (WfC a) where
               -- NOTE: this next line is printed this way for compatability with the OCAML solver
               $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k mempty)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
-              $+$ if (isGWfc w) then (toFixMeta (text "expr") (toFix (wexpr w))) else mempty
+              $+$ if isGWfc w then toFixMeta (text "expr") (toFix (wexpr w)) else mempty
           (v, t, k) = wrft w
 
 toFixMeta :: Doc -> Doc -> Doc
@@ -631,7 +633,7 @@ newtype Kuts = KS { ksVars :: S.HashSet KVar }
                deriving (Eq, Show, Generic)
 
 instance Fixpoint Kuts where
-  toFix (KS s) = vcat $ (("cut " <->) . toFix) <$> L.sort (S.toList s)
+  toFix (KS s) = vcat $ ("cut " <->) . toFix <$> L.sort (S.toList s)
 
 ksMember :: KVar -> Kuts -> Bool
 ksMember k (KS s) = S.member k s
@@ -732,19 +734,19 @@ instance Monoid HOInfo where
   mempty        = HOI False False
 
 instance Semigroup (GInfo c a) where
-  i1 <> i2 = FI { cm       = (cm i1)       <> (cm i2)
-                , ws       = (ws i1)       <> (ws i2)
-                , bs       = (bs i1)       <> (bs i2)
-                , ebinds   = (ebinds i1)   <> (ebinds i2)
-                , gLits    = (gLits i1)    <> (gLits i2)
-                , dLits    = (dLits i1)    <> (dLits i2)
-                , kuts     = (kuts i1)     <> (kuts i2)
-                , quals    = (quals i1)    <> (quals i2)
-                , bindInfo = (bindInfo i1) <> (bindInfo i2)
-                , ddecls   = (ddecls i1)   <> (ddecls i2)
-                , hoInfo   = (hoInfo i1)   <> (hoInfo i2)
-                , asserts  = (asserts i1)  <> (asserts i2)
-                , ae       = (ae i1)       <> (ae i2)
+  i1 <> i2 = FI { cm       = cm i1       <> cm i2
+                , ws       = ws i1       <> ws i2
+                , bs       = bs i1       <> bs i2
+                , ebinds   = ebinds i1   <> ebinds i2
+                , gLits    = gLits i1    <> gLits i2
+                , dLits    = dLits i1    <> dLits i2
+                , kuts     = kuts i1     <> kuts i2
+                , quals    = quals i1    <> quals i2
+                , bindInfo = bindInfo i1 <> bindInfo i2
+                , ddecls   = ddecls i1   <> ddecls i2
+                , hoInfo   = hoInfo i1   <> hoInfo i2
+                , asserts  = asserts i1  <> asserts i2
+                , ae       = ae i1       <> ae i2
                 }
 
 
@@ -915,14 +917,10 @@ instance S.Store AutoRewrite
 instance S.Store AxiomEnv
 instance S.Store Rewrite
 instance S.Store Equation
-instance S.Store SMTSolver
-instance S.Store Eliminate
 instance NFData AutoRewrite
 instance NFData AxiomEnv
 instance NFData Rewrite
 instance NFData Equation
-instance NFData SMTSolver
-instance NFData Eliminate
 
 dedupAutoRewrites :: M.HashMap SubcId [AutoRewrite] -> [AutoRewrite]
 dedupAutoRewrites = Set.toList . Set.unions . map Set.fromList . M.elems
@@ -930,10 +928,10 @@ dedupAutoRewrites = Set.toList . Set.unions . map Set.fromList . M.elems
 instance Semigroup AxiomEnv where
   a1 <> a2        = AEnv aenvEqs' aenvSimpl' aenvExpand' aenvAutoRW'
     where
-      aenvEqs'    = (aenvEqs a1)    <> (aenvEqs a2)
-      aenvSimpl'  = (aenvSimpl a1)  <> (aenvSimpl a2)
-      aenvExpand' = (aenvExpand a1) <> (aenvExpand a2)
-      aenvAutoRW' = (aenvAutoRW a1) <> (aenvAutoRW a2)
+      aenvEqs'    = aenvEqs a1    <> aenvEqs a2
+      aenvSimpl'  = aenvSimpl a1  <> aenvSimpl a2
+      aenvExpand' = aenvExpand a1 <> aenvExpand a2
+      aenvAutoRW' = aenvAutoRW a1 <> aenvAutoRW a2
 
 instance Monoid AxiomEnv where
   mempty          = AEnv [] [] (M.fromList []) (M.fromList [])
@@ -976,7 +974,6 @@ data AutoRewrite = AutoRewrite
   , arRHS  :: Expr
 } deriving (Eq, Ord, Show, Generic)
 
-instance Hashable SortedReft
 instance Hashable AutoRewrite
 
 
@@ -1022,9 +1019,6 @@ instance Fixpoint AxiomEnv where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
       renderExpand [] = empty
       renderExpand xs = text "expand" <+> toFix xs
-
-instance Fixpoint Doc where
-  toFix = id
 
 instance Fixpoint Equation where
   toFix (Equ f xs e s _) = "define" <+> toFix f <+> ppArgs xs <+> ":" <+> toFix s <+> text "=" <+> braces (parens (toFix e))

@@ -4,6 +4,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards     #-}
 
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
+
 module Language.Fixpoint.Solver.Sanitize
   ( -- * Transform FInfo to enforce invariants
     sanitize
@@ -408,13 +410,13 @@ symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
     tEnv         = Thy.theorySymbols ds
     ds           = F.ddecls si
     ts           = Misc.hashNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
-    sEnv         = (F.tsSort <$> tEnv) `mappend` (F.fromListSEnv xts)
+    sEnv         = (F.tsSort <$> tEnv) `mappend` F.fromListSEnv xts
     xts          = symbolSorts cfg si ++ alits
     lits         = F.dLits si `F.unionSEnv'` F.fromListSEnv alits
     alits        = litsAEnv $ F.ae si
 
 litsAEnv :: F.AxiomEnv -> [(F.Symbol, F.Sort)]
-litsAEnv ae = zip (F.symbol <$> (symConsts ae)) (repeat $ F.strSort)
+litsAEnv ae = zip (F.symbol <$> symConsts ae) (repeat F.strSort)
 
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
@@ -425,17 +427,16 @@ symbolSorts' _cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs
     defs            = F.toListSEnv . F.gLits $ fi
-    txFun
-      | True        = id
+    txFun           = id
 
 unShadow :: (F.Sort -> F.Sort) -> M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
 unShadow tx dm (x, t)
-  | M.member x dm  = (x, t)
-  | otherwise      = (x, tx t)
+  | M.member x dm = (x, t)
+  | otherwise     = (x, tx t)
 
 _defuncSort :: F.Sort -> F.Sort
-_defuncSort (F.FFunc {}) = F.funcSort
-_defuncSort t            = t
+_defuncSort F.FFunc{} = F.funcSort
+_defuncSort t         = t
 
 compact :: [(F.Symbol, F.Sort)] -> Either E.Error [(F.Symbol, F.Sort)]
 compact xts
@@ -488,7 +489,7 @@ dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders ok (const True) fi
   where
-    ok x t  = (M.member x defs) ==> (F.allowHO fi || isFirstOrder t)
+    ok x t  = M.member x defs ==> (F.allowHO fi || isFirstOrder t)
     defs    = M.fromList $ F.toListSEnv $ F.gLits fi
 
 (==>) :: Bool -> Bool -> Bool

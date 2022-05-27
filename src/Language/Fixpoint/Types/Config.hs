@@ -30,9 +30,11 @@ module Language.Fixpoint.Types.Config (
   , queryFile
 ) where
 
+import qualified Data.Store as S
 import qualified Data.List as L
 import Data.Serialize                (Serialize (..))
 import Control.Monad
+import Control.DeepSeq
 import GHC.Generics
 import System.Console.CmdArgs
 import System.Console.CmdArgs.Explicit
@@ -92,7 +94,7 @@ data Config = Config
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
-  , useInterpreter   :: Bool           -- ^ Use the interpreter to assist PLE
+  , noInterpreter    :: Bool           -- ^ Do not use the interpreter to assist PLE
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , noEnvironmentReduction :: Bool     -- ^ Don't use environment reduction
@@ -130,8 +132,8 @@ instance Read RESTOrdering where
   readsPrec _ s | "lbo" `L.isPrefixOf` s = [(RESTLPO, drop 3 s)]
   readsPrec _ s | "rpo" `L.isPrefixOf` s = [(RESTRPO, drop 3 s)]
   readsPrec n s | "fuel" `L.isPrefixOf` s = do
-                        (fuel, rest) <- readsPrec n (drop 4 s)
-                        return $ (RESTFuel fuel, rest)
+                        (fuel', rest) <- readsPrec n (drop 4 s)
+                        return (RESTFuel fuel', rest)
   readsPrec _ _ = []
 
 ---------------------------------------------------------------------------------------
@@ -146,6 +148,8 @@ instance Show SMTSolver where
   show Z3      = "z3"
   show Cvc4    = "cvc4"
   show Mathsat = "mathsat"
+
+instance S.Store SMTSolver
 
 ---------------------------------------------------------------------------------------
 -- | Eliminate describes the number of KVars to eliminate:
@@ -164,6 +168,9 @@ data Eliminate
   deriving (Eq, Data, Typeable, Generic)
 
 instance Serialize Eliminate
+instance S.Store Eliminate
+instance NFData SMTSolver
+instance NFData Eliminate
 
 instance Default Eliminate where
   def = None
@@ -213,7 +220,10 @@ defConfig = Config {
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting"
-  , useInterpreter           = True &= help "Use the interpreter to assist PLE"
+  , noInterpreter            =
+      False
+        &= name "no-interpreter"
+        &= help "Do not use the interpreter to assist PLE"
   , oldPLE                   = False &= help "Use old version of PLE"
   , noIncrPle                = False &= help "Don't use incremental PLE"
   , noEnvironmentReduction   =

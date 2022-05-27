@@ -6,7 +6,7 @@ jobs:
     machine:
       image: ubuntu-2004:202107-02
     steps:
-      - run: sudo apt-get update && sudo apt-get install -y curl git ssh unzip wget libtinfo-dev gcc make
+      - run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq curl git ssh unzip wget libtinfo-dev gcc make
       - add_ssh_keys
       - run: 
           name: Install z3 
@@ -44,7 +44,8 @@ jobs:
           name: Test
           command: |
             mkdir -p /tmp/junit
-            stack --no-terminal test -j2 liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=/tmp/junit/main-test-results.xml":
+            stack --no-terminal test -j2 liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=/tmp/junit/main-test-results.xml"
+            stack --no-terminal test -j2 liquid-fixpoint:test --flag liquid-fixpoint:devel --ta "--fixpoint-opts --no-interpreter" --test-arguments="--xml=/tmp/junit/main-test-results-no-interpreter.xml"
             stack --no-terminal haddock --flag liquid-fixpoint:devel --test --no-run-tests --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
             # mkdir -p $CIRCLE_TEST_REPORTS/tasty
             # cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log

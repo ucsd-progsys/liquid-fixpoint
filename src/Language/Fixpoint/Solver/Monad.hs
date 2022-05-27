@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | This is a wrapper around IO that permits SMT queries
@@ -183,7 +182,7 @@ filterRequired = error "TBD:filterRequired"
 -}
 
 --------------------------------------------------------------------------------
--- | `filterValid p [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
+-- | `filterValid p [(q1, x1),...,(qn, xn)]` returns the list `[ xi | p => qi]`
 --------------------------------------------------------------------------------
 {-# SCC filterValid #-}
 filterValid :: F.SrcSpan -> F.Expr -> F.Cand a -> SolveM [a]
@@ -229,7 +228,7 @@ filterValidGradual p qs = do
 
 filterValidGradual_ :: [F.Expr] -> F.Cand a -> Context -> IO [a]
 filterValidGradual_ ps qs me
-  = (map snd . fst) <$> foldM partitionCandidates ([], qs) ps
+  = map snd . fst <$> foldM partitionCandidates ([], qs) ps
   where
     partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> IO (F.Cand a, F.Cand a)
     partitionCandidates (ok, candidates) p = do
@@ -244,7 +243,7 @@ filterValidOne_ p qs me = do
     smtBracket me "filterValidRHS" $ do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
-      return $ ((q, x), valid)
+      return ((q, x), valid)
 
 smtEnablembqi :: SolveM ()
 smtEnablembqi
