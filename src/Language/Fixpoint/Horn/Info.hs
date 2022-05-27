@@ -8,7 +8,6 @@ module Language.Fixpoint.Horn.Info (
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import qualified Data.Tuple                     as Tuple
-import qualified Data.Maybe                     as Mb
 import           Data.Either                    (partitionEithers)
 import           GHC.Generics                   (Generic)
 import qualified Language.Fixpoint.Misc         as Misc
@@ -103,7 +102,7 @@ kvApp :: KVEnv a -> F.Symbol -> [F.Symbol] -> F.Expr
 kvApp kve k ys = F.PKVar (F.KV k) su
   where
     su         = F.mkSubst (zip params (F.eVar <$> ys))
-    params     = Mb.fromMaybe err1 $ kvParams <$> M.lookup k kve
+    params     = maybe err1 kvParams (M.lookup k kve)
     err1       = F.panic ("Unknown Horn variable: " ++ F.showpp k)
 
 ----------------------------------------------------------------------------------
