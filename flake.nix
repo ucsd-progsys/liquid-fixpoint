@@ -3,7 +3,7 @@
   description = "Liquid Fixpoint";
 
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-21.05;
+    nixpkgs.url = github:NixOS/nixpkgs/nixos-22.05;
     flake-utils.url = github:numtide/flake-utils;
   };
 
@@ -45,22 +45,30 @@
           updateAllCabalHashes = final: prev:
             {
               all-cabal-hashes = final.fetchurl {
-                # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/commits/hackage as of Thu Feb 17 07:38:07 PM UTC 2022
-                url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/0c6e849a2c97f511653d375f51636b51fc429dc4.tar.gz";
-                sha256 = "0xdnhagd9xj93p3zd6r84x4nr18spwjmhs8dxzq7n199q32snkha";
+                # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/commits/hackage as of Fri May 27 06:40:19 PM UTC 2022
+                url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/91cbef8524376834839ea2814010a0258a06e37e.tar.gz";
+                sha256 = "01h8cd2b1w4060dyyh4zz604gpjyzhvvc0mb1aj18b1z2bcgfakj";
               };
             };
           addRestRewrite = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
             with prev.haskell.lib; {
-              rest-rewrite = overrideCabal (selfH.callHackage "rest-rewrite" "0.2.0" { }) (old: {
-                buildTools = [ prev.z3 ];
-                doCheck = false; # rest: graphs/fig4.dot: openFile: does not exist (No such file or directory)
-              });
+              rest-rewrite = overrideCabal
+                (selfH.callCabal2nix "rest-rewrite"
+                  # rest-rewrite-0.2.0 on hackage defines `instance Hashable (Map a b)` but this has been upstreamed and so we build rest-rewrite-0.2.1 (which removed that instance) from github source
+                  (final.fetchFromGitHub {
+                    owner = "zgrannan";
+                    repo = "rest";
+                    rev = "9637b77823ef3ceb909510cad2508e828767f6fb";
+                    sha256 = "15mxdd2ipy4zw5sf8vah7d5f3qzshy9qddlga0ip9pighcv2f19g";
+                  })
+                  { })
+                (old: {
+                  buildTools = [ prev.z3 ];
+                  doCheck = false; # rest: graphs/fig4.dot: openFile: does not exist (No such file or directory)
+                });
             });
           patchHaskellGit = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
             with prev.haskell.lib; {
-              # liquid-fixpoint relies on an old version of megaparsec
-              megaparsec = selfH.callHackage "megaparsec" "8.0.0" { };
               # git has a MFP bug and hasn't been fixed yet Wed Oct  6 10:46:02 AM PDT 2021
               git = prev.haskell.lib.overrideCabal (selfH.callHackage "git" "0.3.0" { }) (old: {
                 broken = false;
