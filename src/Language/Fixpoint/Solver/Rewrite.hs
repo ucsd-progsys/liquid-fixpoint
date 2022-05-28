@@ -19,6 +19,7 @@ module Language.Fixpoint.Solver.Rewrite
   , RESTOrdering(..)
   ) where
 
+import           Data.Bifunctor (second)
 import           Control.Monad.State (guard)
 import           Control.Monad.Trans.Maybe
 import qualified Data.HashMap.Strict  as M
@@ -168,7 +169,7 @@ subExprs' (EBin op lhs rhs) = lhs'' ++ rhs''
     lhs'' :: [SubExpr]
     lhs'' = map (\(e, f) -> (e, \e' -> EBin op (f e') rhs)) lhs'
     rhs'' :: [SubExpr]
-    rhs'' = map (\(e, f) -> (e, \e' -> EBin op lhs (f e'))) rhs'
+    rhs'' = map (second (EBin op lhs .)) rhs'
 
 subExprs' (PImp lhs rhs) = lhs'' ++ rhs''
   where
@@ -177,7 +178,7 @@ subExprs' (PImp lhs rhs) = lhs'' ++ rhs''
     lhs'' :: [SubExpr]
     lhs'' = map (\(e, f) -> (e, \e' -> PImp (f e') rhs)) lhs'
     rhs'' :: [SubExpr]
-    rhs'' = map (\(e, f) -> (e, \e' -> PImp lhs (f e'))) rhs'
+    rhs'' = map (second (PImp lhs .)) rhs'
 
 subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
   where
@@ -186,7 +187,7 @@ subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
     lhs'' :: [SubExpr]
     lhs'' = map (\(e, f) -> (e, \e' -> PAtom op (f e') rhs)) lhs'
     rhs'' :: [SubExpr]
-    rhs'' = map (\(e, f) -> (e, \e' -> PAtom op lhs (f e'))) rhs'
+    rhs'' = map (second (PAtom op lhs .)) rhs'
 
 subExprs' e@EApp{} =
   if f == EVar "Language.Haskell.Liquid.ProofCombinators.===" ||

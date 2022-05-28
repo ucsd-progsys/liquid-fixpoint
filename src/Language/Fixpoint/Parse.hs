@@ -899,7 +899,7 @@ makePrec :: Maybe Int -> Int
 makePrec = fromMaybe 9
 
 makeInfixFun :: String -> Maybe (Expr -> Expr -> Expr) -> Expr -> Expr -> Expr
-makeInfixFun x = fromMaybe (\e1 e2 -> EApp (EApp (EVar $ symbol x) e1) e2)
+makeInfixFun x = fromMaybe (EApp . EApp (EVar $ symbol x))
 
 makePrefixFun :: String -> Maybe (Expr -> Expr) -> Expr -> Expr
 makePrefixFun x = fromMaybe (EApp (EVar $ symbol x))
