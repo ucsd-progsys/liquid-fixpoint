@@ -68,10 +68,9 @@ savePrettifiedQuery cfg fi = do
 prettyConstraints :: Fixpoint a => FInfo a -> Doc
 prettyConstraints fi =
   vcat $
-  map (prettyConstraint (bs fi)) $
-  map snd $
-  sortOn fst $
-  HashMap.toList (cm fi)
+  map
+    (prettyConstraint (bs fi) . snd)
+    (sortOn fst $ HashMap.toList (cm fi))
 
 prettyConstraint
   :: Fixpoint a
