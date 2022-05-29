@@ -31,7 +31,7 @@ module Language.Fixpoint.SortCheck  (
   , sortExpr
   , checkSortExpr
   , exprSort
-  , exprSort_maybe
+  , exprSortMaybe
 
   -- * Unify
   , unifyFast
@@ -860,12 +860,12 @@ applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
 -- | Expressions sort  ---------------------------------------------------------
 --------------------------------------------------------------------------------
 exprSort :: String -> Expr -> Sort
-exprSort msg e = fromMaybe (panic err') (exprSort_maybe e)
+exprSort msg e = fromMaybe (panic err') (exprSortMaybe e)
   where
     err'        = printf "exprSort [%s] on unexpected expression %s" msg (show e)
 
-exprSort_maybe :: Expr -> Maybe Sort
-exprSort_maybe = go
+exprSortMaybe :: Expr -> Maybe Sort
+exprSortMaybe = go
   where
     go (ECst _ s) = Just s
     go (ELam (_, sx) e) = FFunc sx <$> go e
@@ -1088,8 +1088,8 @@ unifyExpr _ _
 
 unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
 unifyExprApp f e1 e2 = do
-  t1 <- getArg $ exprSort_maybe e1
-  t2 <- exprSort_maybe e2
+  t1 <- getArg $ exprSortMaybe e1
+  t2 <- exprSortMaybe e2
   unify f (Just $ EApp e1 e2) t1 t2
   where
     getArg (Just (FFunc t1 _)) = Just t1
