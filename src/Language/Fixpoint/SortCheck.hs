@@ -1014,7 +1014,7 @@ checkEqConstr :: Env -> Maybe Expr -> TVSubst -> Symbol -> Sort -> CheckM TVSubs
 checkEqConstr _ _  θ a (FObj b)
   | a == b
   = return θ
-checkEqConstr f e θ a t = do
+checkEqConstr f e θ a t =
   case f a of
     Found tA -> unify1 f e θ tA t
     _        -> throwErrorAt $ errUnifyMsg (Just "ceq2") e (FObj a) t
@@ -1190,7 +1190,7 @@ unify1 f e !θ (FApp !t1 !t2) (FApp !t1' !t2')
 unify1 _ _ !θ (FTC !l1) (FTC !l2)
   | isListTC l1 && isListTC l2
   = return θ
-unify1 f e !θ !t1@(FAbs _ _) !t2 = do
+unify1 f e !θ t1@(FAbs _ _) !t2 = do
   !t1' <- instantiate t1
   unifyMany f e θ [t1'] [t2]
 unify1 f e !θ !t1 t2@(FAbs _ _) = do
@@ -1199,19 +1199,19 @@ unify1 f e !θ !t1 t2@(FAbs _ _) = do
 unify1 _ _ !θ !s1 !s2
   | isString s1, isString s2
   = return θ
-unify1 _ _ !θ !FInt  !FReal = return θ
+unify1 _ _ !θ FInt  FReal = return θ
 
-unify1 _ _ !θ !FReal !FInt  = return θ
+unify1 _ _ !θ FReal FInt  = return θ
 
 unify1 f e !θ !t FInt = do
   checkNumeric f t `withError` errUnify e t FInt
   return θ
 
-unify1 f e !θ !FInt !t = do
+unify1 f e !θ FInt !t = do
   checkNumeric f t `withError` errUnify e FInt t
   return θ
 
-unify1 f e !θ (FFunc !t1 !t2) (FFunc !t1' !t2') = do
+unify1 f e !θ (FFunc !t1 !t2) (FFunc !t1' !t2') =
   unifyMany f e θ [t1, t2] [t1', t2']
 
 unify1 f e θ (FObj a) !t =
@@ -1227,7 +1227,7 @@ unify1 _ e θ !t1 !t2
   = throwErrorAt (errUnify e t1 t2)
 
 subst :: Int -> Sort -> Sort -> Sort
-subst !j !tj !t@(FVar !i)
+subst !j !tj t@(FVar !i)
   | i == j                  = tj
   | otherwise               = t
 
@@ -1263,7 +1263,7 @@ instantiate !t = go t
       return t'
 
 unifyVar :: Env -> Maybe Expr -> TVSubst -> Int -> Sort -> CheckM TVSubst
-unifyVar _ _ θ !i !t@(FVar !j)
+unifyVar _ _ θ !i t@(FVar !j)
   = case lookupVar i θ of
       Just !t'      -> if t == t' then return θ else return (updateVar j t' θ)
       Nothing       -> return (updateVar i t θ)
