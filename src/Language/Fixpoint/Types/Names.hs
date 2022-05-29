@@ -329,10 +329,7 @@ isAlpha0 t = case T.uncons t of
 isUnsafeChar :: Char -> Bool
 isUnsafeChar c =
   let ic = ord c
-   in if ic < Arr.numElements okSymChars then
-        not (okSymChars Arr.! ic)
-      else
-        True
+   in ic >= Arr.numElements okSymChars || not (okSymChars Arr.! ic)
 
 keywords :: S.HashSet T.Text
 keywords   = S.fromList [ "env"
