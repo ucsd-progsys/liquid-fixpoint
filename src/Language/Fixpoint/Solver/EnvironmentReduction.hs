@@ -38,7 +38,7 @@ import           Data.Maybe (fromMaybe)
 import           Data.ShareMap (ShareMap)
 import qualified Data.ShareMap as ShareMap
 import qualified Data.Text as Text
-import           Language.Fixpoint.SortCheck (exprSort_maybe)
+import           Language.Fixpoint.SortCheck (exprSortMaybe)
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Environments
@@ -683,7 +683,7 @@ inlineInExpr srLookup = mapExprOnExpr inlineExpr
 
     isEq r = r == Eq || r == Ueq
 
-    wrapWithCoercion br to e = case exprSort_maybe e of
+    wrapWithCoercion br to e = case exprSortMaybe e of
       Just from -> if from /= to then ECoerc from to e else e
       Nothing -> if br == Ueq then ECst e to else e
 
