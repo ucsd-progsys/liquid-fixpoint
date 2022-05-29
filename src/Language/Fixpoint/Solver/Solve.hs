@@ -122,16 +122,16 @@ solve_ cfg fi s0 ks wkl = do
   let s2   = mappend s0 s1
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
     -- let s3   = solveEbinds fi s2
-    s3       <- {- SCC "sol-refine" #-} refine bindingsInSmt s2 wkl
-    res0     <- {- SCC "sol-result" #-} result bindingsInSmt cfg wkl s3
+    s3       <- {- SCC "sol-refine" -} refine bindingsInSmt s2 wkl
+    res0     <- {- SCC "sol-result" -} result bindingsInSmt cfg wkl s3
     return (s3, res0)
 
   (fi1, s4, res1) <- case resStatus res0 of  {- first run the interpreter -}
     Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && not (noInterpreter cfg) -> do
       fi1 <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
       (s4, res1) <-  sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
-        s4    <- {- SCC "sol-refine" #-} refine bindingsInSmt s3 wkl
-        res1  <- {- SCC "sol-result" #-} result bindingsInSmt cfg wkl s4 
+        s4    <- {- SCC "sol-refine" -} refine bindingsInSmt s3 wkl
+        res1  <- {- SCC "sol-result" -} result bindingsInSmt cfg wkl s4 
         return (s4, res1)
       return (fi1, s4, res1)
     _ -> return  (fi, s3, mytrace "all checked before interpreter" res0)
@@ -140,12 +140,12 @@ solve_ cfg fi s0 ks wkl = do
     Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
       doPLE cfg fi1 (map fst $ mytrace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
       sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
-        s5    <- {- SCC "sol-refine" #-} refine bindingsInSmt s4 wkl
+        s5    <- {- SCC "sol-refine" -} refine bindingsInSmt s4 wkl
         result bindingsInSmt cfg wkl s5
     _ -> return $ mytrace "all checked with interpreter" res1
 
   st      <- stats
-  let res3 = {- SCC "sol-tidy"   #-} tidyResult res2
+  let res3 = {- SCC "sol-tidy" -} tidyResult res2
   return $!! (res3, st)
 
 
