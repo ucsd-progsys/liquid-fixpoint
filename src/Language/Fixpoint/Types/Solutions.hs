@@ -81,10 +81,6 @@ import qualified Data.Maybe                 as Mb
 import qualified Data.HashMap.Strict        as M
 import qualified Data.List                  as L
 import           Data.Generics             (Data)
-#if !MIN_VERSION_base(4,14,0)
-import           Data.Semigroup            (Semigroup (..))
-#endif
-
 import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
 import           Language.Fixpoint.Misc

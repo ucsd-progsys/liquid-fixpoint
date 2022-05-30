@@ -92,10 +92,6 @@ module Language.Fixpoint.Types.Constraints (
 import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Aeson                hiding (Result)
-#if !MIN_VERSION_base(4,14,0)
-import           Data.Semigroup            (Semigroup (..))
-#endif
-
 import qualified Data.Set                  as Set
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
