@@ -119,12 +119,16 @@ instEnv cfg fi cs restSolver ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi
     s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty mempty (defFuelCount cfg) et restSolver restOC
+
+    -- REST Params
+    et :: Maybe (ExploredTerms RuntimeTerm OCType IO)
     et                = fmap makeET restSolver
+    makeET :: SolverHandle -> ExploredTerms RuntimeTerm OCType IO
     makeET solver     =
       let
         oc = ordConstraints restOC solver
       in
-        ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc)) ExploreWhenNeeded
+        ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc) (OC.refine oc)) ExploreWhenNeeded
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -479,11 +483,11 @@ evalOne γ ctx i e
   | i > 0 || null (getAutoRws γ ctx) = void $ eval γ ctx NoRW e
 evalOne γ ctx _ e = do
     env <- get
-    let oc :: OCAlgebra OCType Expr IO
+    let oc :: OCAlgebra OCType RuntimeTerm IO
         oc = ordConstraints (restOCA env) (Mb.fromJust $ restSolver env)
-        rp = RP oc [(e, PLE)] constraints
+        rp = RP (contramap Rewrite.convert oc) [(e, PLE)] constraints
         constraints = OC.top oc
-        emptyET = ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc)) ExploreWhenNeeded
+        emptyET = ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc) (OC.refine oc)) ExploreWhenNeeded
     evalREST γ ctx rp
     modify $ \st -> st { explored = Just emptyET }
 

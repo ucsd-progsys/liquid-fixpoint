@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -21,10 +23,12 @@ module Language.Fixpoint.Solver.Rewrite
 
 import           Control.Monad.State (guard)
 import           Control.Monad.Trans.Maybe
+import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
 import qualified Data.Text as TX
 import           GHC.IO.Handle.Types (Handle)
+import           GHC.Generics
 import           Text.PrettyPrint (text)
 import           Language.Fixpoint.Types.Config (RESTOrdering(..))
 import           Language.Fixpoint.Types hiding (simplify)
@@ -62,20 +66,20 @@ data OCType =
   | LPO (ConstraintsADT Op)
   | KBO (SMTExpr Bool)
   | Fuel Int
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic, Hashable)
 
-ordConstraints :: RESTOrdering -> (Handle, Handle) -> OCAlgebra OCType Expr IO
-ordConstraints RESTRPO      solver = bimapConstraints RPO asRPO $ contramap convert (adtRPO solver)
+ordConstraints :: RESTOrdering -> (Handle, Handle) -> OCAlgebra OCType RT.RuntimeTerm IO
+ordConstraints RESTRPO      solver = bimapConstraints RPO asRPO (adtRPO solver)
   where
     asRPO (RPO t) = t
     asRPO _       = undefined
 
-ordConstraints RESTKBO      solver = bimapConstraints KBO asKBO $ contramap convert (kbo solver)
+ordConstraints RESTKBO      solver = bimapConstraints KBO asKBO (kbo solver)
   where
     asKBO (KBO t) = t
     asKBO _       = undefined
 
-ordConstraints RESTLPO      solver = bimapConstraints LPO asLPO $ contramap convert (lift (adtOC solver) lpo)
+ordConstraints RESTLPO      solver = bimapConstraints LPO asLPO (lift (adtOC solver) lpo)
   where
     asLPO (LPO t) = t
     asLPO _       = undefined
