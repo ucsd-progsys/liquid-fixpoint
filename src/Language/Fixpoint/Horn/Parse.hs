@@ -79,8 +79,7 @@ hCstrP = parens body
 hBindP :: Parser H.Bind
 hBindP   = parens $ do
   (x, t) <- symSortP
-  p      <- hPredP
-  return  $ H.Bind x t p
+  H.Bind x t <$> hPredP
 
 -------------------------------------------------------------------------------
 hPredP :: Parser H.Pred

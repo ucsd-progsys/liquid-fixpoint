@@ -272,8 +272,7 @@ arbitrarySortedReft sortGen symGen n = do
   sort <- sortGen n
   eq <- arbitraryEqualityConstraint
   sym <- symGen n
-  expr <- arbitrary
-  pure $ RR sort $ reft sym (PAtom eq (EVar sym) expr)
+  RR sort . reft sym . PAtom eq (EVar sym) <$> arbitrary
 
 newtype IntSortedReft = IntSortedReft { unIntSortedReft :: SortedReft }
   deriving (Eq, Show)

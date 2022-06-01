@@ -126,7 +126,7 @@ isSetPred _                               = False
 applySetFolding :: Expr -> Expr -> Expr
 applySetFolding e1 e2   = case e1 of
     (EVar s) | s == setEmp
-      -> Mb.fromMaybe e $ pure (fromBool . S.null)   <*> evalSetI e2
+      -> maybe e (fromBool . S.null) (evalSetI e2)
     (EApp (EVar s) e1') | s == setMem
       -> maybe e fromBool (S.member <$> getInt e1' <*> evalSetI e2)
                         | s == setEmp
