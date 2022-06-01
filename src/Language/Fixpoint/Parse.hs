@@ -782,8 +782,7 @@ exprCastP :: Parser Expr
 exprCastP
   = do e  <- exprP
        _ <- try dcolon <|> colon -- allow : or :: *and* allow following symbols
-       so <- sortP
-       return $ ECst e so
+       ECst e <$> sortP
 
 fastIfP :: (Expr -> a -> a -> a) -> Parser a -> Parser a
 fastIfP f bodyP
@@ -792,15 +791,13 @@ fastIfP f bodyP
        reserved "then"
        b1 <- bodyP
        reserved "else"
-       b2 <- bodyP
-       return $ f p b1 b2
+       f p b1 <$> bodyP
 
 coerceP :: Parser Expr -> Parser Expr
 coerceP p = do
   reserved "coerce"
   (s, t) <- parens (pairP sortP (reservedOp "~") sortP)
-  e      <- p
-  return $ ECoerc s t e
+  ECoerc s t <$> p
 
 
 
@@ -957,8 +954,7 @@ tupleP = do
 litP :: Parser Expr
 litP = do reserved "lit"
           l <- stringLiteral
-          t <- sortP
-          return $ ECon $ L (T.pack l) t
+          ECon . L (T.pack l) <$> sortP
 
 -- | Parser for lambda abstractions.
 lamP :: Parser Expr
@@ -968,8 +964,7 @@ lamP
        _ <- colon -- TODO: this should probably be reservedOp instead
        t <- sortP
        reservedOp "->"
-       e  <- exprP
-       return $ ELam (x, t) e
+       ELam (x, t) <$> exprP
 
 varSortP :: Parser Sort
 varSortP  = FVar  <$> parens intP
@@ -1203,8 +1198,7 @@ qualParamP tP = do
   x     <- symbolP
   pat   <- qualPatP
   _     <- colon
-  t     <- tP
-  return $ QP x pat t
+  QP x pat <$> tP
 
 qualPatP :: Parser QualPattern
 qualPatP
@@ -1335,8 +1329,7 @@ subCP = do pos <- getSourcePos
            reserved "id"
            i   <- natural <* spaces
            tag <- tagP
-           pos' <- getSourcePos
-           return $ subC' env lhs rhs i tag pos pos'
+           subC' env lhs rhs i tag pos <$> getSourcePos
 
 subC' :: IBindEnv
       -> SortedReft
