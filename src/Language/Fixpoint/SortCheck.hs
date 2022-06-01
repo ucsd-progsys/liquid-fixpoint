@@ -289,7 +289,7 @@ checkSortExpr sp γ e = case runCM0 sp (checkExpr f e) of
             Nothing -> Alts []
 
 subEnv :: (Subable e) => SEnv a -> e -> SEnv a
-subEnv g e = intersectWithSEnv (\t _ -> t) g g'
+subEnv g e = intersectWithSEnv const g g'
   where
     g' = fromListSEnv $ (, ()) <$> syms e
 
