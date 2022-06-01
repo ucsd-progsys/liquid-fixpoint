@@ -40,7 +40,7 @@ import Language.Fixpoint.Solver.Instantiate (instantiate)
 --import Debug.Trace                      (trace)
 
 mytrace :: String -> a -> a
-mytrace = {- trace -} flip const 
+mytrace _ x = {- trace -} x
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
