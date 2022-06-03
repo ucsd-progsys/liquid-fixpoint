@@ -126,10 +126,10 @@ instance (Loc a) => Elaborate (SInfo a) where
     }
 
 instance (Elaborate e) => (Elaborate (Triggered e)) where
-  elaborate x env t = fmap (elaborate x env) t
+  elaborate x env = fmap (elaborate x env)
 
 instance (Elaborate a) => (Elaborate (Maybe a)) where
-  elaborate x env t = fmap (elaborate x env) t
+  elaborate x env = fmap (elaborate x env)
 
 instance Elaborate Sort where
   elaborate _ _ = go

@@ -41,7 +41,7 @@ instance (Extend a, Extend b) => Extend (a,b) where
   extend (a,b) = (,) <$> extend a <*> extend b
 
 instance Extend SubcId where
-  extend i = return i
+  extend = return
 
 instance Extend (SimpC a) where
   extend c = do
@@ -240,7 +240,7 @@ breakSort ddecls s
     = Right s
 
 instSort :: Sub -> Sort -> Sort
-instSort (Sub su) x = mapSort go x
+instSort (Sub su) = mapSort go
   where
     go :: Sort -> Sort
     go (FVar i) = fromMaybe (FVar i) $ lookup i su

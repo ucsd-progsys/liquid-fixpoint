@@ -149,12 +149,10 @@ knownToFail = []
 type TestCmd = FixpointOpts -> FilePath -> FilePath -> FilePath -> String
 
 nativeCmd :: TestCmd
-nativeCmd (LO opts) bin dir file =
-  printf "cd %s && %s %s %s" dir bin opts file
+nativeCmd (LO opts) bin dir = printf "cd %s && %s %s %s" dir bin opts
 
 elimCmd :: TestCmd
-elimCmd (LO opts) bin dir file =
-  printf "cd %s && %s --eliminate=some %s %s" dir bin opts file
+elimCmd (LO opts) bin dir = printf "cd %s && %s --eliminate=some %s %s" dir bin opts
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers

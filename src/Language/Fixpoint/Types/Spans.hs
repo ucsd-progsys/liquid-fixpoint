@@ -271,7 +271,7 @@ panicSpan s = SS l l
 -- atLoc (Loc l l' _) = Loc l l'
 
 atLoc :: (Loc l) => l -> b -> Located b
-atLoc z x   = Loc l l' x
+atLoc z = Loc l l'
   where
     SS l l' = srcSpan z
 

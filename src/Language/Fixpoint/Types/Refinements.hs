@@ -424,7 +424,7 @@ mkEApp :: LocSymbol -> [Expr] -> Expr
 mkEApp = eApps . EVar . val
 
 eApps :: Expr -> [Expr] -> Expr
-eApps f es  = foldl' EApp f es
+eApps = foldl' EApp
 
 splitEApp :: Expr -> (Expr, [Expr])
 splitEApp = go []
@@ -816,7 +816,7 @@ instance Expression Expr where
 -- | The symbol may be an encoding of a SymConst.
 
 instance Expression Symbol where
-  expr s = eVar s
+  expr = eVar
 
 instance Expression Text where
   expr = ESym . SL

@@ -184,8 +184,8 @@ refine bindingsInSmt s w
   | otherwise = return s
   where
     -- DEBUG
-    refineMsg i c b rnk = printf "\niter=%d id=%d change=%s rank=%d\n"
-                            i (F.subcId c) (show b) rnk
+    refineMsg i c b = printf "\niter=%d id=%d change=%s rank=%d\n"
+                            i (F.subcId c) (show b)
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------

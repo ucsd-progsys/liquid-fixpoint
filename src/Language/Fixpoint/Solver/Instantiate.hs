@@ -557,7 +557,7 @@ substEqVal o eq es bd = case o of
     xs     =  eqArgNames eq
 
 substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr -> Expr
-substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
+substEqCoerce env eq es = Vis.applyCoSub coSub
   where
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"

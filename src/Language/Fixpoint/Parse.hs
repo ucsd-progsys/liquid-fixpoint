@@ -1476,8 +1476,7 @@ doParse' parser fileName input =
 
 -- | Function to test parsers interactively.
 parseTest' :: Show a => Parser a -> String -> IO ()
-parseTest' parser input =
-  parseTest (evalStateT parser (initPState Nothing)) input
+parseTest' parser = parseTest (evalStateT parser (initPState Nothing))
 
 -- errorSpan :: ParseError -> SrcSpan
 -- errorSpan e = SS l l where l = errorPos e
