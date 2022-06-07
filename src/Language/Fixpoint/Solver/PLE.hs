@@ -794,18 +794,17 @@ evalApp γ ctx e0 args@(e:es) _
   , (d, as) <- splitEAppThroughECst e
   , EVar dc <- dropECst d
   , Just rws <- Map.lookup dc (knSims γ)
+    -- User data measures aren't sent to the SMT solver because
+    -- it knows already about selectors and constructor tests.
   , Just (rw, isUserDataSMeasure) <- L.find (\(rw, _) -> smName rw == f) rws
   , length as == length (smArgs rw)
   = do
     let newE = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es
-        measureEqs = nonUserDataMeasureEqs γ e
-        eqs = if isUserDataSMeasure == NoUserDataSMeasure
-                -- User data measures aren't sent to the SMT solver because
-                -- it knows already about selectors and constructor tests.
-                then map (second $ simplify γ ctx) $ (eApps e0 args, newE) : measureEqs
-                else measureEqs
-    modify $ \st ->
-      st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs }
+    when (isUserDataSMeasure == NoUserDataSMeasure) $
+      modify $ \st ->
+        st { evNewEqualities =
+               S.insert (eApps e0 args, simplify γ ctx newE) (evNewEqualities st)
+           }
     return (Just newE, noExpand)
 
 evalApp γ ctx e0 (e1:es2) et
