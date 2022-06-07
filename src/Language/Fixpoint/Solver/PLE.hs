@@ -807,36 +807,8 @@ evalApp γ ctx e0 args@(e:es) _
            }
     return (Just newE, noExpand)
 
-evalApp γ ctx e0 (e1:es2) et
-  | EVar f <- dropECst e0
-  , Just (rws0, NoUserDataSMeasure) <- Map.lookup f (knSimsByMeasureName γ)
-  = do
-       env <- gets (seSort . evEnv)
-       -- polymorphic measures like @prop :: a -> b@ might offer equations for
-       -- constructors of different sorts, here we select the equations that
-       -- match the sort of e1
-       let rws = filter (rwMatchesExpr env e1) rws0
-       okFuel <- checkFuel f
-       if okFuel && et /= FuncNormal && not (null rws)
-         then do
-                let newE = substRW γ rws e1
-                (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-                let e2' = simplify γ ctx e' -- reduces a bit the equations
-                if changed
-                  then do
-                    useFuel f
-                    modify $ \st ->
-                      st { evNewEqualities = S.insert (eApps e0 (e1:es2), e2') (evNewEqualities st) }
-                    return (Just e', fe)
-                  else
-                    -- Don't unfold the expression if there is an if-then-else
-                    -- guarding it, just to preserve the size of further
-                    -- rewrites.
-                    return (Nothing, noExpand)
-         else return (Nothing, noExpand)
-
 evalApp γ ctx e0 es _et
-  | eqs@(_:_) <- nonUserDataMeasureEqs γ (eApps e0 es)
+  | eqs@(_:_) <- noUserDataMeasureEqs γ (eApps e0 es)
   = do
        let eqs' = map (second $ simplify γ ctx) eqs
        modify $ \st ->
@@ -859,52 +831,17 @@ shortcut γ ctx et (EIte i e1 e2) es2 = do
         _ -> return (eApps (EIte b e1 e2) es2, False, expand)
 shortcut _ _ _ e' es2 = return (eApps e' es2, True, noExpand)
 
--- | unfolds a measure when the argument is not a known
--- constructor
-substRW :: Knowledge -> [Rewrite] -> Expr -> Expr
-substRW γ rws0 e1 = go rws0
-  where
-    go [rw] = mkBranch rw
-    go (rw:rws) = EIte (EApp (testConstructor (smDC rw)) e1) (mkBranch rw) (go rws)
-    go [] = error "substRW: Unexpected empty rewrites"
-
-    mkBranch rw =
-      let mdc = M.lookup (smDC rw) (knDataCtors γ)
-          su = [ (s, mkSelector mdc (smDC rw) i e1) | (i, s) <- zip [0..] (smArgs rw) ]
-       in subst (mkSubst su) (smBody rw)
-
-    mkSelector mdc dcname i =
-      case mdc of
-        Just dc -> EApp (EVar $ val $ dfName $ dcFields dc !! i)
-        Nothing -> case L.find (\(_, (dc, si)) -> i == si && dc == dcname) (knSels γ) of
-          Just (selname, _) -> EApp (EVar selname)
-          Nothing -> error $ "substRW: can't find selector for " ++ show dcname
-    testConstructor = EVar . testSymbol
-
 -- | Creates equations that explain how to rewrite a given constructor
--- application with all non-user data measures
-nonUserDataMeasureEqs :: Knowledge -> Expr -> [(Expr,Expr)]
-nonUserDataMeasureEqs γ e =
+-- application with all measures that aren't user data measures
+noUserDataMeasureEqs :: Knowledge -> Expr -> [(Expr,Expr)]
+noUserDataMeasureEqs γ e =
   [ (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
   | (ef, es) <- [splitEAppThroughECst e]
   , EVar f <- [dropECst ef]
-  , Just rws <- [Map.lookup f (knNonUserDataMeasures γ)]
-  , rw <- rws
+  , Just rws <- [Map.lookup f (knSims γ)]
+  , (rw, NoUserDataSMeasure) <- rws
   , length es == length (smArgs rw)
   ]
-
--- | @rwMatchesExpr env e rw@ is true when the sort of @e@
--- unifies with the sort returned by @smDC rw@.
-rwMatchesExpr :: SEnv Sort -> Expr -> Rewrite -> Bool
-rwMatchesExpr senv e rw =
-  let sp = panicSpan "rwMatchesExpr"
-      et = sortExpr sp senv e
-      rSort = resultSort $ sortExpr sp senv $ EVar (smDC rw)
-   in Mb.isJust (unifySorts rSort et)
-  where
-    resultSort (FFunc _ t) = resultSort t
-    resultSort (FAbs _ t) = resultSort t
-    resultSort t = t
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -984,11 +921,6 @@ data Knowledge = KN
     -- augmented with an attribute that say whether they originate from a
     -- user data declaration.
     knSims              :: Map Symbol [(Rewrite, IsUserDataSMeasure)]
-    -- | Like 'knSims' but rewrites are grouped by measure name, and this
-    -- does not include non-user-defined data measures
-  , knSimsByMeasureName :: Map Symbol ([Rewrite], IsUserDataSMeasure)
-    -- | Non-user-defined data measures. e.g. null, head, and tail
-  , knNonUserDataMeasures :: Map Symbol [Rewrite]
   , knAms               :: Map Symbol Equation -- ^ All function definitions
   , knContext           :: SMT.Context
   , knPreds             :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
@@ -1023,18 +955,6 @@ knowledge cfg ctx si = KN
   { knSims                     = Map.fromListWith (++) $
                                    [ (smDC rw, [(rw, NoUserDataSMeasure)]) | rw <- sims ] ++
                                    [ (smDC rw, [(rw, UserDataSMeasure)]) | rw <- dataSims ]
-  , knSimsByMeasureName        = Map.fromListWith (\(rw0, dms) (rw1, _) -> (rw0 ++ rw1, dms)) $
-                                   [ (smName rw, ([rw], NoUserDataSMeasure))
-                                   | rw <- sims
-                                   , not (isTestSymbol (smName rw)) -- not a constructor test
-                                   , not (isSelector rw)
-                                   ] ++
-                                   [ (smName rw, ([rw], UserDataSMeasure)) | rw <- dataSims ]
-  , knNonUserDataMeasures      = Map.fromListWith (++) [ (smDC rw, [rw])
-                                   | rw <- sims
-                                   , isTestSymbol (smName rw) -- a constructor test
-                                     || isSelector rw
-                                   ]
   , knAms                      = Map.fromList [(eqName eq, eq) | eq <- aenvEqs aenv]
   , knContext                  = ctx
   , knPreds                    = askSMT  cfg
@@ -1053,11 +973,6 @@ knowledge cfg ctx si = KN
       else RWTerminationCheckDisabled
   }
   where
-    isEVar (EVar _) = True
-    isEVar _ = False
-
-    isSelector rw = isEVar (smBody rw) && elem (smBody rw) (map EVar (smArgs rw))
-
     (simDCTests, sims0) =
       partitionUserDataConstructorTests (ddecls si) $ aenvSimpl aenv
     (simDCSelectors, sims) =

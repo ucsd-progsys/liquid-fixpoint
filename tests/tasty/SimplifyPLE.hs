@@ -16,8 +16,6 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
       -- away with leaving some of them @undefined@.
       KN
         { knSims = M.empty, -- :: Map Symbol [(Rewrite, IsUserDataSMeasure)]
-          knSimsByMeasureName = M.empty, -- :: Map Symbol ([Rewrite], IsUserDataSMeasure)
-          knNonUserDataMeasures = M.empty, -- :: Map Symbol [Rewrite]
           knAms = M.empty, -- :: Map Symbol Equation
           knContext = undefined, -- :: SMT.Context
           knPreds = undefined, -- :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
