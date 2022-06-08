@@ -41,10 +41,10 @@ jobs:
         run: cabal update
 
       - name: install stan
-        run: cabal install stan --install-method=copy --overwrite-policy=always
+        run: cabal install stan --installdir=.bin --install-method=copy --overwrite-policy=always
 
       - name: generate .hie for analysis
         run: cabal build liquid-fixpoint:lib:liquid-fixpoint
 
       - name: stan
-        run: stan report
+        run: .bin/stan report
