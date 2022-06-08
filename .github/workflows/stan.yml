@@ -2,6 +2,7 @@ name: stan
 
 on:
   push:
+    branches: [ add/stan ]
   pull_request:
 
 jobs:
@@ -40,7 +41,7 @@ jobs:
         run: cabal update
 
       - name: install stan
-        run: cabal install stan
+        run: cabal install stan --install-method=copy --overwrite-policy=always
 
       - name: generate .hie for analysis
         run: cabal build liquid-fixpoint:lib:liquid-fixpoint
