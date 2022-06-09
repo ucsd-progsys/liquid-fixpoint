@@ -380,4 +380,4 @@ chainedAnfGen symGen n = do
 -- This is not random, but is simplified so that you can make chains more
 -- easily.
 anfSymNGen :: Int -> Gen AnfSymbol
-anfSymNGen = pure . AnfSymbol . mappendSym anfPrefix . symbol . show
+anfSymNGen i = pure . AnfSymbol . mappendSym anfPrefix . symbol . show $ i

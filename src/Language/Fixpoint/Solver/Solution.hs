@@ -419,7 +419,7 @@ hypPred g s ksu hyp = F.pOr *** mconcatPlus $ unzip $ cubePred g s ksu <$> hyp
  -}
 
 elabExist :: F.SrcSpan -> Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
-elabExist sp s xts = F.pExist xts'
+elabExist sp s xts p = F.pExist xts' p
   where
     xts'        = [ (x, elab t) | (x, t) <- xts]
     elab        = So.elaborate (F.atLoc sp "elabExist") env

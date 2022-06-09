@@ -45,7 +45,7 @@ prop_no_change :: (Q.Arbitrary e, Eq e, Show e) => (e -> M.HashMap Symbol Sorted
 prop_no_change toHashMap f e = Q.within timeout $ f e === toHashMap e
 
 prop_no_anfs :: (Q.Arbitrary e, Eq e, Show e) => (e -> M.HashMap Symbol SortedReft) -> e -> Q.Property
-prop_no_anfs f = Q.within timeout . checkNoAnfs . f
+prop_no_anfs f e = Q.within timeout . checkNoAnfs . f $ e
   where
     checkNoAnfs m = M.filter (any isAnfVar . syms) m === M.empty
     isAnfVar = isPrefixOfSym anfPrefix

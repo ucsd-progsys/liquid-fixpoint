@@ -57,7 +57,7 @@ instance Expression Bv where
 
 -- | Apply some bitvector operator to a list of arguments
 eOp :: BvOp -> [Expr] -> Expr
-eOp b = foldl EApp (EVar $ opName b)
+eOp b es = foldl EApp (EVar $ opName b) es
 
 opName :: BvOp -> Symbol
 opName BvAnd = bvAndName

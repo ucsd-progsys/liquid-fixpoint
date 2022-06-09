@@ -58,7 +58,7 @@ instance Show GSol where
   show (GSol _ m) = "GSOL = \n" ++ unlines ((\(k,(e, i)) -> showpp k ++ showInfo i ++  " |-> " ++ showpp (tx e)) <$> M.toList m)
     where
       tx e = subst (mkSubst $ [(x, EVar $ tidySymbol x) | x <- syms e]) e
-      showInfo = show
+      showInfo i = show i
 
 
 makeSolutions :: (NFData a, Fixpoint a, Show a)
@@ -235,7 +235,7 @@ class Gradual a where
   gsubst :: GSol -> a -> a
 
 instance Gradual Expr where
-  gsubst (GSol env m) = mapGVars' (\(k, _) -> Just (fromMaybe (err k) (mknew k)))
+  gsubst (GSol env m) e   = mapGVars' (\(k, _) -> Just (fromMaybe (err k) (mknew k))) e
     where
       mknew k = So.elaborate "initBGind.mkPred" env $ fst <$> M.lookup k m
       err   k = errorstar ("gradual substitution: Cannot find " ++ showpp k)

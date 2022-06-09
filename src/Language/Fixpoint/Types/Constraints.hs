@@ -577,7 +577,7 @@ remakeQual q = mkQual (qName q) (qParams q) (qBody q) (qPos q)
 
 -- | constructing qualifiers
 mkQual :: Symbol -> [QualParam] -> Expr -> SourcePos -> Qualifier
-mkQual n qps = Q n qps'
+mkQual n qps p = Q n qps' p
   where
     qps'       = zipWith (\qp t' -> qp { qpSort = t'}) qps ts'
     ts'        = gSorts (qpSort <$> qps)

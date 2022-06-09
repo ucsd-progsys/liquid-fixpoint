@@ -119,7 +119,7 @@ addDupId m sym t i
 --------------------------------------------------------------------------------
 renameVars :: SInfo a -> RenameMap -> IdMap -> SInfo a
 --------------------------------------------------------------------------------
-renameVars fi rnMap = M.foldlWithKey' (updateRef rnMap) fi
+renameVars fi rnMap idMap = M.foldlWithKey' (updateRef rnMap) fi idMap
 
 updateRef :: RenameMap -> SInfo a -> Ref -> S.HashSet BindId -> SInfo a
 updateRef rnMap fi rf bset = applySub (mkSubst subs) fi rf

@@ -780,7 +780,7 @@ evalRESTWithCache cacheRef γ ctx rp =
 
     allowed (rwE, _) | rwE `elem` pathExprs = return False
     allowed (_, c)   = termCheck c
-    termCheck = Rewrite.passesTerminationCheck (oc rp) rwArgs
+    termCheck c = Rewrite.passesTerminationCheck (oc rp) rwArgs c
 
     notVisitedFirst exploredTerms rws =
       let
@@ -820,7 +820,7 @@ evalRESTWithCache cacheRef γ ctx rp =
           then
             do
               let e'         = deANF ctx e
-              let getRW = Rewrite.getRewrite (oc rp) rwArgs (c rp)
+              let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
               concat <$> mapM getRWs' (subExprs e')
           else return []

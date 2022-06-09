@@ -297,7 +297,8 @@ fromList :: SymEnv
          -> [(BindId, EbindSol)]
          -> SEnv (BindId, Sort)
          -> Sol a b
-fromList env kGs kXs kYs z ebs = Sol env kXm kGm kYm z ebm
+fromList env kGs kXs kYs z ebs xbs
+        = Sol env kXm kGm kYm z ebm xbs
   where
     kXm = M.fromList kXs
     kYm = M.fromList kYs

@@ -183,10 +183,10 @@ mfromJust _ (Just x) = x
 mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 
 inserts ::  (Eq k, Hashable k) => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
-inserts k v = M.insertWith (const (v:)) k [v]
+inserts k v m = M.insertWith (const (v:)) k [v] m
 
 removes ::  (Eq k, Hashable k, Eq v) => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
-removes k v = M.insertWith (const (L.delete v)) k []
+removes k v m = M.insertWith (const (L.delete v)) k [] m
 
 count :: (Eq k, Hashable k) => [k] -> [(k, Int)]
 count = M.toList . fmap sum . group . fmap (, 1)
@@ -423,7 +423,7 @@ allCombinations xs = assert (all ((length xs == ) . length)) $ go xs
    assert b x = if b x then x else errorstar "allCombinations: assertion violation"
 
 powerset :: [a] -> [[a]]
-powerset = filterM (const [False, True])
+powerset xs = filterM (const [False, True]) xs
 
 (=>>) :: Monad m => m b -> (b -> m a) -> m b
 (=>>) m f = m >>= (\x -> f x >> return x)

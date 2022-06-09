@@ -110,7 +110,7 @@ solveEbs cfg query@(Query qs vs c cons dist eqns mats dds) = do
   whenLoud $ putStrLn $ F.showpp side'
 
   -- if not $ S.null cuts then error $ F.showpp $ S.toList cuts else pure ()
-  let elimCutK k = doelim k []
+  let elimCutK k c = doelim k [] c
   horn' <- pure $ foldr elimCutK horn' cuts
   side' <- pure $ foldr elimCutK side' cuts
 
@@ -737,7 +737,7 @@ uniq' (Any b@(Bind x _ _) c2) = do
     pure $ Any b' c2'
 
 popName :: F.Symbol -> RenameMap -> RenameMap
-popName = M.adjust (second tail)
+popName x m = M.adjust (second tail) x m
 
 pushName :: Maybe (Integer, [Integer]) -> Maybe (Integer, [Integer])
 pushName Nothing = Just (0, [0])

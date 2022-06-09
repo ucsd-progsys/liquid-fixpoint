@@ -450,7 +450,7 @@ class SymConsts a where
 
 
 instance SymConsts a => SymConsts [a] where
-  symConsts = concatMap symConsts
+  symConsts xs = concatMap symConsts xs
 
 instance SymConsts AxiomEnv where
   symConsts xs =  symConsts (aenvEqs xs) ++ symConsts (aenvSimpl xs)
