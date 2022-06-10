@@ -6,6 +6,7 @@ on:
 
 jobs:
   build:
+    name: ghc ${{ matrix.ghc }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,36 +19,30 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup Stack
-        uses: haskell/actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: "latest"
-          cabal-version: ${{ matrix.cabal }}
-
-      - name: setup z3
+      - name: Setup z3
         uses: pavpanchekha/setup-z3@1.2.2
         with:
           version: "4.8.7"
 
-      - name: Cache ~/.stack
+      - name: Setup Stack
+        uses: haskell/actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: ${{ matrix.cabal }}
+          enable-stack: true
+          stack-version: "latest"
+
+      - name: Cache ~/.stack and .stack-work
         uses: actions/cache@v3
         with:
-          path: ~/.stack
-          key: ${{ runner.os }}-stack-global-${{ hashFiles('stack.yaml') }}-${{ hashFiles('package.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-global-
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('**/*.cabal', './stack/stack-${{ matrix.ghc }}.yaml', './stack/stack-${{ matrix.ghc }}.yaml.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.ghc }}-stack-
 
-      - name: Cache .stack-work
-        uses: actions/cache@v3
-        with:
-          path: .stack-work
-          key: ${{ runner.os }}-stack-work-${{ hashFiles('stack.yaml') }}-${{ hashFiles('package.yaml') }}-${{ hashFiles('**/*.hs') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-work-
-
-      - name: build tests
+      - name: Build
         run: stack test --no-run-tests --no-terminal --stack-yaml=./stack/stack-${{ matrix.ghc }}.yaml
 
-      - name: run tests
+      - name: Test
         run: stack test --no-terminal --test-arguments "--color=always" --stack-yaml=./stack/stack-${{ matrix.ghc }}.yaml
