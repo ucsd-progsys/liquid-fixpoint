@@ -143,6 +143,7 @@ instEnv cfg fi cs restSolver ctx = do
                  ExploreWhenNeeded
         s0 = EvalEnv
               { evEnv = SMT.ctxSymEnv ctx
+              , evPendingUnfoldings = mempty
               , evNewEqualities = mempty
               , evSMTCache = mempty
               , evFuel = defFuelCount cfg
@@ -274,7 +275,8 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
 ple1 ie@InstEnv {..} ctx i res = do
   (ctx', env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
-  let newEqs = S.toList $ S.difference (icEquals ctx') (icEquals ctx)
+  let pendings = maybe [] (const $ M.toList $ evPendingUnfoldings env) (icSubcId ctx)
+      newEqs = pendings ++ S.toList (S.difference (icEquals ctx') (icEquals ctx))
   return (ctx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
 
 evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
@@ -427,6 +429,8 @@ type EvAccum = S.HashSet (Expr, Expr)
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
+    -- | Equalities where we couldn't evaluate the guards
+  , evPendingUnfoldings :: M.HashMap Expr Expr
   , evNewEqualities :: EvAccum -- ^ Equalities discovered during a traversal of
                                -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
@@ -601,12 +605,16 @@ eval γ ctx et = go
 -- so equations include any necessary lambda bindings.
 evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (Expr, FinalExpand)
 evalELam γ ctx et (x, s) e = do
+    oldPendingUnfoldings <- gets evPendingUnfoldings
     oldEqs <- gets evNewEqualities
     (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
     let e2' = simplify γ ctx e'
         elam = ELam (x, s) e
     -- Discard the old equalities which miss the lambda binding
-    modify $ \st -> st { evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs }
+    modify $ \st -> st
+      { evPendingUnfoldings = oldPendingUnfoldings
+      , evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs
+      }
     return (elam, fe)
 
 data RESTParams oc = RP
@@ -772,17 +780,20 @@ evalApp γ ctx e0 es et
                     newE = substEq env eq es1
                 (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                 let e2' = simplify γ ctx e' -- reduces a bit the equations
-                unless (eqRec eq) $
-                  modify $ \st ->
-                    st { evNewEqualities = S.insert (eApps e0 es, e2') (evNewEqualities st) }
                 if changed
                   then do
                     useFuel f
-                    when (eqRec eq) $
-                      modify $ \st ->
-                        st { evNewEqualities = S.insert (eApps e0 es, e2') (evNewEqualities st) }
+                    modify $ \st ->
+                      st
+                        { evNewEqualities = S.insert (eApps e0 es, e2') (evNewEqualities st)
+                        , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
+                        }
                     return (Just e', fe)
-                  else
+                  else do
+                    modify $ \st ->
+                      st {
+                        evPendingUnfoldings = M.insert (eApps e0 es) e2' (evPendingUnfoldings st)
+                      }
                     -- Don't unfold the expression if there is an if-then-else
                     -- guarding it, just to preserve the size of further
                     -- rewrites.
