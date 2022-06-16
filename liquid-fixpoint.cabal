@@ -16,15 +16,16 @@ description:
   In addition to the .cabal dependencies you require
   .
   * A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
-license:            BSD-3-Clause
-license-file:       LICENSE
-copyright:          2010-17 Ranjit Jhala, University of California, San Diego.
+category:           Language
+homepage:           https://github.com/ucsd-progsys/liquid-fixpoint#readme
+bug-reports:        https://github.com/ucsd-progsys/liquid-fixpoint/issues
 author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         jhala@cs.ucsd.edu
-tested-with:        GHC == 8.8.4, GHC == 8.10.7, GHC == 9.0.2, GHC == 9.2.2
-category:           Language
-homepage:           https://github.com/ucsd-progsys/liquid-fixpoint
+copyright:          2010-17 Ranjit Jhala, University of California, San Diego.
+license:            BSD-3-Clause
+license-file:       LICENSE
 build-type:         Simple
+tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4, GHC == 8.10.1, GHC == 8.10.7
 extra-source-files: tests/neg/*.fq
                     tests/pos/*.fq
                     unix/Language/Fixpoint/Utils/*.hs
@@ -37,17 +38,16 @@ common warnings
     -Wall
 
 source-repository head
-  type:     git
-  location: https://github.com/ucsd-progsys/liquid-fixpoint/
+  type: git
+  location: https://github.com/ucsd-progsys/liquid-fixpoint
 
 flag devel
-  default:     False
-  manual:      True
   description: turn on stricter error reporting for development
+  manual: True
+  default: False
 
 library
   import: warnings
-  autogen-modules:  Paths_liquid_fixpoint
   exposed-modules:  Data.ShareMap
                     Language.Fixpoint.Defunctionalize
                     Language.Fixpoint.Graph
@@ -56,11 +56,11 @@ library
                     Language.Fixpoint.Graph.Partition
                     Language.Fixpoint.Graph.Reducible
                     Language.Fixpoint.Graph.Types
+                    Language.Fixpoint.Horn.Info
                     Language.Fixpoint.Horn.Parse
                     Language.Fixpoint.Horn.Solve
-                    Language.Fixpoint.Horn.Types
                     Language.Fixpoint.Horn.Transformations
-                    Language.Fixpoint.Horn.Info
+                    Language.Fixpoint.Horn.Types
                     Language.Fixpoint.Minimize
                     Language.Fixpoint.Misc
                     Language.Fixpoint.Parse
@@ -73,13 +73,15 @@ library
                     Language.Fixpoint.Solver.Common
                     Language.Fixpoint.Solver.Eliminate
                     Language.Fixpoint.Solver.EnvironmentReduction
+                    Language.Fixpoint.Solver.Extensionality
                     Language.Fixpoint.Solver.GradualSolution
+                    Language.Fixpoint.Solver.GradualSolve
                     Language.Fixpoint.Solver.Instantiate
                     Language.Fixpoint.Solver.Interpreter
-                    Language.Fixpoint.Solver.PLE
                     Language.Fixpoint.Solver.Monad
-                    Language.Fixpoint.Solver.Rewrite
+                    Language.Fixpoint.Solver.PLE
                     Language.Fixpoint.Solver.Prettify
+                    Language.Fixpoint.Solver.Rewrite
                     Language.Fixpoint.Solver.Sanitize
                     Language.Fixpoint.Solver.Simplify
                     Language.Fixpoint.Solver.Solution
@@ -89,7 +91,6 @@ library
                     Language.Fixpoint.Solver.UniqifyBinds
                     Language.Fixpoint.Solver.UniqifyKVars
                     Language.Fixpoint.Solver.Worklist
-                    Language.Fixpoint.Solver.Extensionality
                     Language.Fixpoint.SortCheck
                     Language.Fixpoint.Types
                     Language.Fixpoint.Types.Config
@@ -116,16 +117,18 @@ library
                     Language.Fixpoint.Utils.Trie
                     Text.PrettyPrint.HughesPJ.Compat
   other-modules:    Paths_liquid_fixpoint
+  autogen-modules:  Paths_liquid_fixpoint
   hs-source-dirs:   src
-  build-depends:    base                 >= 4.9.1.0 && < 5
+  ghc-options:      -W -fno-warn-missing-methods -fwarn-missing-signatures
+  build-depends:    aeson
                   , ansi-terminal
                   , array
                   , async
                   , attoparsec
+                  , base                 >= 4.9.1.0 && < 5
                   , binary
-                  , store
-                  , bytestring
                   , boxes
+                  , bytestring
                   , cereal
                   , cmdargs
                   , containers
@@ -136,49 +139,49 @@ library
                   , hashable
                   , intern
                   , lens-family
+                  , megaparsec           >= 7.0.0 && < 10
                   , mtl
                   , parallel
                   , parser-combinators
-                  , megaparsec           >= 7.0.0 && < 10
                   , pretty               >= 1.1.3.1
                   , process
+                  , rest-rewrite >= 0.3.0
                   , stm
+                  , store
                   , syb
                   , text
                   , transformers
                   , unordered-containers
-                  , aeson
-                  , rest-rewrite >= 0.3.0
-  default-language: Haskell98
 
   if flag(devel)
     ghc-options: -Werror
-
   if !os(windows)
     hs-source-dirs: unix
     build-depends:  ascii-progress >= 0.3
-
   if os(windows)
     hs-source-dirs: win
+  default-language: Haskell98
 
 executable fixpoint
   import: warnings
   main-is:          Fixpoint.hs
+  other-modules:    Paths_liquid_fixpoint
+  autogen-modules:  Paths_liquid_fixpoint
   hs-source-dirs:   bin
+  ghc-options:      -threaded -W -fno-warn-missing-methods
   build-depends:    base >= 4.9.1.0 && < 5, liquid-fixpoint
-  default-language: Haskell98
-  ghc-options:      -threaded
-
   if flag(devel)
     ghc-options: -Werror
+  default-language: Haskell98
 
 test-suite test
   import: warnings
   type:             exitcode-stdio-1.0
   main-is:          test.hs
   other-modules:    Paths_liquid_fixpoint
+  autogen-modules:  Paths_liquid_fixpoint
   hs-source-dirs:   tests
-  build-tool-depends: liquid-fixpoint:fixpoint
+  ghc-options:      -threaded
   build-depends:    base          >= 4.9.1.0 && < 5
                   , containers    >= 0.5
                   , directory
@@ -193,37 +196,37 @@ test-suite test
                   , tasty-hunit   >= 0.9
                   , tasty-rerun   >= 1.1.12
                   , transformers  >= 0.5
-  default-language: Haskell98
-  ghc-options:      -threaded
-
   if flag(devel)
     ghc-options: -Werror
+  build-tool-depends: liquid-fixpoint:fixpoint
+  default-language: Haskell98
 
 test-suite tasty
   import: warnings
   type:             exitcode-stdio-1.0
   main-is:          Main.hs
-  other-modules:    ParserTests
-                    Arbitrary
+  other-modules:    Arbitrary
                     InterpretTests
+                    ParserTests
                     ShareMapReference
                     ShareMapTests
                     SimplifyInterpreter
                     SimplifyPLE
                     SimplifyTests
                     UndoANFTests
+                    Paths_liquid_fixpoint
+  autogen-modules:  Paths_liquid_fixpoint
   hs-source-dirs:   tests/tasty
+  ghc-options:      -threaded
   build-depends:    base            >= 4.9.1.0 && < 5
                   , containers
                   , hashable
                   , liquid-fixpoint
                   , tasty           >= 0.10
-                  , tasty-quickcheck
                   , tasty-hunit     >= 0.9
+                  , tasty-quickcheck
                   , text
                   , unordered-containers
-  default-language: Haskell98
-  ghc-options:      -threaded
-
   if flag(devel)
     ghc-options: -Werror
+  default-language: Haskell98
