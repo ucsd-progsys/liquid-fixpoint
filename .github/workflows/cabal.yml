@@ -13,41 +13,38 @@ jobs:
         cabal: ["3.6"]
         ghc:
           - "8.10.7"
-          - "9.2.2"
+          - "9.2.3"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
 
-      - uses: haskell/actions/setup@v1
-        name: Setup GHC and cabal-install
+      - name: Setup z3
+        uses: pavpanchekha/setup-z3@1.2.2
+        with:
+          version: "4.8.7"
+
+      - name: Setup GHC and cabal-install
+        uses: haskell/actions/setup@v2
         with:
           ghc-version: ${{ matrix.ghc }}
           cabal-version: ${{ matrix.cabal }}
 
-      - uses: rwe/actions-hlint-setup@v1
-        name: Set up HLint
+      - name: Cache ~/.cabal/packages, ~/.cabal/store and dist-newstyle
+        uses: actions/cache@v3
         with:
-          version: "3.3.4"
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
 
-      - uses: actions/cache@v2
-        name: cache ~/.cabal/store
-        with:
-          path: ~/.cabal/store
-          key: ${{ runner.os }}-${{ matrix.ghc }}-cabal
+      - name: Update package list
+        run: cabal update
 
-      - uses: pavpanchekha/setup-z3@1.2.2
-        name: setup z3
-        with:
-          version: "4.8.7"
-
-      - name: update
-        run: |
-          cabal update
-
-      - name: build
+      - name: Build
         run: cabal build all --enable-tests
 
-      - name: test
+      - name: Test
         run: cabal test all --test-show-details=direct --test-option="--color=always"
