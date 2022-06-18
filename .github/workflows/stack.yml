@@ -39,7 +39,6 @@ jobs:
             ~/.stack
             .stack-work
           key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('**/*.cabal', './stack/stack-${{ matrix.ghc }}.yaml', './stack/stack-${{ matrix.ghc }}.yaml.lock') }}
-          restore-keys: ${{ runner.os }}-${{ matrix.ghc }}-stack-
 
       - name: Build
         run: stack test --no-run-tests --no-terminal --stack-yaml=./stack/stack-${{ matrix.ghc }}.yaml
