@@ -15,13 +15,14 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
       -- @PLE.simplify@ does not actually use all these fields, so we can get
       -- away with leaving some of them @undefined@.
       KN
-        { knSims = M.empty, -- :: Map Symbol [Rewrite]
+        { knSims = M.empty, -- :: Map Symbol [(Rewrite, IsUserDataSMeasure)]
           knAms = M.empty, -- :: Map Symbol Equation
           knContext = undefined, -- :: SMT.Context
           knPreds = undefined, -- :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
           knLams = [], -- :: ![(Symbol, Sort)]
           knSummary = [], -- :: ![(Symbol, Int)]
           knDCs = S.empty, -- :: !(S.HashSet Symbol)
+          knDataCtors = SM.empty, -- :: !(M.HashMap Symbol DataCtor)
           knSels = [], -- :: !SelectorMap
           knConsts = [], -- :: !ConstDCMap
           knAutoRWs = SM.empty, -- :: M.HashMap SubcId [AutoRewrite]
@@ -34,7 +35,6 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
         { icAssms = S.empty, -- S.HashSet Pred
           icCands = S.empty, -- :: S.HashSet Expr
           icEquals = S.empty, -- :: EvAccum
-          icSolved = S.empty, -- :: S.HashSet Expr
           icSimpl = SM.empty, -- :: !ConstMap
           icSubcId = Nothing, -- :: Maybe SubcId
           icANFs = []         -- :: [[(Symbol, SortedReft)]]

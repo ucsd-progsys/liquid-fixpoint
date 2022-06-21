@@ -50,7 +50,14 @@ module Language.Fixpoint.SortCheck  (
   -- * Sort-Directed Transformations
   , Elaborate (..)
   , applySorts
-  , unElab, unElabSortedReft, unApplyAt
+  , elabApply
+  , elabExpr
+  , elabNumeric
+  , unApply
+  , unElab
+  , unElabSortedReft
+  , unApplySortedReft
+  , unApplyAt
   , toInt
 
   -- * Predicates on Sorts
@@ -212,14 +219,14 @@ elabExpr msg env e = case elabExprE msg env e of
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
-  case runCM0 (srcSpan msg) (elab (env, f) e) of
+  case runCM0 (srcSpan msg) (elab (env, envLookup) e) of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
     Right s  -> Right (fst s)
   where
     sEnv = seSort env
-    f    = (`lookupSEnvWithDistance` sEnv)
+    envLookup = (`lookupSEnvWithDistance` sEnv)
     d m  = vcat [ "elaborate" <+> text (val msg) <+> "failed on:"
                 , nest 4 (pprint e)
                 , "with error"
@@ -334,18 +341,23 @@ act `withError` msg = do
          in atLoc e (val e ++ "\n  because\n" ++ msg)
     )
 
+-- XXX: Why start at 42?
+{-# NOINLINE varCounterRef #-}
+varCounterRef :: IORef Int
+varCounterRef = unsafePerformIO $ newIORef 42
+
+-- XXX: Since 'varCounterRef' was made global, this
+-- function is not referentially transparent.
+-- Each evaluation of the function starts with a different
+-- value of counter.
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = unsafePerformIO $ do
-  rn <- newIORef 42
-  try (runReaderT act (ChS rn sp))
+  try (runReaderT act (ChS varCounterRef sp))
 
 fresh :: CheckM Int
 fresh = do
   rn <- asks chCount
-  liftIO $ do
-    n <- readIORef rn
-    writeIORef rn (n + 1)
-    return n
+  liftIO $ atomicModifyIORef' rn $ \n -> (n+1, n)
 
 --------------------------------------------------------------------------------
 -- | Checking Refinements ------------------------------------------------------
@@ -469,17 +481,17 @@ elab f@(_, g) e@(EBin o e1 e2) = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s <- checkOpTy g e s1 s2
-  return (EBin o (ECst e1' s1) (ECst e2' s2), s)
+  return (EBin o (eCst e1' s1) (eCst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
   (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
-  let e = eAppC s e1' (ECst e2' s2)
+  let e = eAppC s e1' (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab f (EApp e1 e2) = do
   (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  let e = eAppC s (ECst e1' s1) (ECst e2' s2)
+  let e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
@@ -510,22 +522,22 @@ elab f (ENeg e) = do
 
 elab f@(_,g) (ECst (EIte p e1 e2) t) = do
   (p', _)   <- elab f p
-  (e1', s1) <- elab f (ECst e1 t)
-  (e2', s2) <- elab f (ECst e2 t)
+  (e1', s1) <- elab f (eCst e1 t)
+  (e2', s2) <- elab f (eCst e2 t)
   s         <- checkIteTy g p e1' e2' s1 s2
-  return (EIte p' (cast e1' s) (cast e2' s), t)
+  return (EIte p' (eCst e1' s) (eCst e2' s), t)
 
 elab f@(_,g) (EIte p e1 e2) = do
   t <- getIte g e1 e2
   (p', _)   <- elab f p
-  (e1', s1) <- elab f (ECst e1 t)
-  (e2', s2) <- elab f (ECst e2 t)
+  (e1', s1) <- elab f (eCst e1 t)
+  (e2', s2) <- elab f (eCst e2 t)
   s         <- checkIteTy g p e1' e2' s1 s2
-  return (EIte p' (cast e1' s) (cast e2' s), s)
+  return (EIte p' (eCst e1' s) (eCst e2' s), s)
 
 elab f (ECst e t) = do
   (e', _) <- elab f e
-  return (ECst e' t, t)
+  return (eCst e' t, t)
 
 elab f (PNot p) = do
   (e', _) <- elab f p
@@ -583,7 +595,7 @@ elab f (PAll bs e) = do
 elab f (ELam (x,t) e) = do
   (e', s) <- elab (elabAddEnv f [(x, t)]) e
   let t' = elaborate "ELam Arg" mempty t
-  return (ELam (x, t') (ECst e' s), FFunc t s)
+  return (ELam (x, t') (eCst e' s), FFunc t s)
 
 elab f (ECoerc s t e) = do
   (e', _) <- elab f e
@@ -611,10 +623,6 @@ isUndef s = case bkAbs s of
 
 elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
-
-cast :: Expr -> Sort -> Expr
-cast (ECst e _) t = ECst e t
-cast e          t = ECst e t
 
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
 elabAs f t e = notracepp _msg <$>  go e
@@ -656,13 +664,14 @@ elabAppSort f e1 e2 s1 s2 = do
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
-defuncEApp env e es = L.foldl' makeApplication e' es'
+defuncEApp _env e [] = e
+defuncEApp env e es = eCst (L.foldl' makeApplication e' es') (snd $ last es)
   where
     (e', es')       = takeArgs (seTheory env) e es
 
 takeArgs :: SEnv TheorySymbol -> Expr -> [(Expr, a)] -> (Expr, [(Expr, a)])
 takeArgs env e es =
-  case Thy.isSmt2App env (Vis.stripCasts e) of
+  case Thy.isSmt2App env e of
     Just n  -> let (es1, es2) = splitAt n es
                in (eApps e (fst <$> es1), es2)
     Nothing -> (e, es)
@@ -705,8 +714,11 @@ unElab = Vis.stripCasts . unApply
 unElabSortedReft :: SortedReft -> SortedReft
 unElabSortedReft sr = sr { sr_reft = mapPredReft unElab (sr_reft sr) }
 
+unApplySortedReft :: SortedReft -> SortedReft
+unApplySortedReft sr = sr { sr_reft = mapPredReft unApply (sr_reft sr) }
+
 unApply :: Expr -> Expr
-unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
+unApply = Vis.mapExprOnExpr go
   where
     go (ECst (EApp (EApp f e1) e2) _)
       | Just _ <- unApplyAt f = EApp e1 e2

@@ -42,6 +42,7 @@ import           Language.REST.SMT (SMTExpr)
 import           Language.REST.WQOConstraints.ADT (ConstraintsADT, adtOC)
 import qualified Language.REST.RuntimeTerm as RT
 
+-- | @(e, f)@ asserts that @e@ is a subexpression of @f e@
 type SubExpr = (Expr, Expr -> Expr)
 
 data TermOrigin = PLE | RW deriving (Show, Eq)
@@ -92,7 +93,7 @@ ordConstraints (RESTFuel n) _      = bimapConstraints Fuel asFuel $ fuelOC n
 
 convert :: Expr -> RT.RuntimeTerm
 convert (EIte i t e)   = RT.App "$ite" $ map convert [i,t,e]
-convert e@EApp{}       | (EVar fName, terms) <- splitEApp e
+convert e@EApp{}       | (f, terms) <- splitEAppThroughECst e, EVar fName <- dropECst f
                        = RT.App (Op (symbolText fName)) $ map convert terms
 convert (EVar s)       = RT.App (Op (symbolText s)) []
 convert (PNot e)       = RT.App "$not" [ convert e ]
@@ -103,6 +104,8 @@ convert (EBin o l r)   = RT.App (Op $ "$ebin" `TX.append` (TX.pack . show) o) [c
 convert (ECon c)       = RT.App (Op $ "$econ" `TX.append` (TX.pack . show) c) []
 convert (ESym (SL tx)) = RT.App (Op tx) []
 convert (ECst t _)     = convert t
+convert (PIff e0 e1)   = convert (PAtom Eq e0 e1)
+convert (PImp e0 e1)   = convert (POr [PNot e0, e1])
 convert e              = error (show e)
 
 passesTerminationCheck :: OCAlgebra oc a IO -> RewriteArgs -> oc -> IO Bool
@@ -125,21 +128,22 @@ getRewrite ::
   -> oc
   -> SubExpr
   -> AutoRewrite
-  -> MaybeT IO (Expr, oc)
+  -> MaybeT IO ((Expr, Expr), Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
   do
     su <- MaybeT $ return $ unify freeVars lhs subE
     let subE' = subst su rhs
     guard $ subE /= subE'
     let expr' = toE subE'
+        eqn = (subst su lhs, subE')
     mapM_ (checkSubst su) exprs
     return $ case rwTerminationOpts rwArgs of
       RWTerminationCheckEnabled ->
         let
           c' = refine aoc c subE subE'
         in
-          (expr', c')
-      RWTerminationCheckDisabled -> (expr', c)
+          (eqn, expr', c')
+      RWTerminationCheckDisabled -> (eqn, expr', c)
   where
     check :: Expr -> MaybeT IO ()
     check e = do
@@ -183,6 +187,15 @@ subExprs' (PImp lhs rhs) = lhs'' ++ rhs''
     rhs'' :: [SubExpr]
     rhs'' = map (\(e, f) -> (e, \e' -> PImp lhs (f e'))) rhs'
 
+subExprs' (PIff lhs rhs) = lhs'' ++ rhs''
+  where
+    lhs' = subExprs lhs
+    rhs' = subExprs rhs
+    lhs'' :: [SubExpr]
+    lhs'' = map (\(e, f) -> (e, \e' -> PIff (f e') rhs)) lhs'
+    rhs'' :: [SubExpr]
+    rhs'' = map (\(e, f) -> (e, \e' -> PIff lhs (f e'))) rhs'
+
 subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
   where
     lhs' = subExprs lhs
@@ -205,7 +218,28 @@ subExprs' e@EApp{} =
         (subArg, toArg) <- subExprs arg
         return (subArg, \subArg' -> eApps f $ take i es ++ toArg subArg' : drop (i+1) es)
 
+subExprs' (ECst e t) =
+    [ (e', \subE -> ECst (toE subE) t) | (e', toE) <- subExprs' e ]
+
+subExprs' (PAnd es) = [ (e, PAnd . f) | (e, f) <- subs es ]
+
+subExprs' (POr es) = [ (e, POr . f) | (e, f) <- subs es ]
+
 subExprs' _ = []
+
+-- | Computes the subexpressions of a list of expressions.
+-- Each subexpression comes with a function that rebuilds the
+-- context in which the subexpression occurs.
+--
+-- > and [ es == f e | (e, f) <- subs es ]
+--
+subs :: [Expr] -> [(Expr, Expr -> [Expr])]
+subs [] = []
+subs [x] = [ (s, \e -> [f e]) | (s, f) <- subExprs x ]
+subs (x:xs) = [ (s, \e -> f e : xs) | (s, f) <- subExprs x ]
+              ++
+              [ (s, \e -> x : f e) | (s, f) <- subs xs ]
+
 
 unifyAll :: [Symbol] -> [Expr] -> [Expr] -> Maybe Subst
 unifyAll _ []     []               = Just (Su M.empty)
@@ -218,50 +252,60 @@ unifyAll freeVars (template:xs) (seen:ys) =
     return $ Su (M.union s1 s2)
 unifyAll _ _ _ = undefined
 
+-- | @unify vs template e = Just su@ yields a substitution @su@
+-- such that subst su template == e
+--
+-- Moreover, @su@ is constraint to only substitute variables in @vs@.
+--
+-- Yields @Nothing@ if no substitution exists.
+--
 unify :: [Symbol] -> Expr -> Expr -> Maybe Subst
 unify _ template seenExpr | template == seenExpr = Just (Su M.empty)
-unify freeVars template seenExpr = case (template, seenExpr) of
+unify freeVars template seenExpr = case (dropECst template, seenExpr) of
+  -- preserve seen casts if possible
   (EVar rwVar, _) | rwVar `elem` freeVars ->
     return $ Su (M.singleton rwVar seenExpr)
-  (EVar lhs, EVar rhs) | removeModName lhs == removeModName rhs ->
-                         Just (Su M.empty)
-    where
-      removeModName ts = go "" (symbolString ts) where
-        go buf []         = buf
-        go _   ('.':rest) = go [] rest
-        go buf (x:xs)     = go (buf ++ [x]) xs
-  (EApp templateF templateBody, EApp seenF seenBody) ->
-    unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
-  (ENeg rw, ENeg seen) ->
-    unify freeVars rw seen
-  (EBin op rwLeft rwRight, EBin op' seenLeft seenRight) | op == op' ->
-    unifyAll freeVars [rwLeft, rwRight] [seenLeft, seenRight]
-  (EIte cond rwLeft rwRight, EIte seenCond seenLeft seenRight) ->
-    unifyAll freeVars [cond, rwLeft, rwRight] [seenCond, seenLeft, seenRight]
-  (ECst rw _, ECst seen _) ->
-    unify freeVars rw seen
-  (ETApp rw _, ETApp seen _) ->
-    unify freeVars rw seen
-  (ETAbs rw _, ETAbs seen _) ->
-    unify freeVars rw seen
-  (PAnd rw, PAnd seen ) ->
-    unifyAll freeVars rw seen
-  (POr rw, POr seen ) ->
-    unifyAll freeVars rw seen
-  (PNot rw, PNot seen) ->
-    unify freeVars rw seen
-  (PImp templateF templateBody, PImp seenF seenBody) ->
-    unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
-  (PIff templateF templateBody, PIff seenF seenBody) ->
-    unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
-  (PAtom rel templateF templateBody, PAtom rel' seenF seenBody) | rel == rel' ->
-    unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
-  (PAll _ rw, PAll _ seen) ->
-    unify freeVars rw seen
-  (PExist _ rw, PExist _ seen) ->
-    unify freeVars rw seen
-  (PGrad _ _ _ rw, PGrad _ _ _ seen) ->
-    unify freeVars rw seen
-  (ECoerc _ _ rw, ECoerc _ _ seen) ->
-    unify freeVars rw seen
-  _ -> Nothing
+  -- otherwise discard the seen casts
+  (template', _) -> case (template', dropECst seenExpr) of
+    (EVar lhs, EVar rhs) | removeModName lhs == removeModName rhs ->
+                           Just (Su M.empty)
+      where
+        removeModName ts = go "" (symbolString ts) where
+          go buf []         = buf
+          go _   ('.':rest) = go [] rest
+          go buf (x:xs)     = go (buf ++ [x]) xs
+    (EApp templateF templateBody, EApp seenF seenBody) ->
+      unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
+    (ENeg rw, ENeg seen) ->
+      unify freeVars rw seen
+    (EBin op rwLeft rwRight, EBin op' seenLeft seenRight) | op == op' ->
+      unifyAll freeVars [rwLeft, rwRight] [seenLeft, seenRight]
+    (EIte cond rwLeft rwRight, EIte seenCond seenLeft seenRight) ->
+      unifyAll freeVars [cond, rwLeft, rwRight] [seenCond, seenLeft, seenRight]
+    (ECst rw _, seen) ->
+      unify freeVars rw seen
+    (ETApp rw _, ETApp seen _) ->
+      unify freeVars rw seen
+    (ETAbs rw _, ETAbs seen _) ->
+      unify freeVars rw seen
+    (PAnd rw, PAnd seen ) ->
+      unifyAll freeVars rw seen
+    (POr rw, POr seen ) ->
+      unifyAll freeVars rw seen
+    (PNot rw, PNot seen) ->
+      unify freeVars rw seen
+    (PImp templateF templateBody, PImp seenF seenBody) ->
+      unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
+    (PIff templateF templateBody, PIff seenF seenBody) ->
+      unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
+    (PAtom rel templateF templateBody, PAtom rel' seenF seenBody) | rel == rel' ->
+      unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
+    (PAll _ rw, PAll _ seen) ->
+      unify freeVars rw seen
+    (PExist _ rw, PExist _ seen) ->
+      unify freeVars rw seen
+    (PGrad _ _ _ rw, PGrad _ _ _ seen) ->
+      unify freeVars rw seen
+    (ECoerc _ _ rw, ECoerc _ _ seen) ->
+      unify freeVars rw seen
+    _ -> Nothing

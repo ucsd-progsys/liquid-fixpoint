@@ -11,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternSynonyms            #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 {-# OPTIONS_GHC -Wno-orphans            #-}
 
@@ -77,11 +78,14 @@ module Language.Fixpoint.Types.Refinements (
   -- * Destructing
   , flattenRefas
   , conjuncts
+  , dropECst
   , eApps
   , eAppC
+  , eCst
   , exprKVars
   , exprSymbolsSet
   , splitEApp
+  , splitEAppThroughECst
   , splitPAnd
   , reftConjuncts
   , sortedReftSymbols
@@ -432,12 +436,27 @@ splitEApp = go []
     go acc (EApp f e) = go (e:acc) f
     go acc e          = (e, acc)
 
+splitEAppThroughECst :: Expr -> (Expr, [Expr])
+splitEAppThroughECst = go []
+  where
+    go acc (dropECst -> (EApp f e)) = go (e:acc) f
+    go acc e          = (e, acc)
+
+dropECst :: Expr -> Expr
+dropECst e = case e of
+  ECst e' _ -> dropECst e'
+  _ -> e
+
 splitPAnd :: Expr -> [Expr]
 splitPAnd (PAnd es) = concatMap splitPAnd es
 splitPAnd e         = [e]
 
 eAppC :: Sort -> Expr -> Expr -> Expr
-eAppC s e1 e2 = ECst (EApp e1 e2) s
+eAppC s e1 e2 = eCst (EApp e1 e2) s
+
+-- | Eliminates redundant casts
+eCst :: Expr -> Sort -> Expr
+eCst e t = ECst (dropECst e) t
 
 --------------------------------------------------------------------------------
 debruijnIndex :: Expr -> Int

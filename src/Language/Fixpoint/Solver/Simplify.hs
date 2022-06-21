@@ -6,6 +6,7 @@
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing    #-}
 
@@ -55,7 +56,7 @@ applyBooleanFolding brel e1 e2 =
 -- where possible.
 applyConstantFolding :: Bop -> Expr -> Expr -> Expr
 applyConstantFolding bop e1 e2 =
-  case (e1, e2) of
+  case (dropECst e1, dropECst e2) of
     (ECon (R left), ECon (R right)) ->
       Mb.fromMaybe e (cfR bop left right)
     (ECon (R left), ECon (I right)) ->
@@ -65,16 +66,16 @@ applyConstantFolding bop e1 e2 =
     (ECon (I left), ECon (I right)) ->
       Mb.fromMaybe e (cfI bop left right)
     (EBin Mod  _   _              , _)  -> e
-    (EBin bop1 e11 (ECon (R left)), ECon (R right))
+    (EBin bop1 e11 (dropECst -> ECon (R left)), ECon (R right))
       | bop == bop1 -> maybe e (EBin bop e11) (cfR (rop bop) left right)
       | otherwise   -> e
-    (EBin bop1 e11 (ECon (R left)), ECon (I right))
+    (EBin bop1 e11 (dropECst -> ECon (R left)), ECon (I right))
       | bop == bop1 -> maybe e (EBin bop e11) (cfR (rop bop) left (fromIntegral right))
       | otherwise   -> e
-    (EBin bop1 e11 (ECon (I left)), ECon (R right))
+    (EBin bop1 e11 (dropECst -> ECon (I left)), ECon (R right))
       | bop == bop1 -> maybe e (EBin bop e11) (cfR (rop bop) (fromIntegral left) right)
       | otherwise   -> e
-    (EBin bop1 e11 (ECon (I left)), ECon (I right))
+    (EBin bop1 e11 (dropECst -> ECon (I left)), ECon (I right))
       | bop == bop1 -> maybe e (EBin bop e11) (cfI (rop bop) left right)
       | otherwise   -> e
     _ -> e

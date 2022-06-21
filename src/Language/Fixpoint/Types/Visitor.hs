@@ -399,12 +399,13 @@ stripCasts = mapExprOnExpr go
 type CoSub = M.HashMap Symbol Sort
 
 applyCoSub :: CoSub -> Expr -> Expr
-applyCoSub coSub      = mapExpr fE
+applyCoSub coSub = mapExprOnExpr fE
   where
     fE (ECoerc s t e) = ECoerc  (txS s) (txS t) e
     fE (ELam (x,t) e) = ELam (x, txS t)         e
+    fE (ECst e t)     = ECst e (txS t)
     fE e              = e
-    txS               = mapSort fS
+    txS               = mapSortOnlyOnce fS
     fS (FObj a)       = {- FObj -} txV a
     fS t              = t
     txV a             = M.lookupDefault (FObj a) a coSub
@@ -420,6 +421,24 @@ foldSort f = step
     go b (FApp t1 t2)  = L.foldl' step b [t1, t2]
     go b (FAbs _ t)    = go b t
     go b _             = b
+
+-- | Like 'mapSort' but it doesn't substitute on the result
+-- of the function.
+--
+-- > mapSortOnlyOnce [(a,b), (b,c)] a = b
+--
+-- whereas
+--
+-- > mapSort [(a,b), (b,c)] a = c
+--
+mapSortOnlyOnce :: (Sort -> Sort) -> Sort -> Sort
+mapSortOnlyOnce f = step
+  where
+    step !x           = f $ go x
+    go (FFunc t1 t2) = FFunc (step t1) (step t2)
+    go (FApp t1 t2)  = FApp  (step t1) (step t2)
+    go (FAbs i t)    = FAbs i (step t)
+    go !t             = t
 
 mapSort :: (Sort -> Sort) -> Sort -> Sort
 mapSort f = step

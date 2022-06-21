@@ -15,7 +15,12 @@ define add (x:int, y:int): int = {
 define proj (lq1 : (Field a),  lq2 : a): a = {
   if (is$FInt lq1) 
     then (coerce (int  ~ a) (add (coerce (a ~ int) lq2) 1)) 
-    else (coerce (bool ~ a) (not ((coerce (a ~ bool) lq2))))
+    else (coerce (bool ~ a)
+            // TODO: fix the parser so we can write
+            // (~ (coerce (a ~ bool) lq2))
+            (if coerce (a ~ bool) lq2 == true
+              then false
+              else true))
 } 
 
 match is$FInt FInt = (true)
