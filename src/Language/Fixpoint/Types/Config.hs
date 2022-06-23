@@ -94,6 +94,7 @@ data Config = Config
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
+  , pleWithUndecidedGuards :: Bool     -- ^ Unfold invocations with undecided guards in PLE
   , interpreter      :: Bool           -- ^ Do not use the interpreter to assist PLE
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
@@ -220,6 +221,11 @@ defConfig = Config {
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting (PLE)"
+  , pleWithUndecidedGuards   =
+      False
+        &= name "ple-with-undecided-guards"
+        &= help "Unfold invocations with undecided guards in PLE"
+        &= explicit
   , interpreter              =
       False
         &= name "interpreter"

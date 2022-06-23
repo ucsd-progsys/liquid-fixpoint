@@ -275,9 +275,15 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
 ple1 ie@InstEnv {..} ctx i res = do
   (ctx', env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
-  let pendings = maybe [] (const $ M.toList $ evPendingUnfoldings env) (icSubcId ctx)
+  let pendings = collectPendingUnfoldings env (icSubcId ctx)
       newEqs = pendings ++ S.toList (S.difference (icEquals ctx') (icEquals ctx))
   return (ctx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
+  where
+    -- Pending unfoldings (i.e. with undecided guards) are collected only
+    -- when we reach a leaf in the Trie, and only if the user asked for them.
+    collectPendingUnfoldings env (Just _) | pleWithUndecidedGuards ieCfg =
+      M.toList (evPendingUnfoldings env)
+    collectPendingUnfoldings _ _ = []
 
 evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
 evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
