@@ -219,7 +219,7 @@ defConfig = Config {
   , autoKuts                 = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"
-  , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting"
+  , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting (PLE)"
   , noInterpreter            =
       False
         &= name "no-interpreter"
