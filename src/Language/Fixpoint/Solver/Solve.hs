@@ -127,7 +127,7 @@ solve_ cfg fi s0 ks wkl = do
     return (s3, res0)
 
   (fi1, s4, res1) <- case resStatus res0 of  {- first run the interpreter -}
-    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && not (noInterpreter cfg) -> do
+    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && interpreter cfg -> do
       fi1 <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
       (s4, res1) <-  sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
         s4    <- {- SCC "sol-refine" -} refine bindingsInSmt s3 wkl
