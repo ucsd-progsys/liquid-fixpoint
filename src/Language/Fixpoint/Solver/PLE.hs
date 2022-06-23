@@ -403,7 +403,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
     cands     = rhs:es
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
-                  [ expr xr   | xr@(_, r) <- bs, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
+                  [ c | xr <- bs, c <- conjuncts (expr xr), null (Vis.kvarsExpr c) ]
     bs        = second unApplySortedReft <$> binds
     rhs       = unApply eRhs
     es        = expr <$> bs
