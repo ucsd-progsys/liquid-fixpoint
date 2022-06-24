@@ -566,7 +566,7 @@ eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
 eval γ ctx et = go
   where
     go (ELam (x,s) e)   = evalELam γ ctx et (x, s) e
-    go (EIte b e1 e2) = evalIte b e1 e2
+    go e@EIte{}         = evalIte γ ctx et e
     go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
     go e@(EApp _ _)     =
       case splitEAppThroughECst e of
@@ -616,19 +616,6 @@ eval γ ctx et = go
       xs <- mes
       let (xs', fe) = feSeq xs
       return (f xs', fe)
-
-    -- | Evaluate @if b then e1 else e2@.
-    --
-    -- If @b@ is valid, simplifies to @e1@; if @not b@ is valid, simplifies to @e2@.
-    -- Otherwise the ITE is kept.
-    evalIte :: Expr -> Expr -> Expr -> EvalST (Expr, FinalExpand)
-    evalIte b0 e1 e2 = do
-      (b, fe) <- eval γ ctx et b0
-      b'  <- mytracepp ("evalEIt POS " ++ showpp b) <$> isValidCached γ b
-      case b' of
-        Just True -> return (e1, noExpand)
-        Just False -> return (e2, noExpand)
-        _ -> return (EIte b e1 e2, fe)
 
 -- | 'evalELamb' produces equations that preserve the context of a rewrite
 -- so equations include any necessary lambda bindings.
@@ -807,7 +794,7 @@ evalApp γ ctx e0 es et
          then do
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
-                (e', fe) <- shortcut γ ctx et newE -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                (e', fe) <- evalIte γ ctx et newE -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                 let mPLEUnfold = startsWithPLEUnfold e'
                     e2' = Mb.fromMaybe e' mPLEUnfold
                     e3' = simplify γ ctx (eApps e2' es2) -- reduces a bit the equations
@@ -878,15 +865,15 @@ evalApp _ _ _e _es _
 
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
-shortcut :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
-shortcut γ ctx et (EIte i e1 e2) = do
+evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
+evalIte γ ctx et (EIte i e1 e2) = do
       (b, _) <- eval γ ctx et i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
       case b' of
-        Just True -> shortcut γ ctx et e1
-        Just False -> shortcut γ ctx et e2
+        Just True -> evalIte γ ctx et e1
+        Just False -> evalIte γ ctx et e2
         _ -> return (EIte b e1 e2, expand)
-shortcut _ _ _ e' = return (e', noExpand)
+evalIte _ _ _ e' = return (e', noExpand)
 
 -- | Creates equations that explain how to rewrite a given constructor
 -- application with all measures that aren't user data measures
