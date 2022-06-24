@@ -785,26 +785,36 @@ evalApp γ ctx e0 es et
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
                 (e', changed, fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-                let e2' = simplify γ ctx e' -- reduces a bit the equations
-                if changed
+                let mPLEUnfold = startsWithPLEUnfold e'
+                    e2' = Mb.fromMaybe e' mPLEUnfold
+                    e3' = simplify γ ctx e2' -- reduces a bit the equations
+
+                if changed || Mb.isJust mPLEUnfold
                   then do
                     useFuel f
                     modify $ \st ->
                       st
-                        { evNewEqualities = S.insert (eApps e0 es, e2') (evNewEqualities st)
+                        { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
                         , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
                         }
-                    return (Just e', fe)
+                    return (Just e2', fe)
                   else do
                     modify $ \st ->
                       st {
-                        evPendingUnfoldings = M.insert (eApps e0 es) e2' (evPendingUnfoldings st)
+                        evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
                       }
                     -- Don't unfold the expression if there is an if-then-else
                     -- guarding it, just to preserve the size of further
                     -- rewrites.
                     return (Nothing, noExpand)
          else return (Nothing, noExpand)
+  where
+    startsWithPLEUnfold e
+      | (ef, [arg]) <- splitEAppThroughECst e
+      , EVar f <- dropECst ef
+      , f == "Language.Haskell.Liquid.ProofCombinators.pleUnfold"
+      = Just arg
+      | otherwise = Nothing
 
 evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
