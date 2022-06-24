@@ -807,10 +807,10 @@ evalApp γ ctx e0 es et
          then do
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
-                (e', fe) <- shortcut γ ctx et newE es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                (e', fe) <- shortcut γ ctx et newE -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
                 let mPLEUnfold = startsWithPLEUnfold e'
                     e2' = Mb.fromMaybe e' mPLEUnfold
-                    e3' = simplify γ ctx e2' -- reduces a bit the equations
+                    e3' = simplify γ ctx (eApps e2' es2) -- reduces a bit the equations
                     undecidedGuards = case e' of
                       EIte{} -> True
                       _ -> False
@@ -878,15 +878,15 @@ evalApp _ _ _e _es _
 
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
-shortcut :: Knowledge -> ICtx -> EvalType -> Expr -> [Expr] -> EvalST (Expr, FinalExpand)
-shortcut γ ctx et (EIte i e1 e2) es2 = do
+shortcut :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
+shortcut γ ctx et (EIte i e1 e2) = do
       (b, _) <- eval γ ctx et i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
       case b' of
-        Just True -> shortcut γ ctx et e1 es2
-        Just False -> shortcut γ ctx et e2 es2
-        _ -> return (eApps (EIte b e1 e2) es2, expand)
-shortcut _ _ _ e' es2 = return (eApps e' es2, noExpand)
+        Just True -> shortcut γ ctx et e1
+        Just False -> shortcut γ ctx et e2
+        _ -> return (EIte b e1 e2, expand)
+shortcut _ _ _ e' = return (e', noExpand)
 
 -- | Creates equations that explain how to rewrite a given constructor
 -- application with all measures that aren't user data measures
