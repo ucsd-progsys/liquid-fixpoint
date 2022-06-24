@@ -809,6 +809,11 @@ evalApp γ ctx e0 es et
                     return (Nothing, noExpand)
          else return (Nothing, noExpand)
   where
+    -- At the time of writing, any function application wrapping an
+    -- if-statement would have the effect of unfolding the invocation.
+    -- However, using pleUnfold still has the advantage of not generating
+    -- extra equations to unfold pleUnfold itself. Using pleUnfold also
+    -- makes the intention of the user rather explicit.
     startsWithPLEUnfold e
       | (ef, [arg]) <- splitEAppThroughECst e
       , EVar f <- dropECst ef
