@@ -255,8 +255,7 @@ loopB env ctx delta iMb res b = case b of
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
 --
--- Adds to @ctx@ assumptions from @env@ and @delta@ plus rewrites that
--- candidates can use.
+-- Adds to @ctx@ assumptions from @env@ and @delta@.
 --
 -- Sets the current constraint id in @ctx@ to @cidMb@.
 --
@@ -272,6 +271,10 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
     act env' ctx' { icAssms = mempty }
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
+--
+-- It will generate equalities for all function invocations in the candidates
+-- in @ctx@ for which definitions are known. The function definitions are in
+-- @ieKnowl@.
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
 ple1 ie@InstEnv {..} ctx i res = do
   (ctx', env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
@@ -288,6 +291,21 @@ ple1 ie@InstEnv {..} ctx i res = do
 evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
 evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
 
+-- | Generate equalities for all function invocations in the candidates
+-- in @ctx@ for which definitions are known. The function definitions are in
+-- @ieKnowl@.
+--
+-- In pseudocode:
+--
+-- > do
+-- >     for every candidate
+-- >         discover equalities,
+-- >         unfold function invocations,
+-- >         update candidates with the unfolded expressions
+-- >     send newly discovered equalities to the SMT solver
+-- > until no new equalities are discovered
+-- >       or the environment becomes inconsistent
+--
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalST ICtx
 evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
   where
@@ -351,7 +369,7 @@ data InstEnv a = InstEnv
 data ICtx    = ICtx
   { icAssms    :: S.HashSet Pred            -- ^ Equalities converted to SMT format
   , icCands    :: S.HashSet Expr            -- ^ "Candidates" for unfolding
-  , icEquals   :: EvAccum                   -- ^ Accumulated equalities
+  , icEquals   :: EvEqualities              -- ^ Accumulated equalities
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   , icANFs     :: [[(Symbol, SortedReft)]]  -- Hopefully contain only ANF things
@@ -430,15 +448,15 @@ getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
 isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
 
-type EvAccum = S.HashSet (Expr, Expr)
+type EvEqualities = S.HashSet (Expr, Expr)
 
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
     -- | Equalities where we couldn't evaluate the guards
   , evPendingUnfoldings :: M.HashMap Expr Expr
-  , evNewEqualities :: EvAccum -- ^ Equalities discovered during a traversal of
-                               -- an expression
+  , evNewEqualities :: EvEqualities -- ^ Equalities discovered during a traversal of
+                                    -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
 
@@ -467,6 +485,13 @@ getAutoRws γ ctx =
     cid <- icSubcId ctx
     M.lookup cid $ knAutoRWs γ
 
+-- | Discover the equalities in an expression.
+--
+-- The discovered equalities are in the environment of the monad,
+-- and the list of produced expressions contains the result of unfolding
+-- definitions. When REST is in effect, more than one expression might
+-- be returned because expressions can then be rewritten in more than one
+-- way.
 evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
   | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW e
@@ -528,16 +553,14 @@ feAny xs = FE $ any feVal xs
 feSeq :: [(Expr, FinalExpand)] -> ([Expr], FinalExpand)
 feSeq xs = (map fst xs, feAny (map snd xs))
 
--- | Unfolds expressions using rewrites and equations.
+-- | Unfolds function invocations in expressions.
 --
 -- Also reduces if-then-else when the boolean condition or the negation can be
 -- proved valid. This is the actual implementation of guard-validation-before-unfolding
 -- that is described in publications.
 --
--- Also folds constants.
---
--- Also adds to the monad state all the subexpressions that have been rewritten
--- as pairs @(original_subexpression, rewritten_subexpression)@.
+-- Also adds to the monad state all the unfolding equalities that have been
+-- discovered as necessary.
 --
 eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
 eval γ ctx et = go
@@ -1108,7 +1131,7 @@ simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.map
       tx e
         | Just e' <- M.lookup e (icSimpl ictx)
         = e'
-      
+
       tx (PAtom rel e1 e2) = applyBooleanFolding rel e1 e2
       tx (EBin bop e1 e2) = applyConstantFolding bop e1 e2
       tx (ENeg e)         = applyConstantFolding Minus (ECon (I 0)) e
