@@ -879,10 +879,9 @@ shortcut :: Knowledge -> ICtx -> EvalType -> Expr -> [Expr] -> EvalST (Expr, Boo
 shortcut γ ctx et (EIte i e1 e2) es2 = do
       (b, _) <- eval γ ctx et i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
-      let changed (a, _, c) = (a, True, c)
       case b' of
-        Just True -> changed <$> shortcut γ ctx et e1 es2
-        Just False -> changed <$> shortcut γ ctx et e2 es2
+        Just True -> shortcut γ ctx et e1 es2
+        Just False -> shortcut γ ctx et e2 es2
         _ -> return (eApps (EIte b e1 e2) es2, False, expand)
 shortcut _ _ _ e' es2 = return (eApps e' es2, True, noExpand)
 
