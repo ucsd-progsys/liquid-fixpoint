@@ -30,28 +30,23 @@ in your path.
 How To Build and Install
 ------------------------
 
-
-Simply do:
-
 ```
 $ git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
 $ cd liquid-fixpoint
 $ stack install # alternatively, use `cabal install`.
 ```
 
-A reproducible Nix environment is provided as well:
+Test with
 
 ```
-# Build with:
-$ nix-shell --pure --run "stack build"
-
-# Test with:
-$ nix-shell --pure --run "stack test"
-
-# Run with:
-$ nix-shell --pure --run "stack exec fixpoint -- tests/pos/adt.fq"
+$ stack test
 ```
 
+Run with
+
+```
+$ stack exec fixpoint -- tests/pos/adt.fq
+```
 
 Using SMTLIB-based SMT Solvers
 ------------------------------
