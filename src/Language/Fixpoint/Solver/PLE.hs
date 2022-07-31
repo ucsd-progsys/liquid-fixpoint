@@ -645,6 +645,13 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
 eval γ ctx et = go
   where
+    go e@(EApp elam e0) | ELam (x, _s) eb <- dropECst elam = do
+      let eb' = subst1 eb (x, e0)
+      modify $ \st ->
+        st
+          { evNewEqualities = S.insert (e, eb') (evNewEqualities st)
+          }
+      go eb'
     go (ELam (x,s) e)   = evalELam γ ctx et (x, s) e
     go e@EIte{}         = evalIte γ ctx et e
     go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
