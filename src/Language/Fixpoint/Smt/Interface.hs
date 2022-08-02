@@ -264,7 +264,7 @@ smtWriteRaw me !s = {- SCC "smtWriteRaw" -} do
 
 -- | Reads a line of output from the SMT solver.
 smtReadRaw :: Context -> IO T.Text
-smtReadRaw me = {- SCC "smtReadRaw" -} TIO.hGetLine (ctxOut me)
+smtReadRaw me = TIO.hGetLine (ctxOut me)
 {-# SCC smtReadRaw  #-}
 
 hPutStrLnNow :: Handle -> LT.Text -> IO ()
