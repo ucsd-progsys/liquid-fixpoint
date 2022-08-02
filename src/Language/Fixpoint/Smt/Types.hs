@@ -96,12 +96,13 @@ data Response     = Ok
 -- | Information about the external SMT process
 data Context = Ctx
   { ctxPid     :: !ProcessHandle
-  , ctxCin     :: !Handle
-  , ctxCout    :: !Handle
+    -- | The handle for writing queries to, for input to the SMT solver.
+  , ctxIn      :: !Handle
+    -- | The handle for reading responses from, the output from the SMT solver.
+  , ctxOut     :: !Handle
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
   , ctxSymEnv  :: !SymEnv
-    -- | The handle of the thread writing queries to the SMT solver
   , ctxAsync   :: Async ()
     -- | The next batch of queries to send to the SMT solver
   , ctxTVar    :: TVar Builder

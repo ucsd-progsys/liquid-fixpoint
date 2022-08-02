@@ -254,18 +254,20 @@ negativeP
   = do v <- A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
        return $ "(" <> v <> ")"
 
-smtWriteRaw      :: Context -> Raw -> IO ()
+-- | Writes a line of input for the SMT solver and to the log if there is one.
+smtWriteRaw :: Context -> Raw -> IO ()
 smtWriteRaw me !s = {- SCC "smtWriteRaw" -} do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
   --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
-  hPutStrLnNow (ctxCout me) s
+  hPutStrLnNow (ctxIn me) s
   maybe (return ()) (`LTIO.hPutStrLn` s) (ctxLog me)
 
-smtReadRaw       :: Context -> IO T.Text
-smtReadRaw me    = {- SCC "smtReadRaw" -} TIO.hGetLine (ctxCin me)
+-- | Reads a line of output from the SMT solver.
+smtReadRaw :: Context -> IO T.Text
+smtReadRaw me = TIO.hGetLine (ctxOut me)
 {-# SCC smtReadRaw  #-}
 
-hPutStrLnNow     :: Handle -> LT.Text -> IO ()
+hPutStrLnNow :: Handle -> LT.Text -> IO ()
 hPutStrLnNow h !s = LTIO.hPutStrLn h s >> hFlush h
 {-# SCC hPutStrLnNow #-}
 
@@ -305,7 +307,7 @@ makeContextNoLog cfg
 
 makeProcess :: Config -> IO Context
 makeProcess cfg
-  = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd (solver cfg)
+  = do (hIn, hOut, _ ,pid) <- runInteractiveCommand $ smtCmd (solver cfg)
        loud <- isLoud
        hSetBuffering hOut $ BlockBuffering $ Just $ 1024*1024*64
        hSetBuffering hIn $ BlockBuffering $ Just $ 1024*1024*64
@@ -318,11 +320,11 @@ makeProcess cfg
            when (LT.null t) retry
            writeTVar queueTVar mempty
            return t
-         LTIO.hPutStr hOut t
-         hFlush hOut
+         LTIO.hPutStr hIn t
+         hFlush hIn
        return Ctx { ctxPid     = pid
-                  , ctxCin     = hIn
-                  , ctxCout    = hOut
+                  , ctxIn      = hIn
+                  , ctxOut     = hOut
                   , ctxLog     = Nothing
                   , ctxVerbose = loud
                   , ctxSymEnv  = mempty
@@ -334,8 +336,8 @@ makeProcess cfg
 cleanupContext :: Context -> IO ExitCode
 cleanupContext Ctx{..} = do
   cancel ctxAsync
-  hCloseMe "ctxCin"  ctxCin
-  hCloseMe "ctxCout" ctxCout
+  hCloseMe "ctxIn" ctxIn
+  hCloseMe "ctxOut"  ctxOut
   maybe (return ()) (hCloseMe "ctxLog") ctxLog
   waitForProcess ctxPid
 
