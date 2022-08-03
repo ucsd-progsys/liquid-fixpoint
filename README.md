@@ -3,7 +3,7 @@ Liquid Fixpoint
 
 [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint) 
 [![CircleCI](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint.svg?style=svg)](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint)
-[![hlint](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/hlint-ci.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/hlint-ci.yml)
+[![hlint](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/hlint.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/hlint.yml)
 [![cabal](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/cabal.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/cabal.yml)
 [![stack](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/stack.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/stack.yml)
 
