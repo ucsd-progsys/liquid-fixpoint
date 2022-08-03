@@ -138,7 +138,7 @@ emptyGMap :: GSolution -> GSolution
 emptyGMap sol = mapGMap sol (\(x,_) -> (x, GB []))
 
 updateGMapWithKey :: [(KVar, QBind)] -> GSolution -> GSolution
-updateGMapWithKey kqs sol = sol {gMap =  foldl (\m (k, QB eq) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs }
+updateGMapWithKey kqs sol = sol {gMap = L.foldl' (\m (k, QB eq) -> M.adjust (\(x, GB eqs) -> (x, GB (if eq `elem` eqs then eqs else eq:eqs))) k m) (gMap sol) kqs }
 
 qb :: [EQual] -> QBind
 qb = QB

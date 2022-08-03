@@ -24,7 +24,7 @@ import           Language.Fixpoint.Graph      as FG
 import qualified Data.HashMap.Strict          as M
 import           Data.String                  (IsString (..))
 import           Data.Either                  (partitionEithers, rights)
-import           Data.List                    (nub)
+import           Data.List                    (nub, foldl')
 import qualified Data.Set                     as S
 import qualified Data.HashSet                 as HS
 import qualified Data.Graph                   as DG
@@ -179,7 +179,7 @@ solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi 
 
     go :: S.Set F.Symbol -> Cstr a -> ([(F.Symbol, F.Expr)], S.Set F.Symbol)
     go visited (Head p _) = (collectEqualities p, visited)
-    go visited (CAnd cs) = foldl (\(eqs, visited) c -> let (eqs', visited') = go visited c in (eqs' <> eqs, visited')) (mempty, visited) cs
+    go visited (CAnd cs) = foldl' (\(eqs, visited) c -> let (eqs', visited') = go visited c in (eqs' <> eqs, visited')) (mempty, visited) cs
     go visited (All (Bind _ _ (Var pi _)) c)
       | S.member pi visited = go visited c
       | otherwise = let (_, defC) = (piSols M.! pi)
@@ -784,7 +784,7 @@ elim :: Cstr a -> Cstr a
 ------------------------------------------------------------------------------
 elim c = if S.null $ boundKvars res then res else error "called elim on cyclic constraint"
   where
-  res = S.foldl elim1 c (boundKvars c)
+  res = S.foldl' elim1 c (boundKvars c)
 
 elim1 :: Cstr a -> F.Symbol -> Cstr a
 -- Find a `sol1` solution to a kvar `k`, and then subsitute in the solution for
