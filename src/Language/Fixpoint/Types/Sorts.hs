@@ -374,7 +374,7 @@ mkFFunc i ss     = go [0..i-1] ss
     go (i:is) ss = FAbs  i $ go is ss
     go _ _       = error "cannot happen"
 
-   -- foldl (flip FAbs) (foldl1 (flip FFunc) ss) [0..i-1]
+   -- foldl' (flip FAbs) (foldl1 (flip FFunc) ss) [0..i-1]
 
 bkFFunc :: Sort -> Maybe (Int, [Sort])
 bkFFunc t    = (maximum (0 : as),) <$> bkFun t'
@@ -400,7 +400,7 @@ isPoly FAbs {} = True
 isPoly _       = False
 
 mkPoly :: Int -> Sort -> Sort
-mkPoly i s = foldl (flip FAbs) s [0..i]
+mkPoly i s = foldl' (flip FAbs) s [0..i]
 
 
 instance Hashable FTycon where

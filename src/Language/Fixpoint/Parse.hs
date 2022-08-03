@@ -1382,7 +1382,7 @@ defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs ebs lts dts kts qs binfo a
     rews       =                    [r                  | Mat r       <- defs]
     autoRWs    = M.fromList         [(arId , s)         | AutoRW arId s <- defs]
     rwEntries  =                    [(i, f)             | RWMap fs   <- defs, (i,f) <- fs]
-    rwMap      = foldl insert (M.fromList []) rwEntries
+    rwMap      = foldl' insert (M.fromList []) rwEntries
                  where
                    insert map' (cid', arId) =
                      case M.lookup arId autoRWs of

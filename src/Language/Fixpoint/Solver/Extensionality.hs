@@ -9,6 +9,7 @@ module Language.Fixpoint.Solver.Extensionality (expand) where
 import           Control.Monad.State
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe  (fromMaybe)
+import           Data.List (foldl')
 
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.SortCheck
@@ -173,7 +174,7 @@ normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
     go e@PAtom{}         = e
     go (EIte e e1 e2)    = go $ PAnd [PImp e e1, PImp (PNot e) e2]
     go (PAnd ps)         = pAnd (go <$> ps)
-    go (POr  ps)         = foldl (\x y -> PImp (PImp (go x) PFalse) y) PFalse ps
+    go (POr  ps)         = foldl' (\x y -> PImp (PImp (go x) PFalse) y) PFalse ps
     go e@(PAll _ _)      = e -- Cannot appear
     go e@(ELam _ _)      = e -- Cannot appear
     go e@(PExist _ _)    = e -- Cannot appear

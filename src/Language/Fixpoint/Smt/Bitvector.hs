@@ -28,6 +28,7 @@ import           Data.Typeable           (Typeable)
 import           GHC.Generics            (Generic)
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types
+import           Data.List (foldl')
 
 data Bv     = Bv !BvSize !String
 
@@ -57,7 +58,7 @@ instance Expression Bv where
 
 -- | Apply some bitvector operator to a list of arguments
 eOp :: BvOp -> [Expr] -> Expr
-eOp b es = foldl EApp (EVar $ opName b) es
+eOp b es = foldl' EApp (EVar $ opName b) es
 
 opName :: BvOp -> Symbol
 opName BvAnd = bvAndName

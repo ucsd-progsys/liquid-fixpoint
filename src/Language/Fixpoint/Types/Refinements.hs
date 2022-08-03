@@ -473,8 +473,8 @@ debruijnIndex = go
     go (EIte e e1 e2)  = go e + go e1 + go e2
     go (ETAbs e _)     = go e
     go (ETApp e _)     = go e
-    go (PAnd es)       = foldl (\n e -> n + go e) 0 es
-    go (POr es)        = foldl (\n e -> n + go e) 0 es
+    go (PAnd es)       = foldl' (\n e -> n + go e) 0 es
+    go (POr es)        = foldl' (\n e -> n + go e) 0 es
     go (PNot e)        = go e
     go (PImp e1 e2)    = go e1 + go e2
     go (PIff e1 e2)    = go e1 + go e2
@@ -955,7 +955,7 @@ reftBind (Reft (x, _)) = x
 -- | Gradual Type Manipulation  ----------------------------
 ------------------------------------------------------------
 pGAnds :: [Expr] -> Expr
-pGAnds = foldl pGAnd PTrue
+pGAnds = foldl' pGAnd PTrue
 
 pGAnd :: Expr -> Expr -> Expr
 pGAnd (PGrad k su i p) q = PGrad k su i (pAnd [p, q])
