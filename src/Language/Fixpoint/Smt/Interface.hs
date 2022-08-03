@@ -353,15 +353,12 @@ smtCmd Z3      = "z3 -smt2 -in"
 smtCmd Mathsat = "mathsat -input=smt2"
 smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
--- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 smtPreamble :: Config -> SMTSolver -> Context -> IO [LT.Text]
 smtPreamble cfg Z3 me
   = do smtWrite me "(get-info :version)"
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
        checkValidStringFlag Z3 v cfg
-       if T.splitOn "." v `versionGreaterEq` ["4", "3", "2"]
-         then return $ z3_432_options ++ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
-         else return $ z3_options     ++ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
+       return $ z3_options ++ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
 smtPreamble cfg s _
   = checkValidStringFlag s "" cfg >> return (Thy.preamble cfg s)
 
@@ -519,13 +516,6 @@ makeMbqi :: Config -> [LT.Text]
 makeMbqi cfg
   | gradual cfg = [""]
   | otherwise   = ["\n(set-option :smt.mbqi false)"]
-
--- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
-z3_432_options :: [LT.Text]
-z3_432_options
-  = [ "(set-option :auto-config false)"
-    , "(set-option :model true)"
-    , "(set-option :model.partial false)"]
 
 z3_options :: [LT.Text]
 z3_options
