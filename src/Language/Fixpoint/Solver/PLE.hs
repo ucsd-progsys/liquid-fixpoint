@@ -100,15 +100,24 @@ savePLEEqualities cfg fi sEnv res = when (save cfg) $ do
     let fq   = queryFile Files.Fq cfg ++ ".ple"
     putStrLn $ "\nSaving PLE equalities: "   ++ fq ++ "\n"
     Misc.ensurePath fq
-    let constraint_equalities =
-          map equalitiesPerConstraint $ Misc.hashMapToAscList $ cm fi
+    let constraint_list = Misc.hashMapToAscList $ cm fi
+        constraint_equalities = map equalitiesPerConstraint constraint_list
     writeFile fq $ render $ vcat $
       map renderConstraintRewrite constraint_equalities
   where
     equalitiesPerConstraint (cid, c) =
-      (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i (instResEqualities res)] ])
-    renderConstraintRewrite (cid, eqs) =
+      ( cid
+      , L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i (instResEqualities res)] ]
+      , Mb.fromMaybe (InstResConstraint [] []) $ M.lookup cid (instResConstraints res)
+      )
+    renderConstraintRewrite (cid, eqs, cands) =
       "constraint id" <+> text (show cid ++ ":")
+      $+$ nest 2
+           ("rhs:"
+             $+$
+             nest 2 (vcat $ L.intersperse "" $ map (toFix . unElab) (rhsCandidates cands))
+           )
+      $+$ ""
       $+$ nest 2
            (vcat $ L.intersperse "" $
             map (toFix . unElab) $ Set.toList $ Set.fromList $
@@ -211,7 +220,7 @@ pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
   where
     env'         = env
     diff0        = []
-    res0         = InstRes M.empty
+    res0         = InstRes M.empty M.empty
     ctx0         = ICtx
       { icAssms  = mempty
       , icCands  = mempty
@@ -280,7 +289,8 @@ ple1 ie@InstEnv {..} ctx i res = do
   (ctx', env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
   let pendings = collectPendingUnfoldings env (icSubcId ctx)
       newEqs = pendings ++ S.toList (S.difference (icEquals ctx') (icEquals ctx))
-  return (ctx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
+      candidates = (, M.elems $ icCands ctx') <$> icSubcId ctx
+  return (ctx', ie { ieEvEnv = env }, updCtxRes res i newEqs candidates)
   where
     -- Pending unfoldings (i.e. with undecided guards) are collected only
     -- when we reach a leaf in the Trie, and only if the user asked for them.
@@ -309,7 +319,7 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalST ICtx
 evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
   where
-    go ictx _ | S.null (icCands ictx) = return ictx
+    go ictx _ | M.null (icCands ictx) = return ictx
     go ictx i = do
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
@@ -317,7 +327,7 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
         else do
                   liftIO $ SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
                   let ictx' = ictx { icAssms = mempty }
-                      cands = S.toList $ icCands ictx
+                      cands = M.elems $ icCands ictx
                   candss <- mapM (evalOne γ ictx' i) cands
                   us <- gets evNewEqualities
                   modify $ \st -> st { evNewEqualities = mempty }
@@ -328,12 +338,12 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
                         else do  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
                                  let ictx''   = ictx' { icEquals = icEquals ictx <> unknownEqs
                                                       , icAssms  = S.filter (not . isTautoPred) eqsSMT }
-                                 go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
+                                 go (ictx'' { icCands = toCandidateMap (concat candss) }) (i + 1)
 
     testForInconsistentEnvironment =
       liftIO $ knPreds γ (knContext γ) (knLams γ) PFalse
 
-    eqCand [e0] e1 = e0 == e1
+    eqCand [e0] e1 = candidateExpr e0 == candidateExpr e1
     eqCand _ _ = False
 
 ----------------------------------------------------------------------------------------------
@@ -368,23 +378,61 @@ data InstEnv a = InstEnv
 
 data ICtx    = ICtx
   { icAssms    :: S.HashSet Pred            -- ^ Equalities converted to SMT format
-  , icCands    :: S.HashSet Expr            -- ^ "Candidates" for unfolding
+  , icCands    :: M.HashMap Expr CandidateExpr -- ^ "Candidates" for unfolding,
+                                               -- the key contains the same Expr as the value
   , icEquals   :: EvEqualities              -- ^ Accumulated equalities
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   , icANFs     :: [[(Symbol, SortedReft)]]  -- Hopefully contain only ANF things
   }
 
+-- | A candidate expression carries its provenance
+data CandidateExpr = CandidateExpr
+  { candidateOrigin :: CandidateOrigin
+  , candidateExpr :: Expr
+  } deriving Show
+
+instance Semigroup CandidateExpr where
+  ce0 <> ce1 =
+    ce0 { candidateOrigin = candidateOrigin ce0 <> candidateOrigin ce1 }
+
+-- | Creates a candidate expression with the same provenance
+-- as the given candidate.
+candidateSuccessorOf :: CandidateExpr -> Expr -> CandidateExpr
+candidateSuccessorOf ce e = ce { candidateExpr = e }
+
+-- | The candidate expression can come either from the left-hand
+-- or the right-hand side of a constraint, or it can come from a binding
+-- in the environment of a constraint.
+data CandidateOrigin = LHSCandidate | RHSCandidate | BindingCandidate
+  deriving Show
+
+instance Semigroup CandidateOrigin where
+  RHSCandidate <> _ = RHSCandidate
+  _ <> RHSCandidate = RHSCandidate
+  LHSCandidate <> _ = LHSCandidate
+  _ <> LHSCandidate = RHSCandidate
+  _ <> _ = BindingCandidate
+
+toCandidateMap :: [CandidateExpr] -> M.HashMap Expr CandidateExpr
+toCandidateMap = M.fromListWith (<>) . map (\c -> (candidateExpr c, c))
+
 ----------------------------------------------------------------------------------------------
 -- | @InstRes@ is the final result of PLE
 --
 ----------------------------------------------------------------------------------------------
 
-newtype InstRes = InstRes
+data InstRes = InstRes
   { -- | A map from @BindId@ to the equations "known" at that BindId
     instResEqualities :: M.HashMap BindId Expr
+    -- | A map of constraint ids to the rewrites for the lhs and the rhss.
+  , instResConstraints :: M.HashMap SubcId InstResConstraint
   }
 
+data InstResConstraint = InstResConstraint
+  { lhsCandidates :: [Expr]
+  , rhsCandidates :: [Expr]
+  }
 
 ----------------------------------------------------------------------------------------------
 -- | @Unfold is the result of running PLE at a single equality;
@@ -399,20 +447,39 @@ type Diff    = [BindId]    -- ^ in "reverse" order
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 
-updCtxRes :: InstRes -> Maybe BindId -> [(Expr, Expr)] -> InstRes
-updCtxRes res iMb = updRes res iMb . pAndNoDedup . equalitiesPred
+updCtxRes
+  :: InstRes
+  -> Maybe BindId
+  -> [(Expr, Expr)]
+  -> Maybe (SubcId, [CandidateExpr])
+  -> InstRes
+updCtxRes res iMb eqs mcands =
+  updRes res iMb (pAndNoDedup $ equalitiesPred eqs) mcands
 
-
-updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
-updRes res (Just i) e =
+updRes
+  :: InstRes
+  -> Maybe BindId
+  -> Expr
+  -> Maybe (SubcId, [CandidateExpr])
+  -> InstRes
+updRes res (Just i) e mcands =
   res { instResEqualities =
           M.insertWith
             (error "tree-like invariant broken in ple. See https://github.com/ucsd-progsys/liquid-fixpoint/issues/496")
             i
             e
             (instResEqualities res)
+      , instResConstraints = case mcands of
+          Nothing -> instResConstraints res
+          Just (cId, cands) ->
+            let rhss = [ e | CandidateExpr RHSCandidate e <- cands ]
+                lhss = [ e | CandidateExpr LHSCandidate e <- cands ]
+             in M.insert
+                  cId
+                  InstResConstraint { lhsCandidates = lhss, rhsCandidates = rhss }
+                  (instResConstraints res)
       }
-updRes res  Nothing _ = res
+updRes res  Nothing _ _ = res
 
 ----------------------------------------------------------------------------------------------
 -- | @updCtx env ctx delta cidMb@ adds the assumptions and candidates from @delta@ and @cidMb@
@@ -422,7 +489,7 @@ updRes res  Nothing _ = res
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx, InstEnv a)
 updCtx env@InstEnv{..} ctx delta cidMb
             = ( ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
-                    , icCands  = S.fromList cands           <> icCands  ctx
+                    , icCands  = toCandidateMap cands <> icCands  ctx
                     , icSimpl  = icSimpl ctx <> econsts
                     , icSubcId = cidMb
                     , icANFs   = bs : icANFs ctx
@@ -430,12 +497,13 @@ updCtx env@InstEnv{..} ctx delta cidMb
               , env
               )
   where
-    cands     = maybe es (:es) mrhs
+    cands     = maybe esCands (:esCands) mrhs
+    esCands   = map (CandidateExpr BindingCandidate) es
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
                   [ c | xr <- bs, c <- conjuncts (expr xr), null (Vis.kvarsExpr c) ]
     bs        = second unApplySortedReft <$> binds
-    mrhs      = unApply . crhs <$> subMb
+    mrhs      = CandidateExpr RHSCandidate . unApply . crhs <$> subMb
     es        = expr <$> bs
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
     subMb     = getCstr ieCstrs <$> cidMb
@@ -503,19 +571,20 @@ getAutoRws γ ctx =
 -- definitions. When REST is in effect, more than one expression might
 -- be returned because expressions can then be rewritten in more than one
 -- way.
-evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
-evalOne γ ctx i e
-  | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW e
-evalOne γ ctx _ e = do
+evalOne :: Knowledge -> ICtx -> Int -> CandidateExpr -> EvalST [CandidateExpr]
+evalOne γ ctx i ce
+  | i > 0 || null (getAutoRws γ ctx) =
+    (:[]) . candidateSuccessorOf ce . fst <$> eval γ ctx NoRW (candidateExpr ce)
+evalOne γ ctx _ ce = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
         oc = evOCAlgebra env
-        rp = RP (contramap Rewrite.convert oc) [(e, PLE)] constraints
+        rp = RP (contramap Rewrite.convert oc) [(candidateExpr ce, PLE)] constraints
         constraints = OC.top oc
         emptyET = ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc) (OC.refine oc)) ExploreWhenNeeded
     es <- evalREST γ ctx rp
     modify $ \st -> st { explored = Just emptyET }
-    return es
+    return $ map (candidateSuccessorOf ce) es
 
 -- The FuncNormal and RWNormal evaluation strategies are used for REST
 -- For example, consider the following function:
