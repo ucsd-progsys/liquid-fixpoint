@@ -62,6 +62,7 @@ fromText = Leaf . B.fromText
 parens :: Builder -> Builder
 parens b = "(" <>  b <> ")"
 
+infixl 9 <+>
 (<+>) :: Builder -> Builder -> Builder
 x <+> y = x <> " " <> y
 

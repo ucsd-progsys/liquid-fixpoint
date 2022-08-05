@@ -102,6 +102,7 @@ accum !z = modify (mappend z)
   -- !cur <- get
   -- put ((mappend $!! z) $!! cur)
 
+infixl 9 <$$>
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 

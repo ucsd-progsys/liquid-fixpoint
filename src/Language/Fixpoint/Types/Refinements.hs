@@ -892,9 +892,11 @@ pAndNoDedup = simplifyExpr id . PAnd
 
 pOr           = simplify . POr
 
+infixl 9 &.&
 (&.&) :: Pred -> Pred -> Pred
 (&.&) p q = pAnd [p, q]
 
+infixl 9 |.|
 (|.|) :: Pred -> Pred -> Pred
 (|.|) p q = pOr [p, q]
 

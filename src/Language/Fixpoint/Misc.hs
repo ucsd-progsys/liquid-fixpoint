@@ -425,12 +425,15 @@ allCombinations xs = assert (all ((length xs == ) . length)) $ go xs
 powerset :: [a] -> [[a]]
 powerset xs = filterM (const [False, True]) xs
 
+infixl 9 =>>
 (=>>) :: Monad m => m b -> (b -> m a) -> m b
 (=>>) m f = m >>= (\x -> f x >> return x)
 
+infixl 9 <<=
 (<<=) :: Monad m => (b -> m a) -> m b -> m b
 (<<=) = flip (=>>)
 
+infixl 9 <$$>
 (<$$>) ::  (Monad m) => (a -> m b) -> [a] -> m [b]
 _ <$$> []           = return []
 f <$$> [x1]         = singleton <$> f x1

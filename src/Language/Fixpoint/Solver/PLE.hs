@@ -545,6 +545,7 @@ feVal (FE f) = f
 feAny :: [FinalExpand] -> FinalExpand
 feAny xs = FE $ any feVal xs
 
+infixl 9 <|>
 (<|>) :: FinalExpand -> FinalExpand -> FinalExpand
 (<|>) (FE True) _ = expand
 (<|>) _         f = f
@@ -776,6 +777,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
     addConst (e,e') = if isConstant (knDCs γ) e'
                       then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx
 
+infixl 9 <$$>
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 

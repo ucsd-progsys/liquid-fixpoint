@@ -455,6 +455,7 @@ eval γ stk = go
     go (POr es)         = POr          <$> (go  <$$> es)
     go e                = return e
 
+infixl 9 <$$>
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
@@ -805,6 +806,7 @@ withCtx cfg file env k = do
   _   <- SMT.cleanupContext ctx
   return res
 
+infixl 9 ~>
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (e, _str) ~> e' = do
   let msg = "PLE: " ++ _str ++ showpp (e, e')
