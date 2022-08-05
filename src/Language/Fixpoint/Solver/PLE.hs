@@ -106,7 +106,7 @@ savePLEEqualities cfg fi sEnv res = when (save cfg) $ do
       map renderConstraintRewrite constraint_equalities
   where
     equalitiesPerConstraint (cid, c) =
-      (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i res] ])
+      (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i (instResEqualities res)] ])
     renderConstraintRewrite (cid, eqs) =
       "constraint id" <+> text (show cid ++ ":")
       $+$ nest 2
@@ -211,7 +211,7 @@ pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
   where
     env'         = env
     diff0        = []
-    res0         = M.empty
+    res0         = InstRes M.empty
     ctx0         = ICtx
       { icAssms  = mempty
       , icCands  = mempty
@@ -346,7 +346,7 @@ resSInfo cfg env fi res = strengthenBinds fi res'
     res'     = M.fromList $ zip is ps''
     ps''     = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps'
     ps'      = defuncAny cfg env ps
-    (is, ps) = unzip (M.toList res)
+    (is, ps) = unzip $ M.toList (instResEqualities res)
 
 ----------------------------------------------------------------------------------------------
 -- | @InstEnv@ has the global information needed to do PLE
@@ -376,10 +376,15 @@ data ICtx    = ICtx
   }
 
 ----------------------------------------------------------------------------------------------
--- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
+-- | @InstRes@ is the final result of PLE
+--
 ----------------------------------------------------------------------------------------------
 
-type InstRes = M.HashMap BindId Expr
+newtype InstRes = InstRes
+  { -- | A map from @BindId@ to the equations "known" at that BindId
+    instResEqualities :: M.HashMap BindId Expr
+  }
+
 
 ----------------------------------------------------------------------------------------------
 -- | @Unfold is the result of running PLE at a single equality;
@@ -399,7 +404,14 @@ updCtxRes res iMb = updRes res iMb . pAndNoDedup . equalitiesPred
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
-updRes res (Just i) e = M.insertWith (error "tree-like invariant broken in ple. See https://github.com/ucsd-progsys/liquid-fixpoint/issues/496") i e res
+updRes res (Just i) e =
+  res { instResEqualities =
+          M.insertWith
+            (error "tree-like invariant broken in ple. See https://github.com/ucsd-progsys/liquid-fixpoint/issues/496")
+            i
+            e
+            (instResEqualities res)
+      }
 updRes res  Nothing _ = res
 
 ----------------------------------------------------------------------------------------------
