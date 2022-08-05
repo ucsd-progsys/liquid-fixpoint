@@ -41,6 +41,7 @@ import           Data.Maybe                     (fromMaybe)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ.Compat
 import           Data.List (sortBy)
+import           Data.Function (on)
 -- import qualified Data.HashSet              as S
 
 -- import qualified Language.Fixpoint.Solver.Solution    as So
@@ -109,8 +110,8 @@ partition' mn fi  = case mn of
     pbc partF      = partitionByConstraints partF fi
 
 -- | Partition an FInfo into a specific number of partitions of roughly equal
--- amounts of work
-partitionN :: MCInfo        -- ^ describes thresholds and partiton amounts
+-- amounts of work.
+partitionN :: MCInfo        -- ^ Describes thresholds and partition amounts
            -> F.GInfo c a   -- ^ The originial FInfo
            -> [CPart c a]   -- ^ A list of the smallest possible CParts
            -> [F.GInfo c a] -- ^ At most N partitions of at least thresh work
@@ -130,10 +131,7 @@ partitionN mi fi cp
       sortedParts = sortBy sortPredicate cp
       unionFirstTwo (a:b:xs) = (a `mappend` b, xs)
       unionFirstTwo _        = errorstar "Partition.partitionN.unionFirstTwo called on bad arguments"
-      sortPredicate lhs rhs
-         | cpartSize lhs < cpartSize rhs = GT
-         | cpartSize lhs > cpartSize rhs = LT
-         | otherwise = EQ
+      sortPredicate = flip compare `on` cpartSize
       insertSorted a []     = [a]
       insertSorted a (x:xs) = if sortPredicate a x == LT
                               then x : insertSorted a xs
