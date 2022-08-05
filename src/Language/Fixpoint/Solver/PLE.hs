@@ -430,14 +430,13 @@ updCtx env@InstEnv{..} ctx delta cidMb
               , env
               )
   where
-    cands     = rhs:es
+    cands     = maybe es (:es) mrhs
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
                   [ c | xr <- bs, c <- conjuncts (expr xr), null (Vis.kvarsExpr c) ]
     bs        = second unApplySortedReft <$> binds
-    rhs       = unApply eRhs
+    mrhs      = unApply . crhs <$> subMb
     es        = expr <$> bs
-    eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
     subMb     = getCstr ieCstrs <$> cidMb
 
