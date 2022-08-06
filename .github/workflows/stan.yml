@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    name: ghc ${{ matrix.ghc }}
+    name: ghc-${{ matrix.ghc }} z3-4.10.2
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -31,10 +31,10 @@ jobs:
           path: ~/.cabal/store
           key: ${{ runner.os }}-${{ matrix.ghc }}-cabal
 
-      - uses: pavpanchekha/setup-z3@1.2.2
+      - uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
         name: setup z3
         with:
-          version: "4.8.7"
+          version: "4.10.2"
 
       - name: update
         run: cabal update

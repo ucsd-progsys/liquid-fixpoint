@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    name: ghc ${{ matrix.ghc }}
+    name: ghc-${{ matrix.ghc }} z3-${{ matrix.z3 }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -14,16 +14,26 @@ jobs:
         ghc:
           - "8.10.7"
           - "9.2.3"
+        z3:
+          - "4.8.7"
+          - "4.10.2"
 
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
 
-      - name: Setup z3
+      - name: Setup z3-4.8.7
+        if: ${{ matrix.z3 == '4.8.7' }}
         uses: pavpanchekha/setup-z3@1.2.2
         with:
-          version: "4.8.7"
+          version: ${{ matrix.z3 }}
+
+      - name: Setup z3-4.10.2
+        if: ${{ matrix.z3 == '4.10.2' }}
+        uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
+        with:
+          version: ${{ matrix.z3 }}
 
       - name: Setup GHC and cabal-install
         uses: haskell/actions/setup@v2
