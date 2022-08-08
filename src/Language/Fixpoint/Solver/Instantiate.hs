@@ -451,13 +451,9 @@ eval γ stk = go
     go (PNot e)         = PNot         <$> go e
     go (PImp e1 e2)     = PImp         <$> go e1 <*> go e2
     go (PIff e1 e2)     = PIff         <$> go e1 <*> go e2
-    go (PAnd es)        = PAnd         <$> (go  <$$> es)
-    go (POr es)         = POr          <$> (go  <$$> es)
+    go (PAnd es)        = PAnd         <$> (go `traverse` es)
+    go (POr es)         = POr          <$> (go `traverse` es)
     go e                = return e
-
-infixl 9 <$$>
-(<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
-f <$$> xs = f Misc.<$$> xs
 
 -- | `evalArgs` also evaluates all the partial applications for hacky reasons,
 --   suppose `foo g = id` then we want `foo g 10 = 10` and for that we need

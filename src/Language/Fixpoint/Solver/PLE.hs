@@ -599,8 +599,8 @@ eval γ ctx et = go
     go (PNot e')        = mapFE PNot <$> go e'
     go (PImp e1 e2)     = binOp PImp e1 e2
     go (PIff e1 e2)     = binOp PIff e1 e2
-    go (PAnd es)        = efAll PAnd (go  <$$> es)
-    go (POr es)         = efAll POr (go <$$> es)
+    go (PAnd es)        = efAll PAnd (go `traverse` es)
+    go (POr es)         = efAll POr (go `traverse` es)
     go e | EVar _ <- dropECst e = do
       (me', fe) <- evalApp γ ctx e [] et
       return (Mb.fromMaybe e me', fe)
@@ -776,11 +776,6 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
     addConst (e,e') = if isConstant (knDCs γ) e'
                       then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx
-
-infixl 9 <$$>
-(<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
-f <$$> xs = f Misc.<$$> xs
-
 
 -- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
 -- and equations
