@@ -5,7 +5,6 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE TypeOperators             #-}
-{-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE ImplicitParams            #-} -- ignore hlint
 
 
@@ -308,16 +307,6 @@ writeLoud s = whenLoud $ putStrLn s >> hFlush stdout
 ensurePath :: FilePath -> IO ()
 ensurePath = createDirectoryIfMissing True . takeDirectory
 
-singleton :: a -> [a]
-singleton x = [x]
-
-pair :: a -> a -> [a]
-pair x1 x2 = [x1, x2]
-
-triple :: a -> a -> a -> [a]
-triple x1 x2 x3 = [x1, x2, x3]
-
-
 fM :: (Monad m) => (a -> b) -> a -> m b
 fM f = return . f
 
@@ -425,26 +414,13 @@ allCombinations xs = assert (all ((length xs == ) . length)) $ go xs
 powerset :: [a] -> [[a]]
 powerset xs = filterM (const [False, True]) xs
 
+infixl 9 =>>
 (=>>) :: Monad m => m b -> (b -> m a) -> m b
 (=>>) m f = m >>= (\x -> f x >> return x)
 
+infixl 9 <<=
 (<<=) :: Monad m => (b -> m a) -> m b -> m b
 (<<=) = flip (=>>)
-
-(<$$>) ::  (Monad m) => (a -> m b) -> [a] -> m [b]
-_ <$$> []           = return []
-f <$$> [x1]         = singleton <$> f x1
-f <$$> [x1, x2]     = pair      <$> f x1 <*> f x2
-f <$$> [x1, x2, x3] = triple    <$> f x1 <*> f x2 <*> f x3
-f <$$> xs           = revMapM f {- trace msg -} xs
-  where
-    _msg            = "<$$> on " ++ show (length xs)
-
-revMapM  :: (Monad m) => (a -> m b) -> [a] -> m [b]
-revMapM f          = go []
-  where
-    go !acc []     = return (reverse acc)
-    go !acc (x:xs) = do {!y <- f x; go (y:acc) xs}
 
 -- Null if first is a subset of second
 nubDiff :: (Eq a, Hashable a) => [a] -> [a] -> S.HashSet a

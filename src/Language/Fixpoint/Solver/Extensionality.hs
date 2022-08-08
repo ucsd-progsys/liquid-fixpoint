@@ -15,7 +15,7 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import           Language.Fixpoint.Types hiding (mapSort, Pos)
-import           Language.Fixpoint.Types.Visitor ( (<$$>), mapSort )
+import           Language.Fixpoint.Types.Visitor (mapSort)
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -140,13 +140,13 @@ mapMPosExpr p f = go p
     go p (PAtom r e1 e2) = f p =<< (PAtom r     <$>  go p e1 <*> go p e2            )
 
     go p (PImp p1 p2)    = f p =<< (PImp        <$>  go (negatePos p) p1 <*> go p p2)
-    go p (PAnd ps)       = f p . PAnd =<< (go p <$$> ps)
+    go p (PAnd ps)       = f p . PAnd =<< (go p `traverse` ps)
 
     -- The below cannot appear due to normalization
     go p (PNot e)        = f p . PNot =<< go p e
     go p (PIff p1 p2)    = f p =<< (PIff        <$>  go p p1 <*> go p p2            )
     go p (EIte e e1 e2)  = f p =<< (EIte        <$>  go p e  <*> go p e1 <*> go p e2)
-    go p (POr  ps)       = f p . POr =<< (go p <$$> ps)
+    go p (POr  ps)       = f p . POr =<< (go p `traverse` ps)
 
     -- The following canot appear in general
     go p (PAll xts e)    = f p . PAll   xts =<< go p e

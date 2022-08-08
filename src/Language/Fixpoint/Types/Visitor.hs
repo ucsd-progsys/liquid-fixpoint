@@ -45,10 +45,6 @@ module Language.Fixpoint.Types.Visitor (
   , foldSort
   , mapSort
   , foldDataDecl
-
-  , (<$$>)
-
-
   ) where
 
 -- import           Control.Monad.Trans.State.Strict (State, modify, runState)
@@ -102,17 +98,6 @@ accum !z = modify (mappend z)
   -- !cur <- get
   -- put ((mappend $!! z) $!! cur)
 
-(<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
-f <$$> xs = f Misc.<$$> xs
-
--- (<$$>) ::  (Applicative f) => (a -> f b) -> [a] -> f [b]
--- f <$$> x = traverse f x
--- _ <$$> []     = return []
--- f <$$> (x:xs) = do
-  -- !y  <- f x
-  -- !ys <- f <$$> xs
-  -- return (y:ys)
-------------------------------------------------------------------------------
 class Visitable t where
   visit :: (Monoid a) => Visitor a c -> c -> t -> VisitM a t
 
@@ -185,8 +170,8 @@ visitExpr !v    = vE
     step !c (EBin o e1 e2)  = EBin o      <$> vE c e1 <*> vE c e2
     step !c (EIte p e1 e2)  = EIte        <$> vE c p  <*> vE c e1 <*> vE c e2
     step !c (ECst e t)      = (`ECst` t)  <$> vE c e
-    step !c (PAnd  ps)      = PAnd        <$> (vE c <$$> ps)
-    step !c (POr  ps)       = POr         <$> (vE c <$$> ps)
+    step !c (PAnd  ps)      = PAnd        <$> (vE c `traverse` ps)
+    step !c (POr  ps)       = POr         <$> (vE c `traverse` ps)
     step !c (PNot p)        = PNot        <$> vE c p
     step !c (PImp p1 p2)    = PImp        <$> vE c p1 <*> vE c p2
     step !c (PIff p1 p2)    = PIff        <$> vE c p1 <*> vE c p2
@@ -280,8 +265,8 @@ mapMExpr f = go
     go (PIff p1 p2)    = f =<< (PIff        <$>  go p1 <*> go p2          )
     go (PAtom r e1 e2) = f =<< (PAtom r     <$>  go e1 <*> go e2          )
     go (EIte p e1 e2)  = f =<< (EIte        <$>  go p  <*> go e1 <*> go e2)
-    go (PAnd  ps)      = f . PAnd =<< (go <$$> ps)
-    go (POr  ps)       = f . POr =<< (go <$$> ps)
+    go (PAnd ps)       = f . PAnd =<< (go `traverse` ps)
+    go (POr ps)        = f . POr =<< (go `traverse` ps)
 
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f          = trans kvVis () ()

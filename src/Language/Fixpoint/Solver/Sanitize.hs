@@ -492,6 +492,7 @@ dropFuncSortedShadowedBinders fi = dropBinders ok (const True) fi
     ok x t  = M.member x defs ==> (F.allowHO fi || isFirstOrder t)
     defs    = M.fromList $ F.toListSEnv $ F.gLits fi
 
+infixl 9 ==>
 (==>) :: Bool -> Bool -> Bool
 p ==> q = not p || q
 

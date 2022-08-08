@@ -805,6 +805,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
 
+infixl 9 $++$
 ($++$) :: Doc -> Doc -> Doc
 x $++$ y = x $+$ text "\n" $+$ y
 
