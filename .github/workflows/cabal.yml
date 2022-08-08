@@ -4,7 +4,7 @@ on:
   push:
   pull_request:
 
-# WARNING: The setup-z3 action constructs the download filename from
+# NOTE: The setup-z3 action constructs the download filename from
 # z3-version-architecture-distribution. From z3-4.8.10 to z3-4.8.11, the z3
 # releases distribution name for use on ubuntu changed from ubuntu to
 # glibc-2.31.  SEE: https://github.com/Z3Prover/z3/releases
@@ -19,7 +19,6 @@ jobs:
           - "8.10.7"
           - "9.2.3"
         z3:
-          - "4.8.7"
           - "4.10.2"
 
     steps:
@@ -27,15 +26,7 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup z3-4.8.7
-        if: ${{ matrix.z3 == '4.8.7' }}
-        uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
-        with:
-          version: ${{ matrix.z3 }}
-          distribution: ubuntu-16.04
-
       - name: Setup z3-4.10.2
-        if: ${{ matrix.z3 == '4.10.2' }}
         uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
         with:
           version: ${{ matrix.z3 }}
