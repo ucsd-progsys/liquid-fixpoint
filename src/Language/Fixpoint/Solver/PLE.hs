@@ -716,7 +716,11 @@ evalELam γ ctx et (x, s) e = do
     -- Discard the old equalities which miss the lambda binding
     modify $ \st -> st
       { evPendingUnfoldings = oldPendingUnfoldings
-      , evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs
+      , evNewEqualities =
+          if e /= e2' then
+            S.insert (elam, ELam (x, s) e2') oldEqs
+          else
+            oldEqs
       }
     return (elam, fe)
 
