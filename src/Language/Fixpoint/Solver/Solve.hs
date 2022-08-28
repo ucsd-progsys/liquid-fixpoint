@@ -19,6 +19,7 @@ import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
+import           Language.Fixpoint.Solver.EnvironmentReduction (inlineInExpr, inlineInSortedReft, undoANF)
 import qualified Language.Fixpoint.Solver.Solution  as S
 import qualified Language.Fixpoint.Solver.Worklist  as W
 import qualified Language.Fixpoint.Solver.Eliminate as E
@@ -29,11 +30,12 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
+import qualified Data.HashMap.Lazy as HashMap.Lazy
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 -- import qualified Data.Maybe          as Mb
 import qualified Data.List           as L
-import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
+import Language.Fixpoint.Types (resStatus, FixResult(Unsafe), mapBindEnv)
 import qualified Language.Fixpoint.Types.Config as C
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
@@ -107,6 +109,17 @@ doPLE cfg fi0 subcIds = do
         fi' = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
         sI  = solverInfo cfg fi
 
+deANFSInfo :: F.SInfo a -> F.SInfo a
+deANFSInfo fi =
+    fi
+      { F.cm = HashMap.Lazy.map (\c -> c { F._crhs = inlineInExpr lookupSym (F._crhs c) }) (F.cm fi)
+      , F.bs = bs'
+      }
+  where
+    bs' = mapBindEnv (\_ (s, sr) -> (s, inlineInSortedReft lookupSym sr)) (F.bs fi)
+    lookupSym s = HashMap.Lazy.lookup s (undoANF id bindEnv)
+    bindEnv = HashMap.Lazy.fromList [ (s, sr) | (_, s, sr) <- F.bindEnvToList (F.bs fi) ]
+
 --------------------------------------------------------------------------------
 {-# SCC solve_ #-}
 solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
@@ -117,7 +130,8 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> W.Worklist a
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
-solve_ cfg fi s0 ks wkl = do
+solve_ cfg fi0 s0 ks wkl = do
+  let fi = deANFSInfo fi0
   let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
   let s2   = mappend s0 s1
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
