@@ -71,7 +71,7 @@ elt  = "Elt"
 set  = "LSet"
 map  = "Map"
 
-emp, sng, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef :: Raw
+emp, sng, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef, mprj, mToSet :: Raw
 emp   = "smt_set_emp"
 sng   = "smt_set_sng"
 add   = "smt_set_add"
@@ -85,6 +85,8 @@ sel   = "smt_map_sel"
 sto   = "smt_map_sto"
 mcup  = "smt_map_cup"
 mdef  = "smt_map_def"
+mprj  = "smt_map_prj"
+mToSet = "smt_map_to_set"
 
 
 setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: Symbol
@@ -99,11 +101,31 @@ setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
 
-mapSel, mapSto, mapCup, mapDef :: Symbol
+mapSel, mapSto, mapCup, mapDef, mapPrj, mapToSet :: Symbol
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 mapCup   = "Map_union"
 mapDef   = "Map_default"
+mapPrj   = "Map_project"
+mapToSet = "Map_to_set"
+
+-- [Interaction between Map and Set]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Function mapToSet: Convert a map to a set. The map's key may be of
+-- any type and is preserved as the set's element type. More precisely:
+--   mapToSet : Map k Int -> Set k
+-- The element type must be Int. All non-positive elements are mapped
+-- to False, and all positive elements are mapped to True. In practice,
+-- negative elements should not exist because Map is intended to be used
+-- as a bag, so the element is a non-negative number representing
+-- the occurrences of its corresponding key.
+--
+-- Function mapPrj: Project a subset of a map. Type signature:
+--   mapPrj : Set k -> Map k Int -> Map k Int
+-- If the key is present in both the argument set and the argument map,
+-- then the key (along with its associated value in the map) are preserved
+-- in the output. Keys not present in the set are mapped to zero. Keys not
+-- present in the set are mapped to zero.
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
@@ -195,6 +217,33 @@ z3Preamble u
         [("m1", bb map), ("m2", bb map)]
         (bb map)
         (key2 (key "_ map" (key2 "+" (parens (bb elt <+> bb elt)) (bb elt))) "m1" "m2")
+    , bFun mprj -- See [Interaction Between Map and Set]
+        [("s", bb set), ("m", bb map)]
+        (bb map)
+        (key3
+          (key "_ map"
+            (key2 "ite"
+              (parens ("Bool" <+> bb elt <+> bb elt))
+              (bb elt)
+            )
+          )
+          "s"
+          "m"
+          (parens (key "as const" (key2 "Array" (bb elt) (bb elt)) <+> "0"))
+        )
+    , bFun mToSet -- See [Interaction Between Map and Set]
+        [("m", bb map)]
+        (bb set)
+        (key2
+          (key "_ map"
+            (key2 ">"
+              (parens (bb elt <+> bb elt))
+              "Bool"
+            )
+          )
+          "m"
+          (parens (key "as const" (key2 "Array" (bb elt) (bb elt)) <+> "0"))
+        )
     , bFun mdef
         [("v", bb elt)]
         (bb map)
@@ -386,6 +435,8 @@ interpSymbols =
   , interpSym mapSto   sto   mapStoSort
   , interpSym mapCup   mcup  mapCupSort
   , interpSym mapDef   mdef  mapDefSort
+  , interpSym mapPrj   mprj  mapPrjSort
+  , interpSym mapToSet mToSet mapToSetSort
   , interpSym bvOrName "bvor"   bvBopSort
   , interpSym bvAndName "bvand" bvBopSort
   , interpSym strLen    strLen    strLenSort
@@ -404,6 +455,10 @@ interpSymbols =
     mapCupSort = FAbs 0          $ FFunc (mapSort (FVar 0) intSort)
                                  $ FFunc (mapSort (FVar 0) intSort)
                                          (mapSort (FVar 0) intSort)
+    mapPrjSort = FAbs 0          $ FFunc (setSort (FVar 0))
+                                 $ FFunc (mapSort (FVar 0) intSort)
+                                         (mapSort (FVar 0) intSort)
+    mapToSetSort = FAbs 0        $ FFunc (mapSort (FVar 0) intSort) (setSort (FVar 0))
     mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0)
                                  $ FFunc (FVar 1)
