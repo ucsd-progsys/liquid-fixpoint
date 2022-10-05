@@ -1,0 +1,16 @@
+bind 1 m1 : {v : Map_t Int Int | v = Map_default 0}
+bind 2 s1 : {v : Set_Set Int | v = (Set_cup (Set_sng 10) (Set_sng 20))}
+bind 3 m2 : {v : Map_t Int Int | v = (Map_store (Map_store m1 10 1) 20 1) } 
+bind 4 m3 : {v : Map_t Int Int | v = (Map_store (Map_store m1 20 1) 10 1) } 
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : Set_Set Int | v = Map_to_set m2 }
+  rhs {v : Set_Set Int | v = s1 } 
+  id 1 tag []
+
+constraint:
+  env [ 1; 2; 3; 4 ]
+  lhs {v : Set_Set Int | v = Map_to_set m3 }
+  rhs {v : Set_Set Int | v = s1 } 
+  id 2 tag []
