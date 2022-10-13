@@ -264,7 +264,10 @@ smtWriteRaw me !s = {- SCC "smtWriteRaw" -} do
 
 -- | Reads a line of output from the SMT solver.
 smtReadRaw :: Context -> IO T.Text
-smtReadRaw me = TIO.hGetLine (ctxOut me)
+smtReadRaw me = do
+  eof <- hIsEOF (ctxOut me)
+  if eof then Misc.errorstar "SMT returned End of File" else
+    TIO.hGetLine (ctxOut me)
 {-# SCC smtReadRaw  #-}
 
 hPutStrLnNow :: Handle -> LT.Text -> IO ()
