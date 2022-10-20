@@ -63,7 +63,10 @@ shiftLam i x t e = ELam (x_i, t) (e `subst1` (x, x_i_t))
     x_i          = lamArgSymbol i
     x_i_t        = ECst (EVar x_i) t
 
--- normalize lambda arguments [TODO: example]
+-- | normalize lambda arguments [TODO: example]
+--
+-- Renames lambda bindings to lamb_arg##i. Each use of a lambda binding
+-- is surrounded with a cast.
 
 normalizeLams :: Expr -> Expr
 normalizeLams e = snd $ normalizeLamsFromTo 1 e
