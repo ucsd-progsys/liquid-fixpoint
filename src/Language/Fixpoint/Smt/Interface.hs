@@ -523,8 +523,7 @@ makeMbqi cfg
 z3_options :: [LT.Text]
 z3_options
   = [ "(set-option :auto-config false)"
-    , "(set-option :model true)"
-    , "(set-option :model.partial false)"]
+    , "(set-option :model true)" ]
 
 
 
