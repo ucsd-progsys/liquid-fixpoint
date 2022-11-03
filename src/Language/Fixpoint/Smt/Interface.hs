@@ -358,32 +358,37 @@ smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
 smtPreamble :: Config -> SMTSolver -> Context -> IO [LT.Text]
 smtPreamble cfg Z3 me
-  = do smtWrite me "(get-info :version)"
-       v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
+  = do v <- getZ3Version me
        checkValidStringFlag Z3 v cfg
        return $ z3_options ++ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
 smtPreamble cfg s _
-  = checkValidStringFlag s "" cfg >> return (Thy.preamble cfg s)
+  = checkValidStringFlag s [] cfg >> return (Thy.preamble cfg s)
 
-checkValidStringFlag :: SMTSolver -> T.Text -> Config -> IO ()
+getZ3Version :: Context -> IO [Int]
+getZ3Version me
+  = do smtWrite me "(get-info :version)"
+       -- resp is like (:version "4.8.15")
+       resp <- smtReadRaw me
+       case T.splitOn "\"" resp of
+         _:vText:_ -> do
+           let parsedComponents = [ reads (T.unpack cText) | cText <- T.splitOn "." vText ]
+           sequence
+             [ case pComponent of
+                 [(c, "")] -> return c
+                 xs -> error $ "Can't parse z3 version: " ++ show xs
+             | pComponent <- parsedComponents
+             ]
+         xs -> error $ "Can't parse z3 (get-info :version): " ++ show xs
+
+checkValidStringFlag :: SMTSolver -> [Int] -> Config -> IO ()
 checkValidStringFlag smt v cfg
   = when (noString smt v cfg) $
       die $ err dummySpan (text "stringTheory is only supported by z3 version >=4.2.2")
 
-noString :: SMTSolver -> T.Text -> Config -> Bool
+noString :: SMTSolver -> [Int] -> Config -> Bool
 noString smt v cfg
   =  stringTheory cfg
-  && not (smt == Z3 && (T.splitOn "." v `versionGreaterEq` ["4", "4", "2"]))
-
-
-versionGreaterEq :: Ord a => [a] -> [a] -> Bool
-versionGreaterEq (x:xs) (y:ys)
-  | x >  y = True
-  | x == y = versionGreaterEq xs ys
-  | x <  y = False
-versionGreaterEq _  [] = True
-versionGreaterEq [] _  = False
-versionGreaterEq _ _ = Misc.errorstar "Interface.versionGreater called with bad arguments"
+  && not (smt == Z3 && (v >= [4, 4, 2]))
 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------
