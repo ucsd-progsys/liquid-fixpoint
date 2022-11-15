@@ -254,7 +254,7 @@ ppCon x t = P.parens ("constant" P.<+> F.pprint x P.<+> P.parens (F.pprint t))
 ppQual :: F.Qualifier -> P.Doc
 ppQual (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (ppArg <$> xts) P.<+> P.parens (F.pprint p))
   where
-    ppArg qp    = F.pprint (F.qpSym qp) P.<+> P.parens (F.pprint (F.qpSort qp))
+    ppArg qp    = P.parens $ F.pprint (F.qpSym qp) P.<+> P.parens (F.pprint (F.qpSort qp))
 
 ppVar :: Var a -> P.Doc
 ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts)) 
