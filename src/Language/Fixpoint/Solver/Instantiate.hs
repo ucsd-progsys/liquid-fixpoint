@@ -191,7 +191,7 @@ resSInfo cfg env fi res = strengthenBinds fi res'
 data InstEnv a = InstEnv
   { ieCfg   :: !Config
   , ieSMT   :: !SMT.Context
-  , ieBEnv  :: !BindEnv
+  , ieBEnv  :: !(BindEnv a)
   , ieAenv  :: !AxiomEnv
   , ieCstrs :: !(M.HashMap SubcId (SimpC a))
   , ieKnowl :: !Knowledge
@@ -287,7 +287,7 @@ updCtx InstEnv {..} ctx delta cidMb
     (bs, es0) = (second unElabSortedReft <$> binds, unElab <$> es)
     es        = eRhs : (expr <$> binds)
     eRhs      = maybe PTrue crhs subMb
-    binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
+    binds     = [ (x, y)  | i <- delta, let (x, y, _) = lookupBindEnv i ieBEnv ]
     subMb     = getCstr ieCstrs <$> cidMb
 
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a
@@ -314,7 +314,7 @@ sInfo cfg env fi ips = strengthenHyp fi (mytracepp  "ELAB-INST:  " $ zip (fst <$
     ps'              = defuncAny cfg env ps
     ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps'
 
-instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
+instSimpC :: Config -> SMT.Context -> BindEnv a -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv sid sub
   | isPleCstr aenv sid sub = do
     let is0       = mytracepp  "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv)
@@ -327,7 +327,7 @@ instSimpC cfg ctx bds aenv sid sub
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
 isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
 
-cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
+cstrExprs :: BindEnv a -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
 cstrExprs bds sub = (second unElabSortedReft <$> binds, unElab <$> es)
   where
     es            = crhs sub : (expr <$> binds)
@@ -808,4 +808,3 @@ infixl 9 ~>
   let msg = "PLE: " ++ _str ++ showpp (e, e')
   modify (\st -> st {evId = mytracepp msg (evId st) + 1})
   return e'
-

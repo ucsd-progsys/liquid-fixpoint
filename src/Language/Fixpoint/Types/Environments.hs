@@ -216,12 +216,12 @@ emptyBindEnv = BE 0 M.empty
 filterBindEnv   :: (BindId -> Symbol -> SortedReft -> Bool) -> BindEnv a -> BindEnv a
 filterBindEnv f (BE n be) = BE n (M.filterWithKey (\ n' (x, r, _) -> f n' x r) be)
 
-bindEnvFromList :: [(BindId, Symbol, SortedReft, a)] -> BindEnv a
+bindEnvFromList :: [(BindId, (Symbol, SortedReft, a))] -> BindEnv a
 bindEnvFromList [] = emptyBindEnv
 bindEnvFromList bs = BE (1 + maxId) be
   where
-    maxId          = maximum [ n | (n,_,_,_) <- bs ]
-    be             = M.fromList [(n, (x, r, a)) | (n, x, r, a) <- bs]
+    maxId          = maximum [ n | (n,(_,_,_)) <- bs ]
+    be             = M.fromList bs
 
 elemsBindEnv :: BindEnv a -> [BindId]
 elemsBindEnv be = fst <$> bindEnvToList be
@@ -310,7 +310,7 @@ instance Monoid (BindEnv a) where
   mappend = (<>)
 
 envCs :: BindEnv a -> IBindEnv -> [(Symbol, SortedReft)]
-envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
+envCs be env = [(x, y) | i <- elemsIBindEnv env, let (x, y, _) = lookupBindEnv i be]
 
 instance Fixpoint IBindEnv where
   toFix (FB ids) = text "env" <+> toFix ids

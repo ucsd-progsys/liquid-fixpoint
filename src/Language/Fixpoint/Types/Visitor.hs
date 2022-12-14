@@ -110,8 +110,8 @@ instance Visitable Reft where
 instance Visitable SortedReft where
   visit v c (RR t r) = RR t <$> visit v c r
 
-instance Visitable (Symbol, SortedReft) where
-  visit v c (sym, sr) = (sym, ) <$> visit v c sr
+instance Visitable (Symbol, SortedReft, a) where
+  visit v c (sym, sr, a) = (sym, ,a) <$> visit v c sr
 
 instance Visitable (BindEnv a) where
   visit v c = mapM (visit v c)
@@ -475,7 +475,7 @@ instance (SymConsts (c a)) => SymConsts (GInfo c a) where
       qsLits   = concatMap symConsts $ qBody   <$> quals fi
 
 instance SymConsts (BindEnv a) where
-  symConsts    = concatMap (symConsts . snd) . M.elems . beBinds
+  symConsts    = concatMap (symConsts . Misc.snd3) . M.elems . beBinds
 
 instance SymConsts (SubC a) where
   symConsts c  = symConsts (slhs c) ++

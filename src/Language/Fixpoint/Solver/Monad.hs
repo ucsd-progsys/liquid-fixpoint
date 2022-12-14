@@ -58,12 +58,12 @@ import           Control.Exception.Base (bracket)
 -- | Solver Monadic API --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-type SolveM = StateT SolverState IO
+type SolveM ann = StateT (SolverState ann) IO
 
-data SolverState = SS
-  { ssCtx     :: !Context          -- ^ SMT Solver Context
-  , ssBinds   :: !F.BindEnv        -- ^ All variables and types
-  , ssStats   :: !Stats            -- ^ Solver Statistics
+data SolverState ann = SS
+  { ssCtx     :: !Context         -- ^ SMT Solver Context
+  , ssBinds   :: !(F.BindEnv ann) -- ^ All variables and types
+  , ssStats   :: !Stats           -- ^ Solver Statistics
   }
 
 stats0    :: F.GInfo c b -> Stats
@@ -72,7 +72,7 @@ stats0 fi = Stats nCs 0 0 0 0
     nCs   = M.size $ F.cm fi
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo b c -> SolveM a -> IO a
+runSolverM :: Config -> SolverInfo ann c -> SolveM ann a -> IO a
 --------------------------------------------------------------------------------
 runSolverM cfg sI act =
   bracket acquire release $ \ctx -> do
@@ -93,34 +93,34 @@ runSolverM cfg sI act =
 
 
 --------------------------------------------------------------------------------
-getBinds :: SolveM F.BindEnv
+getBinds :: SolveM ann (F.BindEnv ann)
 --------------------------------------------------------------------------------
 getBinds = ssBinds <$> get
 
 --------------------------------------------------------------------------------
-getIter :: SolveM Int
+getIter :: SolveM ann Int
 --------------------------------------------------------------------------------
 getIter = numIter . ssStats <$> get
 
 --------------------------------------------------------------------------------
-incIter, incBrkt :: SolveM ()
+incIter, incBrkt :: SolveM ann ()
 --------------------------------------------------------------------------------
 incIter   = modifyStats $ \s -> s {numIter = 1 + numIter s}
 incBrkt   = modifyStats $ \s -> s {numBrkt = 1 + numBrkt s}
 
 --------------------------------------------------------------------------------
-incChck, incVald :: Int -> SolveM ()
+incChck, incVald :: Int -> SolveM ann ()
 --------------------------------------------------------------------------------
 incChck n = modifyStats $ \s -> s {numChck = n + numChck s}
 incVald n = modifyStats $ \s -> s {numVald = n + numVald s}
 
-withContext :: (Context -> IO a) -> SolveM a
+withContext :: (Context -> IO a) -> SolveM ann a
 withContext k = (lift . k) =<< getContext
 
-getContext :: SolveM Context
+getContext :: SolveM ann Context
 getContext = ssCtx <$> get
 
-modifyStats :: (Stats -> Stats) -> SolveM ()
+modifyStats :: (Stats -> Stats) -> SolveM ann ()
 modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 
 --------------------------------------------------------------------------------
@@ -132,12 +132,12 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 --
 -- Yields the ids of bindings known to the SMT
 sendConcreteBindingsToSMT
-  :: F.IBindEnv -> (F.IBindEnv -> SolveM a) -> SolveM a
+  :: F.IBindEnv -> (F.IBindEnv -> SolveM ann a) -> SolveM ann a
 sendConcreteBindingsToSMT known act = do
   be <- getBinds
   let concretePreds =
         [ (i, F.subst1 p (v, F.EVar s))
-        | (i, s, F.RR _ (F.Reft (v, p))) <- F.bindEnvToList be
+        | (i, (s, F.RR _ (F.Reft (v, p)),_)) <- F.bindEnvToList be
         , F.isConc p
         , not (isShortExpr p)
         , not (F.memberIBindEnv i known)
@@ -158,7 +158,7 @@ sendConcreteBindingsToSMT known act = do
 -- | `filterRequired [(x1, p1),...,(xn, pn)] q` returns a minimal list [xi] s.t.
 --   /\ [pi] => q
 --------------------------------------------------------------------------------
-filterRequired :: F.Cand a -> F.Expr -> SolveM [a]
+filterRequired :: F.Cand a -> F.Expr -> SolveM ann [a]
 --------------------------------------------------------------------------------
 filterRequired = error "TBD:filterRequired"
 
@@ -185,7 +185,7 @@ filterRequired = error "TBD:filterRequired"
 -- | `filterValid p [(q1, x1),...,(qn, xn)]` returns the list `[ xi | p => qi]`
 --------------------------------------------------------------------------------
 {-# SCC filterValid #-}
-filterValid :: F.SrcSpan -> F.Expr -> F.Cand a -> SolveM [a]
+filterValid :: F.SrcSpan -> F.Expr -> F.Cand a -> SolveM ann [a]
 --------------------------------------------------------------------------------
 filterValid sp p qs = do
   qs' <- withContext $ \me ->
@@ -214,7 +214,7 @@ filterValid_ sp p qs me = catMaybes <$> do
 -- | `filterValidGradual ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
 -- | for some p in the list ps
 --------------------------------------------------------------------------------
-filterValidGradual :: [F.Expr] -> F.Cand a -> SolveM [a]
+filterValidGradual :: [F.Expr] -> F.Cand a -> SolveM ann [a]
 --------------------------------------------------------------------------------
 filterValidGradual p qs = do
   qs' <- withContext $ \me ->
@@ -245,12 +245,12 @@ filterValidOne_ p qs me = do
       valid <- smtCheckUnsat me
       return ((q, x), valid)
 
-smtEnablembqi :: SolveM ()
+smtEnablembqi :: SolveM ann ()
 smtEnablembqi
   = withContext smtSetMbqi
 
 --------------------------------------------------------------------------------
-checkSat :: F.Expr -> SolveM  Bool
+checkSat :: F.Expr -> SolveM ann Bool
 --------------------------------------------------------------------------------
 checkSat p
   = withContext $ \me ->
@@ -258,20 +258,20 @@ checkSat p
         smtCheckSat me p
 
 --------------------------------------------------------------------------------
-assumesAxioms :: [F.Triggered F.Expr] -> SolveM ()
+assumesAxioms :: [F.Triggered F.Expr] -> SolveM ann ()
 --------------------------------------------------------------------------------
 assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
 
 
 ---------------------------------------------------------------------------
-stats :: SolveM Stats
+stats :: SolveM ann Stats
 ---------------------------------------------------------------------------
 stats = ssStats <$> get
 
 ---------------------------------------------------------------------------
-tickIter :: Bool -> SolveM Int
+tickIter :: Bool -> SolveM ann Int
 ---------------------------------------------------------------------------
 tickIter newScc = progIter newScc >> incIter >> getIter
 
-progIter :: Bool -> SolveM ()
+progIter :: Bool -> SolveM ann ()
 progIter newScc = lift $ when newScc progressTick

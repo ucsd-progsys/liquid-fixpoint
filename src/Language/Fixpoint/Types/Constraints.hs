@@ -205,9 +205,9 @@ subcBind si i
 strengthenBinds :: SInfo a -> M.HashMap BindId Expr -> SInfo a
 strengthenBinds si m = si { bs = mapBindEnv f (bs si) }
   where
-    f i (x, sr)      = case M.lookup i m of
-                         Nothing -> (x, sr)
-                         Just e  -> (x, strengthenSortedReft sr e)
+    f i (x, sr, l)   = case M.lookup i m of
+                         Nothing -> (x, sr, l)
+                         Just e  -> (x, strengthenSortedReft sr e, l)
 
 strengthenSortedReft :: SortedReft -> Expr -> SortedReft
 strengthenSortedReft (RR s (Reft (v, r))) e = RR s (Reft (v, pAnd [r, e]))
@@ -870,7 +870,7 @@ simpcToSubc env s = SubC
   , _sinfo = sinfo s
   }
   where
-    (b, sr) = lookupBindEnv (cbind s) env
+    (b, sr, _) = lookupBindEnv (cbind s) env
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------

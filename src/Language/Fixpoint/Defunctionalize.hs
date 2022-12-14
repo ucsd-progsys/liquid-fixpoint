@@ -147,7 +147,7 @@ instance Defunc Expr where
 instance Defunc a => Defunc (SEnv a) where
   defunc = mapMSEnv defunc
 
-instance Defunc BindEnv where
+instance Defunc (BindEnv a) where
   defunc bs = do dfbs <- gets dfBEnv
                  let f (i, xs) = if i `memberIBindEnv` dfbs
                                        then  (i,) <$> defunc xs

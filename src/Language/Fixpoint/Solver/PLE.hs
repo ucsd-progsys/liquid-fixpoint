@@ -355,7 +355,7 @@ resSInfo cfg env fi res = strengthenBinds fi res'
 data InstEnv a = InstEnv
   { ieCfg   :: !Config
   , ieSMT   :: !SMT.Context
-  , ieBEnv  :: !BindEnv
+  , ieBEnv  :: !(BindEnv a)
   , ieAenv  :: !AxiomEnv
   , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
@@ -426,7 +426,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
     rhs       = unApply eRhs
     es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
-    binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
+    binds     = [ (x, y) | i <- delta, let (x, y, _) =  lookupBindEnv i ieBEnv]
     subMb     = getCstr ieCstrs <$> cidMb
 
 
