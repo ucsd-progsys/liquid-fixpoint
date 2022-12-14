@@ -200,11 +200,12 @@ instance Elaborate SortedReft where
       e'   = elaborate x env' e
       env' = insertSymEnv v s env
 
-instance Elaborate (BindEnv a) where
-  elaborate z env = mapBindEnv (\i (x, sr, l) -> (x, elaborate (z' i x sr) env sr, l))
+instance (Loc a) => Elaborate (BindEnv a) where
+  elaborate msg env = mapBindEnv (\_ (x, sr, l) -> (x, elaborate (msg' l) env sr, l))
     where
-      z' i  x sr  = z { val = val z ++ msg i x sr }
-      msg _i _x _sr  = error "ELAB:crash" -- unwords [" elabBE",  show i, show x, show sr]
+      msg' l        = atLoc l (val msg)
+      -- z' i  x sr  = z { val = val z ++ msg i x sr }
+      -- msg i x sr  = error "ELAB:crash" -- unwords [" elabBE",  show i, show x, show sr]
 
 instance (Loc a) => Elaborate (SimpC a) where
   elaborate msg env c = c {_crhs = elaborate msg' env (_crhs c) }
