@@ -22,7 +22,10 @@ mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
 expand :: Config -> SInfo a -> SInfo a
-expand cfg si = evalState (extend si) $ initST (symbolEnv cfg si) (ddecls si)
+expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si)
+  where
+    ext ::SInfo a -> Ex a (SInfo a)
+    ext = extend
 
 
 class Extend ann a where
@@ -36,16 +39,16 @@ instance Extend a (SInfo a) where
     bs'      <- gets exbenv
     return $ si{ cm = cm' , bs = bs' }
 
-instance (Extend a) => Extend (M.HashMap SubcId a) where
+instance (Extend ann a) => Extend ann (M.HashMap SubcId a) where
   extend h = M.fromList <$> mapM extend (M.toList h)
 
-instance (Extend a, Extend b) => Extend (a,b) where
+instance (Extend ann a, Extend ann b) => Extend ann (a,b) where
   extend (a,b) = (,) <$> extend a <*> extend b
 
-instance Extend SubcId where
+instance Extend ann SubcId where
   extend i = return i
 
-instance Extend (SimpC a) where
+instance Extend ann (SimpC a) where
   extend c = do
     setExBinds (_cenv c)
     rhs <- extendExpr Pos (_crhs c)
@@ -220,11 +223,11 @@ freshArgDD (dc, xs) = do
   return $ mkEApp dc (EVar <$> xs)
 
 
-freshArgOne :: Sort -> Ex a Symbol
+freshArgOne :: Sort -> Ex ann Symbol
 freshArgOne s = do
   st   <- get
   let x = symbol ("ext$" ++ show (unique st))
-  let (id, benv') = insertBindEnv x (trueSortedReft s) (exbenv st)
+  let (id, benv') = insertBindEnv x (trueSortedReft s) (error "Extensionality.freshArgOne") (exbenv st)
   modify (\st -> st{ exenv   = insertSymEnv x s (exenv st)
                    , exbenv  = benv'
                    , exbinds = insertsIBindEnv [id] (exbinds st)

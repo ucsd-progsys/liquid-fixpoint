@@ -87,13 +87,13 @@ updateWfc fi w    = fi'' { ws = M.insert k w' (ws fi) }
 accumBindsIfValid :: KVar -> a -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBindsIfValid k a (fi, ids) i = if renamable then accumBinds k a (fi, ids) i else (fi, i : ids)
   where
-    (_, sr)                     = lookupBindEnv i      (bs fi)
+    (_, sr, _)                    = lookupBindEnv i      (bs fi)
     renamable                   = isValidInRefinements (sr_sort sr)
 
 accumBinds :: KVar -> a -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBinds k a (fi, ids) i = (fi', i' : ids)
   where
-    (oldSym, sr) = lookupBindEnv i (bs fi)
+    (oldSym, sr,_) = lookupBindEnv i (bs fi)
     newSym       = {- tracepp "kArgSymbol" $ -}  kArgSymbol oldSym (kv k)
     (i', fi')    = newTopBind newSym sr a fi
 

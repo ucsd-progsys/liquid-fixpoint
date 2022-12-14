@@ -144,7 +144,7 @@ simplifyFInfo tm fi = fi {
 }
 
 simplifyBindEnv :: NonTrivSorts -> BindEnv a -> BindEnv a
-simplifyBindEnv tm = mapBindEnv (\_ (x, sr) -> (x, simplifySortedReft tm sr))
+simplifyBindEnv tm = mapBindEnv (\_ (x, sr, a) -> (x, simplifySortedReft tm sr, a))
 
 simplifyWfCs :: NonTrivSorts -> M.HashMap KVar (WfC a) -> M.HashMap KVar (WfC a)
 simplifyWfCs tm = M.filter (isNonTrivialSort tm . snd3 . wrft)

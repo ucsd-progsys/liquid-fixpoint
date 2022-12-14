@@ -315,7 +315,7 @@ initEnv :: F.SInfo a -> F.WfC a -> F.SEnv F.BindId
 initEnv si w = F.fromListSEnv [ (bind i, i) | i <- is ]
   where
     is       = F.elemsIBindEnv $ F.wenv w
-    bind i   = fst (F.lookupBindEnv i be)
+    bind i   = Misc.fst3 (F.lookupBindEnv i be)
     be       = F.bs si
 
 --------------------------------------------------------------------------------
@@ -339,8 +339,8 @@ cNoFreeVars fi known c = if S.null fv then Nothing else Just (S.toList fv)
   where
     be   = F.bs fi
     ids  = F.elemsIBindEnv $ F.senv c
-    cDom = [fst $ F.lookupBindEnv i be | i <- ids]
-    cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
+    cDom = [Misc.fst3 $ F.lookupBindEnv i be | i <- ids]
+    cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . Misc.snd3 $ F.lookupBindEnv i be | i <- ids]
         ++ F.syms (F.crhs c)
     fv   = (`Misc.nubDiff` cDom) . filter (not . known) $ cRng
 
@@ -479,7 +479,7 @@ symBinds  = {- THIS KILLS ELEM: tracepp "symBinds" . -}
 type SymBinds = (F.Symbol, [(F.Sort, [F.BindId])])
 
 binders :: F.BindEnv a -> [(F.Symbol, (F.Sort, F.BindId))]
-binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
+binders be = [(x, (F.sr_sort t, i)) | (i, (x, t, _)) <- F.bindEnvToList be]
 
 
 --------------------------------------------------------------------------------
@@ -556,7 +556,7 @@ deleteWfCBinds bs wf = wf { F.wenv = foldr F.deleteIBindEnv (F.wenv wf) bs }
 filterBindEnv :: KeepBindF -> F.BindEnv a -> (F.BindEnv a, [F.BindId])
 filterBindEnv f be  = (keepBindEnv , discard')
   where
-    keepBindEnv     = F.bindEnvFromList [(i, x, sr, a) | (i, (x, sr, a)) <- keep]
+    keepBindEnv     = F.bindEnvFromList [(i, (x, sr, a)) | (i, (x, sr, a)) <- keep]
     (keep, discard) = L.partition f' $ F.bindEnvToList be
     discard'        = fst <$> discard
     f' (_, (x, t, _)) = f x (F.sr_sort t)
