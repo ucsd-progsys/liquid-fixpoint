@@ -229,7 +229,7 @@ class TaggedC c a where
   sid   :: c a -> Maybe Integer
   stag  :: c a -> Tag
   sinfo :: c a -> a
-  clhs  :: BindEnv -> c a -> [(Symbol, SortedReft)]
+  clhs  :: BindEnv a -> c a -> [(Symbol, SortedReft)]
   crhs  :: c a -> Expr
 
 instance TaggedC SimpC a where
@@ -646,7 +646,7 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 fi :: [SubC a]
    -> [WfC a]
-   -> BindEnv
+   -> BindEnv a
    -> SEnv Sort
    -> SEnv Sort
    -> Kuts
@@ -704,7 +704,7 @@ allowHOquals = hoQuals . hoInfo
 data GInfo c a = FI
   { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
   , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
-  , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
+  , bs       :: !(BindEnv a)               -- ^ Bind  |-> (Symbol, SortedReft)
   , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
   , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
   , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
@@ -841,7 +841,7 @@ outVV (m, fi) i c = (m', fi')
   where
     fi'           = fi { bs = be', cm = cm' }
     m'            = M.insert i bId m
-    (bId, be')    = insertBindEnv x sr $ bs fi
+    (bId, be')    = insertBindEnv x sr (sinfo c) (bs fi)
     cm'           = M.insert i c' $ cm fi
     c'            = c { _senv = insertsIBindEnv [bId] $ senv c }
     sr            = slhs c
@@ -860,7 +860,7 @@ sinfoToFInfo fi = fi
 
 -- Assumes the sort and the bind of the lhs is the same as the sort
 -- and the bind of the rhs
-simpcToSubc :: BindEnv -> SimpC a -> SubC a
+simpcToSubc :: BindEnv a -> SimpC a -> SubC a
 simpcToSubc env s = SubC
   { _senv  = deleteIBindEnv (cbind s) (senv s)
   , slhs   = sr

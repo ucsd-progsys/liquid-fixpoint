@@ -1265,8 +1265,8 @@ data Def a
   | Qul !Qualifier
   | Kut !KVar
   | Pack !KVar !Int
-  | IBind !Int !Symbol !SortedReft
-  | EBind !Int !Symbol !Sort
+  | IBind !Int !Symbol !SortedReft !a
+  | EBind !Int !Symbol !Sort !a
   | Opt !String
   | Def !Equation
   | Mat !Rewrite
@@ -1294,8 +1294,8 @@ defP =  Srt   <$> (reserved "sort"         >> colon >> sortP)
     <|> Pack  <$> (reserved "pack"         >> kvarP)   <*> (colon >> intP)
     <|> Qul   <$> (reserved "qualif"       >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"          >> kvarP)
-    <|> EBind <$> (reserved "ebind"        >> intP) <*> symbolP <*> (colon >> braces sortP)
-    <|> IBind <$> (reserved "bind"         >> intP) <*> symbolP <*> (colon >> sortedReftP)
+    <|> EBind <$> (reserved "ebind"        >> intP) <*> symbolP <*> (colon >> braces sortP) <*> pure ()
+    <|> IBind <$> (reserved "bind"         >> intP) <*> symbolP <*> (colon >> sortedReftP)  <*> pure ()
     <|> Opt    <$> (reserved "fixpoint"    >> stringLiteral)
     <|> Def    <$> (reserved "define"      >> defineP)
     <|> Mat    <$> (reserved "match"       >> matchP)
@@ -1369,9 +1369,9 @@ defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs ebs lts dts kts qs binfo a
                    "defs-cm"        [(cid c, c)         | Cst c       <- defs]
     ws         = Misc.safeFromList
                    "defs-ws"        [(i, w)              | Wfc w    <- defs, let i = Misc.thd3 (wrft w)]
-    bs         = bindEnvFromList  $ exBinds ++ [(n,x,r)  | IBind n x r <- defs]
-    ebs        =                    [ n                  | (n,_,_) <- exBinds]
-    exBinds    =                    [(n, x, RR t mempty) | EBind n x t <- defs]
+    bs         = bindEnvFromList  $ exBinds ++ [(n,x,r,a) | IBind n x r a <- defs]
+    ebs        =                    [ n                  | (n,_,_,_) <- exBinds]
+    exBinds    =                    [(n, x, RR t mempty, a) | EBind n x t a <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]

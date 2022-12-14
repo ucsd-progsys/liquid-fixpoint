@@ -35,7 +35,7 @@ kvarDomain :: SInfo a -> KVar -> [Symbol]
 --------------------------------------------------------------------------------
 kvarDomain si k = domain (bs si) (getWfC si k)
 
-domain :: BindEnv -> WfC a -> [Symbol]
+domain :: BindEnv a -> WfC a -> [Symbol]
 domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
 
 getWfC :: SInfo a -> KVar -> WfC a

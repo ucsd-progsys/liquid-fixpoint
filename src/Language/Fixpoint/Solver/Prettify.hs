@@ -77,13 +77,13 @@ prettyConstraints fi =
 
 prettyConstraint
   :: Fixpoint a
-  => BindEnv
+  => BindEnv a
   -> SubC a
   -> Doc
 prettyConstraint bindEnv c =
-  let env = [ (s, ([bId], sr))
+  let env = [ (s, ([(bId, a)], sr))
             | bId <- elemsIBindEnv $ senv c
-            , let (s, sr) = lookupBindEnv bId bindEnv
+            , let (s, sr, a) = lookupBindEnv bId bindEnv
             ]
       mergedEnv = mergeDuplicatedBindings env
       undoANFEnv = undoANFAndVV mergedEnv

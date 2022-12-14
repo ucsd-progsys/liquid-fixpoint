@@ -468,7 +468,7 @@ dupBindErrors = foldr1 E.catError . map dbe
                                          , nest 4 (pprint y) ]
 
 --------------------------------------------------------------------------------
-symBinds  :: F.BindEnv -> [SymBinds]
+symBinds  :: F.BindEnv a -> [SymBinds]
 --------------------------------------------------------------------------------
 symBinds  = {- THIS KILLS ELEM: tracepp "symBinds" . -}
             M.toList
@@ -478,7 +478,7 @@ symBinds  = {- THIS KILLS ELEM: tracepp "symBinds" . -}
 
 type SymBinds = (F.Symbol, [(F.Sort, [F.BindId])])
 
-binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
+binders :: F.BindEnv a -> [(F.Symbol, (F.Sort, F.BindId))]
 binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
 
 
@@ -553,12 +553,13 @@ deleteSubCBinds bs sc = sc { F._cenv = foldr F.deleteIBindEnv (F.senv sc) bs }
 deleteWfCBinds :: [F.BindId] -> F.WfC a -> F.WfC a
 deleteWfCBinds bs wf = wf { F.wenv = foldr F.deleteIBindEnv (F.wenv wf) bs }
 
-filterBindEnv :: KeepBindF -> F.BindEnv -> (F.BindEnv, [F.BindId])
-filterBindEnv f be  = (F.bindEnvFromList keep, discard')
+filterBindEnv :: KeepBindF -> F.BindEnv a -> (F.BindEnv a, [F.BindId])
+filterBindEnv f be  = (keepBindEnv , discard')
   where
+    keepBindEnv     = F.bindEnvFromList [(i, x, sr, a) | (i, (x, sr, a)) <- keep]
     (keep, discard) = L.partition f' $ F.bindEnvToList be
-    discard'        = Misc.fst3     <$> discard
-    f' (_, x, t)    = f x (F.sr_sort t)
+    discard'        = fst <$> discard
+    f' (_, (x, t, _)) = f x (F.sr_sort t)
 
 
 ---------------------------------------------------------------------------
