@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts     #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Language.Fixpoint.Solver.Extensionality (expand) where
 
@@ -24,11 +25,11 @@ expand :: Config -> SInfo a -> SInfo a
 expand cfg si = evalState (extend si) $ initST (symbolEnv cfg si) (ddecls si)
 
 
-class Extend a where
-  extend :: a -> Ex a
+class Extend ann a where
+  extend :: a -> Ex ann a
 
 
-instance Extend (SInfo a) where
+instance Extend a (SInfo a) where
   extend si = do
     setBEnv (bs si)
     cm'      <- extend (cm si)
@@ -52,7 +53,7 @@ instance Extend (SimpC a) where
     return $ c{_crhs = rhs, _cenv = is }
 
 
-extendExpr :: Pos -> Expr -> Ex Expr
+extendExpr :: Pos -> Expr -> Ex ann Expr
 extendExpr p e
   | p == Pos
   = mapMPosExpr Pos goP e' >>= mapMPosExpr Pos goN
@@ -76,7 +77,7 @@ getArg s = case bkFFunc s of
              Just (_, a:_:_) -> Just a
              _                -> Nothing
 
-extendRHS, extendLHS :: Brel -> Expr -> Expr -> Sort -> Ex Expr
+extendRHS, extendLHS :: Brel -> Expr -> Expr -> Sort -> Ex ann Expr
 extendRHS b e1 e2 s =
   do es <- generateArguments s
      mytracepp "extendRHS = " . pAnd <$> mapM (makeEq b e1 e2) es
@@ -88,23 +89,23 @@ extendLHS b e1 e2 s =
      mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
 
 
-generateArguments :: Sort -> Ex [Expr]
+generateArguments :: Sort -> Ex ann [Expr]
 generateArguments s = do
   st   <- get
   case breakSort (exddecl st) s of
     Left dds -> mapM freshArgDD dds
     Right s  -> (\x -> [EVar x]) <$> freshArgOne s
 
-makeEq :: Brel-> Expr -> Expr -> Expr -> Ex Expr
+makeEq :: Brel-> Expr -> Expr -> Expr -> Ex ann Expr
 makeEq b e1 e2 e = do
   env <- gets exenv
   let elab = elaborate (dummyLoc "extensionality") env
   return $ PAtom b (elab $ EApp (unElab e1) e)  (elab $ EApp (unElab e2) e)
 
-instantiate :: [DataDecl]  -> Sort -> Ex [Expr]
+instantiate :: [DataDecl]  -> Sort -> Ex ann [Expr]
 instantiate ds s = instantiateOne (breakSort ds s)
 
-instantiateOne :: Either [(LocSymbol, [Sort])] Sort  -> Ex [Expr]
+instantiateOne :: Either [(LocSymbol, [Sort])] Sort  -> Ex ann [Expr]
 instantiateOne (Right s@(FVar _)) =
   (\x -> [EVar x]) <$> freshArgOne s
 instantiateOne (Right s) = do
@@ -183,16 +184,17 @@ normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
     go e@PGrad{}         = e -- Cannot appear
 
 
-type Ex    = State ExSt
-data ExSt = ExSt { unique  :: Int
-                 , exddecl :: [DataDecl]
-                 , exenv   :: SymEnv        -- used for elaboration
-                 , exbenv  :: BindEnv
-                 , exbinds :: IBindEnv
-                 , excbs   :: [(Symbol, Sort)]
-                 }
+type Ex a = State (ExSt a)
+data ExSt a = ExSt
+  { unique  :: Int
+  , exddecl :: [DataDecl]
+  , exenv   :: SymEnv        -- used for elaboration
+  , exbenv  :: BindEnv a
+  , exbinds :: IBindEnv
+  , excbs   :: [(Symbol, Sort)]
+  }
 
-initST :: SymEnv -> [DataDecl]  -> ExSt
+initST :: SymEnv -> [DataDecl]  -> ExSt ann
 initST env dd = ExSt 0 (d:dd) env mempty mempty mempty
   where
     -- NV: hardcore Haskell pairs because they do not appear in DataDecl (why?)
@@ -203,22 +205,22 @@ initST env dd = ExSt 0 (d:dd) env mempty mempty mempty
           ]
 
 
-setBEnv :: BindEnv -> Ex ()
+setBEnv :: BindEnv a -> Ex a ()
 setBEnv benv = modify (\st -> st{exbenv = benv})
 
-setExBinds :: IBindEnv-> Ex ()
+setExBinds :: IBindEnv -> Ex a ()
 setExBinds bids = modify (\st -> st{ exbinds = bids
-                                   , excbs   = [ (x, sr_sort r) | (i, x, r) <- bindEnvToList (exbenv st)
+                                   , excbs   = [ (x, sr_sort r) | (i, (x, r, _)) <- bindEnvToList (exbenv st)
                                                                 , memberIBindEnv i bids]})
 
 
-freshArgDD :: (LocSymbol, [Sort]) -> Ex Expr
+freshArgDD :: (LocSymbol, [Sort]) -> Ex a Expr
 freshArgDD (dc, xs) = do
   xs <- mapM freshArgOne xs
   return $ mkEApp dc (EVar <$> xs)
 
 
-freshArgOne :: Sort -> Ex Symbol
+freshArgOne :: Sort -> Ex a Symbol
 freshArgOne s = do
   st   <- get
   let x = symbol ("ext$" ++ show (unique st))

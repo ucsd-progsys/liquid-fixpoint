@@ -29,7 +29,6 @@ module Language.Fixpoint.Horn.Types
 
     -- * invariants (refinements) on constraints
   , okCstr
-  , dummyBind
 
     -- * extract qualifiers
   , quals
@@ -109,7 +108,7 @@ cstrQuals = go
     go env _ (All  b c)  = bindQuals env b c
     go env _ (Any  b c)  = bindQuals env b c
 
-bindQuals  :: F.SEnv F.Sort -> Bind -> Cstr a -> [F.Qualifier]
+bindQuals  :: F.SEnv F.Sort -> Bind a -> Cstr a -> [F.Qualifier]
 bindQuals env b c = predQuals env' bx (bPred b) ++ cstrQuals env' bx c
   where
     env'          = F.insertSEnv bx bt env
@@ -149,30 +148,28 @@ envSort env x = case F.lookupSEnv x env of
 -- | @Cst@ is an NNF Horn Constraint.
 -------------------------------------------------------------------------------
 -- Note that a @Bind@ is a simplified @F.SortedReft@ ...
-data Bind = Bind
+data Bind a = Bind
   { bSym  :: !F.Symbol
   , bSort :: !F.Sort
   , bPred :: !Pred
+  , bMeta :: !a
   }
-  deriving (Data, Typeable, Generic, Eq)
+  deriving (Data, Typeable, Generic, Functor, Eq)
 
-instance F.Subable Bind where
-    syms     (Bind x _ p) = x : F.syms p
-    substa f (Bind v t p) = Bind (f v) t (F.substa f p)
-    substf f (Bind v t p) = Bind v t (F.substf (F.substfExcept f [v]) p)
+instance F.Subable (Bind a) where
+    syms     (Bind x _ p _) = x : F.syms p
+    substa f (Bind v t p a) = Bind (f v) t (F.substa f p) a
+    substf f (Bind v t p a) = Bind v t (F.substf (F.substfExcept f [v]) p) a
     -- subst su (Bind x t p) = (Bind x t (F.subst su p))
-    subst su (Bind v t p)  = Bind v t (F.subst (F.substExcept su [v]) p)
-    subst1 (Bind v t p) su = Bind v t (F.subst1Except [v] p su)
-
-dummyBind :: Bind
-dummyBind = Bind F.dummySymbol F.intSort (PAnd [])
+    subst su (Bind v t p a)  = Bind v t (F.subst (F.substExcept su [v]) p) a
+    subst1 (Bind v t p a) su = Bind v t (F.subst1Except [v] p su) a
 
 -- Can we enforce the invariant that CAnd has len > 1?
 data Cstr a
-  = Head  !Pred a               -- ^ p
-  | CAnd  ![Cstr a]             -- ^ c1 /\ ... /\ cn
-  | All   !Bind  !(Cstr a)      -- ^ \all x:t. p => c
-  | Any   !Bind  !(Cstr a)      -- ^ \exi x:t. p /\ c or is it \exi x:t. p => c?
+  = Head  !Pred !a                  -- ^ p
+  | CAnd  ![Cstr a]                 -- ^ c1 /\ ... /\ cn
+  | All   !(Bind a)  !(Cstr a)      -- ^ \all x:t. p => c
+  | Any   !(Bind a)  !(Cstr a)      -- ^ \exi x:t. p /\ c or is it \exi x:t. p => c?
   deriving (Data, Typeable, Generic, Functor, Eq)
 
 cLabel :: Cstr a -> a
@@ -187,17 +184,17 @@ cLabel cstr = case go cstr of
 
 -- We want all valid constraints to start with a binding at the top
 
-okCstr :: Cstr a -> Bool 
-okCstr All {} = True 
-okCstr Any {} = True 
-okCstr _      = False 
+okCstr :: Cstr a -> Bool
+okCstr All {} = True
+okCstr Any {} = True
+okCstr _      = False
 
 
 -------------------------------------------------------------------------------
 -- | @Query@ is an NNF Horn Constraint.
 -------------------------------------------------------------------------------
 
-data Query a = Query 
+data Query a = Query
   { qQuals :: ![F.Qualifier]             -- ^ qualifiers over which to solve cstrs
   , qVars  :: ![Var a]                   -- ^ kvars, with parameter-sorts
   , qCstr  :: !(Cstr a)                  -- ^ list of constraints
@@ -257,7 +254,7 @@ ppQual (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (pp
     ppArg qp    = F.pprint (F.qpSym qp) P.<+> P.parens (F.pprint (F.qpSort qp))
 
 ppVar :: Var a -> P.Doc
-ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts)) 
+ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts))
 
 
 ppBlanks :: [P.Doc] -> P.Doc
@@ -283,8 +280,8 @@ instance Show (Cstr a) where
   show (Any b c)  = parens $ unwords ["exists" , show b , show c]
   show (CAnd cs)  = parens $ unwords $ "and" : map show cs
 
-instance Show Bind where
-  show (Bind x t p) = parens $ unwords [parens $ unwords [F.symbolString x, F.showpp t], show p]
+instance Show (Bind a) where
+  show (Bind x t p _) = parens $ unwords [parens $ unwords [F.symbolString x, F.showpp t], show p]
 
 instance F.PPrint (Var a) where
   pprintPrec _ _ v = P.ptext $ show v
@@ -304,5 +301,5 @@ instance F.PPrint (Cstr a) where
                                                 ]
   pprintPrec k t (CAnd cs) = P.parens $ P.vcat  $ P.ptext "and" : map (F.pprintPrec (k+2) t) cs
 
-instance F.PPrint Bind where
+instance F.PPrint (Bind a) where
   pprintPrec _ _ b = P.ptext $ show b

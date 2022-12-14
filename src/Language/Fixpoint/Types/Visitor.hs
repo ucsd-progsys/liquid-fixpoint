@@ -113,7 +113,7 @@ instance Visitable SortedReft where
 instance Visitable (Symbol, SortedReft) where
   visit v c (sym, sr) = (sym, ) <$> visit v c sr
 
-instance Visitable BindEnv where
+instance Visitable (BindEnv a) where
   visit v c = mapM (visit v c)
 
 ---------------------------------------------------------------------------------
@@ -335,13 +335,13 @@ kvarsExpr = go []
       PAnd ps -> foldr (flip go) acc ps
       POr ps -> foldr (flip go) acc ps
 
-envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
+envKVars :: (TaggedC c a) => BindEnv a -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
   where
     squish    = S.toList  . S.fromList . concat
     kvs       = kvarsExpr . reftPred . sr_reft
 
-envKVarsN :: (TaggedC c a) => BindEnv -> c a -> [(KVar, Int)]
+envKVarsN :: (TaggedC c a) => BindEnv a -> c a -> [(KVar, Int)]
 envKVarsN be c = tally [ kvs sr |  (_, sr) <- clhs be c]
   where
     tally      = Misc.count . concat
@@ -474,7 +474,7 @@ instance (SymConsts (c a)) => SymConsts (GInfo c a) where
       bsLits   = symConsts           $ bs                fi
       qsLits   = concatMap symConsts $ qBody   <$> quals fi
 
-instance SymConsts BindEnv where
+instance SymConsts (BindEnv a) where
   symConsts    = concatMap (symConsts . snd) . M.elems . beBinds
 
 instance SymConsts (SubC a) where
@@ -500,15 +500,3 @@ getSymConsts         = fold scVis () []
     scVis            = (defaultVisitor :: Visitor [SymConst] t)  { accExpr = sc }
     sc _ (ESym c)    = [c]
     sc _ _           = []
-
-
-
-
-
-
-
-
-
-
-
-

@@ -90,6 +90,7 @@ import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
 import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
 import           Lens.Family2 (Lens', view, (%~))
 import           Lens.Family2.Stock (_2)
+import Language.Fixpoint.Misc (snd3)
 
 -- | Strips from all the constraint environments the bindings that are
 -- irrelevant for their respective constraints.
@@ -152,10 +153,10 @@ reduceEnvironments fi =
 
   where
     dropBindsMissingFrom
-      :: HashMap BindId (Symbol, SortedReft)
+      :: HashMap BindId (Symbol, SortedReft, a)
       -> [(SubcId, SubC a)]
       -> HashMap KVar (WfC a)
-      -> HashMap BindId (Symbol, SortedReft)
+      -> HashMap BindId (Symbol, SortedReft, a)
     dropBindsMissingFrom be cs ws =
       let ibindEnv = unionsIBindEnv $
             map (senv . snd) cs ++
@@ -180,7 +181,7 @@ reduceEnvironments fi =
 -- 'relatedKVarBinds' or any substitution on the corresponding KVar anywhere.
 --
 reduceWFConstraintEnvironments
-  :: BindEnv    -- ^ Environment before reduction
+  :: BindEnv a    -- ^ Environment before reduction
   -> ([ReducedConstraint a], HashMap KVar (WfC a))
      -- ^ @(cs, ws)@:
      --  * @cs@ are the constraints with reduced environments
@@ -220,7 +221,7 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
     -- additional bindings that are required by the kvar. These are added
     -- in this function.
     updateSubcEnvsWithKVarBinds
-      :: BindEnv
+      :: BindEnv a
       -> HashMap KVar (HashSet Symbol)
       -> [KVar]
       -> ReducedConstraint a
@@ -232,7 +233,7 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
             else fromListIBindEnv
               [ bId
               | bId <- elemsIBindEnv oldEnv
-              , let (s, _sr) = lookupBindEnv bId be
+              , let (s, _sr, _) = lookupBindEnv bId be
               , any (neededByKVar s) kvs
               ]
           neededByKVar s kv =
@@ -244,7 +245,7 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
     -- @reduceWFConstraintEnvironment be kbinds k c@ drops bindings from @c@
     -- that aren't present in @kbinds ! k@.
     reduceWFConstraintEnvironment
-      :: BindEnv
+      :: BindEnv a
       -> HashMap KVar (HashSet Symbol)
       -> KVar
       -> WfC a
@@ -257,7 +258,7 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
       where
         relevantBindIds :: HashSet Symbol -> BindId -> Bool
         relevantBindIds kbindSymbols bId =
-          let (s, _) = lookupBindEnv bId bindEnv
+          let (s, _, _) = lookupBindEnv bId bindEnv
            in HashSet.member s kbindSymbols
 
 data ReducedConstraint a = ReducedConstraint
@@ -267,18 +268,18 @@ data ReducedConstraint a = ReducedConstraint
   }
 
 reduceConstraintEnvironment
-  :: BindEnv
+  :: BindEnv a
   -> HashMap Symbol (HashSet Symbol)
   -> (SubcId, SubC a)
   -> ReducedConstraint a
 reduceConstraintEnvironment bindEnv aenvMap (cid, c) =
-  let env = [ (s, bId, sr)
+  let env = [ (s, bId, sr, a)
             | bId <- elemsIBindEnv $ senv c
-            , let (s, sr) = lookupBindEnv bId bindEnv
+            , let (s, sr, a) = lookupBindEnv bId bindEnv
             ]
       prunedEnv =
         fromListIBindEnv
-        [ bId | (_, bId, _) <- dropIrrelevantBindings aenvMap constraintSymbols env ]
+        [ bId | (_, bId, _,_) <- dropIrrelevantBindings aenvMap constraintSymbols env ]
       constraintSymbols =
         HashSet.union (sortedReftSymbols $ slhs c) (sortedReftSymbols $ srhs c)
    in ReducedConstraint
@@ -299,17 +300,17 @@ reduceConstraintEnvironment bindEnv aenvMap (cid, c) =
 dropIrrelevantBindings
   :: HashMap Symbol (HashSet Symbol)
   -> HashSet Symbol
-  -> [(Symbol, BindId, SortedReft)]
-  -> [(Symbol, BindId, SortedReft)]
+  -> [(Symbol, BindId, SortedReft, a)]
+  -> [(Symbol, BindId, SortedReft, a)]
 dropIrrelevantBindings aenvMap extraSymbols env =
   filter relevantBind env
   where
     allSymbols =
       reachableSymbols (HashSet.union extraSymbols envSymbols) aenvMap
     envSymbols =
-      HashSet.unions $ map (\(_, _, sr) -> sortedReftSymbols sr) env
+      HashSet.unions $ map (\(_, _, sr,_) -> sortedReftSymbols sr) env
 
-    relevantBind (s, _, sr)
+    relevantBind (s, _, sr, _)
       | HashSet.member s allSymbols = True
       | otherwise = case reftPred (sr_reft sr) of
           PTrue -> False
@@ -376,7 +377,7 @@ mapOf m x = fromMaybe HashMap.empty (HashMap.lookup x m)
 -- be needed by the other.
 --
 relatedKVarBinds
-  :: BindEnv
+  :: BindEnv a
   -> [ReducedConstraint a]
   -> (HashMap KVar (HashSet Symbol), HashMap KVar (HashSet Symbol), [[KVar]])
 relatedKVarBinds bindEnv cs =
@@ -393,7 +394,7 @@ relatedKVarBinds bindEnv cs =
   where
     kvarsByBindId :: HashMap BindId (HashMap KVar [Subst])
     kvarsByBindId =
-      HashMap.map (exprKVars . reftPred . sr_reft . snd) $ beBinds bindEnv
+      HashMap.map (exprKVars . reftPred . sr_reft . snd3) $ beBinds bindEnv
 
     -- Returns all of the KVars used in the constraint, together with
     -- the symbols that appear in substitutions of those KVars.
@@ -429,12 +430,12 @@ relatedKVarBinds bindEnv cs =
         let sm' = ShareMap.insertWith unionIBindEnv k bindIds sm
          in foldr (ShareMap.mergeKeysWith unionIBindEnv k) sm' ks
 
-asSymbolSet :: BindEnv -> IBindEnv -> HashSet Symbol
+asSymbolSet :: BindEnv a -> IBindEnv -> HashSet Symbol
 asSymbolSet be ibinds =
   HashSet.fromList
     [ s
     | bId <- elemsIBindEnv ibinds
-    , let (s, _) = lookupBindEnv bId be
+    , let (s, _,_) = lookupBindEnv bId be
     ]
 
 -- | @reachableSymbols x r@ computes the set of symbols reachable from @x@
@@ -485,9 +486,9 @@ simplifyBindings cfg fi =
         ]
 
     simplifyConstraints
-      :: BindEnv
+      :: BindEnv a
       -> HashMap SubcId (SubC a)
-      -> (BindEnv, HashMap SubcId (SubC a), HashMap BindId [BindId])
+      -> (BindEnv a, HashMap SubcId (SubC a), HashMap BindId [BindId])
     simplifyConstraints be cs =
       let (be', cs', newToOld) =
              HashMap.foldlWithKey' simplifyConstraintBindings (be, [], []) cs
@@ -498,15 +499,15 @@ simplifyBindings cfg fi =
           (be', HashMap.fromList cs', oldToNew)
 
     simplifyConstraintBindings
-      :: (BindEnv, [(SubcId, SubC a)], [(BindId, [BindId])])
+      :: (BindEnv a, [(SubcId, SubC a)], [(BindId, [BindId])])
       -> SubcId
       -> SubC a
-      -> (BindEnv, [(SubcId, SubC a)], [(BindId, [BindId])])
+      -> (BindEnv a, [(SubcId, SubC a)], [(BindId, [BindId])])
     simplifyConstraintBindings (bindEnv, cs, newToOld) cid c =
       let env =
-            [ (s, ([bId], sr))
+            [ (s, ([(bId, a)], sr))
             | bId <- elemsIBindEnv $ senv c
-            , let (s, sr) = lookupBindEnv bId bindEnv
+            , let (s, sr, a) = lookupBindEnv bId bindEnv
             ]
 
           mergedEnv = mergeDuplicatedBindings env
@@ -517,7 +518,7 @@ simplifyBindings cfg fi =
 
           modifiedBinds = HashMap.toList $ HashMap.union boolSimplEnv undoANFEnv
 
-          modifiedBindIds = map (fst . snd) modifiedBinds
+          modifiedBindIds = [ fst <$> bs | (_, (bs,_)) <- modifiedBinds ]
 
           unchangedBindIds = senv c `diffIBindEnv` fromListIBindEnv (concat modifiedBindIds)
 
@@ -529,9 +530,9 @@ simplifyBindings cfg fi =
        in
           (bindEnv', (cid, updateSEnv c (const newIBindEnv)) : cs, newToOld')
 
-    insertBinds = foldl' $ \(xs, be) (s, (_, sr)) ->
-      let (bId, be') = insertBindEnv s sr be
-       in (bId : xs, be')
+    insertBinds = foldl' $ \(xs, be) (s, (bIdAs, sr)) ->
+      let (bId, be') = insertBindEnv s sr (snd . head $ bIdAs) be
+      in (bId : xs, be')
 
 -- | If the environment contains duplicated bindings, they are
 -- combined with conjunctions.

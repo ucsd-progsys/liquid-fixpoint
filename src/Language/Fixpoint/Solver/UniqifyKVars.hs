@@ -77,31 +77,32 @@ updateWfc fi w    = fi'' { ws = M.insert k w' (ws fi) }
   where
     w'            = updateWfCExpr (subst su) w''
     w''           = w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) }
-    (_, fi'')     = newTopBind v' (trueSortedReft t) fi'
-    (fi', newIds) = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
+    (_, fi'')     = newTopBind v' (trueSortedReft t) a fi'
+    (fi', newIds) = foldl' (accumBindsIfValid k a) (fi, []) (elemsIBindEnv $ wenv w)
     (v, t, k)     = wrft w
     v'            = kArgSymbol v (kv k)
     su            = mkSubst ((v, EVar v'):[(x, eVar $ kArgSymbol x (kv k)) | x <- kvarDomain fi k])
+    a             = winfo w
 
-accumBindsIfValid :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
-accumBindsIfValid k (fi, ids) i = if renamable then accumBinds k (fi, ids) i else (fi, i : ids)
+accumBindsIfValid :: KVar -> a -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
+accumBindsIfValid k a (fi, ids) i = if renamable then accumBinds k a (fi, ids) i else (fi, i : ids)
   where
     (_, sr)                     = lookupBindEnv i      (bs fi)
     renamable                   = isValidInRefinements (sr_sort sr)
 
-accumBinds :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
-accumBinds k (fi, ids) i = (fi', i' : ids)
+accumBinds :: KVar -> a -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
+accumBinds k a (fi, ids) i = (fi', i' : ids)
   where
     (oldSym, sr) = lookupBindEnv i (bs fi)
     newSym       = {- tracepp "kArgSymbol" $ -}  kArgSymbol oldSym (kv k)
-    (i', fi')    = newTopBind newSym sr fi
+    (i', fi')    = newTopBind newSym sr a fi
 
 -- | `newTopBind` ignores the actual refinements as they are not relevant
 --   in the kvar parameters (as suggested by BLC.)
-newTopBind :: Symbol -> SortedReft -> SInfo a -> (BindId, SInfo a)
-newTopBind x sr fi = (i', fi {bs = be'})
+newTopBind :: Symbol -> SortedReft -> a -> SInfo a -> (BindId, SInfo a)
+newTopBind x sr a fi = (i', fi {bs = be'})
   where
-    (i', be')   = insertBindEnv x (top sr) (bs fi)
+    (i', be')        = insertBindEnv x (top sr) a (bs fi)
 
 --------------------------------------------------------------
 

@@ -76,10 +76,10 @@ hCstrP = parens body
         <|> H.Head <$> (reserved "tag"    *> hPredP)      <*> (H.Tag <$> stringLiteral)
         <|> H.Head <$> hPredP                             <*> pure H.NoTag
 
-hBindP :: Parser H.Bind
+hBindP :: Parser (H.Bind H.Tag)
 hBindP   = parens $ do
   (x, t) <- symSortP
-  H.Bind x t <$> hPredP
+  H.Bind x t <$> hPredP <*> pure H.NoTag
 
 -------------------------------------------------------------------------------
 hPredP :: Parser H.Pred
@@ -120,5 +120,3 @@ hVarP = H.HVar <$> kvSymP <*> parens (some (parens sortP)) <*> pure H.NoTag
 
 symSortP :: Parser (F.Symbol, F.Sort)
 symSortP = parens ((,) <$> symbolP <*> sortP)
-
-
