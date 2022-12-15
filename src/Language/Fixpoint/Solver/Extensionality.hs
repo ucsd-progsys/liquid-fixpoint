@@ -91,7 +91,6 @@ extendLHS b e1 e2 s =
      is  <- instantiate dds s
      mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
 
-
 generateArguments :: Sort -> Ex ann [Expr]
 generateArguments s = do
   st   <- get
@@ -223,11 +222,11 @@ freshArgDD (dc, xs) = do
   return $ mkEApp dc (EVar <$> xs)
 
 
-freshArgOne :: Sort -> Ex ann Symbol
-freshArgOne s = do
+freshArgOne :: ann -> Sort -> Ex ann Symbol
+freshArgOne ann s = do
   st   <- get
   let x = symbol ("ext$" ++ show (unique st))
-  let (id, benv') = insertBindEnv x (trueSortedReft s) (error "Extensionality.freshArgOne") (exbenv st)
+  let (id, benv') = insertBindEnv x (trueSortedReft s) ann (exbenv st)
   modify (\st -> st{ exenv   = insertSymEnv x s (exenv st)
                    , exbenv  = benv'
                    , exbinds = insertsIBindEnv [id] (exbinds st)
