@@ -118,7 +118,7 @@ instance Fixpoint Error1 where
   toFix = pprint
 
 instance Exception Error
-instance Exception (FixResult Error)
+-- instance Exception (FixResult Error)
 
 
 ---------------------------------------------------------------------
