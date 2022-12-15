@@ -533,7 +533,7 @@ z3_options
 
 
 --------------------------------------------------------------------------------
-declare :: Context -> IO () -- SolveM ()
+declare :: Context -> IO ()
 --------------------------------------------------------------------------------
 declare me = do
   forM_ dss    $           smtDataDecl me
@@ -605,4 +605,3 @@ distinctLiterals xts = [ es | (_, es) <- tess ]
     tess             = Misc.groupList [(t, F.expr x) | (x, t) <- xts, notFun t]
     notFun           = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
     -- _notStr          = not . (F.strSort ==) . F.sr_sort . (`F.RR` F.trueReft)
-

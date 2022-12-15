@@ -7,6 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE TupleSections #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
@@ -60,6 +61,7 @@ import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
+import Data.Maybe (catMaybes)
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -184,12 +186,22 @@ solveNative, solveNative' :: (NFData a, Fixpoint a, Show a, Loc a) => Solver a
 --------------------------------------------------------------------------------
 solveNative !cfg !fi0 = solveNative' cfg fi0
                           `catch`
-                             (return . result)
+                             (return . crashResult (errorMap fi0))
 
-result :: Error -> Result a
-result e = Result (Crash [] msg) mempty mempty mempty
+crashResult :: ErrorMap a -> Error -> Result (Integer, a)
+crashResult m e = Result (Crash es msg) mempty mempty mempty
   where
-    msg  = showpp e
+    es          = catMaybes [ findError m e | e <- errs e ]
+    msg         = showpp e
+
+-- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
+type ErrorMap a = HashMap.HashMap SrcSpan a
+
+findError :: ErrorMap a -> Error1 -> Maybe (Integer, a)
+findError m e = (-1, ) <$> HashMap.lookup (errLoc e) m
+
+errorMap :: (Loc a) => FInfo a -> ErrorMap a
+errorMap fi = HashMap.fromList [ (srcSpan a, a) | (_, a) <- HashMap.toList (Types.bindInfo fi) ]-- bindEnvToList (Types.bs fi) ]
 
 loudDump :: (Fixpoint a) => Int -> Config -> SInfo a -> IO ()
 loudDump i cfg si = when False (writeLoud $ msg ++ render (toFixpoint cfg si))
