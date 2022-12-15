@@ -128,7 +128,7 @@ class Elaborate a where
 instance (Loc a) => Elaborate (SInfo a) where
   elaborate x senv si = si
     { F.cm      = elaborate x senv <$> F.cm      si
-    , F.bs      = bs' -- elaborate x senv  $  F.bs      si
+    , F.bs      = bs'
     , F.asserts = elaborate x senv <$> F.asserts si
     }
     where
@@ -213,10 +213,6 @@ instance Loc a => Elaborate (Bindings a) where
                       Just ann -> (msg' i x sr) { loc = l } where SS l _ = srcSpan ann
                       Nothing  -> msg' i x sr
        msg' i x sr = z { val = val z ++ unwords [" elabBE",  show i, show x, show sr] }
-      --  z' i  x sr  = z { val = val z ++ msg i x sr }
-      --  msg i x sr  = unwords [" elabBE",  show i, show x, show sr]
-
-
 instance (Loc a) => Elaborate (SimpC a) where
   elaborate msg env c = c {_crhs = elaborate msg' env (_crhs c) }
     where msg'        = atLoc c (val msg)
