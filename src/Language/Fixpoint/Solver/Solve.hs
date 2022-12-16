@@ -85,11 +85,11 @@ solverInfo cfg fI
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
-doInterpret :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM (F.SInfo a)
+doInterpret :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.SInfo a)
 doInterpret cfg fi0 subcIds = do
   fi <- liftIO $ instInterpreter cfg fi0 (Just subcIds)
   modify $ update' fi
-  return fi  
+  return fi
   where
     update' fi ss = ss{ssBinds = F.bs fi'}
       where
@@ -97,7 +97,7 @@ doInterpret cfg fi0 subcIds = do
         sI  = solverInfo cfg fi
 
 {-# SCC doPLE #-}
-doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM ()
+doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a ()
 doPLE cfg fi0 subcIds = do
   fi <- liftIO $ instantiate cfg fi0 (Just subcIds)
   modify $ update' fi
@@ -115,7 +115,7 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> Sol.Solution
        -> S.HashSet F.KVar
        -> W.Worklist a
-       -> SolveM (F.Result (Integer, a), Stats)
+       -> SolveM a (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
   let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
@@ -131,7 +131,7 @@ solve_ cfg fi s0 ks wkl = do
       fi1 <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
       (s4, res1) <-  sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
         s4    <- {- SCC "sol-refine" -} refine bindingsInSmt s3 wkl
-        res1  <- {- SCC "sol-result" -} result bindingsInSmt cfg wkl s4 
+        res1  <- {- SCC "sol-result" -} result bindingsInSmt cfg wkl s4
         return (s4, res1)
       return (fi1, s4, res1)
     _ -> return  (fi, s3, mytrace "all checked before interpreter" res0)
@@ -172,7 +172,7 @@ refine
   => F.IBindEnv
   -> Sol.Solution
   -> W.Worklist a
-  -> SolveM Sol.Solution
+  -> SolveM a Sol.Solution
 --------------------------------------------------------------------------------
 refine bindingsInSmt s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
@@ -197,7 +197,7 @@ refineC
   -> Int
   -> Sol.Solution
   -> F.SimpC a
-  -> SolveM (Bool, Sol.Solution)
+  -> SolveM a (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
 refineC bindingsInSmt _i s c
   | null rhs  = return (False, s)
@@ -236,7 +236,7 @@ result
   -> Config
   -> W.Worklist a
   -> Sol.Solution
-  -> SolveM (F.Result (Integer, a))
+  -> SolveM a (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 result bindingsInSmt cfg wkl s =
   sendConcreteBindingsToSMT bindingsInSmt $ \bindingsInSmt2 -> do
@@ -248,10 +248,10 @@ result bindingsInSmt cfg wkl s =
   where
     ci c = (F.subcId c, F.sinfo c)
 
-solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-solNonCutsResult :: Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
+solNonCutsResult :: Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solNonCutsResult s = do
   be <- getBinds
   return $ S.nonCutsResult be s
@@ -262,7 +262,7 @@ result_
   -> Config
   -> W.Worklist a
   -> Sol.Solution
-  -> SolveM (F.FixResult (F.SimpC a))
+  -> SolveM a (F.FixResult (F.SimpC a))
 result_ bindingsInSmt cfg w s = do
   filtered <- filterM (isUnsat bindingsInSmt s) cs
   sts      <- stats
@@ -289,13 +289,13 @@ isChecked cfg cs = case checkCstr cfg of
 --   see: tests/pos/min00.fq for an example.
 --------------------------------------------------------------------------------
 minimizeResult :: Config -> M.HashMap F.KVar F.Expr
-               -> SolveM (M.HashMap F.KVar F.Expr)
+               -> SolveM ann (M.HashMap F.KVar F.Expr)
 --------------------------------------------------------------------------------
 minimizeResult cfg s
   | minimalSol cfg = mapM minimizeConjuncts s
   | otherwise      = return s
 
-minimizeConjuncts :: F.Expr -> SolveM F.Expr
+minimizeConjuncts :: F.Expr -> SolveM ann F.Expr
 minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
   where
     go []     acc   = return acc
@@ -305,7 +305,7 @@ minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
 
 --------------------------------------------------------------------------------
 isUnsat
-  :: (F.Loc a, NFData a) => F.IBindEnv -> Sol.Solution -> F.SimpC a -> SolveM Bool
+  :: (F.Loc a, NFData a) => F.IBindEnv -> Sol.Solution -> F.SimpC a -> SolveM a Bool
 --------------------------------------------------------------------------------
 isUnsat bindingsInSmt s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
@@ -333,7 +333,7 @@ rhsPred c
   | otherwise  = errorstar $ "rhsPred on non-target: " ++ show (F.sid c)
 
 --------------------------------------------------------------------------------
-isValid :: F.SrcSpan -> F.Expr -> F.Expr -> SolveM Bool
+isValid :: F.SrcSpan -> F.Expr -> F.Expr -> SolveM ann Bool
 --------------------------------------------------------------------------------
 isValid sp p q = not . null <$> filterValid sp p [(q, ())]
 

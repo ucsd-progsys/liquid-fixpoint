@@ -29,13 +29,14 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs ebs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList sE mempty mempty kHyps kS [] $ fromListSEnv [ (x, (i, sr_sort sr)) | (i,x,sr) <- bindEnvToList (bs sI)]
+    sHyp           = Sol.fromList sE mempty mempty kHyps kS [] sEnv
+    sEnv           = fromListSEnv [ (x, (i, sr_sort sr)) | (i, (x,sr, _)) <- bindEnvToList (bs sI)]
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
     kS             = kvScopes     sI es
     sE             = symbolEnv   cfg sI
-    ebs            = S.fromList $ fst . flip lookupBindEnv (bs sI) <$> ebinds sI
+    ebs            = S.fromList [x | i <- ebinds sI, let (x, _, _) = lookupBindEnv i (bs sI) ]
 
 
 --------------------------------------------------------------------------------

@@ -201,7 +201,7 @@ findError :: ErrorMap a -> Error1 -> Maybe (Integer, a)
 findError m e = (-1, ) <$> HashMap.lookup (errLoc e) m
 
 errorMap :: (Loc a) => FInfo a -> ErrorMap a
-errorMap fi = HashMap.fromList [ (srcSpan a, a) | (_, a) <- HashMap.toList (Types.bindInfo fi) ]-- bindEnvToList (Types.bs fi) ]
+errorMap fi = HashMap.fromList [ (srcSpan a, a) | (_, (_,_, a)) <- bindEnvToList (Types.bs fi) ]
 
 loudDump :: (Fixpoint a) => Int -> Config -> SInfo a -> IO ()
 loudDump i cfg si = when False (writeLoud $ msg ++ render (toFixpoint cfg si))

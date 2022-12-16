@@ -96,10 +96,10 @@ instance PPrint a => PPrint (SizedEnv a) where
   pprintTidy k (BE _ m) = pprintTidy k m
 
 -- Invariant: All BindIds in the map are less than beSize
-type BindEnv       = SizedEnv (Symbol, SortedReft)
-newtype EBindEnv   = EB BindEnv
+type BindEnv a     = SizedEnv (Symbol, SortedReft, a)
+newtype EBindEnv a = EB (BindEnv a)
 
-splitByQuantifiers :: BindEnv -> [BindId] -> (BindEnv, EBindEnv)
+splitByQuantifiers :: BindEnv a -> [BindId] -> (BindEnv a, EBindEnv a)
 splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> notElem k ebs) bs
                                    , EB $ BE i $ M.filterWithKey (\k _ -> elem k ebs) bs
                                    )
@@ -204,41 +204,46 @@ fromListIBindEnv :: [BindId] -> IBindEnv
 fromListIBindEnv = FB . S.fromList
 
 -- | Functions for Global Binder Environment
-insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
-insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
+insertBindEnv :: Symbol -> SortedReft -> a -> BindEnv a -> (BindId, BindEnv a)
+insertBindEnv x r a (BE n m) = (n, BE (n + 1) (M.insert n (x, r, a) m))
 
-fromListBindEnv :: [(BindId, (Symbol, SortedReft))] -> BindEnv
+fromListBindEnv :: [(BindId, (Symbol, SortedReft, a))] -> BindEnv a
 fromListBindEnv xs = BE (length xs) (M.fromList xs)
 
-emptyBindEnv :: BindEnv
+emptyBindEnv :: BindEnv a
 emptyBindEnv = BE 0 M.empty
 
-filterBindEnv   :: (BindId -> Symbol -> SortedReft -> Bool) -> BindEnv -> BindEnv
-filterBindEnv f (BE n be) = BE n (M.filterWithKey (\ n' (x, r) -> f n' x r) be)
+filterBindEnv   :: (BindId -> Symbol -> SortedReft -> Bool) -> BindEnv a -> BindEnv a
+filterBindEnv f (BE n be) = BE n (M.filterWithKey (\ n' (x, r, _) -> f n' x r) be)
 
-bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
+bindEnvFromList :: [(BindId, (Symbol, SortedReft, a))] -> BindEnv a
 bindEnvFromList [] = emptyBindEnv
 bindEnvFromList bs = BE (1 + maxId) be
   where
-    maxId          = maximum $ fst3 <$> bs
-    be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
+    maxId          = maximum [ n | (n,(_,_,_)) <- bs ]
+    be             = M.fromList bs
 
-elemsBindEnv :: BindEnv -> [BindId]
-elemsBindEnv be = fst3 <$> bindEnvToList be
+elemsBindEnv :: BindEnv a -> [BindId]
+elemsBindEnv be = fst <$> bindEnvToList be
 
-bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
-bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
+bindEnvToList :: BindEnv a -> [(BindId, (Symbol, SortedReft, a))]
+bindEnvToList (BE _ be) = M.toList be
 
-mapBindEnv :: (BindId -> (Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
-mapBindEnv f (BE n m) = BE n $ M.mapWithKey f m
+mapBindEnv :: (BindId -> (Symbol, SortedReft, a) -> (Symbol, SortedReft, a)) -> BindEnv a -> BindEnv a
+mapBindEnv f (BE n m) = BE n (M.mapWithKey f m)
+  -- where
+    -- f' k (x, y, a) = let (x', y') = f k (x, y) in (x', y', a)
+
 -- (\i z -> tracepp (msg i z) $ f z) m
 --  where
 --    msg i z = "beMap " ++ show i ++ " " ++ show z
 
-mapWithKeyMBindEnv :: (Monad m) => ((BindId, (Symbol, SortedReft)) -> m (BindId, (Symbol, SortedReft))) -> BindEnv -> m BindEnv
-mapWithKeyMBindEnv f (BE n m) = BE n . M.fromList <$> mapM f (M.toList m)
+mapWithKeyMBindEnv :: (Monad m) => ((BindId, (Symbol, SortedReft)) -> m (BindId, (Symbol, SortedReft))) -> BindEnv a -> m (BindEnv a)
+mapWithKeyMBindEnv f (BE n m) = BE n . M.fromList <$> mapM f' (M.toList m)
+  where
+    f' (k, (x, y, a)) = do { (k', (x', y')) <- f (k, (x, y)) ; return (k', (x', y', a)) }
 
-lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
+lookupBindEnv :: BindId -> BindEnv a -> (Symbol, SortedReft, a)
 lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
   where
     err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
@@ -261,24 +266,27 @@ nullIBindEnv (FB m) = S.null m
 diffIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2
 
-adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
-adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
+adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv a -> BindEnv a
+adjustBindEnv f i (BE n m) = BE n (M.adjust f' i m)
+  where
+    f'  (x, y, a) = let (x', y') = f (x, y) in (x', y', a)
 
-deleteBindEnv :: BindId -> BindEnv -> BindEnv
+
+deleteBindEnv :: BindId -> BindEnv a -> BindEnv a
 deleteBindEnv i (BE n m) = BE n $ M.delete i m
 
 instance Functor SEnv where
   fmap = mapSEnv
 
-instance Fixpoint EBindEnv where
+instance Fixpoint (EBindEnv a) where
   toFix (EB (BE _ m)) = vcat $ map toFixBind $ hashMapToAscList m
     where
-      toFixBind (i, (x, r)) = "ebind" <+> toFix i <+> toFix x <+> ": { " <+> toFix (sr_sort r) <+> " }"
+      toFixBind (i, (x, r, _)) = "ebind" <+> toFix i <+> toFix x <+> ": { " <+> toFix (sr_sort r) <+> " }"
 
-instance Fixpoint BindEnv where
+instance Fixpoint (BindEnv a) where
   toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
     where
-      toFixBind (i, (x, r)) = "bind" <+> toFix i <+> toFix x <+> ":" <+> toFix r
+      toFixBind (i, (x, r, _)) = "bind" <+> toFix i <+> toFix x <+> ":" <+> toFix r
 
 instance (Fixpoint a) => Fixpoint (SEnv a) where
    toFix (SE m)   = toFix (hashMapToAscList m)
@@ -292,17 +300,17 @@ instance Semigroup (SEnv a) where
 instance Monoid (SEnv a) where
   mempty        = SE M.empty
 
-instance Semigroup BindEnv where
+instance Semigroup (BindEnv a) where
   (BE 0 _) <> b        = b
   b        <> (BE 0 _) = b
   _        <> _        = errorstar "mappend on non-trivial BindEnvs"
 
-instance Monoid BindEnv where
+instance Monoid (BindEnv a) where
   mempty  = BE 0 M.empty
   mappend = (<>)
 
-envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
-envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
+envCs :: BindEnv a -> IBindEnv -> [(Symbol, SortedReft)]
+envCs be env = [(x, y) | i <- elemsIBindEnv env, let (x, y, _) = lookupBindEnv i be]
 
 instance Fixpoint IBindEnv where
   toFix (FB ids) = text "env" <+> toFix ids
@@ -311,12 +319,12 @@ instance Fixpoint IBindEnv where
 
 instance NFData Packs
 instance NFData IBindEnv
-instance NFData BindEnv
+instance NFData a => NFData (BindEnv a)
 instance (NFData a) => NFData (SEnv a)
 
 instance S.Store Packs
 instance S.Store IBindEnv
-instance S.Store BindEnv
+instance (S.Store a) => S.Store (BindEnv a)
 instance (S.Store a) => S.Store (SEnv a)
 -- instance (Hashable a, Eq a, S.Store a) => S.Store (S.HashSet a) where
 --   put = B.put . S.toList
@@ -352,4 +360,3 @@ makePack kvss = Packs (M.fromList kIs)
   where
     kIs       = [ (k, i) | (i, ks) <- kPacks, k <- ks ]
     kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss
-

@@ -9,7 +9,7 @@ module Language.Fixpoint.Solver.UniqifyBinds (renameAll) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Sanitize (dropDeadSubsts)
-import           Language.Fixpoint.Misc          (fst3, mlookup)
+import           Language.Fixpoint.Misc          (fst3, mlookup, snd3)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -18,12 +18,11 @@ import           Data.Foldable       (foldl')
 import           Data.Maybe          (catMaybes, mapMaybe, fromJust, isJust)
 import           Data.Hashable       (Hashable)
 import           GHC.Generics        (Generic)
-import           Control.Arrow       (second)
 import           Control.DeepSeq     (NFData, ($!!))
 -- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
-renameAll    :: SInfo a -> SInfo a
+renameAll    :: (NFData a) => SInfo a -> SInfo a
 --------------------------------------------------------------------------------
 renameAll fi2 = fi6
   where
@@ -73,19 +72,19 @@ mkIdMap :: SInfo a -> IdMap
 --------------------------------------------------------------------------------
 mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 
-updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
+updateIdMap :: BindEnv a -> IdMap -> Integer -> SimpC a -> IdMap
 updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
     ids                 = elemsIBindEnv (senv s)
-    nameMap             = M.fromList [(fst $ lookupBindEnv i be, i) | i <- ids]
+    nameMap             = M.fromList [(fst3 $ lookupBindEnv i be, i) | i <- ids]
     m'                  = foldl' (insertIdIdLinks be nameMap) m ids
     symSet              = S.fromList $ syms $ crhs s
     refSet              = namesToIds symSet nameMap
 
-insertIdIdLinks :: BindEnv -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
+insertIdIdLinks :: BindEnv a -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
 insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
   where
-    sr     = snd $ lookupBindEnv i be
+    sr     = snd3 $ lookupBindEnv i be
     symSet = reftFreeVars $ sr_reft sr
     refSet = namesToIds symSet nameMap
 
@@ -93,18 +92,19 @@ namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId
 namesToIds xs m = S.fromList $ catMaybes [M.lookup x m | x <- S.toList xs] --TODO why any Nothings?
 
 --------------------------------------------------------------------------------
-mkRenameMap :: BindEnv -> RenameMap
+mkRenameMap :: BindEnv a -> RenameMap
 --------------------------------------------------------------------------------
 mkRenameMap be = foldl' (addId be) M.empty ids
   where
-    ids = fst3 <$> bindEnvToList be
+    ids = fst <$> bindEnvToList be
 
-addId :: BindEnv -> RenameMap -> BindId -> RenameMap
+addId :: BindEnv a -> RenameMap -> BindId -> RenameMap
 addId be m i
   | M.member sym m = addDupId m sym t i
   | otherwise      = M.insert sym [(t, Nothing)] m
   where
-    (sym, t)       = second sr_sort $ lookupBindEnv i be
+    t              = sr_sort sr
+    (sym, sr, _)   = lookupBindEnv i be
 
 addDupId :: RenameMap -> Symbol -> Sort -> BindId -> RenameMap
 addDupId m sym t i
@@ -124,7 +124,8 @@ renameVars fi rnMap idMap = M.foldlWithKey' (updateRef rnMap) fi idMap
 updateRef :: RenameMap -> SInfo a -> Ref -> S.HashSet BindId -> SInfo a
 updateRef rnMap fi rf bset = applySub (mkSubst subs) fi rf
   where
-    symTList = [second sr_sort $ lookupBindEnv i $ bs fi | i <- S.toList bset]
+    symTList = [ (sym, sr_sort sr) | i <- S.toList bset, let (sym, sr, _) = lookupBindEnv i bEnv]
+    bEnv     = bs fi
     subs     = mapMaybe (mkSubUsing rnMap) symTList
 
 mkSubUsing :: RenameMap -> (Symbol, Sort) -> Maybe (Symbol, Expr)
@@ -146,12 +147,12 @@ renameBinds :: SInfo a -> RenameMap -> SInfo a
 --------------------------------------------------------------------------------
 renameBinds fi m = fi { bs = bindEnvFromList $ renameBind m <$> beList }
   where
-    beList       = bindEnvToList $ bs fi
+    beList       = bindEnvToList (bs fi)
 
-renameBind :: RenameMap -> (BindId, Symbol, SortedReft) -> (BindId, Symbol, SortedReft)
-renameBind m (i, sym, sr)
-  | Just newSym <- mnewSym = (i, newSym, sr)
-  | otherwise              = (i, sym,    sr)
+renameBind :: RenameMap -> (BindId, (Symbol, SortedReft, a)) -> (BindId, (Symbol, SortedReft, a))
+renameBind m (i, (sym, sr, ann))
+  | Just newSym <- mnewSym = (i, (newSym, sr, ann))
+  | otherwise              = (i, (sym,    sr, ann))
   where
     t                      = sr_sort sr
     mnewSym                = fromJust $ L.lookup t $ mlookup m sym

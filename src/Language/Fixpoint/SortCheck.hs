@@ -128,11 +128,9 @@ class Elaborate a where
 instance (Loc a) => Elaborate (SInfo a) where
   elaborate x senv si = si
     { F.cm      = elaborate x senv <$> F.cm      si
-    , F.bs      = bs'
+    , F.bs      = elaborate x senv  $  F.bs      si
     , F.asserts = elaborate x senv <$> F.asserts si
     }
-    where
-      Bindings bs' _ = elaborate x senv (Bindings (F.bs si) (F.bindInfo si))
 
 
 instance (Elaborate e) => (Elaborate (Triggered e)) where
@@ -203,16 +201,11 @@ instance Elaborate SortedReft where
       e'   = elaborate x env' e
       env' = insertSymEnv v s env
 
-data Bindings a = Bindings BindEnv (M.HashMap BindId a)
+instance (Loc a) => Elaborate (BindEnv a) where
+  elaborate msg env = mapBindEnv (\i (x, sr, l) -> (x, elaborate (msg' l i x sr) env sr, l))
+    where
+      msg' l i x sr = atLoc l (val msg ++ unwords [" elabBE",  show i, show x, show sr])
 
-instance Loc a => Elaborate (Bindings a) where
-  elaborate z env (Bindings bs bInfo) = Bindings bs' bInfo
-     where
-       bs'        = mapBindEnv (\i (x, sr) -> (x, elaborate (msg i x sr) env sr)) bs
-       msg i x sr = case M.lookup i bInfo of
-                      Just ann -> (msg' i x sr) { loc = l } where SS l _ = srcSpan ann
-                      Nothing  -> msg' i x sr
-       msg' i x sr = z { val = val z ++ unwords [" elabBE",  show i, show x, show sr] }
 instance (Loc a) => Elaborate (SimpC a) where
   elaborate msg env c = c {_crhs = elaborate msg' env (_crhs c) }
     where msg'        = atLoc c (val msg)

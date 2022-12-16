@@ -86,10 +86,10 @@ updTISubCs cs ti = foldl' (flip updTISubC) ti cs
 updTISubC :: SubC a -> TrivInfo -> TrivInfo
 updTISubC c = updTI Lhs (slhs c) . updTI Rhs (srhs c)
 
-updTIBinds :: BindEnv -> TrivInfo -> TrivInfo
+updTIBinds :: BindEnv a -> TrivInfo -> TrivInfo
 updTIBinds be ti = foldl' (flip (updTI Lhs)) ti ts
   where
-    ts           = [t | (_,_,t) <- bindEnvToList be]
+    ts           = [t | (_, (_,t,_)) <- bindEnvToList be]
 
 --------------------------------------------------------------------
 updTI :: Polarity -> SortedReft -> TrivInfo -> TrivInfo
@@ -124,8 +124,8 @@ trivOrSingR (Reft (v, p)) = all trivOrSingP $ conjuncts p
     trivOrSingP p         = trivP p || singP v p
 
 trivP :: Expr -> Bool
-trivP (PKVar {}) = True
-trivP p          = isTautoPred p
+trivP PKVar {} = True
+trivP p        = isTautoPred p
 
 singP :: Symbol -> Expr -> Bool
 singP v (PAtom Eq (EVar x) _)
@@ -143,8 +143,8 @@ simplifyFInfo tm fi = fi {
    , bs   = simplifyBindEnv tm $ bs fi
 }
 
-simplifyBindEnv :: NonTrivSorts -> BindEnv -> BindEnv
-simplifyBindEnv tm = mapBindEnv (\_ (x, sr) -> (x, simplifySortedReft tm sr))
+simplifyBindEnv :: NonTrivSorts -> BindEnv a -> BindEnv a
+simplifyBindEnv tm = mapBindEnv (\_ (x, sr, a) -> (x, simplifySortedReft tm sr, a))
 
 simplifyWfCs :: NonTrivSorts -> M.HashMap KVar (WfC a) -> M.HashMap KVar (WfC a)
 simplifyWfCs tm = M.filter (isNonTrivialSort tm . snd3 . wrft)

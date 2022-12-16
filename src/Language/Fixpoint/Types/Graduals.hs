@@ -86,54 +86,52 @@ uniquify fi = fi{cm = cm', ws = ws', bs = bs'}
   ws'            = expandWF km (ws fi)
 
 uniquifyCS :: (NFData a, Fixpoint a, Loc a)
-           => BindEnv
+           => BindEnv a
            -> M.HashMap SubcId (SimpC a)
-           -> (M.HashMap SubcId (SimpC a), M.HashMap KVar [(KVar, Maybe SrcSpan)], BindEnv)
+           -> (M.HashMap SubcId (SimpC a), M.HashMap KVar [(KVar, Maybe SrcSpan)], BindEnv a)
 uniquifyCS bs cs
   = (x, km, benv st)
---   = (x, km, mapBindEnv (\i (x,r) -> if i `elem` ubs st then (x, ungrad r) else (x, r)) $ benv st)
   where
     (x, st) = runState (uniq cs) (initUniqueST bs)
     km      = kmap st
-    -- gs      = [x | xs <- M.elems km, (x,_) <- xs]
 
 
-class Unique a where
-   uniq :: a -> UniqueM a
+class Unique ann a where
+   uniq :: a -> UniqueM ann a
 
-instance Unique a => Unique (M.HashMap SubcId a) where
+instance Unique ann a => Unique ann (M.HashMap SubcId a) where
   uniq m = M.fromList <$> mapM (\(i,x) -> (i,) <$> uniq x) (M.toList m)
 
-instance Loc a => Unique (SimpC a) where
+instance Loc a => Unique a (SimpC a) where
   uniq cs = do
     updateLoc $ srcSpan $ _cinfo cs
     rhs <- uniq (_crhs cs)
     env <- uniq (_cenv cs)
     return cs{_crhs = rhs, _cenv = env}
 
-instance Unique IBindEnv where
+instance Unique ann IBindEnv where
   uniq env = withCache (fromListIBindEnv <$> mapM uniq (elemsIBindEnv env))
 
-instance Unique BindId where
+instance Unique ann BindId where
   uniq i = do
     bs <- benv <$> get
-    let (x, t) = lookupBindEnv i bs
+    let (x, t, ann) = lookupBindEnv i bs
     resetChange
     t' <- uniq t
     hasChanged <- change <$> get
     if hasChanged
-      then do let (i', bs') = insertBindEnv x t' bs
+      then do let (i', bs') = insertBindEnv x t' ann bs
               updateBEnv i bs'
               return i'
       else return i
 
-instance Unique SortedReft where
+instance Unique ann SortedReft where
   uniq (RR s r) = RR s <$> uniq r
 
-instance Unique Reft where
+instance Unique ann Reft where
   uniq (Reft (x,e)) = Reft . (x,) <$> uniq e
 
-instance Unique Expr where
+instance Unique ann Expr where
   uniq = mapMExpr go
    where
     go (PGrad k su i e) = do
@@ -146,46 +144,46 @@ instance Unique Expr where
 -- | The Unique Monad ---------------------------------------------------------
 -------------------------------------------------------------------------------
 
-type UniqueM = State UniqueST
-data UniqueST
+type UniqueM ann = State (UniqueST ann)
+data UniqueST a
   = UniqueST { freshId :: Integer
              , kmap    :: M.HashMap KVar [(KVar, Maybe SrcSpan)]
              , change  :: Bool
              , cache   :: M.HashMap KVar KVar
              , uloc    :: Maybe SrcSpan
              , ubs     :: [BindId]
-             , benv    :: BindEnv
+             , benv    :: BindEnv a
              }
 
-updateLoc :: SrcSpan -> UniqueM ()
+updateLoc :: SrcSpan -> UniqueM ann ()
 updateLoc x = modify $ \s -> s{uloc = Just x}
 
-withCache :: UniqueM a -> UniqueM a
+withCache :: UniqueM ann a -> UniqueM ann a
 withCache act = do
   emptyCache
   a <- act
   emptyCache
   return a
 
-emptyCache :: UniqueM ()
+emptyCache :: UniqueM ann ()
 emptyCache = modify $ \s -> s{cache = mempty}
 
-addCache :: KVar -> KVar -> UniqueM ()
+addCache :: KVar -> KVar -> UniqueM ann ()
 addCache k k' = modify $ \s -> s{cache = M.insert k k' (cache s)}
 
-updateBEnv :: BindId -> BindEnv -> UniqueM ()
+updateBEnv :: BindId -> BindEnv a -> UniqueM a ()
 updateBEnv i bs = modify $ \s -> s{benv = bs, ubs = i : ubs s}
 
-setChange :: UniqueM ()
+setChange :: UniqueM ann ()
 setChange = modify $ \s -> s{change = True}
 
-resetChange :: UniqueM ()
+resetChange :: UniqueM ann ()
 resetChange = modify $ \s -> s{change = False}
 
-initUniqueST :: BindEnv ->  UniqueST
+initUniqueST :: BindEnv a ->  UniqueST a
 initUniqueST = UniqueST 0 mempty False mempty Nothing mempty
 
-freshK, freshK' :: KVar -> UniqueM KVar
+freshK, freshK' :: KVar -> UniqueM ann KVar
 freshK k  = do
   setChange
   cached <- cache <$> get
@@ -202,7 +200,7 @@ freshK' k = do
   addCache k k'
   return k'
 
-addK :: KVar -> KVar -> UniqueM ()
+addK :: KVar -> KVar -> UniqueM ann ()
 addK key val =
   modify (\s -> s{kmap = M.insertWith (++) key [(val, uloc s)] (kmap s)})
 
@@ -249,8 +247,8 @@ instance Gradual SortedReft where
 instance Gradual (SimpC a) where
   gsubst su c = c {_crhs = gsubst su (_crhs c)}
 
-instance Gradual BindEnv where
-  gsubst su = mapBindEnv (\_ (x, r) -> (x, gsubst su r))
+instance Gradual (BindEnv a) where
+  gsubst su = mapBindEnv (\_ (x, r, l) -> (x, gsubst su r, l))
 
 instance Gradual v => Gradual (M.HashMap k v) where
   gsubst su = M.map (gsubst su)

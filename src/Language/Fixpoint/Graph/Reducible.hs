@@ -59,6 +59,6 @@ isBackEdge t (u,v) = case lookup u t of
   Nothing -> error "Unable to lookup back edge"
 
 
-subcEdges' :: (F.TaggedC c a) => (F.KVar -> Node) -> F.BindEnv -> c a -> [(Node, Node)]
+subcEdges' :: (F.TaggedC c a) => (F.KVar -> Node) -> F.BindEnv a -> c a -> [(Node, Node)]
 subcEdges' kvI be c = [(kvI k1, kvI k2) | k1 <- V.envKVars be c
                                         , k2 <- V.kvarsExpr $ F.crhs c]

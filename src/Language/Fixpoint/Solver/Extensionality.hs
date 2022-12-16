@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts     #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Language.Fixpoint.Solver.Extensionality (expand) where
 
@@ -21,39 +22,42 @@ mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
 expand :: Config -> SInfo a -> SInfo a
-expand cfg si = evalState (extend si) $ initST (symbolEnv cfg si) (ddecls si)
+expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si)
+  where
+    ext ::SInfo a -> Ex a (SInfo a)
+    ext = extend
 
 
-class Extend a where
-  extend :: a -> Ex a
+class Extend ann a where
+  extend :: a -> Ex ann a
 
 
-instance Extend (SInfo a) where
+instance Extend a (SInfo a) where
   extend si = do
     setBEnv (bs si)
     cm'      <- extend (cm si)
     bs'      <- gets exbenv
     return $ si{ cm = cm' , bs = bs' }
 
-instance (Extend a) => Extend (M.HashMap SubcId a) where
+instance (Extend ann a) => Extend ann (M.HashMap SubcId a) where
   extend h = M.fromList <$> mapM extend (M.toList h)
 
-instance (Extend a, Extend b) => Extend (a,b) where
+instance (Extend ann a, Extend ann b) => Extend ann (a,b) where
   extend (a,b) = (,) <$> extend a <*> extend b
 
-instance Extend SubcId where
+instance Extend ann SubcId where
   extend i = return i
 
-instance Extend (SimpC a) where
+instance Extend a (SimpC a) where
   extend c = do
     setExBinds (_cenv c)
-    rhs <- extendExpr Pos (_crhs c)
+    rhs <- extendExpr (sinfo c) Pos (_crhs c)
     is  <- gets exbinds
     return $ c{_crhs = rhs, _cenv = is }
 
 
-extendExpr :: Pos -> Expr -> Ex Expr
-extendExpr p e
+extendExpr :: a -> Pos -> Expr -> Ex a Expr
+extendExpr ann p e
   | p == Pos
   = mapMPosExpr Pos goP e' >>= mapMPosExpr Pos goN
   | otherwise
@@ -63,12 +67,12 @@ extendExpr p e
       goP Pos (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = mytracepp ("extending POS = " ++ showpp e) <$> (extendRHS b e1 e2 s >>= goP Pos)
+       = mytracepp ("extending POS = " ++ showpp e) <$> (extendRHS ann b e1 e2 s >>= goP Pos)
       goP _ e = return e
       goN Neg (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = mytracepp ("extending NEG = " ++ showpp e) <$> (extendLHS b e1 e2 s >>= goN Neg)
+       = mytracepp ("extending NEG = " ++ showpp e) <$> (extendLHS ann b e1 e2 s >>= goN Neg)
       goN _ e = return e
 
 getArg :: Sort -> Maybe Sort
@@ -76,43 +80,42 @@ getArg s = case bkFFunc s of
              Just (_, a:_:_) -> Just a
              _                -> Nothing
 
-extendRHS, extendLHS :: Brel -> Expr -> Expr -> Sort -> Ex Expr
-extendRHS b e1 e2 s =
-  do es <- generateArguments s
+extendRHS, extendLHS :: a -> Brel -> Expr -> Expr -> Sort -> Ex a Expr
+extendRHS ann b e1 e2 s =
+  do es <- generateArguments ann s
      mytracepp "extendRHS = " . pAnd <$> mapM (makeEq b e1 e2) es
 
-extendLHS b e1 e2 s =
-  do es  <- generateArguments s
+extendLHS ann b e1 e2 s =
+  do es  <- generateArguments ann s
      dds <- gets exddecl
-     is  <- instantiate dds s
+     is  <- instantiate ann dds s
      mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
 
+generateArguments :: a -> Sort -> Ex a [Expr]
+generateArguments ann s = do
+  ddecls   <- gets exddecl
+  case breakSort ddecls s of
+    Left dds -> mapM (freshArgDD ann) dds
+    Right s  -> (\x -> [EVar x]) <$> freshArgOne ann s
 
-generateArguments :: Sort -> Ex [Expr]
-generateArguments s = do
-  st   <- get
-  case breakSort (exddecl st) s of
-    Left dds -> mapM freshArgDD dds
-    Right s  -> (\x -> [EVar x]) <$> freshArgOne s
-
-makeEq :: Brel-> Expr -> Expr -> Expr -> Ex Expr
+makeEq :: Brel-> Expr -> Expr -> Expr -> Ex ann Expr
 makeEq b e1 e2 e = do
   env <- gets exenv
   let elab = elaborate (dummyLoc "extensionality") env
   return $ PAtom b (elab $ EApp (unElab e1) e)  (elab $ EApp (unElab e2) e)
 
-instantiate :: [DataDecl]  -> Sort -> Ex [Expr]
-instantiate ds s = instantiateOne (breakSort ds s)
+instantiate :: a -> [DataDecl]  -> Sort -> Ex a [Expr]
+instantiate ann ds s = instantiateOne ann (breakSort ds s)
 
-instantiateOne :: Either [(LocSymbol, [Sort])] Sort  -> Ex [Expr]
-instantiateOne (Right s@(FVar _)) =
-  (\x -> [EVar x]) <$> freshArgOne s
-instantiateOne (Right s) = do
+instantiateOne :: a -> Either [(LocSymbol, [Sort])] Sort  -> Ex a [Expr]
+instantiateOne ann (Right s@(FVar _)) =
+  (\x -> [EVar x]) <$> freshArgOne ann s
+instantiateOne _ (Right s) = do
   xss <- gets excbs
   return [EVar x | (x,xs) <- xss, xs == s ]
-instantiateOne (Left [(dc, ts)]) =
-  map (mkEApp dc) . combine <$>  mapM instantiateOne (Right <$> ts)
-instantiateOne _ = undefined
+instantiateOne ann (Left [(dc, ts)]) =
+  map (mkEApp dc) . combine <$>  mapM (instantiateOne ann) (Right <$> ts)
+instantiateOne _ _ = undefined
 
 combine :: [[a]] -> [[a]]
 combine []          = [[]]
@@ -183,16 +186,17 @@ normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
     go e@PGrad{}         = e -- Cannot appear
 
 
-type Ex    = State ExSt
-data ExSt = ExSt { unique  :: Int
-                 , exddecl :: [DataDecl]
-                 , exenv   :: SymEnv        -- used for elaboration
-                 , exbenv  :: BindEnv
-                 , exbinds :: IBindEnv
-                 , excbs   :: [(Symbol, Sort)]
-                 }
+type Ex a = State (ExSt a)
+data ExSt a = ExSt
+  { unique  :: Int
+  , exddecl :: [DataDecl]
+  , exenv   :: SymEnv        -- used for elaboration
+  , exbenv  :: BindEnv a
+  , exbinds :: IBindEnv
+  , excbs   :: [(Symbol, Sort)]
+  }
 
-initST :: SymEnv -> [DataDecl]  -> ExSt
+initST :: SymEnv -> [DataDecl]  -> ExSt ann
 initST env dd = ExSt 0 (d:dd) env mempty mempty mempty
   where
     -- NV: hardcore Haskell pairs because they do not appear in DataDecl (why?)
@@ -203,26 +207,26 @@ initST env dd = ExSt 0 (d:dd) env mempty mempty mempty
           ]
 
 
-setBEnv :: BindEnv -> Ex ()
+setBEnv :: BindEnv a -> Ex a ()
 setBEnv benv = modify (\st -> st{exbenv = benv})
 
-setExBinds :: IBindEnv-> Ex ()
+setExBinds :: IBindEnv -> Ex a ()
 setExBinds bids = modify (\st -> st{ exbinds = bids
-                                   , excbs   = [ (x, sr_sort r) | (i, x, r) <- bindEnvToList (exbenv st)
+                                   , excbs   = [ (x, sr_sort r) | (i, (x, r, _)) <- bindEnvToList (exbenv st)
                                                                 , memberIBindEnv i bids]})
 
 
-freshArgDD :: (LocSymbol, [Sort]) -> Ex Expr
-freshArgDD (dc, xs) = do
-  xs <- mapM freshArgOne xs
+freshArgDD :: a -> (LocSymbol, [Sort]) -> Ex a Expr
+freshArgDD ann (dc, xs) = do
+  xs <- mapM (freshArgOne ann) xs
   return $ mkEApp dc (EVar <$> xs)
 
 
-freshArgOne :: Sort -> Ex Symbol
-freshArgOne s = do
+freshArgOne :: ann -> Sort -> Ex ann Symbol
+freshArgOne ann s = do
   st   <- get
   let x = symbol ("ext$" ++ show (unique st))
-  let (id, benv') = insertBindEnv x (trueSortedReft s) (exbenv st)
+  let (id, benv') = insertBindEnv x (trueSortedReft s) ann (exbenv st)
   modify (\st -> st{ exenv   = insertSymEnv x s (exenv st)
                    , exbenv  = benv'
                    , exbinds = insertsIBindEnv [id] (exbinds st)

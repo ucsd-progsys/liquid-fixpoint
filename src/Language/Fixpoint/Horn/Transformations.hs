@@ -143,7 +143,7 @@ piDefConstr k c = ((head ns, head formals), defC)
 
     go :: Cstr a -> ([F.Symbol], [[F.Symbol]], Maybe (Cstr a))
     go (CAnd cs) = (\(as, bs, cs) -> (concat as, concat bs, cAndMaybes cs)) $ unzip3 $ go <$> cs
-    go (All b@(Bind n _ (Var k' xs)) c')
+    go (All b@(Bind n _ (Var k' xs) _) c')
       | k == k' = ([n], [S.toList $ S.fromList xs `S.difference` S.singleton n], Just c')
       | otherwise = map3 (fmap (All b)) (go c')
     go (All b c') = map3 (fmap (All b)) (go c')
@@ -180,13 +180,13 @@ solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi 
     go :: S.Set F.Symbol -> Cstr a -> ([(F.Symbol, F.Expr)], S.Set F.Symbol)
     go visited (Head p _) = (collectEqualities p, visited)
     go visited (CAnd cs) = foldl' (\(eqs, visited) c -> let (eqs', visited') = go visited c in (eqs' <> eqs, visited')) (mempty, visited) cs
-    go visited (All (Bind _ _ (Var pi _)) c)
+    go visited (All (Bind _ _ (Var pi _) _) c)
       | S.member pi visited = go visited c
       | otherwise = let (_, defC) = (piSols M.! pi)
                         (eqs', newVisited) = go (S.insert pi visited) defC
                         (eqs'', newVisited') = go newVisited c in
           (eqs' <> eqs'', newVisited')
-    go visited (All (Bind _ _ p) c) = let (eqs, visited') = go visited c in
+    go visited (All (Bind _ _ p _) c) = let (eqs, visited') = go visited c in
       (eqs <> collectEqualities p, visited')
     go _ Any{} = error "exists should not be present in piSols"
 
@@ -242,10 +242,10 @@ pokec = go mempty
     go _ (Head c l) = Head c l
     go xs (CAnd c)   = CAnd (go xs <$> c)
     go xs (All b c2) = All b $ go (bSym b : xs) c2
-    go xs (Any b@(Bind x t p) c2) = CAnd [All b' $ CAnd [Head p l, go (x:xs) c2], Any b (Head pi l)]
+    go xs (Any b@(Bind x t p ann) c2) = CAnd [All b' $ CAnd [Head p l, go (x:xs) c2], Any b (Head pi l)]
       -- TODO: actually use the renamer?
       where
-        b' = Bind x t pi
+        b' = Bind x t pi ann
         pi = piVar x xs
         l  = cLabel c2
 
@@ -394,9 +394,9 @@ elimPis (n:ns) (horn, side) = elimPis ns (apply horn, apply side)
 
 -- TODO: PAnd may be a problem
 applyPi :: F.Symbol -> Cstr a -> Cstr a -> Cstr a
-applyPi k defs (All (Bind x t (Var k' _xs)) c)
+applyPi k defs (All (Bind x t (Var k' _xs) ann) c)
   | k == k'
-  = All (Bind x t (Reft $ cstrToExpr defs)) c
+  = All (Bind x t (Reft $ cstrToExpr defs) ann) c
 applyPi k bp (CAnd cs)
   = CAnd $ applyPi k bp <$> cs
 applyPi k bp (All b c)
@@ -464,7 +464,7 @@ Just (and
 
 defs :: F.Symbol -> Cstr a -> Maybe (Cstr a)
 defs x (CAnd cs) = andMaybes $ defs x <$> cs
-defs x (All (Bind x' _ _) c)
+defs x (All (Bind x' _ _ _) c)
   | x' == x
   = pure c
 defs x (All _ c) = defs x c
@@ -474,8 +474,8 @@ defs _ (Any _ _) =  error "defs should be run only after noside and poke"
 cstrToExpr :: Cstr a -> F.Expr
 cstrToExpr (Head p _) = predToExpr p
 cstrToExpr (CAnd cs) = F.PAnd $ cstrToExpr <$> cs
-cstrToExpr (All (Bind x t p) c) = F.PAll [(x,t)] $ F.PImp (predToExpr p) $ cstrToExpr c
-cstrToExpr (Any (Bind x t p) c) = F.PExist [(x,t)] $ F.PImp (predToExpr p) $ cstrToExpr c
+cstrToExpr (All (Bind x t p _) c) = F.PAll [(x,t)] $ F.PImp (predToExpr p) $ cstrToExpr c
+cstrToExpr (Any (Bind x t p _) c) = F.PExist [(x,t)] $ F.PImp (predToExpr p) $ cstrToExpr c
 
 predToExpr :: Pred -> F.Expr
 predToExpr (Reft e) = e
@@ -566,8 +566,8 @@ instance V.Visitable Pred where
 instance V.Visitable (Cstr a) where
   visit v c (CAnd cs) = CAnd <$> mapM (visit v c) cs
   visit v c (Head p a) = Head <$> visit v c p <*> pure a
-  visit v ctx (All (Bind x t p) c) = All <$> (Bind x t <$> visit v ctx p) <*> visit v ctx c
-  visit v ctx (Any (Bind x t p) c) = All <$> (Bind x t <$> visit v ctx p) <*> visit v ctx c
+  visit v ctx (All (Bind x t p l) c) = All <$> (Bind x t <$> visit v ctx p <*> pure l) <*> visit v ctx c
+  visit v ctx (Any (Bind x t p l) c) = All <$> (Bind x t <$> visit v ctx p <*> pure l) <*> visit v ctx c
 
 ------------------------------------------------------------------------------
 -- | Quantifier elimination for use with implicit solver
@@ -690,10 +690,10 @@ extractEquality left right
 substPiSols :: M.HashMap F.Symbol Pred -> Cstr a -> Cstr a
 substPiSols _ c@Head{} = c
 substPiSols piSols (CAnd cs) = CAnd $ substPiSols piSols <$> cs
-substPiSols piSols (All (Bind x t p) c)
-  | Var k _ <- p = All (Bind x t $ M.lookupDefault p k piSols) (substPiSols piSols c)
-  | otherwise = All (Bind x t p) (substPiSols piSols c)
-substPiSols piSols (Any (Bind n _ p) c)
+substPiSols piSols (All (Bind x t p l) c)
+  | Var k _ <- p = All (Bind x t (M.lookupDefault p k piSols) l) (substPiSols piSols c)
+  | otherwise = All (Bind x t p l) (substPiSols piSols c)
+substPiSols piSols (Any (Bind n _ p _) c)
   | Head (Var pi _) label <- c, Just sol <- M.lookup pi piSols =
     case findSol n sol of
       Just e -> Head (flatten $ PAnd $ (\pred -> F.subst1 pred (n, e)) <$> [p, sol]) label
@@ -725,12 +725,12 @@ uniq c = evalState (uniq' c) M.empty
 uniq' :: Cstr a -> State RenameMap (Cstr a)
 uniq' (Head c a) = gets (Head . rename c) <*> pure a
 uniq' (CAnd c) = CAnd <$> mapM uniq' c
-uniq' (All b@(Bind x _ _) c2) = do
+uniq' (All b@(Bind x _ _ _) c2) = do
     b' <- uBind b
     c2' <- uniq' c2
     modify $ popName x
     pure $ All b' c2'
-uniq' (Any b@(Bind x _ _) c2) = do
+uniq' (Any b@(Bind x _ _ _) c2) = do
     b' <- uBind b
     c2' <- uniq' c2
     modify $ popName x
@@ -743,12 +743,11 @@ pushName :: Maybe (Integer, [Integer]) -> Maybe (Integer, [Integer])
 pushName Nothing = Just (0, [0])
 pushName (Just (i, is)) = Just (i + 1, (i + 1):is)
 
-uBind :: Bind -> State RenameMap Bind
-uBind (Bind x t p) = do
+uBind :: Bind a -> State RenameMap (Bind a)
+uBind (Bind x t p l) = do
    x' <- uVariable x
-   -- nmap <- get
    p' <- gets (rename p)
-   pure $ Bind x' t p'
+   pure $ Bind x' t p' l
 
 uVariable :: IsString a => F.Symbol -> State RenameMap a
 uVariable x = do
@@ -806,7 +805,7 @@ scope k cstr = case go cstr of
     go c@(Head (Var k' _) _)
       | k' == k = Right c
     go (Head _ l) = Left l
-    go c@(All (Bind _ _ p) c') =
+    go c@(All (Bind _ _ p _) c') =
       if k `S.member` pKVars p then Right c else go c'
     go Any{} = error "any should not appear after poke"
 
@@ -840,7 +839,7 @@ scope k cstr = case go cstr of
 --  - `bss` is a Hyp, that tells us the solution to a Var, that is,
 --     a collection of cubes that we'll want to disjunct
 
-sol1 :: F.Symbol -> Cstr a -> [([Bind], [F.Expr])]
+sol1 :: F.Symbol -> Cstr a -> [([Bind a], [F.Expr])]
 sol1 k (CAnd cs) = sol1 k =<< cs
 sol1 k (All b c) = first (b :) <$> sol1 k c
 sol1 k (Head (Var k' ys) _) | k == k'
@@ -857,30 +856,30 @@ kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1 
 -- >>> doelim "k0" [[Bind "v" F.boolSort (Reft $ F.EVar "v"), Bind "_" F.boolSort (Reft $ F.EVar "donkey")]]  c
 -- (forall ((v bool) (v)) (forall ((z int) (donkey)) ((z == x))))
 
-doelim :: F.Symbol -> [([Bind], [F.Expr])] -> Cstr a -> Cstr a
+doelim :: F.Symbol -> [([Bind a], [F.Expr])] -> Cstr a -> Cstr a
 doelim k bss (CAnd cs)
   = CAnd $ doelim k bss <$> cs
-doelim k bss (All (Bind x t p) c) =
+doelim k bss (All (Bind x t p l) c) =
   case findKVarInGuard k p of
-    Right _ -> All (Bind x t p) (doelim k bss c)
-    Left (kvars, preds) -> demorgan x t kvars preds (doelim k bss c) bss
+    Right _ -> All (Bind x t p l) (doelim k bss c)
+    Left (kvars, preds) -> demorgan x t l kvars preds (doelim k bss c) bss
   where
-    demorgan :: F.Symbol -> F.Sort -> [(F.Symbol, [F.Symbol])] -> [Pred] -> Cstr a -> [([Bind], [F.Expr])] -> Cstr a
-    demorgan x t kvars preds c bss = mkAnd $ cubeSol <$> bss
+    demorgan :: F.Symbol -> F.Sort -> a -> [(F.Symbol, [F.Symbol])] -> [Pred] -> Cstr a -> [([Bind a], [F.Expr])] -> Cstr a
+    demorgan x t ann kvars preds c bss = mkAnd $ cubeSol <$> bss
       where su = F.Su $ M.fromList $ concatMap (\(k, xs) -> zip (kargs k) (F.EVar <$> xs)) kvars
             mkAnd [c] = c
             mkAnd cs = CAnd cs
             cubeSol (b:bs, eqs) = All b $ cubeSol (bs, eqs)
-            cubeSol ([], eqs) = All (Bind x t (PAnd $ (Reft <$> F.subst su eqs) ++ (F.subst su <$> preds))) c
+            cubeSol ([], eqs) = All (Bind x t (PAnd $ (Reft <$> F.subst su eqs) ++ (F.subst su <$> preds)) ann) c
 doelim k _ (Head (Var k' _) a)
   | k == k'
   = Head (Reft F.PTrue) a
 doelim _ _ (Head p a) = Head p a
 
-doelim k bss (Any (Bind x t p) c) =
+doelim k bss (Any (Bind x t p l) c) =
   case findKVarInGuard k p of
-    Right _ -> Any (Bind x t p) (doelim k bss c)
-    Left (_, rights) -> Any (Bind x t (PAnd rights)) (doelim k bss c) -- TODO: for now we set the kvar to true. not sure if this is correct
+    Right _ -> Any (Bind x t p l) (doelim k bss c)
+    Left (_, rights) -> Any (Bind x t (PAnd rights) l) (doelim k bss c) -- TODO: for now we set the kvar to true. not sure if this is correct
 
 -- If k is in the guard then returns a Left list of that k and the remaining preds in the guard
 -- If k is not in the guard returns a Right of the pred
@@ -916,8 +915,8 @@ findKVarInGuard _ p = Right p
 boundKvars :: Cstr a -> S.Set F.Symbol
 boundKvars (Head p _)           = pKVars p
 boundKvars (CAnd c)             = mconcat $ boundKvars <$> c
-boundKvars (All (Bind _ _ p) c) = pKVars p <> boundKvars c
-boundKvars (Any (Bind _ _ p) c) = pKVars p <> boundKvars c
+boundKvars (All (Bind _ _ p _) c) = pKVars p <> boundKvars c
+boundKvars (Any (Bind _ _ p _) c) = pKVars p <> boundKvars c
 
 pKVars :: Pred -> S.Set F.Symbol
 pKVars (Var k _) = S.singleton k
@@ -940,9 +939,9 @@ calculateCuts cfg (Query qs vs _ cons dist eqns mats dds) nnf = convert $ FG.dep
 forgetPiVars :: S.Set F.Symbol -> Cstr a -> Cstr a
 forgetPiVars _ c@Head{} = c
 forgetPiVars pis (CAnd cs) = CAnd $ forgetPiVars pis <$> cs
-forgetPiVars pis (All (Bind x t p) c)
-  | Var k _ <- p, k `S.member` pis = All (Bind x t (PAnd [])) $ forgetPiVars pis c
-  | otherwise = All (Bind x t p) $ forgetPiVars pis c
+forgetPiVars pis (All (Bind x t p l) c)
+  | Var k _ <- p, k `S.member` pis = All (Bind x t (PAnd []) l) $ forgetPiVars pis c
+  | otherwise = All (Bind x t p l) $ forgetPiVars pis c
 forgetPiVars _ Any{} = error "shouldn't be present"
 
 -----------------------------------------------------------------------------------
@@ -975,8 +974,8 @@ instance Flatten (Cstr a) where
                         [c] -> c
                         cs -> CAnd cs
   flatten (Head p a) = Head (flatten p) a
-  flatten (All (Bind x t p) c) = All (Bind x t (flatten p)) (flatten c)
-  flatten (Any (Bind x t p) c) = Any (Bind x t (flatten p)) (flatten c)
+  flatten (All (Bind x t p l) c) = All (Bind x t (flatten p) l) (flatten c)
+  flatten (Any (Bind x t p l) c) = Any (Bind x t (flatten p) l) (flatten c)
 
 instance Flatten [Cstr a] where
   flatten (CAnd cs : xs) = flatten cs ++ flatten xs
@@ -1039,7 +1038,7 @@ removeDuplicateBinders = go S.empty
   where
     go _ c@Head{} = c
     go xs (CAnd cs) = CAnd $ go xs <$> cs
-    go xs (All b@(Bind x _ _) c) = if x `S.member` xs then go xs c else All b $ go (S.insert x xs) c
+    go xs (All b@(Bind x _ _ _) c) = if x `S.member` xs then go xs c else All b $ go (S.insert x xs) c
     go xs (Any b c) = Any b $ go xs c
 
 pruneTauts :: Cstr a -> Cstr a
