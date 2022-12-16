@@ -878,7 +878,7 @@ simpcToSubc env s = SubC
 type Solver a = Config -> FInfo a -> IO (Result (Integer, a))
 
 --------------------------------------------------------------------------------
-saveQuery :: Fixpoint a => Config -> FInfo a -> IO ()
+saveQuery :: (Fixpoint a) => Config -> FInfo a -> IO ()
 --------------------------------------------------------------------------------
 saveQuery cfg fi = {- when (save cfg) $ -} do
   let fi'  = void fi

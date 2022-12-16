@@ -75,14 +75,14 @@ ppCmd CheckSat         = text "CheckSat"
 ppCmd (DeclData d)     = text "Data" <+> pprint d
 ppCmd (Declare x [] t) = text "Declare" <+> text (T.unpack x) <+> text ":" <+> pprint t
 ppCmd (Declare x ts t) = text "Declare" <+> text (T.unpack x) <+> text ":" <+> parens (pprint ts) <+> pprint t
-ppCmd (Define {})   = text "Define ..."
+ppCmd Define {}   = text "Define ..."
 ppCmd (DefineFunc name params rsort e) =
   text "DefineFunc" <+> pprint name <+> pprint params <+> pprint rsort <+> pprint e
 ppCmd (Assert _ e)  = text "Assert" <+> pprint e
 ppCmd (AssertAx _)  = text "AssertAxiom ..."
-ppCmd (Distinct {}) = text "Distinct ..."
-ppCmd (GetValue {}) = text "GetValue ..."
-ppCmd (CMany {})    = text "CMany ..."
+ppCmd Distinct {} = text "Distinct ..."
+ppCmd GetValue {} = text "GetValue ..."
+ppCmd CMany {}    = text "CMany ..."
 
 -- | Responses received from SMT engine
 data Response     = Ok

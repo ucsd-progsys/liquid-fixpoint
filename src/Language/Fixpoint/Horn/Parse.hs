@@ -48,7 +48,7 @@ data HThing a
   | HDis  F.Symbol F.Sort
   | HDef  F.Equation
   | HMat  F.Rewrite
-  | HDat  F.DataDecl
+  | HDat !F.DataDecl
   | HOpt !String
   deriving (Functor)
 

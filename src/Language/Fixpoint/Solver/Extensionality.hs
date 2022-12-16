@@ -48,16 +48,16 @@ instance (Extend ann a, Extend ann b) => Extend ann (a,b) where
 instance Extend ann SubcId where
   extend i = return i
 
-instance Extend ann (SimpC a) where
+instance Extend a (SimpC a) where
   extend c = do
     setExBinds (_cenv c)
-    rhs <- extendExpr Pos (_crhs c)
+    rhs <- extendExpr (sinfo c) Pos (_crhs c)
     is  <- gets exbinds
     return $ c{_crhs = rhs, _cenv = is }
 
 
-extendExpr :: Pos -> Expr -> Ex ann Expr
-extendExpr p e
+extendExpr :: a -> Pos -> Expr -> Ex a Expr
+extendExpr ann p e
   | p == Pos
   = mapMPosExpr Pos goP e' >>= mapMPosExpr Pos goN
   | otherwise
@@ -67,12 +67,12 @@ extendExpr p e
       goP Pos (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = mytracepp ("extending POS = " ++ showpp e) <$> (extendRHS b e1 e2 s >>= goP Pos)
+       = mytracepp ("extending POS = " ++ showpp e) <$> (extendRHS ann b e1 e2 s >>= goP Pos)
       goP _ e = return e
       goN Neg (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = mytracepp ("extending NEG = " ++ showpp e) <$> (extendLHS b e1 e2 s >>= goN Neg)
+       = mytracepp ("extending NEG = " ++ showpp e) <$> (extendLHS ann b e1 e2 s >>= goN Neg)
       goN _ e = return e
 
 getArg :: Sort -> Maybe Sort
@@ -80,23 +80,23 @@ getArg s = case bkFFunc s of
              Just (_, a:_:_) -> Just a
              _                -> Nothing
 
-extendRHS, extendLHS :: Brel -> Expr -> Expr -> Sort -> Ex ann Expr
-extendRHS b e1 e2 s =
-  do es <- generateArguments s
+extendRHS, extendLHS :: a -> Brel -> Expr -> Expr -> Sort -> Ex a Expr
+extendRHS ann b e1 e2 s =
+  do es <- generateArguments ann s
      mytracepp "extendRHS = " . pAnd <$> mapM (makeEq b e1 e2) es
 
-extendLHS b e1 e2 s =
-  do es  <- generateArguments s
+extendLHS ann b e1 e2 s =
+  do es  <- generateArguments ann s
      dds <- gets exddecl
-     is  <- instantiate dds s
+     is  <- instantiate ann dds s
      mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
 
-generateArguments :: Sort -> Ex ann [Expr]
-generateArguments s = do
-  st   <- get
-  case breakSort (exddecl st) s of
-    Left dds -> mapM freshArgDD dds
-    Right s  -> (\x -> [EVar x]) <$> freshArgOne s
+generateArguments :: a -> Sort -> Ex a [Expr]
+generateArguments ann s = do
+  ddecls   <- gets exddecl
+  case breakSort ddecls s of
+    Left dds -> mapM (freshArgDD ann) dds
+    Right s  -> (\x -> [EVar x]) <$> freshArgOne ann s
 
 makeEq :: Brel-> Expr -> Expr -> Expr -> Ex ann Expr
 makeEq b e1 e2 e = do
@@ -104,18 +104,18 @@ makeEq b e1 e2 e = do
   let elab = elaborate (dummyLoc "extensionality") env
   return $ PAtom b (elab $ EApp (unElab e1) e)  (elab $ EApp (unElab e2) e)
 
-instantiate :: [DataDecl]  -> Sort -> Ex ann [Expr]
-instantiate ds s = instantiateOne (breakSort ds s)
+instantiate :: a -> [DataDecl]  -> Sort -> Ex a [Expr]
+instantiate ann ds s = instantiateOne ann (breakSort ds s)
 
-instantiateOne :: Either [(LocSymbol, [Sort])] Sort  -> Ex ann [Expr]
-instantiateOne (Right s@(FVar _)) =
-  (\x -> [EVar x]) <$> freshArgOne s
-instantiateOne (Right s) = do
+instantiateOne :: a -> Either [(LocSymbol, [Sort])] Sort  -> Ex a [Expr]
+instantiateOne ann (Right s@(FVar _)) =
+  (\x -> [EVar x]) <$> freshArgOne ann s
+instantiateOne _ (Right s) = do
   xss <- gets excbs
   return [EVar x | (x,xs) <- xss, xs == s ]
-instantiateOne (Left [(dc, ts)]) =
-  map (mkEApp dc) . combine <$>  mapM instantiateOne (Right <$> ts)
-instantiateOne _ = undefined
+instantiateOne ann (Left [(dc, ts)]) =
+  map (mkEApp dc) . combine <$>  mapM (instantiateOne ann) (Right <$> ts)
+instantiateOne _ _ = undefined
 
 combine :: [[a]] -> [[a]]
 combine []          = [[]]
@@ -216,9 +216,9 @@ setExBinds bids = modify (\st -> st{ exbinds = bids
                                                                 , memberIBindEnv i bids]})
 
 
-freshArgDD :: (LocSymbol, [Sort]) -> Ex a Expr
-freshArgDD (dc, xs) = do
-  xs <- mapM freshArgOne xs
+freshArgDD :: a -> (LocSymbol, [Sort]) -> Ex a Expr
+freshArgDD ann (dc, xs) = do
+  xs <- mapM (freshArgOne ann) xs
   return $ mkEApp dc (EVar <$> xs)
 
 
