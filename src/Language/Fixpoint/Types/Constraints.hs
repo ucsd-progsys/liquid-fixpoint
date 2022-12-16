@@ -315,7 +315,7 @@ isUnsafe _ = False
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)"
   -- toFix (UnknownError d) = text $ "Unknown Error: " ++ d
-  toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  pprSinfos "CRASH: " xs ++ [parens (text msg)]
+  toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  pprSinfos "CRASH: " (fst <$> xs) ++ [parens (text msg)]
   toFix (Unsafe _ xs)    = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
 
 pprSinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]

@@ -7,7 +7,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
-{-# LANGUAGE TupleSections #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
@@ -189,19 +188,29 @@ solveNative !cfg !fi0 = solveNative' cfg fi0
                              (return . crashResult (errorMap fi0))
 
 crashResult :: ErrorMap a -> Error -> Result (Integer, a)
-crashResult m e = Result (Crash es msg) mempty mempty mempty
+crashResult m e = Result res mempty mempty mempty
   where
-    es          = catMaybes [ findError m e | e <- errs e ]
-    msg         = showpp e
+    res           = Crash es msg
+    es            = catMaybes [ findError m e | e <- errs e ]
+    msg | null es = showpp e
+        | otherwise = "Sorry, unexpected panic in liquid-fixpoint!"
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
 type ErrorMap a = HashMap.HashMap SrcSpan a
 
-findError :: ErrorMap a -> Error1 -> Maybe (Integer, a)
-findError m e = (-1, ) <$> HashMap.lookup (errLoc e) m
+findError :: ErrorMap a -> Error1 -> Maybe ((Integer, a), Maybe String)
+findError m e = do
+  ann <- HashMap.lookup (errLoc e) m
+  let str = render (errMsg e)
+  return ((-1, ann), Just str)
 
+-- The order is important here: we want the "binders" to get the "precedence"
 errorMap :: (Loc a) => FInfo a -> ErrorMap a
-errorMap fi = HashMap.fromList [ (srcSpan a, a) | (_, (_,_, a)) <- bindEnvToList (Types.bs fi) ]
+errorMap fi = HashMap.fromList [ (srcSpan a, a) | a <- anns ]
+  where
+    anns    =  [ sinfo c | (_, c) <- HashMap.toList (Types.cm fi) ]
+            ++ [ winfo w | (_, w) <- HashMap.toList (Types.ws fi) ]
+            ++ [ a | (_, (_,_, a)) <- bindEnvToList (Types.bs fi) ]
 
 loudDump :: (Fixpoint a) => Int -> Config -> SInfo a -> IO ()
 loudDump i cfg si = when False (writeLoud $ msg ++ render (toFixpoint cfg si))
