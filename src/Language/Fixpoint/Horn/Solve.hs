@@ -79,4 +79,3 @@ solve cfg q = do
   whenLoud $ putStrLn $ F.showpp c
   q <- eliminate cfg ({- void $ -} q { H.qCstr = c })
   Solver.solve cfg (hornFInfo cfg q)
-

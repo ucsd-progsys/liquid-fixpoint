@@ -1409,7 +1409,7 @@ crashP :: Parser a -> Parser (FixResult a)
 crashP pp = do
   i   <- pp
   msg <- takeWhileP Nothing (const True) -- consume the rest of the input
-  return $ Crash [i] msg
+  return $ Crash [(i, Nothing)] msg
 
 predSolP :: Parser Expr
 predSolP = parens (predP  <* (comma >> iQualP))

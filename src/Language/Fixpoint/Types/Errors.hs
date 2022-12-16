@@ -167,13 +167,14 @@ putDocLn = putStrLn . render
 -- | Result ---------------------------------------------------------
 ---------------------------------------------------------------------
 
-data FixResult a = Crash [a] String
-                 | Safe Solver.Stats
+data FixResult a
+  = Crash [(a, Maybe String)] String
+  | Unsafe Solver.Stats ![a]
+  | Safe Solver.Stats
                  -- ^ The 'Solver' statistics, which include also the constraints /actually/
                  -- checked. A program will be \"trivially safe\" in case this
                  -- number is 0.
-                 | Unsafe Solver.Stats ![a]
-                   deriving (Data, Typeable, Foldable, Traversable, Show, Generic)
+  deriving (Data, Typeable, Foldable, Functor, Traversable, Show, Generic)
 
 instance (NFData a) => NFData (FixResult a)
 
@@ -195,21 +196,10 @@ instance Monoid (FixResult a) where
   mempty  = Safe mempty
   mappend = (<>)
 
-instance Functor FixResult where
-  fmap f (Crash xs msg)   = Crash (f <$> xs) msg
-  fmap f (Unsafe s xs)    = Unsafe s (f <$> xs)
-  fmap _ (Safe stats)     = Safe stats
-
--- instance (ToJSON a) => ToJSON (FixResult a) where
---   toJSON (Safe _ )      = object [ "result"  .= String "safe"   ]
-
---   toJSON (Unsafe _ ts)  = object [ "result"  .= String "unsafe"
---                                  , "tags"    .= toJSON ts
---                                  ]
---   toJSON (Crash ts msg) = object [ "result"  .= String "crash"
---                                  , "message" .= msg
---                                  , "tags"    .= toJSON ts
---                                  ]
+-- instance Functor FixResult where
+--   fmap f (Crash xs msg)   = Crash (f <$> xs) msg
+--   fmap f (Unsafe s xs)    = Unsafe s (f <$> xs)
+--   fmap _ (Safe stats)     = Safe stats
 
 instance (ToJSON a) => ToJSON (FixResult a) where
   toJSON = genericToJSON defaultOptions
@@ -217,7 +207,7 @@ instance (ToJSON a) => ToJSON (FixResult a) where
 
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)"
-resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (("CRASH:" <+>) . toFix <$> xs)
+resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (("CRASH:" <+>) . toFix . fst <$> xs)
 resultDoc (Unsafe _ xs)    = vcat $ text "Unsafe:"           : (("WARNING:" <+>) . toFix <$> xs)
 
 instance (Fixpoint a) => PPrint (FixResult a) where
