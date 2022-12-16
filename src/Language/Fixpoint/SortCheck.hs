@@ -128,9 +128,12 @@ class Elaborate a where
 instance (Loc a) => Elaborate (SInfo a) where
   elaborate x senv si = si
     { F.cm      = elaborate x senv <$> F.cm      si
-    , F.bs      = elaborate x senv  $  F.bs      si
+    , F.bs      = bs'
     , F.asserts = elaborate x senv <$> F.asserts si
     }
+    where
+      Bindings bs' _ = elaborate x senv (Bindings (F.bs si) (F.bindInfo si))
+
 
 instance (Elaborate e) => (Elaborate (Triggered e)) where
   elaborate x env t = fmap (elaborate x env) t
