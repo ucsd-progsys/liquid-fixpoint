@@ -139,14 +139,15 @@ instance Read RESTOrdering where
 
 ---------------------------------------------------------------------------------------
 
-data SMTSolver = Z3 | Cvc4 | Mathsat
+data SMTSolver = Z3 | Z3mem | Cvc4 | Mathsat
                  deriving (Eq, Data, Typeable, Generic)
 
 instance Default SMTSolver where
-  def = Z3
+  def = Z3mem
 
 instance Show SMTSolver where
   show Z3      = "z3"
+  show Z3mem   = "z3 API"
   show Cvc4    = "cvc4"
   show Mathsat = "mathsat"
 
