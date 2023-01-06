@@ -193,7 +193,7 @@ crashResult m e = Result res mempty mempty mempty
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- errs e ]
     msg | null es = showpp e
-        | otherwise = "Sorry, unexpected panic in liquid-fixpoint!"
+        | otherwise = showpp e --"Sorry, unexpected panic in liquid-fixpoint!"
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
 type ErrorMap a = HashMap.HashMap SrcSpan a

@@ -5,10 +5,7 @@
 
 (var $k1 ((Apple)))
 
-
 (constraint
-
-  (forall ((Apple num) (true))
   (and
       (forall ((n Apple) (true))
        (forall ((cond bool) (cond <=> n <= 0))
@@ -25,4 +22,4 @@
        (forall ((r Apple) ($k1 r))
         (forall ((ok1 bool) (ok1 <=> 0 <= r))
            (forall ((v bool) (and (v <=> 0 <= r) (v == ok1)))
-            ((v)))))))))
+            ((v))))))))
