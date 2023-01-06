@@ -1,4 +1,4 @@
-// TODO move to actual SMTLIB format 
+// TODO move to actual SMTLIB format
 (fixpoint "--eliminate=horn")
 
 (qualif  Foo ((v Int) (x Int)) (v = x))
@@ -11,5 +11,5 @@
 (constraint
   (forall ((x Int) (x > 0))
     (forall ((y Int) (y > x))
-      (forall ((v Int) (v = x + y)) 
+      (forall ((v Int) (v = x + y))
          ((v > 0))))))
