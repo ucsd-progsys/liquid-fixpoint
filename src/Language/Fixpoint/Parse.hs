@@ -1025,7 +1025,6 @@ fTyConP
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
   <|> (reserved "Str"     >> return strFTyCon)
---   <|> (symbolFTycon      <$> locUpperIdP)
   <|> (mkFTycon          =<<  locUpperIdP)
 
 mkFTycon :: LocSymbol -> Parser FTycon
