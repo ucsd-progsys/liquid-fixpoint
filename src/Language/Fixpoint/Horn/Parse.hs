@@ -50,6 +50,7 @@ data HThing a
   | HMat  F.Rewrite
   | HDat !F.DataDecl
   | HOpt !String
+  | HNum ()
   deriving (Functor)
 
 hThingP :: Parser (HThing H.Tag)
@@ -64,6 +65,12 @@ hThingP  = parens body
         <|> HDef  <$> (reserved "define"     *> defineP)
         <|> HMat  <$> (reserved "match"      *> matchP)
         <|> HDat  <$> (reserved "data"       *> dataDeclP)
+        <|> HNum  <$> (reserved "numeric"    *> numericDeclP)
+
+numericDeclP :: Parser ()
+numericDeclP = do
+  sym <- locUpperIdP
+  addNumTyCon (F.val sym)
 
 -------------------------------------------------------------------------------
 hCstrP :: Parser (H.Cstr H.Tag)

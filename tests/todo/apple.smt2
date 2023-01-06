@@ -1,6 +1,10 @@
+
+(numeric apple)
+
 (qualif Bar ((v 'apple)) (v >= 0))
 
 (var $k1 ((apple)))
+
 
 (constraint
 
