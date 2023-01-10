@@ -1112,7 +1112,13 @@ predP  = makeExprParser pred0P lops
            , [InfixR (reservedOp "=>"   >> return PImp)]
            , [InfixR (reservedOp "==>"  >> return PImp)]
            , [InfixR (reservedOp "="    >> return PIff)]
-           , [InfixR (reservedOp "<=>"  >> return PIff)]]
+           , [InfixR (reservedOp "<=>"  >> return PIff)]
+           , [InfixR (reservedOp "!="   >> return pNotIff)]
+           , [InfixR (reservedOp "/="   >> return pNotIff)]
+           ]
+
+pNotIff :: Expr -> Expr -> Expr
+pNotIff x y = PNot (PIff x y)
 
 -- | Parses a relation predicate.
 --
