@@ -93,7 +93,7 @@ module Language.Fixpoint.Parse (
   , initPState, PState (..)
 
   , LayoutStack(..)
-  , Fixity(..), Assoc(..), addOperatorP
+  , Fixity(..), Assoc(..), addOperatorP, addNumTyCon
 
   -- * For testing
   , expr0P
@@ -205,6 +205,7 @@ data PState = PState { fixityTable :: OpTable
                      , singList    :: Maybe (Expr -> Expr)
                      , supply      :: !Integer
                      , layoutStack :: LayoutStack
+                     , numTyCons   :: !(S.HashSet Symbol)
                      }
 
 -- | The layout stack tracks columns at which layout blocks
@@ -853,6 +854,10 @@ addOperatorP op
                     , fixityOps   = op:fixityOps s
                     }
 
+-- | Add a new numeric FTyCon (symbol) to the parsing state.
+addNumTyCon :: Symbol -> Parser ()
+addNumTyCon tc = modify $ \s -> s{ numTyCons = S.insert tc (numTyCons s) }
+
 -- | Parses any of the known infix operators.
 infixSymbolP :: Parser Symbol
 infixSymbolP = do
@@ -1017,7 +1022,13 @@ fTyConP
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
   <|> (reserved "Str"     >> return strFTyCon)
-  <|> (symbolFTycon      <$> locUpperIdP)
+  <|> (mkFTycon          =<<  locUpperIdP)
+
+mkFTycon :: LocSymbol -> Parser FTycon
+mkFTycon locSym = do
+  nums  <- gets numTyCons
+  return (symbolNumInfoFTyCon locSym (val locSym `S.member` nums) False)
+
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------
@@ -1089,7 +1100,13 @@ predP  = makeExprParser pred0P lops
            , [InfixR (reservedOp "=>"   >> return PImp)]
            , [InfixR (reservedOp "==>"  >> return PImp)]
            , [InfixR (reservedOp "="    >> return PIff)]
-           , [InfixR (reservedOp "<=>"  >> return PIff)]]
+           , [InfixR (reservedOp "<=>"  >> return PIff)]
+           , [InfixR (reservedOp "!="   >> return pNotIff)]
+           , [InfixR (reservedOp "/="   >> return pNotIff)]
+           ]
+
+pNotIff :: Expr -> Expr -> Expr
+pNotIff x y = PNot (PIff x y)
 
 -- | Parses a relation predicate.
 --
@@ -1441,6 +1458,7 @@ initPState cmpFun = PState { fixityTable = bops cmpFun
                            , fixityOps   = []
                            , supply      = 0
                            , layoutStack = Empty
+                           , numTyCons   = S.empty
                            }
 
 -- | Entry point for parsing, for testing.
