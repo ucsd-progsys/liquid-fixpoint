@@ -33,7 +33,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Utils.Builder (Builder)
 import qualified Data.Text                as T
 import           Text.PrettyPrint.HughesPJ
-import qualified SMTLIB.Backends as Bck
+import qualified SMTLIB.Backends
 import qualified SMTLIB.Backends.Process as Process
 import qualified SMTLIB.Backends.Z3 as Z3
 
@@ -101,7 +101,7 @@ data ContextHandle = Process Process.Handle | Z3lib Z3.Handle
 data Context = Ctx
   {
   -- | The high-level interface for interacting with the SMT solver backend.
-    ctxSolver :: Bck.Solver
+    ctxSolver  :: SMTLIB.Backends.Solver
   -- | The low-level handle for managing the SMT solver backend.
   , ctxHandle :: ContextHandle
   , ctxLog     :: !(Maybe Handle)

@@ -95,7 +95,7 @@ import           System.Console.CmdArgs.Verbosity
 import           System.Exit              hiding (die)
 import           System.FilePath
 import           System.IO
-import           System.Process.Typed
+import qualified System.Process.Typed
 import qualified Data.Attoparsec.Text     as A
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
@@ -104,7 +104,7 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Utils.Builder as Builder
 -- import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
-import qualified SMTLIB.Backends as Bck
+import qualified SMTLIB.Backends
 import qualified SMTLIB.Backends.Process as Process
 import qualified SMTLIB.Backends.Z3 as Z3
 
@@ -172,9 +172,9 @@ command Ctx {..} !cmd       = do
     GetValue _ -> commandRaw
     _          -> commandRaw_ >> return Ok
   where
-    commandRaw_     = sendWith Bck.command_
+    commandRaw_     = sendWith SMTLIB.Backends.command_
     commandRaw      = do
-      resp <- sendWith Bck.command
+      resp <- sendWith SMTLIB.Backends.command
       let respTxt = TE.decodeUtf8With (const $ const $ Just ' ') $ LBS.toStrict $ 
                     LBS.reverse $ LBS.dropWhile isSpace $ LBS.reverse
                     resp
@@ -251,7 +251,7 @@ makeContext cfg f
        hSetBuffering hLog $ BlockBuffering $ Just $ 1024 * 1024 * 64
        me   <- makeContext' cfg $ Just hLog
        pre  <- smtPreamble cfg (solver cfg) me
-       mapM_ (Bck.command_ (ctxSolver me) . lazyByteString . LTE.encodeUtf8) pre
+       mapM_ (SMTLIB.Backends.command_ (ctxSolver me) . lazyByteString . LTE.encodeUtf8) pre
        return me
     where
        smtFile = extFileName Smt2 f
@@ -268,10 +268,13 @@ makeContextNoLog :: Config -> IO Context
 makeContextNoLog cfg
   = do me  <- makeContext' cfg Nothing
        pre <- smtPreamble cfg (solver cfg) me
-       mapM_ (Bck.command_ (ctxSolver me) . lazyByteString . LTE.encodeUtf8) pre
+       mapM_ (SMTLIB.Backends.command_ (ctxSolver me) . lazyByteString . LTE.encodeUtf8) pre
        return me
 
-makeProcess :: Maybe Handle -> ((LBS.ByteString -> IO ()) -> Process.Config) -> IO (Bck.Backend, ContextHandle)
+makeProcess
+  :: Maybe Handle
+  -> ((LBS.ByteString -> IO ()) -> Process.Config)
+  -> IO (SMTLIB.Backends.Backend, ContextHandle)
 makeProcess ctxLog cfg
   = do handle     <- Process.new $ cfg $
                        \s -> case ctxLog of
@@ -281,13 +284,13 @@ makeProcess ctxLog cfg
                              "OOPS, external process error: " <> s
        let backend = Process.toBackend handle
            p       = Process.process handle
-           hIn     = getStdin p
-           hOut    = getStdout p
+           hIn     = System.Process.Typed.getStdin p
+           hOut    = System.Process.Typed.getStdout p
        hSetBuffering hOut $ BlockBuffering $ Just $ 1024 * 1024 * 64
        hSetBuffering hIn $ BlockBuffering $ Just $ 1024 * 1024 * 64
        return (backend, Process handle)
 
-makeZ3 :: IO (Bck.Backend, ContextHandle)
+makeZ3 :: IO (SMTLIB.Backends.Backend, ContextHandle)
 makeZ3
   = do handle     <- Z3.new Z3.defaultConfig
        let backend = Z3.toBackend handle
@@ -305,8 +308,8 @@ makeContext' cfg ctxLog
          Mathsat -> makeProcess ctxLog $ Process.Config "mathsat" ["-input=smt2"]
          Cvc4    -> makeProcess ctxLog $
                       Process.Config "cvc4" ["--incremental", "-L", "smtlib2"]
-       solver            <- Bck.initSolver Bck.Queuing backend
-       loud              <- isLoud
+       solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
+       loud <- isLoud
        return Ctx { ctxSolver  = solver
                   , ctxHandle  = handle
                   , ctxLog     = ctxLog
@@ -337,7 +340,7 @@ smtPreamble cfg s me
 getZ3Version :: Context -> IO [Int]
 getZ3Version me
   = do -- resp is like (:version "4.8.15")
-       resp <- Bck.command (ctxSolver me) "(get-info :version)"
+       resp <- SMTLIB.Backends.command (ctxSolver me) "(get-info :version)"
        case LBS.split '"' resp of
          _:vText:_ -> do
            let parsedComponents = [ reads (LBS.unpack cText) | cText <- LBS.split '.' vText ]
