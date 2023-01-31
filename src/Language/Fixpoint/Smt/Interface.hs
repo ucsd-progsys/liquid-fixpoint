@@ -170,16 +170,15 @@ command Ctx {..} !cmd       = do
   case cmd of
     CheckSat   -> commandRaw
     GetValue _ -> commandRaw
-    _          -> commandRaw_ >> return Ok
+    _          -> SMTLIB.Backends.command_ ctxSolver cmdBS >> return Ok
   where
-    commandRaw_     = sendWith SMTLIB.Backends.command_
     commandRaw      = do
-      resp <- sendWith SMTLIB.Backends.command
+      resp <- SMTLIB.Backends.command ctxSolver cmdBS
       let respTxt = TE.decodeUtf8With (const $ const $ Just ' ') $ LBS.toStrict $ 
                     LBS.reverse $ LBS.dropWhile isSpace $ LBS.reverse
                     resp
       parse respTxt
-    sendWith sender = sender ctxSolver $ lazyByteString $ LTE.encodeUtf8 cmdTxt
+    cmdBS = lazyByteString $ LTE.encodeUtf8 cmdTxt
     -- TODO don't rely on Text
     cmdTxt          =
       {-# SCC "Command-runSmt2" #-} Builder.toLazyText (runSmt2 ctxSymEnv cmd)
