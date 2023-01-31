@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -106,7 +105,7 @@ import           Language.Fixpoint.Utils.Builder as Builder
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 import qualified SMTLIB.Backends
 import qualified SMTLIB.Backends.Process as Process
-import qualified SMTLIB.Backends.Z3 as Z3
+import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 
 {-
 runFile f
@@ -273,7 +272,7 @@ makeContextNoLog cfg
 makeProcess
   :: Maybe Handle
   -> ((LBS.ByteString -> IO ()) -> Process.Config)
-  -> IO (SMTLIB.Backends.Backend, ContextHandle)
+  -> IO (SMTLIB.Backends.Backend, IO ())
 makeProcess ctxLog cfg
   = do handle     <- Process.new $ cfg $
                        \s -> case ctxLog of
@@ -287,30 +286,24 @@ makeProcess ctxLog cfg
            hOut    = System.Process.Typed.getStdout p
        hSetBuffering hOut $ BlockBuffering $ Just $ 1024 * 1024 * 64
        hSetBuffering hIn $ BlockBuffering $ Just $ 1024 * 1024 * 64
-       return (backend, Process handle)
-
-makeZ3 :: IO (SMTLIB.Backends.Backend, ContextHandle)
-makeZ3
-  = do handle     <- Z3.new Z3.defaultConfig
-       let backend = Z3.toBackend handle
-       return (backend, Z3lib handle)
+       return (backend, Process.kill handle)
 
 makeContext' :: Config -> Maybe Handle -> IO Context
 makeContext' cfg ctxLog
-  = do (backend, handle) <- case solver cfg of
+  = do (backend, closeIO) <- case solver cfg of
          Z3      ->
            {- "z3 -smt2 -in"                   -}
            {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
            {- "z3 -smtc -in MBQI=false"        -}
            makeProcess ctxLog $ Process.Config "z3" ["-smt2", "-in"]
-         Z3mem   -> makeZ3
+         Z3mem   -> Conditional.Z3.makeZ3
          Mathsat -> makeProcess ctxLog $ Process.Config "mathsat" ["-input=smt2"]
          Cvc4    -> makeProcess ctxLog $
                       Process.Config "cvc4" ["--incremental", "-L", "smtlib2"]
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver  = solver
-                  , ctxHandle  = handle
+                  , ctxClose   = closeIO
                   , ctxLog     = ctxLog
                   , ctxVerbose = loud
                   , ctxSymEnv  = mempty
@@ -320,9 +313,7 @@ makeContext' cfg ctxLog
 cleanupContext :: Context -> IO ExitCode
 cleanupContext Ctx {..} = do
   maybe (return ()) (hCloseMe "ctxLog") ctxLog
-  case ctxHandle of
-    Process h -> Process.kill h >> return ExitSuccess
-    Z3lib h -> Z3.close h >> return ExitSuccess
+  ctxClose >> return ExitSuccess
 
 hCloseMe :: String -> Handle -> IO ()
 hCloseMe msg h = hClose h `catch` (\(exn :: IOException) -> putStrLn $ "OOPS, hClose breaks: " ++ msg ++ show exn)

@@ -41,6 +41,11 @@ source-repository head
   type: git
   location: https://github.com/ucsd-progsys/liquid-fixpoint
 
+flag link-z3-as-a-library
+  description: link z3 as a library for faster interactions with the SMT solver
+  manual: True
+  default: False
+
 flag devel
   description: turn on stricter error reporting for development
   manual: True
@@ -49,6 +54,7 @@ flag devel
 library
   import: warnings
   exposed-modules:  Data.ShareMap
+                    Language.Fixpoint.Conditional.Z3
                     Language.Fixpoint.Defunctionalize
                     Language.Fixpoint.Graph
                     Language.Fixpoint.Graph.Deps
@@ -149,7 +155,6 @@ library
                   , rest-rewrite >= 0.3.0
                   , smtlib-backends
                   , smtlib-backends-process
-                  , smtlib-backends-z3
                   , stm
                   , store
                   , vector < 0.13
@@ -160,6 +165,11 @@ library
   ghc-options:
     -fwrite-ide-info
     -hiedir=.hie
+  if flag(link-z3-as-a-library)
+    build-depends: smtlib-backends-z3
+    hs-source-dirs: src-cond/with-z3
+  else
+    hs-source-dirs: src-cond/without-z3
 
   if flag(devel)
     ghc-options: -Werror

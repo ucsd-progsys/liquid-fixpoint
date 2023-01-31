@@ -25,7 +25,6 @@ module Language.Fixpoint.Smt.Types (
 
     -- * SMTLIB2 Process Context
     , Context (..)
-    , ContextHandle (..)
 
     ) where
 
@@ -34,8 +33,6 @@ import           Language.Fixpoint.Utils.Builder (Builder)
 import qualified Data.Text                as T
 import           Text.PrettyPrint.HughesPJ
 import qualified SMTLIB.Backends
-import qualified SMTLIB.Backends.Process as Process
-import qualified SMTLIB.Backends.Z3 as Z3
 
 import           System.IO                (Handle)
 -- import           Language.Fixpoint.Misc   (traceShow)
@@ -94,16 +91,13 @@ data Response     = Ok
                   | Error !T.Text
                   deriving (Eq, Show)
 
--- | Represention of the SMT solver backend
-data ContextHandle = Process Process.Handle | Z3lib Z3.Handle
-
 -- | Additional information around the SMT solver backend
 data Context = Ctx
   {
   -- | The high-level interface for interacting with the SMT solver backend.
     ctxSolver  :: SMTLIB.Backends.Solver
-  -- | The low-level handle for managing the SMT solver backend.
-  , ctxHandle :: ContextHandle
+  -- | The close operation of the SMT solver backend.
+  , ctxClose   :: IO ()
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
   , ctxSymEnv  :: !SymEnv

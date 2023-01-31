@@ -40,6 +40,7 @@ import System.Console.CmdArgs
 import System.Console.CmdArgs.Explicit
 import System.Environment
 
+import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Language.Fixpoint.Utils.Files
 
 
@@ -143,7 +144,7 @@ data SMTSolver = Z3 | Z3mem | Cvc4 | Mathsat
                  deriving (Eq, Data, Typeable, Generic)
 
 instance Default SMTSolver where
-  def = Z3mem
+  def = if Conditional.Z3.builtWithZ3AsALibrary then Z3mem else Z3
 
 instance Show SMTSolver where
   show Z3      = "z3"
