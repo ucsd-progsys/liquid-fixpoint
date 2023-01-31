@@ -92,6 +92,63 @@ mprj  = "smt_map_prj"
 mshift = "smt_map_shift"
 mToSet = "smt_map_to_set"
 
+---- Size changes
+bvConcatName :: Symbol
+bvConcatName   = "concat"
+--bvConcatName, bvExtractname, bvRepeatName, bvZeroExtName, bvSignExtName :: Symbol
+--bvExtractName  = "extract"
+--bvRepeatName   = "repeat"
+--bvZeroExtName  = "zero_extend"
+--bvSignExtName  = "sign_extend"
+
+-- Unary Logic
+bvNotName, bvNegName :: Symbol
+bvNotName = "bvnot"
+bvNegName = "bvneg"
+
+-- Binary Logic
+bvAndName, bvNandName, bvOrName, bvNorName, bvXorName, bvXnorName :: Symbol
+bvAndName  = "bvand"
+bvNandName = "bvnand"
+bvOrName   = "bvor"
+bvNorName  = "bvnor"
+bvXorName  = "bvxor"
+bvXnorName = "bvxnor"
+
+-- Shifts
+bvShlName, bvLShrName, bvAShrName :: Symbol
+--bvShlName, bvLShrName, bvAShrName, bvLRotName, bvRRotName :: Symbol
+bvShlName  = "bvshl"
+bvLShrName = "bvlshr"
+bvAShrName = "bvashr"
+--bvLRotName = "rotate_left"
+--bvRRotName = "rotate_right"
+
+-- Arithmetic
+bvAddName, bvSubName, bvMulName, bvUDivName :: Symbol
+bvURemName, bvSDivName, bvSRemName, bvSModName :: Symbol
+bvAddName  = "bvadd"
+bvSubName  = "bvsub"
+bvMulName  = "bvmul"
+bvUDivName = "bvudiv"
+bvURemName = "bvurem"
+bvSDivName = "bvsdiv"
+bvSRemName = "bvsrem"
+bvSModName = "bvsmod"
+
+-- Comparisons
+-- bvCompName, bvULtName, bvULeName, bvUGtName, bvUGeName :: Symbol
+-- bvCompName = "bvcomp"
+bvULtName, bvULeName, bvUGtName, bvUGeName :: Symbol
+bvSLtName, bvSLeName, bvSGtName, bvSGeName :: Symbol
+bvULtName  = "bvult"
+bvULeName  = "bvule"
+bvUGtName  = "bvugt"
+bvUGeName  = "bvuge"
+bvSLtName  = "bvslt"
+bvSLeName  = "bvsle"
+bvSGtName  = "bvsgt"
+bvSGeName  = "bvsge"
 
 setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup :: Symbol
 setDif, setSng :: Symbol
@@ -467,6 +524,7 @@ interpSymbols =
   , interpSym setDif   dif   setBopSort
   , interpSym setSub   sub   setCmpSort
   , interpSym setCom   com   setCmpSort
+
   , interpSym mapSel   sel   mapSelSort
   , interpSym mapSto   sto   mapStoSort
   , interpSym mapCup   mcup  mapCupSort
@@ -476,8 +534,41 @@ interpSymbols =
   , interpSym mapPrj   mprj  mapPrjSort
   , interpSym mapShift mshift mapShiftSort
   , interpSym mapToSet mToSet mapToSetSort
-  , interpSym bvOrName "bvor"   bvBopSort
-  , interpSym bvAndName "bvand" bvBopSort
+
+  , interpSym' bvConcatName $ FAbs 0 $ FAbs 1 $ FAbs 2 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 1) (bitVecSort 2)
+
+  , interpBvUop bvNotName
+  , interpBvUop bvNegName
+
+  , interpBvBop bvAndName 
+  , interpBvBop bvNandName
+  , interpBvBop bvOrName
+  , interpBvBop bvNorName
+  , interpBvBop bvXorName
+  , interpBvBop bvXnorName
+
+  , interpBvBop bvShlName
+  , interpBvBop bvLShrName
+  , interpBvBop bvAShrName
+
+  , interpBvBop bvAddName
+  , interpBvBop bvSubName
+  , interpBvBop bvMulName
+  , interpBvBop bvUDivName
+  , interpBvBop bvURemName
+  , interpBvBop bvSDivName
+  , interpBvBop bvSRemName
+  , interpBvBop bvSModName
+
+  , interpBvCmp bvULtName
+  , interpBvCmp bvULeName
+  , interpBvCmp bvUGtName
+  , interpBvCmp bvUGeName
+  , interpBvCmp bvSLtName
+  , interpBvCmp bvSLeName
+  , interpBvCmp bvSGtName
+  , interpBvCmp bvSGeName
+
   , interpSym strLen    strLen    strLenSort
   , interpSym strSubstr strSubstr substrSort
   , interpSym strConcat strConcat concatstrSort
@@ -510,7 +601,16 @@ interpSymbols =
     mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
 
-    bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
+    interpBvUop name = interpSym' name bvUopSort
+    interpBvBop name = interpSym' name bvBopSort
+    interpBvCmp name = interpSym' name bvCmpSort
+
+    interpSym' name = interpSym name (T.pack $ symbolString name)
+
+    bvUopSort = FAbs 0 $ FFunc bitVecSort' bitVecSort'
+    bvBopSort = FAbs 0 $ FFunc bitVecSort' $ FFunc bitVecSort' bitVecSort'
+    bvCmpSort = FAbs 0 $ FFunc bitVecSort' $ FFunc bitVecSort' boolSort
+    bitVecSort' = bitVecSort 0
 
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)

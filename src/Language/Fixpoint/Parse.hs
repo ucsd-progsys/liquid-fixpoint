@@ -52,7 +52,6 @@ module Language.Fixpoint.Parse (
   , refP        -- (Sorted) Refinements
   , refDefP     -- (Sorted) Refinements with default binder
   , refBindP    -- (Sorted) Refinements with configurable sub-parsers
-  , bvSortP     -- Bit-Vector Sort
   , defineP     -- function definition equations (PLE)
   , matchP      -- measure definition equations (PLE)
 
@@ -120,7 +119,6 @@ import qualified Text.Megaparsec.Char.Lexer  as L
 import           GHC.Generics                (Generic)
 
 import qualified Data.Char                   as Char
-import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
 import qualified Language.Fixpoint.Misc      as Misc
 import           Language.Fixpoint.Smt.Types
@@ -1000,7 +998,6 @@ sortP' appArgsP
    =  parens sortP -- parenthesised sort, starts with "("
   <|> (reserved "func" >> funcSortP) -- function sort, starts with "func"
   <|> (fAppTC listFTyCon . pure <$> brackets sortP)
-  -- <|> bvSortP -- Andres: this looks unreachable, as it starts with "("
   <|> (fAppTC <$> fTyConP <*> appArgsP)
   <|> (fApp   <$> tvarP   <*> appArgsP)
 
@@ -1021,15 +1018,6 @@ fTyConP
   <|> (reserved "num"     >> return numFTyCon)
   <|> (reserved "Str"     >> return strFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
-
--- | Bit-Vector Sort
-bvSortP :: Parser Sort
-bvSortP = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
-  where
-    bvSizeP ss s = do
-      parens (reserved "BitVec" >> reserved ss)
-      return s
-
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------
