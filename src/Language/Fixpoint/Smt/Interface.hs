@@ -91,7 +91,6 @@ import qualified Data.Text.Lazy.Encoding  as LTE
 import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
 import           System.Console.CmdArgs.Verbosity
-import           System.Exit              hiding (die)
 import           System.FilePath
 import           System.IO
 import qualified System.Process.Typed
@@ -309,11 +308,11 @@ makeContext' cfg ctxLog
                   , ctxSymEnv  = mempty
                   }
 
--- | Close file handles and wait for the solver process to terminate.
-cleanupContext :: Context -> IO ExitCode
+-- | Close file handles and release the solver backend's resources.
+cleanupContext :: Context -> IO ()
 cleanupContext Ctx {..} = do
   maybe (return ()) (hCloseMe "ctxLog") ctxLog
-  ctxClose >> return ExitSuccess
+  ctxClose
 
 hCloseMe :: String -> Handle -> IO ()
 hCloseMe msg h = hClose h `catch` (\(exn :: IOException) -> putStrLn $ "OOPS, hClose breaks: " ++ msg ++ show exn)
