@@ -273,14 +273,13 @@ makeProcess
   -> Process.Config
   -> IO (SMTLIB.Backends.Backend, IO ())
 makeProcess ctxLog cfg
-  = do handle@Process.Handle {..} <- Process.new $ cfg
+  = do handle@Process.Handle {..} <- Process.new cfg
        case ctxLog of
          Nothing -> return ()
-         Just hLog -> void $ async $
-           (forever $ do
-               err <- LTIO.hGetLine $ hErr
+         Just hLog -> void $ async $ forever
+           (do err <- LTIO.hGetLine hErr
                LTIO.hPutStrLn hLog $ "OOPS, SMT solver error:" <> err
-           ) `catch` \SomeException {} -> return ()
+           ) `catch` \ SomeException {} -> return ()
        let backend = Process.toBackend handle
        hSetBuffering hOut $ BlockBuffering $ Just $ 1024 * 1024 * 64
        hSetBuffering hIn $ BlockBuffering $ Just $ 1024 * 1024 * 64
