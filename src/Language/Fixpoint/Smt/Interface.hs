@@ -93,7 +93,6 @@ import           System.Directory
 import           System.Console.CmdArgs.Verbosity
 import           System.FilePath
 import           System.IO
-import qualified System.Process.Typed
 import qualified Data.Attoparsec.Text     as A
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
@@ -105,6 +104,7 @@ import           Language.Fixpoint.Utils.Builder as Builder
 import qualified SMTLIB.Backends
 import qualified SMTLIB.Backends.Process as Process
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
+import Control.Concurrent.Async (async)
 
 {-
 runFile f
@@ -270,22 +270,21 @@ makeContextNoLog cfg
 
 makeProcess
   :: Maybe Handle
-  -> ((LBS.ByteString -> IO ()) -> Process.Config)
+  -> Process.Config
   -> IO (SMTLIB.Backends.Backend, IO ())
 makeProcess ctxLog cfg
-  = do handle     <- Process.new $ cfg $
-                       \s -> case ctxLog of
-                         Nothing -> return ()
-                         Just hLog ->
-                           LBS.hPutStrLn hLog $
-                             "OOPS, external process error: " <> s
+  = do handle@Process.Handle {..} <- Process.new $ cfg
+       case ctxLog of
+         Nothing -> return ()
+         Just hLog -> void $ async $
+           (forever $ do
+               err <- LTIO.hGetLine $ hErr
+               LTIO.hPutStrLn hLog $ "OOPS, SMT solver error:" <> err
+           ) `catch` \SomeException {} -> return ()
        let backend = Process.toBackend handle
-           p       = Process.process handle
-           hIn     = System.Process.Typed.getStdin p
-           hOut    = System.Process.Typed.getStdout p
        hSetBuffering hOut $ BlockBuffering $ Just $ 1024 * 1024 * 64
        hSetBuffering hIn $ BlockBuffering $ Just $ 1024 * 1024 * 64
-       return (backend, Process.kill handle)
+       return (backend, Process.close handle)
 
 makeContext' :: Config -> Maybe Handle -> IO Context
 makeContext' cfg ctxLog
