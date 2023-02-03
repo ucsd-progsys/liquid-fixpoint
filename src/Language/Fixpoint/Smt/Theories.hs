@@ -135,10 +135,9 @@ bvSRemName = "bvsrem"
 bvSModName = "bvsmod"
 
 -- Comparisons
--- bvCompName, bvULtName, bvULeName, bvUGtName, bvUGeName :: Symbol
--- bvCompName = "bvcomp"
-bvULtName, bvULeName, bvUGtName, bvUGeName :: Symbol
+bvCompName, bvULtName, bvULeName, bvUGtName, bvUGeName :: Symbol
 bvSLtName, bvSLeName, bvSGtName, bvSGeName :: Symbol
+bvCompName = "bvcomp"
 bvULtName  = "bvult"
 bvULeName  = "bvule"
 bvUGtName  = "bvugt"
@@ -533,6 +532,11 @@ interpSymbols =
   , interpSym mapShift mshift mapShiftSort
   , interpSym mapToSet mToSet mapToSetSort
 
+  , interpSym strLen    strLen    strLenSort
+  , interpSym strSubstr strSubstr substrSort
+  , interpSym strConcat strConcat concatstrSort
+  , interpSym boolInt   boolInt   (FFunc boolSort intSort)
+
   -- Function mappings for indexed identifier functions
   , interpSym "_" "_" iiSort
   , interpSym "app" "" appSort
@@ -568,6 +572,7 @@ interpSymbols =
   , interpBvBop bvSRemName
   , interpBvBop bvSModName
 
+  , interpSym' bvCompName bvEqSort
   , interpBvCmp bvULtName
   , interpBvCmp bvULeName
   , interpBvCmp bvUGtName
@@ -576,11 +581,6 @@ interpSymbols =
   , interpBvCmp bvSLeName
   , interpBvCmp bvSGtName
   , interpBvCmp bvSGeName
-
-  , interpSym strLen    strLen    strLenSort
-  , interpSym strSubstr strSubstr substrSort
-  , interpSym strConcat strConcat concatstrSort
-  , interpSym boolInt   boolInt   (FFunc boolSort intSort)
   ]
   where
     boolInt    = boolToIntName
@@ -661,6 +661,9 @@ interpSymbols =
 
     -- cmp :: BitVec a -> BitVec a -> Bool
     bvCmpSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) boolSort
+
+    -- eq :: BitVec a -> BitVec a -> BitVec 1
+    bvEqSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) (sizedBitVecSort "Size1")
 
     -- concat :: BitVec a -> BitVec b -> BitVec c
     bvConcatSort = FAbs 0 $ FAbs 1 $ FAbs 2 $

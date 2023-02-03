@@ -36,7 +36,7 @@ module Language.Fixpoint.Types.Sorts (
   , mapFVar
 
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
-  , setSort, bitVecSort, mapSort, charSort
+  , setSort, bitVecSort, sizedBitVecSort, mapSort, charSort
 
   , listFTyCon
   , isListTC
@@ -483,6 +483,9 @@ setSort    = FApp (FTC setFTyCon)
 
 bitVecSort :: Int -> Sort
 bitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FVar i)
+
+sizedBitVecSort :: Symbol -> Sort
+sizedBitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' i)
 
 mapSort :: Sort -> Sort -> Sort
 mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))
