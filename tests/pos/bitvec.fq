@@ -71,3 +71,10 @@ constraint:
   rhs {v : (BitVec Size4) | [ v = z; bvult z x ] }
   id 7 tag []
 
+bind 19 z : {v : (BitVec Size8) | [ v = (lit "#b10100001" (BitVec Size8))]}
+
+constraint:
+  env [16;17;19]
+  lhs {v : (BitVec Size8) | [ v = concat x y ] }
+  rhs {v : (BitVec Size8) | [ v = z ] }
+  id 8 tag []
