@@ -153,8 +153,8 @@ library
                   , process
                   , typed-process
                   , rest-rewrite >= 0.3.0
-                  , smtlib-backends
-                  , smtlib-backends-process
+                  , smtlib-backends >= 0.3
+                  , smtlib-backends-process >= 0.3
                   , stm
                   , store
                   , vector < 0.13
@@ -166,7 +166,7 @@ library
     -fwrite-ide-info
     -hiedir=.hie
   if flag(link-z3-as-a-library)
-    build-depends: smtlib-backends-z3
+    build-depends: smtlib-backends-z3 >= 0.3
     hs-source-dirs: src-cond/with-z3
   else
     hs-source-dirs: src-cond/without-z3
