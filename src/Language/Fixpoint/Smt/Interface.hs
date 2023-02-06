@@ -273,7 +273,7 @@ makeProcess
   -> Process.Config
   -> IO (SMTLIB.Backends.Backend, IO ())
 makeProcess ctxLog cfg
-  = do handle@Process.Handle {..} <- Process.new cfg
+  = do handle@Process.Handle {hMaybeErr = Just hErr, ..} <- Process.new cfg
        case ctxLog of
          Nothing -> return ()
          Just hLog -> void $ async $ forever
@@ -292,11 +292,17 @@ makeContext' cfg ctxLog
            {- "z3 -smt2 -in"                   -}
            {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
            {- "z3 -smtc -in MBQI=false"        -}
-           makeProcess ctxLog $ Process.Config "z3" ["-smt2", "-in"]
+           makeProcess ctxLog $ Process.defaultConfig
+                             { Process.exe = "z3"
+                             , Process.args = ["-smt2", "-in"] }
          Z3mem   -> Conditional.Z3.makeZ3
-         Mathsat -> makeProcess ctxLog $ Process.Config "mathsat" ["-input=smt2"]
+         Mathsat -> makeProcess ctxLog $ Process.defaultConfig
+                             { Process.exe = "mathsat"
+                             , Process.args = ["-input=smt2"] }
          Cvc4    -> makeProcess ctxLog $
-                      Process.Config "cvc4" ["--incremental", "-L", "smtlib2"]
+                      Process.defaultConfig
+                             { Process.exe = "cvc4"
+                             , Process.args = ["--incremental", "-L", "smtlib2"] }
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver  = solver
