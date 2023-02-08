@@ -28,15 +28,13 @@ module Language.Fixpoint.Smt.Types (
 
     ) where
 
-import           Control.Concurrent.Async (Async)
-import           Control.Concurrent.STM (TVar)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Utils.Builder (Builder)
 import qualified Data.Text                as T
 import           Text.PrettyPrint.HughesPJ
+import qualified SMTLIB.Backends
 
 import           System.IO                (Handle)
-import           System.Process
 -- import           Language.Fixpoint.Misc   (traceShow)
 
 --------------------------------------------------------------------------------
@@ -93,19 +91,16 @@ data Response     = Ok
                   | Error !T.Text
                   deriving (Eq, Show)
 
--- | Information about the external SMT process
+-- | Additional information around the SMT solver backend
 data Context = Ctx
-  { ctxPid     :: !ProcessHandle
-    -- | The handle for writing queries to, for input to the SMT solver.
-  , ctxIn      :: !Handle
-    -- | The handle for reading responses from, the output from the SMT solver.
-  , ctxOut     :: !Handle
+  {
+  -- | The high-level interface for interacting with the SMT solver backend.
+    ctxSolver  :: SMTLIB.Backends.Solver
+  -- | The close operation of the SMT solver backend.
+  , ctxClose   :: IO ()
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
   , ctxSymEnv  :: !SymEnv
-  , ctxAsync   :: Async ()
-    -- | The next batch of queries to send to the SMT solver
-  , ctxTVar    :: TVar Builder
   }
 
 --------------------------------------------------------------------------------
