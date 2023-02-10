@@ -181,10 +181,7 @@ command Ctx {..} !cmd       = do
     cmdTxt          =
       {-# SCC "Command-runSmt2" #-} Builder.toLazyText (runSmt2 ctxSymEnv cmd)
     parse resp      = do
-      -- TODO change interface of parser now that the response needn't be read
-      -- line-by-line
-      res <- A.parseWith (return "") responseP resp
-      case A.eitherResult res of
+      case A.parseOnly responseP resp of
         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
         Right r -> do
           maybe (return ()) (flip LTIO.hPutStrLn $ blt ("; SMT Says: " <> bShow r))
