@@ -24,6 +24,10 @@ jobs:
         with:
           version: "4.10.2"
 
+      - name: Workaround runner image issue
+        # https://github.com/actions/runner-images/issues/7061
+        run: sudo chown -R $USER /usr/local/.ghcup
+
       - name: Setup Stack
         uses: haskell/actions/setup@v2
         with:
