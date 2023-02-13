@@ -4,10 +4,11 @@
 
 module Language.Fixpoint.Utils.Builder
   ( Builder
-  , fromLazyText
-  , fromString
+  , fromLazyByteString
   , fromText
-  , toLazyText
+  , fromString
+  , toLazyByteString
+  , toBuilder
   , parens
   , (<+>)
   , parenSeqs
@@ -18,15 +19,14 @@ module Language.Fixpoint.Utils.Builder
   , bShow
   , bFloat
   , bb
-  , lbb
-  , blt
   ) where
 
 import           Data.Foldable (fold)
 import           Data.String
-import qualified Data.Text.Lazy.Builder as B
-import qualified Data.Text.Lazy         as LT
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Builder as B
 import qualified Data.Text              as T
+import qualified Data.Text.Encoding     as T
 import qualified Data.List              as L
 import qualified Numeric
 
@@ -34,9 +34,6 @@ import qualified Numeric
 data Builder
   = Node Builder Builder
   | Leaf B.Builder
-
-instance Eq Builder where
-  b0 == b1 = toLazyText b0 == toLazyText b1
 
 instance IsString Builder where
   fromString = Leaf . fromString
@@ -47,17 +44,20 @@ instance Semigroup Builder where
 instance Monoid Builder where
   mempty = Leaf mempty
 
-toLazyText :: Builder -> LT.Text
-toLazyText = B.toLazyText . go mempty
+toLazyByteString :: Builder -> ByteString
+toLazyByteString = B.toLazyByteString . toBuilder
+
+toBuilder :: Builder -> B.Builder
+toBuilder = go mempty
   where
     go tl (Leaf b) = b <> tl
     go tl (Node t0 t1) = go (go tl t1) t0
 
-fromLazyText :: LT.Text -> Builder
-fromLazyText = Leaf . B.fromLazyText
+fromLazyByteString :: ByteString -> Builder
+fromLazyByteString = Leaf . B.lazyByteString
 
 fromText :: T.Text -> Builder
-fromText = Leaf . B.fromText
+fromText t = Leaf $ B.byteString $ T.encodeUtf8 t
 
 parens :: Builder -> Builder
 parens b = "(" <>  b <> ")"
@@ -87,12 +87,5 @@ bShow = fromString . show
 bFloat :: RealFloat a => a -> Builder
 bFloat d = fromString (Numeric.showFFloat Nothing d "")
 
-bb :: LT.Text -> Builder
-bb = fromLazyText
-
-lbb :: T.Text -> Builder
-lbb = bb . LT.fromStrict
-
-blt :: Builder -> LT.Text
-blt = toLazyText
-
+bb :: ByteString -> Builder
+bb = fromLazyByteString

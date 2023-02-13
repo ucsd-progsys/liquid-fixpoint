@@ -78,16 +78,15 @@ import           Language.Fixpoint.Smt.Serialize ()
 import           Control.Applicative      ((<|>))
 import           Control.Monad
 import           Control.Exception
-import           Data.ByteString.Builder  (lazyByteString)
-import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Data.ByteString.Builder as BS
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString.Lazy.Char8 as Char8
 import           Data.Char
 import qualified Data.HashMap.Strict      as M
 import           Data.Maybe              (fromMaybe)
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as TE
 -- import           Data.Text.Format
-import qualified Data.Text.Lazy           as LT
-import qualified Data.Text.Lazy.Encoding  as LTE
 import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
 import           System.Console.CmdArgs.Verbosity
@@ -164,7 +163,9 @@ command              :: Context -> Command -> IO Response
 command Ctx {..} !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
   --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
-  maybe (return ()) (`LTIO.hPutStrLn` cmdTxt) ctxLog
+  forM_ ctxLog $ \h -> do
+    BS.hPutBuilder h cmdBS
+    LBS.hPutStr h "\n"
   case cmd of
     CheckSat   -> commandRaw
     GetValue _ -> commandRaw
@@ -173,20 +174,22 @@ command Ctx {..} !cmd       = do
     commandRaw      = do
       resp <- SMTLIB.Backends.command ctxSolver cmdBS
       let respTxt = TE.decodeUtf8With (const $ const $ Just ' ') $ LBS.toStrict $ 
-                    LBS.reverse $ LBS.dropWhile isSpace $ LBS.reverse
+                    LBS.reverse $ Char8.dropWhile isSpace $ LBS.reverse
                     resp
       parse respTxt
-    cmdBS = lazyByteString $ LTE.encodeUtf8 cmdTxt
     -- TODO don't rely on Text
-    cmdTxt          =
-      {-# SCC "Command-runSmt2" #-} Builder.toLazyText (runSmt2 ctxSymEnv cmd)
+    cmdBS         =
+      {-# SCC "Command-runSmt2" #-} Builder.toBuilder (runSmt2 ctxSymEnv cmd)
     parse resp      = do
       case A.parseOnly responseP resp of
         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
         Right r -> do
-          maybe (return ()) (flip LTIO.hPutStrLn $ blt ("; SMT Says: " <> bShow r))
-            ctxLog
-          when ctxVerbose $ LTIO.putStrLn $ blt ("SMT Says: " <> bShow r)
+          forM_ ctxLog $ \h -> do
+            LBS.hPutStr h $ toLazyByteString ("; SMT Says: " <> bShow r)
+            LBS.hPutStr h "\n"
+          when ctxVerbose $ do
+            LBS.putStr $ toLazyByteString ("SMT Says: " <> bShow r)
+            LBS.putStr "\n"
           return r
 
 smtSetMbqi :: Context -> IO ()
@@ -245,7 +248,7 @@ makeContext cfg f
        hSetBuffering hLog $ BlockBuffering $ Just $ 1024 * 1024 * 64
        me   <- makeContext' cfg $ Just hLog
        pre  <- smtPreamble cfg (solver cfg) me
-       mapM_ (SMTLIB.Backends.command_ (ctxSolver me) . lazyByteString . LTE.encodeUtf8) pre
+       mapM_ (SMTLIB.Backends.command_ (ctxSolver me) . toBuilder) pre
        return me
     where
        smtFile = extFileName Smt2 f
@@ -262,7 +265,7 @@ makeContextNoLog :: Config -> IO Context
 makeContextNoLog cfg
   = do me  <- makeContext' cfg Nothing
        pre <- smtPreamble cfg (solver cfg) me
-       mapM_ (SMTLIB.Backends.command_ (ctxSolver me) . lazyByteString . LTE.encodeUtf8) pre
+       mapM_ (SMTLIB.Backends.command_ (ctxSolver me) . toBuilder) pre
        return me
 
 makeProcess
@@ -318,7 +321,7 @@ cleanupContext Ctx {..} = do
 hCloseMe :: String -> Handle -> IO ()
 hCloseMe msg h = hClose h `catch` (\(exn :: IOException) -> putStrLn $ "OOPS, hClose breaks: " ++ msg ++ show exn)
 
-smtPreamble :: Config -> SMTSolver -> Context -> IO [LT.Text]
+smtPreamble :: Config -> SMTSolver -> Context -> IO [Builder]
 smtPreamble cfg s me
   | s == Z3 || s == Z3mem
     = do v <- getZ3Version me
@@ -331,9 +334,9 @@ getZ3Version :: Context -> IO [Int]
 getZ3Version me
   = do -- resp is like (:version "4.8.15")
        resp <- SMTLIB.Backends.command (ctxSolver me) "(get-info :version)"
-       case LBS.split '"' resp of
+       case Char8.split '"' resp of
          _:vText:_ -> do
-           let parsedComponents = [ reads (LBS.unpack cText) | cText <- LBS.split '.' vText ]
+           let parsedComponents = [ reads (Char8.unpack cText) | cText <- Char8.split '.' vText ]
            sequence
              [ case pComponent of
                  [(c, "")] -> return c
@@ -435,18 +438,18 @@ interact' :: Context -> Command -> IO ()
 interact' me cmd  = void $ command me cmd
 
 
-makeTimeout :: Config -> [LT.Text]
+makeTimeout :: Config -> [Builder]
 makeTimeout cfg
-  | Just i <- smtTimeout cfg = [ LT.pack ("\n(set-option :timeout " ++ show i ++ ")\n")]
+  | Just i <- smtTimeout cfg = [ "\n(set-option :timeout " <> fromString (show i) <> ")\n"]
   | otherwise                = [""]
 
 
-makeMbqi :: Config -> [LT.Text]
+makeMbqi :: Config -> [Builder]
 makeMbqi cfg
   | gradual cfg = [""]
   | otherwise   = ["\n(set-option :smt.mbqi false)"]
 
-z3_options :: [LT.Text]
+z3_options :: [Builder]
 z3_options
   = [ "(set-option :auto-config false)"
     , "(set-option :model true)" ]

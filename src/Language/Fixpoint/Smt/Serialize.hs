@@ -112,7 +112,7 @@ instance SMTLIB2 SymConst where
 instance SMTLIB2 Constant where
   smt2 _ (I n)   = bShow n
   smt2 _ (R d)   = bFloat d
-  smt2 _ (L t _) = lbb t
+  smt2 _ (L t _) = fromText t
 
 instance SMTLIB2 Bop where
   smt2 _ Plus   = "+"
