@@ -128,6 +128,7 @@ module Language.Fixpoint.Types.Names (
 
 import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
+import           Data.ByteString.Builder     (Builder)
 import           Data.Char                   (ord)
 import           Data.Maybe                  (fromMaybe)
 import           Data.Generics               (Data)
@@ -144,7 +145,7 @@ import           GHC.Generics                (Generic)
 import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
-import           Language.Fixpoint.Utils.Builder as Builder (Builder, fromText)
+import           Language.Fixpoint.Utils.Builder as Builder (fromText)
 import Data.Functor.Contravariant (Contravariant(contramap))
 import qualified Data.Binary as B
 
@@ -546,7 +547,7 @@ symbolBuilder :: (Symbolic a) => a -> Builder
 symbolBuilder = Builder.fromText . symbolSafeText . symbol
 
 {-# INLINE buildMany #-}
-buildMany :: [Builder.Builder] -> Builder.Builder
+buildMany :: [Builder] -> Builder
 buildMany []     = mempty
 buildMany [b]    = b
 buildMany (b:bs) = b <> mconcat [ " " <> b' | b' <- bs ]

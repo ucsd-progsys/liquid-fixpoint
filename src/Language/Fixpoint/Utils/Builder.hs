@@ -3,11 +3,8 @@
 -- | Wrapper around `Data.Text.Builder` that exports some useful combinators
 
 module Language.Fixpoint.Utils.Builder
-  ( Builder
-  , B.lazyByteString
-  , fromText
+  ( fromText
   , fromString
-  , B.toLazyByteString
   , parens
   , (<+>)
   , parenSeqs
@@ -21,7 +18,6 @@ module Language.Fixpoint.Utils.Builder
 
 import           Data.Foldable (fold)
 import           Data.String
-import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as B
 import qualified Data.Text              as T

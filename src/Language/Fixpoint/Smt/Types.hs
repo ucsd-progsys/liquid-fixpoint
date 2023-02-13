@@ -28,8 +28,8 @@ module Language.Fixpoint.Smt.Types (
 
     ) where
 
+import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Utils.Builder (Builder)
 import qualified Data.Text                as T
 import           Text.PrettyPrint.HughesPJ
 import qualified SMTLIB.Backends

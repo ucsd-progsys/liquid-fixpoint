@@ -78,6 +78,7 @@ import           Language.Fixpoint.Smt.Serialize ()
 import           Control.Applicative      ((<|>))
 import           Control.Monad
 import           Control.Exception
+import           Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as Char8
@@ -183,10 +184,10 @@ command Ctx {..} !cmd       = do
         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
         Right r -> do
           forM_ ctxLog $ \h -> do
-            LBS.hPutStr h $ toLazyByteString ("; SMT Says: " <> bShow r)
+            LBS.hPutStr h $ BS.toLazyByteString ("; SMT Says: " <> bShow r)
             LBS.hPutStr h "\n"
           when ctxVerbose $ do
-            LBS.putStr $ toLazyByteString ("SMT Says: " <> bShow r)
+            LBS.putStr $ BS.toLazyByteString ("SMT Says: " <> bShow r)
             LBS.putStr "\n"
           return r
 

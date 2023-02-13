@@ -42,6 +42,7 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
+import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
