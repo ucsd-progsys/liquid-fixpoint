@@ -17,7 +17,6 @@ module Language.Fixpoint.Utils.Builder
   , key3
   , bShow
   , bFloat
-  , bb
   ) where
 
 import           Data.Foldable (fold)
@@ -61,6 +60,3 @@ bShow = fromString . show
 
 bFloat :: RealFloat a => a -> Builder
 bFloat d = fromString (Numeric.showFFloat Nothing d "")
-
-bb :: ByteString -> Builder
-bb = B.lazyByteString
