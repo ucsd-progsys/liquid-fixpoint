@@ -87,6 +87,7 @@ import qualified Data.HashMap.Strict      as M
 import           Data.Maybe              (fromMaybe)
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as TE
+import qualified Data.Text.IO
 -- import           Data.Text.Format
 import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
@@ -174,21 +175,20 @@ command Ctx {..} !cmd       = do
   where
     commandRaw      = do
       resp <- SMTLIB.Backends.command ctxSolver cmdBS
-      let respTxt = TE.decodeUtf8With (const $ const $ Just ' ') $ LBS.toStrict $ 
-                    LBS.reverse $ Char8.dropWhile isSpace $ LBS.reverse
-                    resp
+      let respTxt =
+            TE.decodeUtf8With (const $ const $ Just ' ') $
+            LBS.toStrict resp
       parse respTxt
     cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
     parse resp      = do
       case A.parseOnly responseP resp of
         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
         Right r -> do
-          forM_ ctxLog $ \h -> do
-            LBS.hPutStr h $ BS.toLazyByteString ("; SMT Says: " <> bShow r)
-            LBS.hPutStr h "\n"
-          when ctxVerbose $ do
-            LBS.putStr $ BS.toLazyByteString ("SMT Says: " <> bShow r)
-            LBS.putStr "\n"
+          let textResponse = "; SMT Says: " <> T.pack (show r)
+          forM_ ctxLog $ \h ->
+            Data.Text.IO.hPutStrLn h textResponse
+          when ctxVerbose $
+            Data.Text.IO.putStrLn textResponse
           return r
 
 smtSetMbqi :: Context -> IO ()
