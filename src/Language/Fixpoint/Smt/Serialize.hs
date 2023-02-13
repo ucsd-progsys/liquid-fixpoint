@@ -205,13 +205,11 @@ smt2App env e
 
 smt2Coerc :: SymEnv -> Sort -> Sort -> Expr -> Builder.Builder
 smt2Coerc env t1 t2 e
-  | t1' == t2'  = smt2 env e
+  | t1 == t2  = smt2 env e
   | otherwise = parenSeqs [Builder.fromText coerceFn , smt2 env e]
   where
     coerceFn  = symbolAtName coerceName env (ECoerc t1 t2 e) t
     t         = FFunc t1 t2
-    t1'       = smt2SortMono e env t1
-    t2'       = smt2SortMono e env t2
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
