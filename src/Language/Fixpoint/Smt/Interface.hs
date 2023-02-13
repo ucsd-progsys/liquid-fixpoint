@@ -177,9 +177,7 @@ command Ctx {..} !cmd       = do
                     LBS.reverse $ Char8.dropWhile isSpace $ LBS.reverse
                     resp
       parse respTxt
-    -- TODO don't rely on Text
-    cmdBS         =
-      {-# SCC "Command-runSmt2" #-} Builder.toBuilder (runSmt2 ctxSymEnv cmd)
+    cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
     parse resp      = do
       case A.parseOnly responseP resp of
         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
@@ -248,7 +246,7 @@ makeContext cfg f
        hSetBuffering hLog $ BlockBuffering $ Just $ 1024 * 1024 * 64
        me   <- makeContext' cfg $ Just hLog
        pre  <- smtPreamble cfg (solver cfg) me
-       mapM_ (SMTLIB.Backends.command_ (ctxSolver me) . toBuilder) pre
+       mapM_ (SMTLIB.Backends.command_ (ctxSolver me)) pre
        return me
     where
        smtFile = extFileName Smt2 f
@@ -265,7 +263,7 @@ makeContextNoLog :: Config -> IO Context
 makeContextNoLog cfg
   = do me  <- makeContext' cfg Nothing
        pre <- smtPreamble cfg (solver cfg) me
-       mapM_ (SMTLIB.Backends.command_ (ctxSolver me) . toBuilder) pre
+       mapM_ (SMTLIB.Backends.command_ (ctxSolver me)) pre
        return me
 
 makeProcess
