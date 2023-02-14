@@ -3,11 +3,8 @@
 -- | Wrapper around `Data.Text.Builder` that exports some useful combinators
 
 module Language.Fixpoint.Utils.Builder
-  ( Builder
-  , fromLazyText
+  ( fromText
   , fromString
-  , fromText
-  , toLazyText
   , parens
   , (<+>)
   , parenSeqs
@@ -17,47 +14,20 @@ module Language.Fixpoint.Utils.Builder
   , key3
   , bShow
   , bFloat
-  , bb
-  , lbb
-  , blt
   ) where
 
 import           Data.Foldable (fold)
 import           Data.String
-import qualified Data.Text.Lazy.Builder as B
-import qualified Data.Text.Lazy         as LT
+import Data.ByteString.Builder (Builder)
+import qualified Data.ByteString.Builder as B
 import qualified Data.Text              as T
+import qualified Data.Text.Encoding     as T
 import qualified Data.List              as L
 import qualified Numeric
 
--- | Offers efficient concatenation, no matter the associativity
-data Builder
-  = Node Builder Builder
-  | Leaf B.Builder
-
-instance Eq Builder where
-  b0 == b1 = toLazyText b0 == toLazyText b1
-
-instance IsString Builder where
-  fromString = Leaf . fromString
-
-instance Semigroup Builder where
-  (<>) = Node
-
-instance Monoid Builder where
-  mempty = Leaf mempty
-
-toLazyText :: Builder -> LT.Text
-toLazyText = B.toLazyText . go mempty
-  where
-    go tl (Leaf b) = b <> tl
-    go tl (Node t0 t1) = go (go tl t1) t0
-
-fromLazyText :: LT.Text -> Builder
-fromLazyText = Leaf . B.fromLazyText
 
 fromText :: T.Text -> Builder
-fromText = Leaf . B.fromText
+fromText t = B.byteString $ T.encodeUtf8 t
 
 parens :: Builder -> Builder
 parens b = "(" <>  b <> ")"
@@ -86,13 +56,3 @@ bShow = fromString . show
 
 bFloat :: RealFloat a => a -> Builder
 bFloat d = fromString (Numeric.showFFloat Nothing d "")
-
-bb :: LT.Text -> Builder
-bb = fromLazyText
-
-lbb :: T.Text -> Builder
-lbb = bb . LT.fromStrict
-
-blt :: Builder -> LT.Text
-blt = toLazyText
-
