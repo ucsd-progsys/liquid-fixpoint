@@ -538,7 +538,7 @@ interpSymbols =
   , interpSym boolInt   boolInt   (FFunc boolSort intSort)
 
   -- Function mappings for indexed identifier functions
-  , interpSym "_" "_" iiSort
+  , interpSym' "_" iiSort
   , interpSym "app" "" appSort
 
   , interpSym' bvConcatName bvConcatSort
@@ -588,8 +588,10 @@ interpSymbols =
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
     setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    -- select :: forall i a. Map i a -> i -> a
     mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0) (FVar 1)
+    -- cup :: forall i. Map i Int -> Map i Int -> Map i Int
     mapCupSort = FAbs 0          $ FFunc (mapSort (FVar 0) intSort)
                                  $ FFunc (mapSort (FVar 0) intSort)
                                          (mapSort (FVar 0) intSort)
@@ -602,6 +604,7 @@ interpSymbols =
                                  $ FFunc (mapSort intSort (FVar 0))
                                          (mapSort intSort (FVar 0))
     mapToSetSort = FAbs 0        $ FFunc (mapSort (FVar 0) intSort) (setSort (FVar 0))
+    -- store :: forall i a. Map i a -> i -> a -> Map i a
     mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0)
                                  $ FFunc (FVar 1)
@@ -631,14 +634,14 @@ interpSymbols =
     -- sign_extend) has to have no FAbs in it. Otherwise, they will be
     -- elaborated like e.g. ( (_ (as sign_extend Int) 1) bv), which is wrong!
     --
-    -- _ :: (a -> b -> c) -> a -> (b -> c)
+    -- _ :: forall a b c. (a -> b -> c) -> a -> (b -> c)
     iiSort = FAbs 0 $ FAbs 1 $ FAbs 2 $ FFunc
                (FFunc (FVar 0) $ FFunc (FVar 1) (FVar 2))
                (FFunc (FVar 0) $ FFunc (FVar 1) (FVar 2))
 
     -- Simple application, used for indexed identifier function, check '_'.
     --
-    -- app :: (a -> b) -> a -> b
+    -- app :: forall a b. (a -> b) -> a -> b
     appSort = FAbs 0 $ FAbs 1 $ FFunc
                 (FFunc (FVar 0) (FVar 1))
                 (FFunc (FVar 0) (FVar 1))
@@ -653,19 +656,19 @@ interpSymbols =
     -- rot :: Int -> BitVec a -> BitVec a
     bvRotSort  = FFunc FInt $ FFunc (bitVecSort 0) (bitVecSort 0)
 
-    -- uOp :: BitVec a -> BitVec a
+    -- uOp :: forall a. BitVec a -> BitVec a
     bvUopSort = FAbs 0 $ FFunc (bitVecSort 0) (bitVecSort 0)
 
-    -- bOp :: BitVec a -> BitVec a -> BitVec a
+    -- bOp :: forall a. BitVec a -> BitVec a -> BitVec a
     bvBopSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) (bitVecSort 0)
 
-    -- cmp :: BitVec a -> BitVec a -> Bool
+    -- cmp :: forall a. BitVec a -> BitVec a -> Bool
     bvCmpSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) boolSort
 
-    -- eq :: BitVec a -> BitVec a -> BitVec 1
+    -- eq :: forall a. BitVec a -> BitVec a -> BitVec 1
     bvEqSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) (sizedBitVecSort "Size1")
 
-    -- concat :: BitVec a -> BitVec b -> BitVec c
+    -- concat :: forall a b c. BitVec a -> BitVec b -> BitVec c
     bvConcatSort = FAbs 0 $ FAbs 1 $ FAbs 2 $
                      FFunc (bitVecSort 0) $ FFunc (bitVecSort 1) (bitVecSort 2)
 
