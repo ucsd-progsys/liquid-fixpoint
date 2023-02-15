@@ -615,7 +615,7 @@ interpSymbols =
     interpBvExt name = interpSym' name bvExtendSort
     interpBvRot name = interpSym' name bvRotSort
 
-    interpSym' name = interpSym name (T.pack $ symbolString name)
+    interpSym' name = interpSym name (Data.Text.pack $ symbolString name)
 
     -- Indexed Identifier sort.
     -- Together with 'app', this allows one to write indexed identifier
