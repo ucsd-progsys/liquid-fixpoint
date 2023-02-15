@@ -799,7 +799,7 @@ withCtx cfg file env k = do
   ctx <- SMT.makeContextWithSEnv cfg file env
   _   <- SMT.smtPush ctx
   res <- k ctx
-  _   <- SMT.cleanupContext ctx
+  SMT.cleanupContext ctx
   return res
 
 infixl 9 ~>

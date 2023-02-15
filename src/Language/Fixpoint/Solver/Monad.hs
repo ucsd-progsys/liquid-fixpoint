@@ -77,7 +77,6 @@ runSolverM :: Config -> SolverInfo ann c -> SolveM ann a -> IO a
 runSolverM cfg sI act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
-    smtExit ctx
     return (fst res)
   where
     s0 ctx   = SS ctx be (stats0 fi)
@@ -200,15 +199,12 @@ filterValid sp p qs = do
 {-# SCC filterValid_ #-}
 filterValid_ :: F.SrcSpan -> F.Expr -> F.Cand a -> Context -> IO [a]
 filterValid_ sp p qs me = catMaybes <$> do
-  smtAssertAsync me p
-  forM_ qs $ \(q, _x) ->
-    smtBracketAsyncAt sp me "filterValidRHS" $ do
-      smtAssertAsync me (F.PNot q)
-      smtCheckUnsatAsync me
-  forM qs $ \(_, x) -> do
-    valid <- readCheckUnsat me
-    return $ if valid then Just x else Nothing
-
+  smtAssert me p
+  forM qs $ \(q, x) ->
+    smtBracketAt sp me "filterValidRHS" $ do
+      smtAssert me (F.PNot q)
+      valid <- smtCheckUnsat me
+      return $ if valid then Just x else Nothing
 
 --------------------------------------------------------------------------------
 -- | `filterValidGradual ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
