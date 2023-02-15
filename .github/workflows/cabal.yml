@@ -31,6 +31,10 @@ jobs:
         with:
           version: ${{ matrix.z3 }}
 
+      - name: Workaround runner image issue
+        # https://github.com/actions/runner-images/issues/7061
+        run: sudo chown -R $USER /usr/local/.ghcup
+
       - name: Setup GHC and cabal-install
         uses: haskell/actions/setup@v2
         with:

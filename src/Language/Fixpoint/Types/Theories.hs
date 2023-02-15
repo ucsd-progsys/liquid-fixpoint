@@ -52,21 +52,14 @@ import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.List                as L
 import           Data.Text (Text)
 import qualified Data.Text                as Text
-import qualified Data.Text.Lazy           as LT
 import qualified Data.Store              as S
 import qualified Data.HashMap.Strict      as M
 import qualified Language.Fixpoint.Misc   as Misc
-import Data.Functor.Contravariant (Contravariant(contramap))
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values
 --------------------------------------------------------------------------------
-type Raw = LT.Text
-
-instance S.Store Raw where
-  peek = LT.fromStrict <$> S.peek
-  poke = S.poke . LT.toStrict
-  size = contramap LT.toStrict S.size
+type Raw = Text
 
 --------------------------------------------------------------------------------
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'

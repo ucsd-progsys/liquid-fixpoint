@@ -19,6 +19,10 @@ jobs:
         with:
           submodules: true
 
+      - name: Workaround runner image issue
+        # https://github.com/actions/runner-images/issues/7061
+        run: sudo chown -R $USER /usr/local/.ghcup
+
       - uses: haskell/actions/setup@v1
         name: Setup GHC and cabal-install
         with:

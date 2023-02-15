@@ -7,6 +7,7 @@ module Main where
 import qualified Control.Concurrent.STM as STM
 import qualified Data.Functor.Compose   as Functor
 import qualified Data.IntMap            as IntMap
+import Control.Monad (when)
 import qualified Control.Monad.State    as State
 import Control.Monad.Trans.Class (lift)
 
@@ -134,11 +135,14 @@ mkTest testCmd code dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        withFile log WriteMode $ \h -> do
+        c <- withFile log WriteMode $ \h -> do
           let cmd     = testCmd opts "fixpoint" dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
-          c          <- waitForProcess ph
-          assertEqual "Wrong exit code" code c
+          waitForProcess ph
+        when (code /= c) $
+          readFile log >>= putStrLn
+        assertEqual "Wrong exit code" code c
+
   where
     test = dir </> file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"

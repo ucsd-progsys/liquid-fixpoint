@@ -42,13 +42,13 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
+import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Maybe (catMaybes)
-import qualified Data.Text.Lazy           as T
 -- import           Data.Text.Format
 import qualified Data.Text
 import           Data.String                 (IsString(..))
@@ -223,199 +223,196 @@ concatstrSort = mkFFunc 0 [strSort, strSort, strSort]
 string :: Raw
 string = strConName
 
-bFun :: Raw -> [(Builder, Builder)] -> Builder -> Builder -> T.Text
-bFun name xts out body = blt $ key "define-fun" (seqs [bb name, args, out, body])
+bFun :: Raw -> [(Builder, Builder)] -> Builder -> Builder -> Builder
+bFun name xts out body = key "define-fun" (seqs [fromText name, args, out, body])
   where
     args = parenSeqs [parens (x <+> t) | (x, t) <- xts]
 
-bFun' :: Raw -> [Builder] -> Builder -> T.Text
-bFun' name ts out = blt $ key "declare-fun" (seqs [bb name, args, out])
+bFun' :: Raw -> [Builder] -> Builder -> Builder
+bFun' name ts out = key "declare-fun" (seqs [fromText name, args, out])
   where
     args = parenSeqs ts
 
-bSort :: Raw -> Builder -> T.Text
-bSort name def = blt $ key "define-sort" (bb name <+> "()" <+> def)
+bSort :: Raw -> Builder -> Builder
+bSort name def = key "define-sort" (fromText name <+> "()" <+> def)
 
-z3Preamble :: Config -> [T.Text]
+z3Preamble :: Config -> [Builder]
 z3Preamble u
   = stringPreamble u ++
     [ bSort elt
         "Int"
     , bSort set
-        (key2 "Array" (bb elt) "Bool")
+        (key2 "Array" (fromText elt) "Bool")
     , bFun emp
         []
-        (bb set)
-        (parens (key "as const" (bb set) <+> "false"))
+        (fromText set)
+        (parens (key "as const" (fromText set) <+> "false"))
     , bFun sng
-        [("x", bb elt)]
-        (bb set)
-        (key3 "store" (parens (key "as const" (bb set) <+> "false")) "x" "true")
+        [("x", fromText elt)]
+        (fromText set)
+        (key3 "store" (parens (key "as const" (fromText set) <+> "false")) "x" "true")
     , bFun mem
-        [("x", bb elt), ("s", bb set)]
+        [("x", fromText elt), ("s", fromText set)]
         "Bool"
         "(select s x)"
     , bFun add
-        [("s", bb set), ("x", bb elt)]
-        (bb set)
+        [("s", fromText set), ("x", fromText elt)]
+        (fromText set)
         "(store s x true)"
     , bFun cup
-        [("s1", bb set), ("s2", bb set)]
-        (bb set)
+        [("s1", fromText set), ("s2", fromText set)]
+        (fromText set)
         "((_ map or) s1 s2)"
     , bFun cap
-        [("s1", bb set), ("s2", bb set)]
-        (bb set)
+        [("s1", fromText set), ("s2", fromText set)]
+        (fromText set)
         "((_ map and) s1 s2)"
     , bFun com
-        [("s", bb set)]
-        (bb set)
+        [("s", fromText set)]
+        (fromText set)
         "((_ map not) s)"
     , bFun dif
-        [("s1", bb set), ("s2", bb set)]
-        (bb set)
-        (key2 (bb cap) "s1" (key (bb com) "s2"))
+        [("s1", fromText set), ("s2", fromText set)]
+        (fromText set)
+        (key2 (fromText cap) "s1" (key (fromText com) "s2"))
     , bFun sub
-        [("s1", bb set), ("s2", bb set)]
+        [("s1", fromText set), ("s2", fromText set)]
         "Bool"
-        (key2 "=" (bb emp) (key2 (bb dif) "s1" "s2"))
+        (key2 "=" (fromText emp) (key2 (fromText dif) "s1" "s2"))
 
     -- Maps
     , bSort map
-        (key2 "Array" (bb elt) (bb elt))
+        (key2 "Array" (fromText elt) (fromText elt))
     , bFun sel
-        [("m", bb map), ("k", bb elt)]
-        (bb elt)
+        [("m", fromText map), ("k", fromText elt)]
+        (fromText elt)
         "(select m k)"
     , bFun sto
-        [("m", bb map), ("k", bb elt), ("v", bb elt)]
-        (bb map)
+        [("m", fromText map), ("k", fromText elt), ("v", fromText elt)]
+        (fromText map)
         "(store m k v)"
     , bFun mcup
-        [("m1", bb map), ("m2", bb map)]
-        (bb map)
-        (key2 (key "_ map" (key2 "+" (parens (bb elt <+> bb elt)) (bb elt))) "m1" "m2")
+        [("m1", fromText map), ("m2", fromText map)]
+        (fromText map)
+        (key2 (key "_ map" (key2 "+" (parens (fromText elt <+> fromText elt)) (fromText elt))) "m1" "m2")
     , bFun mprj -- See [Interaction Between Map and Set]
-        [("s", bb set), ("m", bb map)]
-        (bb map)
+        [("s", fromText set), ("m", fromText map)]
+        (fromText map)
         (key3
           (key "_ map"
             (key2 "ite"
-              (parens ("Bool" <+> bb elt <+> bb elt))
-              (bb elt)
+              (parens ("Bool" <+> fromText elt <+> fromText elt))
+              (fromText elt)
             )
           )
           "s"
           "m"
-          (parens (key "as const" (key2 "Array" (bb elt) (bb elt)) <+> "0"))
+          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
         )
     , bFun mToSet -- See [Interaction Between Map and Set]
-        [("m", bb map)]
-        (bb set)
+        [("m", fromText map)]
+        (fromText set)
         (key2
           (key "_ map"
             (key2 ">"
-              (parens (bb elt <+> bb elt))
+              (parens (fromText elt <+> fromText elt))
               "Bool"
             )
           )
           "m"
-          (parens (key "as const" (key2 "Array" (bb elt) (bb elt)) <+> "0"))
+          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
         )
     , bFun mmax -- See [Map max and min]
-        [("m1", bb map),("m2", bb map)]
-        (bb map)
+        [("m1", fromText map),("m2", fromText map)]
+        (fromText map)
         "(lambda ((i Int)) (ite (> (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
     , bFun mmin -- See [Map max and min]
-        [("m1", bb map),("m2", bb map)]
-        (bb map)
+        [("m1", fromText map),("m2", fromText map)]
+        (fromText map)
         "(lambda ((i Int)) (ite (< (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
     , bFun mshift -- See [Map key shift]
-        [("n", "Int"),("m", bb map)]
-        (bb map)
+        [("n", "Int"),("m", fromText map)]
+        (fromText map)
         "(lambda ((i Int)) (select m (- i n)))"
     , bFun mdef
-        [("v", bb elt)]
-        (bb map)
-        (key (key "as const" (parens (bb map))) "v")
+        [("v", fromText elt)]
+        (fromText map)
+        (key (key "as const" (parens (fromText map))) "v")
     , bFun boolToIntName
         [("b", "Bool")]
         "Int"
         "(ite b 1 0)"
 
-    , uifDef u (symbolLText mulFuncName) "*"
-    , uifDef u (symbolLText divFuncName) "div"
+    , uifDef u (symbolText mulFuncName) "*"
+    , uifDef u (symbolText divFuncName) "div"
     ]
-
-symbolLText :: Symbol -> T.Text
-symbolLText = T.fromStrict . symbolText
 
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
 -- (2) have very different semantics. TODO: proper overloading, post genEApp
-uifDef :: Config -> T.Text -> T.Text -> T.Text
+uifDef :: Config -> Data.Text.Text -> Data.Text.Text -> Builder
 uifDef cfg f op
   | linear cfg || Z3 /= solver cfg
   = bFun' f ["Int", "Int"] "Int"
   | otherwise
-  = bFun f [("x", "Int"), ("y", "Int")] "Int" (key2 (bb op) "x" "y")
+  = bFun f [("x", "Int"), ("y", "Int")] "Int" (key2 (fromText op) "x" "y")
 
-cvc4Preamble :: Config -> [T.Text]
+cvc4Preamble :: Config -> [Builder]
 cvc4Preamble z
   = [        "(set-logic ALL_SUPPORTED)"]
   ++ commonPreamble z
   ++ cvc4MapPreamble z
 
-commonPreamble :: Config -> [T.Text]
+commonPreamble :: Config -> [Builder]
 commonPreamble _ --TODO use uif flag u (see z3Preamble)
   = [ bSort elt    "Int"
     , bSort set    "Int"
     , bSort string "Int"
-    , bFun' emp []               (bb set)
-    , bFun' sng [bb elt]         (bb set)
-    , bFun' add [bb set, bb elt] (bb set)
-    , bFun' cup [bb set, bb set] (bb set)
-    , bFun' cap [bb set, bb set] (bb set)
-    , bFun' dif [bb set, bb set] (bb set)
-    , bFun' sub [bb set, bb set] "Bool"
-    , bFun' mem [bb elt, bb set] "Bool"
+    , bFun' emp []               (fromText set)
+    , bFun' sng [fromText elt]         (fromText set)
+    , bFun' add [fromText set, fromText elt] (fromText set)
+    , bFun' cup [fromText set, fromText set] (fromText set)
+    , bFun' cap [fromText set, fromText set] (fromText set)
+    , bFun' dif [fromText set, fromText set] (fromText set)
+    , bFun' sub [fromText set, fromText set] "Bool"
+    , bFun' mem [fromText elt, fromText set] "Bool"
     , bFun boolToIntName [("b", "Bool")] "Int" "(ite b 1 0)"
     ]
 
-cvc4MapPreamble :: Config -> [T.Text]
+cvc4MapPreamble :: Config -> [Builder]
 cvc4MapPreamble _ =
-    [ bSort map    (key2 "Array" (bb elt) (bb elt))
-    , bFun sel [("m", bb map), ("k", bb elt)]                (bb elt) "(select m k)"
-    , bFun sto [("m", bb map), ("k", bb elt), ("v", bb elt)] (bb map) "(store m k v)"
+    [ bSort map    (key2 "Array" (fromText elt) (fromText elt))
+    , bFun sel [("m", fromText map), ("k", fromText elt)]                (fromText elt) "(select m k)"
+    , bFun sto [("m", fromText map), ("k", fromText elt), ("v", fromText elt)] (fromText map) "(store m k v)"
     ]
 
-smtlibPreamble :: Config -> [T.Text]
+smtlibPreamble :: Config -> [Builder]
 smtlibPreamble z --TODO use uif flag u (see z3Preamble)
   = commonPreamble z
  ++ [ bSort map "Int"
-    , bFun' sel [bb map, bb elt] (bb elt)
-    , bFun' sto [bb map, bb elt, bb elt] (bb map)
+    , bFun' sel [fromText map, fromText elt] (fromText elt)
+    , bFun' sto [fromText map, fromText elt, fromText elt] (fromText map)
     ]
 
-stringPreamble :: Config -> [T.Text]
+stringPreamble :: Config -> [Builder]
 stringPreamble cfg | stringTheory cfg
   = [ bSort string "String"
-    , bFun strLen [("s", bb string)] "Int" (key (bb z3strlen) "s")
-    , bFun strSubstr [("s", bb string), ("i", "Int"), ("j", "Int")] (bb string) (key (bb z3strsubstr) "s i j")
-    , bFun strConcat [("x", bb string), ("y", bb string)] (bb string) (key (bb z3strconcat) "x y")
+    , bFun strLen [("s", fromText string)] "Int" (key (fromText z3strlen) "s")
+    , bFun strSubstr [("s", fromText string), ("i", "Int"), ("j", "Int")] (fromText string) (key (fromText z3strsubstr) "s i j")
+    , bFun strConcat [("x", fromText string), ("y", fromText string)] (fromText string) (key (fromText z3strconcat) "x y")
     ]
 
 stringPreamble _
   = [ bSort string "Int"
-    , bFun' strLen [bb string] "Int"
-    , bFun' strSubstr [bb string, "Int", "Int"] (bb string)
-    , bFun' strConcat [bb string, bb string] (bb string)
+    , bFun' strLen [fromText string] "Int"
+    , bFun' strSubstr [fromText string, "Int", "Int"] (fromText string)
+    , bFun' strConcat [fromText string, fromText string] (fromText string)
     ]
 
 --------------------------------------------------------------------------------
 -- | Exported API --------------------------------------------------------------
 --------------------------------------------------------------------------------
 smt2Symbol :: SymEnv -> Symbol -> Maybe Builder
-smt2Symbol env x = fromLazyText . tsRaw <$> symEnvTheory x env
+smt2Symbol env x = fromText . tsRaw <$> symEnvTheory x env
 
 instance SMTLIB2 SmtSort where
   smt2 _ = smt2SmtSort
@@ -424,9 +421,9 @@ smt2SmtSort :: SmtSort -> Builder
 smt2SmtSort SInt         = "Int"
 smt2SmtSort SReal        = "Real"
 smt2SmtSort SBool        = "Bool"
-smt2SmtSort SString      = bb string
-smt2SmtSort SSet         = bb set
-smt2SmtSort SMap         = bb map
+smt2SmtSort SString      = fromText string
+smt2SmtSort SSet         = fromText set
+smt2SmtSort SMap         = fromText map
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
 smt2SmtSort (SVar n)     = "T" <> bShow n
 smt2SmtSort (SData c []) = symbolBuilder c
@@ -442,9 +439,9 @@ type VarAs = SymEnv -> Symbol -> Sort -> Builder
 smt2App :: VarAs -> SymEnv -> Expr -> [Builder] -> Maybe Builder
 --------------------------------------------------------------------------------
 smt2App _ _ (dropECst -> EVar f) [d]
-  | f == setEmpty = Just (bb emp)
-  | f == setEmp   = Just (key2 "=" (bb emp) d)
-  | f == setSng   = Just (key (bb sng) d) -- Just (key2 (bb add) (bb emp) d)
+  | f == setEmpty = Just (fromText emp)
+  | f == setEmp   = Just (key2 "=" (fromText emp) d)
+  | f == setSng   = Just (key (fromText sng) d) -- Just (key2 (bb add) (bb emp) d)
 
 smt2App k env f (d:ds)
   | Just fb <- smt2AppArg k env f
@@ -457,7 +454,7 @@ smt2AppArg k env (ECst (dropECst -> EVar f) t)
   | Just fThy <- symEnvTheory f env
   = Just $ if isPolyCtor fThy t
             then k env f (ffuncOut t)
-            else bb (tsRaw fThy)
+            else fromText (tsRaw fThy)
 
 smt2AppArg _ _ _
   = Nothing
@@ -488,7 +485,7 @@ sortAppInfo t = case bkFFunc t of
   Just (_, ts) -> Just (length ts - 1)
   Nothing      -> Nothing
 
-preamble :: Config -> SMTSolver -> [T.Text]
+preamble :: Config -> SMTSolver -> [Builder]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
 preamble u _    = smtlibPreamble u
@@ -727,8 +724,8 @@ testTheory t x = (sx, Thy sx raw t Test)
     sx         = testSymbol x
     raw        = "is-" <> symbolRaw x
 
-symbolRaw :: Symbol -> T.Text
-symbolRaw = T.fromStrict . symbolSafeText
+symbolRaw :: Symbol -> Data.Text.Text
+symbolRaw = symbolSafeText
 
 --------------------------------------------------------------------------------
 selectSymbols :: DataDecl -> [(Symbol, TheorySymbol)]
