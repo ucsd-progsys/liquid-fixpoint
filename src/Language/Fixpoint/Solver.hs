@@ -98,7 +98,7 @@ ignoreQualifiers cfg fi
 --------------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints -----------------------------
 --------------------------------------------------------------------------------
-solve :: (NFData a, Fixpoint a, Show a, Loc a) => Solver a
+solve :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a) => Solver a
 --------------------------------------------------------------------------------
 solve cfg q
   | parts cfg      = partition  cfg        $!! q
@@ -108,7 +108,7 @@ solve cfg q
   | minimizeKs cfg = minKvars cfg solve'   $!! q
   | otherwise      = solve'     cfg        $!! q
 
-solve' :: (NFData a, Fixpoint a, Show a, Loc a) => Solver a
+solve' :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a) => Solver a
 solve' cfg q = do
   when (save cfg) $ saveQuery   cfg q
   configSW  cfg     solveNative cfg q
@@ -181,19 +181,19 @@ inParallelUsing f xs = do
 --------------------------------------------------------------------------------
 -- | Native Haskell Solver -----------------------------------------------------
 --------------------------------------------------------------------------------
-solveNative, solveNative' :: (NFData a, Fixpoint a, Show a, Loc a) => Solver a
+solveNative, solveNative' :: (NFData a, Fixpoint a, Show a, Loc a, PPrint a) => Solver a
 --------------------------------------------------------------------------------
 solveNative !cfg !fi0 = solveNative' cfg fi0
                           `catch`
                              (return . crashResult (errorMap fi0))
 
-crashResult :: ErrorMap a -> Error -> Result (Integer, a)
+crashResult :: (PPrint a) => ErrorMap a -> Error -> Result (Integer, a)
 crashResult m e = Result res mempty mempty mempty
   where
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- errs e ]
     msg | null es = showpp e
-        | otherwise = "Sorry, unexpected panic in liquid-fixpoint!"
+        | otherwise = "Sorry, unexpected panic in liquid-fixpoint!" ++ showpp e
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
 type ErrorMap a = HashMap.HashMap SrcSpan a
