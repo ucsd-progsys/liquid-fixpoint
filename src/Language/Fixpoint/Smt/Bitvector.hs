@@ -35,7 +35,7 @@ data Bv     = Bv !BvSize !String
 data BvSize = S32   | S64
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data BvOp   = BvAnd | BvOr
+data BvOp   = BvAnd | BvOr | BvSub | BvAdd
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 -- | Construct the bitvector `Sort` from its `BvSize`
@@ -63,8 +63,5 @@ eOp b es = foldl' EApp (EVar $ opName b) es
 opName :: BvOp -> Symbol
 opName BvAnd = bvAndName
 opName BvOr  = bvOrName
-
-
--- sizeSort     = (`FApp` [fObj $ dummyLoc $ symbol "obj"]) . sizeTC
--- s32TyCon     = symbolFTycon $ dummyLoc size32Name
--- s64TyCon     = symbolFTycon $ dummyLoc size64Name
+opName BvSub = bvSubName
+opName BvAdd = bvAddName

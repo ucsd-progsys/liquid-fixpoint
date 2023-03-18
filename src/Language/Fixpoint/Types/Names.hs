@@ -105,8 +105,8 @@ module Language.Fixpoint.Types.Names (
   , size32Name
   , size64Name
   , bitVecName
-  , bvAndName
-  , bvOrName
+  , bvAndName, bvOrName, bvSubName, bvAddName
+  , intbv32Name, intbv64Name, bv32intName, bv64intName
   , propConName
   -- HKT , tyAppName
   , isPrim
@@ -619,14 +619,22 @@ charConName  = "Char"
 symSepName   :: (IsString a) => a
 symSepName   = "##"
 
-nilName, consName, size32Name, size64Name, bitVecName, bvOrName, bvAndName :: Symbol
+nilName, consName, size32Name, size64Name, bitVecName :: Symbol
 nilName      = "nil"
 consName     = "cons"
 size32Name   = "Size32"
 size64Name   = "Size64"
 bitVecName   = "BitVec"
-bvOrName     = "bvor"
-bvAndName    = "bvand"
+
+bvOrName, bvAndName, bvSubName, bvAddName, intbv32Name, intbv64Name, bv32intName, bv64intName :: Symbol
+bvOrName    = "bvor"
+bvAndName   = "bvand"
+bvSubName   = "bvsub"
+bvAddName   = "bvadd"
+intbv32Name = "int_to_bv32"
+intbv64Name = "int_to_bv64"
+bv32intName = "bv32_to_int"
+bv64intName = "bv64_to_int"
 
 -- HKT tyAppName :: Symbol
 -- HKT tyAppName    = "LF-App"

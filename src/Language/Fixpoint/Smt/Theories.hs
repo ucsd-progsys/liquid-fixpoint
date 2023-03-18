@@ -473,8 +473,16 @@ interpSymbols =
   , interpSym mapPrj   mprj  mapPrjSort
   , interpSym mapShift mshift mapShiftSort
   , interpSym mapToSet mToSet mapToSetSort
-  , interpSym bvOrName "bvor"   bvBopSort
+  , interpSym bvOrName  "bvor"  bvBopSort
   , interpSym bvAndName "bvand" bvBopSort
+  , interpSym bvAddName "bvadd" bvBopSort
+  , interpSym bvSubName "bvsub" bvBopSort
+
+  , interpSym intbv32Name "(_ int2bv 32)" (FFunc intSort bitVec32Sort)
+  , interpSym intbv64Name "(_ int2bv 64)" (FFunc intSort bitVec64Sort)
+  , interpSym bv32intName  "(_ bv2int 32)" (FFunc bitVec32Sort intSort)
+  , interpSym bv64intName   "(_ bv2int 64)" (FFunc bitVec64Sort intSort)
+
   , interpSym strLen    strLen    strLenSort
   , interpSym strSubstr strSubstr substrSort
   , interpSym strConcat strConcat concatstrSort
@@ -507,7 +515,7 @@ interpSymbols =
     mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
 
-    bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
+    bvBopSort  = FAbs 0 $ FFunc (bitVecSort (FVar 0)) (FFunc (bitVecSort (FVar 0)) (bitVecSort (FVar 0)))
 
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
