@@ -102,12 +102,10 @@ module Language.Fixpoint.Types.Names (
   , nilName
   , consName
   , vvName
-  , size32Name
-  , size64Name
+  , sizeName
   , bitVecName
-  , bvAndName
-  , bvOrName
   , propConName
+
   -- HKT , tyAppName
   , isPrim
   , prims
@@ -619,14 +617,11 @@ charConName  = "Char"
 symSepName   :: (IsString a) => a
 symSepName   = "##"
 
-nilName, consName, size32Name, size64Name, bitVecName, bvOrName, bvAndName :: Symbol
-nilName      = "nil"
-consName     = "cons"
-size32Name   = "Size32"
-size64Name   = "Size64"
-bitVecName   = "BitVec"
-bvOrName     = "bvor"
-bvAndName    = "bvand"
+nilName, consName, sizeName, bitVecName :: Symbol
+nilName       = "nil"
+consName      = "cons"
+sizeName      = "Size"
+bitVecName    = "BitVec"
 
 -- HKT tyAppName :: Symbol
 -- HKT tyAppName    = "LF-App"
@@ -664,11 +659,13 @@ prims = S.fromList
   , "Map_store"
   , "Map_union"
   , "Map_default"
-  , size32Name
-  , size64Name
+  -- Currently we parse X in "SizeX" to get the bitvec size
+  -- so there is no finite set of names to add here...
+  -- , size32Name 
+  -- , size64Name
   , bitVecName
-  , bvOrName
-  , bvAndName
+  -- , bvOrName
+  -- , bvAndName
   , "FAppTy"
   , nilName
   , consName

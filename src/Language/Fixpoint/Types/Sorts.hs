@@ -36,7 +36,7 @@ module Language.Fixpoint.Types.Sorts (
   , mapFVar
 
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
-  , setSort, bitVecSort, mapSort, charSort
+  , setSort, bitVecSort, sizedBitVecSort, mapSort, charSort
 
   , listFTyCon
   , isListTC
@@ -99,6 +99,7 @@ import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
 import qualified Data.Binary as B
+import Text.Read (readMaybe)
 
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 
@@ -157,12 +158,10 @@ isListTC :: FTycon -> Bool
 isListTC (TC z _) = isListConName z
 
 sizeBv :: FTycon -> Maybe Int
-sizeBv tc
-  | s == size32Name = Just 32
-  | s == size64Name = Just 64
-  | otherwise       = Nothing
-  where
-    s               = val $ fTyconSymbol tc
+sizeBv tc = do
+  let s = val $ fTyconSymbol tc
+  size <- stripPrefix sizeName s
+  readMaybe $ symbolString size
 
 fTyconSymbol :: FTycon -> Located Symbol
 fTyconSymbol (TC s _) = s
@@ -482,8 +481,11 @@ funcSort = fTyconSort funcFTyCon
 setSort :: Sort -> Sort
 setSort    = FApp (FTC setFTyCon)
 
-bitVecSort :: Sort
-bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
+bitVecSort :: Int -> Sort
+bitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FVar i)
+
+sizedBitVecSort :: Symbol -> Sort
+sizedBitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' i)
 
 mapSort :: Sort -> Sort -> Sort
 mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))

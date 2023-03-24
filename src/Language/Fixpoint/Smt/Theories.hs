@@ -92,6 +92,60 @@ mprj  = "smt_map_prj"
 mshift = "smt_map_shift"
 mToSet = "smt_map_to_set"
 
+---- Size changes
+bvConcatName, bvExtractName, bvRepeatName, bvZeroExtName, bvSignExtName :: Symbol
+bvConcatName   = "concat"
+bvExtractName  = "extract"
+bvRepeatName   = "repeat"
+bvZeroExtName  = "zero_extend"
+bvSignExtName  = "sign_extend"
+
+-- Unary Logic
+bvNotName, bvNegName :: Symbol
+bvNotName = "bvnot"
+bvNegName = "bvneg"
+
+-- Binary Logic
+bvAndName, bvNandName, bvOrName, bvNorName, bvXorName, bvXnorName :: Symbol
+bvAndName  = "bvand"
+bvNandName = "bvnand"
+bvOrName   = "bvor"
+bvNorName  = "bvnor"
+bvXorName  = "bvxor"
+bvXnorName = "bvxnor"
+
+-- Shifts
+bvShlName, bvLShrName, bvAShrName, bvLRotName, bvRRotName :: Symbol
+bvShlName  = "bvshl"
+bvLShrName = "bvlshr"
+bvAShrName = "bvashr"
+bvLRotName = "rotate_left"
+bvRRotName = "rotate_right"
+
+-- Arithmetic
+bvAddName, bvSubName, bvMulName, bvUDivName :: Symbol
+bvURemName, bvSDivName, bvSRemName, bvSModName :: Symbol
+bvAddName  = "bvadd"
+bvSubName  = "bvsub"
+bvMulName  = "bvmul"
+bvUDivName = "bvudiv"
+bvURemName = "bvurem"
+bvSDivName = "bvsdiv"
+bvSRemName = "bvsrem"
+bvSModName = "bvsmod"
+
+-- Comparisons
+bvCompName, bvULtName, bvULeName, bvUGtName, bvUGeName :: Symbol
+bvSLtName, bvSLeName, bvSGtName, bvSGeName :: Symbol
+bvCompName = "bvcomp"
+bvULtName  = "bvult"
+bvULeName  = "bvule"
+bvUGtName  = "bvugt"
+bvUGeName  = "bvuge"
+bvSLtName  = "bvslt"
+bvSLeName  = "bvsle"
+bvSGtName  = "bvsgt"
+bvSGeName  = "bvsge"
 
 setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup :: Symbol
 setDif, setSng :: Symbol
@@ -464,6 +518,7 @@ interpSymbols =
   , interpSym setDif   dif   setBopSort
   , interpSym setSub   sub   setCmpSort
   , interpSym setCom   com   setCmpSort
+
   , interpSym mapSel   sel   mapSelSort
   , interpSym mapSto   sto   mapStoSort
   , interpSym mapCup   mcup  mapCupSort
@@ -473,12 +528,56 @@ interpSymbols =
   , interpSym mapPrj   mprj  mapPrjSort
   , interpSym mapShift mshift mapShiftSort
   , interpSym mapToSet mToSet mapToSetSort
-  , interpSym bvOrName "bvor"   bvBopSort
-  , interpSym bvAndName "bvand" bvBopSort
+
   , interpSym strLen    strLen    strLenSort
   , interpSym strSubstr strSubstr substrSort
   , interpSym strConcat strConcat concatstrSort
   , interpSym boolInt   boolInt   (FFunc boolSort intSort)
+
+  -- Function mappings for indexed identifier functions
+  , interpSym' "_" iiSort
+  , interpSym "app" "" appSort
+
+  , interpSym' bvConcatName bvConcatSort
+  , interpSym' bvExtractName $ FFunc FInt $ bvExtendSort
+  , interpBvExt bvRepeatName
+  , interpBvExt bvZeroExtName
+  , interpBvExt bvSignExtName
+
+  , interpBvUop bvNotName
+  , interpBvUop bvNegName
+
+  , interpBvBop bvAndName 
+  , interpBvBop bvNandName
+  , interpBvBop bvOrName
+  , interpBvBop bvNorName
+  , interpBvBop bvXorName
+  , interpBvBop bvXnorName
+
+  , interpBvBop bvShlName
+  , interpBvBop bvLShrName
+  , interpBvBop bvAShrName
+  , interpBvRot bvLRotName
+  , interpBvRot bvRRotName
+
+  , interpBvBop bvAddName
+  , interpBvBop bvSubName
+  , interpBvBop bvMulName
+  , interpBvBop bvUDivName
+  , interpBvBop bvURemName
+  , interpBvBop bvSDivName
+  , interpBvBop bvSRemName
+  , interpBvBop bvSModName
+
+  , interpSym' bvCompName bvEqSort
+  , interpBvCmp bvULtName
+  , interpBvCmp bvULeName
+  , interpBvCmp bvUGtName
+  , interpBvCmp bvUGeName
+  , interpBvCmp bvSLtName
+  , interpBvCmp bvSLeName
+  , interpBvCmp bvSGtName
+  , interpBvCmp bvSGeName
   ]
   where
     boolInt    = boolToIntName
@@ -486,8 +585,10 @@ interpSymbols =
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
     setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    -- select :: forall i a. Map i a -> i -> a
     mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0) (FVar 1)
+    -- cup :: forall i. Map i Int -> Map i Int -> Map i Int
     mapCupSort = FAbs 0          $ FFunc (mapSort (FVar 0) intSort)
                                  $ FFunc (mapSort (FVar 0) intSort)
                                          (mapSort (FVar 0) intSort)
@@ -500,6 +601,7 @@ interpSymbols =
                                  $ FFunc (mapSort intSort (FVar 0))
                                          (mapSort intSort (FVar 0))
     mapToSetSort = FAbs 0        $ FFunc (mapSort (FVar 0) intSort) (setSort (FVar 0))
+    -- store :: forall i a. Map i a -> i -> a -> Map i a
     mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0)
                                  $ FFunc (FVar 1)
@@ -507,7 +609,65 @@ interpSymbols =
     mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
 
-    bvBopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
+    interpBvUop name = interpSym' name bvUopSort
+    interpBvBop name = interpSym' name bvBopSort
+    interpBvCmp name = interpSym' name bvCmpSort
+    interpBvExt name = interpSym' name bvExtendSort
+    interpBvRot name = interpSym' name bvRotSort
+
+    interpSym' name = interpSym name (Data.Text.pack $ symbolString name)
+
+    -- Indexed Identifier sort.
+    -- Together with 'app', this allows one to write indexed identifier
+    -- functions (smtlib2 specific functions). (e.g. ((_ sign_extend 1) bv))
+    --
+    -- The idea here is that 'app' is elaborated to the empty string,
+    -- and '_' does the typelit application as it does in smtlib2.
+    --
+    -- Then if we write, (app (_ sign_extend 1) bv), LF will elaborate
+    -- it as ( (_ sign_extend 1) bv). Fitting the smtlib2 format exactly!
+    --
+    -- One thing to note, is that any indexed identifier function (like
+    -- sign_extend) has to have no FAbs in it. Otherwise, they will be
+    -- elaborated like e.g. ( (_ (as sign_extend Int) 1) bv), which is wrong!
+    --
+    -- _ :: forall a b c. (a -> b -> c) -> a -> (b -> c)
+    iiSort = FAbs 0 $ FAbs 1 $ FAbs 2 $ FFunc
+               (FFunc (FVar 0) $ FFunc (FVar 1) (FVar 2))
+               (FFunc (FVar 0) $ FFunc (FVar 1) (FVar 2))
+
+    -- Simple application, used for indexed identifier function, check '_'.
+    --
+    -- app :: forall a b. (a -> b) -> a -> b
+    appSort = FAbs 0 $ FAbs 1 $ FFunc
+                (FFunc (FVar 0) (FVar 1))
+                (FFunc (FVar 0) (FVar 1))
+
+    -- Indexed identifier operation, purposely didn't place FAbs!
+    --
+    -- extend :: Int -> BitVec a -> BitVec b
+    bvExtendSort  = FFunc FInt $ FFunc (bitVecSort 1) (bitVecSort 2)
+
+    -- Indexed identifier operation, purposely didn't place FAbs!
+    --
+    -- rot :: Int -> BitVec a -> BitVec a
+    bvRotSort  = FFunc FInt $ FFunc (bitVecSort 0) (bitVecSort 0)
+
+    -- uOp :: forall a. BitVec a -> BitVec a
+    bvUopSort = FAbs 0 $ FFunc (bitVecSort 0) (bitVecSort 0)
+
+    -- bOp :: forall a. BitVec a -> BitVec a -> BitVec a
+    bvBopSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) (bitVecSort 0)
+
+    -- cmp :: forall a. BitVec a -> BitVec a -> Bool
+    bvCmpSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) boolSort
+
+    -- eq :: forall a. BitVec a -> BitVec a -> BitVec 1
+    bvEqSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) (sizedBitVecSort "Size1")
+
+    -- concat :: forall a b c. BitVec a -> BitVec b -> BitVec c
+    bvConcatSort = FAbs 0 $ FAbs 1 $ FAbs 2 $
+                     FFunc (bitVecSort 0) $ FFunc (bitVecSort 1) (bitVecSort 2)
 
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)

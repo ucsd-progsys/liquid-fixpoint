@@ -1,0 +1,89 @@
+bind 0 x : {v : (BitVec Size32) | [ v = (lit "#x0000000f" (BitVec Size32))]}
+bind 1 y : {v : (BitVec Size32) | [ v = (lit "#x000000f0" (BitVec Size32))]}
+bind 2 z : {v : (BitVec Size32) | [ v = (lit "#x000000ff" (BitVec Size32))]}
+
+constraint:
+  env [0;1;2]
+  lhs {v : (BitVec Size32) | [ v = bvor x y ] }
+  rhs {v : (BitVec Size32) | [ v = z ] }
+  id 0 tag []
+
+bind 4 x : {v : (BitVec Size60) | [ v = (lit "#x00000000000000f" (BitVec Size60))]}
+bind 5 y : {v : (BitVec Size60) | [ v = (lit "#x0000000000000f0" (BitVec Size60))]}
+bind 6 z : {v : (BitVec Size60) | [ v = (lit "#x000000000000000" (BitVec Size60))]}
+
+constraint:
+  env [4;5;6]
+  lhs {v : (BitVec Size60) | [ v = bvand x y ] }
+  rhs {v : (BitVec Size60) | [ v = z ] }
+  id 1 tag []
+
+bind 7 x : {v : (BitVec Size4) | [ v = (lit "#x5" (BitVec Size4))]}
+bind 8 y : {v : (BitVec Size4) | [ v = (lit "#xb" (BitVec Size4))]}
+bind 9 z : {v : (BitVec Size4) | [ v = (lit "#x1" (BitVec Size4))]}
+
+constraint:
+  env [7;8;9]
+  lhs {v : (BitVec Size4) | [ v = bvxnor x y ] }
+  rhs {v : (BitVec Size4) | [ v = z ] }
+  id 2 tag []
+
+bind 10 x : {v : (BitVec Size4) | [ v = (lit "#x4" (BitVec Size4))]}
+bind 11 y : {v : (BitVec Size4) | [ v = (lit "#xb" (BitVec Size4))]}
+
+constraint:
+  env [10;11]
+  lhs {v : (BitVec Size4) | [ v = bvnot x ] }
+  rhs {v : (BitVec Size4) | [ v = y; y != bvneg x] }
+  id 3 tag []
+
+bind 12 x : {v : (BitVec Size4) | [ v = (lit "#x4" (BitVec Size4))]}
+bind 13 y : {v : (BitVec Size4) | [ v = (lit "#xc" (BitVec Size4))]}
+
+constraint:
+  env [12;13]
+  lhs {v : (BitVec Size4) | [ v = bvneg x ] }
+  rhs {v : (BitVec Size4) | [ v = y; y != bvnot x ] }
+  id 4 tag []
+
+bind 14 x : {v : (BitVec Size4) | true }
+bind 15 y : {v : (BitVec Size4) | true }
+
+constraint:
+  env [14;15]
+  lhs {v : (BitVec Size4) | [ v = bvand x y ] }
+  rhs {v : (BitVec Size4) | [ v = bvand y x ] }
+  id 5 tag []
+
+bind 16 x : {v : (BitVec Size4) | [ v = (lit "#b1010" (BitVec Size4))]}
+bind 17 y : {v : (BitVec Size4) | [ v = (lit "#x1" (BitVec Size4))]}
+bind 18 z : {v : (BitVec Size4) | [ v = (lit "#b0101" (BitVec Size4))]}
+
+constraint:
+  env [16;17;18]
+  lhs {v : (BitVec Size4) | [ v = bvlshr x y ] }
+  rhs {v : (BitVec Size4) | [ v = z ] }
+  id 6 tag []
+
+constraint:
+  env [16;18]
+  lhs {v : (BitVec Size4) | [ v = z ] }
+  rhs {v : (BitVec Size4) | [ v = z; bvult z x ] }
+  id 7 tag []
+
+bind 19 z : {v : (BitVec Size8) | [ v = (lit "#b10100001" (BitVec Size8))]}
+
+constraint:
+  env [16;17;19]
+  lhs {v : (BitVec Size8) | [ v = concat x y ] }
+  rhs {v : (BitVec Size8) | [ v = z ] }
+  id 8 tag []
+
+constraint:
+  env [19]
+  lhs {v : (BitVec Size1) | [ v = bvcomp z z ] }
+  rhs {v : (BitVec Size1) | [ v = (lit "#b1" (BitVec Size1)) ] }
+  id 9 tag []
+
+
+
