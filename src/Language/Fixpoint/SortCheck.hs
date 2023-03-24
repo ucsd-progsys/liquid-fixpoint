@@ -209,6 +209,7 @@ instance (Loc a) => Elaborate (BindEnv a) where
 instance (Loc a) => Elaborate (SimpC a) where
   elaborate msg env c = c {_crhs = elaborate msg' env (_crhs c) }
     where msg'        = atLoc c (val msg)
+
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------

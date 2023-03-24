@@ -1,0 +1,65 @@
+// This file showcases bitvector functions that in smtlib2 are
+// indexed identifiers. This means that instead of writing
+// (zero_extend 2 bv) to extend a bitvector by 2 bits, we
+// write ((_ zero_extend 2) bv).
+
+// You can see the '_' as kind of applying type level arguments.
+// In the case of 'zero_extend', it determines the size of the
+// output bitvector. 
+
+// To emulate this in liquid fixpoint, we want the output to 
+// match exactly the format of indexed identifiers of smtlib2. 
+// This comes down to defining our own '_' and parenthesizing 
+// the expression in LF exactly as we would in the smt format.
+
+// The last trick here, is that we cannot apply a parenthesized
+// expression to an expression. For this we have defined the 
+// additional expression 'app', which simply applies its operands.
+// 'app' is elaborated to the empty string to the SMT solver, such
+// that (app (_ zero_extend 2) bv) becomes ( (_ zero_extend 2) bv).
+
+bind 0 x : {v : (BitVec Size4) | v = (lit "#b1000" (BitVec Size4))}
+bind 1 y : {v : (BitVec Size4) | v = (app (_ rotate_right 7) x)}
+bind 2 z : {v : (BitVec Size4) | v = (lit "#b0001" (BitVec Size4))}
+
+constraint:
+  env [0;1;2]
+  lhs {v : (BitVec Size4) | [ v = y ] }
+  rhs {v : (BitVec Size4) | [ v = z ] }
+  id 0 tag []
+
+bind 3 y : {v : (BitVec Size6) | v = (app (_ zero_extend 2) x)}
+bind 4 z : {v : (BitVec Size6) | v = (lit "#b001000" (BitVec Size6))}
+
+constraint:
+  env [0;3;4]
+  lhs {v : (BitVec Size6) | [ v = y ] }
+  rhs {v : (BitVec Size6) | [ v = z ] }
+  id 1 tag []
+
+bind 5 y : {v : (BitVec Size6) | v = (app (_ sign_extend 2) x)}
+bind 6 z : {v : (BitVec Size6) | v = (lit "#b111000" (BitVec Size6))}
+
+constraint:
+  env [0;5;6]
+  lhs {v : (BitVec Size6) | [ v = y ] }
+  rhs {v : (BitVec Size6) | [ v = z ] }
+  id 2 tag []
+
+bind 7 y : {v : (BitVec Size8) | v = (app (_ repeat 2) x)}
+bind 8 z : {v : (BitVec Size8) | v = (lit "#b10001000" (BitVec Size8))}
+
+constraint:
+  env [0;7;8]
+  lhs {v : (BitVec Size8) | [ v = y ] }
+  rhs {v : (BitVec Size8) | [ v = z ] }
+  id 3 tag []
+
+bind 9  y : {v : (BitVec Size2) | v = (app (_ extract 3 2) x)}
+bind 10 z : {v : (BitVec Size2) | v = (lit "#b10" (BitVec Size2))}
+
+constraint:
+  env [0;9;10]
+  lhs {v : (BitVec Size2) | [ v = y ] }
+  rhs {v : (BitVec Size2) | [ v = z ] }
+  id 4 tag []
