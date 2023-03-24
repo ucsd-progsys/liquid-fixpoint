@@ -93,6 +93,7 @@ tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
 notracepp :: (PPrint a) => String -> a -> a
 notracepp _ x = x
 
+
 instance PPrint Doc where
   pprintTidy _ = id
 
@@ -111,6 +112,10 @@ instance (Ord a, PPrint a) => PPrint (S.HashSet a) where
 
 instance (Ord a, PPrint a, PPrint b) => PPrint (M.HashMap a b) where
   pprintTidy k = pprintKVs k . hashMapToAscList
+
+instance PPrint Char where
+  pprintTidy _ = char
+
 
 pprintKVs   :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> Doc
 pprintKVs t = vcat . punctuate "\n" . map pp1

@@ -104,6 +104,8 @@ module Language.Fixpoint.Types.Names (
   , vvName
   , sizeName
   , bitVecName
+  -- , bvAndName, bvOrName, bvSubName, bvAddName
+  , intbv32Name, intbv64Name, bv32intName, bv64intName
   , propConName
 
   -- HKT , tyAppName
@@ -617,14 +619,30 @@ charConName  = "Char"
 symSepName   :: (IsString a) => a
 symSepName   = "##"
 
+-- nilName, consName, size32Name, size64Name, bitVecName :: Symbol
+-- nilName      = "nil"
+-- consName     = "cons"
+-- size32Name   = "Size32"
+-- size64Name   = "Size64"
+-- bitVecName   = "BitVec"
+
+-- bvOrName, bvAndName, bvSubName, bvAddName,
+intbv32Name, intbv64Name, bv32intName, bv64intName :: Symbol
+-- bvOrName    = "bvor"
+-- bvAndName   = "bvand"
+-- bvSubName   = "bvsub"
+-- bvAddName   = "bvadd"
+intbv32Name = "int_to_bv32"
+intbv64Name = "int_to_bv64"
+bv32intName = "bv32_to_int"
+bv64intName = "bv64_to_int"
+
 nilName, consName, sizeName, bitVecName :: Symbol
 nilName       = "nil"
 consName      = "cons"
 sizeName      = "Size"
 bitVecName    = "BitVec"
 
--- HKT tyAppName :: Symbol
--- HKT tyAppName    = "LF-App"
 
 mulFuncName, divFuncName :: Symbol
 mulFuncName  = "Z3_OP_MUL"
@@ -661,7 +679,7 @@ prims = S.fromList
   , "Map_default"
   -- Currently we parse X in "SizeX" to get the bitvec size
   -- so there is no finite set of names to add here...
-  -- , size32Name 
+  -- , size32Name
   -- , size64Name
   , bitVecName
   -- , bvOrName
