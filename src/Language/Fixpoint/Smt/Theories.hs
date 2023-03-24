@@ -543,7 +543,7 @@ interpSymbols =
   , interpSym "app" "" appSort
 
   , interpSym' bvConcatName bvConcatSort
-  , interpSym' bvExtractName $ FFunc FInt $ bvExtendSort
+  , interpSym' bvExtractName (FFunc FInt bvExtendSort)
   , interpBvExt bvRepeatName
   , interpBvExt bvZeroExtName
   , interpBvExt bvSignExtName
@@ -583,13 +583,16 @@ interpSymbols =
   , interpBvCmp bvSGtName
   , interpBvCmp bvSGeName
 
-  , interpSym intbv32Name "(_ int2bv 32)" (FFunc intSort bitVec32Sort)
-  , interpSym intbv64Name "(_ int2bv 64)" (FFunc intSort bitVec64Sort)
-  , interpSym bv32intName  "(_ bv2int 32)" (FFunc bitVec32Sort intSort)
-  , interpSym bv64intName   "(_ bv2int 64)" (FFunc bitVec64Sort intSort)
+  , interpSym intbv32Name "(_ int2bv 32)"   (FFunc intSort bv32)
+  , interpSym intbv64Name "(_ int2bv 64)"   (FFunc intSort bv64)
+  , interpSym bv32intName  "(_ bv2int 32)"  (FFunc bv32    intSort)
+  , interpSym bv64intName   "(_ bv2int 64)" (FFunc bv64    intSort)
 
   ]
   where
+    -- (sizedBitVecSort "Size1")
+    bv32       = sizedBitVecSort "Size32"
+    bv64       = sizedBitVecSort "Size64"
     boolInt    = boolToIntName
     setAddSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (FVar 0)           (setSort $ FVar 0)
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
@@ -619,14 +622,19 @@ interpSymbols =
     mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
 
-bvBopSort  = FAbs 0 $ FFunc (bitVecSort (FVar 0)) (FFunc (bitVecSort (FVar 0)) (bitVecSort (FVar 0)))
 
+interpBvUop :: Symbol -> (Symbol, TheorySymbol)
 interpBvUop name = interpSym' name bvUopSort
+interpBvBop :: Symbol -> (Symbol, TheorySymbol)
 interpBvBop name = interpSym' name bvBopSort
+interpBvCmp :: Symbol -> (Symbol, TheorySymbol)
 interpBvCmp name = interpSym' name bvCmpSort
+interpBvExt :: Symbol -> (Symbol, TheorySymbol)
 interpBvExt name = interpSym' name bvExtendSort
+interpBvRot :: Symbol -> (Symbol, TheorySymbol)
 interpBvRot name = interpSym' name bvRotSort
 
+interpSym' :: Symbol -> Sort -> (Symbol, TheorySymbol)
 interpSym' name = interpSym name (Data.Text.pack $ symbolString name)
 
 -- Indexed Identifier sort.
@@ -644,6 +652,7 @@ interpSym' name = interpSym name (Data.Text.pack $ symbolString name)
 -- elaborated like e.g. ( (_ (as sign_extend Int) 1) bv), which is wrong!
 --
 -- _ :: forall a b c. (a -> b -> c) -> a -> (b -> c)
+iiSort :: Sort
 iiSort = FAbs 0 $ FAbs 1 $ FAbs 2 $ FFunc
                (FFunc (FVar 0) $ FFunc (FVar 1) (FVar 2))
                (FFunc (FVar 0) $ FFunc (FVar 1) (FVar 2))
@@ -651,6 +660,7 @@ iiSort = FAbs 0 $ FAbs 1 $ FAbs 2 $ FFunc
 -- Simple application, used for indexed identifier function, check '_'.
 --
 -- app :: forall a b. (a -> b) -> a -> b
+appSort :: Sort
 appSort = FAbs 0 $ FAbs 1 $ FFunc
                 (FFunc (FVar 0) (FVar 1))
                 (FFunc (FVar 0) (FVar 1))
@@ -658,26 +668,34 @@ appSort = FAbs 0 $ FAbs 1 $ FFunc
 -- Indexed identifier operation, purposely didn't place FAbs!
 --
 -- extend :: Int -> BitVec a -> BitVec b
+bvExtendSort :: Sort
 bvExtendSort  = FFunc FInt $ FFunc (bitVecSort 1) (bitVecSort 2)
 
 -- Indexed identifier operation, purposely didn't place FAbs!
 --
 -- rot :: Int -> BitVec a -> BitVec a
+bvRotSort :: Sort
 bvRotSort  = FFunc FInt $ FFunc (bitVecSort 0) (bitVecSort 0)
 
 -- uOp :: forall a. BitVec a -> BitVec a
+bvUopSort :: Sort
 bvUopSort = FAbs 0 $ FFunc (bitVecSort 0) (bitVecSort 0)
 
 -- bOp :: forall a. BitVec a -> BitVec a -> BitVec a
+bvBopSort :: Sort
 bvBopSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) (bitVecSort 0)
+-- bvBopSort = FAbs 0 $ FFunc (bitVecSort (FVar 0)) (FFunc (bitVecSort (FVar 0)) (bitVecSort (FVar 0)))
 
 -- cmp :: forall a. BitVec a -> BitVec a -> Bool
+bvCmpSort :: Sort
 bvCmpSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) boolSort
 
 -- eq :: forall a. BitVec a -> BitVec a -> BitVec 1
+bvEqSort :: Sort
 bvEqSort = FAbs 0 $ FFunc (bitVecSort 0) $ FFunc (bitVecSort 0) (sizedBitVecSort "Size1")
 
 -- concat :: forall a b c. BitVec a -> BitVec b -> BitVec c
+bvConcatSort :: Sort
 bvConcatSort = FAbs 0 $ FAbs 1 $ FAbs 2 $
                      FFunc (bitVecSort 0) $ FFunc (bitVecSort 1) (bitVecSort 2)
 

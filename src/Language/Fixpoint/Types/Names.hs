@@ -626,11 +626,12 @@ symSepName   = "##"
 -- size64Name   = "Size64"
 -- bitVecName   = "BitVec"
 
-bvOrName, bvAndName, bvSubName, bvAddName, intbv32Name, intbv64Name, bv32intName, bv64intName :: Symbol
-bvOrName    = "bvor"
-bvAndName   = "bvand"
-bvSubName   = "bvsub"
-bvAddName   = "bvadd"
+-- bvOrName, bvAndName, bvSubName, bvAddName,
+intbv32Name, intbv64Name, bv32intName, bv64intName :: Symbol
+-- bvOrName    = "bvor"
+-- bvAndName   = "bvand"
+-- bvSubName   = "bvsub"
+-- bvAddName   = "bvadd"
 intbv32Name = "int_to_bv32"
 intbv64Name = "int_to_bv64"
 bv32intName = "bv32_to_int"
