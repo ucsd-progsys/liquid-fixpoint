@@ -482,22 +482,20 @@ funcSort = fTyconSort funcFTyCon
 setSort :: Sort -> Sort
 setSort    = FApp (FTC setFTyCon)
 
-<<<<<<< HEAD
-bitVecSort :: Sort -> Sort
-bitVecSort = FApp (FTC $ symbolFTycon' bitVecName)
+-- bitVecSort :: Sort -> Sort
+-- bitVecSort = FApp (FTC $ symbolFTycon' bitVecName)
 
-bitVec32Sort :: Sort
-bitVec32Sort = bitVecSort (FTC (symbolFTycon' size32Name))
+-- bitVec32Sort :: Sort
+-- bitVec32Sort = bitVecSort (FTC (symbolFTycon' size32Name))
+--
+-- bitVec64Sort :: Sort
+-- bitVec64Sort = bitVecSort (FTC (symbolFTycon' size64Name))
 
-bitVec64Sort :: Sort
-bitVec64Sort = bitVecSort (FTC (symbolFTycon' size64Name))
-=======
 bitVecSort :: Int -> Sort
 bitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FVar i)
 
 sizedBitVecSort :: Symbol -> Sort
 sizedBitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' i)
->>>>>>> develop
 
 mapSort :: Sort -> Sort -> Sort
 mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))
