@@ -334,7 +334,9 @@ getZ3Version me
   = do -- resp is like (:version "4.8.15")
        resp <- SMTLIB.Backends.command (ctxSolver me) "(get-info :version)"
        case Char8.split '"' resp of
-         _:vText:_ -> do
+         _:rText:_ -> do
+           -- strip off potential " - build hashcode ..." suffix
+           let vText = Char8.takeWhile (not . isSpace) rText
            let parsedComponents = [ reads (Char8.unpack cText) | cText <- Char8.split '.' vText ]
            sequence
              [ case pComponent of
