@@ -799,16 +799,8 @@ evalApp γ ctx e0 es et
                       EIte{} -> True
                       _ -> False
 
-                if not undecidedGuards || Mb.isJust mPLEUnfold
+                if undecidedGuards
                   then do
-                    useFuel f
-                    modify $ \st ->
-                      st
-                        { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
-                        , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
-                        }
-                    return (Just e2', fe)
-                  else do
                     modify $ \st ->
                       st {
                         evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
@@ -817,6 +809,14 @@ evalApp γ ctx e0 es et
                     -- guarding it, just to preserve the size of further
                     -- rewrites.
                     return (Nothing, noExpand)
+                  else do
+                    useFuel f
+                    modify $ \st ->
+                      st
+                        { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
+                        , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
+                        }
+                    return (Just e2', fe)
          else return (Nothing, noExpand)
   where
     -- At the time of writing, any function application wrapping an
