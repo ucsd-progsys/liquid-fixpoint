@@ -792,8 +792,7 @@ evalApp γ ctx e0 es et
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
                 (e', fe) <- evalIte γ ctx et newE -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-                let mPLEUnfold = startsWithPLEUnfold e'
-                    e2' = Mb.fromMaybe e' mPLEUnfold
+                let e2' = stripPLEUnfold e'
                     e3' = simplify γ ctx (eApps e2' es2) -- reduces a bit the equations
                     undecidedGuards = case e' of
                       EIte{} -> True
@@ -824,12 +823,12 @@ evalApp γ ctx e0 es et
     -- However, using pleUnfold still has the advantage of not generating
     -- extra equations to unfold pleUnfold itself. Using pleUnfold also
     -- makes the intention of the user rather explicit.
-    startsWithPLEUnfold e
+    stripPLEUnfold e
       | (ef, [arg]) <- splitEAppThroughECst e
       , EVar f <- dropECst ef
       , f == "Language.Haskell.Liquid.ProofCombinators.pleUnfold"
-      = Just arg
-      | otherwise = Nothing
+      = arg
+      | otherwise = e
 
 evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
