@@ -52,6 +52,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
+    , smtGetValues
 
     -- * Check Validity
     , checkValid
@@ -85,6 +86,7 @@ import qualified Data.ByteString.Lazy.Char8 as Char8
 import           Data.Char
 import qualified Data.HashMap.Strict      as M
 import           Data.Maybe              (fromMaybe)
+import           Data.List (foldl')
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as TE
 import qualified Data.Text.IO
@@ -170,15 +172,11 @@ command Ctx {..} !cmd       = do
     LBS.hPutStr h "\n"
   case cmd of
     CheckSat   -> commandRaw
-    GetValue _ -> commandRaw
     _          -> SMTLIB.Backends.command_ ctxSolver cmdBS >> return Ok
   where
     commandRaw      = do
       resp <- SMTLIB.Backends.command ctxSolver cmdBS
-      let respTxt =
-            TE.decodeUtf8With (const $ const $ Just ' ') $
-            LBS.toStrict resp
-      parse respTxt
+      parse $ bs2txt resp
     cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
     parse resp      = do
       case A.parseOnly responseP resp of
@@ -191,48 +189,85 @@ command Ctx {..} !cmd       = do
             Data.Text.IO.putStrLn textResponse
           return r
 
+bs2txt :: Char8.ByteString -> T.Text
+bs2txt = TE.decodeUtf8With (const $ const $ Just ' ') . LBS.toStrict
+
+smtGetValues :: Context -> [Symbol] -> IO (M.HashMap Symbol Expr)
+smtGetValues _ [] = return M.empty
+smtGetValues Ctx {..} syms = do
+  -- bytestring <- SMTLIB.Backends.command ctxSolver "(get-model)"
+  -- print bytestring
+
+  let cmd = key "get-value" (parenSeqs $ map (smt2 ctxSymEnv) syms)
+  bytestring <- SMTLIB.Backends.command ctxSolver cmd
+  let text = bs2txt bytestring
+  case A.parseOnly valuesP text of
+    Left err -> Misc.errorstar $ "Parse error on get-value: " ++ err ++ "\n\n" ++ show text
+    Right sol -> return sol
+
 smtSetMbqi :: Context -> IO ()
 smtSetMbqi me = interact' me SetMbqi
 
 type SmtParser a = Parser T.Text a
 
-responseP :: SmtParser Response
-responseP = {- SCC "responseP" -} A.char '(' *> sexpP
-         <|> A.string "sat"     *> return Sat
-         <|> A.string "unsat"   *> return Unsat
-         <|> A.string "unknown" *> return Unknown
+valuesP :: SmtParser (M.HashMap Symbol Expr)
+valuesP = parenP $ do
+  vs <- A.many' valueP
+  return $ M.fromList vs
 
-sexpP :: SmtParser Response
-sexpP = {- SCC "sexpP" -} A.string "error" *> (Error <$> errorP)
-     <|> Values <$> valuesP
+valueP :: SmtParser (Symbol, Expr)
+valueP = parenP $ do
+  sym <- symbolP
+  expr <- exprP
+  return (sym, expr)
 
-errorP :: SmtParser T.Text
-errorP = A.skipSpace *> A.char '"' *> A.takeWhile1 (/='"') <* A.string "\")"
+exprP :: SmtParser Expr
+exprP = do
+  expr <- (appP <|> litP)
+  return expr
 
-valuesP :: SmtParser [(Symbol, T.Text)]
-valuesP = A.many1' pairP <* A.char ')'
+appP :: SmtParser Expr
+appP = do
+  (e:es) <- parenP $ A.many1' exprP
+  return $ foldl' EApp e es
 
-pairP :: SmtParser (Symbol, T.Text)
-pairP = {- SCC "pairP" -}
-  do A.skipSpace
-     _ <- A.char '('
-     !x <- symbolP
-     A.skipSpace
-     !v <- valueP
-     _ <- A.char ')'
-     return (x,v)
+litP :: SmtParser Expr
+litP = EVar <$> symbolP
+
+parenP :: SmtParser a -> SmtParser a
+parenP inner = do
+  A.skipSpace
+  _ <- A.char '('
+  res <- inner
+  _ <- A.char ')'
+  A.skipSpace
+  return res
 
 symbolP :: SmtParser Symbol
-symbolP = {- SCC "symbolP" -} symbol <$> A.takeWhile1 (not . isSpace)
+symbolP = {- SCC "symbolP" -} do
+  A.skipSpace
+  raw <- A.takeWhile1 (not . exclude)
+  A.skipSpace
+  return $ symbol raw
+  where
+    exclude x = isSpace x || x == '(' || x == ')'
 
-valueP :: SmtParser T.Text
-valueP = {- SCC "valueP" -} negativeP
-      <|> A.takeWhile1 (\c -> not (c == ')' || isSpace c))
+responseP :: SmtParser Response
+responseP = {- SCC "responseP" -}
+             A.string "sat"     *> return Sat
+         <|> A.string "unsat"   *> return Unsat
+         <|> A.string "unknown" *> return Unknown
+         <|> (Error <$> errorP)
 
-negativeP :: SmtParser T.Text
-negativeP
-  = do v <- A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
-       return $ "(" <> v <> ")"
+errorP :: SmtParser T.Text
+errorP = do
+  A.skipSpace
+  _ <- A.string "error"
+  A.skipSpace
+  _ <- A.string "(\""
+  res <- A.takeWhile1 (/= '"')
+  _ <- A.string "\")"
+  return res
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------

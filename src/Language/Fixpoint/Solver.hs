@@ -62,6 +62,8 @@ import           Control.DeepSeq
 import qualified Data.ByteString as B
 import Data.Maybe (catMaybes)
 
+import Language.Fixpoint.CounterExample
+
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
 ---------------------------------------------------------------------------
@@ -262,6 +264,12 @@ reduceFInfo cfg fi = do
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
+  -- print fi0
+  -- print si6
+  print fi0
+  prog <- hornToProg si6
+  print . pprint $ prog
+
   res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
