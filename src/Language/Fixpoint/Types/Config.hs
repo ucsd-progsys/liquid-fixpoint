@@ -22,6 +22,9 @@ module Language.Fixpoint.Types.Config (
   , Eliminate (..)
   , useElim
 
+  -- * Scrape options
+  , Scrape (..)
+
   -- * parallel solving options
   , defaultMinPartSize
   , defaultMaxPartSize
@@ -76,6 +79,7 @@ data Config = Config
   , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
   , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
   , eliminate   :: Eliminate           -- ^ eliminate non-cut KVars
+  , scrape      :: Scrape              -- ^ configure auto-scraping of qualifiers from constraints
   , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
   , smtTimeout  :: Maybe Int           -- ^ smt timeout in msec
   , elimStats   :: Bool                -- ^ print eliminate stats
@@ -155,6 +159,27 @@ instance Show SMTSolver where
 instance S.Store SMTSolver
 
 ---------------------------------------------------------------------------------------
+-- | `Scrape` describes which (Horn) constraints to scrape qualifiers from
+--   None = do not scrape, only use the supplied qualifiers
+--   Head = scrape only from the constraint heads (i.e. "rhs")
+--   All  = scrape all concrete predicates (i.e. "rhs" + "lhs")
+
+data Scrape = No | Head | Both
+  deriving (Eq, Data, Typeable, Generic)
+
+instance Serialize Scrape
+instance S.Store Scrape
+instance NFData Scrape
+
+instance Default Scrape where
+  def = No
+
+instance Show Scrape where
+  show No   = "no"
+  show Head = "head"
+  show Both = "both"
+
+---------------------------------------------------------------------------------------
 -- | Eliminate describes the number of KVars to eliminate:
 --   None = use PA/Quals for ALL k-vars, i.e. no eliminate
 --   Some = use PA/Quals for CUT k-vars, i.e. eliminate non-cuts
@@ -201,6 +226,7 @@ defConfig = Config {
   , allowHO                  = False   &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs                = False   &= help "Allow higher order qualifiers"
   , eliminate                = None    &= help "Eliminate KVars [none = quals for all-kvars, cuts = quals for cut-kvars, all = eliminate all-kvars (TRUE for cuts)]"
+  , scrape                   = def     &= help "Scrape qualifiers from constraint (Horn format only) [ no = do not, head = scrape from heads, both = scrape from everywhere ]"
   , elimBound                = Nothing &= name "elimBound"   &= help "(alpha) Maximum eliminate-chain depth"
   , smtTimeout               = Nothing &= name "smtTimeout"  &= help "smt timeout in msec"
   , elimStats                = False   &= help "(alpha) Print eliminate stats"

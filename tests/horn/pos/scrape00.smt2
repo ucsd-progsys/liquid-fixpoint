@@ -1,30 +1,7 @@
-// Tag 0: Goto(bb1) at 27:9: 27:16
-// Tag 1: Ret at 33:5: 33:8
-// Tag 2: Goto(bb1) at 28:18: 32:6
-// (qualif AUTO1 ((a0 int)) (a0 >= 0))
-// (qualif AUTO2 ((a1 int)) (a1 >= 0))
-// (qualif AUTO3 ((a1 int) (a0 int)) (a0 <= a1))
-// (qualif AUTO4 ((a2 int)) (a2 = 0))
-// (qualif AUTO6 ((a4 int) (a1 int)) (~ ((a4 < a1))))
-// (qualif AUTO7 ((a4 int) (a1 int)) (a4 < a1))
-// (qualif AUTO8 ((a5 int) (a3 int)) (a5 = (a3 + 1)))
-// (qualif AUTO9 ((a6 int) (a4 int)) (a6 = (a4 + 1)))
-// (qualif AUTO5 ((a3 int) (a1 int) (a0 int)) (a3 = (a1 - a0)))
+// (fixpoint "--scrape=head")
 
 // This is the qualifier we want to auto-scrape
 // (qualif MyQ1 ((a0 int) (a1 int) (a2 int)) (a0 = (a1 - a2)))
-
-// (qualif GeZero ((a0 int)) (a0 >= 0))
-// (qualif EqZero ((a0 int)) (a0 = 0))
-// (qualif GtZero ((a0 int)) (a0 > 0))
-// (qualif GeZero ((a0 int)) (a0 >= 0))
-// (qualif LtZero ((a0 int)) (a0 < 0))
-// (qualif LeZero ((a0 int)) (a0 <= 0))
-// (qualif Eq ((a0 int) (a1 int)) (a0 = a1))
-// (qualif Gt ((a0 int) (a1 int)) (a0 > a1))
-// (qualif Ge ((a0 int) (a1 int)) (a0 >= a1))
-// (qualif Lt ((a0 int) (a1 int)) (a0 < a1))
-// (qualif Le1 ((a0 int) (a1 int)) (a0 <= (a1 - 1)))
 
 (qualif Le ((a0 int) (a1 int)) (a0 <= a1))
 

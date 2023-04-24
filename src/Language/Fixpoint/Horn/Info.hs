@@ -23,7 +23,7 @@ hornFInfo cfg q = mempty
   , F.bs        = be2
   , F.ebinds    = ebs
   , F.ws        = kvEnvWfCs kve
-  , F.quals     = H.qQuals q ++ scrapeCstr hCst
+  , F.quals     = H.qQuals q ++ scrapeCstr (F.scrape cfg) hCst
   , F.gLits     = F.fromMapSEnv $ H.qCon q
   , F.dLits     = F.fromMapSEnv $ H.qDis q
   , F.ae        = axEnv cfg q cs
@@ -34,6 +34,7 @@ hornFInfo cfg q = mempty
     (be1, kve)  = hornWfs   be0     (H.qVars q)
     (be2, ebs, cs) = hornSubCs be1 kve hCst
     hCst           = H.qCstr q
+
 
 axEnv :: F.Config -> H.Query a -> M.HashMap F.SubcId b -> F.AxiomEnv
 axEnv cfg q cs = mempty
@@ -168,16 +169,18 @@ hvarPrefix = F.symbol "nnf_arg"
 -- | Automatically scrape qualifiers from all predicates in a constraint
 -------------------------------------------------------------------------------
 
-scrapeCstr :: H.Cstr a -> [F.Qualifier]
-scrapeCstr = go emptyBindEnv
+scrapeCstr :: F.Scrape -> H.Cstr a -> [F.Qualifier]
+scrapeCstr F.No _    = []
+scrapeCstr m    cstr = go emptyBindEnv cstr
   where
     go senv (H.Head p _) = scrapePred senv p
     go senv (H.CAnd cs)  = concatMap (go senv) cs
-    go senv (H.All b c)  = scrapeBind senv' b <> go senv' c where senv' = insertBindEnv b senv
-    go senv (H.Any b c)  = scrapeBind senv' b <> go senv' c where senv' = insertBindEnv b senv
+    go senv (H.All b c)  = scrapeBind m senv' b <> go senv' c where senv' = insertBindEnv b senv
+    go senv (H.Any b c)  = scrapeBind m senv' b <> go senv' c where senv' = insertBindEnv b senv
 
-scrapeBind :: BindEnv -> H.Bind a -> [F.Qualifier]
-scrapeBind senv b = scrapePred senv (H.bPred b)
+scrapeBind :: F.Scrape -> BindEnv -> H.Bind a -> [F.Qualifier]
+scrapeBind F.Both senv b = scrapePred senv (H.bPred b)
+scrapeBind _      _    _ = []
 
 scrapePred :: BindEnv -> H.Pred -> [F.Qualifier]
 scrapePred _    (H.Var _ _) = []
