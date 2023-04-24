@@ -22,7 +22,7 @@ hornFInfo cfg q = mempty
   , F.bs        = be2
   , F.ebinds    = ebs
   , F.ws        = kvEnvWfCs kve
-  , F.quals     = H.qQuals q
+  , F.quals     = H.qQuals q ++ scrapeCstr hCst
   , F.gLits     = F.fromMapSEnv $ H.qCon q
   , F.dLits     = F.fromMapSEnv $ H.qDis q
   , F.ae        = axEnv cfg q cs
@@ -102,10 +102,6 @@ updSortedReft kve lhs p = F.RR s (F.Reft (v, predExpr kve p))
                  Just (F.RR ss (F.Reft (vv, _))) -> (ss, vv)
                  Nothing                       -> (F.intSort, F.dummySymbol)
 
--- dummyBind :: a -> Bind a
--- dummyBind = Bind F.dummySymbol F.intSort (PAnd [])
-
-
 predExpr :: KVEnv a -> H.Pred -> F.Expr
 predExpr kve        = go
   where
@@ -166,3 +162,47 @@ hvarArg k i = F.intSymbol (F.suffixSymbol hvarPrefix (H.hvName k)) i
 
 hvarPrefix :: F.Symbol
 hvarPrefix = F.symbol "nnf_arg"
+
+-------------------------------------------------------------------------------
+-- | Automatically scrape qualifiers from all predicates in a constraint
+-------------------------------------------------------------------------------
+
+-- | `BindEnv` maps each symbol to (sort, depth) pair, where shorter depths
+--    means bound "earlier" i.e. in (forall (x1:...) (forall (x2:...) ...)
+--    the depth of x1 is less than the depth of x2.
+--    We use the heuristic that the symbol with the "largest" depth is the
+--    "value-variable" in the qualifier.
+
+data BindEnv = BindEnv
+  { bSize  :: !Int
+  , bBinds :: M.HashMap F.Symbol (F.Sort, Int)
+  }
+
+emptyBindEnv :: BindEnv
+emptyBindEnv = BindEnv { bSize = 0, bBinds = mempty }
+
+insertBindEnv :: H.Bind a -> BindEnv -> BindEnv
+insertBindEnv b senv = BindEnv { bSize = n + 1, bBinds = M.insert x (t, n) (bBinds senv) }
+  where
+    n = bSize senv
+    x = H.bSym b
+    t = H.bSort b
+
+scrapeCstr :: H.Cstr a -> [F.Qualifier]
+scrapeCstr = go emptyBindEnv
+  where
+    go senv (H.Head p _) = scrapePred senv p
+    go senv (H.CAnd cs)  = concatMap (go senv) cs
+    go senv (H.All b c)  = scrapeBind senv' b <> go senv' c where senv' = insertBindEnv b senv
+    go senv (H.Any b c)  = scrapeBind senv' b <> go senv' c where senv' = insertBindEnv b senv
+
+scrapeBind :: BindEnv -> H.Bind a -> [F.Qualifier]
+scrapeBind senv b = scrapePred senv (H.bPred b)
+
+scrapePred :: BindEnv -> H.Pred -> [F.Qualifier]
+scrapePred _    (H.Var _ _) = []
+scrapePred senv (H.PAnd ps) = concatMap (scrapePred senv) ps
+scrapePred senv (H.Reft e)  = scrapeExpr senv e
+
+scrapeExpr :: BindEnv -> F.Expr -> [F.Qualifier]
+scrapeExpr _senv _e = undefined
