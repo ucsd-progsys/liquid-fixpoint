@@ -15,7 +15,7 @@ import qualified Language.Fixpoint.Misc         as Misc
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
-import           Data.Maybe (catMaybes, fromMaybe)
+import qualified Data.Maybe                     as Mb
 
 hornFInfo :: F.Config -> H.Query a -> F.FInfo a
 hornFInfo cfg q = mempty
@@ -91,7 +91,7 @@ goS' kve env _   be (H.Any b c)  = (be'', Left bId : subcs)
 myMkSubC :: F.IBindEnv -> Maybe F.SortedReft -> F.SortedReft -> Maybe Integer -> F.Tag -> a -> F.SubC a
 myMkSubC be lhsMb rhs x y z = F.mkSubC be lhs rhs x y z
   where
-    lhs = fromMaybe def lhsMb
+    lhs = Mb.fromMaybe def lhsMb
     def = F.trueSortedReft (F.sr_sort rhs)
 
 bindSortedReft :: KVEnv a -> H.Bind a -> F.SortedReft
@@ -171,7 +171,7 @@ hvarPrefix = F.symbol "nnf_arg"
 
 scrapeCstr :: F.Scrape -> H.Cstr a -> [F.Qualifier]
 scrapeCstr F.No _    = []
-scrapeCstr m    cstr = go emptyBindEnv cstr
+scrapeCstr m    cstr = Misc.sortNub $ go emptyBindEnv cstr
   where
     go senv (H.Head p _) = scrapePred senv p
     go senv (H.CAnd cs)  = concatMap (go senv) cs
@@ -185,26 +185,49 @@ scrapeBind _      _    _ = []
 scrapePred :: BindEnv -> H.Pred -> [F.Qualifier]
 scrapePred _    (H.Var _ _) = []
 scrapePred senv (H.PAnd ps) = concatMap (scrapePred senv) ps
-scrapePred senv (H.Reft e)  = catMaybes (mkQual senv <$> F.concConjuncts e)
+scrapePred senv (H.Reft e)  = concatMap (mkQual senv) (F.concConjuncts e)
 
-mkQual :: BindEnv -> F.Expr -> Maybe F.Qualifier
-mkQual env e = do
-  ixts       <- qualParams env e
-  let qParams = [ F.QP {F.qpSym = x, F.qpPat = F.PatNone, F.qpSort = t} | (_,x,t) <- ixts ]
-  return F.Q { F.qName = F.symbol "AUTO", F.qParams = qParams, F.qBody = e, F.qPos = F.dummyPos "" }
+-- NOTE: Constraints.mkQual will do extra stuff like generalizing the sorts...
+mkQual :: BindEnv -> F.Expr -> [ F.Qualifier ]
+mkQual env e = case qualParams env e of
+  Nothing  -> []
+  Just xts -> [ mkScrapeQual xts' e | xts' <- shiftCycle xts ]
 
-  {-
-    xs   = free-vars e
-    ixts = reverse . sort $ [ (i, x, t) | x <- xs, (i, t) <- lookupBindEnv x senv ]
-   -}
+mkScrapeQual :: [(F.Symbol, F.Sort)] -> F.Expr -> F.Qualifier
+mkScrapeQual xts e = F.mkQual (F.symbol "AUTO") qParams (F.subst su e) (F.dummyPos "")
+  where
+    qParams = [ F.QP {F.qpSym = y, F.qpPat = F.PatNone, F.qpSort = t} | (_, y, t) <- xyts ]
+    xyts    = zipWith (\i (x, t) -> (x, F.bindSymbol i, t)) [0..] xts
+    su      = F.mkSubst [ (x, F.expr y) | (x, y, _) <- xyts ]
 
-qualParams :: BindEnv -> F.Expr -> Maybe [(Int, F.Symbol, F.Sort)]
+
+shiftCycle :: [(F.Symbol, F.Sort)] -> [[(F.Symbol, F.Sort)]]
+shiftCycle xts
+  | n <= maxQualifierParams = recycle n xts
+  | otherwise              = []
+  where
+    n                      = length xts
+
+recycle :: Int -> [a] -> [[a]]
+recycle 0 _      = []
+recycle _ []     = []
+recycle k (x:xs) = (x:xs) : recycle (k-1) (xs ++ [x])
+
+maxQualifierParams :: Int
+maxQualifierParams = 3
+
+{-
+  1. Normalize the names
+  2. Permute the args?
+ -}
+
+qualParams :: BindEnv -> F.Expr -> Maybe [(F.Symbol, F.Sort)]
 qualParams env e = do
     let xs = Misc.nubOrd (F.syms e)
     ixts <- forM xs $ \x -> do
               (t, i) <- lookupBindEnv x env
               return (i, x, t)
-    return (reverse . L.sort $ ixts)
+    return [ (x, t) | (_, x, t) <- reverse . L.sort $ ixts ]
 
     -- ixts = [ (i, x, t) | x <- xs, (i, t) <- lookupBindEnv x env ]
 
