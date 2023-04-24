@@ -1,8 +1,8 @@
-(fixpoint "--scrape=both")
+(fixpoint "--scrape=head")
 
 // These are the qualifiers we want to auto-scrape
 // (qualif MyQ1 ((a0 int) (a1 int) (a2 int)) (a0 = (a1 - a2)))
-// (qualif Le ((a0 int) (a1 int)) (a0 <= a1))
+(qualif Le ((a0 int) (a1 int)) (a0 <= a1))
 
 (data Pair 2 = [| Pair { fst: @(0), snd: @(1) } ])
 (data Unit 0 = [| Unit { }])
