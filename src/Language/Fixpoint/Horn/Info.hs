@@ -5,6 +5,7 @@ module Language.Fixpoint.Horn.Info (
     hornFInfo
   ) where
 
+import           Control.Monad (forM)
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import qualified Data.Tuple                     as Tuple
@@ -14,7 +15,7 @@ import qualified Language.Fixpoint.Misc         as Misc
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
-import Data.Maybe (fromMaybe)
+import           Data.Maybe (catMaybes, fromMaybe)
 
 hornFInfo :: F.Config -> H.Query a -> F.FInfo a
 hornFInfo cfg q = mempty
@@ -167,6 +168,45 @@ hvarPrefix = F.symbol "nnf_arg"
 -- | Automatically scrape qualifiers from all predicates in a constraint
 -------------------------------------------------------------------------------
 
+scrapeCstr :: H.Cstr a -> [F.Qualifier]
+scrapeCstr = go emptyBindEnv
+  where
+    go senv (H.Head p _) = scrapePred senv p
+    go senv (H.CAnd cs)  = concatMap (go senv) cs
+    go senv (H.All b c)  = scrapeBind senv' b <> go senv' c where senv' = insertBindEnv b senv
+    go senv (H.Any b c)  = scrapeBind senv' b <> go senv' c where senv' = insertBindEnv b senv
+
+scrapeBind :: BindEnv -> H.Bind a -> [F.Qualifier]
+scrapeBind senv b = scrapePred senv (H.bPred b)
+
+scrapePred :: BindEnv -> H.Pred -> [F.Qualifier]
+scrapePred _    (H.Var _ _) = []
+scrapePred senv (H.PAnd ps) = concatMap (scrapePred senv) ps
+scrapePred senv (H.Reft e)  = catMaybes (mkQual senv <$> F.concConjuncts e)
+
+mkQual :: BindEnv -> F.Expr -> Maybe F.Qualifier
+mkQual env e = do
+  ixts       <- qualParams env e
+  let qParams = [ F.QP {F.qpSym = x, F.qpPat = F.PatNone, F.qpSort = t} | (_,x,t) <- ixts ]
+  return F.Q { F.qName = F.symbol "AUTO", F.qParams = qParams, F.qBody = e, F.qPos = F.dummyPos "" }
+
+  {-
+    xs   = free-vars e
+    ixts = reverse . sort $ [ (i, x, t) | x <- xs, (i, t) <- lookupBindEnv x senv ]
+   -}
+
+qualParams :: BindEnv -> F.Expr -> Maybe [(Int, F.Symbol, F.Sort)]
+qualParams env e = do
+    let xs = Misc.nubOrd (F.syms e)
+    ixts <- forM xs $ \x -> do
+              (t, i) <- lookupBindEnv x env
+              return (i, x, t)
+    return (reverse . L.sort $ ixts)
+
+    -- ixts = [ (i, x, t) | x <- xs, (i, t) <- lookupBindEnv x env ]
+
+-------------------------------------------------------------------------------
+
 -- | `BindEnv` maps each symbol to (sort, depth) pair, where shorter depths
 --    means bound "earlier" i.e. in (forall (x1:...) (forall (x2:...) ...)
 --    the depth of x1 is less than the depth of x2.
@@ -188,21 +228,5 @@ insertBindEnv b senv = BindEnv { bSize = n + 1, bBinds = M.insert x (t, n) (bBin
     x = H.bSym b
     t = H.bSort b
 
-scrapeCstr :: H.Cstr a -> [F.Qualifier]
-scrapeCstr = go emptyBindEnv
-  where
-    go senv (H.Head p _) = scrapePred senv p
-    go senv (H.CAnd cs)  = concatMap (go senv) cs
-    go senv (H.All b c)  = scrapeBind senv' b <> go senv' c where senv' = insertBindEnv b senv
-    go senv (H.Any b c)  = scrapeBind senv' b <> go senv' c where senv' = insertBindEnv b senv
-
-scrapeBind :: BindEnv -> H.Bind a -> [F.Qualifier]
-scrapeBind senv b = scrapePred senv (H.bPred b)
-
-scrapePred :: BindEnv -> H.Pred -> [F.Qualifier]
-scrapePred _    (H.Var _ _) = []
-scrapePred senv (H.PAnd ps) = concatMap (scrapePred senv) ps
-scrapePred senv (H.Reft e)  = scrapeExpr senv e
-
-scrapeExpr :: BindEnv -> F.Expr -> [F.Qualifier]
-scrapeExpr _senv _e = undefined
+lookupBindEnv :: F.Symbol -> BindEnv -> Maybe (F.Sort, Int)
+lookupBindEnv x env = M.lookup x (bBinds env)
