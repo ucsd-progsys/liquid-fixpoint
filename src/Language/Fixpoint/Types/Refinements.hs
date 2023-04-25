@@ -77,7 +77,7 @@ module Language.Fixpoint.Types.Refinements (
 
   -- * Destructing
   , flattenRefas
-  , conjuncts
+  , conjuncts, concConjuncts
   , dropECst
   , eApps
   , eAppC
@@ -183,9 +183,13 @@ reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
     ras'                     = if null ps then ks else conj ps : ks  -- see [NOTE:pAnd-SLOW]
-    (ks, ps)                 = partition (\p -> isKvar p || isGradual p) $ refaConjuncts ra
+    (ps, ks)                 = partition isConc (refaConjuncts ra)
 
+isConc :: Expr -> Bool
+isConc p = not (isKvar p || isGradual p)
 
+concConjuncts :: Expr -> [Expr]
+concConjuncts e = filter isConc (refaConjuncts e)
 
 isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
@@ -224,6 +228,8 @@ instance HasGradual SortedReft where
 
 refaConjuncts :: Expr -> [Expr]
 refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
+
+
 
 --------------------------------------------------------------------------------
 -- | Kvars ---------------------------------------------------------------------

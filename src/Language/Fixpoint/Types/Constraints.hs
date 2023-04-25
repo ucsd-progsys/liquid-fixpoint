@@ -473,8 +473,8 @@ addIds :: [SubC a] -> [(Integer, SubC a)]
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where
     -- Adding shiftId to have distinct VV for SMT conversion
-    shiftId i c = c { slhs = shiftSR i $ slhs c }
-                    { srhs = shiftSR i $ srhs c }
+    shiftId i c = c { slhs = shiftSR i (slhs c) }
+                    { srhs = shiftSR i (srhs c) }
     shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
     shiftR i r@(Reft (v, _)) = shiftVV r (intSymbol v i)
 
@@ -542,6 +542,7 @@ instance Fixpoint Qualifier where
 
 instance PPrint Qualifier where
   pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
+  -- pprintTidy _ q = pprQual q
 
 pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <-> parens args <-> colon <+> parens (toFix p) <+> text "//" <+> toFix l
