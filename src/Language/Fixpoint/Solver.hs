@@ -268,7 +268,10 @@ solveNative' !cfg !fi0 = do
   -- print si6
   print fi0
   prog <- hornToProg si6
+  print si6
   print . pprint $ prog
+  counterExample cfg si6 prog
+
 
   res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
   -- rnf soln `seq` donePhase Loud "Solve2"

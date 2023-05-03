@@ -53,6 +53,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtDistinct
     , smtPush, smtPop
     , smtGetValues
+    , smtGetModel
 
     -- * Check Validity
     , checkValid
@@ -78,6 +79,7 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
 import           Control.Applicative      ((<|>))
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           Control.Exception
 import           Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as BS
@@ -180,7 +182,7 @@ command Ctx {..} !cmd       = do
     cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
     parse resp      = do
       case A.parseOnly responseP resp of
-        Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
+        Left e  -> Misc.errorstar $ "SMTREAD: " ++ e ++ "\n" ++ T.unpack resp
         Right r -> do
           let textResponse = "; SMT Says: " <> T.pack (show r)
           forM_ ctxLog $ \h ->
@@ -192,18 +194,25 @@ command Ctx {..} !cmd       = do
 bs2txt :: Char8.ByteString -> T.Text
 bs2txt = TE.decodeUtf8With (const $ const $ Just ' ') . LBS.toStrict
 
-smtGetValues :: Context -> [Symbol] -> IO (M.HashMap Symbol Expr)
+smtGetValues :: MonadIO m => Context -> [Symbol] -> m (M.HashMap Symbol Expr)
 smtGetValues _ [] = return M.empty
 smtGetValues Ctx {..} syms = do
   -- bytestring <- SMTLIB.Backends.command ctxSolver "(get-model)"
   -- print bytestring
 
   let cmd = key "get-value" (parenSeqs $ map (smt2 ctxSymEnv) syms)
-  bytestring <- SMTLIB.Backends.command ctxSolver cmd
+  bytestring <- liftIO $ SMTLIB.Backends.command ctxSolver cmd
   let text = bs2txt bytestring
   case A.parseOnly valuesP text of
     Left err -> Misc.errorstar $ "Parse error on get-value: " ++ err ++ "\n\n" ++ show text
     Right sol -> return sol
+
+smtGetModel :: MonadIO m => Context -> m T.Text
+smtGetModel Ctx {..} = do
+  let cmd = "(get-model)"
+  bytestring <- liftIO $ SMTLIB.Backends.command ctxSolver cmd
+  let text = bs2txt bytestring
+  return text
 
 smtSetMbqi :: Context -> IO ()
 smtSetMbqi me = interact' me SetMbqi
