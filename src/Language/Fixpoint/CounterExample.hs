@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Language.Fixpoint.CounterExample
   ( hornToProg
@@ -18,10 +20,12 @@ module Language.Fixpoint.CounterExample
   ) where
 
 import Language.Fixpoint.Types
-import Language.Fixpoint.Types.Config (Config)
---import Language.Fixpoint.Types.Config (Config, srcFile)
+import Language.Fixpoint.Types.Config (Config, srcFile, queryFile, save)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
+import Language.Fixpoint.Misc (ensurePath)
+import Language.Fixpoint.SortCheck (elaborate)
 
+import qualified Language.Fixpoint.Utils.Files as Ext
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
 import Data.HashMap.Strict (HashMap)
@@ -36,6 +40,7 @@ import qualified Text.PrettyPrint.HughesPJ as PP
 -- | A program, containing multiple function definitions
 -- mapped by their name.
 data Prog = Prog (HashMap Name Func)
+  deriving Show
 
 -- | Identifier of a function. All KVars are translated
 -- into functions, so it is just an alias.
@@ -70,9 +75,17 @@ type Args = Subst
 -- | Signature of a function.
 type Signature = [Decl]
 
+-- | The enviroment used to build a program.
+data BuildEnv info = BuildEnv
+  { info :: SInfo info
+  -- ^ The horn constraints from which we build the program.
+  , symbols :: SymEnv
+  -- ^ Contains the sorts of symbols, which we need for declarations.
+  }
+
 -- | The monad used to convert a set of horn constraints to
 -- the imperative function format. See Prog for the format.
-type MonadBuild info m = (MonadState Prog m, MonadReader (SInfo info) m, Fixpoint info, MonadIO m)
+type MonadBuild info m = (MonadState Prog m, MonadReader (BuildEnv info) m, MonadIO m)
 
 -- | Environment for the counter example generation.
 data CheckEnv = CheckEnv
@@ -88,42 +101,90 @@ type UniqueId = Int
 -- | The monad used to generate counter examples from a Prog.
 type MonadCheck m = (MonadReader CheckEnv m, MonadState UniqueId m, MonadIO m)
 
-counterExample :: Config -> SInfo info -> Prog -> IO ()
-counterExample cfg si prog = do
-  -- let file = srcFile cfg
-  let file = "tests/pos/testfile"
+-- | Try to get a counter example for the given constraints.
+counterExample :: (MonadIO m, Fixpoint info) => Config -> SInfo info -> m [Maybe Subst]
+counterExample cfg si = do
+  prog <- hornToProg cfg si
+  checkProg cfg si prog
+
+-- | Checks the given program, returning a counter example
+-- (if it can find one).
+--
+-- TODO: Actually return a counter example!
+checkProg :: MonadIO m => Config -> SInfo info -> Prog -> m [Maybe Subst]
+checkProg cfg si prog = withContext cfg si check
+  where
+    check ctx = runCheck CheckEnv
+      { program = prog
+      , context = ctx
+      }
+
+-- | Run the checker with the SMT solver context.
+withContext :: MonadIO m => Config -> SInfo info -> (SMT.Context -> m a) -> m a
+withContext cfg si inner = do
+  let file = srcFile cfg <> ".prog"
   let env = symbolEnv cfg si
-  ctx <- SMT.makeContextWithSEnv cfg file env
+  ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env
 
-  runCheck CheckEnv
-    { program = prog
-    , context = ctx
-    }
-  valid <- SMT.smtCheckUnsat ctx
+  !result <- inner ctx
 
-  putStr "Valid: "
-  print valid
-  when (not valid) (SMT.smtGetModel ctx >>= print)
-
-  SMT.cleanupContext ctx
+  liftIO $ SMT.cleanupContext ctx
+  return result
 
 -- | Runs the program checker with the monad stack
 -- unwrapped.
-runCheck :: CheckEnv -> IO ()
-runCheck = runReaderT $ evalStateT checkProg 0
+runCheck :: MonadIO m => CheckEnv -> m [Maybe Subst]
+runCheck = runReaderT $ evalStateT checkMain 0
 
--- | Check the main function.
-checkProg :: MonadCheck m => m ()
-checkProg = checkFunc mainName (Su Map.empty)
+-- | Check the main function. Each branch in the main
+-- function needs to be checked separately.
+checkMain :: MonadCheck m => m [Maybe Subst]
+checkMain = do
+  Func sig bodies <- getFunc mainName
+  forM bodies $ smtScope . checkBody sig
 
--- TODO: Go up to k depth (per function) to avoid infinite recursion.
-checkFunc :: MonadCheck m => Name -> Args -> m ()
-checkFunc name args = do
-  -- Apply arguments to function
+-- | Perform a satisfiability check over the body, producing
+-- a counter example if the model is not valid.
+checkBody :: MonadCheck m => Signature -> Body -> m (Maybe Subst)
+checkBody sig body = do
+  -- Produce the assertions for this body.
+  -- Substitution map contains (prog symbols |-> unique symbols)
+  Su sub <- runBody sig body
+  -- Get the variables of interest (the ones declared in the body).
+  let smtSyms = [sym | (_, EVar sym) <- Map.toList sub]
+
+  -- Check satisfiability
+  ctx <- reader context
+  valid <- liftIO $ SMT.smtCheckUnsat ctx
+
+  -- Get a counter example if not valid.
+  ex <- if | not valid -> SMT.smtGetValues ctx smtSyms >>= return . Just
+           | otherwise -> return Nothing
+
+  -- Remap the counter example to program symbols. We got it in
+  -- smt "safe" symbols, which we cannot directly translate back.
+  -- Hence, we use the substitution maps we have at hand.
+  return $ do
+    -- Map from (unique safe symbols |-> instance)
+    Su instances <- ex
+    -- Rename a symbol to its smt2 version.
+    let rename = symbol . symbolSafeText
+    -- Does remapping from smt name to prog name.
+    let remap (EVar sym) = Map.lookup (rename sym) instances
+        remap _          = Nothing
+    -- Final map from (prog symbols |-> instance)
+    return $ Su (Map.mapMaybe remap sub)
+
+-- TODO: Go up to k depth (per function) to avoid infinite recursion
+-- with cyclic kvars.
+runFunc :: MonadCheck m => Name -> Args -> m ()
+runFunc name args = do
+  -- Get the function to check.
   Func sig bodies <- getFunc name
 
-  -- Each body generates a fresh set of signature variables
-  subs <- forM bodies $ checkBody sig
+  -- Check all bodies of this function in a breath first manner.
+  -- Each body generates a fresh set of signature variables.
+  subs <- forM bodies $ runBody sig
 
   -- Joins all of these fresh variables to their argument.
   joinSubs args sig subs
@@ -131,24 +192,37 @@ checkFunc name args = do
 -- | Join all substitution mappings made by running over all
 -- bodies.
 --
--- The join is a conjunct of all possible assignments.
+-- The join is a disjunct of all possible assignments.
 joinSubs :: MonadCheck m => Args -> Signature -> [Subst] -> m ()
 joinSubs args sig subs = do
   possible <- forM subs $ conjunctSub args sig
   smtAssert $ POr possible
 
 -- | Map the arguments to a substitution of a single function body.
+--
+-- To elaborate, given the following variables:
+-- The mapping of the arguments.
+-- -- ^ (sym |-> arg) :: Args
+--
+-- The arguments themselves.
+-- -- ^ [sym] :: Signature
+--
+-- The unique mapping generated for a body.
+-- -- ^ (sym |-> unique) :: Subst
+--
+-- We generate a conjunct of (arg == unique) for every symbol in
+-- the signature.
 conjunctSub :: MonadCheck m => Args -> Signature -> Subst -> m Expr
 conjunctSub (Su args) sig (Su sub) = do
-  -- Generate symbol as shorthand for the conjunct
+  -- Generate symbol as shorthand for the conjunct.
   bool <- smtFresh boolSort
   let bool' = EVar bool
 
-  -- Generate the conjunct of the argument mapping
+  -- Generate the conjunct of the argument mapping.
   let eq (Decl sym _) = PAtom Eq (args Map.! sym) (sub Map.! sym)
   let conjunct = PAnd $ map eq sig
 
-  -- Assert equality between shorthand and conjunct
+  -- Assert equality between shorthand and conjunct.
   smtAssert $ PAtom Eq bool' conjunct
   return bool'
 
@@ -158,27 +232,31 @@ getFunc name = do
   Prog prog <- reader program
   return $ prog Map.! name
 
--- | Run the checker of a body. Creating new instances
--- of the signature
-checkBody :: MonadCheck m => Signature -> Body -> m Subst
-checkBody sig (Body body) = do
+-- | Run the checker over a body. Creating new instances
+-- of the signature and elaborating the statements in
+-- it to the smt solver.
+--
+-- The returned substitution map contains all variables
+-- that were renamed during the run. This includes the
+-- signature as well as all the declarations in the body.
+runBody :: MonadCheck m => Signature -> Body -> m Subst
+runBody sig (Body body) = do
   sub <- uniqueSig sig
-  _ <- foldM statementSMT sub body
-  return sub
+  foldM runStatement sub body
 
 -- | Write a statement to smt solver, possibly recursing
 -- if the statement was a call.
 --
 -- Declarations will change the substitution map, as
 -- declarations get name mangled to avoid name clashes.
-statementSMT :: MonadCheck m => Subst -> Statement -> m Subst
-statementSMT sub stmt = do
+runStatement :: MonadCheck m => Subst -> Statement -> m Subst
+runStatement sub stmt = do
   let stmt' = subst sub stmt
   -- Run over the program and assert statements in SMT solver.
   case stmt' of
-    Call name app -> checkFunc name app
-    Assume e      -> smtAssert $ subst sub e
-    Assert e      -> smtAssume $ subst sub e
+    Call name app -> runFunc name app
+    Assume e      -> smtAssume $ subst sub e
+    Assert e      -> smtAssert $ subst sub e
     _             -> return ()
 
   -- A declaration will also adjust the substitution
@@ -217,19 +295,28 @@ smtDeclare (Su sub) (Decl sym sort) = do
 smtFresh :: MonadCheck m => Sort -> m Symbol
 smtFresh sort = do
   ctx <- reader context
-  sym <- uniqueSym "fresh@"
+  sym <- uniqueSym "fresh"
   liftIO $ SMT.smtDecl ctx sym sort
   return sym
 
 -- | Assume the given expression.
-smtAssume :: MonadCheck m => Expr -> m ()
-smtAssume = smtAssert . PNot
+smtAssert :: MonadCheck m => Expr -> m ()
+smtAssert = smtAssume . PNot
 
 -- | Assert the given expression.
-smtAssert :: MonadCheck m => Expr -> m ()
-smtAssert e = do
+smtAssume :: MonadCheck m => Expr -> m ()
+smtAssume e = do
   ctx <- reader context
   liftIO $ SMT.smtAssert ctx e
+
+-- | Run the checker within a scope (i.e. a push/pop pair).
+smtScope :: MonadCheck m => m a -> m a
+smtScope inner = do
+  ctx <- reader context
+  liftIO $ SMT.smtPush ctx
+  !result <- inner
+  liftIO $ SMT.smtPop ctx
+  return result
 
 -- TODO: remove this on code cleanup
 dbg :: (MonadIO m, PPrint a) => a -> m ()
@@ -237,13 +324,34 @@ dbg = liftIO . print . pprint
 
 -- | Make an imperative program from horn clauses. This
 -- can be used to generate a counter example.
-hornToProg :: (MonadIO m, Fixpoint info) => SInfo info -> m Prog
-hornToProg si = execStateT (runReaderT go si) prog
-  where
-    -- Initial program has empty main
-    prog = Prog $ Map.singleton mainName (Func [] [])
-    -- Add all horn clauses in SInfo to the function map
-    go = reader cm >>= mapM_ addHorn
+hornToProg :: MonadIO m => Config -> SInfo info -> m Prog
+hornToProg cfg si = do
+  -- Initial program is just an empty main.
+  let initial = Prog $ Map.singleton mainName (Func [] [])
+  let env = BuildEnv
+       { info = si
+       , symbols = symbolEnv cfg si
+       }
+
+  -- Run monad that adds all horn clauses
+  prog <- evalStateT (runReaderT buildProg env) initial
+
+  -- Save the program in a file
+  liftIO . when (save cfg) $ do
+    let file = queryFile Ext.Prog cfg
+    ensurePath file
+    writeFile file $ PP.render (pprint prog)
+
+  -- Return the generated program
+  return prog
+
+-- | Build the entire program structure from the constraints
+-- inside the monad
+buildProg :: MonadBuild info m => m Prog
+buildProg = do
+  constraints <- reader $ cm . info
+  mapM_ addHorn constraints
+  get
 
 -- | Given a horn clause, generates a body for a function.
 --
@@ -270,11 +378,11 @@ addHorn horn = do
 getSig :: MonadBuild info m => Name -> m Signature
 getSig kvar = do
   -- Get the well foundedness constraint of the kvar
-  wfcs <- reader ws
+  wfcs <- reader $ ws . info
   let wfc = wfcs Map.! kvar
 
   -- Get the bind environment and bindings of the wfc
-  bindEnv <- reader bs
+  bindEnv <- reader $ bs . info
   let ibinds = elemsIBindEnv . wenv $ wfc
 
   -- Lookup all Decl from the wfc using the ibinds
@@ -298,30 +406,38 @@ substToBody (Su sub) = do
 -- of assumptions (or calls given by a Name)
 hornLhsToBody :: MonadBuild info m => SimpC info -> m Body
 hornLhsToBody horn = do
-  bindEnv <- reader bs
+  bindEnv <- reader $ bs . info
   let lhs = clhs bindEnv horn
-  return $ lhsToBody lhs
-
--- | Map a complete lhs of a horn clause to a function body
-lhsToBody :: [(Symbol, SortedReft)] -> Body
-lhsToBody = mconcat . map (uncurry reftToBody)
+  bodies <- forM lhs $ uncurry reftToBody
+  return $ mconcat bodies
 
 -- | Map a refinement to a declaration and constraint pair
-reftToBody :: Symbol -> SortedReft -> Body
+reftToBody :: MonadBuild info m => Symbol -> SortedReft -> m Body
 reftToBody sym RR
   { sr_sort = sort
   , sr_reft = Reft (v, e)
-  } = Body
-    [ Let (Decl sym sort)
-    , constraint
-    ]
-  where
+  } = do
     -- Make constraint with proper substitution
-    constraint = case e of
-      PKVar kvar (Su app) -> Call kvar (Su $ subst sub app)
-      _ -> Assume $ subst sub e
+    let sub = Su . Map.singleton v $ EVar sym
+    let constraint = case e of
+          PKVar kvar (Su app) -> Call kvar (Su $ subst sub app)
+          _ -> Assume $ subst sub e
 
-    sub = Su . Map.singleton v $ EVar sym
+    sort' <- elaborateSort sort
+    return $ Body
+     [ Let $ Decl sym sort'
+     , constraint
+     ]
+
+-- | The sorts for the apply monomorphization only match if
+-- we do this elaborate on the sort. Not sure why...
+--
+-- This elaboration also happens inside the declaration
+-- of the symbol environment, so that where I got the idea.
+elaborateSort :: MonadBuild info m => Sort -> m Sort
+elaborateSort sym = do
+  symbols' <- reader symbols
+  return $ elaborate "elaborateSort" symbols' sym
 
 -- | Add a function to the function map with index by its name.
 -- If an entry already exists, it will merge the function
@@ -392,156 +508,31 @@ instance Monoid Body where
   mempty = Body []
 
 instance Subable Statement where
-  syms (Let (Decl sym _)) = [sym]
+  syms (Let decl) = syms decl
   syms (Assume e) = syms e
   syms (Assert e) = syms e
   syms (Call _ (Su sub)) = syms sub
 
+  substa f (Let decl) = Let $ substa f decl
   substa f (Assume e) = Assume $ substa f e
   substa f (Assert e) = Assert $ substa f e
   substa f (Call name (Su sub)) = Call name (Su $ substa f sub)
-  substa _ decl@_ = decl
 
+  substf f (Let decl) = Let $ substf f decl
   substf f (Assume e) = Assume $ substf f e
   substf f (Assert e) = Assert $ substf f e
   substf f (Call name (Su sub)) = Call name (Su $ substf f sub)
-  substf _ decl@_ = decl
 
+  subst sub (Let decl) = Let $ subst sub decl
   subst sub (Assume e) = Assume $ subst sub e
   subst sub (Assert e) = Assert $ subst sub e
   subst sub (Call name (Su sub')) = Call name (Su $ subst sub sub')
-  subst _ decl@_ = decl
 
--- fn k1(x: Int) {
---   assume x == 11
--- ||
---   assume x == 12
--- }
--- 
--- fn k2(x: Int) {
---   assume x == 21
--- ||
---   assume x == 22
--- }
--- 
--- fn main() {
---   let y : Int
---   let z : Int
---   k1(y)
---   k2(z)
---   assert y != z
--- }
--- 
--- -- BFS vs DFS
--- -- - BFS: brings much more in scope at a time
--- -- - DFS: has much more calls
--- --
--- -- - BFS: Name clashing is much worse
--- -- - DFS: The way to explore the program is very non-obvious...
--- --
--- -- For now do BFS as the impl seems easier
--- 
--- -- Breadth First Search
--- (declare-const y Int)
--- (declare-const z Int)
--- 
--- -- k1 body 0
--- (declare-const x$b0$k1 Int)
--- (assert (= x$b0$k1 11))
--- 
--- -- k1 body 1
--- (declare-const x$b1$k1 Int)
--- (assert (= x$b1$k1 12))
--- 
--- -- Union of k1 call (Not sure if this is sound)
--- (assert (or (= x$b0$k1 y) (= x$b1$k1 y)))
--- 
--- -- k2 body 0
--- (declare-const x$b0$k2 Int)
--- (assert (= x$b0$k1 21))
--- 
--- -- k2 body 1
--- (declare-const x$b1$k2 Int)
--- (assert (= x$b1$k1 22))
--- 
--- -- Union of k2 call
--- (assert (or (= x$b0$k2 z) (= x$b1$k2 z)))
--- 
--- -- Final assertion
--- (assert (not (!= y z)))
--- (check-sat)
--- 
--- -- Depth First Search
--- (declare-const y Int)
--- (declare-const z Int)
--- 
--- (push 1) -- call k1
---   (declare-const x$k1 Int)
---   (assert (= x$k1 11))
---   (push 1) -- call k2
---     (declare-const x$k2 Int)
---     (assert (= x$k2 21))
---     (assert (= x$k1 y))
---     (assert (= x$k2 z))
---     (assert (not (!= y z))) -- final assertion
---     (check-sat)
---   (pop 1)
---   (push 1) -- call k2
---     (declare-const x$k2 Int)
---     (assert (= x$k2 22))
---     (assert (= x$k1 y))
---     (assert (= x$k2 z))
---     (assert (not (!= y z))) -- final assertion
---     (check-sat)
---   (pop 1)
--- (pop 1)
--- 
--- (push 1) -- call k1
---   (declare-const x$k1 Int)
---   (assert (= x$k1 12)) --
---   (push 1) -- call k2
---     (declare-const x$k2 Int)
---     (assert (= x$k2 21))
---     (assert (= x$k1 y))
---     (assert (= x$k2 z))
---     (assert (not (!= y z))) -- final assertion
---     (check-sat)
---   (pop 1)
---   (push 1) -- call k2
---     (declare-const x$k2 Int)
---     (assert (= x$k2 22))
---     (assert (= x$k1 y))
---     (assert (= x$k2 z))
---     (assert (not (!= y z))) -- final assertion
---     (check-sat)
---   (pop 1)
--- (pop 1)
---
--- fn $k1 (lq_karg$v0: Int) {
---     let v : Int
---     assume v == 1
---     assume v == lq_karg$v0
--- ||
---     let x : Int
---     assume v == 2
---     assume v == lq_karg$v0
--- }
---
--- fn $main () {
---     let z : Int
---     $k1 [lq_karg$v0 := z]
---     assert z > 0
--- }
---
--- (declare-var z-->0 Int)            -- From main
--- (declare-var lq_karg$v0-->1 Int)   -- Unique karg from k1 call
--- (assert (= lq_karg$v0-->1 z))      -- From call to k1 substitution
---
--- (declare-var lq_karg$v0-->2 Int)   -- From first body
--- [..]
---
--- (declare-var lq_karg$v0-->3 Int)   -- From second body
--- [..]
---
--- -- Assertion combining all versions of the karg
--- (assert (or (= lq_karg$v0-->1 lq_karg$v0-->2) (= lq_karg$v0-->1 lq_karg$v0-->3))
+instance Subable Decl where
+  syms (Decl sym _) = [sym]
+
+  substa f (Decl sym sort) = Decl (substa f sym) sort
+
+  substf f (Decl sym sort) = Decl (substf f sym) sort
+
+  subst sub (Decl sym sort) = Decl (subst sub sym) sort

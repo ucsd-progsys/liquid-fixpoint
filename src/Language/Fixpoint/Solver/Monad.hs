@@ -53,7 +53,7 @@ import           Data.Either (isRight)
 -- import           Data.Char            (isUpper)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet as HashSet
+--import qualified Data.HashSet as HashSet
 import           Data.Maybe (catMaybes)
 import           Control.Exception.Base (bracket)
 
@@ -229,10 +229,10 @@ checkValidity_ sp lhs rhs me = smtBracketAt sp me "checkValidity" $ do
   case valid of
     True  -> return $ Right ()
     False -> do
-      let symbols = HashSet.toList $ F.exprSymbolsSet lhs `HashSet.union` F.exprSymbolsSet rhs
+      --let symbols = HashSet.toList $ F.exprSymbolsSet lhs `HashSet.union` F.exprSymbolsSet rhs
       --print lhs
       --print rhs
-      _ <- smtGetValues me symbols
+      --_ <- smtGetValues me symbols
       --print $ F.pprint res
       --putStrLn "-----------------------------------"
       return $ Left ()

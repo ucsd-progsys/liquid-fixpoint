@@ -264,22 +264,9 @@ reduceFInfo cfg fi = do
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
-  -- print fi0
-  -- print si6
-  print fi0
-  prog <- hornToProg si6
-  print si6
-  print . pprint $ prog
-  counterExample cfg si6 prog
-
-
   res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
-  -- rnf soln `seq` donePhase Loud "Solve2"
-  --let stat = resStatus res
-  -- saveSolution cfg res
   when (save cfg) $ saveSolution cfg res
-  -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
-  -- colorStrLn (colorResult stat) (show stat)
+  when (isUnsafe res) $ counterExample cfg si6 >>= print . pprint
   return res
 
 --------------------------------------------------------------------------------

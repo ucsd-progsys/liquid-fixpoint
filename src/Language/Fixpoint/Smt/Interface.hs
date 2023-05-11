@@ -164,7 +164,7 @@ checkValids cfg f xts ps
 
 --------------------------------------------------------------------------------
 {-# SCC command #-}
-command              :: Context -> Command -> IO Response
+command :: Context -> Command -> IO Response
 --------------------------------------------------------------------------------
 command Ctx {..} !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
@@ -179,7 +179,7 @@ command Ctx {..} !cmd       = do
     commandRaw      = do
       resp <- SMTLIB.Backends.command ctxSolver cmdBS
       parse $ bs2txt resp
-    cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
+    cmdBS = {-# SCC "Command-runSmt2" #-} smt2 ctxSymEnv cmd
     parse resp      = do
       case A.parseOnly responseP resp of
         Left e  -> Misc.errorstar $ "SMTREAD: " ++ e ++ "\n" ++ T.unpack resp
@@ -194,12 +194,9 @@ command Ctx {..} !cmd       = do
 bs2txt :: Char8.ByteString -> T.Text
 bs2txt = TE.decodeUtf8With (const $ const $ Just ' ') . LBS.toStrict
 
-smtGetValues :: MonadIO m => Context -> [Symbol] -> m (M.HashMap Symbol Expr)
-smtGetValues _ [] = return M.empty
+smtGetValues :: MonadIO m => Context -> [Symbol] -> m Subst
+smtGetValues _ [] = return $ Su M.empty
 smtGetValues Ctx {..} syms = do
-  -- bytestring <- SMTLIB.Backends.command ctxSolver "(get-model)"
-  -- print bytestring
-
   let cmd = key "get-value" (parenSeqs $ map (smt2 ctxSymEnv) syms)
   bytestring <- liftIO $ SMTLIB.Backends.command ctxSolver cmd
   let text = bs2txt bytestring
@@ -219,10 +216,10 @@ smtSetMbqi me = interact' me SetMbqi
 
 type SmtParser a = Parser T.Text a
 
-valuesP :: SmtParser (M.HashMap Symbol Expr)
+valuesP :: SmtParser Subst
 valuesP = parenP $ do
   vs <- A.many' valueP
-  return $ M.fromList vs
+  return $ Su (M.fromList vs)
 
 valueP :: SmtParser (Symbol, Expr)
 valueP = parenP $ do
@@ -231,9 +228,7 @@ valueP = parenP $ do
   return (sym, expr)
 
 exprP :: SmtParser Expr
-exprP = do
-  expr <- (appP <|> litP)
-  return expr
+exprP = appP <|> litP
 
 appP :: SmtParser Expr
 appP = do
@@ -241,16 +236,25 @@ appP = do
   return $ foldl' EApp e es
 
 litP :: SmtParser Expr
-litP = EVar <$> symbolP
+litP = integerP <|> realP <|> boolP <|> (EVar <$> symbolP)
 
-parenP :: SmtParser a -> SmtParser a
-parenP inner = do
-  A.skipSpace
-  _ <- A.char '('
-  res <- inner
-  _ <- A.char ')'
-  A.skipSpace
-  return res
+-- TODO: Parse minus as just a negative integer
+integerP :: SmtParser Expr
+integerP = do
+  int <- A.signed A.decimal
+  return $ ECon (I int)
+
+-- TODO: Parse minus as just a negative real
+realP :: SmtParser Expr
+realP = do
+  double <- A.signed A.double
+  return $ ECon (R double)
+
+boolP :: SmtParser Expr
+boolP = trueP <|> falseP
+  where
+    trueP = A.string "true" >> return PTrue
+    falseP = A.string "false" >> return PFalse
 
 symbolP :: SmtParser Symbol
 symbolP = {- SCC "symbolP" -} do
@@ -260,6 +264,15 @@ symbolP = {- SCC "symbolP" -} do
   return $ symbol raw
   where
     exclude x = isSpace x || x == '(' || x == ')'
+
+parenP :: SmtParser a -> SmtParser a
+parenP inner = do
+  A.skipSpace
+  _ <- A.char '('
+  res <- inner
+  _ <- A.char ')'
+  A.skipSpace
+  return res
 
 responseP :: SmtParser Response
 responseP = {- SCC "responseP" -}
