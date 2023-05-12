@@ -5,6 +5,7 @@
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiWayIf          #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
@@ -190,7 +191,7 @@ solveNative !cfg !fi0 = solveNative' cfg fi0
                              (return . crashResult (errorMap fi0))
 
 crashResult :: (PPrint a) => ErrorMap a -> Error -> Result (Integer, a)
-crashResult m e = Result res mempty mempty mempty
+crashResult m e = Result res mempty mempty mempty mempty
   where
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- errs e ]
@@ -266,8 +267,8 @@ solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
   res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
   when (save cfg) $ saveSolution cfg res
-  when (isUnsafe res) $ counterExample cfg si6 >>= print . pprint
-  return res
+  if | counterExample cfg -> tryCounterExample cfg si6 res
+     | otherwise          -> return res
 
 --------------------------------------------------------------------------------
 -- | Parse External Qualifiers -------------------------------------------------
@@ -280,9 +281,9 @@ parseFI :: FilePath -> IO (FInfo a)
 parseFI f = do
   str   <- readFile f
   let fi = rr' f str :: FInfo ()
-  return $ mempty { Types.quals = Types.quals  fi
-                  , Types.gLits = Types.gLits  fi
-                  , Types.dLits = Types.dLits  fi }
+  return $ mempty { Types.quals = Types.quals fi
+                  , Types.gLits = Types.gLits fi
+                  , Types.dLits = Types.dLits fi }
 
 saveSolution :: Config -> Result a -> IO ()
 saveSolution cfg res = when (save cfg) $ do

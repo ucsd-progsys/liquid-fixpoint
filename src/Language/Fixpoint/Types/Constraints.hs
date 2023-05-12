@@ -274,10 +274,11 @@ toGFixSol = GSol
 
 
 data Result a = Result
-  { resStatus    :: !(FixResult a)
-  , resSolution  :: !FixSolution
+  { resStatus :: !(FixResult a)
+  , resSolution :: !FixSolution
   , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution
+  , resCntExs :: !(M.HashMap Integer Subst)
   }
   deriving (Generic, Show, Functor)
 
@@ -287,15 +288,16 @@ instance ToJSON a => ToJSON (Result a) where
   toJSON = toJSON . resStatus
 
 instance Semigroup (Result a) where
-  r1 <> r2  = Result stat soln nonCutsSoln gsoln
+  r1 <> r2  = Result stat soln nonCutsSoln gsoln cntExs
     where
       stat  = resStatus r1    <> resStatus r2
       soln  = resSolution r1  <> resSolution r2
       nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
       gsoln = gresSolution r1 <> gresSolution r2
+      cntExs = resCntExs r1 <> resCntExs r2
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty mempty mempty
+  mempty        = Result mempty mempty mempty mempty mempty
   mappend       = (<>)
 
 unsafe, safe :: Result a

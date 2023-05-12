@@ -249,7 +249,7 @@ result bindingsInSmt cfg wkl s =
     stat    <- result_ bindingsInSmt2 cfg wkl s
     lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
 
-    F.Result (ci <$> stat) <$> solResult cfg s <*> solNonCutsResult s <*> return mempty
+    F.Result (ci <$> stat) <$> solResult cfg s <*> solNonCutsResult s <*> return mempty <*> return mempty
   where
     ci c = (F.subcId c, F.sinfo c)
 

@@ -9,9 +9,10 @@ module Language.Fixpoint.CounterExample
   ( hornToProg
   , mainName
 
-  , counterExample
+  , tryCounterExample
   , dbg
 
+  , CounterExample
   , Prog
   , Func (..)
   , Decl
@@ -28,6 +29,8 @@ import Language.Fixpoint.SortCheck (elaborate)
 import qualified Language.Fixpoint.Utils.Files as Ext
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
+import Data.Maybe (fromMaybe)
+import Data.List (find)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
 
@@ -36,6 +39,8 @@ import Control.Monad.Reader
 
 import Text.PrettyPrint.HughesPJ ((<+>), ($+$))
 import qualified Text.PrettyPrint.HughesPJ as PP
+
+type CounterExamples = HashMap ConstraintId CounterExample
 
 -- | A program, containing multiple function definitions
 -- mapped by their name.
@@ -55,8 +60,12 @@ data Decl = Decl Symbol Sort
   deriving Show
 
 -- | A sequence of statements.
-data Body = Body [Statement]
+data Body = Body ConstraintId [Statement]
   deriving Show
+
+-- | The constraint a body originates from.
+-- Used to map back counter examples back to their origin.
+type ConstraintId = Integer
 
 -- | A statement used to introduce/check constraints.
 data Statement
@@ -74,6 +83,8 @@ data Statement
 type Args = Subst
 -- | Signature of a function.
 type Signature = [Decl]
+-- | A counter example for a model.
+type CounterExample = Subst
 
 -- | The enviroment used to build a program.
 data BuildEnv info = BuildEnv
@@ -101,20 +112,32 @@ type UniqueId = Int
 -- | The monad used to generate counter examples from a Prog.
 type MonadCheck m = (MonadReader CheckEnv m, MonadState UniqueId m, MonadIO m)
 
--- | Try to get a counter example for the given constraints.
-counterExample :: (MonadIO m, Fixpoint info) => Config -> SInfo info -> m [Maybe Subst]
-counterExample cfg si = do
-  prog <- hornToProg cfg si
-  checkProg cfg si prog
+-- TODO: remove this on code cleanup
+dbg :: (MonadIO m, PPrint a) => a -> m ()
+dbg = liftIO . print . pprint
 
--- | Checks the given program, returning a counter example
--- (if it can find one).
---
--- TODO: Actually return a counter example!
-checkProg :: MonadIO m => Config -> SInfo info -> Prog -> m [Maybe Subst]
-checkProg cfg si prog = withContext cfg si check
+-- | Try to get a counter example for the given unsafe clauses (if any).
+tryCounterExample
+  :: (MonadIO m, Fixpoint info)
+  => Config
+  -> SInfo info
+  -> Result (ConstraintId, info)
+  -> m (Result (ConstraintId, info))
+tryCounterExample cfg si res@Result
+  { resStatus = Unsafe _ cids'
+  , resCntExs = cexs'
+  } = do
+    let cids = map fst cids'
+    prog <- hornToProg cfg si
+    cexs <- checkProg cfg si prog cids
+    return res { resCntExs = cexs <> cexs' }
+tryCounterExample _ _ res@_ = return res
+
+-- | Check the given constraints to try and find a counter example.
+checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [ConstraintId] -> m CounterExamples
+checkProg cfg si prog cids = withContext cfg si check
   where
-    check ctx = runCheck CheckEnv
+    check ctx = runCheck cids CheckEnv
       { program = prog
       , context = ctx
       }
@@ -133,22 +156,31 @@ withContext cfg si inner = do
 
 -- | Runs the program checker with the monad stack
 -- unwrapped.
-runCheck :: MonadIO m => CheckEnv -> m [Maybe Subst]
-runCheck = runReaderT $ evalStateT checkMain 0
+runCheck :: MonadIO m => [ConstraintId] -> CheckEnv -> m CounterExamples
+runCheck cids = runReaderT $ evalStateT (checkAll cids) 0
 
--- | Check the main function. Each branch in the main
--- function needs to be checked separately.
-checkMain :: MonadCheck m => m [Maybe Subst]
-checkMain = do
+-- | Try to find a counter example for all the given constraints.
+checkAll :: MonadCheck m => [ConstraintId] -> m CounterExamples
+checkAll cids = do
+  cexs <- forM cids checkConstraint
+  return $ Map.fromList [(cid, cex) | (cid, Just cex) <- zip cids cexs]
+
+-- | Check a specific constraint id. This will only do actual
+-- checks for constraints without a KVar on the rhs, as we cannot
+-- really generate a counter example for these constraints.
+checkConstraint :: MonadCheck m => ConstraintId -> m (Maybe CounterExample)
+checkConstraint cid = do
   Func sig bodies <- getFunc mainName
-  forM bodies $ smtScope . checkBody sig
+  let cmp (Body bid _) = bid == cid
+  case find cmp bodies of
+    Just body -> smtScope $ checkBody sig body
+    Nothing -> return Nothing
 
 -- | Perform a satisfiability check over the body, producing
 -- a counter example if the model is not valid.
-checkBody :: MonadCheck m => Signature -> Body -> m (Maybe Subst)
+checkBody :: MonadCheck m => Signature -> Body -> m (Maybe CounterExample)
 checkBody sig body = do
   -- Produce the assertions for this body.
-  -- Substitution map contains (prog symbols |-> unique symbols)
   Su sub <- runBody sig body
   -- Get the variables of interest (the ones declared in the body).
   let smtSyms = [sym | (_, EVar sym) <- Map.toList sub]
@@ -167,13 +199,13 @@ checkBody sig body = do
   return $ do
     -- Map from (unique safe symbols |-> instance)
     Su instances <- ex
-    -- Rename a symbol to its smt2 version.
-    let rename = symbol . symbolSafeText
-    -- Does remapping from smt name to prog name.
-    let remap (EVar sym) = Map.lookup (rename sym) instances
-        remap _          = Nothing
-    -- Final map from (prog symbols |-> instance)
-    return $ Su (Map.mapMaybe remap sub)
+    -- Rename a symbol to its safe version.
+    let rename (EVar sym) = symbol $ symbolSafeText sym
+        rename _ = error "Rename map contained non-variable expression"
+    -- Substitution map contains (prog symbols |-> unique safe symbols)
+    let sub' = (rename <$> sub)
+    -- Final map (prog symbols |-> instance)
+    return $ Su (Map.compose instances sub')
 
 -- TODO: Go up to k depth (per function) to avoid infinite recursion
 -- with cyclic kvars.
@@ -240,7 +272,7 @@ getFunc name = do
 -- that were renamed during the run. This includes the
 -- signature as well as all the declarations in the body.
 runBody :: MonadCheck m => Signature -> Body -> m Subst
-runBody sig (Body body) = do
+runBody sig (Body _ body) = do
   sub <- uniqueSig sig
   foldM runStatement sub body
 
@@ -318,10 +350,6 @@ smtScope inner = do
   liftIO $ SMT.smtPop ctx
   return result
 
--- TODO: remove this on code cleanup
-dbg :: (MonadIO m, PPrint a) => a -> m ()
-dbg = liftIO . print . pprint
-
 -- | Make an imperative program from horn clauses. This
 -- can be used to generate a counter example.
 hornToProg :: MonadIO m => Config -> SInfo info -> m Prog
@@ -362,17 +390,20 @@ buildProg = do
 -- it is added to the main function.
 addHorn :: MonadBuild info m => SimpC info -> m ()
 addHorn horn = do
-  (name, func) <- case crhs horn of
+  -- Make the lhs of the clause into statements
+  lhs <- hornLhsToStmts horn
+
+  -- The rhs has a special case depending on
+  -- if it is a kvar or not.
+  (name, decl, rhs) <- case crhs horn of
     PKVar kvar sub -> do
       decl <- getSig kvar
-      body <- hornLhsToBody horn
-      body' <- substToBody sub
-      return (kvar, Func decl [body <> body'])
-    rhs@_ -> do
-      Body stmts <- hornLhsToBody horn
-      let body = Body $ stmts <> [Assert rhs]
-      return (mainName, Func [] [body])
-  addFunc name func
+      rhs <- substToStmts sub
+      return (kvar, decl, rhs)
+    e@_ -> return (mainName, [], [Assert e])
+
+  let body = Body (fromMaybe (-1) $ sid horn) $ lhs <> rhs
+  addFunc name $ Func decl [body]
 
 -- | Gets a signature of a KVar from its well foundedness constraint
 getSig :: MonadBuild info m => Name -> m Signature
@@ -397,23 +428,23 @@ getSig kvar = do
 
 -- | Defines some equalities between local variables
 -- and the passed arguments given some substitution map.
-substToBody :: MonadBuild info m => Subst -> m Body
-substToBody (Su sub) = do
+substToStmts :: MonadBuild info m => Subst -> m [Statement]
+substToStmts (Su sub) = do
   let asEq (ksym, e) = Assume $ PAtom Eq (EVar ksym) e
-  return . Body . map asEq . Map.toList $ sub
+  return $ map asEq (Map.toList sub)
 
 -- | Converts the left hand side of the horn clause to a list
 -- of assumptions (or calls given by a Name)
-hornLhsToBody :: MonadBuild info m => SimpC info -> m Body
-hornLhsToBody horn = do
+hornLhsToStmts :: MonadBuild info m => SimpC info -> m [Statement]
+hornLhsToStmts horn = do
   bindEnv <- reader $ bs . info
   let lhs = clhs bindEnv horn
-  bodies <- forM lhs $ uncurry reftToBody
-  return $ mconcat bodies
+  stmts <- forM lhs $ uncurry reftToStmts
+  return $ mconcat stmts
 
 -- | Map a refinement to a declaration and constraint pair
-reftToBody :: MonadBuild info m => Symbol -> SortedReft -> m Body
-reftToBody sym RR
+reftToStmts :: MonadBuild info m => Symbol -> SortedReft -> m [Statement]
+reftToStmts sym RR
   { sr_sort = sort
   , sr_reft = Reft (v, e)
   } = do
@@ -424,7 +455,7 @@ reftToBody sym RR
           _ -> Assume $ subst sub e
 
     sort' <- elaborateSort sort
-    return $ Body
+    return
      [ Let $ Decl sym sort'
      , constraint
      ]
@@ -491,21 +522,18 @@ instance PPrint Decl where
       psort = pprintTidy tidy sort
 
 instance PPrint Body where
-  pprintTidy tidy (Body stmts) = PP.vcat
-                               . map (pprintTidy tidy)
-                               $ stmts
+  pprintTidy tidy (Body cid stmts) = pcid $+$ pstmts
+    where
+      pcid = PP.text "// id" <+> pprintTidy tidy cid
+      pstmts = PP.vcat
+             . map (pprintTidy tidy)
+             $ stmts
 
 instance PPrint Statement where
   pprintTidy tidy (Let decl) = PP.text "let" <+> pprintTidy tidy decl
   pprintTidy tidy (Assume exprs) = PP.text "assume" <+> pprintTidy tidy exprs
   pprintTidy tidy (Assert exprs) = PP.text "assert" <+> pprintTidy tidy exprs
   pprintTidy tidy (Call kvar sub) = pprintTidy tidy kvar <+> pprintTidy tidy sub
-
-instance Semigroup Body where
-  Body b <> Body b' = Body $ b <> b'
-
-instance Monoid Body where
-  mempty = Body []
 
 instance Subable Statement where
   syms (Let decl) = syms decl
