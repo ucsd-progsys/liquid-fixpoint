@@ -9,7 +9,7 @@ module Language.Fixpoint.CounterExample
   ) where
 
 import Language.Fixpoint.Types hiding (exit)
-import Language.Fixpoint.Types.Config (Config, srcFile, queryFile, save)
+import Language.Fixpoint.Types.Config (Config, srcFile, queryFile, save, counterExample)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import Language.Fixpoint.Misc (ensurePath)
 import Language.Fixpoint.SortCheck (elaborate)
@@ -34,7 +34,7 @@ type CounterExamples = HashMap SubcId CounterExample
 
 -- | A program, containing multiple function definitions
 -- mapped by their name.
-data Prog = Prog (HashMap Name Func)
+newtype Prog = Prog (HashMap Name Func)
   deriving Show
 
 -- | Identifier of a function. All KVars are translated
@@ -127,13 +127,13 @@ tryCounterExample
 tryCounterExample cfg si res@Result
   { resStatus = Unsafe _ cids'
   , resCntExs = cexs'
-  } = do
+  } | counterExample cfg = do
     let cids = map fst cids'
     prog <- hornToProg cfg si
     subs <- checkProg cfg si prog cids
     let cexs = cexBindIds si <$> subs
     return res { resCntExs = cexs <> cexs' }
-tryCounterExample _ _ res@_ = return res
+tryCounterExample _ _ res = return res
 
 -- | Map a counter example to use the BindId instead of the
 -- variable name as the key.
@@ -230,7 +230,7 @@ checkBody sig body = callCC $ \exit -> do
   let rename (EVar sym) = Just . symbol . symbolSafeText $ sym
       rename _          = Nothing
   -- Rename all symbols (prog symbols |-> unique safe symbols)
-  let sub' = (Map.mapMaybe rename sub)
+  let sub' = Map.mapMaybe rename sub
   -- Final map (prog symbols |-> instance)
   return $ Just (Su $ Map.compose ex sub')
 
@@ -261,7 +261,7 @@ unlessMaxDepth m = do
   cur <- gets depth
 
   modify $ \s -> s { depth = cur + 1 }
-  when (limit > cur) $ m
+  when (limit > cur) m
   modify $ \s -> s { depth = cur }
 
 -- | Join all substitution mappings made by running over all
@@ -439,7 +439,7 @@ addHorn horn = do
       decl <- getSig kvar
       rhs <- substToStmts sub
       return (kvar, decl, rhs)
-    e@_ -> return (mainName, [], [Assert e])
+    e -> return (mainName, [], [Assert e])
 
   let cid = fromMaybe (-1) $ sid horn
   let body = Body cid $ lhs <> rhs
@@ -496,7 +496,7 @@ reftToStmts sym RR
 
     let constraints = case predKs e of
           [] -> [Assume e]
-          ks -> map (\(name, app) -> Call name app) ks
+          ks -> map (uncurry Call) ks
 
     return $ decl : subst sub constraints
 
@@ -561,7 +561,7 @@ ppfunc tidy name (Func sig bodies) = pdecl $+$ pbody $+$ PP.rbrace
           $ bodies
 
     vpunctuate _ [] = mempty
-    vpunctuate _ (d:[]) = d
+    vpunctuate _ [d] = d
     vpunctuate p (d:ds) = d $+$ p $+$ vpunctuate p ds
 
 instance PPrint Decl where

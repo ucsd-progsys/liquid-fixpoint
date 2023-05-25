@@ -5,7 +5,6 @@
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE MultiWayIf          #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
@@ -267,8 +266,7 @@ solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
   res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
   when (save cfg) $ saveSolution cfg res
-  if | counterExample cfg -> tryCounterExample cfg si6 res
-     | otherwise          -> return res
+  tryCounterExample cfg si6 res
 
 --------------------------------------------------------------------------------
 -- | Parse External Qualifiers -------------------------------------------------
