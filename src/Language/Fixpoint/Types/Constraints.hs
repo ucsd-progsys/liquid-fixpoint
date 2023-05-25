@@ -278,7 +278,7 @@ data Result a = Result
   , resSolution :: !FixSolution
   , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution
-  , resCntExs :: !(M.HashMap Integer Subst)
+  , resCntExs :: !(M.HashMap SubcId (BindMap Expr))
   }
   deriving (Generic, Show, Functor)
 

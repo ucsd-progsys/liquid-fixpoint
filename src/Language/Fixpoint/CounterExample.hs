@@ -1,9 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MultiWayIf #-}
 
 module Language.Fixpoint.CounterExample
   ( hornToProg
@@ -20,7 +18,7 @@ module Language.Fixpoint.CounterExample
   , Statement (..)
   ) where
 
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types hiding (exit)
 import Language.Fixpoint.Types.Config (Config, srcFile, queryFile, save)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import Language.Fixpoint.Misc (ensurePath)
@@ -36,11 +34,12 @@ import qualified Data.HashMap.Strict as Map
 
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Cont
 
 import Text.PrettyPrint.HughesPJ ((<+>), ($+$))
 import qualified Text.PrettyPrint.HughesPJ as PP
 
-type CounterExamples = HashMap ConstraintId CounterExample
+type CounterExamples = HashMap SubcId CounterExample
 
 -- | A program, containing multiple function definitions
 -- mapped by their name.
@@ -60,12 +59,8 @@ data Decl = Decl Symbol Sort
   deriving Show
 
 -- | A sequence of statements.
-data Body = Body ConstraintId [Statement]
+data Body = Body SubcId [Statement]
   deriving Show
-
--- | The constraint a body originates from.
--- Used to map back counter examples back to their origin.
-type ConstraintId = Integer
 
 -- | A statement used to introduce/check constraints.
 data Statement
@@ -96,7 +91,7 @@ data BuildEnv info = BuildEnv
 
 -- | The monad used to convert a set of horn constraints to
 -- the imperative function format. See Prog for the format.
-type MonadBuild info m = (MonadState Prog m, MonadReader (BuildEnv info) m, MonadIO m)
+type MonadBuild info m = (MonadReader (BuildEnv info) m, MonadState Prog m, MonadIO m)
 
 -- | Environment for the counter example generation.
 data CheckEnv = CheckEnv
@@ -104,42 +99,69 @@ data CheckEnv = CheckEnv
   -- ^ The program we are checking
   , context :: SMT.Context
   -- ^ The SMT context we write the constraints from the program to.
+  , maxDepth :: Int
+  -- ^ The maximum number of functions to traverse (to avoid state blow-up).
   }
 
--- | Unique identifier used to avoid clashing names.
-type UniqueId = Int
+data CheckState = CheckState
+  { uniqueId :: Int
+  -- ^ Unique identifier used to avoid clashing names.
+  , depth :: Int
+  -- ^ Current depth (i.e. number of functions traversed)
+  }
 
 -- | The monad used to generate counter examples from a Prog.
-type MonadCheck m = (MonadReader CheckEnv m, MonadState UniqueId m, MonadIO m)
+type MonadCheck m = (MonadReader CheckEnv m, MonadState CheckState m, MonadCont m, MonadIO m)
 
 -- TODO: remove this on code cleanup
 dbg :: (MonadIO m, PPrint a) => a -> m ()
 dbg = liftIO . print . pprint
+
+-- TODO: Perhaps split the two parts (building and checking)
+-- into two separate files, as they share no functions.
+-- (except for the program types, which I suppose goes into a
+-- separate file then.)
+
+-- TODO: Remove variables from the counter example that got mapped to
+-- the "wrong" type in smt format (e.g. to an int while not being one).
 
 -- | Try to get a counter example for the given unsafe clauses (if any).
 tryCounterExample
   :: (MonadIO m, Fixpoint info)
   => Config
   -> SInfo info
-  -> Result (ConstraintId, info)
-  -> m (Result (ConstraintId, info))
+  -> Result (SubcId, info)
+  -> m (Result (SubcId, info))
 tryCounterExample cfg si res@Result
   { resStatus = Unsafe _ cids'
   , resCntExs = cexs'
   } = do
     let cids = map fst cids'
     prog <- hornToProg cfg si
-    cexs <- checkProg cfg si prog cids
+    subs <- checkProg cfg si prog cids
+    let cexs = cexBindIds si <$> subs
     return res { resCntExs = cexs <> cexs' }
 tryCounterExample _ _ res@_ = return res
 
+-- | Map a counter example to use the BindId instead of the
+-- variable name as the key.
+--
+-- In other words, we go from a mapping of Symbol |-> Expr to
+-- BindId |-> Expr
+cexBindIds :: SInfo info -> CounterExample -> BindMap Expr
+cexBindIds si (Su cex) = Map.compose cex bindings 
+  where
+    bindings = fst' <$> beBinds (bs si)
+    fst' (sym, _, _) = sym
+
 -- | Check the given constraints to try and find a counter example.
-checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [ConstraintId] -> m CounterExamples
+checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m CounterExamples
 checkProg cfg si prog cids = withContext cfg si check
   where
     check ctx = runCheck cids CheckEnv
       { program = prog
       , context = ctx
+      , maxDepth = 100 -- TODO: Perhaps this should be a parameter for the user?
       }
 
 -- | Run the checker with the SMT solver context.
@@ -156,11 +178,15 @@ withContext cfg si inner = do
 
 -- | Runs the program checker with the monad stack
 -- unwrapped.
-runCheck :: MonadIO m => [ConstraintId] -> CheckEnv -> m CounterExamples
-runCheck cids = runReaderT $ evalStateT (checkAll cids) 0
+runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m CounterExamples
+runCheck cids env = rd . st . ct $ checkAll cids
+  where
+    st = flip evalStateT $ CheckState 0 0
+    rd = flip runReaderT env
+    ct = flip runContT return
 
 -- | Try to find a counter example for all the given constraints.
-checkAll :: MonadCheck m => [ConstraintId] -> m CounterExamples
+checkAll :: MonadCheck m => [SubcId] -> m CounterExamples
 checkAll cids = do
   cexs <- forM cids checkConstraint
   return $ Map.fromList [(cid, cex) | (cid, Just cex) <- zip cids cexs]
@@ -168,7 +194,7 @@ checkAll cids = do
 -- | Check a specific constraint id. This will only do actual
 -- checks for constraints without a KVar on the rhs, as we cannot
 -- really generate a counter example for these constraints.
-checkConstraint :: MonadCheck m => ConstraintId -> m (Maybe CounterExample)
+checkConstraint :: MonadCheck m => SubcId -> m (Maybe CounterExample)
 checkConstraint cid = do
   Func sig bodies <- getFunc mainName
   let cmp (Body bid _) = bid == cid
@@ -179,38 +205,51 @@ checkConstraint cid = do
 -- | Perform a satisfiability check over the body, producing
 -- a counter example if the model is not valid.
 checkBody :: MonadCheck m => Signature -> Body -> m (Maybe CounterExample)
-checkBody sig body = do
+checkBody sig body = callCC $ \exit -> do
   -- Produce the assertions for this body.
   Su sub <- runBody sig body
   -- Get the variables of interest (the ones declared in the body).
+  --
+  -- TODO: We just get the main variables here, but this causes us
+  -- to sometimes miss the essential assignment of a counter example.
+  --
+  -- Instead, I want to report on the first assignment of all variables
+  -- (including the ones in kvars). I stress the first, as there might
+  -- be many assignments to the same variable otherwise due to recursive
+  -- calls. The first assignment is likely then one that produces all
+  -- other assignments.
   let smtSyms = [sym | (_, EVar sym) <- Map.toList sub]
 
   -- Check satisfiability
   ctx <- reader context
   valid <- liftIO $ SMT.smtCheckUnsat ctx
 
-  -- Get a counter example if not valid.
-  ex <- if | not valid -> SMT.smtGetValues ctx smtSyms >>= return . Just
-           | otherwise -> return Nothing
+  -- Early return if the formula was valid (thus no counter example).
+  when valid $ exit Nothing
 
-  -- Remap the counter example to program symbols. We got it in
-  -- smt "safe" symbols, which we cannot directly translate back.
-  -- Hence, we use the substitution maps we have at hand.
-  return $ do
-    -- Map from (unique safe symbols |-> instance)
-    Su instances <- ex
-    -- Rename a symbol to its safe version.
-    let rename (EVar sym) = symbol $ symbolSafeText sym
-        rename _ = error "Rename map contained non-variable expression"
-    -- Substitution map contains (prog symbols |-> unique safe symbols)
-    let sub' = (rename <$> sub)
-    -- Final map (prog symbols |-> instance)
-    return $ Su (Map.compose instances sub')
+  -- Counter example (unique safe symbols |-> instance)
+  Su ex <- SMT.smtGetValues ctx smtSyms
 
--- TODO: Go up to k depth (per function) to avoid infinite recursion
--- with cyclic kvars.
+  -- From here, remap the counter example to program symbols. We got
+  -- it in smt "safe" symbols, which we cannot directly translate
+  -- back. Hence, we use the substitution maps we have at hand.
+
+  -- Rename a symbol to its safe version, if applicable.
+  let rename (EVar sym) = Just . symbol . symbolSafeText $ sym
+      rename _          = Nothing
+  -- Rename all symbols (prog symbols |-> unique safe symbols)
+  let sub' = (Map.mapMaybe rename sub)
+  -- Final map (prog symbols |-> instance)
+  return $ Just (Su $ Map.compose ex sub')
+
+-- | Add constraints by "running" over the function. This function
+-- does so in a depth first way, joining the assignments of
+-- the arguments.
+--
+-- To avoid infinite recursion for cyclic constraints, we stop
+-- recursing on a function after running it 'maxDepth' times.
 runFunc :: MonadCheck m => Name -> Args -> m ()
-runFunc name args = do
+runFunc name args = unlessMaxDepth $ do
   -- Get the function to check.
   Func sig bodies <- getFunc name
 
@@ -220,6 +259,18 @@ runFunc name args = do
 
   -- Joins all of these fresh variables to their argument.
   joinSubs args sig subs
+
+-- | Track the depth and only call the given monad if we do not
+-- exceed the maximum depth. Used to avoid infinite recursion
+-- and general explosion of calls.
+unlessMaxDepth :: MonadCheck m => m () -> m ()
+unlessMaxDepth m = do
+  limit <- reader maxDepth
+  cur <- gets depth
+
+  modify $ \s -> s { depth = cur + 1 }
+  when (limit > cur) $ m
+  modify $ \s -> s { depth = cur }
 
 -- | Join all substitution mappings made by running over all
 -- bodies.
@@ -282,20 +333,16 @@ runBody sig (Body _ body) = do
 -- Declarations will change the substitution map, as
 -- declarations get name mangled to avoid name clashes.
 runStatement :: MonadCheck m => Subst -> Statement -> m Subst
-runStatement sub stmt = do
+runStatement sub stmt = callCC $ \exit -> do
   let stmt' = subst sub stmt
   -- Run over the program and assert statements in SMT solver.
   case stmt' of
     Call name app -> runFunc name app
     Assume e      -> smtAssume $ subst sub e
     Assert e      -> smtAssert $ subst sub e
-    _             -> return ()
-
-  -- A declaration will also adjust the substitution
-  -- map and is thus separated here.
-  case stmt of
-    Let decl -> smtDeclare sub decl
-    _        -> return sub
+    -- We early return a new substitution map here with the continuation.
+    Let decl      -> smtDeclare sub decl >>= exit
+  return sub
 
 -- | Generate unique symbols for a function signature.
 uniqueSig :: MonadCheck m => Signature -> m Subst
@@ -305,8 +352,8 @@ uniqueSig = foldM smtDeclare (Su Map.empty)
 uniqueSym :: MonadCheck m => Symbol -> m Symbol
 uniqueSym sym = do
   -- Get unique number
-  unique <- get
-  put $ unique + 1
+  unique <- gets uniqueId
+  modify $ \s -> s { uniqueId = unique + 1 }
 
   -- Apply unique number to identifier
   let (<.>) = suffixSymbol
@@ -402,7 +449,8 @@ addHorn horn = do
       return (kvar, decl, rhs)
     e@_ -> return (mainName, [], [Assert e])
 
-  let body = Body (fromMaybe (-1) $ sid horn) $ lhs <> rhs
+  let cid = fromMaybe (-1) $ sid horn
+  let body = Body cid $ lhs <> rhs
   addFunc name $ Func decl [body]
 
 -- | Gets a signature of a KVar from its well foundedness constraint
@@ -450,21 +498,30 @@ reftToStmts sym RR
   } = do
     -- Make constraint with proper substitution
     let sub = Su . Map.singleton v $ EVar sym
-    let constraint = case e of
-          PKVar kvar (Su app) -> Call kvar (Su $ subst sub app)
-          _ -> Assume $ subst sub e
 
     sort' <- elaborateSort sort
-    return
-     [ Let $ Decl sym sort'
-     , constraint
-     ]
+    let decl = Let $ Decl sym sort'
+
+    let constraints = case predKs e of
+          [] -> [Assume e]
+          ks -> map (\(name, app) -> Call name app) ks
+
+    return $ decl : subst sub constraints
+
+-- | Get the kvars from an expression.
+--
+-- I think this should be the only way in which kvars appear?
+-- Otherwise, this should be changed!
+predKs :: Expr -> [(KVar, Subst)]
+predKs (PAnd ps)    = mconcat $ map predKs ps
+predKs (PKVar k su) = [(k, su)]
+predKs _            = []
 
 -- | The sorts for the apply monomorphization only match if
 -- we do this elaborate on the sort. Not sure why...
 --
 -- This elaboration also happens inside the declaration
--- of the symbol environment, so that where I got the idea.
+-- of the symbol environment, so that's where I got the idea.
 elaborateSort :: MonadBuild info m => Sort -> m Sort
 elaborateSort sym = do
   symbols' <- reader symbols
@@ -503,10 +560,10 @@ ppfunc tidy name (Func sig bodies) = pdecl $+$ pbody $+$ PP.rbrace
     fn = PP.text "fn"
     pname = pprintTidy tidy name
     psig = PP.parens
-           . PP.hsep
-           . PP.punctuate PP.comma
-           . map (pprintTidy tidy)
-           $ sig
+         . PP.hsep
+         . PP.punctuate PP.comma
+         . map (pprintTidy tidy)
+         $ sig
     pbody = vpunctuate (PP.text "||")
           . map (PP.nest 4 . pprintTidy tidy)
           $ bodies

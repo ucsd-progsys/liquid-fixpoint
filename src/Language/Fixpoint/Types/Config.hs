@@ -220,7 +220,7 @@ defConfig = Config {
   , minimalSol               = False &= help "Shrink fixpoint by removing implied qualifiers"
   , gradual                  = False &= help "Solve gradual-refinement typing constraints"
   , ginteractive             = False &= help "Interactive Gradual Solving"
-  , counterExample           = False &= help "Tries to produce a counter example for unsafe clauses"
+  , counterExample           = False &= name "counter-example" &= help "Tries to produce a counter example for unsafe clauses"
   , autoKuts                 = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"

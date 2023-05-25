@@ -240,12 +240,17 @@ instance Hashable SmtSort
 instance NFData   SmtSort
 instance S.Store SmtSort
 
+
+
 -- | The 'poly' parameter is True when we are *declaring* sorts,
 --   and so we need to leave the top type variables be; it is False when
 --   we are declaring variables etc., and there, we serialize them
 --   using `Int` (though really, there SHOULD BE NO floating tyVars...
 --   'smtSort True  msg t' serializes a sort 't' using type variables,
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
+--
+-- Perhaps we should change this to not use ints as a default, but a new sort?
+-- (i.e. declare a new sort (declare-sort Default) for this use)
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
 sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) else id) $ -}  go . unAbs $ t
   where
