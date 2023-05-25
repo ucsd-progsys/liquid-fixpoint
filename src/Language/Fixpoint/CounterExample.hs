@@ -4,18 +4,8 @@
 {-# LANGUAGE BangPatterns #-}
 
 module Language.Fixpoint.CounterExample
-  ( hornToProg
-  , mainName
-
-  , tryCounterExample
+  ( tryCounterExample
   , dbg
-
-  , CounterExample
-  , Prog
-  , Func (..)
-  , Decl
-  , Body
-  , Statement (..)
   ) where
 
 import Language.Fixpoint.Types hiding (exit)
@@ -39,6 +29,7 @@ import Control.Monad.Cont
 import Text.PrettyPrint.HughesPJ ((<+>), ($+$))
 import qualified Text.PrettyPrint.HughesPJ as PP
 
+-- | Multiple counter examples indexed per constraint id.
 type CounterExamples = HashMap SubcId CounterExample
 
 -- | A program, containing multiple function definitions
@@ -103,6 +94,7 @@ data CheckEnv = CheckEnv
   -- ^ The maximum number of functions to traverse (to avoid state blow-up).
   }
 
+-- | State tracked when checking a program.
 data CheckState = CheckState
   { uniqueId :: Int
   -- ^ Unique identifier used to avoid clashing names.
