@@ -13,7 +13,6 @@ module Language.Fixpoint.Solver.Monad
        , getBinds
 
          -- * SMT Query
-       , checkValidity
        , filterRequired
        , filterValid
        , filterValidGradual
@@ -49,7 +48,6 @@ import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
 -- import           Data.Maybe           (catMaybes)
 import           Data.List            (partition)
-import           Data.Either (isRight)
 -- import           Data.Char            (isUpper)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
@@ -208,34 +206,6 @@ filterValid_ sp p qs me = catMaybes <$> do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
-
-{-# SCC checkValidity #-}
-checkValidity :: F.SrcSpan -> F.Expr -> F.Expr -> SolveM ann (Either () ())
-checkValidity sp lhs rhs = do
-  res <- withContext $ checkValidity_ sp lhs rhs
-
-  incBrkt
-  incChck 1
-  when (isRight res) $ incVald 1
-  return res
-
-{-# SCC checkValidity_ #-}
-checkValidity_ :: F.SrcSpan -> F.Expr -> F.Expr -> Context -> IO (Either () ())
-checkValidity_ sp lhs rhs me = smtBracketAt sp me "checkValidity" $ do
-  smtAssert me lhs
-  smtAssert me (F.PNot rhs)
-  valid <- smtCheckUnsat me
-
-  case valid of
-    True  -> return $ Right ()
-    False -> do
-      --let symbols = HashSet.toList $ F.exprSymbolsSet lhs `HashSet.union` F.exprSymbolsSet rhs
-      --print lhs
-      --print rhs
-      --_ <- smtGetValues me symbols
-      --print $ F.pprint res
-      --putStrLn "-----------------------------------"
-      return $ Left ()
 
 --------------------------------------------------------------------------------
 -- | `filterValidGradual ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`

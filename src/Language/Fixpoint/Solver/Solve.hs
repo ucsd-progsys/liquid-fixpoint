@@ -25,13 +25,12 @@ import qualified Language.Fixpoint.Solver.Eliminate as E
 import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Graph
---import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-import           Data.Either (isLeft)
 -- import qualified Data.Maybe          as Mb
 import qualified Data.List           as L
 import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
@@ -241,11 +240,6 @@ result
 result bindingsInSmt cfg wkl s =
   sendConcreteBindingsToSMT bindingsInSmt $ \bindingsInSmt2 -> do
     lift $ writeLoud "Computing Result"
-    -- liftIO $ print (pprint bindingsInSmt)
-    -- --liftIO $ print (pprint cfg)
-    -- liftIO $ print (pprint wkl)
-    -- liftIO $ print (pprint s)
-    -- liftIO $ putStrLn "------------------"
     stat    <- result_ bindingsInSmt2 cfg wkl s
     lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
 
@@ -318,15 +312,15 @@ isUnsat bindingsInSmt s c = do
   be    <- getBinds
   let lp = S.lhsPred bindingsInSmt be s c
   let rp = rhsPred        c
-  res   <- checkValidity (cstrSpan c) lp rp
-  -- lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
-  return $ isLeft res
+  res   <- not <$> isValid (cstrSpan c) lp rp
+  lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
+  return res
 
--- showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
--- showUnsat u i lP rP = {- when u $ -} do
---   putStrLn $ printf   "UNSAT id %s %s" (show i) (show u)
---   putStrLn $ showpp $ "LHS:" <+> pprint lP
---   putStrLn $ showpp $ "RHS:" <+> pprint rP
+showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
+showUnsat u i lP rP = {- when u $ -} do
+  putStrLn $ printf   "UNSAT id %s %s" (show i) (show u)
+  putStrLn $ showpp $ "LHS:" <+> pprint lP
+  putStrLn $ showpp $ "RHS:" <+> pprint rP
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to RHS of constraint in current solution
