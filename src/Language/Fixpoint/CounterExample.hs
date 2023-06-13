@@ -45,16 +45,25 @@ type Name = KVar
 data Func = Func Signature [Body]
   deriving Show
 
--- | A declaration of a Symbol with a Sort.
-data Decl = Decl Symbol Sort
-  deriving Show
-
 -- | A sequence of statements.
 data Body = Body SubcId [Statement]
   deriving Show
 
--- | A statement used to introduce/check constraints.
-data Statement
+-- | A statement used to introduce/check constraints,
+-- together with its location information
+data Statement = Statement Location StatementKind
+
+-- | Location information for a statement. Used to map
+-- a counter example from its trace.
+data Location
+  = BindLoc BindId
+  -- ^ Location info that came from a binding
+  | HornLoc SubcId
+  -- ^ Location info that came from a horn clause
+  -- (i.e. the main variable of the constraint)
+
+-- | The main part of a statement
+data StatementKind
   = Let Decl
   -- ^ Introduces a new variable.
   | Assume Expr
@@ -63,6 +72,10 @@ data Statement
   -- ^ Checks whether a predicate follows given prior constraints.
   | Call Name Subst
   -- ^ Call to function.
+  deriving Show
+
+-- | A declaration of a Symbol with a Sort.
+data Decl = Decl Symbol Sort
   deriving Show
 
 -- | Arguments to a function.
@@ -98,12 +111,15 @@ data CheckEnv = CheckEnv
 data CheckState = CheckState
   { uniqueId :: Int
   -- ^ Unique identifier used to avoid clashing names.
-  , depth :: Int
-  -- ^ Current depth (i.e. number of functions traversed)
+--  , depth :: Int
+--  -- ^ Current depth (i.e. number of functions traversed)
   }
 
 -- | The monad used to generate counter examples from a Prog.
 type MonadCheck m = (MonadReader CheckEnv m, MonadState CheckState m, MonadCont m, MonadIO m)
+
+-- TODO: I don't think we're using all values and constraints on MonadCheck anymore.
+-- Check what we can remove.
 
 -- TODO: remove this on code cleanup
 dbg :: (MonadIO m, PPrint a) => a -> m ()
@@ -173,7 +189,7 @@ withContext cfg si inner = do
 runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m CounterExamples
 runCheck cids env = rd . st . ct $ checkAll cids
   where
-    st = flip evalStateT $ CheckState 0 0
+    st = flip evalStateT $ CheckState 0 --0
     rd = flip runReaderT env
     ct = flip runContT return
 
@@ -188,157 +204,77 @@ checkAll cids = do
 -- really generate a counter example for these constraints.
 checkConstraint :: MonadCheck m => SubcId -> m (Maybe CounterExample)
 checkConstraint cid = do
-  Func sig bodies <- getFunc mainName
+  Func _ bodies <- getFunc mainName
   let cmp (Body bid _) = bid == cid
   case find cmp bodies of
-    Just body -> smtScope $ checkBody sig body
+    Just body -> runBody mempty body smtCheck
     Nothing -> return Nothing
 
--- | Perform a satisfiability check over the body, producing
--- a counter example if the model is not valid.
-checkBody :: MonadCheck m => Signature -> Body -> m (Maybe CounterExample)
-checkBody sig body = callCC $ \exit -> do
-  -- Produce the assertions for this body.
-  Su sub <- runBody sig body
-  -- Get the variables of interest (the ones declared in the body).
-  --
-  -- TODO: We just get the main variables here, but this causes us
-  -- to sometimes miss the essential assignment of a counter example.
-  --
-  -- Instead, I want to report on the first assignment of all variables
-  -- (including the ones in kvars). I stress the first, as there might
-  -- be many assignments to the same variable otherwise due to recursive
-  -- calls. The first assignment is likely then one that produces all
-  -- other assignments.
-  let smtSyms = [sym | (_, EVar sym) <- Map.toList sub]
+-- | The runner is a computation path in the program. We use this
+-- as an argument to pass around the remainder of a computation.
+-- This way, we can pop paths in the SMT due to conditionals.
+-- Allowing us to retain anything prior to that.
+type Runner m = m (Maybe CounterExample)
 
-  -- Check satisfiability
+smtCheck :: MonadCheck m => Runner m
+smtCheck = callCC $ \exit -> do
   ctx <- reader context
   valid <- liftIO $ SMT.smtCheckUnsat ctx
-
-  -- Early return if the formula was valid (thus no counter example).
   when valid $ exit Nothing
 
-  -- Counter example (unique safe symbols |-> instance)
-  Su ex <- SMT.smtGetValues ctx smtSyms
+  cex <- liftIO $ SMT.smtGetModel ctx
 
-  -- From here, remap the counter example to program symbols. We got
-  -- it in smt "safe" symbols, which we cannot directly translate
-  -- back. Hence, we use the substitution maps we have at hand.
+  -- -- Counter example (unique safe symbols |-> instance)
+  -- TODO: Figure out which variables to actually return here!
+  --
+  -- I want to return a stack trace towards the counter example
+  -- for each binding.
+  return $ Just cex
 
-  -- Rename a symbol to its safe version, if applicable.
-  let rename (EVar sym) = Just . symbol . symbolSafeText $ sym
-      rename _          = Nothing
-  -- Rename all symbols (prog symbols |-> unique safe symbols)
-  let sub' = Map.mapMaybe rename sub
-  -- Final map (prog symbols |-> instance)
-  return $ Just (Su $ Map.compose ex sub')
+runFunc :: MonadCheck m => Name -> Args -> Runner m -> Runner m
+runFunc name args runner = do
+  Func _ bodies <- getFunc name
 
--- | Add constraints by "running" over the function. This function
--- does so in a depth first way, joining the assignments of
--- the arguments.
---
--- To avoid infinite recursion for cyclic constraints, we stop
--- recursing on a function after running it 'maxDepth' times.
-runFunc :: MonadCheck m => Name -> Args -> m ()
-runFunc name args = unlessMaxDepth $ do
-  -- Get the function to check.
-  Func sig bodies <- getFunc name
+  -- Generate all execution paths (as runners).
+  let runner' body = smtScope $ runBody args body runner
+  let paths = map runner' bodies
 
-  -- Check all bodies of this function in a breath first manner.
-  -- Each body generates a fresh set of signature variables.
-  subs <- forM bodies $ runBody sig
+  -- Try paths, selecting the first that produces a counter example.
+  let select Nothing r = r
+      select cex _ = return cex
+  foldM select Nothing paths
 
-  -- Joins all of these fresh variables to their argument.
-  joinSubs args sig subs
+-- | Run the statements in the body. If there are no more statements
+-- to run, this will execute the Runner that was passed as argument.
+runBody :: MonadCheck m => Args -> Body -> Runner m  -> Runner m
+runBody _ (Body _ []) runner = runner
+runBody args (Body cid (stmt:ss)) runner = do
+  -- The remaining statements become a new Runner
+  let runner' sub = runBody sub (Body cid ss) runner
+  -- We pass this runner, such that it can be called at a later
+  -- point (possibly multiple times) if we were to encounter a call.
+  runStatement args stmt runner'
 
--- | Track the depth and only call the given monad if we do not
--- exceed the maximum depth. Used to avoid infinite recursion
--- and general explosion of calls.
-unlessMaxDepth :: MonadCheck m => m () -> m ()
-unlessMaxDepth m = do
-  limit <- reader maxDepth
-  cur <- gets depth
-
-  modify $ \s -> s { depth = cur + 1 }
-  when (limit > cur) m
-  modify $ \s -> s { depth = cur }
-
--- | Join all substitution mappings made by running over all
--- bodies.
---
--- The join is a disjunct of all possible assignments.
-joinSubs :: MonadCheck m => Args -> Signature -> [Subst] -> m ()
-joinSubs args sig subs = do
-  possible <- forM subs $ conjunctSub args sig
-  smtAssert $ POr possible
-
--- | Map the arguments to a substitution of a single function body.
---
--- To elaborate, given the following variables:
--- The mapping of the arguments.
--- -- ^ (sym |-> arg) :: Args
---
--- The arguments themselves.
--- -- ^ [sym] :: Signature
---
--- The unique mapping generated for a body.
--- -- ^ (sym |-> unique) :: Subst
---
--- We generate a conjunct of (arg == unique) for every symbol in
--- the signature.
-conjunctSub :: MonadCheck m => Args -> Signature -> Subst -> m Expr
-conjunctSub (Su args) sig (Su sub) = do
-  -- Generate symbol as shorthand for the conjunct.
-  bool <- smtFresh boolSort
-  let bool' = EVar bool
-
-  -- Generate the conjunct of the argument mapping.
-  let eq (Decl sym _) = PAtom Eq (args Map.! sym) (sub Map.! sym)
-  let conjunct = PAnd $ map eq sig
-
-  -- Assert equality between shorthand and conjunct.
-  smtAssert $ PAtom Eq bool' conjunct
-  return bool'
+-- | Run the current statement. It might adjust the substitution map
+-- for a portion of the statements, which is why the runner takes a
+-- new substitution map as an argument.
+runStatement :: MonadCheck m => Subst -> Statement -> (Subst -> Runner m) -> Runner m
+runStatement sub stmt runner = do
+  -- Runner with the old subst map.
+  let runner' = runner sub
+  let stmt' = subst sub stmt
+  case stmt' of
+    Call name app -> runFunc name app runner'
+    Assume e      -> smtAssume e >> runner'
+    Assert e      -> smtAssert e >> runner'
+    -- Run with modified subst map.
+    Let decl      -> smtDeclare sub decl >>= runner
 
 -- | Get a function from the program given its name.
 getFunc :: MonadCheck m => Name -> m Func
 getFunc name = do
   Prog prog <- reader program
   return $ prog Map.! name
-
--- | Run the checker over a body. Creating new instances
--- of the signature and elaborating the statements in
--- it to the smt solver.
---
--- The returned substitution map contains all variables
--- that were renamed during the run. This includes the
--- signature as well as all the declarations in the body.
-runBody :: MonadCheck m => Signature -> Body -> m Subst
-runBody sig (Body _ body) = do
-  sub <- uniqueSig sig
-  foldM runStatement sub body
-
--- | Write a statement to smt solver, possibly recursing
--- if the statement was a call.
---
--- Declarations will change the substitution map, as
--- declarations get name mangled to avoid name clashes.
-runStatement :: MonadCheck m => Subst -> Statement -> m Subst
-runStatement sub stmt = callCC $ \exit -> do
-  let stmt' = subst sub stmt
-  -- Run over the program and assert statements in SMT solver.
-  case stmt' of
-    Call name app -> runFunc name app
-    Assume e      -> smtAssume $ subst sub e
-    Assert e      -> smtAssert $ subst sub e
-    -- We early return a new substitution map here with the continuation.
-    Let decl      -> smtDeclare sub decl >>= exit
-  return sub
-
--- | Generate unique symbols for a function signature.
-uniqueSig :: MonadCheck m => Signature -> m Subst
-uniqueSig = foldM smtDeclare (Su Map.empty)
 
 -- | Returns a unique version of the received symbol.
 uniqueSym :: MonadCheck m => Symbol -> m Symbol
@@ -361,14 +297,6 @@ smtDeclare (Su sub) (Decl sym sort) = do
   sym' <- uniqueSym sym
   liftIO $ SMT.smtDecl ctx sym' sort
   return (Su $ Map.insert sym (EVar sym') sub)
-
--- | Declare a fresh symbol, not derived from a declaration.
-smtFresh :: MonadCheck m => Sort -> m Symbol
-smtFresh sort = do
-  ctx <- reader context
-  sym <- uniqueSym "fresh"
-  liftIO $ SMT.smtDecl ctx sym sort
-  return sym
 
 -- | Assume the given expression.
 smtAssert :: MonadCheck m => Expr -> m ()
@@ -435,12 +363,13 @@ addHorn horn = do
   -- The rhs has a special case depending on
   -- if it is a kvar or not.
   (name, decl, rhs) <- case crhs horn of
-    PKVar kvar sub -> do
-      decl <- getSig kvar
+    PKVar name sub -> do
+      decl <- getSig name
       rhs <- substToStmts sub
-      return (kvar, decl, rhs)
+      return (name, decl, rhs)
     e -> return (mainName, [], [Assert e])
 
+  -- Add the horn clause as a function body
   let cid = fromMaybe (-1) $ sid horn
   let body = Body cid $ lhs <> rhs
   addFunc name $ Func decl [body]
@@ -484,20 +413,22 @@ hornLhsToStmts horn = do
 
 -- | Map a refinement to a declaration and constraint pair
 reftToStmts :: MonadBuild info m => Symbol -> SortedReft -> m [Statement]
+reftToStmts _ RR { sr_sort = FFunc _ _ } = return []
 reftToStmts sym RR
   { sr_sort = sort
   , sr_reft = Reft (v, e)
   } = do
-    -- Make constraint with proper substitution
-    let sub = Su . Map.singleton v $ EVar sym
-
+    -- Get correct sort for declaration
     sort' <- elaborateSort sort
     let decl = Let $ Decl sym sort'
 
+    -- Get constraints from the expression.
     let constraints = case predKs e of
           [] -> [Assume e]
           ks -> map (uncurry Call) ks
 
+    -- Do proper substitution of v in the constraints
+    let sub = Su . Map.singleton v $ EVar sym
     return $ decl : subst sub constraints
 
 -- | Get the kvars from an expression.
@@ -573,7 +504,7 @@ instance PPrint Decl where
 instance PPrint Body where
   pprintTidy tidy (Body cid stmts) = pcid $+$ pstmts
     where
-      pcid = PP.text "// id" <+> pprintTidy tidy cid
+      pcid = PP.text "// constraint id" <+> pprintTidy tidy cid
       pstmts = PP.vcat
              . map (pprintTidy tidy)
              $ stmts

@@ -204,17 +204,39 @@ smtGetValues Ctx {..} syms = do
     Left err -> Misc.errorstar $ "Parse error on get-value: " ++ err ++ "\n\n" ++ show text
     Right sol -> return sol
 
-smtGetModel :: MonadIO m => Context -> m T.Text
+smtGetModel :: MonadIO m => Context -> m Subst
 smtGetModel Ctx {..} = do
   let cmd = "(get-model)"
   bytestring <- liftIO $ SMTLIB.Backends.command ctxSolver cmd
   let text = bs2txt bytestring
-  return text
+  case A.parseOnly modelP text of
+    Left err -> Misc.errorstar $ "Parse error on get-value: " ++ err ++ "\n\n" ++ show text
+    Right sol -> return sol
 
 smtSetMbqi :: Context -> IO ()
 smtSetMbqi me = interact' me SetMbqi
 
 type SmtParser a = Parser T.Text a
+
+modelP :: SmtParser Subst
+modelP = parenP $ do
+  defs <- A.many' defP
+  return $ Su (M.fromList defs)
+
+defP :: SmtParser (Symbol, Expr)
+defP = parenP $ do
+  _ <- A.string "define-fun"
+  sym <- symbolP
+  sortP
+  expr <- exprP
+  return (sym, expr)
+
+sortP :: SmtParser ()
+sortP = do
+  -- A type is just an S-Expression, we can reuse the parser
+  let tyP = exprP >> return ()
+  _ <- parenP $ A.many' tyP
+  tyP
 
 valuesP :: SmtParser Subst
 valuesP = parenP $ do
@@ -236,7 +258,7 @@ appP = do
   return $ foldl' EApp e es
 
 litP :: SmtParser Expr
-litP = integerP <|> realP <|> boolP <|> (EVar <$> symbolP)
+litP = integerP <|> realP <|> boolP <|> bitvecP <|> (EVar <$> symbolP)
 
 -- TODO: Parse minus as just a negative integer
 integerP :: SmtParser Expr
@@ -255,6 +277,20 @@ boolP = trueP <|> falseP
   where
     trueP = A.string "true" >> return PTrue
     falseP = A.string "false" >> return PFalse
+
+bitvecP :: SmtParser Expr
+bitvecP = do
+  (bv, _) <- A.match (hexP <|> binP)
+  return $ ECon (L bv $ sizedBitVecSort "x")
+  where
+    hexP = do
+      _ <- A.string "#x"
+      _ <- A.hexadecimal :: SmtParser Int
+      return ()
+    binP = do
+      _ <- A.string "#b"
+      _ <- A.many1' (A.char '0' <|> A.char '1')
+      return ()
 
 symbolP :: SmtParser Symbol
 symbolP = {- SCC "symbolP" -} do
