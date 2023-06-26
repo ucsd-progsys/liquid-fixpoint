@@ -36,12 +36,10 @@ module Language.Fixpoint.Types.Config (
 import qualified Data.Store as S
 import qualified Data.List as L
 import Data.Serialize                (Serialize (..))
-import Control.Monad
 import Control.DeepSeq
 import GHC.Generics
 import System.Console.CmdArgs
 import System.Console.CmdArgs.Explicit
-import System.Environment
 
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Language.Fixpoint.Utils.Files
@@ -50,11 +48,12 @@ import Language.Fixpoint.Utils.Files
 --------------------------------------------------------------------------------
 withPragmas :: Config -> [String] -> IO Config
 --------------------------------------------------------------------------------
-withPragmas = foldM withPragma
-
-withPragma :: Config -> String -> IO Config
-withPragma c s = withArgs [s] $ cmdArgsRun
-          config { modeValue = (modeValue config) { cmdArgsValue = c } }
+withPragmas c s =
+    processValueIO
+      config { modeValue = (modeValue config) { cmdArgsValue = c } }
+      s
+    >>=
+      cmdArgsApply
 
 --------------------------------------------------------------------------------
 -- | Configuration Options -----------------------------------------------------
