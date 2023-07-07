@@ -18,9 +18,12 @@ import qualified Language.Fixpoint.Utils.Files as Ext
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
 import Data.Maybe (fromMaybe)
-import Data.List (find)
+import Data.List (find, intercalate, foldl')
 import Data.HashMap.Strict (HashMap)
+import Data.String (IsString(..))
+import Data.Bifunctor (first)
 import qualified Data.HashMap.Strict as Map
+import qualified Data.Text as T
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -42,54 +45,41 @@ newtype Prog = Prog (HashMap Name Func)
 type Name = KVar
 
 -- | A function symbol corresponding to a Name.
-data Func = Func Signature [Body]
+data Func = Func !Signature ![Body]
   deriving Show
 
 -- | A sequence of statements.
-data Body = Body SubcId [Statement]
+data Body = Body !SubcId ![Statement]
   deriving Show
 
 -- | A statement used to introduce/check constraints,
 -- together with its location information
-data Statement = Statement Location StatementKind
-
--- | Location information for a statement. Used to map
--- a counter example from its trace.
-data Location
-  = BindLoc BindId
-  -- ^ Location info that came from a binding
-  | HornLoc SubcId
-  -- ^ Location info that came from a horn clause
-  -- (i.e. the main variable of the constraint)
-
--- | The main part of a statement
-data StatementKind
-  = Let Decl
+data Statement
+  = Let !Decl
   -- ^ Introduces a new variable.
-  | Assume Expr
+  | Assume !Expr
   -- ^ Constraints a variable.
-  | Assert Expr
+  | Assert !Expr
   -- ^ Checks whether a predicate follows given prior constraints.
-  | Call Name Subst
-  -- ^ Call to function.
+  | Call !Symbol !Name !Subst
+  -- ^ Call to function. The symbol is the origin, used to trace
+  -- callstacks.
   deriving Show
 
 -- | A declaration of a Symbol with a Sort.
-data Decl = Decl Symbol Sort
+data Decl = Decl !Symbol !Sort
   deriving Show
 
--- | Arguments to a function.
-type Args = Subst
 -- | Signature of a function.
 type Signature = [Decl]
 -- | A counter example for a model.
-type CounterExample = Subst
+type CounterExample = HashMap [Symbol] Subst
 
 -- | The enviroment used to build a program.
 data BuildEnv info = BuildEnv
-  { info :: SInfo info
+  { info :: !(SInfo info)
   -- ^ The horn constraints from which we build the program.
-  , symbols :: SymEnv
+  , symbols :: !SymEnv
   -- ^ Contains the sorts of symbols, which we need for declarations.
   }
 
@@ -99,18 +89,18 @@ type MonadBuild info m = (MonadReader (BuildEnv info) m, MonadState Prog m, Mona
 
 -- | Environment for the counter example generation.
 data CheckEnv = CheckEnv
-  { program :: Prog
+  { program :: !Prog
   -- ^ The program we are checking
-  , context :: SMT.Context
+  , context :: !SMT.Context
   -- ^ The SMT context we write the constraints from the program to.
-  , maxDepth :: Int
+  , maxDepth :: !Int
   -- ^ The maximum number of functions to traverse (to avoid state blow-up).
   }
 
 -- | State tracked when checking a program.
 data CheckState = CheckState
-  { uniqueId :: Int
-  -- ^ Unique identifier used to avoid clashing names.
+  { -- uniqueId :: Int
+--  -- ^ Unique identifier used to avoid clashing names.
 --  , depth :: Int
 --  -- ^ Current depth (i.e. number of functions traversed)
   }
@@ -132,6 +122,8 @@ dbg = liftIO . print . pprint
 
 -- TODO: Remove variables from the counter example that got mapped to
 -- the "wrong" type in smt format (e.g. to an int while not being one).
+
+-- TODO: Reimplement recursion limit.
 
 -- | Try to get a counter example for the given unsafe clauses (if any).
 tryCounterExample
@@ -156,11 +148,21 @@ tryCounterExample _ _ res = return res
 --
 -- In other words, we go from a mapping of Symbol |-> Expr to
 -- BindId |-> Expr
-cexBindIds :: SInfo info -> CounterExample -> BindMap Expr
-cexBindIds si (Su cex) = Map.compose cex bindings 
+cexBindIds :: SInfo info -> CounterExample -> HashMap [BindId] (BindMap Expr)
+cexBindIds si cex = Map.mapKeys (map $ (Map.!) symIds) inner
   where
+    -- Inner mappings are changed, but the traces aren't yet
+    inner :: HashMap [Symbol] (BindMap Expr)
+    inner = (\(Su sub) -> Map.compose sub bindings) <$> cex
+
+    -- Fetch a map of all the available bindings
+    bindings :: HashMap BindId Symbol
     bindings = fst' <$> beBinds (bs si)
     fst' (sym, _, _) = sym
+
+    -- Reverse the bindings mapping, so we can map our symbols to bind ids.
+    symIds :: HashMap Symbol BindId
+    symIds = Map.fromList $ (\(sym, bid) -> (bid, sym)) <$> Map.toList bindings
 
 -- | Check the given constraints to try and find a counter example.
 checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m CounterExamples
@@ -189,7 +191,7 @@ withContext cfg si inner = do
 runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m CounterExamples
 runCheck cids env = rd . st . ct $ checkAll cids
   where
-    st = flip evalStateT $ CheckState 0 --0
+    st = flip evalStateT CheckState --0 --0
     rd = flip runReaderT env
     ct = flip runContT return
 
@@ -219,24 +221,63 @@ type Runner m = m (Maybe CounterExample)
 smtCheck :: MonadCheck m => Runner m
 smtCheck = callCC $ \exit -> do
   ctx <- reader context
+
   valid <- liftIO $ SMT.smtCheckUnsat ctx
-  when valid $ exit Nothing
+  -- TODO: Perhaps just get rid of the continuation, as this is
+  -- the only use of it!
+  when valid $ exit Nothing -- No model available
 
-  cex <- liftIO $ SMT.smtGetModel ctx
+  Su sub <- liftIO $ SMT.smtGetModel ctx
 
-  -- -- Counter example (unique safe symbols |-> instance)
-  -- TODO: Figure out which variables to actually return here!
-  --
-  -- I want to return a stack trace towards the counter example
-  -- for each binding.
+  -- Filter just the variables for which we have a trace
+  let renames = first symbolTrace <$> Map.toList sub
+  let traces = [ (trace, sym, e) | (Just (sym, trace), e) <- renames ]
+
+  -- Insert a mapping per unique layer in the counter example.
+  let new sym e = Su $ Map.singleton sym e
+  let insert cex (trace, sym, e) = Map.insertWith (<>) trace (new sym e) cex
+  let cex = foldl' insert mempty traces
+
   return $ Just cex
 
-runFunc :: MonadCheck m => Name -> Args -> Runner m -> Runner m
-runFunc name args runner = do
+-- | We encode the trace of a symbol in its name. This way,
+-- we do not lose it in the SMT solver. This function translates
+-- the encoding back.
+symbolTrace :: Symbol -> Maybe (Symbol, [Symbol])
+symbolTrace sym = case T.splitOn bindSep' sym' of
+  (prefix:name:trace) | prefix == progPrefix 
+    -> Just (symbol name, symbol <$> trace)
+  _ -> Nothing
+  where
+    -- symbolSafeText did some weird prepend, 
+    -- so here is just the escaped '@' symbol.
+    bindSep' = "$64$"
+    sym' = symbolText sym
+
+-- | A scope contains the current binders in place
+-- as well as the path traversed to reach this scope.
+data Scope = Scope
+  { path :: ![Symbol]
+  -- ^ The path traversed to reach the scope.
+  , binders :: !Subst
+  -- ^ The binders available in the current scope.
+  }
+
+instance Semigroup Scope where
+  scope <> scope' = Scope
+    { path = path scope <> path scope'
+    , binders = binders scope <> binders scope'
+    }
+
+instance Monoid Scope where
+  mempty = Scope mempty mempty
+
+runFunc :: MonadCheck m => Name -> Scope -> Runner m -> Runner m
+runFunc name scope runner = do
   Func _ bodies <- getFunc name
 
   -- Generate all execution paths (as runners).
-  let runner' body = smtScope $ runBody args body runner
+  let runner' body = smtScope $ runBody scope body runner
   let paths = map runner' bodies
 
   -- Try paths, selecting the first that produces a counter example.
@@ -246,29 +287,30 @@ runFunc name args runner = do
 
 -- | Run the statements in the body. If there are no more statements
 -- to run, this will execute the Runner that was passed as argument.
-runBody :: MonadCheck m => Args -> Body -> Runner m  -> Runner m
+runBody :: MonadCheck m => Scope -> Body -> Runner m  -> Runner m
 runBody _ (Body _ []) runner = runner
-runBody args (Body cid (stmt:ss)) runner = do
+runBody scope (Body cid (stmt:ss)) runner = do
   -- The remaining statements become a new Runner
-  let runner' sub = runBody sub (Body cid ss) runner
+  let runner' scope' = runBody scope' (Body cid ss) runner
   -- We pass this runner, such that it can be called at a later
   -- point (possibly multiple times) if we were to encounter a call.
-  runStatement args stmt runner'
+  runStatement scope stmt runner'
 
 -- | Run the current statement. It might adjust the substitution map
 -- for a portion of the statements, which is why the runner takes a
 -- new substitution map as an argument.
-runStatement :: MonadCheck m => Subst -> Statement -> (Subst -> Runner m) -> Runner m
-runStatement sub stmt runner = do
+runStatement :: MonadCheck m => Scope -> Statement -> (Scope -> Runner m) -> Runner m
+runStatement scope stmt runner = do
   -- Runner with the old subst map.
-  let runner' = runner sub
-  let stmt' = subst sub stmt
+  let runner' = runner scope
+  let stmt' = subst (binders scope) stmt
   case stmt' of
-    Call name app -> runFunc name app runner'
-    Assume e      -> smtAssume e >> runner'
-    Assert e      -> smtAssert e >> runner'
-    -- Run with modified subst map.
-    Let decl      -> smtDeclare sub decl >>= runner
+    Call origin name app -> do
+      let scope' = Scope (origin:path scope) app
+      runFunc name scope' runner'
+    Assume e -> smtAssume e >> runner'
+    Assert e -> smtAssert e >> runner'
+    Let decl -> smtDeclare scope decl >>= runner -- Run with modified scope.
 
 -- | Get a function from the program given its name.
 getFunc :: MonadCheck m => Name -> m Func
@@ -277,26 +319,23 @@ getFunc name = do
   return $ prog Map.! name
 
 -- | Returns a unique version of the received symbol.
-uniqueSym :: MonadCheck m => Symbol -> m Symbol
-uniqueSym sym = do
-  -- Get unique number
-  unique <- gets uniqueId
-  modify $ \s -> s { uniqueId = unique + 1 }
-
-  -- Apply unique number to identifier
-  let (<.>) = suffixSymbol
-  let unique' = symbol . show $ unique
-  return $ sym <.> "@" <.> unique'
+uniqueSym :: MonadCheck m => Scope -> Symbol -> m Symbol
+uniqueSym scope sym = do
+  let strs = symbolString <$> progPrefix : sym : path scope
+  let name = intercalate bindSep strs
+  return $ symbol name
 
 -- | Declare a new symbol, returning an updated substitution
 -- given with this new symbol in it. The substitution map is
 -- required to avoid duplicating variable names.
-smtDeclare :: MonadCheck m => Subst -> Decl -> m Subst
-smtDeclare (Su sub) (Decl sym sort) = do
+smtDeclare :: MonadCheck m => Scope -> Decl -> m Scope
+smtDeclare scope (Decl sym sort) = do
   ctx <- reader context
-  sym' <- uniqueSym sym
+  sym' <- uniqueSym scope sym
   liftIO $ SMT.smtDecl ctx sym' sort
-  return (Su $ Map.insert sym (EVar sym') sub)
+  let Su sub = binders scope
+  let binders' = Su $ Map.insert sym (EVar sym') sub
+  return scope { binders = binders' }
 
 -- | Assume the given expression.
 smtAssert :: MonadCheck m => Expr -> m ()
@@ -425,10 +464,10 @@ reftToStmts sym RR
     -- Get constraints from the expression.
     let constraints = case predKs e of
           [] -> [Assume e]
-          ks -> map (uncurry Call) ks
+          ks -> map (uncurry $ Call sym) ks
 
     -- Do proper substitution of v in the constraints
-    let sub = Su . Map.singleton v $ EVar sym
+    let sub = Su $ Map.singleton v (EVar sym)
     return $ decl : subst sub constraints
 
 -- | Get the kvars from an expression.
@@ -464,9 +503,15 @@ addFunc kvar func = do
 mainName :: Name
 mainName = KV "main"
 
+bindSep :: IsString a => a
+bindSep = "@"
+
+progPrefix :: IsString a => a
+progPrefix = "prog"
+
 instance PPrint Prog where
   pprintTidy tidy (Prog funcs) = PP.vcat
-                               . PP.punctuate (PP.text "\n")
+                               . PP.punctuate "\n"
                                . map (uncurry $ ppfunc tidy)
                                . Map.toList
                                $ funcs
@@ -479,15 +524,14 @@ instance PPrint Func where
 ppfunc :: Tidy -> Name -> Func -> PP.Doc
 ppfunc tidy name (Func sig bodies) = pdecl $+$ pbody $+$ PP.rbrace
   where
-    pdecl = fn <+> pname <+> psig <+> PP.lbrace
-    fn = PP.text "fn"
+    pdecl = "fn" <+> pname <+> psig <+> PP.lbrace
     pname = pprintTidy tidy name
     psig = PP.parens
          . PP.hsep
          . PP.punctuate PP.comma
          . map (pprintTidy tidy)
          $ sig
-    pbody = vpunctuate (PP.text "||")
+    pbody = vpunctuate "||"
           . map (PP.nest 4 . pprintTidy tidy)
           $ bodies
 
@@ -504,37 +548,41 @@ instance PPrint Decl where
 instance PPrint Body where
   pprintTidy tidy (Body cid stmts) = pcid $+$ pstmts
     where
-      pcid = PP.text "// constraint id" <+> pprintTidy tidy cid
+      pcid = "// constraint id" <+> pprintTidy tidy cid
       pstmts = PP.vcat
              . map (pprintTidy tidy)
              $ stmts
 
 instance PPrint Statement where
-  pprintTidy tidy (Let decl) = PP.text "let" <+> pprintTidy tidy decl
-  pprintTidy tidy (Assume exprs) = PP.text "assume" <+> pprintTidy tidy exprs
-  pprintTidy tidy (Assert exprs) = PP.text "assert" <+> pprintTidy tidy exprs
-  pprintTidy tidy (Call kvar sub) = pprintTidy tidy kvar <+> pprintTidy tidy sub
+  pprintTidy tidy (Let decl) = "let" <+> pprintTidy tidy decl
+  pprintTidy tidy (Assume exprs) = "assume" <+> pprintTidy tidy exprs
+  pprintTidy tidy (Assert exprs) = "assert" <+> pprintTidy tidy exprs
+  pprintTidy tidy (Call origin name sub) = pname <+> pargs <+> porigin
+    where
+      pname = pprintTidy tidy name
+      pargs = pprintTidy tidy sub
+      porigin = "// origin" <+> pprintTidy tidy origin
 
 instance Subable Statement where
   syms (Let decl) = syms decl
   syms (Assume e) = syms e
   syms (Assert e) = syms e
-  syms (Call _ (Su sub)) = syms sub
+  syms (Call _ _ (Su sub)) = syms sub
 
   substa f (Let decl) = Let $ substa f decl
   substa f (Assume e) = Assume $ substa f e
   substa f (Assert e) = Assert $ substa f e
-  substa f (Call name (Su sub)) = Call name (Su $ substa f sub)
+  substa f (Call origin name (Su sub)) = Call origin name (Su $ substa f sub)
 
   substf f (Let decl) = Let $ substf f decl
   substf f (Assume e) = Assume $ substf f e
   substf f (Assert e) = Assert $ substf f e
-  substf f (Call name (Su sub)) = Call name (Su $ substf f sub)
+  substf f (Call origin name (Su sub)) = Call origin name (Su $ substf f sub)
 
   subst sub (Let decl) = Let $ subst sub decl
   subst sub (Assume e) = Assume $ subst sub e
   subst sub (Assert e) = Assert $ subst sub e
-  subst sub (Call name (Su sub')) = Call name (Su $ subst sub sub')
+  subst sub (Call origin name (Su sub')) = Call origin name (Su $ subst sub sub')
 
 instance Subable Decl where
   syms (Decl sym _) = [sym]
