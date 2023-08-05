@@ -128,7 +128,7 @@ mkQual env v p = case envSort env <$> (v:xs) of
                    (_,so):xts -> F.mkQ "Auto" ((v, so) : xts) p junk
                    _          -> F.panic "impossible"
   where
-    xs         = L.delete v $ Misc.hashNub (F.syms p)
+    xs         = L.delete v $ Misc.setNub (F.syms p)
     junk       = F.dummyPos "mkQual"
 
 envSort :: F.SEnv F.Sort -> F.Symbol -> (F.Symbol, F.Sort)
