@@ -345,7 +345,7 @@ evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
 evaluate cfg ctx aenv facts es sid = do
   let eqs      = initEqualities ctx aenv facts
   let γ        = knowledge cfg ctx aenv
-  let cands    = mytracepp  ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
+  let cands    = mytracepp  ("evaluate-cands " ++ showpp sid) $ Misc.setNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
@@ -694,7 +694,7 @@ knowledge cfg ctx aenv = KN
 initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, Expr)]
 initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
   where
-    dcEqs                  = Misc.hashNub (Mb.catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
+    dcEqs                  = Misc.setNub (Mb.catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
     atoms                  = splitPAnd . expr =<< filter isProof es
     senv                   = SMT.ctxSymEnv ctx
 
