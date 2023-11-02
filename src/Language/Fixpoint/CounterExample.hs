@@ -31,9 +31,14 @@ tryCounterExample cfg si res@Result
   { resStatus = Unsafe _ cids'
   , resCntExs = cexs'
   } | counterExample cfg = do
-    let cids = map fst cids'
+    -- Build program from constraints
     prog <- hornToProg cfg si
+
+    -- Check the constraints, returning a substitution map
+    let cids = map fst cids'
     subs <- checkProg cfg si prog cids
+
+    -- Map the symbols in this substitution to their respective bind id
     let cexs = cexBindIds si <$> subs
     return res { resCntExs = cexs <> cexs' }
 tryCounterExample _ _ res = return res
@@ -46,14 +51,13 @@ tryCounterExample _ _ res = return res
 cexBindIds :: SInfo info -> CounterExample -> HashMap [BindId] (BindMap Expr)
 cexBindIds si cex = Map.mapKeys (map $ (Map.!) symIds) inner
   where
-    -- Inner mappings are changed, but the traces aren't yet
+    -- Here the inner mappings are changed, but the traces aren't yet
     inner :: HashMap [Symbol] (BindMap Expr)
     inner = (\(Su sub) -> Map.compose sub bindings) <$> cex
 
     -- Fetch a map of all the available bindings
     bindings :: HashMap BindId Symbol
-    bindings = fst' <$> beBinds (bs si)
-    fst' (sym, _, _) = sym
+    bindings = (\(bid, _, _) -> bid) <$> beBinds (bs si)
 
     -- Reverse the bindings mapping, so we can map our symbols to bind ids.
     symIds :: HashMap Symbol BindId

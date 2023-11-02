@@ -11,6 +11,7 @@ module Language.Fixpoint.CounterExample.Types
   , Signature
 
   , mainName
+  , dbg -- TODO: Remove this on code clean-up!
   ) where
 
 import Language.Fixpoint.Types
@@ -19,6 +20,11 @@ import qualified Data.HashMap.Strict as Map
 
 import Text.PrettyPrint.HughesPJ ((<+>), ($+$))
 import qualified Text.PrettyPrint.HughesPJ as PP
+
+import Control.Monad.IO.Class
+
+dbg :: (MonadIO m, PPrint a) => a -> m ()
+dbg = liftIO . print . pprint
 
 -- | A counter example for a model.
 type CounterExample = HashMap [Symbol] Subst
@@ -126,17 +132,17 @@ instance Subable Statement where
   syms (Assert e) = syms e
   syms (Call _ _ (Su sub)) = syms sub
 
-  substa f (Let decl) = Let $ substa f decl
+  substa _ (Let decl) = Let decl
   substa f (Assume e) = Assume $ substa f e
   substa f (Assert e) = Assert $ substa f e
   substa f (Call origin name (Su sub)) = Call origin name (Su $ substa f sub)
 
-  substf f (Let decl) = Let $ substf f decl
+  substf _ (Let decl) = Let decl
   substf f (Assume e) = Assume $ substf f e
   substf f (Assert e) = Assert $ substf f e
   substf f (Call origin name (Su sub)) = Call origin name (Su $ substf f sub)
 
-  subst sub (Let decl) = Let $ subst sub decl
+  subst _ (Let decl) = Let decl
   subst sub (Assume e) = Assume $ subst sub e
   subst sub (Assert e) = Assert $ subst sub e
   subst sub (Call origin name (Su sub')) = Call origin name (Su $ subst sub sub')

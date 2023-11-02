@@ -131,6 +131,7 @@ hornLhsToStmts horn = do
 
 -- | Map a refinement to a declaration and constraint pair
 reftToStmts :: MonadBuild info m => Symbol -> SortedReft -> m [Statement]
+reftToStmts _ RR { sr_sort = FAbs _ _ } = return []
 reftToStmts _ RR { sr_sort = FFunc _ _ } = return []
 reftToStmts sym RR
   { sr_sort = sort
@@ -145,7 +146,7 @@ reftToStmts sym RR
           [] -> [Assume e]
           ks -> map (uncurry $ Call sym) ks
 
-    -- Do proper substitution of v in the constraints
+    -- Do substitution of self variable in the constraints
     let sub = Su $ Map.singleton v (EVar sym)
     return $ decl : subst sub constraints
 

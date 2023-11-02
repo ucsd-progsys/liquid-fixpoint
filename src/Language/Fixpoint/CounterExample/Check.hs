@@ -13,6 +13,7 @@ import Language.Fixpoint.Types.Config (Config, srcFile)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
+import Data.Char (chr)
 import Data.List (find, intercalate, foldl')
 import Data.Bifunctor (first)
 import Data.String (IsString(..))
@@ -37,11 +38,10 @@ data CheckEnv = CheckEnv
   }
 
 -- | State tracked when checking a program.
-data CheckState = CheckState
---  { depth :: Int
---  ^ Current depth (i.e. number of functions traversed)
---  }
--- TODO: Reimplement recursion limit.
+newtype CheckState = CheckState
+  { depth :: Int
+  -- ^ Current depth (i.e. number of functions traversed)
+  }
 
 -- | The monad used to generate counter examples from a Prog.
 type MonadCheck m = (MonadReader CheckEnv m, MonadState CheckState m, MonadIO m)
@@ -73,7 +73,7 @@ withContext cfg si inner = do
 runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m CounterExamples
 runCheck cids env = rd . st $ checkAll cids
   where
-    st = flip evalStateT CheckState --0
+    st = flip evalStateT $ CheckState 0
     rd = flip runReaderT env
 
 -- | Try to find a counter example for all the given constraints.
@@ -102,6 +102,7 @@ data Scope = Scope
   , binders :: !Subst
   -- ^ The binders available in the current scope.
   }
+  deriving (Eq, Ord, Show)
 
 -- | The runner is a computation path in the program. We use this
 -- as an argument to pass around the remainder of a computation.
@@ -114,16 +115,29 @@ type Runner m = m (Maybe CounterExample)
 -- sequentially, returning early if a counterexample was found.
 runFunc :: MonadCheck m => Name -> Scope -> Runner m -> Runner m
 runFunc name scope runner = do
+  -- Lookup function bodies
   Func _ bodies <- getFunc name
 
   -- Generate all execution paths (as runners).
-  let runner' body = smtScope $ runBody scope body runner
+  let runner' body = runBody scope body runner
   let paths = map runner' bodies
 
   -- Try paths, selecting the first that produces a counter example.
   let select Nothing r = r
       select cex _ = return cex
-  foldM select Nothing paths
+
+  -- Check if we've reached the recursion limit.
+  -- TODO: Perhaps we should make the recursion limit per kvar?
+  depth' <- gets depth
+  put $ CheckState $ depth' + 1
+  maxDepth' <- reader maxDepth
+  let recursionLimit = depth' >= maxDepth'
+
+  result <- if recursionLimit then runner else foldM select Nothing paths
+
+  -- Decrement depth after exploring this function
+  modify $ \s -> s { depth = depth s - 1}
+  return result
 
 -- | Run the statements in the body. If there are no more statements
 -- to run, this will execute the Runner that was passed as argument.
@@ -131,13 +145,15 @@ runFunc name scope runner = do
 -- The passed runner here is thus the rest of the computation, when
 -- we "return" from this function.
 runBody :: MonadCheck m => Scope -> Body -> Runner m  -> Runner m
-runBody _ (Body _ []) runner = runner
-runBody scope (Body cid (stmt:ss)) runner = do
-  -- The remaining statements become a new Runner
-  let runner' scope' = runBody scope' (Body cid ss) runner
-  -- We pass this runner, such that it can be called at a later
-  -- point (possibly multiple times) if we were to encounter a call.
-  runStatement scope stmt runner'
+runBody scope' body runner = smtScope $ go scope' body
+  where
+    go _ (Body _ []) = runner
+    go scope (Body cid (stmt:ss)) = do
+      -- The remaining statements become a new Runner
+      let runner' = flip go (Body cid ss)
+      -- We pass this runner, such that it can be called at a later
+      -- point (possibly multiple times) if we were to encounter a call.
+      runStatement scope stmt runner'
 
 -- | Run the current statement. It might adjust the substitution map
 -- for a portion of the statements, which is why the runner takes a
@@ -172,6 +188,8 @@ scopedSym scope sym = do
 -- given with this new symbol in it. The substitution map is
 -- required to avoid duplicating variable names.
 smtDeclare :: MonadCheck m => Scope -> Decl -> m Scope
+smtDeclare scope@Scope { binders = Su binds } (Decl sym _)
+  | Map.member sym binds = return scope
 smtDeclare scope (Decl sym sort) = do
   ctx <- reader context
   sym' <- scopedSym scope sym
@@ -229,15 +247,21 @@ smtModel = do
 -- we do not lose it in the SMT solver. This function translates
 -- the encoding back.
 symbolTrace :: Symbol -> Maybe (Symbol, [Symbol])
-symbolTrace sym = case T.splitOn bindSep' sym' of
+symbolTrace sym = case T.splitOn bindSep sym' of
   (prefix:name:trace) | prefix == progPrefix 
     -> Just (symbol name, symbol <$> trace)
   _ -> Nothing
   where
-    -- symbolSafeText did some weird prepend, 
-    -- so here is just the escaped '@' symbol.
-    bindSep' = "$64$"
-    sym' = symbolText sym
+    sym' = escapeSmt . symbolText $ sym
+
+escapeSmt :: T.Text -> T.Text
+escapeSmt = go False . T.split (=='$')
+  where
+    go _ [] = ""
+    go escape (t:ts) = txt t <> go (not escape) ts
+      where
+        txt | escape    = T.singleton . chr . read . T.unpack
+            | otherwise = id
 
 -- | The separator used to encode the stack trace (of binders)
 -- inside of smt symbols.
