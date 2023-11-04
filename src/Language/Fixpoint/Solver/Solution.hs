@@ -216,8 +216,6 @@ candidatesP env tyss x =
     qPat = F.qpPat  x
     mono = So.isMono xt
 
-
-
 -- --------------------------------------------------------------------------------
 -- candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam
 --            -> [(So.TVSubst, QPSubst, F.Symbol)]
