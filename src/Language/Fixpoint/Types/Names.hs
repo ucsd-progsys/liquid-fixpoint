@@ -73,6 +73,7 @@ module Language.Fixpoint.Types.Names (
   , tempSymbol
   , gradIntSymbol
   , appendSymbolText
+  , hvarArgSymbol
 
   -- * Wrapping Symbols
   , litSymbol
@@ -478,6 +479,10 @@ existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 gradIntSymbol :: Integer -> Symbol
 gradIntSymbol = intSymbol gradPrefix
 
+hvarArgSymbol :: Symbol -> Int -> Symbol
+hvarArgSymbol s i = intSymbol (suffixSymbol hvarPrefix s) i
+
+
 -- | Used to define functions corresponding to binding predicates
 --
 -- The integer is the BindId.
@@ -498,14 +503,22 @@ testPrefix   = "is$"
 -- ctorPrefix  :: Symbol
 -- ctorPrefix   = "mk$"
 
-kArgPrefix, existPrefix :: Symbol
-kArgPrefix   = "lq_karg$"
-existPrefix  = "lq_ext$"
+kArgPrefix, existPrefix, hvarPrefix :: Symbol
+kArgPrefix  = "lq_karg$"
+existPrefix = "lq_ext$"
+hvarPrefix  = "nnf_arg$"
+
 
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
 -------------------------------------------------------------------------
-tidySymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
+-- tidySymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
+tidySymbol s
+  | s == s'   = s
+  | otherwise = s''
+  where
+    s'        = unPrefixSymbol kArgPrefix s
+    s''       = unPrefixSymbol symSepName . unPrefixSymbol hvarPrefix $ s'
 
 unPrefixSymbol :: Symbol -> Symbol -> Symbol
 unPrefixSymbol p s = fromMaybe s (stripPrefix p s)
