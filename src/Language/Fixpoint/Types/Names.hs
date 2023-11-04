@@ -518,7 +518,7 @@ tidySymbol s
   | otherwise = s''
   where
     s'        = unPrefixSymbol kArgPrefix s
-    s''       = unPrefixSymbol symSepName . unPrefixSymbol hvarPrefix $ s'
+    s''       = consSym '$' . unPrefixSymbol symSepName . unSuffixSymbol . unPrefixSymbol hvarPrefix $ s'
 
 unPrefixSymbol :: Symbol -> Symbol -> Symbol
 unPrefixSymbol p s = fromMaybe s (stripPrefix p s)
