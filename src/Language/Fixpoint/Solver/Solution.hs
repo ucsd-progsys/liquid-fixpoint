@@ -240,7 +240,7 @@ matchSym qp y' = case qp of
   F.PatNone       -> Just NoSub
   F.PatExact s    -> if s == y then Just NoSub else Nothing
   where
-    y             =  F.tidySymbol y'
+    y             =  F.unKArgSymbol y'
 
 data QPSubst = NoSub | JustSub Int F.Symbol
 

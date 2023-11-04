@@ -60,6 +60,7 @@ module Language.Fixpoint.Types.Names (
   , nonSymbol
   , vvCon
   , tidySymbol
+  , unKArgSymbol
 
   -- * Widely used prefixes
   , anfPrefix
@@ -508,11 +509,10 @@ kArgPrefix  = "lq_karg$"
 existPrefix = "lq_ext$"
 hvarPrefix  = "nnf_arg$"
 
+unKArgSymbol :: Symbol -> Symbol
+unKArgSymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
 
--------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
--------------------------------------------------------------------------
--- tidySymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
 tidySymbol s
   | s == s'   = s
   | otherwise = s''
