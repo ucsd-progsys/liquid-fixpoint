@@ -19,6 +19,7 @@ import qualified Text.PrettyPrint.HughesPJ as PP
 
 import Data.Maybe (fromMaybe)
 import qualified Data.HashMap.Strict as Map
+import Data.List (find)
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -126,8 +127,25 @@ hornLhsToStmts :: MonadBuild info m => SimpC info -> m [Statement]
 hornLhsToStmts horn = do
   bindEnv <- reader $ bs . info
   let lhs = clhs bindEnv horn
-  stmts <- forM lhs $ uncurry reftToStmts
+  lhs' <- filterLits . filterDuplicates $ lhs
+  stmts <- forM lhs' $ uncurry reftToStmts
   return $ mconcat stmts
+
+filterDuplicates :: [(Symbol, SortedReft)] -> [(Symbol, SortedReft)]
+filterDuplicates env = foldr filter' [] env
+  where
+    filter' sym acc = case fst sym `member` map fst acc of
+      Nothing -> sym:acc
+      Just _ -> acc
+
+    member e = find (e==)
+
+filterLits :: MonadBuild info m => [(Symbol, SortedReft)] -> m [(Symbol, SortedReft)]
+filterLits env = do
+  con <- reader $ gLits . info
+  dis <- reader $ dLits . info
+  let isLit (sym, _) = memberSEnv sym con || memberSEnv sym dis
+  return $ filter (not . isLit) env
 
 -- | Map a refinement to a declaration and constraint pair
 reftToStmts :: MonadBuild info m => Symbol -> SortedReft -> m [Statement]

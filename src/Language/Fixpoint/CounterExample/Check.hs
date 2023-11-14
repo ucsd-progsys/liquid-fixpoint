@@ -13,6 +13,7 @@ import Language.Fixpoint.Types.Config (Config, srcFile)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
+import Data.Maybe (fromJust)
 import Data.Char (chr)
 import Data.List (find, intercalate, foldl')
 import Data.Bifunctor (first)
@@ -53,7 +54,7 @@ checkProg cfg si prog cids = withContext cfg si check
     check ctx = runCheck cids CheckEnv
       { program = prog
       , context = ctx
-      , maxDepth = 100 -- TODO: Perhaps this should be a parameter for the user?
+      , maxDepth = 15 -- TODO: Perhaps this should be a parameter for the user?
       }
 
 -- | Run the checker with the SMT solver context.
@@ -87,7 +88,7 @@ checkAll cids = do
 -- really generate a counter example for these constraints.
 checkConstraint :: MonadCheck m => SubcId -> m (Maybe CounterExample)
 checkConstraint cid = do
-  Func _ bodies <- getFunc mainName
+  Func _ bodies <- fromJust <$> getFunc mainName
   let cmp (Body bid _) = bid == cid
   let scope = Scope mempty mempty
   case find cmp bodies of
@@ -97,7 +98,7 @@ checkConstraint cid = do
 -- | A scope contains the current binders in place
 -- as well as the path traversed to reach this scope.
 data Scope = Scope
-  { path :: ![Symbol]
+  { path :: ![(KVar, Symbol)]
   -- ^ The path traversed to reach the scope.
   , binders :: !Subst
   -- ^ The binders available in the current scope.
@@ -116,28 +117,31 @@ type Runner m = m (Maybe CounterExample)
 runFunc :: MonadCheck m => Name -> Scope -> Runner m -> Runner m
 runFunc name scope runner = do
   -- Lookup function bodies
-  Func _ bodies <- getFunc name
+  func <- getFunc name
+  case func of
+    -- Unconstrained function body.
+    Nothing -> runner
+    Just (Func _ bodies) -> do
+      -- Generate all execution paths (as runners).
+      let runner' body = runBody scope body runner
+      let paths = map runner' bodies
 
-  -- Generate all execution paths (as runners).
-  let runner' body = runBody scope body runner
-  let paths = map runner' bodies
+      -- Try paths, selecting the first that produces a counter example.
+      let select Nothing r = r
+          select cex _ = return cex
 
-  -- Try paths, selecting the first that produces a counter example.
-  let select Nothing r = r
-      select cex _ = return cex
+      -- Check if we've reached the recursion limit.
+      -- TODO: Perhaps we should make the recursion limit per kvar?
+      depth' <- gets depth
+      put $ CheckState $ depth' + 1
+      maxDepth' <- reader maxDepth
+      let recursionLimit = depth' >= maxDepth'
 
-  -- Check if we've reached the recursion limit.
-  -- TODO: Perhaps we should make the recursion limit per kvar?
-  depth' <- gets depth
-  put $ CheckState $ depth' + 1
-  maxDepth' <- reader maxDepth
-  let recursionLimit = depth' >= maxDepth'
+      result <- if recursionLimit then runner else foldM select Nothing paths
 
-  result <- if recursionLimit then runner else foldM select Nothing paths
-
-  -- Decrement depth after exploring this function
-  modify $ \s -> s { depth = depth s - 1}
-  return result
+      -- Decrement depth after exploring this function
+      modify $ \s -> s { depth = depth s - 1}
+      return result
 
 -- | Run the statements in the body. If there are no more statements
 -- to run, this will execute the Runner that was passed as argument.
@@ -165,24 +169,19 @@ runStatement scope stmt runner = do
   let stmt' = subst (binders scope) stmt
   case stmt' of
     Call origin name app -> do
-      let scope' = Scope (origin:path scope) app
+      let scope' = Scope ((name, origin):path scope) app
       runFunc name scope' runner'
     Assume e -> smtAssume e >> runner'
     Assert e -> smtAssert e >> runner'
-    Let decl -> smtDeclare scope decl >>= runner -- Run with modified scope.
+    Let decl -> do
+      scope' <- smtDeclare scope decl
+      runner scope'
 
 -- | Get a function from the program given its name.
-getFunc :: MonadCheck m => Name -> m Func
+getFunc :: MonadCheck m => Name -> m (Maybe Func)
 getFunc name = do
   Prog prog <- reader program
-  return $ prog Map.! name
-
--- | Returns a version of a symbol with the scope encoded into its name.
-scopedSym :: MonadCheck m => Scope -> Symbol -> m Symbol
-scopedSym scope sym = do
-  let strs = symbolString <$> progPrefix : sym : path scope
-  let name = intercalate bindSep strs
-  return $ symbol name
+  return $ Map.lookup name prog
 
 -- | Declare a new symbol, returning an updated substitution
 -- given with this new symbol in it. The substitution map is
@@ -192,7 +191,7 @@ smtDeclare scope@Scope { binders = Su binds } (Decl sym _)
   | Map.member sym binds = return scope
 smtDeclare scope (Decl sym sort) = do
   ctx <- reader context
-  sym' <- scopedSym scope sym
+  let sym' = scopeSym scope sym
   liftIO $ SMT.smtDecl ctx sym' sort
   let Su sub = binders scope
   let binders' = Su $ Map.insert sym (EVar sym') sub
@@ -234,7 +233,7 @@ smtModel = do
   Su sub <- liftIO $ SMT.smtGetModel ctx
 
   -- Filter just the variables for which we have a trace
-  let renames = first symbolTrace <$> Map.toList sub
+  let renames = first unscopeSym <$> Map.toList sub
   let traces = [ (trace, sym, e) | (Just (sym, trace), e) <- renames ]
 
   -- Insert a mapping per unique layer in the counter example.
@@ -243,15 +242,31 @@ smtModel = do
   let cex = foldl' insert mempty traces
   return cex
 
+-- | Returns a version of a symbol with the scope encoded into its name.
+scopeSym :: Scope -> Symbol -> Symbol
+scopeSym scope sym = symbol name
+  where
+    name = intercalate bindSep strs
+    strs = symbolString <$> progPrefix : sym : paths
+    paths = uncurry joinCall <$> path scope
+    joinCall (KV callee) caller = symbol . mconcat $ symbolString <$> [callee, callSep, caller]
+
 -- | We encode the trace of a symbol in its name. This way,
 -- we do not lose it in the SMT solver. This function translates
 -- the encoding back.
-symbolTrace :: Symbol -> Maybe (Symbol, [Symbol])
-symbolTrace sym = case T.splitOn bindSep sym' of
+unscopeSym :: Symbol -> Maybe (Symbol, [Symbol])
+unscopeSym sym = case T.splitOn bindSep sym' of
   (prefix:name:trace) | prefix == progPrefix 
-    -> Just (symbol name, symbol <$> trace)
+    -> Just (symbol name, splitCall <$> trace)
   _ -> Nothing
   where
+    splitCall c = symbol . split $ T.splitOn callSep c
+
+    -- We just ignore the callee for now. It was initially here to avoid 
+    -- duplicates in the SMT solver.
+    split [_callee, caller] = caller
+    split _ = error "Scoped name should always be in this shape"
+
     sym' = escapeSmt . symbolText $ sym
 
 escapeSmt :: T.Text -> T.Text
@@ -267,6 +282,9 @@ escapeSmt = go False . T.split (=='$')
 -- inside of smt symbols.
 bindSep :: IsString a => a
 bindSep = "@"
+
+callSep :: IsString a => a
+callSep = "~~"
 
 -- | Prefix used to show that this smt symbol was generated
 -- during a run of the program.

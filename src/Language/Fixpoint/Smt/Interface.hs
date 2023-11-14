@@ -99,6 +99,7 @@ import           System.Console.CmdArgs.Verbosity
 import           System.FilePath
 import           System.IO
 import qualified Data.Attoparsec.Text     as A
+import qualified Data.Scientific as S
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
@@ -210,7 +211,7 @@ smtGetModel Ctx {..} = do
   bytestring <- liftIO $ SMTLIB.Backends.command ctxSolver cmd
   let text = bs2txt bytestring
   case A.parseOnly modelP text of
-    Left err -> Misc.errorstar $ "Parse error on get-value: " ++ err ++ "\n\n" ++ show text
+    Left err -> Misc.errorstar $ "Parse error on get-model: " ++ err ++ "\n\n" ++ show text
     Right sol -> return sol
 
 smtSetMbqi :: Context -> IO ()
@@ -234,7 +235,7 @@ defP = parenP $ do
 sortP :: SmtParser ()
 sortP = do
   -- A type is just an S-Expression, we can reuse the parser
-  let tyP = exprP >> return ()
+  let tyP = void exprP
   _ <- parenP $ A.many' tyP
   tyP
 
@@ -258,19 +259,15 @@ appP = do
   return $ foldl' EApp e es
 
 litP :: SmtParser Expr
-litP = integerP <|> realP <|> boolP <|> bitvecP <|> (EVar <$> symbolP)
+litP = scientificP <|> boolP <|> bitvecP <|> (EVar <$> symbolP)
 
--- TODO: Parse minus as just a negative integer
-integerP :: SmtParser Expr
-integerP = do
-  int <- A.signed A.decimal
-  return $ ECon (I int)
-
--- TODO: Parse minus as just a negative real
-realP :: SmtParser Expr
-realP = do
-  double <- A.signed A.double
-  return $ ECon (R double)
+scientificP :: SmtParser Expr
+scientificP = do
+  val <- A.scientific
+  let con = case S.floatingOrInteger val of
+        Left double -> R double
+        Right int -> I int
+  return $ ECon con
 
 boolP :: SmtParser Expr
 boolP = trueP <|> falseP
@@ -280,15 +277,16 @@ boolP = trueP <|> falseP
 
 bitvecP :: SmtParser Expr
 bitvecP = do
+  _ <- A.char '#'
   (bv, _) <- A.match (hexP <|> binP)
   return $ ECon (L bv $ sizedBitVecSort "x")
   where
     hexP = do
-      _ <- A.string "#x"
-      _ <- A.hexadecimal :: SmtParser Int
+      _ <- A.char 'x'
+      _ <- A.hexadecimal :: SmtParser Integer
       return ()
     binP = do
-      _ <- A.string "#b"
+      _ <- A.char 'b'
       _ <- A.many1' (A.char '0' <|> A.char '1')
       return ()
 
