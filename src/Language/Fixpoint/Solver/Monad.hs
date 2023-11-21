@@ -29,6 +29,7 @@ module Language.Fixpoint.Solver.Monad
        )
        where
 
+import           Control.Monad (foldM, forM, forM_, when)
 import           Language.Fixpoint.Utils.Progress
 import qualified Language.Fixpoint.Types.Config  as C
 import           Language.Fixpoint.Types.Config  (Config)

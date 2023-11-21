@@ -21,7 +21,7 @@ module Language.Fixpoint.Solver.Rewrite
   , RESTOrdering(..)
   ) where
 
-import           Control.Monad.State (guard)
+import           Control.Monad (guard)
 import           Control.Monad.Trans.Maybe
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M

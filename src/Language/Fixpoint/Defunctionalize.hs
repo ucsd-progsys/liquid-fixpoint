@@ -26,6 +26,7 @@ module Language.Fixpoint.Defunctionalize
 
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
+import           Control.Monad ((>=>))
 import           Control.Monad.State
 import           Language.Fixpoint.Misc            (fM, secondM, mapSnd)
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
