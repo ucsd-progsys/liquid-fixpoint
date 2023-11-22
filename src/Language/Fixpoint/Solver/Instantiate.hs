@@ -35,6 +35,7 @@ import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import qualified Language.Fixpoint.Solver.Common as Common (toSMT)
 import           Language.Fixpoint.Solver.Common          (askSMT)
+import           Control.Monad ((>=>), foldM, forM, forM_, join)
 import           Control.Monad.State
 import           Data.Bifunctor (second)
 import qualified Data.Text            as T

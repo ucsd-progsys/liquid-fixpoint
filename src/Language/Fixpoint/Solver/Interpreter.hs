@@ -41,6 +41,7 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Simplify
+import           Control.Monad (foldM)
 import           Control.Monad.State
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S

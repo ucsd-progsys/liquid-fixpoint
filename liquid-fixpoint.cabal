@@ -170,6 +170,8 @@ library
   else
     hs-source-dirs: src-cond/without-z3
 
+  if impl(ghc<9.6)
+    ghc-options: -Wno-unused-imports
   if flag(devel)
     ghc-options: -Werror
   if !os(windows)

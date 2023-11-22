@@ -70,7 +70,6 @@ module Language.Fixpoint.SortCheck  (
 --  import           Control.DeepSeq
 import           Control.Exception (Exception, catch, try, throwIO)
 import           Control.Monad
-import           Control.Monad.Except      -- (MonadError(..))
 import           Control.Monad.Reader
 
 import qualified Data.HashMap.Strict       as M

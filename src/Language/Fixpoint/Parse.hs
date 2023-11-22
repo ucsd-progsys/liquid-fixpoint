@@ -103,6 +103,7 @@ module Language.Fixpoint.Parse (
 
   ) where
 
+import           Control.Monad (unless, void)
 import           Control.Monad.Combinators.Expr
 import qualified Data.IntMap.Strict          as IM
 import qualified Data.HashMap.Strict         as M
