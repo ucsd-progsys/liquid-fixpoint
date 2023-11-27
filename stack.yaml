@@ -1,19 +1,18 @@
 
-resolver: nightly-2023-11-21
-allow-newer: true
+resolver: nightly-2023-11-27
 
 flags:
   liquid-fixpoint:
     devel: true 
+    link-z3-as-a-library: true
 
 packages:
 - '.'
 
 extra-deps:
-- rest-rewrite-0.4.1
-- smtlib-backends-0.3
-- smtlib-backends-z3-0.3
-- smtlib-backends-process-0.3
+- smtlib-backends-0.3@rev:1
+- smtlib-backends-process-0.3@rev:1
+- smtlib-backends-z3-0.3@rev:1
 
 nix:
   packages: [z3]
