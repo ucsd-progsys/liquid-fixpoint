@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
@@ -201,11 +202,17 @@ initST env dd = ExSt 0 (d:dd) env mempty mempty mempty
   where
     -- NV: hardcore Haskell pairs because they do not appear in DataDecl (why?)
     d = mytracepp "Tuple DataDecl" $ DDecl (symbolFTycon (dummyLoc tupConName)) 2 [ct]
+#if MIN_TOOL_VERSION_ghc(9,6,0)
     ct = DCtor (dummyLoc (symbol "GHC.Tuple.Prim.(,)")) [
             DField (dummyLoc (symbol "lqdc$select$GHC.Tuple.Prim.(,)$1")) (FVar 0)
           , DField (dummyLoc (symbol "lqdc$select$GHC.Tuple.Prim.(,)$2")) (FVar 1)
           ]
-
+#else
+    ct = DCtor (dummyLoc (symbol "GHC.Tuple.(,)")) [
+            DField (dummyLoc (symbol "lqdc$select$GHC.Tuple.(,)$1")) (FVar 0)
+          , DField (dummyLoc (symbol "lqdc$select$GHC.Tuple.(,)$2")) (FVar 1)
+          ]
+#endif
 
 setBEnv :: BindEnv a -> Ex a ()
 setBEnv benv = modify (\st -> st{exbenv = benv})
