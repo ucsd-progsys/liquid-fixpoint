@@ -2,6 +2,19 @@
 
 ## NEXT
 
+## 0.9.2.5
+
+- Simplified the equalities dumped by PLE [#569](https://github.com/ucsd-progsys/liquid-fixpoint/issues/569) [#605](https://github.com/ucsd-progsys/liquid-fixpoint/issues/605)
+- Adopt smtlib-backends for interactions with the SMT solvers [#641](https://github.com/ucsd-progsys/liquid-fixpoint/issues/641)
+
+## 0.8.10.2
+
+- Dump equalities discovered by PLE [#491](https://github.com/ucsd-progsys/liquid-fixpoint/pull/491) [#569](https://github.com/ucsd-progsys/liquid-fixpoint/issues/569)
+- Dump prettified version of constraints [#473](https://github.com/ucsd-progsys/liquid-fixpoint/pull/473)
+- Constraints now indicate the source code location that originated them [#471](https://github.com/ucsd-progsys/liquid-fixpoint/pull/471)
+
+## 0.8.6.4
+
 - Fix bugs in PLE
 - Move to GHC 8.6.4 
 - Add `fuel` parameter to debug unfolding in PLE
