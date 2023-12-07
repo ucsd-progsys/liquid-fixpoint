@@ -55,7 +55,6 @@ module Language.Fixpoint.Types.Errors (
 import           System.Exit                        (ExitCode (..))
 import           Control.Exception
 import           Data.Serialize                (Serialize (..))
-import           Data.Aeson                    hiding (Error, Result)
 import           Data.Generics                 (Data)
 import           Data.Typeable
 import           Control.DeepSeq
@@ -73,6 +72,7 @@ import           Data.Function (on)
 -- import           Debug.Trace
 
 import qualified Text.PrettyPrint.Annotated.HughesPJ as Ann
+import qualified Text.JSON
 
 deriving instance Generic (Ann.AnnotDetails a)
 instance Serialize a => Serialize (Ann.AnnotDetails a)
@@ -201,9 +201,7 @@ instance Monoid (FixResult a) where
 --   fmap f (Unsafe s xs)    = Unsafe s (f <$> xs)
 --   fmap _ (Safe stats)     = Safe stats
 
-instance (ToJSON a) => ToJSON (FixResult a) where
-  toJSON = genericToJSON defaultOptions
-  toEncoding = genericToEncoding defaultOptions
+instance Text.JSON.JSON a => Text.JSON.JSON (FixResult a)
 
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)"

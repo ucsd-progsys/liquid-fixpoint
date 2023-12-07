@@ -91,7 +91,6 @@ module Language.Fixpoint.Types.Constraints (
 
 import qualified Data.Store as S
 import           Data.Generics             (Data)
-import           Data.Aeson                hiding (Result)
 import qualified Data.Set                  as Set
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
@@ -119,6 +118,7 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import qualified Data.ByteString           as B
 import qualified Data.Binary as B
+import qualified Text.JSON
 
 --------------------------------------------------------------------------------
 -- | Constraints ---------------------------------------------------------------
@@ -282,9 +282,9 @@ data Result a = Result
   deriving (Generic, Show, Functor)
 
 
-
-instance ToJSON a => ToJSON (Result a) where
-  toJSON = toJSON . resStatus
+instance Text.JSON.JSON a => Text.JSON.JSON (Result a) where
+  showJSON = Text.JSON.showJSON . resStatus
+  readJSON = error "readJSON @(Result a) is undefined"
 
 instance Semigroup (Result a) where
   r1 <> r2  = Result stat soln nonCutsSoln gsoln

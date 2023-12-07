@@ -12,7 +12,7 @@ import           GHC.Generics
 import           Text.PrettyPrint.HughesPJ (text)
 import qualified Data.Store              as S
 import qualified Language.Fixpoint.Types.PrettyPrint as F
-import Data.Aeson
+import Text.JSON
 
 data Stats = Stats
   { numCstr      :: !Int -- ^ # Horn Constraints
@@ -43,11 +43,7 @@ instance Semigroup Stats where
           , numVald      = numVald s1      + numVald s2
           }
 
-instance ToJSON Stats where
-  toJSON = genericToJSON defaultOptions
-  toEncoding = genericToEncoding defaultOptions
-
-instance FromJSON Stats
+instance JSON Stats
 
 instance Monoid Stats where
   mempty  = Stats 0 0 0 0 0

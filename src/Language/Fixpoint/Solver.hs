@@ -29,9 +29,6 @@ module Language.Fixpoint.Solver (
 import           Control.Concurrent                 (setNumCapabilities)
 import qualified Data.HashMap.Strict              as HashMap
 import qualified Data.Store                       as S
-import           Data.Aeson                         (ToJSON, encode)
-import qualified Data.Text.Lazy.IO                as LT
-import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
@@ -61,6 +58,7 @@ import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
 import Data.Maybe (catMaybes)
+import           Text.JSON (JSON, encode)
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -76,15 +74,15 @@ solveFQ cfg = do
     file    = srcFile      cfg
 
 ---------------------------------------------------------------------------
-resultExitCode :: (Fixpoint a, NFData a, ToJSON a) => Config -> Result a
+resultExitCode :: (Fixpoint a, NFData a, JSON a) => Config -> Result a
                -> IO ExitCode
 ---------------------------------------------------------------------------
 resultExitCode cfg r = do
   whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
-  when (json cfg) $ LT.putStrLn jStr
+  when (json cfg) $ putStrLn jStr
   return (eCode r)
   where
-    jStr    = LT.decodeUtf8 . encode $ r
+    jStr    = encode r
     stat    = resStatus $!! r
     eCode   = resultExit . resStatus
     statStr = render . resultDoc

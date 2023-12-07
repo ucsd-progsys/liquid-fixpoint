@@ -39,14 +39,13 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 import           Control.DeepSeq ( NFData )
-import qualified Data.Text               as T
 import           Data.Maybe (fromMaybe)
 import qualified Data.List               as L
 import qualified Language.Fixpoint.Misc  as Misc
 import qualified Language.Fixpoint.Types as F
 import qualified Text.PrettyPrint.HughesPJ.Compat as P
 import qualified Data.HashMap.Strict as M
-import           Data.Aeson
+import           Text.JSON
 
 -------------------------------------------------------------------------------
 -- | @HVar@ is a Horn variable
@@ -226,9 +225,10 @@ instance F.PPrint Tag where
   pprintPrec _ _ NoTag   = mempty
   pprintPrec _ _ (Tag s) = P.ptext s
 
-instance ToJSON Tag where
-  toJSON NoTag   = Null
-  toJSON (Tag s) = String (T.pack s)
+instance JSON Tag where
+  showJSON NoTag   = JSNull
+  showJSON (Tag s) = showJSON s
+  readJSON _       = error "readJSON @Tag is undefined"
 
 instance F.PPrint (Query a) where
   pprintPrec k t q = P.vcat $ L.intersperse " "
