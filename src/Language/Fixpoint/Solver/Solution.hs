@@ -4,6 +4,7 @@
 {-# LANGUAGE PatternGuards     #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Language.Fixpoint.Solver.Solution
   ( -- * Create Initial Solution
