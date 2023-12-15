@@ -2,7 +2,10 @@ name: stack
 
 on:
   push:
+    branches:
+      - develop
   pull_request:
+
 env:
   # We test in stack jobs that we can build with link-z3-as-a-library
   STACK_FLAGS: --no-terminal --flag liquid-fixpoint:link-z3-as-a-library
