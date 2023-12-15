@@ -100,9 +100,13 @@ applyConstantFolding bop e1 e2 =
     getOp _        = Nothing
 
     cfR :: Bop -> Double -> Double -> Maybe Expr
-    cfR bop left right = fmap go (getOp' bop)
+    cfR bop left right = go (getOp' bop)
       where
-        go f = ECon $ R $ f left right
+        go (Just f) =
+          let x = f left right
+           in if isNaN x || isInfinite x then Just $ ECon (R x)
+              else Nothing
+        go Nothing = Nothing
 
         getOp' Div      = Just (/)
         getOp' RDiv     = Just (/)
