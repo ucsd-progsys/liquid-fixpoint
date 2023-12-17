@@ -6,8 +6,6 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
     solve, Solver
@@ -188,11 +186,11 @@ solveNative !cfg !fi0 = solveNative' cfg fi0
                              (return . crashResult (errorMap fi0))
 
 crashResult :: (PPrint a) => ErrorMap a -> Error -> Result (Integer, a)
-crashResult m e = Result res mempty mempty mempty
+crashResult m err' = Result res mempty mempty mempty
   where
     res           = Crash es msg
-    es            = catMaybes [ findError m e | e <- errs e ]
-    msg | null es = showpp e
+    es            = catMaybes [ findError m e | e <- errs err' ]
+    msg | null es = showpp err'
         | otherwise = "Sorry, unexpected panic in liquid-fixpoint!" -- ++ showpp e
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
