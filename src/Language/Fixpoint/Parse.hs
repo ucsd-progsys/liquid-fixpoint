@@ -5,8 +5,6 @@
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Parse (
 
   -- * Top Level Class for Parseable Values
@@ -1026,9 +1024,9 @@ fTyConP
   <|> (mkFTycon          =<<  locUpperIdP)
 
 mkFTycon :: LocSymbol -> Parser FTycon
-mkFTycon locSym = do
+mkFTycon locSymbol = do
   nums  <- gets numTyCons
-  return (symbolNumInfoFTyCon locSym (val locSym `S.member` nums) False)
+  return (symbolNumInfoFTyCon locSymbol (val locSymbol `S.member` nums) False)
 
 
 --------------------------------------------------------------------------------
