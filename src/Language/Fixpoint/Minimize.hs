@@ -7,8 +7,6 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Minimize ( minQuery, minQuals, minKvars ) where
 
 import Prelude hiding (min, init)
