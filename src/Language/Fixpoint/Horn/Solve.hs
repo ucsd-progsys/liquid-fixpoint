@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -------------------------------------------------------------------------------
 -- | This module defines a function to solve NNF constraints,
 --   by reducing them to the standard FInfo.
@@ -29,20 +27,20 @@ import System.Console.CmdArgs.Verbosity ( whenLoud )
 ----------------------------------------------------------------------------------
 solveHorn :: F.Config -> IO ExitCode
 ----------------------------------------------------------------------------------
-solveHorn cfg = do
-  (q, opts) <- parseQuery cfg
+solveHorn baseCfg = do
+  (q, opts) <- parseQuery baseCfg
 
   -- If you want to set --eliminate=none, you better make it a pragma
-  cfg <- if F.eliminate cfg == F.None
-           then pure (cfg { F.eliminate =  F.Some })
-           else pure cfg
+  cfgElim <- if F.eliminate baseCfg == F.None
+           then pure (baseCfg { F.eliminate =  F.Some })
+           else pure baseCfg
 
-  cfg <- F.withPragmas cfg opts
+  cfgPragmas <- F.withPragmas cfgElim opts
 
-  when (F.save cfg) (saveHornQuery cfg q)
+  when (F.save cfgPragmas) (saveHornQuery cfgPragmas q)
 
-  r <- solve cfg q
-  Solver.resultExitCode cfg r
+  r <- solve cfgPragmas q
+  Solver.resultExitCode cfgPragmas r
 
 parseQuery :: F.Config -> IO (H.Query H.Tag, [String])
 parseQuery cfg
@@ -73,9 +71,9 @@ eliminate cfg q
 solve :: (F.PPrint a, NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a
        -> IO (F.Result (Integer, a))
 ----------------------------------------------------------------------------------
-solve cfg q = do
-  let c = Tx.uniq $ Tx.flatten $ H.qCstr q
+solve cfg qry = do
+  let c = Tx.uniq $ Tx.flatten $ H.qCstr qry
   whenLoud $ putStrLn "Horn Uniq:"
   whenLoud $ putStrLn $ F.showpp c
-  q <- eliminate cfg ({- void $ -} q { H.qCstr = c })
+  q <- eliminate cfg ({- void $ -} qry { H.qCstr = c })
   Solver.solve cfg (hornFInfo cfg q)
