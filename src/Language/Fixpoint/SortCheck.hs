@@ -9,8 +9,6 @@
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE RankNTypes            #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
 
