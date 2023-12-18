@@ -110,8 +110,8 @@ solveEbs cfg query@(Query qs vs cstr cons dist eqns mats dds) = do
 
   -- if not $ S.null cuts then error $ F.showpp $ S.toList cuts else pure ()
   let elimCutK k c = doelim k [] c
-  hornCut <- pure $ foldr elimCutK hornk cuts
-  sideCut <- pure $ foldr elimCutK sidek cuts
+      hornCut = foldr elimCutK hornk cuts
+      sideCut = foldr elimCutK sidek cuts
 
   whenLoud $ putStrLn "pi defining constraints:"
   let piSols = M.fromList $ fmap (\pivar -> (pivar, piDefConstr pivar hornCut)) (S.toList pivars)
