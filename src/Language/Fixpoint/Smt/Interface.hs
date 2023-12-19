@@ -8,8 +8,6 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE DoAndIfThenElse           #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
 --   2. computing satisfying assignments
@@ -272,17 +270,17 @@ makeProcess
   -> Process.Config
   -> IO (SMTLIB.Backends.Backend, IO ())
 makeProcess ctxLog cfg
-  = do handle@Process.Handle {hMaybeErr = Just hErr, ..} <- Process.new cfg
+  = do handl@Process.Handle {hMaybeErr = Just hErr, ..} <- Process.new cfg
        case ctxLog of
          Nothing -> return ()
          Just hLog -> void $ async $ forever
-           (do err <- LTIO.hGetLine hErr
-               LTIO.hPutStrLn hLog $ "OOPS, SMT solver error:" <> err
+           (do errTxt <- LTIO.hGetLine hErr
+               LTIO.hPutStrLn hLog $ "OOPS, SMT solver error:" <> errTxt
            ) `catch` \ SomeException {} -> return ()
-       let backend = Process.toBackend handle
+       let backend = Process.toBackend handl
        hSetBuffering hOut $ BlockBuffering $ Just $ 1024 * 1024 * 64
        hSetBuffering hIn $ BlockBuffering $ Just $ 1024 * 1024 * 64
-       return (backend, Process.close handle)
+       return (backend, Process.close handl)
 
 makeContext' :: Config -> Maybe Handle -> IO Context
 makeContext' cfg ctxLog
@@ -399,12 +397,12 @@ smtAssert :: Context -> Expr -> IO ()
 smtAssert me p  = interact' me (Assert Nothing p)
 
 smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
-smtDefineFunc me name params rsort e =
+smtDefineFunc me name symList rsort e =
   let env = seData (ctxSymEnv me)
    in interact' me $
         DefineFunc
           name
-          (map (sortSmtSort False env <$>) params)
+          (map (sortSmtSort False env <$>) symList)
           (sortSmtSort False env rsort)
           e
 

@@ -9,8 +9,6 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Horn.Types
   ( -- * Horn Constraints and their components
     Query (..)
@@ -231,13 +229,13 @@ instance ToJSON Tag where
   toJSON (Tag s) = String (T.pack s)
 
 instance F.PPrint (Query a) where
-  pprintPrec k t q = P.vcat $ L.intersperse " "
+  pprintPrec prec t q = P.vcat $ L.intersperse " "
     [ P.vcat   (ppQual <$> qQuals q)
     , P.vcat   [ppVar k   | k <- qVars q]
-    , P.vcat   [ppCon x t | (x, t) <- M.toList (qCon q)]
+    , P.vcat   [ppCon x sort' | (x, sort') <- M.toList (qCon q)]
     , ppThings Nothing (qEqns  q)
     , ppThings (Just "data ") (qData  q)
-    , P.parens (P.vcat ["constraint", F.pprintPrec (k+2) t (qCstr q)])
+    , P.parens (P.vcat ["constraint", F.pprintPrec (prec+2) t (qCstr q)])
     ]
 
 ppThings :: F.PPrint a => Maybe P.Doc -> [a] -> P.Doc
