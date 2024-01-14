@@ -6,8 +6,6 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TupleSections #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | Functions to make environments smaller
 module Language.Fixpoint.Solver.EnvironmentReduction
   ( reduceEnvironments
@@ -136,19 +134,19 @@ import Language.Fixpoint.Misc (snd3)
 -- See #473 for more discussion.
 --
 reduceEnvironments :: FInfo a -> FInfo a
-reduceEnvironments fi =
-  let constraints = HashMap.Strict.toList $ cm fi
-      aenvMap = axiomEnvSymbols (ae fi)
-      reducedEnvs = map (reduceConstraintEnvironment (bs fi) aenvMap) constraints
-      (cm', ws') = reduceWFConstraintEnvironments (bs fi) (reducedEnvs, ws fi)
-      bs' = (bs fi) { beBinds = dropBindsMissingFrom (beBinds $ bs fi) cm' ws' }
+reduceEnvironments finfo =
+  let constraints = HashMap.Strict.toList $ cm finfo
+      aenvMap = axiomEnvSymbols (ae finfo)
+      reducedEnvs = map (reduceConstraintEnvironment (bs finfo) aenvMap) constraints
+      (cm', ws') = reduceWFConstraintEnvironments (bs finfo) (reducedEnvs, ws finfo)
+      bs' = (bs finfo) { beBinds = dropBindsMissingFrom (beBinds $ bs finfo) cm' ws' }
 
-   in fi
+   in finfo
      { bs = bs'
      , cm = HashMap.fromList cm'
      , ws = ws'
-     , ebinds = updateEbinds bs' (ebinds fi)
-     , bindInfo = updateBindInfoKeys bs' $ bindInfo fi
+     , ebinds = updateEbinds bs' (ebinds finfo)
+     , bindInfo = updateBindInfoKeys bs' $ bindInfo finfo
      }
 
   where
@@ -157,10 +155,10 @@ reduceEnvironments fi =
       -> [(SubcId, SubC a)]
       -> HashMap KVar (WfC a)
       -> HashMap BindId (Symbol, SortedReft, a)
-    dropBindsMissingFrom be cs ws =
+    dropBindsMissingFrom be cs wmap =
       let ibindEnv = unionsIBindEnv $
             map (senv . snd) cs ++
-            map wenv (HashMap.elems ws)
+            map wenv (HashMap.elems wmap)
        in
           HashMap.filterWithKey (\bId _ -> memberIBindEnv bId ibindEnv) be
 
@@ -200,7 +198,7 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
 
       ws' =
         HashMap.mapWithKey
-          (reduceWFConstraintEnvironment bindEnv kvarsRelevantBinds)
+          (reduceWFConstraintEnvironment kvarsRelevantBinds)
           wfs
 
       wsSymbols = HashMap.map (asSymbolSet bindEnv . wenv) ws'
@@ -209,7 +207,7 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
         HashMap.unionWith HashSet.intersection wfBindsPlusSortSymbols wsSymbols
 
       cs' = zipWith
-              (updateSubcEnvsWithKVarBinds bindEnv kvarsWsBinds)
+              (updateSubcEnvsWithKVarBinds kvarsWsBinds)
               kvarsBySubC
               cs
    in
@@ -221,23 +219,22 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
     -- additional bindings that are required by the kvar. These are added
     -- in this function.
     updateSubcEnvsWithKVarBinds
-      :: BindEnv a
-      -> HashMap KVar (HashSet Symbol)
+      :: HashMap KVar (HashSet Symbol)
       -> [KVar]
       -> ReducedConstraint a
       -> (SubcId, SubC a)
-    updateSubcEnvsWithKVarBinds be kvarsBinds kvs c =
+    updateSubcEnvsWithKVarBinds kvarsBinds kvs c =
       let updateIBindEnv oldEnv =
             unionIBindEnv (reducedEnv c) $
             if null kvs then emptyIBindEnv
             else fromListIBindEnv
               [ bId
               | bId <- elemsIBindEnv oldEnv
-              , let (s, _sr, _) = lookupBindEnv bId be
+              , let (s, _sr, _) = lookupBindEnv bId bindEnv
               , any (neededByKVar s) kvs
               ]
-          neededByKVar s kv =
-            case HashMap.lookup kv kvarsBinds of
+          neededByKVar s kvar =
+            case HashMap.lookup kvar kvarsBinds of
               Nothing -> False
               Just kbindSyms -> HashSet.member s kbindSyms
        in (constraintId c, updateSEnv (originalConstraint c) updateIBindEnv)
@@ -245,12 +242,11 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
     -- @reduceWFConstraintEnvironment be kbinds k c@ drops bindings from @c@
     -- that aren't present in @kbinds ! k@.
     reduceWFConstraintEnvironment
-      :: BindEnv a
-      -> HashMap KVar (HashSet Symbol)
+      :: HashMap KVar (HashSet Symbol)
       -> KVar
       -> WfC a
       -> WfC a
-    reduceWFConstraintEnvironment bindEnv kvarBinds k c =
+    reduceWFConstraintEnvironment kvarBinds k c =
       case HashMap.lookup k kvarBinds of
         Nothing -> c { wenv = emptyIBindEnv }
         Just kbindSymbols ->
@@ -320,10 +316,10 @@ dropIrrelevantBindings aenvMap extraSymbols env =
 
 -- | For each Equation and Rewrite, collects the symbols that it needs.
 axiomEnvSymbols :: AxiomEnv -> HashMap Symbol (HashSet Symbol)
-axiomEnvSymbols ae =
+axiomEnvSymbols axiomEnv =
   HashMap.union
-    (HashMap.fromList $ map eqSymbols $ aenvEqs ae)
-    (HashMap.fromList $ map rewriteSymbols $ aenvSimpl ae)
+    (HashMap.fromList $ map eqSymbols $ aenvEqs axiomEnv)
+    (HashMap.fromList $ map rewriteSymbols $ aenvSimpl axiomEnv)
   where
     eqSymbols eq =
       let bodySymbols =
@@ -461,13 +457,13 @@ reachableSymbols ss0 outgoingEdges = go HashSet.empty ss0
 -- If 'inlineANFBindings cfg' is on, also runs 'undoANFAndVV' to inline
 -- @lq_anf@ bindings.
 simplifyBindings :: Config -> FInfo a -> FInfo a
-simplifyBindings cfg fi =
-  let (bs', cm', oldToNew) = simplifyConstraints (bs fi) (cm fi)
-   in fi
+simplifyBindings cfg finfo =
+  let (bs', cm', oldToNew) = simplifyConstraints (bs finfo) (cm finfo)
+   in finfo
         { bs = bs'
         , cm = cm'
-        , ebinds = updateEbinds oldToNew (ebinds fi)
-        , bindInfo = updateBindInfoKeys oldToNew $ bindInfo fi
+        , ebinds = updateEbinds oldToNew (ebinds finfo)
+        , bindInfo = updateBindInfoKeys oldToNew $ bindInfo finfo
         }
   where
     updateEbinds :: HashMap BindId [BindId] -> [BindId] -> [BindId]
@@ -518,7 +514,7 @@ simplifyBindings cfg fi =
 
           modifiedBinds = HashMap.toList $ HashMap.union boolSimplEnv undoANFEnv
 
-          modifiedBindIds = [ fst <$> bs | (_, (bs,_)) <- modifiedBinds ]
+          modifiedBindIds = [ fst <$> bindIds | (_, (bindIds,_)) <- modifiedBinds ]
 
           unchangedBindIds = senv c `diffIBindEnv` fromListIBindEnv (concat modifiedBindIds)
 
@@ -632,10 +628,10 @@ inlineInSortedReft
   -> SortedReft
   -> SortedReft
 inlineInSortedReft srLookup sr =
-    let reft = sr_reft sr
-     in sr { sr_reft = mapPredReft (inlineInExpr (filterBind (reftBind reft) srLookup)) reft }
+    let reft' = sr_reft sr
+     in sr { sr_reft = mapPredReft (inlineInExpr (filterBind (reftBind reft'))) reft' }
   where
-    filterBind b srLookup sym = do
+    filterBind b sym = do
       guard (sym /= b)
       srLookup sym
 
@@ -713,7 +709,7 @@ simplifyBooleanRefts = HashMap.mapMaybe simplifyBooleanSortedReft
     findExpr e es = do
       case partition (e ==) es of
         ([], _) -> Nothing
-        (e:_, rest) -> Just (e, rest)
+        (f:_, rest) -> Just (f, rest)
 
 -- | @dropLikelyIrrelevantBindings ss env@ is like @dropIrrelevantBindings@
 -- but drops bindings that could potentially be necessary to validate a
