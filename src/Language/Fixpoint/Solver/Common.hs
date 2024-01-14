@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Solver.Common (askSMT, toSMT) where
 
 import Language.Fixpoint.Types.Config (Config)
@@ -15,20 +13,20 @@ mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
 askSMT :: Config -> Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-askSMT cfg ctx bs e
+askSMT cfg ctx xs e
 --   | isContraPred e  = return False
   | isTautoPred  e     = return True
   | null (kvarsExpr e) = checkValidWithContext ctx [] PTrue e'
   | otherwise          = return False
   where
-    e' = toSMT "askSMT" cfg ctx bs e
+    e' = toSMT "askSMT" cfg ctx xs e
 
 toSMT :: String -> Config -> Context -> [(Symbol, Sort)] -> Expr -> Pred
-toSMT msg cfg ctx bs e =
-    defuncAny cfg senv .
-        elaborate (dummyLoc msg) (elabEnv bs) .
+toSMT msg cfg ctx xs e =
+    defuncAny cfg symenv .
+        elaborate (dummyLoc msg) (elabEnv xs) .
             mytracepp ("toSMT from " ++ msg ++ showpp e) $
                 e
   where
-    elabEnv = insertsSymEnv senv
-    senv    = ctxSymEnv ctx
+    elabEnv = insertsSymEnv symenv
+    symenv  = ctxSymEnv ctx
