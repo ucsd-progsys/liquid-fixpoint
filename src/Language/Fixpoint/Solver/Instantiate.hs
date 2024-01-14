@@ -17,8 +17,6 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing    #-}
-
 module Language.Fixpoint.Solver.Instantiate (instantiate) where
 
 import           Language.Fixpoint.Types
@@ -54,15 +52,15 @@ mytracepp = notracepp
 -- | Strengthen Constraint Environments via PLE
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
-instantiate cfg fi subcIds
+instantiate cfg info subcIds
   | not (oldPLE cfg)
-  = PLE.instantiate cfg fi subcIds
+  = PLE.instantiate cfg info subcIds
 
   | noIncrPle cfg
-  = instantiate' cfg fi subcIds
+  = instantiate' cfg info subcIds
 
   | otherwise
-  = incrInstantiate' cfg fi subcIds
+  = incrInstantiate' cfg info subcIds
 
 
 -------------------------------------------------------------------------------
@@ -79,27 +77,27 @@ instantiate cfg fi subcIds
 -------------------------------------------------------------------------------
 incrInstantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 -------------------------------------------------------------------------------
-incrInstantiate' cfg fi subcIds = do
-    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c
+incrInstantiate' cfg info subcIds = do
+    let cs = [ (i, c) | (i, c) <- M.toList (cm info), isPleCstr aEnv i c
                       ,  maybe True (i `L.elem`) subcIds ]
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $
-               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
-    return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
+               withCtx cfg file sEnv (pleTrie t . instEnv cfg info cs)  -- 2. TRAVERSE Trie to compute InstRes
+    return $ resSInfo cfg sEnv info res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
     file   = srcFile cfg ++ ".evals"
-    sEnv   = symbolEnv cfg fi
-    aEnv   = ae fi
+    sEnv   = symbolEnv cfg info
+    aEnv   = ae info
 
 
 
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
 instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a
-instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
+instEnv cfg info cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
   where
-    bEnv              = bs fi
-    aEnv              = ae fi
+    bEnv              = bs info
+    aEnv              = ae info
     γ                 = knowledge cfg ctx aEnv
     s0                = EvalEnv 0 [] aEnv (SMT.ctxSymEnv ctx) cfg
 
@@ -161,7 +159,7 @@ unfoldPred :: Config -> SMT.Context -> [Unfold] -> Pred
 unfoldPred cfg ctx = toSMT cfg ctx [] . pAnd . concatMap snd
 
 evalCandsLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> IO [Unfold]
-evalCandsLoop cfg ctx γ s0 cands = go [] cands
+evalCandsLoop cfg ctx γ s0 = go []
   where
     go acc []    = return acc
     go acc cands = do eqss   <- SMT.smtBracket ctx "PLE.evaluate" $ do
@@ -180,7 +178,7 @@ evalCandsLoop cfg ctx γ s0 cands = go [] cands
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo
 
 resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
-resSInfo cfg env fi res = strengthenBinds fi res'
+resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ mytracepp  "ELAB-INST:  " $ zip is ps''
     ps''     = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps'
@@ -258,11 +256,11 @@ mkUnfolds us = [ (eMb, ps)  | (eMb, eqs) <- us
                ]
 
 debugResult :: InstEnv a -> InstRes -> SubcId -> String
-debugResult InstEnv{..} res i = msg
+debugResult InstEnv{..} res subId = msg
   where
-    msg                          = "INCR-INSTANTIATE i = " ++ show i ++ ": " ++ showpp cidEqs
+    msg                          = "INCR-INSTANTIATE i = " ++ show subId ++ ": " ++ showpp cidEqs
     cidEqs                       = pAnd [ e | i <- cBinds, e <- Mb.maybeToList $ M.lookup i res ]
-    cBinds                       = L.sort . elemsIBindEnv . senv . getCstr ieCstrs $ i
+    cBinds                       = L.sort . elemsIBindEnv . senv . getCstr ieCstrs $ subId
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
@@ -298,35 +296,35 @@ getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 -- | "Old" GLOBAL PLE
 --------------------------------------------------------------------------------
 instantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
-instantiate' cfg fi subcIds = sInfo cfg env fi <$> withCtx cfg file env act
+instantiate' cfg info subcIds = sInfo cfg env info <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
-    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c
+                        ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs info) aenv i c
+    cstrs           = [ (i, c) | (i, c) <- M.toList (cm info) , isPleCstr aenv i c
                                ,  maybe True (i `L.elem`) subcIds ]
     file            = srcFile cfg ++ ".evals"
-    env             = symbolEnv cfg fi
-    aenv            = {- mytracepp  "AXIOM-ENV" -} ae fi
+    env             = symbolEnv cfg info
+    aenv            = {- mytracepp  "AXIOM-ENV" -} ae info
 
 sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
-sInfo cfg env fi ips = strengthenHyp fi (mytracepp  "ELAB-INST:  " $ zip (fst <$> is) ps'')
+sInfo cfg env info ips = strengthenHyp info (mytracepp  "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips
     ps'              = defuncAny cfg env ps
     ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps'
 
 instSimpC :: Config -> SMT.Context -> BindEnv a -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
-instSimpC cfg ctx bds aenv sid sub
-  | isPleCstr aenv sid sub = do
+instSimpC cfg ctx bds aenv subId sub
+  | isPleCstr aenv subId sub = do
     let is0       = mytracepp  "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv)
     let (bs, es0) = cstrExprs bds sub
-    equalities   <- evaluate cfg ctx aenv bs es0 sid
+    equalities   <- evaluate cfg ctx aenv bs es0 subId
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ]
     return        $ pAnd (is0 ++ evalEqs)
   | otherwise     = return PTrue
 
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
-isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
+isPleCstr aenv subId c = isTarget c && M.lookupDefault False subId (aenvExpand aenv)
 
 cstrExprs :: BindEnv a -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
 cstrExprs bds sub = (second unElabSortedReft <$> binds, unElab <$> es)
@@ -343,10 +341,10 @@ evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
          -> SubcId                            -- ^ Constraint Id
          -> IO [(Expr, Expr)]                 -- ^ Newly unfolded equalities
 --------------------------------------------------------------------------------
-evaluate cfg ctx aenv facts es sid = do
+evaluate cfg ctx aenv facts es subId = do
   let eqs      = initEqualities ctx aenv facts
   let γ        = knowledge cfg ctx aenv
-  let cands    = mytracepp  ("evaluate-cands " ++ showpp sid) $ Misc.setNub (concatMap topApps es)
+  let cands    = mytracepp  ("evaluate-cands " ++ showpp subId) $ Misc.setNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
@@ -356,7 +354,7 @@ evaluate cfg ctx aenv facts es sid = do
 
 
 _evalLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Pred] -> [Expr] -> IO [(Expr, Expr)]
-_evalLoop cfg ctx γ s0 ctxEqs cands = loop 0 [] cands
+_evalLoop cfg ctx γ s0 ctxEqs = loop 0 []
   where
     loop _ acc []    = return acc
     loop i acc cands = do let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
@@ -463,7 +461,7 @@ eval γ stk = go
 --   TODO: distill a .fq test from the MOSSAKA-hw3 example.
 
 evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgs γ stk e = go [] e
+evalArgs γ stk = go []
   where
     go acc (EApp f e)
       = do f' <- evalOk γ stk f
@@ -565,14 +563,14 @@ substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
 mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ]
   where
-    unite ts    = mytracepp ("UNITE: " ++ showpp ts) $ Mb.fromMaybe (uError ts) (unifyTo1 senv ts)
-    senv        = mkSearchEnv env
+    unite ts    = mytracepp ("UNITE: " ++ showpp ts) $ Mb.fromMaybe (uError ts) (unifyTo1 symToSearch ts)
+    symToSearch = mkSearchEnv env
     uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts)
     xys         = mytracepp "mkCoSubXXX" $ Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
     (_xTs,_eTs) = mytracepp "mkCoSub:MATCH" (xTs, eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
-matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ showpp (s1, s2)) $ go s1 s2
+matchSorts sort1 sort2 = mytracepp  ("matchSorts :" ++ showpp (sort1, sort2)) $ go sort1 sort2
   where
     go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
@@ -603,7 +601,7 @@ eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
-substPopIf xes e = L.foldl' go e xes
+substPopIf xes expr' = L.foldl' go expr' xes
   where
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
@@ -695,9 +693,9 @@ knowledge cfg ctx aenv = KN
 initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, Expr)]
 initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
   where
-    dcEqs                  = Misc.setNub (Mb.catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
+    dcEqs                  = Misc.setNub (Mb.catMaybes [getDCEquality symEnv' e1 e2 | EEq e1 e2 <- atoms])
     atoms                  = splitPAnd . expr =<< filter isProof es
-    senv                   = SMT.ctxSymEnv ctx
+    symEnv'                = SMT.ctxSymEnv ctx
 
 -- AT: Non-obvious needed invariant: askSMT True is always the
 -- totality-effecting one.
@@ -717,7 +715,7 @@ makeSimplifications sis (dc, es, e)
      = []
 
 getDCEquality :: SymEnv -> Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
-getDCEquality senv e1 e2
+getDCEquality sEnv e1 e2
   | Just dc1 <- f1
   , Just dc2 <- f2
   = if dc1 == dc2
@@ -730,13 +728,13 @@ getDCEquality senv e1 e2
   | otherwise
   = Nothing
   where
-    (f1, es1) = Misc.mapFst (getDC senv) (splitEApp e1)
-    (f2, es2) = Misc.mapFst (getDC senv) (splitEApp e2)
+    (f1, es1) = Misc.mapFst (getDC sEnv) (splitEApp e1)
+    (f2, es2) = Misc.mapFst (getDC sEnv) (splitEApp e2)
 
 -- TODO: Stringy hacks
 getDC :: SymEnv -> Expr -> Maybe Symbol
-getDC senv (EVar x)
-  | isUpperSymbol x && Mb.isNothing (symEnvTheory x senv)
+getDC sEnv (EVar x)
+  | isUpperSymbol x && Mb.isNothing (symEnvTheory x sEnv)
   = Just x
 getDC _ _
   = Nothing
@@ -773,11 +771,11 @@ dropModuleNames = mungeNames (symbol . last) "."
  -}
 
 assertSelectors :: Knowledge -> Expr -> EvalST ()
-assertSelectors γ e = do
+assertSelectors γ expr' = do
     sims <- gets (aenvSimpl . _evAEnv)
     -- cfg  <- gets evCfg
     -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (mytracepp  "assertSelector" e) sims
-    forM_ sims $ \s -> Vis.mapMExpr (go s) e
+    forM_ sims $ \s -> Vis.mapMExpr (go s) expr'
   where
     go :: Rewrite -> Expr -> EvalST Expr
     go (SMeasure f dc xs bd) e@(EApp _ _)
