@@ -7,7 +7,6 @@
 {-# LANGUAGE ViewPatterns              #-}
 
 {-# OPTIONS_GHC -Wno-orphans           #-}
-{-# OPTIONS_GHC -Wno-name-shadowing    #-}
 
 module Language.Fixpoint.Smt.Theories
      (
@@ -443,9 +442,9 @@ smt2App _ _ (dropECst -> EVar f) [d]
   | f == setEmp   = Just (key2 "=" (fromText emp) d)
   | f == setSng   = Just (key (fromText sng) d) -- Just (key2 (bb add) (bb emp) d)
 
-smt2App k env f (d:ds)
+smt2App k env f (builder:builders)
   | Just fb <- smt2AppArg k env f
-  = Just $ key fb (d <> mconcat [ " " <> d | d <- ds])
+  = Just $ key fb (builder <> mconcat [ " " <> d | d <- builders])
 
 smt2App _ _ _ _    = Nothing
 
