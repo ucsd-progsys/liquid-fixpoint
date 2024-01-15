@@ -3,7 +3,6 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Language.Fixpoint.Solver.Extensionality (expand) where
@@ -58,22 +57,22 @@ instance Extend a (SimpC a) where
 
 
 extendExpr :: a -> Pos -> Expr -> Ex a Expr
-extendExpr ann p e
+extendExpr ann p expr'
   | p == Pos
   = mapMPosExpr Pos goP e' >>= mapMPosExpr Pos goN
   | otherwise
   = mapMPosExpr Neg goP e' >>= mapMPosExpr Neg goN
     where
-      e' = normalize e
+      e' = normalize expr'
       goP Pos (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = mytracepp ("extending POS = " ++ showpp e) <$> (extendRHS ann b e1 e2 s >>= goP Pos)
+       = mytracepp ("extending POS = " ++ showpp expr') <$> (extendRHS ann b e1 e2 s >>= goP Pos)
       goP _ e = return e
       goN Neg (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = mytracepp ("extending NEG = " ++ showpp e) <$> (extendLHS ann b e1 e2 s >>= goN Neg)
+       = mytracepp ("extending NEG = " ++ showpp expr') <$> (extendLHS ann b e1 e2 s >>= goN Neg)
       goN _ e = return e
 
 getArg :: Sort -> Maybe Sort
@@ -93,9 +92,9 @@ extendLHS ann b e1 e2 s =
      mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
 
 generateArguments :: a -> Sort -> Ex a [Expr]
-generateArguments ann s = do
-  ddecls   <- gets exddecl
-  case breakSort ddecls s of
+generateArguments ann srt = do
+  ddatadecls <- gets exddecl
+  case breakSort ddatadecls srt of
     Left dds -> mapM (freshArgDD ann) dds
     Right s  -> (\x -> [EVar x]) <$> freshArgOne ann s
 
@@ -130,7 +129,7 @@ negatePos Pos = Neg
 negatePos Neg = Pos
 
 mapMPosExpr :: (Monad m) => Pos -> (Pos -> Expr -> m Expr) -> Expr -> m Expr
-mapMPosExpr p f = go p
+mapMPosExpr pos f = go pos
   where
     go p e@(ESym _)      = f p e
     go p e@(ECon _)      = f p e
@@ -161,7 +160,7 @@ mapMPosExpr p f = go p
     go p (PGrad k s i e) = f p . PGrad k s i =<< go p e
 
 normalize :: Expr -> Expr
-normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
+normalize expr' = mytracepp ("normalize: " ++ showpp expr') $ go expr'
   where
     go e@(ESym _)        = e
     go e@(ECon _)        = e
@@ -224,19 +223,19 @@ setExBinds bids = modify (\st -> st{ exbinds = bids
 
 
 freshArgDD :: a -> (LocSymbol, [Sort]) -> Ex a Expr
-freshArgDD ann (dc, xs) = do
-  xs <- mapM (freshArgOne ann) xs
+freshArgDD ann (dc, sorts) = do
+  xs <- mapM (freshArgOne ann) sorts
   return $ mkEApp dc (EVar <$> xs)
 
 
 freshArgOne :: ann -> Sort -> Ex ann Symbol
 freshArgOne ann s = do
-  st   <- get
-  let x = symbol ("ext$" ++ show (unique st))
-  let (id, benv') = insertBindEnv x (trueSortedReft s) ann (exbenv st)
+  exst <- get
+  let x = symbol ("ext$" ++ show (unique exst))
+  let (bindId, benv') = insertBindEnv x (trueSortedReft s) ann (exbenv exst)
   modify (\st -> st{ exenv   = insertSymEnv x s (exenv st)
                    , exbenv  = benv'
-                   , exbinds = insertsIBindEnv [id] (exbinds st)
+                   , exbinds = insertsIBindEnv [bindId] (exbinds st)
                    , unique   = 1 + unique st
                    , excbs = (x,s) : excbs st
                    })
@@ -244,9 +243,9 @@ freshArgOne ann s = do
 
 
 breakSort :: [DataDecl] -> Sort -> Either [(LocSymbol, [Sort])] Sort
-breakSort ddecls s
+breakSort ddatadecls s
     | Just (tc, ts) <- splitTC s
-    , [(dds,i)] <- [ (ddCtors dd,ddVars dd) | dd <- ddecls, ddTyCon dd == tc ]
+    , [(dds,i)] <- [ (ddCtors dd,ddVars dd) | dd <- ddatadecls, ddTyCon dd == tc ]
     = Left ((\dd -> (dcName dd, instSort  (Sub $ zip [0..(i-1)] ts) . dfSort <$> dcFields dd)) <$> dds)
     | otherwise
     = Right s

@@ -6,7 +6,6 @@
 {-# LANGUAGE DoAndIfThenElse      #-}
 
 {-# OPTIONS_GHC -Wno-orphans        #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
@@ -153,9 +152,9 @@ instance SMTLIB2 Expr where
   smt2 env (PImp p q)       = parenSeqs ["=>", smt2 env p, smt2 env q]
   smt2 env (PIff p q)       = parenSeqs ["=", smt2 env p, smt2 env q]
   smt2 env (PExist [] p)    = smt2 env p
-  smt2 env (PExist bs p)    = parenSeqs ["exists", parens (smt2s env bs), smt2 env p]
+  smt2 env (PExist xs p)    = parenSeqs ["exists", parens (smt2s env xs), smt2 env p]
   smt2 env (PAll   [] p)    = smt2 env p
-  smt2 env (PAll   bs p)    = parenSeqs ["forall", parens (smt2s env bs), smt2 env p]
+  smt2 env (PAll   xs p)    = parenSeqs ["forall", parens (smt2s env xs), smt2 env p]
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
   smt2 env (ELam b e)       = smt2Lam   env b e
   smt2 env (ECoerc t1 t2 e) = smt2Coerc env t1 t2 e
@@ -231,8 +230,8 @@ instance SMTLIB2 Command where
   smt2 env (DeclData ds)       = key "declare-datatypes" (smt2data env ds)
   smt2 env (Declare x ts t)    = parenSeqs ["declare-fun", Builder.fromText x, parens (smt2many (smt2 env <$> ts)), smt2 env t]
   smt2 env c@(Define t)        = key "declare-sort" (smt2SortMono c env t)
-  smt2 env (DefineFunc name params rsort e) =
-    let bParams = [ parenSeqs [smt2 env s, smt2 env t] | (s, t) <- params]
+  smt2 env (DefineFunc name paramxs rsort e) =
+    let bParams = [ parenSeqs [smt2 env s, smt2 env t] | (s, t) <- paramxs]
      in parenSeqs ["define-fun", smt2 env name, parenSeqs bParams, smt2 env rsort, smt2 env e]
   smt2 env (Assert Nothing p)  = {-# SCC "smt2-assert" #-} key "assert" (smt2 env p)
   smt2 env (Assert (Just i) p) = {-# SCC "smt2-assert" #-} key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> bShow i))
@@ -251,14 +250,14 @@ instance SMTLIB2 Command where
 instance SMTLIB2 (Triggered Expr) where
   smt2 env (TR NoTrigger e)       = smt2 env e
   smt2 env (TR _ (PExist [] p))   = smt2 env p
-  smt2 env t@(TR _ (PExist bs p)) = smtTr env "exists" bs p t
+  smt2 env t@(TR _ (PExist xs p)) = smtTr env "exists" xs p t
   smt2 env (TR _ (PAll   [] p))   = smt2 env p
-  smt2 env t@(TR _ (PAll   bs p)) = smtTr env "forall" bs p t
+  smt2 env t@(TR _ (PAll   xs p)) = smtTr env "forall" xs p t
   smt2 env (TR _ e)               = smt2 env e
 
 {-# INLINE smtTr #-}
 smtTr :: SymEnv -> Builder -> [(Symbol, Sort)] -> Expr -> Triggered Expr -> Builder
-smtTr env q bs p t = key q (parens (smt2s env bs) <+> key "!" (smt2 env p <+> ":pattern" <> parens (smt2s env (makeTriggers t))))
+smtTr env q xs p t = key q (parens (smt2s env xs) <+> key "!" (smt2 env p <+> ":pattern" <> parens (smt2s env (makeTriggers t))))
 
 {-# INLINE smt2s #-}
 smt2s    :: SMTLIB2 a => SymEnv -> [a] -> Builder
