@@ -88,7 +88,7 @@ eliminate cfg q
   | F.eliminate cfg == F.Existentials = do
     Tx.solveEbs cfg q
   | F.eliminate cfg == F.Horn = do
-    let c = Tx.elim $ H.qCstr q
+    let c = Tx.elim cfg q
     whenLoud $ putStrLn "Horn Elim:"
     whenLoud $ putStrLn $ F.showpp c
     pure $ q { H.qCstr = c }
