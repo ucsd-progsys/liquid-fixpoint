@@ -18,7 +18,7 @@ jobs:
       matrix:
         cabal: ["3.6"]
         ghc:
-          - "9.4.7"
+          - "9.8.1"
 
     steps:
       - uses: actions/checkout@v3
@@ -48,7 +48,7 @@ jobs:
           path: |
             ~/.stack
             .stack-work
-          key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('**/*.cabal', './stack/stack-${{ matrix.ghc }}.yaml', './stack/stack-${{ matrix.ghc }}.yaml.lock') }}
+          key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('**/*.cabal', './stack.yaml', './stack.yaml.lock') }}
 
       - name: Build
         run: stack test --no-run-tests $STACK_FLAGS

@@ -1,5 +1,5 @@
 
-resolver: nightly-2023-11-27
+resolver: nightly-2024-01-26
 
 flags:
   liquid-fixpoint:
@@ -13,9 +13,17 @@ packages:
 - '.'
 
 extra-deps:
-- smtlib-backends-0.3@rev:1
-- smtlib-backends-process-0.3@rev:1
-- smtlib-backends-z3-0.3@rev:1
+- rest-rewrite-0.4.2
+- smtlib-backends-0.3@rev:2
+- smtlib-backends-process-0.3@rev:2
+- smtlib-backends-z3-0.3.1
+- store-0.7.18
+- store-core-0.4.4.6
+
+allow-newer: true
+allow-newer-deps:
+  - rest-rewrite
+  - store-core
 
 nix:
   packages: [z3]
