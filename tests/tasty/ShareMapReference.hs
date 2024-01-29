@@ -71,14 +71,14 @@ mergeKeysWith f k0 k1 sm | k0 /= k1 =
        | otherwise ->
          let v0 = h HashMap.! k0
              v1 = maybe v0 (f v0) $ HashMap.lookup k1 h
-             keys' = case break (HashSet.member k1) (before0 ++ after0) of
+             (kHead, keys') = case break (HashSet.member k1) (before0 ++ after0) of
                  (before1, []) ->
-                    HashSet.insert k1 keys0 : before1
+                    (HashSet.insert k1 keys0, before1)
                  (before1, keys1 : after1)->
-                    HashSet.union keys0 keys1 : before1 ++ after1
+                    (HashSet.union keys0 keys1, before1 ++ after1)
           in sm
               { toHashMap =
-                  HashSet.foldl' (\h' k' -> HashMap.insert k' v1 h') h (head keys')
-              , keyPartitions = keys'
+                  HashSet.foldl' (\h' k' -> HashMap.insert k' v1 h') h kHead
+              , keyPartitions = kHead : keys'
               }
 mergeKeysWith _ _ _ sm = sm
