@@ -174,7 +174,7 @@ walkDirectory root
   = do (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
        (fs++) <$> concatMapM walkDirectory ds
   where
-    candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+    candidates fs = [root </> f | f@(c:_) <- fs, not (isExtSeparator c)]
 
 partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a],[a])
 partitionM f = go [] []
@@ -223,7 +223,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
         Const summary <$ State.modify (+ 1)
 
     runGroup _ group' children = Traversal $ Functor.Compose $ do
-      Const soFar <- Functor.getCompose $ getTraversal children
+      Const soFar <- Functor.getCompose $ getTraversal $ mconcat children
       pure $ Const $ map (\(n,t,s) -> (group' </> n,t,s)) soFar
 
     computeFailures :: StatusMap -> IO Int
