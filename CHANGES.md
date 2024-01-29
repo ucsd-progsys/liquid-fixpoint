@@ -2,6 +2,10 @@
 
 ## NEXT
 
+## 0.9.6.3 (2024-01-29)
+
+- For now we stopped folding constants that contain NaN [#670](https://github.com/ucsd-progsys/liquid-fixpoint/pull/670)
+
 ## 0.9.4.7
 
 - Support GHC 9.6 tuples with `--extensionality` [#666](https://github.com/ucsd-progsys/liquid-fixpoint/issues/641) [#667](https://github.com/ucsd-progsys/liquid-fixpoint/issues/641)
