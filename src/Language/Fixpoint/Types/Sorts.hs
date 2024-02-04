@@ -96,7 +96,9 @@ import           Data.Aeson
 import           Data.Hashable
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
+#if !MIN_VERSION_base(4,20,0)
 import           Data.List                 (foldl')
+#endif
 import           Control.DeepSeq
 import           Data.Maybe                (fromMaybe)
 import           Language.Fixpoint.Types.Names

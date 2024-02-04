@@ -1,9 +1,14 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module ShareMapTests where
 
 import Data.HashMap.Lazy (HashMap)
+#if MIN_VERSION_base(4,20,0)
+import Data.List (nub)
+#else
 import Data.List (foldl', nub)
+#endif
 import qualified Data.ShareMap as ShareMap
 import qualified ShareMapReference as Reference
 import Test.Tasty
