@@ -175,6 +175,8 @@ library
     ghc-options: -Wno-unused-imports
   if impl(ghc>9.8)
     ghc-options: -Wno-x-partial
+  if impl(ghc>9.9)
+    ghc-options: -Wno-unused-imports
   if flag(devel)
     ghc-options: -Werror
   if !os(windows)
@@ -220,6 +222,8 @@ test-suite test
                   , transformers  >= 0.5
   if flag(devel)
     ghc-options: -Werror
+  if impl(ghc>9.9)
+    ghc-options: -Wno-unused-imports
   build-tool-depends: liquid-fixpoint:fixpoint
   default-language: Haskell98
 
@@ -251,4 +255,6 @@ test-suite tasty
                   , unordered-containers
   if flag(devel)
     ghc-options: -Werror
+  if impl(ghc>9.9)
+    ghc-options: -Wno-unused-imports
   default-language: Haskell98
