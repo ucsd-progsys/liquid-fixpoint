@@ -948,9 +948,8 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
 funAppP :: Parser Expr
 funAppP      =  litP <|> exprFunP <|> simpleAppP
   where
-    -- predFunP = (\f p -> mkEApp f [p]) <$> funSymbolP <*> parens predP
     exprFunP = mkEApp <$> funSymbolP <*> funRhsP
-    funRhsP  =  some (expr0P) -- <|> pred0P)
+    funRhsP  =  some expr0P
             <|> parens innerP
     innerP   = brackets (sepBy exprP semi)
 
