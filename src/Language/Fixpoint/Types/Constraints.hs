@@ -63,6 +63,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Results
   , FixSolution
   , GFixSolution, toGFixSol
+  , Counterexample
   , Result (..)
   , unsafe, isUnsafe, isSafe ,safe
 
@@ -272,13 +273,15 @@ newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
 toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
 
+-- | A counter example for a model.
+type Counterexample a = M.HashMap [BindId] (CexEnv a)
 
 data Result a = Result
   { resStatus :: !(FixResult a)
   , resSolution :: !FixSolution
   , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution
-  , resCntExs :: !(M.HashMap SubcId (M.HashMap [BindId] (BindMap Expr)))
+  , resCounterexamples :: !(M.HashMap SubcId (Counterexample a))
   }
   deriving (Generic, Show, Functor)
 
@@ -294,7 +297,7 @@ instance Semigroup (Result a) where
       soln  = resSolution r1  <> resSolution r2
       nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
       gsoln = gresSolution r1 <> gresSolution r2
-      cntExs = resCntExs r1 <> resCntExs r2
+      cntExs = resCounterexamples r1 <> resCounterexamples r2
 
 instance Monoid (Result a) where
   mempty        = Result mempty mempty mempty mempty mempty

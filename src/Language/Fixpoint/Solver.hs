@@ -58,11 +58,11 @@ import           Language.Fixpoint.Types hiding (GInfo(..), fi)
 import qualified Language.Fixpoint.Types as Types (GInfo(..))
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.Instantiate (instantiate)
+import           Language.Fixpoint.Counterexample
 import           Control.DeepSeq
 import qualified Data.ByteString as B
 import Data.Maybe (catMaybes)
 
-import Language.Fixpoint.CounterExample
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------

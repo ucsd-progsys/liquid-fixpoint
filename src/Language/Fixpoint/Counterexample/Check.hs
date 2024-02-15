@@ -3,12 +3,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fixpoint.CounterExample.Check
+module Language.Fixpoint.Counterexample.Check
   ( checkProg
   ) where
 
 import Language.Fixpoint.Types
-import Language.Fixpoint.CounterExample.Types
+import Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Types.Config (Config, srcFile)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import qualified Language.Fixpoint.Smt.Interface as SMT
@@ -26,7 +26,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 
 -- | Multiple counter examples indexed per constraint id.
-type CounterExamples = HashMap SubcId CounterExample
+type SMTCounterexamples = HashMap SubcId SMTCounterexample
 
 -- | Environment for the counter example generation.
 data CheckEnv = CheckEnv
@@ -48,13 +48,13 @@ newtype CheckState = CheckState
 type MonadCheck m = (MonadReader CheckEnv m, MonadState CheckState m, MonadIO m)
 
 -- | Check the given constraints to try and find a counter example.
-checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m CounterExamples
+checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m SMTCounterexamples
 checkProg cfg si prog cids = withContext cfg si check
   where
     check ctx = runCheck cids CheckEnv
       { program = prog
       , context = ctx
-      , maxDepth = 15 -- TODO: Perhaps this should be a parameter for the user?
+      , maxDepth = 7 -- TODO: Perhaps this should be a parameter for the user?
       }
 
 -- | Run the checker with the SMT solver context.
@@ -71,14 +71,14 @@ withContext cfg si inner = do
 
 -- | Runs the program checker with the monad stack
 -- unwrapped.
-runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m CounterExamples
+runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m SMTCounterexamples
 runCheck cids env = rd . st $ checkAll cids
   where
     st = flip evalStateT $ CheckState 0
     rd = flip runReaderT env
 
 -- | Try to find a counter example for all the given constraints.
-checkAll :: MonadCheck m => [SubcId] -> m CounterExamples
+checkAll :: MonadCheck m => [SubcId] -> m SMTCounterexamples
 checkAll cids = do
   cexs <- forM cids checkConstraint
   return $ Map.fromList [(cid, cex) | (cid, Just cex) <- zip cids cexs]
@@ -86,7 +86,7 @@ checkAll cids = do
 -- | Check a specific constraint id. This will only do actual
 -- checks for constraints without a KVar on the rhs, as we cannot
 -- really generate a counter example for these constraints.
-checkConstraint :: MonadCheck m => SubcId -> m (Maybe CounterExample)
+checkConstraint :: MonadCheck m => SubcId -> m (Maybe SMTCounterexample)
 checkConstraint cid = do
   Func _ bodies <- fromJust <$> getFunc mainName
   let cmp (Body bid _) = bid == cid
@@ -109,7 +109,7 @@ data Scope = Scope
 -- as an argument to pass around the remainder of a computation.
 -- This way, we can pop paths in the SMT due to conditionals.
 -- Allowing us to retain anything prior to that.
-type Runner m = m (Maybe CounterExample)
+type Runner m = m (Maybe SMTCounterexample)
 
 -- | Run a function. This essentially makes one running branch for
 -- each body inside of the function. It will try each branch
@@ -119,8 +119,9 @@ runFunc name scope runner = do
   -- Lookup function bodies
   func <- getFunc name
   case func of
-    -- Unconstrained function body.
+    -- Unconstrained function body, so we just continue with the runner.
     Nothing -> runner
+    -- Constrained function body
     Just (Func _ bodies) -> do
       -- Generate all execution paths (as runners).
       let runner' body = runBody scope body runner
@@ -227,7 +228,7 @@ smtCheck = do
 
 -- | Returns a model, with as precondition that the SMT 
 -- solver had a satisfying assignment prior to this.
-smtModel :: MonadCheck m => m CounterExample
+smtModel :: MonadCheck m => m SMTCounterexample
 smtModel = do
   ctx <- reader context
   Su sub <- liftIO $ SMT.smtGetModel ctx

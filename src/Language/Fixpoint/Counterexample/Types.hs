@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fixpoint.CounterExample.Types
-  ( CounterExample
+module Language.Fixpoint.Counterexample.Types
+  ( Counterexample
+  , SMTCounterexample
+  , CexEnv
   , Prog (..)
   , Name
   , Func (..)
@@ -26,8 +28,11 @@ import Control.Monad.IO.Class
 dbg :: (MonadIO m, PPrint a) => a -> m ()
 dbg = liftIO . print . pprint
 
--- | A counter example for a model.
-type CounterExample = HashMap [Symbol] Subst
+-- | A counterexample that was read from an SMT model. A full counterexample
+-- uses `BindId` to identify symbols and should also contain the refinements
+-- and user data corresponding to this counterexample. This is simply an
+-- intermediate form, which we translate to a full `Counterexample`.
+type SMTCounterexample = HashMap [Symbol] Subst
 
 -- | A program, containing multiple function definitions
 -- mapped by their name.

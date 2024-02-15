@@ -2,13 +2,13 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Fixpoint.CounterExample.Build
+module Language.Fixpoint.Counterexample.Build
   ( hornToProg
   ) where
 
 
 import Language.Fixpoint.Types
-import Language.Fixpoint.CounterExample.Types
+import Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Types.Config (Config, queryFile, save)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import Language.Fixpoint.Misc (ensurePath)
