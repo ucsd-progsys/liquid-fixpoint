@@ -274,7 +274,7 @@ toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
 
 -- | A counter example for a model.
-type Counterexample a = M.HashMap [BindId] (CexEnv a)
+type Counterexample a = M.HashMap [(BindId, KVar)] (CexEnv a)
 
 data Result a = Result
   { resStatus :: !(FixResult a)

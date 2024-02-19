@@ -36,6 +36,8 @@ data BuildEnv info = BuildEnv
 -- the imperative function format. See Prog for the format.
 type MonadBuild info m = (MonadReader (BuildEnv info) m, MonadState Prog m, MonadIO m)
 
+type Binding = (BindId, Symbol, SortedReft)
+
 -- | Make an imperative program from horn clauses. This
 -- can be used to generate a counter example.
 hornToProg :: MonadIO m => Config -> SInfo info -> m Prog
@@ -126,35 +128,41 @@ substToStmts (Su sub) = do
 hornLhsToStmts :: MonadBuild info m => SimpC info -> m [Statement]
 hornLhsToStmts horn = do
   bindEnv <- reader $ bs . info
-  let lhs = clhs bindEnv horn
+  let lhs = relevantLhs bindEnv horn
   lhs' <- filterLits . filterDuplicates $ lhs
-  stmts <- forM lhs' $ uncurry reftToStmts
+  stmts <- forM lhs' reftToStmts
   return $ mconcat stmts
 
-filterDuplicates :: [(Symbol, SortedReft)] -> [(Symbol, SortedReft)]
-filterDuplicates env = foldr filter' [] env
+relevantLhs :: BindEnv info -> SimpC info -> [Binding]
+relevantLhs benv horn = [(bid, sym, ref) | bid <- elemsIBindEnv ibenv, let (sym, ref, _) = lookupBindEnv bid benv]
   where
-    filter' sym acc = case fst sym `member` map fst acc of
-      Nothing -> sym:acc
+    ibenv = senv horn
+
+filterDuplicates :: [Binding] -> [Binding]
+filterDuplicates = foldr filter' []
+  where
+    filter' e acc = case e `member` acc of
+      Nothing -> e:acc
       Just _ -> acc
 
-    member e = find (e==)
+    snd' (_, x, _) = x
+    member e es = find (snd' e==) $ map snd' es
 
-filterLits :: MonadBuild info m => [(Symbol, SortedReft)] -> m [(Symbol, SortedReft)]
+filterLits :: MonadBuild info m => [Binding] -> m [Binding]
 filterLits env = do
   con <- reader $ gLits . info
   dis <- reader $ dLits . info
-  let isLit (sym, _) = memberSEnv sym con || memberSEnv sym dis
+  let isLit (_, sym, _) = memberSEnv sym con || memberSEnv sym dis
   return $ filter (not . isLit) env
 
 -- | Map a refinement to a declaration and constraint pair
-reftToStmts :: MonadBuild info m => Symbol -> SortedReft -> m [Statement]
-reftToStmts _ RR { sr_sort = FAbs _ _ } = return []
-reftToStmts _ RR { sr_sort = FFunc _ _ } = return []
-reftToStmts sym RR
+reftToStmts :: MonadBuild info m => Binding -> m [Statement]
+reftToStmts (_, _, RR { sr_sort = FAbs _ _ }) = return []
+reftToStmts (_, _, RR { sr_sort = FFunc _ _ }) = return []
+reftToStmts (bid, sym, RR
   { sr_sort = sort
   , sr_reft = Reft (v, e)
-  } = do
+  }) = do
     -- Get correct sort for declaration
     sort' <- elaborateSort sort
     let decl = Let $ Decl sym sort'
@@ -162,7 +170,7 @@ reftToStmts sym RR
     -- Get constraints from the expression.
     let constraints = case predKs e of
           [] -> [Assume e]
-          ks -> map (uncurry $ Call sym) ks
+          ks -> fmap (uncurry $ Call bid) ks
 
     -- Do substitution of self variable in the constraints
     let sub = Su $ Map.singleton v (EVar sym)

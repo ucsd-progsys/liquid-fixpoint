@@ -1,7 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Fixpoint.Counterexample
   ( tryCounterExample
@@ -13,13 +12,18 @@ import Language.Fixpoint.Counterexample.Build
 import Language.Fixpoint.Counterexample.Check
 import Language.Fixpoint.Types.Config (Config, counterExample)
 
-import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
 
 import Control.Monad.IO.Class
+import Control.Monad (void)
 
 -- TODO: Remove variables from the counter example that got mapped to
 -- the "wrong" type in smt format (e.g. to an int while not being one).
+
+-- TODO: Ideally `Result` would not have `SubcId` in its generic. Instead, this
+-- should just always be contained in a `Result`. Right now, our counterexample
+-- will contain a bunch of meaningless `SubcId` as we need to read it from
+-- the result.
 
 -- | Try to get a counter example for the given unsafe clauses (if any).
 tryCounterExample
@@ -37,51 +41,50 @@ tryCounterExample cfg si res@Result
 
     -- Check the constraints, returning a substitution map
     let cids = map fst cids'
-    subs <- checkProg cfg si prog cids
+    smtcex <- checkProg cfg si prog cids
 
     -- Map the symbols in this substitution to their respective bind id
-    let cexs = toFullCex si <$> subs
+    let cexs = toFullCex si <$> smtcex
+    dbg $ fmap (fmap (fmap (fmap void))) <$> cexs
     return res { resCounterexamples = cexs <> cexs' }
 tryCounterExample _ _ res = return res
 
--- | Map a counter example to use the BindId instead of the
--- variable name as the key.
---
--- In other words, we go from a mapping of Symbol |-> Expr to
--- BindId |-> Expr
-toFullCex :: forall info. SInfo info -> SMTCounterexample -> Counterexample (SubcId, info)
-toFullCex si smtcex = extendSubst <$> pathcex
+-- | Extend an SMT counterexample to a full counterexample.
+
+-- With this, the variables are indexed by
+-- `BindId` and they contain also their refinement type and user info.
+toFullCex :: SInfo info -> SMTCounterexample -> Counterexample (SubcId, info)
+toFullCex si = fmap $ substToCexEnv si
+
+-- | Extend an SMT counterexample environment (i.e. the substitution map) to a
+-- full counterexample environment. With this, the variables are indexed by
+-- `BindId` and they contain also their refinement type and user info.
+substToCexEnv :: SInfo info -> Subst -> CexEnv (SubcId, info)
+substToCexEnv si (Su sub) = benv { beBinds = binds }
   where
-    -- Get the bind environment
     benv = bs si
 
-    -- Remove all of the map except the bind id.
-    bindings :: BindMap Symbol
-    bindings = (\(bid, _, _) -> bid) <$> beBinds benv
+    binds = Map.mapMaybe trans $ beBinds benv
 
-    -- Reverses the direction of a hashmap
-    reverseMap = Map.fromList . fmap (\(a, b) -> (b, a)) . Map.toList
-
-    -- Reverse the bindings mapping, so we can map our symbols to bind ids.
-    symIds :: HashMap Symbol BindId
-    symIds = reverseMap bindings
-
-    -- A counterexample where we transformed the path to be [BindId].
-    -- I.e. this is a partial translation from SMT Counterexample to a full one.
-    pathcex :: HashMap [BindId] Subst
-    pathcex = Map.mapKeys (map $ (Map.!) symIds) smtcex
-
-    -- Maps an smt subst to a full counterexample environment (i.e. the
-    -- concrete instances for a given scope).
-    extendSubst :: Subst -> CexEnv (SubcId, info)
-    extendSubst (Su sub) = benv { beBinds = binds }
+    trans (sym, sreft, info) = extend <$> Map.lookup sym sub
       where
-        binds = Map.mapMaybe trans $ beBinds benv
+        -- We fake a SubCId here. It really shouldn't be here, but it is
+        -- an artifact of a SubcId needing to be embedded in the generic of
+        -- `Result`! Ideally, we would have the CexEnv contain just the same
+        -- generic as SInfo. This would require us to change the structure of
+        -- `Result` to contain the SubcId always.
+        extend ex = (sym, sreft, (ex, (0, info)))
 
-        trans (sym, sreft, info) = extend <$> Map.lookup sym sub
-          where
-            -- We fake a SubCId here. It really shouldn't be here, but it is an
-            -- artifact of this being embedded in the generic of `Result`
-            -- instead of always being there!
-            extend ex = (sym, sreft, (ex, (0, info)))
+-- TODO: The bindings don't completely match yet. Try out
+-- tests/neg/duplicate-names3.fq
+--
+-- There you can see that we get 2 bindings for z, while both k instances only
+-- should get 1!
+--
+-- We should use the IBindEnv of every separate horn clause (look at Build.hs
+-- on how to get the IBindEnv). With this local bind set, we can get a correct
+-- environment!
+
+-- TODO: Make the `Counterexample` structure a tree instead of a hashmap with
+-- lists.
 

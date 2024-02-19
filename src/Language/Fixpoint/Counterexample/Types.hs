@@ -4,6 +4,7 @@ module Language.Fixpoint.Counterexample.Types
   ( Counterexample
   , SMTCounterexample
   , CexEnv
+--  , Counterexample (..)
   , Prog (..)
   , Name
   , Func (..)
@@ -19,6 +20,7 @@ module Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Types
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
+-- import Data.Tree (Tree)
 
 import Text.PrettyPrint.HughesPJ ((<+>), ($+$))
 import qualified Text.PrettyPrint.HughesPJ as PP
@@ -28,19 +30,26 @@ import Control.Monad.IO.Class
 dbg :: (MonadIO m, PPrint a) => a -> m ()
 dbg = liftIO . print . pprint
 
+-- -- | A full counterexample in a tree like representation.
+-- data Counterexample a = Counterexample
+--   { cexEnv :: !(CexEnv a)
+--   -- ^ Current scope of counterexample
+--   , cexKvars :: !(BindMap (Counterexample a))
+--   -- ^ The kvars that may be expanded from the current scope
+--   }
+
 -- | A counterexample that was read from an SMT model. A full counterexample
 -- uses `BindId` to identify symbols and should also contain the refinements
 -- and user data corresponding to this counterexample. This is simply an
 -- intermediate form, which we translate to a full `Counterexample`.
-type SMTCounterexample = HashMap [Symbol] Subst
+type SMTCounterexample = HashMap [(BindId, Name)] Subst
 
--- | A program, containing multiple function definitions
--- mapped by their name.
+-- | A program, containing multiple function definitions mapped by their name.
 newtype Prog = Prog (HashMap Name Func)
   deriving Show
 
--- | Identifier of a function. All KVars are translated
--- into functions, so it is just an alias.
+-- | Identifier of a function. All KVars are translated into functions, so it is
+-- just an alias.
 type Name = KVar
 
 -- | A function symbol corresponding to a Name.
@@ -54,8 +63,8 @@ type Signature = [Decl]
 data Body = Body !SubcId ![Statement]
   deriving Show
 
--- | A statement used to introduce/check constraints,
--- together with its location information
+-- | A statement used to introduce/check constraints, together with its location
+-- information.
 data Statement
   = Let !Decl
   -- ^ Introduces a new variable.
@@ -63,17 +72,16 @@ data Statement
   -- ^ Constraints a variable.
   | Assert !Expr
   -- ^ Checks whether a predicate follows given prior constraints.
-  | Call !Symbol !Name !Subst
-  -- ^ Call to function. The symbol is the origin, used to trace
-  -- callstacks.
+  | Call !BindId !Name !Subst
+  -- ^ Call to function. The bind id is the origin, used to trace callstacks.
   deriving Show
 
 -- | A declaration of a Symbol with a Sort.
 data Decl = Decl !Symbol !Sort
   deriving Show
 
--- | The main function, which any horn clause without a
--- KVar on the rhs will be added to.
+-- | The main function, which any horn clause without a KVar on the rhs will be
+-- added to.
 mainName :: Name
 mainName = KV "main"
 

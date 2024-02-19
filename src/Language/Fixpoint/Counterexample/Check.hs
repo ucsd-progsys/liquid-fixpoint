@@ -98,7 +98,7 @@ checkConstraint cid = do
 -- | A scope contains the current binders in place
 -- as well as the path traversed to reach this scope.
 data Scope = Scope
-  { path :: ![(KVar, Symbol)]
+  { path :: ![(BindId, Name)]
   -- ^ The path traversed to reach the scope.
   , binders :: !Subst
   -- ^ The binders available in the current scope.
@@ -133,6 +133,8 @@ runFunc name scope runner = do
 
       -- Check if we've reached the recursion limit.
       -- TODO: Perhaps we should make the recursion limit per kvar?
+      -- TODO: We should really explore shallow trees first. Right now,
+      -- we explore max depth trees only...
       depth' <- gets depth
       put $ CheckState $ depth' + 1
       maxDepth' <- reader maxDepth
@@ -170,7 +172,7 @@ runStatement scope stmt runner = do
   let stmt' = subst (binders scope) stmt
   case stmt' of
     Call origin name app -> do
-      let scope' = Scope ((name, origin):path scope) app
+      let scope' = Scope ((origin, name):path scope) app
       runFunc name scope' runner'
     Assume e -> smtAssume e >> runner'
     Assert e -> smtAssert e >> runner'
@@ -250,22 +252,23 @@ scopeSym scope sym = symbol name
     name = intercalate bindSep strs
     strs = symbolString <$> progPrefix : sym : paths
     paths = uncurry joinCall <$> path scope
-    joinCall (KV callee) caller = symbol . mconcat $ symbolString <$> [callee, callSep, caller]
+    joinCall caller (KV callee) = symbol . mconcat $ symbolString <$> [symbol $ show caller, callSep, callee]
 
 -- | We encode the trace of a symbol in its name. This way,
 -- we do not lose it in the SMT solver. This function translates
 -- the encoding back.
-unscopeSym :: Symbol -> Maybe (Symbol, [Symbol])
+unscopeSym :: Symbol -> Maybe (Symbol, [(BindId, Name)])
 unscopeSym sym = case T.splitOn bindSep sym' of
   (prefix:name:trace) | prefix == progPrefix 
     -> Just (symbol name, splitCall <$> trace)
   _ -> Nothing
   where
-    splitCall c = symbol . split $ T.splitOn callSep c
+    splitCall :: T.Text -> (BindId, Name)
+    splitCall = split . T.splitOn callSep
 
     -- We just ignore the callee for now. It was initially here to avoid 
     -- duplicates in the SMT solver.
-    split [_callee, caller] = caller
+    split [caller, callee] = (read $ T.unpack caller, KV $ symbol callee)
     split _ = error "Scoped name should always be in this shape"
 
     sym' = escapeSmt . symbolText $ sym
