@@ -98,7 +98,7 @@ checkConstraint cid = do
 -- | A scope contains the current binders in place
 -- as well as the path traversed to reach this scope.
 data Scope = Scope
-  { path :: ![(BindId, Name)]
+  { path :: ![FrameId]
   -- ^ The path traversed to reach the scope.
   , binders :: !Subst
   -- ^ The binders available in the current scope.
@@ -124,8 +124,8 @@ runFunc name scope runner = do
     -- Constrained function body
     Just (Func _ bodies) -> do
       -- Generate all execution paths (as runners).
-      let runner' body = runBody scope body runner
-      let paths = map runner' bodies
+      let runner' body = runBody (extendScope scope body) body runner
+      let paths = runner' <$> bodies
 
       -- Try paths, selecting the first that produces a counter example.
       let select Nothing r = r
@@ -146,11 +146,18 @@ runFunc name scope runner = do
       modify $ \s -> s { depth = depth s - 1}
       return result
 
--- | Run the statements in the body. If there are no more statements
--- to run, this will execute the Runner that was passed as argument.
+-- | Extend the scope to include the id of the body, i.e. the `SubcId`.
+extendScope :: Scope -> Body -> Scope
+extendScope scope (Body bodyId _) = withSubcId scope
+  where
+    withSubcId scope'@Scope { path = (bindId,_):ps } = scope' { path = (bindId, bodyId):ps }
+    withSubcId _ = error "No scope to extend."
+
+-- | Run the statements in the body. If there are no more statements to run,
+-- this will execute the Runner that was passed as argument.
 --
--- The passed runner here is thus the rest of the computation, when
--- we "return" from this function.
+-- The passed runner here is thus the rest of the computation, when we "return"
+-- from this function.
 runBody :: MonadCheck m => Scope -> Body -> Runner m  -> Runner m
 runBody scope' body runner = smtScope $ go scope' body
   where
@@ -172,7 +179,9 @@ runStatement scope stmt runner = do
   let stmt' = subst (binders scope) stmt
   case stmt' of
     Call origin name app -> do
-      let scope' = Scope ((origin, name):path scope) app
+      -- We fake a SubcId here, it will later get mapped into the scope when we
+      -- decide which body to run.
+      let scope' = Scope ((origin, 0):path scope) app
       runFunc name scope' runner'
     Assume e -> smtAssume e >> runner'
     Assert e -> smtAssert e >> runner'
@@ -239,10 +248,11 @@ smtModel = do
   let renames = first unscopeSym <$> Map.toList sub
   let traces = [ (trace, sym, e) | (Just (sym, trace), e) <- renames ]
 
-  -- Insert a mapping per unique layer in the counter example.
-  let new sym e = Su $ Map.singleton sym e
-  let insert cex (trace, sym, e) = Map.insertWith (<>) trace (new sym e) cex
-  let cex = foldl' insert mempty traces
+  -- Insert per singleton. Entries are monoidically merged when inserted.
+  let insert (trace, sym, e) = cexInsert trace $ Su (Map.singleton sym e)
+
+  -- Insert all elements
+  let cex = foldl' (flip insert) mempty traces
   return cex
 
 -- | Returns a version of a symbol with the scope encoded into its name.
@@ -252,24 +262,24 @@ scopeSym scope sym = symbol name
     name = intercalate bindSep strs
     strs = symbolString <$> progPrefix : sym : paths
     paths = uncurry joinCall <$> path scope
-    joinCall caller (KV callee) = symbol . mconcat $ symbolString <$> [symbol $ show caller, callSep, callee]
+    joinCall caller callee = symbol . mconcat $ [show caller, callSep, show callee]
 
 -- | We encode the trace of a symbol in its name. This way,
 -- we do not lose it in the SMT solver. This function translates
 -- the encoding back.
-unscopeSym :: Symbol -> Maybe (Symbol, [(BindId, Name)])
+unscopeSym :: Symbol -> Maybe (Symbol, [FrameId])
 unscopeSym sym = case T.splitOn bindSep sym' of
   (prefix:name:trace) | prefix == progPrefix 
-    -> Just (symbol name, splitCall <$> trace)
+    -> Just (symbol name, toFrameId <$> trace)
   _ -> Nothing
   where
-    splitCall :: T.Text -> (BindId, Name)
-    splitCall = split . T.splitOn callSep
+    toFrameId = split . T.splitOn callSep
 
-    -- We just ignore the callee for now. It was initially here to avoid 
-    -- duplicates in the SMT solver.
-    split [caller, callee] = (read $ T.unpack caller, KV $ symbol callee)
-    split _ = error "Scoped name should always be in this shape"
+    split [caller, callee] = (read' caller, read' callee)
+    split _ = error "Scoped name was not correctly shaped"
+
+    read' :: Read a => T.Text -> a
+    read' = read . T.unpack
 
     sym' = escapeSmt . symbolText $ sym
 

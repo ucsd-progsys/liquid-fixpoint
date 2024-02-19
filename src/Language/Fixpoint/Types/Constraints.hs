@@ -61,9 +61,14 @@ module Language.Fixpoint.Types.Constraints (
   , qualBinds
 
   -- * Results
+  , Counterexample (..)
+  , FullCounterexample
+  , Trace
+  , FrameId
+  , cexInsert
+
   , FixSolution
   , GFixSolution, toGFixSol
-  , Counterexample
   , Result (..)
   , unsafe, isUnsafe, isSafe ,safe
 
@@ -263,6 +268,51 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
+-- | A counterexample in a tree like representation.
+data Counterexample a = Counterexample
+  { cexEnv :: !a
+  -- ^ The environment in the current stack frame.
+  , cexFrames :: !(M.HashMap FrameId (Counterexample a))
+  -- ^ The counterexamples stack frames that can be explored from the current
+  -- environment.
+  }
+  deriving (Generic, Show, Functor)
+
+instance PPrint a => PPrint (Counterexample a) where
+  pprintTidy tidy (Counterexample env trace) = penv $+$ ptrace
+    where
+      penv = pprintTidy tidy env
+      ptrace = pprintTidy tidy trace
+
+instance Semigroup a => Semigroup (Counterexample a) where
+  lhs <> rhs = Counterexample
+    { cexEnv = cexEnv lhs <> cexEnv rhs
+    , cexFrames = M.unionWith (<>) (cexFrames lhs) (cexFrames rhs)
+    }
+
+instance Monoid a => Monoid (Counterexample a) where
+  mempty = Counterexample mempty mempty
+
+-- | Monoidically add an element to a counterexample.
+cexInsert :: Monoid a => Trace -> a -> Counterexample a -> Counterexample a
+cexInsert trace v cex = cex <> go trace
+  where
+    go (f:fs) = Counterexample mempty $ M.singleton f (go fs)
+    go [] = Counterexample v mempty
+
+-- | A stack trace is built from multiple frame ids. This is mostly used for
+-- SMT encodings. These traces are made into a tree like representation in the
+-- actual counterexample object.
+type Trace = [FrameId]
+
+-- | An identfier for a "stack frame" in a counterexample.
+type FrameId = (BindId, SubcId)
+
+-- | A counterexample that was extended with additional information from the
+-- environment. It additionally includes types, bind ids and user info, aside
+-- from what is already provided from an `SMTCounterexample`.
+type FullCounterexample a = Counterexample (CexEnv a)
+
 type GFixSolution = GFixSol Expr
 
 type FixSolution  = M.HashMap KVar Expr
@@ -273,15 +323,12 @@ newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
 toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
 
--- | A counter example for a model.
-type Counterexample a = M.HashMap [(BindId, KVar)] (CexEnv a)
-
 data Result a = Result
   { resStatus :: !(FixResult a)
   , resSolution :: !FixSolution
   , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution
-  , resCounterexamples :: !(M.HashMap SubcId (Counterexample a))
+  , resCounterexamples :: !(M.HashMap SubcId (FullCounterexample a))
   }
   deriving (Generic, Show, Functor)
 
@@ -418,6 +465,7 @@ instance (NFData a) => NFData (WfC a)
 instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
 instance (NFData a) => NFData (Result a)
+instance (NFData a) => NFData (Counterexample a)
 
 instance Hashable Qualifier
 instance Hashable QualPattern

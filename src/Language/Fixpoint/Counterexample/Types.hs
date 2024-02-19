@@ -1,10 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module Language.Fixpoint.Counterexample.Types
-  ( Counterexample
+  ( Counterexample (..)
   , SMTCounterexample
+  , FullCounterexample
   , CexEnv
---  , Counterexample (..)
+  , cexInsert
+  , FrameId
+  , Trace
+
   , Prog (..)
   , Name
   , Func (..)
@@ -20,7 +25,6 @@ module Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Types
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
--- import Data.Tree (Tree)
 
 import Text.PrettyPrint.HughesPJ ((<+>), ($+$))
 import qualified Text.PrettyPrint.HughesPJ as PP
@@ -30,19 +34,9 @@ import Control.Monad.IO.Class
 dbg :: (MonadIO m, PPrint a) => a -> m ()
 dbg = liftIO . print . pprint
 
--- -- | A full counterexample in a tree like representation.
--- data Counterexample a = Counterexample
---   { cexEnv :: !(CexEnv a)
---   -- ^ Current scope of counterexample
---   , cexKvars :: !(BindMap (Counterexample a))
---   -- ^ The kvars that may be expanded from the current scope
---   }
-
--- | A counterexample that was read from an SMT model. A full counterexample
--- uses `BindId` to identify symbols and should also contain the refinements
--- and user data corresponding to this counterexample. This is simply an
--- intermediate form, which we translate to a full `Counterexample`.
-type SMTCounterexample = HashMap [(BindId, Name)] Subst
+-- | A counterexample that was mapped from an SMT result. It is a simple mapping
+-- from symbol to concrete instance.
+type SMTCounterexample = Counterexample Subst
 
 -- | A program, containing multiple function definitions mapped by their name.
 newtype Prog = Prog (HashMap Name Func)
@@ -73,7 +67,8 @@ data Statement
   | Assert !Expr
   -- ^ Checks whether a predicate follows given prior constraints.
   | Call !BindId !Name !Subst
-  -- ^ Call to function. The bind id is the origin, used to trace callstacks.
+  -- ^ Call to function. The bind id is used to trace callstacks. I.e. it is the
+  -- caller of the function.
   deriving Show
 
 -- | A declaration of a Symbol with a Sort.
@@ -133,11 +128,11 @@ instance PPrint Statement where
   pprintTidy tidy (Let decl) = "let" <+> pprintTidy tidy decl
   pprintTidy tidy (Assume exprs) = "assume" <+> pprintTidy tidy exprs
   pprintTidy tidy (Assert exprs) = "assert" <+> pprintTidy tidy exprs
-  pprintTidy tidy (Call origin name sub) = pname <+> pargs <+> porigin
+  pprintTidy tidy (Call bid name sub) = pname <+> pargs <+> porigin
     where
       pname = pprintTidy tidy name
       pargs = pprintTidy tidy sub
-      porigin = "// origin" <+> pprintTidy tidy origin
+      porigin = "// bind id" <+> pprintTidy tidy bid
 
 instance Subable Statement where
   syms (Let decl) = syms decl
@@ -148,17 +143,17 @@ instance Subable Statement where
   substa _ (Let decl) = Let decl
   substa f (Assume e) = Assume $ substa f e
   substa f (Assert e) = Assert $ substa f e
-  substa f (Call origin name (Su sub)) = Call origin name (Su $ substa f sub)
+  substa f (Call bid name (Su sub)) = Call bid name (Su $ substa f sub)
 
   substf _ (Let decl) = Let decl
   substf f (Assume e) = Assume $ substf f e
   substf f (Assert e) = Assert $ substf f e
-  substf f (Call origin name (Su sub)) = Call origin name (Su $ substf f sub)
+  substf f (Call bid name (Su sub)) = Call bid name (Su $ substf f sub)
 
   subst _ (Let decl) = Let decl
   subst sub (Assume e) = Assume $ subst sub e
   subst sub (Assert e) = Assert $ subst sub e
-  subst sub (Call origin name (Su sub')) = Call origin name (Su $ subst sub sub')
+  subst sub (Call bid name (Su sub')) = Call bid name (Su $ subst sub sub')
 
 instance Subable Decl where
   syms (Decl sym _) = [sym]
