@@ -49,12 +49,10 @@ tryCounterExample _ _ res = return res
 
 -- | Extend an SMT counterexample to a full counterexample.
 toFullCex :: SInfo info -> SubcId -> SMTCounterexample -> FullCounterexample (SubcId, info)
-toFullCex si = go
-  where
-    go subcid (Counterexample env trace) = Counterexample
-      { cexEnv = substToCexEnv si subcid env
-      , cexFrames = Map.mapWithKey (toFullCex si . snd) trace
-      }
+toFullCex si subcid (Counterexample env trace) = Counterexample
+  { cexEnv = substToCexEnv si subcid env
+  , cexFrames = Map.mapWithKey (toFullCex si . snd) trace
+  }
 
 -- | Extend an SMT counterexample environment (i.e. the substitution map) to a
 -- full counterexample environment. With this, the variables are indexed by
