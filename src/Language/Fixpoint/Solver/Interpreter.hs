@@ -17,8 +17,6 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing    #-}
-
 module Language.Fixpoint.Solver.Interpreter
   ( instInterpreter
 
@@ -62,25 +60,25 @@ instInterpreter :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a
 instInterpreter cfg fi' subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
-               (cm fi)
+               (cm info)
     let t  = mkCTrie (M.toList cs)                      -- 1. BUILD the Trie
     res   <- withProgress (1 + M.size cs) $
-               pleTrie t $ instEnv fi cs sEnv           -- 2. TRAVERSE Trie to compute InstRes
-    return $ resSInfo cfg sEnv fi res                   -- 3. STRENGTHEN SInfo using InstRes
+               pleTrie t $ instEnv info cs sEnv         -- 2. TRAVERSE Trie to compute InstRes
+    return $ resSInfo cfg sEnv info res                 -- 3. STRENGTHEN SInfo using InstRes
   where
-    sEnv   = symbolEnv cfg fi
-    aEnv   = ae fi
-    fi     = normalize fi'
+    sEnv   = symbolEnv cfg info
+    aEnv   = ae info
+    info   = normalize fi'
 
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
 instEnv :: (Loc a) => SInfo a -> CMap (SimpC a) -> SymEnv -> InstEnv a
-instEnv fi cs sEnv = InstEnv bEnv aEnv cs γ s0
+instEnv info cs sEnv = InstEnv bEnv aEnv cs γ s0
   where
     csBinds           = M.foldl' (\acc c -> unionIBindEnv acc (senv c)) emptyIBindEnv cs
-    bEnv              = filterBindEnv (\i _ _ -> memberIBindEnv i csBinds) (bs fi)
-    aEnv              = ae fi
-    γ                 = knowledge fi
+    bEnv              = filterBindEnv (\i _ _ -> memberIBindEnv i csBinds) (bs info)
+    aEnv              = ae info
+    γ                 = knowledge info
     s0                = EvalEnv sEnv mempty
 
 ----------------------------------------------------------------------------------------------
@@ -180,7 +178,7 @@ rewriteTop e rw
 ----------------------------------------------------------------------------------------------
 
 resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
-resSInfo cfg env fi res = strengthenBinds fi res'
+resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
     ps''     = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps'
@@ -288,12 +286,12 @@ findConstants γ es = [(EVar x, c) | (x,c) <- go [] (concatMap splitPAnd es)]
                            , EVar x /= c ]
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
-makeCandidates γ ctx expr
+makeCandidates k ctx exprs
   = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where
     cands =
-      filter (\e -> isRedex γ e && not (e `S.member` icSolved ctx)) (notGuardedApps expr) ++
-      filter (\e -> hasConstructors γ e && not (e `S.member` icSolved ctx)) (largestApps expr)
+      filter (\e -> isRedex k e && not (e `S.member` icSolved ctx)) (notGuardedApps exprs) ++
+      filter (\e -> hasConstructors k e && not (e `S.member` icSolved ctx)) (largestApps exprs)
 
     -- Constructor occurrences need to be considered as candidadates since
     -- they identify relevant measure equations. The function 'rewrite'
@@ -323,7 +321,7 @@ getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
-isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
+isPleCstr aenv subid c = isTarget c && M.lookupDefault False subid (aenvExpand aenv)
 
 type EvAccum = S.HashSet (Expr, Expr)
 
@@ -432,14 +430,14 @@ substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
 mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ]
   where
-    unite ts    = Mb.fromMaybe (uError ts) (unifyTo1 senv ts)
-    senv        = mkSearchEnv env
+    unite ts    = Mb.fromMaybe (uError ts) (unifyTo1 symToSearch ts)
+    symToSearch = mkSearchEnv env
     uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts)
     xys         = Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
     (_xTs,_eTs) = (xTs, eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
-matchSorts s1 s2 = go s1 s2
+matchSorts = go
   where
     go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
@@ -465,18 +463,18 @@ interpret _  _ _   _   e@(EVar _)       = e
 interpret ie γ ctx env   (EApp e1 e2)
   | isSetPred e1                        = let e2' = interpret' ie γ ctx env e2 in
                                              applySetFolding e1 e2'
-interpret ie γ ctx env e@(EApp _ _)     = case splitEApp e of
-  (f, es) -> let g = interpret' ie γ ctx env in
-    interpretApp ie γ ctx env (g f) (map g es)
+interpret cmap know ictx ssenv e@(EApp _ _)     = case splitEApp e of
+  (exprs, exprses) -> let g = interpret' cmap know ictx ssenv in
+    interpretApp cmap know ictx ssenv (g exprs) (map g exprses)
     where
       interpretApp ie γ ctx env (EVar f) es
         | Just eq <- M.lookup f (knAms γ)
         , length (eqArgs eq) <= length es
         = let (es1,es2) = splitAt (length (eqArgs eq)) es
               ges       = substEq env eq es1
-              exp       = unfoldExpr ie γ ctx env ges
-              exp'      = eApps exp es2 in  --exp' -- TODO undo
-            if eApps (EVar f) es == exp' then exp' else interpret' ie γ ctx env exp'
+              exp1       = unfoldExpr ie γ ctx env ges
+              exp2      = eApps exp1 es2 in  --exp' -- TODO undo
+            if eApps (EVar f) es == exp2 then exp2 else interpret' ie γ ctx env exp2
 
       interpretApp ie γ ctx env (EVar f) (e1:es)
         | (EVar dc, as) <- splitEApp e1
@@ -511,7 +509,7 @@ interpret ie γ ctx env (ELam (x,s) e)   = let γ' = γ { knLams = (x, s) : knLa
                                             ELam (x, s) e'
 interpret ie γ ctx env   (ETApp e1 t)   = let e1' = interpret' ie γ ctx env e1 in ETApp e1' t
 interpret ie γ ctx env   (ETAbs e1 sy)  = let e1' = interpret' ie γ ctx env e1 in ETAbs e1' sy
-interpret ie γ ctx env   (PAnd es)      = let es' = map (interpret' ie γ ctx env) es in go [] (reverse es')
+interpret ie γ ctx env   (PAnd exprses) = let es' = map (interpret' ie γ ctx env) exprses in go [] (reverse es')
   where
     go []  []         = PTrue
     go [p] []         = interpret' ie γ ctx env p
@@ -519,7 +517,7 @@ interpret ie γ ctx env   (PAnd es)      = let es' = map (interpret' ie γ ctx e
     go acc (PTrue:es) = go acc es
     go _   (PFalse:_) = PFalse
     go acc (e:es)     = go (e:acc) es
-interpret ie γ ctx env (POr es)         = let es' = map (interpret' ie γ ctx env) es in go [] (reverse es')
+interpret ie γ ctx env (POr exprses)      = let es' = map (interpret' ie γ ctx env) exprses in go [] (reverse es')
   where
     go []  []          = PFalse
     go [p] []          = interpret' ie γ ctx env p
@@ -575,20 +573,20 @@ data Knowledge = KN
   }
 
 knowledge :: SInfo a -> Knowledge
-knowledge si = KN
+knowledge info = KN
   { knSims                     = M.fromList $ (\r -> ((smName r, smDC r), r)) <$> sims
   , knAms                      = M.fromList $ (\a -> (eqName a, a)) <$> aenvEqs aenv
   , knLams                     = []
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims)
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
-  , knDCs                      = S.fromList (smDC <$> sims)  <> constNames si
-  , knAllDCs                   = S.fromList $ val . dcName <$> concatMap ddCtors (ddecls si)
+  , knDCs                      = S.fromList (smDC <$> sims)  <> constNames info
+  , knAllDCs                   = S.fromList $ val . dcName <$> concatMap ddCtors (ddecls info)
   , knSels                     = M.fromList $ Mb.mapMaybe makeSel  sims
   , knConsts                   = M.fromList $ Mb.mapMaybe makeCons sims
   }
   where
     sims = aenvSimpl aenv
-    aenv = ae si
+    aenv = ae info
 
     makeCons rw
       | null (syms $ smBody rw)
@@ -631,9 +629,9 @@ class Simplifiable a where
 
 
 instance Simplifiable Expr where
-  simplify γ ictx e = mytracepp ("simplification of " ++ show e) $ fix (Vis.mapExpr tx) e
+  simplify γ ictx exprs = mytracepp ("simplification of " ++ show exprs) $ fix' (Vis.mapExpr tx) exprs
     where
-      fix f e = if e == e' then e else fix f e' where e' = f e
+      fix' f e = if e == e' then e else fix' f e' where e' = f e
       tx e
         | Just e' <- M.lookup e (icSimpl ictx)
         = e'
@@ -660,7 +658,7 @@ instance Simplifiable Expr where
         , (EVar dc', es) <- splitEApp a
         , dc == dc'
         = es!!i
-      tx (PAnd es)         = go [] (reverse es)
+      tx (PAnd exprses)         = go [] (reverse exprses)
         where
           go []  []     = PTrue
           go [p] []     = p
@@ -669,7 +667,7 @@ instance Simplifiable Expr where
             | e == PTrue = go acc es
             | e == PFalse = PFalse
             | otherwise = go (e:acc) es
-      tx (POr es)          = go [] (reverse es)
+      tx (POr exprses)          = go [] (reverse exprses)
         where
           go []  []     = PFalse
           go [p] []     = p
