@@ -16,8 +16,6 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing    #-}
-
 module Language.Fixpoint.Solver.PLE
   ( instantiate
 
@@ -78,31 +76,31 @@ instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi' subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
-               (cm fi)
+               (cm info)
     let t  = mkCTrie (M.toList cs)                                          -- 1. BUILD the Trie
     res   <- withRESTSolver $ \solver -> withProgress (1 + M.size cs) $
                withCtx cfg file sEnv $ \ctx -> do
-                  env <- instEnv cfg fi cs solver ctx
+                  env <- instEnv cfg info cs solver ctx
                   pleTrie t env                                             -- 2. TRAVERSE Trie to compute InstRes
-    savePLEEqualities cfg fi sEnv res
-    return $ resSInfo cfg sEnv fi res                                       -- 3. STRENGTHEN SInfo using InstRes
+    savePLEEqualities cfg info sEnv res
+    return $ resSInfo cfg sEnv info res                                     -- 3. STRENGTHEN SInfo using InstRes
   where
     withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
     withRESTSolver f | all null (M.elems $ aenvAutoRW aEnv) = f Nothing
     withRESTSolver f = withZ3 (f . Just)
 
     file   = srcFile cfg ++ ".evals"
-    sEnv   = symbolEnv cfg fi
-    aEnv   = ae fi
-    fi     = normalize fi'
+    sEnv   = symbolEnv cfg info
+    aEnv   = ae info
+    info   = normalize fi'
 
 savePLEEqualities :: Config -> SInfo a -> SymEnv -> InstRes -> IO ()
-savePLEEqualities cfg fi sEnv res = when (save cfg) $ do
+savePLEEqualities cfg info sEnv res = when (save cfg) $ do
     let fq   = queryFile Files.Fq cfg ++ ".ple"
     putStrLn $ "\nSaving PLE equalities: "   ++ fq ++ "\n"
     Misc.ensurePath fq
     let constraint_equalities =
-          map equalitiesPerConstraint $ Misc.hashMapToAscList $ cm fi
+          map equalitiesPerConstraint $ Misc.hashMapToAscList $ cm info
     writeFile fq $ render $ vcat $
       map renderConstraintRewrite constraint_equalities
   where
@@ -123,12 +121,12 @@ savePLEEqualities cfg fi sEnv res = when (save cfg) $ do
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
 instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> IO (InstEnv a)
-instEnv cfg fi cs restSolver ctx = do
+instEnv cfg info cs restSolver ctx = do
     refRESTCache <- newIORef mempty
     refRESTSatCache <- newIORef mempty
     let
-        restOC = FC.restOC cfg
-        oc0 = ordConstraints restOC $ Mb.fromJust restSolver
+        restOrd = FC.restOC cfg
+        oc0 = ordConstraints restOrd $ Mb.fromJust restSolver
         oc :: OCAlgebra OCType RuntimeTerm IO
         oc = oc0
              { OC.isSat = cachedIsSat refRESTSatCache oc0
@@ -150,16 +148,16 @@ instEnv cfg fi cs restSolver ctx = do
               , evFuel = defFuelCount cfg
               , explored = Just et
               , restSolver = restSolver
-              , restOCA = restOC
+              , restOCA = restOrd
               , evOCAlgebra = oc
               }
     return $ InstEnv
        { ieCfg = cfg
        , ieSMT = ctx
-       , ieBEnv = bs fi
-       , ieAenv = ae fi
+       , ieBEnv = bs info
+       , ieAenv = ae info
        , ieCstrs = cs
-       , ieKnowl = knowledge cfg ctx fi
+       , ieKnowl = knowledge cfg ctx info
        , ieEvEnv = s0
        }
   where
@@ -342,7 +340,7 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
 ----------------------------------------------------------------------------------------------
 
 resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
-resSInfo cfg env fi res = strengthenBinds fi res'
+resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
     ps''     = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps'
@@ -447,7 +445,7 @@ getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
-isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
+isPleCstr aenv subid c = isTarget c && M.lookupDefault False subid (aenvExpand aenv)
 
 type EvEqualities = S.HashSet (Expr, Expr)
 
@@ -576,9 +574,9 @@ eval γ ctx et = go
           -- Just evaluate the arguments first, to give rewriting a chance to step in
           -- if necessary
           do
-            (es', fe) <- feSeq <$> mapM (eval γ ctx et) es
+            (es', finalExpand) <- feSeq <$> mapM (eval γ ctx et) es
             if es /= es'
-              then return (eApps f es', fe)
+              then return (eApps f es', finalExpand)
               else do
                 (f', fe)  <- eval γ ctx et f
                 (me', fe') <- evalApp γ ctx f' es et
@@ -679,7 +677,7 @@ evalRESTWithCache cacheRef _ ctx acc rp
 evalRESTWithCache cacheRef γ ctx acc rp =
   do
     Just exploredTerms <- gets explored
-    se <- liftIO (shouldExploreTerm exploredTerms e)
+    se <- liftIO (shouldExploreTerm exploredTerms exprs)
     if se then do
       possibleRWs <- getRWs
       rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
@@ -688,10 +686,10 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
       -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
       (e', FE fe) <- do
-        r@(ec, _) <- eval γ ctx FuncNormal e
-        if ec /= e
+        r@(ec, _) <- eval γ ctx FuncNormal exprs
+        if ec /= exprs
           then return r
-          else eval γ ctx RWNormal e
+          else eval γ ctx RWNormal exprs
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map (\(_, e, _) -> e) rws
@@ -704,7 +702,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
              st { evNewEqualities  = foldr S.insert (S.union newEqualities oldEqualities) eqnToAdd
                 , evSMTCache = smtCache
                 , explored = Just $ ExploredTerms.insert
-                  (Rewrite.convert e)
+                  (Rewrite.convert exprs)
                   (c rp)
                   (S.insert (Rewrite.convert e') $ S.fromList (map (Rewrite.convert . (\(_, e, _) -> e)) possibleRWs))
                   (Mb.fromJust $ explored st)
@@ -712,8 +710,8 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
       acc'' <- if evalIsNewExpr
         then if fe && any isRW (path rp)
-          then (:[]) . fst <$> eval γ (addConst (e, e')) NoRW e'
-          else evalRESTWithCache cacheRef γ (addConst (e, e')) acc' (rpEval newEqualities e')
+          then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW e'
+          else evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' (rpEval newEqualities e')
         else return acc'
 
       foldM (\r rw -> evalRESTWithCache cacheRef γ ctx r (rpRW rw)) acc'' rws
@@ -753,7 +751,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
     rpRW (_, e', c') = rp{path = path rp ++ [(e', RW)], c = c' }
 
     pathExprs       = map fst (mytracepp "EVAL2: path" $ path rp)
-    e               = last pathExprs
+    exprs           = last pathExprs
     autorws         = getAutoRws γ ctx
 
     rwArgs = RWArgs (isValid cacheRef γ) $ knRWTerminationOpts γ
@@ -769,7 +767,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
         if ok
           then
             do
-              let e'         = deANF ctx e
+              let e'         = deANF ctx exprs
               let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
               concat <$> mapM getRWs' (subExprs e')
@@ -909,13 +907,13 @@ substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
 mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ]
   where
-    unite ts    = Mb.fromMaybe (uError ts) (unifyTo1 senv ts)
-    senv        = mkSearchEnv env
+    unite ts    = Mb.fromMaybe (uError ts) (unifyTo1 symToSearch ts)
+    symToSearch = mkSearchEnv env
     uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts)
     xys         = Misc.sortNub $ concat $ zipWith matchSorts xTs eTs
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
-matchSorts s1 s2 = go s1 s2
+matchSorts = go
   where
     go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
@@ -1024,9 +1022,9 @@ knowledge cfg ctx si = KN
     inRewrites :: Symbol -> Bool
     inRewrites e =
       let
-        syms = Mb.mapMaybe (lhsHead . arLHS) (concat $ M.elems $ aenvAutoRW aenv)
+        symbs = Mb.mapMaybe (lhsHead . arLHS) (concat $ M.elems $ aenvAutoRW aenv)
       in
-        e `L.elem` syms
+        e `L.elem` symbs
 
     lhsHead :: Expr -> Maybe Symbol
     lhsHead e | (ef, _) <- splitEAppThroughECst e, EVar f <- dropECst ef = Just f
@@ -1111,9 +1109,9 @@ isConstant :: S.HashSet LDataCon -> Expr -> Bool
 isConstant dcs e = S.null (S.difference (exprSymbolsSet e) dcs)
 
 simplify :: Knowledge -> ICtx -> Expr -> Expr
-simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExprOnExpr tx) e
+simplify γ ictx exprs = mytracepp ("simplification of " ++ showpp exprs) $ fix' (Vis.mapExprOnExpr tx) exprs
     where
-      fix f e = if e == e' then e else fix f e' where e' = f e
+      fix' f e = if e == e' then e else fix' f e' where e' = f e
       tx e
         | Just e' <- M.lookup e (icSimpl ictx)
         = e'
@@ -1179,7 +1177,7 @@ instance Normalizable Equation where
 
 -- | Normalize the given named expression if it is recursive.
 normalizeBody :: Symbol -> Expr -> Expr
-normalizeBody f e | f `elem` syms e = go e
+normalizeBody f exprs | f `elem` syms exprs = go exprs
   where
     -- @go@ performs this simplification:
     --     (c => e1) /\ ((not c) => e2) --> if c then e1 else e2
