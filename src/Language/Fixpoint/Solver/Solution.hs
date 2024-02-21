@@ -3,8 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards     #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Solver.Solution
   ( -- * Create Initial Solution
     init
@@ -48,7 +46,7 @@ import Text.Printf (printf)
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
+init cfg si ks_ = Sol.fromList symEnv mempty keqs [] mempty ebs xEnv
   where
     keqs       = map (refine si qcs genv) ws `using` parList rdeepseq
     qcs        = {- trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ -} qcs_
@@ -57,7 +55,7 @@ init cfg si ks_ = Sol.fromList senv mempty keqs [] mempty ebs xEnv
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w), k `S.member` ks ]
     ks         = {- trace ("init-ks-size" ++ show (S.size ks_)) $ -} ks_
     genv       = instConstants si
-    senv       = symbolEnv cfg si
+    symEnv     = symbolEnv cfg si
     ebs        = ebindInfo si
     xEnv       = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,(x,sr,_)) <- F.bindEnvToList (F.bs si)]
 
@@ -83,10 +81,10 @@ qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ]
 --------------------------------------------------------------------------------
 
 refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
-refine fi qs genv w = refineK (allowHOquals fi) env qs (F.wrft w)
+refine info qs genv w = refineK (allowHOquals info) env qs (F.wrft w)
   where
-    env             = wenv <> genv
-    wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
+    env             = wenvSort <> genv
+    wenvSort        = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs info) (F.wenv w))
 
 instConstants :: F.SInfo a -> F.SEnv F.Sort
 instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
@@ -126,14 +124,14 @@ instKSig :: Bool
          -> QCSig
          -> [[F.Symbol]]
 instKSig _  _   _ _ [] = error "Empty qsig in Solution.instKSig"
-instKSig ho env v t (qp:qps) = do
-  (su0, i0, qs0) <- candidatesP senv [(0, t, [v])] qp
-  ixs       <- matchP senv tyss [(i0, qs0)] (applyQPP su0 <$> qps)
+instKSig ho env v sort' (qp:qps) = do
+  (su0, i0, qs0) <- candidatesP symToSrch [(0, sort', [v])] qp
+  ixs       <- matchP symToSrch tyss [(i0, qs0)] (applyQPP su0 <$> qps)
   ys        <- instSymbol tyss (tail $ reverse ixs)
   return (v:ys)
   where
     tyss       = zipWith (\i (t, ys) -> (i, t, ys)) [1..] (instCands ho env)
-    senv       = (`F.lookupSEnvWithDistance` env)
+    symToSrch  = (`F.lookupSEnvWithDistance` env)
 
 instSymbol :: [(SortIdx, a, [F.Symbol])] -> [(SortIdx, QualPattern)] -> [[F.Symbol]]
 instSymbol tyss = go
@@ -305,19 +303,19 @@ lookupBindEnvExt g s i
       (x, sr, _)              = F.lookupBindEnv i (ceBEnv g)
 
 ebSol :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
-ebSol g s i = case  M.lookup i sebds of
+ebSol g sol bindId = case  M.lookup bindId sebds of
   Just (Sol.EbSol p)    -> Just p
   Just (Sol.EbDef cs _) -> Just $ F.PAnd (cSol <$> cs)
   _                     -> Nothing
   where
-    sebds = Sol.sEbd s
+    sebds = Sol.sEbd sol
 
     ebReft s (i,c) = exElim (Sol.sxEnv s) (senv c) i (ebindReft g s c)
     cSol c = if sid c == ceCid g
                 then F.PFalse
-                else ebReft s' (i, c)
+                else ebReft s' (bindId, c)
 
-    s' = s { Sol.sEbd = M.insert i Sol.EbIncr sebds }
+    s' = sol { Sol.sEbd = M.insert bindId Sol.EbIncr sebds }
 
 ebindReft :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.SimpC () -> F.Pred
 ebindReft g s c = F.pAnd [ fst $ apply g' s bs, F.crhs c ]
@@ -477,7 +475,7 @@ substElim syEnv sEnv g _ (F.Su m) = (xts, p)
     sp     = F.srcSpan g
 
 substSort :: F.SEnv F.Sort -> S.HashSet F.Symbol -> F.Symbol -> F.Sort -> F.Sort
-substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
+substSort sEnv _frees sym _t = fromMaybe (err sym) $ F.lookupSEnv sym sEnv
   where
     err x            = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
 
