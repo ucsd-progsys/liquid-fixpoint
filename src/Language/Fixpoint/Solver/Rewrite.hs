@@ -4,8 +4,6 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing    #-}
-
 module Language.Fixpoint.Solver.Rewrite
   ( getRewrite
   , subExprs
@@ -85,7 +83,7 @@ ordConstraints RESTLPO      solver = bimapConstraints LPO asLPO (lift (adtOC sol
     asLPO (LPO t) = t
     asLPO _       = undefined
 
-ordConstraints (RESTFuel n) _      = bimapConstraints Fuel asFuel $ fuelOC n
+ordConstraints (RESTFuel m) _      = bimapConstraints Fuel asFuel $ fuelOC m
   where
     asFuel (Fuel n) = n
     asFuel _        = undefined
