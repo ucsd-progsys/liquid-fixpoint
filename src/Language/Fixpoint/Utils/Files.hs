@@ -91,6 +91,7 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | BinFq    -- ^ Binary representation of .fq / FInfo
          | Smt2     -- ^ SMTLIB2 query file
          | HSmt2    -- ^ Horn query file
+         | HJSON    -- ^ Horn query JSON file
          | Min      -- ^ filter constraints with delta debug
          | MinQuals -- ^ filter qualifiers with delta debug
          | MinKVars -- ^ filter kvars with delta debug
@@ -124,6 +125,7 @@ extMap          = go
     go Cache    = ".err"
     go Smt2     = ".smt2"
     go HSmt2    = ".horn.smt2"
+    go HJSON    = ".horn.json"
     go (Auto n) = ".auto." ++ show n
     go Dot      = ".dot"
     go BinFq    = ".bfq"

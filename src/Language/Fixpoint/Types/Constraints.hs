@@ -503,6 +503,18 @@ data QualPattern
   | PatExact  !Symbol       -- ^ str       i.e. exactly match 'str'
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance ToJSON   Qualifier   where 
+instance FromJSON Qualifier   where 
+instance ToJSON   QualParam   where 
+instance FromJSON QualParam   where 
+instance ToJSON   QualPattern where 
+instance FromJSON QualPattern where 
+instance ToJSON   Equation    where
+instance FromJSON Equation    where
+instance ToJSON   Rewrite     where
+instance FromJSON Rewrite     where
+
+
 trueQual :: Qualifier
 trueQual = Q (symbol ("QTrue" :: String)) [] mempty (dummyPos "trueQual")
 
