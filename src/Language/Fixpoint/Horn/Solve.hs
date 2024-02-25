@@ -55,7 +55,7 @@ loadFromJSON :: FilePath -> IO (H.Query H.Tag, [String])
 loadFromJSON f = do 
   r <- Aeson.eitherDecodeFileStrict f
   case r of
-    Right v -> return v
+    Right v -> return (v, [])
     Left err -> error ("Error in loadFromJSON: " ++ err)
 
 saveHornQuery :: F.Config -> H.Query H.Tag -> IO ()
