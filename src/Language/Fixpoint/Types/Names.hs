@@ -150,6 +150,8 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Utils.Builder as Builder (fromText)
 import Data.Functor.Contravariant (Contravariant(contramap))
 import qualified Data.Binary as B
+import qualified Data.Aeson       as Aeson
+import qualified Data.Aeson.Types as Aeson
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
@@ -176,7 +178,8 @@ data Symbol
   = S { _symbolId      :: !Id
       , symbolRaw      :: T.Text
       , symbolEncoded  :: T.Text
-      } deriving (Data, Typeable, Generic)
+      } 
+    deriving (Data, Typeable, Generic)
 
 instance Eq Symbol where
   S i _ _ == S j _ _ = i == j
@@ -212,8 +215,20 @@ instance S.Store Symbol where
   size = contramap symbolText S.size
 
 instance B.Binary Symbol where
-   get = textSymbol <$> B.get
-   put = B.put . symbolText
+  get = textSymbol <$> B.get
+  put = B.put . symbolText
+
+instance Aeson.ToJSON Symbol where 
+  toJSON = Aeson.toJSON . symbolText 
+
+instance Aeson.FromJSON Symbol where
+  parseJSON = fmap textSymbol . Aeson.parseJSON
+
+instance Aeson.ToJSONKey Symbol where
+  toJSONKey = Aeson.toJSONKeyText symbolText 
+
+instance Aeson.FromJSONKey Symbol where
+  fromJSONKey = Aeson.FromJSONKeyText textSymbol 
 
 sCache :: Cache Symbol
 sCache = mkCache

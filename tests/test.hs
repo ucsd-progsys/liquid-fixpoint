@@ -10,7 +10,7 @@ import qualified Data.IntMap            as IntMap
 import Control.Monad (when)
 import qualified Control.Monad.State    as State
 import Control.Monad.Trans.Class (lift)
-
+import Data.List (isSuffixOf)
 import Prelude hiding (log)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
@@ -76,15 +76,24 @@ unitTests
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
     , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
-    , testGroup "horn-pos-el" <$> dirTests elimCmd   "tests/horn/pos"  []          ExitSuccess
-    , testGroup "horn-neg-el" <$> dirTests elimCmd   "tests/horn/neg"  []          (ExitFailure 1)
+
+    , testGroup "horn-pos-el"      <$> dirTests elimSaveCmd   "tests/horn/pos"  []          ExitSuccess
+    , testGroup "horn-neg-el"      <$> dirTests elimSaveCmd   "tests/horn/neg"  []          (ExitFailure 1)
+    , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd   "tests/horn/pos/.liquid"  []          ExitSuccess
+    , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd   "tests/horn/neg/.liquid"  []          (ExitFailure 1)
+
     , testGroup "horn-pos-na" <$> dirTests nativeCmd "tests/horn/pos"  []          ExitSuccess
     , testGroup "horn-neg-na" <$> dirTests nativeCmd "tests/horn/neg"  []          (ExitFailure 1)
 
     -- , testGroup "todo"       <$> dirTests elimCmd   "tests/todo"   []            (ExitFailure 1)
     -- , testGroup "todo-crash" <$> dirTests elimCmd   "tests/todo-crash" []        (ExitFailure 2)
    ]
+   where
+    dirTests = dirTests' isTest
+    dirJsonTests = dirTests' ("horn.json" `isSuffixOf`) 
 
+isTest   :: FilePath -> Bool
+isTest f = takeExtension f `elem` [".fq", ".smt2"]
 
 skipNativePos :: [FilePath]
 skipNativePos = ["NonLinear-pack.fq"]
@@ -112,15 +121,14 @@ instance IsOption FixpointOpts where
       )
 
 ---------------------------------------------------------------------------
-dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
+dirTests' :: (FilePath -> Bool) -> TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
-dirTests testCmd root ignored code = do
+dirTests' isT testCmd root ignored code = do
   files    <- walkDirectory root
-  let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
+  let tests = [ rel | f <- files, isT f, let rel = makeRelative root f, rel `notElem` ignored ]
   return    $ mkTest testCmd code root <$> tests
 
-isTest   :: FilePath -> Bool
-isTest f = takeExtension f `elem` [".fq", ".smt2"]
+
 
 ---------------------------------------------------------------------------
 mkTest :: TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree
@@ -159,6 +167,11 @@ nativeCmd (LO opts) bin dir file =
 elimCmd :: TestCmd
 elimCmd (LO opts) bin dir file =
   printf "cd %s && %s --eliminate=some %s %s" dir bin opts file
+
+elimSaveCmd :: TestCmd
+elimSaveCmd (LO opts) bin dir file =
+  printf "cd %s && %s --save --eliminate=some %s %s" dir bin opts file
+
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers
