@@ -49,7 +49,7 @@ hornToProg cfg si = do
        , symbols = symbolEnv cfg si
        }
 
-  -- Run monad that adds all horn clauses
+  -- Run monad that adds all horn clauses to the program
   prog <- evalStateT (runReaderT buildProg env) initial
 
   -- Save the program in a file
@@ -171,12 +171,12 @@ reftToStmts (bid, sym, RR
 
     -- Get constraints from the expression.
     let constraints = case predKs e of
-          [] -> [Assume e]
-          ks -> fmap (uncurry $ Call bid) ks
+          [] -> Assume e
+          ks -> Call bid ks
 
     -- Do substitution of self variable in the constraints
     let sub = Su $ Map.singleton v (EVar sym)
-    return $ decl : subst sub constraints
+    return [decl, subst sub constraints]
 
 -- | Get the kvars from an expression.
 --

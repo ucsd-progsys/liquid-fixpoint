@@ -127,16 +127,18 @@ escapeSmt = go False . T.split (=='$')
         txt | escape    = T.singleton . chr . read . T.unpack
             | otherwise = id
 
--- | The separator used to encode the stack trace (of binders)
--- inside of smt symbols.
+-- | The separator used to encode the stack trace (of binders) inside of smt
+-- symbols.
 bindSep :: IsString a => a
 bindSep = "@"
 
+-- | The separator used to separate the caller from the callee inside of a
+-- single stack frame of the stack trace.
 callSep :: IsString a => a
 callSep = "~~"
 
--- | Prefix used to show that this smt symbol was generated
--- during a run of the program.
+-- | Prefix used to show that this smt symbol was generated during a run of
+-- the program.
 progPrefix :: IsString a => a
 progPrefix = "prog"
 

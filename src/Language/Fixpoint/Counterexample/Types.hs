@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveFunctor #-}
 
 module Language.Fixpoint.Counterexample.Types
   ( Counterexample (..)
@@ -27,6 +26,7 @@ module Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Types
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
+import Data.Bifunctor (second)
 
 import Text.PrettyPrint.HughesPJ ((<+>), ($+$))
 import qualified Text.PrettyPrint.HughesPJ as PP
@@ -83,7 +83,7 @@ data Statement
   -- ^ Constraints a variable.
   | Assert !Expr
   -- ^ Checks whether a predicate follows given prior constraints.
-  | Call !BindId !Name !Subst
+  | Call !BindId ![(Name, Subst)]
   -- ^ Call to function. The bind id is used to trace callstacks. I.e. it is the
   -- caller of the function.
   deriving Show
@@ -145,32 +145,35 @@ instance PPrint Statement where
   pprintTidy tidy (Let decl) = "let" <+> pprintTidy tidy decl
   pprintTidy tidy (Assume exprs) = "assume" <+> pprintTidy tidy exprs
   pprintTidy tidy (Assert exprs) = "assert" <+> pprintTidy tidy exprs
-  pprintTidy tidy (Call bid name sub) = pname <+> pargs <+> porigin
+  pprintTidy tidy (Call bid calls) = "call" <+> porigin $+$ pcalls
     where
-      pname = pprintTidy tidy name
-      pargs = pprintTidy tidy sub
       porigin = "// bind id" <+> pprintTidy tidy bid
+      pcalls = PP.vcat $ PP.nest 4 . pcall <$> calls
+      pcall (name, sub) = pprintTidy tidy name <+> pprintTidy tidy sub
 
 instance Subable Statement where
   syms (Let decl) = syms decl
   syms (Assume e) = syms e
   syms (Assert e) = syms e
-  syms (Call _ _ (Su sub)) = syms sub
+  syms (Call _ calls) = mconcat $ syms . (\(Su sub) -> sub) . snd <$> calls
 
   substa _ (Let decl) = Let decl
   substa f (Assume e) = Assume $ substa f e
   substa f (Assert e) = Assert $ substa f e
-  substa f (Call bid name (Su sub)) = Call bid name (Su $ substa f sub)
+  substa f (Call bid calls) = Call bid $ mapsub (substa f) <$> calls
 
   substf _ (Let decl) = Let decl
   substf f (Assume e) = Assume $ substf f e
   substf f (Assert e) = Assert $ substf f e
-  substf f (Call bid name (Su sub)) = Call bid name (Su $ substf f sub)
+  substf f (Call bid calls) = Call bid (mapsub (substf f) <$> calls)
 
   subst _ (Let decl) = Let decl
   subst sub (Assume e) = Assume $ subst sub e
   subst sub (Assert e) = Assert $ subst sub e
-  subst sub (Call bid name (Su sub')) = Call bid name (Su $ subst sub sub')
+  subst sub (Call bid calls) = Call bid (mapsub (subst sub) <$> calls)
+
+mapsub :: (HashMap Symbol Expr -> HashMap Symbol Expr) -> (a, Subst) -> (a, Subst)
+mapsub f = second (\(Su sub) -> Su $ f sub)
 
 instance Subable Decl where
   syms (Decl sym _) = [sym]

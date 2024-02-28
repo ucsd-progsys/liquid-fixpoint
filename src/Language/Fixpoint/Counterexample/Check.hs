@@ -111,10 +111,6 @@ runFunc name scope runner = do
       let runner' body = runBody (extendScope scope body) body runner
       let paths = runner' <$> bodies
 
-      -- Try paths, selecting the first that produces a counter example.
-      let select Nothing r = r
-          select cex _ = return cex
-
       -- Check if we've reached the recursion limit.
       -- TODO: Perhaps we should make the recursion limit per kvar?
       -- TODO: We should really explore shallow trees first. Right now,
@@ -124,7 +120,7 @@ runFunc name scope runner = do
       maxDepth' <- reader maxDepth
       let recursionLimit = depth' >= maxDepth'
 
-      result <- if recursionLimit then runner else foldM select Nothing paths
+      result <- if recursionLimit then runner else foldRunners paths
 
       -- Decrement depth after exploring this function
       modify $ \s -> s { depth = depth s - 1}
@@ -162,11 +158,12 @@ runStatement scope stmt runner = do
   let runner' = runner scope
   let stmt' = subst (binders scope) stmt
   case stmt' of
-    Call origin name app -> do
+    Call origin calls -> do
       -- We fake a SubcId here, it will later get mapped into the scope when we
       -- decide which body to run.
-      let scope' = Scope ((origin, 0):path scope) app
-      runFunc name scope' runner'
+      let scope' app = Scope ((origin, 0):path scope) app
+      let runCall (name, app) = runFunc name (scope' app) runner'
+      foldRunners $ runCall <$> calls
     Assume e -> smtAssume e >> runner'
     Assert e -> smtAssert e >> runner'
     Let decl -> do
@@ -178,3 +175,9 @@ getFunc :: MonadCheck m => Name -> m (Maybe Func)
 getFunc name = do
   Prog prog <- reader program
   return $ Map.lookup name prog
+
+foldRunners :: Monad m => [Runner m] -> Runner m
+foldRunners = foldM select Nothing
+  where
+    select Nothing r = r
+    select cex _ = return cex
