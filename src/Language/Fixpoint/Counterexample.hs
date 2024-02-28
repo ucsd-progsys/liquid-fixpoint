@@ -6,11 +6,13 @@ module Language.Fixpoint.Counterexample
   ( tryCounterExample
   ) where
 
-import Language.Fixpoint.Types hiding (Counterexample)
+import Language.Fixpoint.Types
+import Language.Fixpoint.Types.Config (Config, counterExample)
+import Language.Fixpoint.Solver.EnvironmentReduction (dropLikelyIrrelevantBindings)
+
 import Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Counterexample.Build
 import Language.Fixpoint.Counterexample.Check
-import Language.Fixpoint.Types.Config (Config, counterExample)
 
 import qualified Data.HashMap.Strict as Map
 
@@ -44,6 +46,8 @@ tryCounterExample cfg si res@Result
 
     -- Map the symbols in this substitution to their respective bind id
     let cexs = Map.mapWithKey (toFullCex si) smtcex
+
+    dbg $ (fmap . fmap . fmap . fmap $ toFix) <$> cexs
     return res { resCounterexamples = cexs <> cexs' }
 tryCounterExample _ _ res = return res
 
@@ -61,7 +65,16 @@ substToCexEnv :: SInfo info -> SubcId -> Subst -> CexEnv (SubcId, info)
 substToCexEnv si subcid (Su sub) = benv { beBinds = binds }
   where
     benv = bs si
-    ibenv = senv $ cm si Map.! subcid 
+    horn = cm si Map.! subcid
+    ibenv = senv horn
+
+    -- Get the relevant bindings i.e. those that affect the outcome of the rhs.
+    symbols = exprSymbolsSet $ crhs horn
+    symRefts = Map.fromList $ clhs benv horn
+    relevant = dropLikelyIrrelevantBindings symbols symRefts
+
+    -- This new substitution map contains only the relevant bindings.
+    sub' = Map.intersectionWith const sub relevant
 
     -- Filter out all bind ids that are not in the constraint. Then map the
     -- symbols back to the bind ids.
@@ -70,7 +83,9 @@ substToCexEnv si subcid (Su sub) = benv { beBinds = binds }
           . beBinds
           $ benv
 
-    -- Extend the symbol with a its type and user info if possible.
-    trans (sym, sreft, info) = extend <$> Map.lookup sym sub
+    -- Extends a symbol from the bind environment with a concrete instance (and
+    -- the subcid, but this just there to match the type signature of `Result`
+    -- later down the line).
+    trans (sym, sreft, info) = extend <$> Map.lookup sym sub'
       where
         extend ex = (sym, sreft, (ex, (subcid, info)))

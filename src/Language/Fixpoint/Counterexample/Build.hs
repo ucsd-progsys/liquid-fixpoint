@@ -134,9 +134,11 @@ hornLhsToStmts horn = do
   return $ mconcat stmts
 
 relevantLhs :: BindEnv info -> SimpC info -> [Binding]
-relevantLhs benv horn = [(bid, sym, ref) | bid <- elemsIBindEnv ibenv, let (sym, ref, _) = lookupBindEnv bid benv]
-  where
-    ibenv = senv horn
+relevantLhs benv horn = 
+  [ (bid, sym, ref) 
+  | bid <- elemsIBindEnv $ senv horn
+  , let (sym, ref, _) = lookupBindEnv bid benv
+  ]
 
 filterDuplicates :: [Binding] -> [Binding]
 filterDuplicates = foldr filter' []
