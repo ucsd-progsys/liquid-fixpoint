@@ -9,6 +9,8 @@ module Language.Fixpoint.Counterexample.Types
   , cexInsert
   , FrameId
   , Trace
+  , Runner
+  , Scope (..)
 
   , Prog (..)
   , Name
@@ -37,6 +39,21 @@ dbg = liftIO . print . pprint
 -- | A counterexample that was mapped from an SMT result. It is a simple mapping
 -- from symbol to concrete instance.
 type SMTCounterexample = Counterexample Subst
+
+-- | The runner is a computation path in the program. We use this as an argument
+-- to pass around the remainder of a computation. This way, we can pop paths in
+-- the SMT due to conditionals. Allowing us to retain anything prior to that.
+type Runner m = m (Maybe SMTCounterexample)
+
+-- | A scope contains the current binders in place as well as the path traversed
+-- to reach this scope.
+data Scope = Scope
+  { path :: ![FrameId]
+  -- ^ The path traversed to reach the scope.
+  , binders :: !Subst
+  -- ^ The binders available in the current scope.
+  }
+  deriving (Eq, Ord, Show)
 
 -- | A program, containing multiple function definitions mapped by their name.
 newtype Prog = Prog (HashMap Name Func)

@@ -1,6 +1,7 @@
 bind 0 duplicator : {v: int | $k0 && $k1}
 
 bind 1 duplicated : {v: int | v == 0}
+bind 2 duplicated : {v: int | v == 1}
 
 constraint:
   env [1]
@@ -9,7 +10,7 @@ constraint:
   id 0 tag []
 
 constraint:
-  env [1]
+  env [2]
   lhs {v : int | v == duplicated}
   rhs {v : int | $k1}
   id 1 tag []

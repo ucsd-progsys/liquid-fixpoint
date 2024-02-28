@@ -9,18 +9,15 @@ module Language.Fixpoint.Counterexample.Check
 
 import Language.Fixpoint.Types
 import Language.Fixpoint.Counterexample.Types
+import Language.Fixpoint.Counterexample.SMT
 import Language.Fixpoint.Types.Config (Config, srcFile)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
 import Data.Maybe (fromJust)
-import Data.Char (chr)
-import Data.List (find, intercalate, foldl')
-import Data.Bifunctor (first)
-import Data.String (IsString(..))
+import Data.List (find)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
-import qualified Data.Text as T
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -37,6 +34,9 @@ data CheckEnv = CheckEnv
   , maxDepth :: !Int
   -- ^ The maximum number of functions to traverse (to avoid state blow-up).
   }
+
+instance SMTContext CheckEnv where
+  smtContext = context
 
 -- | State tracked when checking a program.
 newtype CheckState = CheckState
@@ -94,22 +94,6 @@ checkConstraint cid = do
   case find cmp bodies of
     Just body -> runBody scope body smtCheck
     Nothing -> return Nothing
-
--- | A scope contains the current binders in place
--- as well as the path traversed to reach this scope.
-data Scope = Scope
-  { path :: ![FrameId]
-  -- ^ The path traversed to reach the scope.
-  , binders :: !Subst
-  -- ^ The binders available in the current scope.
-  }
-  deriving (Eq, Ord, Show)
-
--- | The runner is a computation path in the program. We use this
--- as an argument to pass around the remainder of a computation.
--- This way, we can pop paths in the SMT due to conditionals.
--- Allowing us to retain anything prior to that.
-type Runner m = m (Maybe SMTCounterexample)
 
 -- | Run a function. This essentially makes one running branch for
 -- each body inside of the function. It will try each branch
@@ -194,113 +178,3 @@ getFunc :: MonadCheck m => Name -> m (Maybe Func)
 getFunc name = do
   Prog prog <- reader program
   return $ Map.lookup name prog
-
--- | Declare a new symbol, returning an updated substitution
--- given with this new symbol in it. The substitution map is
--- required to avoid duplicating variable names.
-smtDeclare :: MonadCheck m => Scope -> Decl -> m Scope
-smtDeclare scope@Scope { binders = Su binds } (Decl sym _)
-  | Map.member sym binds = return scope
-smtDeclare scope (Decl sym sort) = do
-  ctx <- reader context
-  let sym' = scopeSym scope sym
-  liftIO $ SMT.smtDecl ctx sym' sort
-  let Su sub = binders scope
-  let binders' = Su $ Map.insert sym (EVar sym') sub
-  return scope { binders = binders' }
-
--- | Assume the given expression.
-smtAssert :: MonadCheck m => Expr -> m ()
-smtAssert = smtAssume . PNot
-
--- | Assert the given expression.
-smtAssume :: MonadCheck m => Expr -> m ()
-smtAssume e = do
-  ctx <- reader context
-  liftIO $ SMT.smtAssert ctx e
-
--- | Run the checker within a scope (i.e. a push/pop pair).
-smtScope :: MonadCheck m => m a -> m a
-smtScope inner = do
-  ctx <- reader context
-  liftIO $ SMT.smtPush ctx
-  !result <- inner
-  liftIO $ SMT.smtPop ctx
-  return result
-
--- | Check if there is a counterexample, returing one
--- if it is available.
-smtCheck :: MonadCheck m => Runner m
-smtCheck = do
-  ctx <- reader context
-  valid <- liftIO $ SMT.smtCheckUnsat ctx
-
-  if valid then return Nothing else Just <$> smtModel
-
--- | Returns a model, with as precondition that the SMT 
--- solver had a satisfying assignment prior to this.
-smtModel :: MonadCheck m => m SMTCounterexample
-smtModel = do
-  ctx <- reader context
-  Su sub <- liftIO $ SMT.smtGetModel ctx
-
-  -- Filter just the variables for which we have a trace
-  let renames = first unscopeSym <$> Map.toList sub
-  let traces = [ (trace, sym, e) | (Just (sym, trace), e) <- renames ]
-
-  -- Insert per singleton. Entries are monoidically merged when inserted.
-  let insert (trace, sym, e) = cexInsert trace $ Su (Map.singleton sym e)
-
-  -- Insert all elements
-  let cex = foldl' (flip insert) mempty traces
-  return cex
-
--- | Returns a version of a symbol with the scope encoded into its name.
-scopeSym :: Scope -> Symbol -> Symbol
-scopeSym scope sym = symbol name
-  where
-    name = intercalate bindSep strs
-    strs = symbolString <$> progPrefix : sym : paths
-    paths = uncurry joinCall <$> path scope
-    joinCall caller callee = symbol . mconcat $ [show caller, callSep, show callee]
-
--- | We encode the trace of a symbol in its name. This way,
--- we do not lose it in the SMT solver. This function translates
--- the encoding back.
-unscopeSym :: Symbol -> Maybe (Symbol, [FrameId])
-unscopeSym sym = case T.splitOn bindSep sym' of
-  (prefix:name:trace) | prefix == progPrefix 
-    -> Just (symbol name, toFrameId <$> trace)
-  _ -> Nothing
-  where
-    toFrameId = split . T.splitOn callSep
-
-    split [caller, callee] = (read' caller, read' callee)
-    split _ = error "Scoped name was not correctly shaped"
-
-    read' :: Read a => T.Text -> a
-    read' = read . T.unpack
-
-    sym' = escapeSmt . symbolText $ sym
-
-escapeSmt :: T.Text -> T.Text
-escapeSmt = go False . T.split (=='$')
-  where
-    go _ [] = ""
-    go escape (t:ts) = txt t <> go (not escape) ts
-      where
-        txt | escape    = T.singleton . chr . read . T.unpack
-            | otherwise = id
-
--- | The separator used to encode the stack trace (of binders)
--- inside of smt symbols.
-bindSep :: IsString a => a
-bindSep = "@"
-
-callSep :: IsString a => a
-callSep = "~~"
-
--- | Prefix used to show that this smt symbol was generated
--- during a run of the program.
-progPrefix :: IsString a => a
-progPrefix = "prog"
