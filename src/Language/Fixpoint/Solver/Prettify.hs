@@ -3,8 +3,6 @@
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -- | Functions to make environments easier to read
 module Language.Fixpoint.Solver.Prettify (savePrettifiedQuery) where
 
@@ -62,18 +60,18 @@ import           Text.PrettyPrint.HughesPJ.Compat
 
 
 savePrettifiedQuery :: Fixpoint a => Config -> FInfo a -> IO ()
-savePrettifiedQuery cfg fi = do
+savePrettifiedQuery cfg info = do
   let fq   = queryFile Files.Fq cfg `addExtension` "prettified"
   putStrLn $ "Saving prettified Query: "   ++ fq ++ "\n"
   ensurePath fq
-  writeFile fq $ render (prettyConstraints fi)
+  writeFile fq $ render (prettyConstraints info)
 
 prettyConstraints :: Fixpoint a => FInfo a -> Doc
-prettyConstraints fi =
+prettyConstraints info =
   vcat $
   map
-    (prettyConstraint (bs fi) . snd)
-    (sortOn fst $ HashMap.toList (cm fi))
+    (prettyConstraint (bs info) . snd)
+    (sortOn fst $ HashMap.toList (cm info))
 
 prettyConstraint
   :: Fixpoint a
@@ -163,11 +161,11 @@ shortenVarNames
   :: HashMap Symbol SortedReft
   -> SubC a
   -> ([(Symbol, SortedReft)], SubC a)
-shortenVarNames env c =
+shortenVarNames env subc =
   let bindsRenameMap = proposeRenamings $ HashMap.keys env
       env' = map (renameBind bindsRenameMap) (HashMap.toList env)
    in
-      (env', renameSubC bindsRenameMap c)
+      (env', renameSubC bindsRenameMap subc)
   where
     renameSubC :: HashMap Symbol Symbol -> SubC a -> SubC a
     renameSubC symMap c =
@@ -255,7 +253,7 @@ toSymMap prefixMap = HashMap.fromList
       [(_sfx, ss)] -> renameWithAppendages pfx ("", ss)
       sfxs -> concatMap (renameWithAppendages pfx) sfxs
 
-    renameWithAppendages pfx (sfx, ss) = zip ss $ case ss of
+    renameWithAppendages pfx (sfx, xs) = zip xs $ case xs of
       [_s] -> [pfx `suffixIfNotNull` sfx]
       ss -> zipWith (rename pfx sfx) [1 :: Integer ..] ss
 
