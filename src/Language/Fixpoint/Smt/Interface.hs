@@ -245,7 +245,7 @@ makeContext cfg f
        hSetBuffering hLog $ BlockBuffering $ Just $ 1024 * 1024 * 64
        me   <- makeContext' cfg $ Just hLog
        pre  <- smtPreamble cfg (solver cfg) me
-       mapM_ (SMTLIB.Backends.command_ (ctxSolver me)) pre
+       mapM_ (\l -> SMTLIB.Backends.command_ (ctxSolver me) l >> BS.hPutBuilder hLog l >> LBS.hPutStr hLog "\n") pre
        return me
     where
        smtFile = extFileName Smt2 f
