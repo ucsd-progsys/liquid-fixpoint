@@ -742,6 +742,7 @@ expr0P :: Parser Expr
 expr0P
   =  trueP -- constant "true"
  <|> falseP -- constant "false"
+ <|> (reservedOp "?" *> predP)
  <|> fastIfP EIte exprP -- "if-then-else", starts with "if"
  <|> coerceP exprP -- coercion, starts with "coerce"
  <|> (ESym <$> symconstP) -- string literal, starts with double-quote
@@ -924,6 +925,18 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
                  , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
                  , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
                  , FInfix  (Just 9) "."   applyCompose        AssocRight
+                --  --
+                --  , FInfix  (Just 4) "<"   (Just $ PAtom Lt)  AssocNone
+                --  , FInfix  (Just 4) "=="  (Just $ PAtom Eq)  AssocNone
+                --  , FInfix  (Just 4) "="   (Just $ PAtom Eq)  AssocNone
+                --  , FInfix  (Just 4) "~~"  (Just $ PAtom Ueq) AssocNone
+                --  , FInfix  (Just 4) "!="  (Just $ PAtom Ne)  AssocNone
+                --  , FInfix  (Just 4) "/="  (Just $ PAtom Ne)  AssocNone
+                --  , FInfix  (Just 4) "!~"  (Just $ PAtom Une) AssocNone
+                --  , FInfix  (Just 4) "<"   (Just $ PAtom Lt)  AssocNone
+                --  , FInfix  (Just 4) "<="  (Just $ PAtom Le)  AssocNone
+                --  , FInfix  (Just 4) ">"   (Just $ PAtom Gt)  AssocNone
+                --  , FInfix  (Just 4) ">="  (Just $ PAtom Ge)  AssocNone
                  ]
     applyCompose :: Maybe (Expr -> Expr -> Expr)
     applyCompose = (\f x y -> f `eApps` [x,y]) <$> cmpFun
@@ -933,7 +946,7 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
 -- Andres, TODO: Why is this so complicated?
 --
 funAppP :: Parser Expr
-funAppP            =  litP <|> exprFunP <|> simpleAppP
+funAppP      =  litP <|> exprFunP <|> simpleAppP
   where
     exprFunP = mkEApp <$> funSymbolP <*> funRhsP
     funRhsP  =  some expr0P

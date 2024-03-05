@@ -289,6 +289,12 @@ testPredP =
     , testCase "funApp 3" $
         show (doParse' predP "test" "f ([a; b])") @?= "EApp (EApp (EVar \"f\") (EVar \"a\")) (EVar \"b\")"
 
+    , testCase "funApp 4" $
+        show (doParse' funAppP "" "f ?(x > 1)") @?= "EApp (EVar \"f\") (PAtom Gt (EVar \"x\") (ECon (I 1)))"
+
+    , testCase "funApp 5" $
+        show (doParse' predP "" "f ?(x > 1)") @?= "EApp (EVar \"f\") (PAtom Gt (EVar \"x\") (ECon (I 1)))"
+
     , testCase "symbol" $
         show (doParse' predP "test" "f") @?= "EVar \"f\""
 
