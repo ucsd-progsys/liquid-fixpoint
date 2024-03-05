@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 {-# OPTIONS_GHC -Wno-orphans           #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Language.Fixpoint.Types.Spans (
 
@@ -56,6 +57,7 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import Data.Functor.Contravariant (Contravariant(contramap))
 import qualified Data.Binary as B
+import           Data.Aeson
 -- import           Debug.Trace
 
 
@@ -161,10 +163,15 @@ instance Fixpoint SourcePos where
   toFix = text . show
 
 
-data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
-                     , locE :: !SourcePos -- ^ End Position
-                     , val  :: !a
-                     } deriving (Data, Typeable, Generic)
+data Located a = Loc 
+  { loc  :: !SourcePos -- ^ Start Position
+  , locE :: !SourcePos -- ^ End Position
+  , val  :: !a
+  } 
+  deriving (Data, Typeable, Generic, ToJSON, FromJSON)
+
+instance ToJSON SourcePos where
+instance FromJSON SourcePos where
 
 instance Loc (Located a) where
   srcSpan (Loc l l' _) = SS l l'
@@ -215,6 +222,11 @@ instance B.Binary SourcePos
 
 instance (B.Binary a) => B.Binary (Located a)
 
+
+instance ToJSON Pos where 
+
+instance FromJSON Pos where
+
 srcLine :: (Loc a) => a -> Pos
 srcLine = sourceLine . sp_start . srcSpan
 
@@ -224,7 +236,7 @@ srcLine = sourceLine . sp_start . srcSpan
 
 data SrcSpan = SS { sp_start :: !SourcePos
                   , sp_stop  :: !SourcePos}
-                 deriving (Eq, Ord, Show, Data, Typeable, Generic)
+                 deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 instance NFData SrcSpan
 instance S.Store SrcSpan

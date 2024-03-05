@@ -13,6 +13,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing     #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
@@ -86,6 +87,8 @@ import qualified Data.Store as S
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
+import           Data.Aeson
+
 import           Data.Hashable
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
@@ -102,7 +105,7 @@ import qualified Data.List                 as L
 import qualified Data.Binary as B
 import Text.Read (readMaybe)
 
-data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
+data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 -- instance Show FTycon where
 --   show (TC s _) = show (val s)
@@ -114,7 +117,7 @@ instance Eq FTycon where
   (TC s _) == (TC s' _) = val s == val s'
 
 data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool, tc_isString :: Bool }
-  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 mappendFTC :: FTycon -> FTycon -> FTycon
 mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2)
@@ -260,7 +263,7 @@ data Sort = FInt
           | FAbs  !Int !Sort     -- ^ type-abstraction
           | FTC   !FTycon
           | FApp  !Sort !Sort    -- ^ constructed type
-            deriving (Eq, Ord, Show, Data, Typeable, Generic)
+            deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 instance PPrint Sort where
   pprintTidy _ = toFix
@@ -284,18 +287,18 @@ substSort f = \case
 data DataField = DField
   { dfName :: !LocSymbol          -- ^ Field Name
   , dfSort :: !Sort               -- ^ Field Sort
-  } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  } deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 data DataCtor = DCtor
   { dcName   :: !LocSymbol        -- ^ Ctor Name
   , dcFields :: ![DataField]      -- ^ Ctor Fields
-  } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  } deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 data DataDecl = DDecl
   { ddTyCon :: !FTycon            -- ^ Name of defined datatype
   , ddVars  :: !Int               -- ^ Number of type variables
   , ddCtors :: [DataCtor]         -- ^ Datatype Ctors. Invariant: type variables bound in ctors are greater than ddVars
-  } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  } deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 instance Loc DataDecl where
     srcSpan (DDecl ty _ _) = srcSpan ty

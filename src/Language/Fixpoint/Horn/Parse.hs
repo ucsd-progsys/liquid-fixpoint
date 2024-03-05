@@ -17,11 +17,11 @@ import           Text.Megaparsec.Char           (char)
 import qualified Data.HashMap.Strict            as M
 
 -------------------------------------------------------------------------------
-hornP :: Parser (H.TagQuery, [String])
+hornP :: Parser H.TagQuery
 -------------------------------------------------------------------------------
 hornP = do
   hThings <- many hThingP
-  pure (mkQuery hThings, [ o | HOpt o <- hThings ])
+  pure (mkQuery hThings)
 
 mkQuery :: [HThing a] -> H.Query a
 mkQuery things = H.Query
@@ -33,6 +33,7 @@ mkQuery things = H.Query
   , H.qEqns  =            [ e     | HDef e  <- things ]
   , H.qMats  =            [ m     | HMat m  <- things ]
   , H.qData  =            [ dd    | HDat dd <- things ]
+  , H.qOpts  =            [ o     | HOpt o  <- things ]
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order

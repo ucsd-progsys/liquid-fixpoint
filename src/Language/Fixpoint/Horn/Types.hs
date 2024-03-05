@@ -8,6 +8,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Language.Fixpoint.Horn.Types
   ( -- * Horn Constraints and their components
@@ -45,6 +46,7 @@ import qualified Language.Fixpoint.Types as F
 import qualified Text.PrettyPrint.HughesPJ.Compat as P
 import qualified Data.HashMap.Strict as M
 import           Data.Aeson
+import           Data.Aeson.Types
 
 -------------------------------------------------------------------------------
 -- | @HVar@ is a Horn variable
@@ -54,7 +56,7 @@ data Var a = HVar
   , hvArgs :: ![F.Sort] {- len hvArgs > 0 -}    -- ^ sorts of its parameters i.e. of the relation defined by the @HVar@
   , hvMeta :: a                                 -- ^ meta-data
   }
-  deriving (Eq, Ord, Data, Typeable, Generic, Functor)
+  deriving (Eq, Ord, Data, Typeable, Generic, Functor, ToJSON, FromJSON)
 
 -------------------------------------------------------------------------------
 -- | @HPred@ is a Horn predicate that appears as LHS (body) or RHS (head) of constraints
@@ -63,7 +65,7 @@ data Pred
   = Reft  !F.Expr                               -- ^ r
   | Var   !F.Symbol ![F.Symbol]                 -- ^ $k(y1..yn)
   | PAnd  ![Pred]                               -- ^ p1 /\ .../\ pn
-  deriving (Data, Typeable, Generic, Eq)
+  deriving (Data, Typeable, Generic, Eq, ToJSON, FromJSON)
 
 
 instance Semigroup Pred where
@@ -152,7 +154,7 @@ data Bind a = Bind
   , bPred :: !Pred
   , bMeta :: !a
   }
-  deriving (Data, Typeable, Generic, Functor, Eq)
+  deriving (Data, Typeable, Generic, Functor, Eq, ToJSON, FromJSON)
 
 instance F.Subable (Bind a) where
     syms     (Bind x _ p _) = x : F.syms p
@@ -168,7 +170,7 @@ data Cstr a
   | CAnd  ![Cstr a]                 -- ^ c1 /\ ... /\ cn
   | All   !(Bind a)  !(Cstr a)      -- ^ \all x:t. p => c
   | Any   !(Bind a)  !(Cstr a)      -- ^ \exi x:t. p /\ c or is it \exi x:t. p => c?
-  deriving (Data, Typeable, Generic, Functor, Eq)
+  deriving (Data, Typeable, Generic, Functor, Eq, ToJSON, FromJSON)
 
 cLabel :: Cstr a -> a
 cLabel cstr = case go cstr of
@@ -196,13 +198,14 @@ data Query a = Query
   { qQuals :: ![F.Qualifier]             -- ^ qualifiers over which to solve cstrs
   , qVars  :: ![Var a]                   -- ^ kvars, with parameter-sorts
   , qCstr  :: !(Cstr a)                  -- ^ list of constraints
-  , qCon   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (uninterpreted functions
-  , qDis   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (uninterpreted functions
+  , qCon   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (uninterpreted functions)
+  , qDis   :: M.HashMap F.Symbol F.Sort  -- ^ list of *distinct* constants (uninterpreted functions)
   , qEqns  :: ![F.Equation]              -- ^ list of equations
   , qMats  :: ![F.Rewrite]               -- ^ list of match-es
   , qData  :: ![F.DataDecl]              -- ^ list of data-declarations
+  , qOpts  :: ![String]                  -- ^ list of fixpoint options
   }
-  deriving (Data, Typeable, Generic, Functor)
+  deriving (Data, Typeable, Generic, Functor, ToJSON, FromJSON)
 
 -- | Tag each query with a possible string denoting "provenance"
 
@@ -227,6 +230,15 @@ instance F.PPrint Tag where
 instance ToJSON Tag where
   toJSON NoTag   = Null
   toJSON (Tag s) = String (T.pack s)
+
+instance FromJSON Tag where
+  parseJSON Null       = pure NoTag 
+  parseJSON (String t) = pure (Tag (T.unpack t))
+  parseJSON invalid    = prependFailure "parsing `Tag` failed, " (typeMismatch "Object" invalid)
+
+
+
+
 
 instance F.PPrint (Query a) where
   pprintPrec prec t q = P.vcat $ L.intersperse " "
