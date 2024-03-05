@@ -259,7 +259,7 @@ instance Hashable Reft
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
 newtype Subst = Su (M.HashMap Symbol Expr)
-                deriving (Eq, Data, Ord, Typeable, Generic, ToJSON, FromJSON)   
+                deriving (Eq, Data, Ord, Typeable, Generic, ToJSON, FromJSON)
 
 instance Show Subst where
   show = showFix
@@ -303,15 +303,15 @@ data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
             -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
-instance ToJSON Constant  where 
-instance ToJSON Brel      where 
-instance ToJSON Bop       where 
-instance ToJSON Expr      where 
+instance ToJSON Constant  where
+instance ToJSON Brel      where
+instance ToJSON Bop       where
+instance ToJSON Expr      where
 
-instance FromJSON Constant  where 
-instance FromJSON Brel      where 
-instance FromJSON Bop       where 
-instance FromJSON Expr      where 
+instance FromJSON Constant  where
+instance FromJSON Brel      where
+instance FromJSON Bop       where
+instance FromJSON Expr      where
 
 
 data Expr = ESym !SymConst
