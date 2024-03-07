@@ -361,6 +361,14 @@ cvc4Preamble z
   ++ commonPreamble z
   ++ cvc4MapPreamble z
 
+cvc5Preamble :: Config -> [Builder]
+cvc5Preamble z
+  = [        "(set-logic ALL_SUPPORTED)"]
+  ++ commonPreamble z
+  ++ cvc5MapPreamble z
+
+
+
 commonPreamble :: Config -> [Builder]
 commonPreamble _ --TODO use uif flag u (see z3Preamble)
   = [ bSort elt    "Int"
@@ -375,6 +383,13 @@ commonPreamble _ --TODO use uif flag u (see z3Preamble)
     , bFun' sub [fromText set, fromText set] "Bool"
     , bFun' mem [fromText elt, fromText set] "Bool"
     , bFun boolToIntName [("b", "Bool")] "Int" "(ite b 1 0)"
+    ]
+
+cvc5MapPreamble :: Config -> [Builder]
+cvc5MapPreamble _ =
+    [ bSort map    (key2 "Array" (fromText elt) (fromText elt))
+    , bFun sel [("m", fromText map), ("k", fromText elt)]                (fromText elt) "(select m k)"
+    , bFun sto [("m", fromText map), ("k", fromText elt), ("v", fromText elt)] (fromText map) "(store m k v)"
     ]
 
 cvc4MapPreamble :: Config -> [Builder]
@@ -487,6 +502,7 @@ sortAppInfo t = case bkFFunc t of
 preamble :: Config -> SMTSolver -> [Builder]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
+preamble u Cvc5 = cvc5Preamble u
 preamble u _    = smtlibPreamble u
 
 --------------------------------------------------------------------------------
