@@ -15,7 +15,6 @@ import Language.Fixpoint.Misc (ensurePath)
 import Language.Fixpoint.SortCheck (elaborate)
 
 import qualified Language.Fixpoint.Utils.Files as Ext
-import qualified Text.PrettyPrint.HughesPJ as PP
 
 import Data.Maybe (fromMaybe)
 import qualified Data.HashMap.Strict as Map
@@ -56,7 +55,7 @@ hornToProg cfg si = do
   liftIO . when (save cfg) $ do
     let file = queryFile Ext.Prog cfg
     ensurePath file
-    writeFile file $ PP.render (pprint prog)
+    writeFile file . show . pprint $ prog
 
   -- Return the generated program
   return prog

@@ -64,7 +64,6 @@ module Language.Fixpoint.Types.Constraints (
   , Counterexample (..)
   , FullCounterexample
   , Trace
-  , FrameId
   , cexInsert
 
   , FixSolution
@@ -272,41 +271,42 @@ subcId = mfromJust "subCId" . sid
 data Counterexample a = Counterexample
   { cexEnv :: !a
   -- ^ The environment in the current stack frame.
-  , cexFrames :: !(M.HashMap FrameId (Counterexample a))
+  , cexConstraint :: !SubcId
+  -- ^ The constraint which the environment belongs to.
+  , cexFrames :: !(M.HashMap BindId (Counterexample a))
   -- ^ The counterexamples stack frames that can be explored from the current
   -- environment.
   }
   deriving (Generic, Show, Functor)
 
 instance PPrint a => PPrint (Counterexample a) where
-  pprintTidy tidy (Counterexample env trace) = penv $+$ ptrace
+  pprintTidy tidy (Counterexample env cid trace) = pcid $+$ penv $+$ ptrace
     where
+      pcid = "in constraint" <+> pprintTidy tidy cid
       penv = pprintTidy tidy env
       ptrace = pprintTidy tidy trace
 
 instance Semigroup a => Semigroup (Counterexample a) where
   lhs <> rhs = Counterexample
     { cexEnv = cexEnv lhs <> cexEnv rhs
+    , cexConstraint = cexConstraint rhs
     , cexFrames = M.unionWith (<>) (cexFrames lhs) (cexFrames rhs)
     }
 
 instance Monoid a => Monoid (Counterexample a) where
-  mempty = Counterexample mempty mempty
+  mempty = Counterexample mempty 0 mempty
 
 -- | Monoidically add an element to a counterexample.
-cexInsert :: Monoid a => Trace -> a -> Counterexample a -> Counterexample a
-cexInsert trace v cex = cex <> go trace
+cexInsert :: Monoid a => Trace -> (SubcId, a) -> Counterexample a -> Counterexample a
+cexInsert trace (cid, v) cex = cex <> go trace
   where
-    go (f:fs) = Counterexample mempty $ M.singleton f (go fs)
-    go [] = Counterexample v mempty
+    go (f:fs) = Counterexample mempty cid $ M.singleton f (go fs)
+    go [] = Counterexample v cid mempty
 
 -- | A stack trace is built from multiple frame ids. This is mostly used for
 -- SMT encodings. These traces are made into a tree like representation in the
 -- actual counterexample object.
-type Trace = [FrameId]
-
--- | An identfier for a "stack frame" in a counterexample.
-type FrameId = (BindId, SubcId)
+type Trace = [BindId]
 
 -- | A counterexample that was extended with additional information from the
 -- environment. It additionally includes types, bind ids and user info, aside
@@ -328,7 +328,7 @@ data Result a = Result
   , resSolution :: !FixSolution
   , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution
-  , resCounterexamples :: !(M.HashMap SubcId (FullCounterexample a))
+  , resCounterexamples :: ![FullCounterexample a]
   }
   deriving (Generic, Show, Functor)
 

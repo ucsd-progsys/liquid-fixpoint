@@ -6,7 +6,6 @@ module Language.Fixpoint.Counterexample.Types
   , FullCounterexample
   , CexEnv
   , cexInsert
-  , FrameId
   , Trace
   , Runner
   , Scope (..)
@@ -48,8 +47,10 @@ type Runner m = m (Maybe SMTCounterexample)
 -- | A scope contains the current binders in place as well as the path traversed
 -- to reach this scope.
 data Scope = Scope
-  { path :: ![FrameId]
+  { path :: ![BindId]
   -- ^ The path traversed to reach the scope.
+  , constraint :: !SubcId
+  -- ^ The current constraint, which dictates the binders.
   , binders :: !Subst
   -- ^ The binders available in the current scope.
   }

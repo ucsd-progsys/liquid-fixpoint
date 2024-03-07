@@ -14,16 +14,12 @@ import Language.Fixpoint.Types.Config (Config, srcFile)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, catMaybes)
 import Data.List (find)
-import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
 
 import Control.Monad.State
 import Control.Monad.Reader
-
--- | Multiple counter examples indexed per constraint id.
-type SMTCounterexamples = HashMap SubcId SMTCounterexample
 
 -- | Environment for the counter example generation.
 data CheckEnv = CheckEnv
@@ -48,7 +44,7 @@ newtype CheckState = CheckState
 type MonadCheck m = (MonadReader CheckEnv m, MonadState CheckState m, MonadIO m)
 
 -- | Check the given constraints to try and find a counter example.
-checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m SMTCounterexamples
+checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m [SMTCounterexample]
 checkProg cfg si prog cids = withContext cfg si check
   where
     check ctx = runCheck cids CheckEnv
@@ -71,17 +67,17 @@ withContext cfg si inner = do
 
 -- | Runs the program checker with the monad stack
 -- unwrapped.
-runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m SMTCounterexamples
+runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m [SMTCounterexample]
 runCheck cids env = rd . st $ checkAll cids
   where
     st = flip evalStateT $ CheckState 0
     rd = flip runReaderT env
 
 -- | Try to find a counter example for all the given constraints.
-checkAll :: MonadCheck m => [SubcId] -> m SMTCounterexamples
+checkAll :: MonadCheck m => [SubcId] -> m [SMTCounterexample]
 checkAll cids = do
   cexs <- forM cids checkConstraint
-  return $ Map.fromList [(cid, cex) | (cid, Just cex) <- zip cids cexs]
+  return $ catMaybes cexs
 
 -- | Check a specific constraint id. This will only do actual
 -- checks for constraints without a KVar on the rhs, as we cannot
@@ -90,7 +86,7 @@ checkConstraint :: MonadCheck m => SubcId -> m (Maybe SMTCounterexample)
 checkConstraint cid = do
   Func _ bodies <- fromJust <$> getFunc mainName
   let cmp (Body bid _) = bid == cid
-  let scope = Scope mempty mempty
+  let scope = Scope mempty cid mempty
   case find cmp bodies of
     Just body -> runBody scope body smtCheck
     Nothing -> return Nothing
@@ -128,10 +124,7 @@ runFunc name scope runner = do
 
 -- | Extend the scope to include the id of the body, i.e. the `SubcId`.
 extendScope :: Scope -> Body -> Scope
-extendScope scope (Body bodyId _) = withSubcId scope
-  where
-    withSubcId scope'@Scope { path = (bindId,_):ps } = scope' { path = (bindId, bodyId):ps }
-    withSubcId _ = error "No scope to extend."
+extendScope scope (Body cid _) = scope { constraint = cid }
 
 -- | Run the statements in the body. If there are no more statements to run,
 -- this will execute the Runner that was passed as argument.
@@ -161,7 +154,7 @@ runStatement scope stmt runner = do
     Call origin calls -> do
       -- We fake a SubcId here, it will later get mapped into the scope when we
       -- decide which body to run.
-      let scope' app = Scope ((origin, 0):path scope) app
+      let scope' app = Scope (origin:path scope) 0 app
       let runCall (name, app) = runFunc name (scope' app) runner'
       foldRunners $ runCall <$> calls
     Assume e -> smtAssume e >> runner'

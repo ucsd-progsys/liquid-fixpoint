@@ -90,6 +90,7 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | Dat
          | BinFq    -- ^ Binary representation of .fq / FInfo
          | Prog     -- ^ Program file (counter example generation)
+         | Cex !Int -- ^ Counterexample JSON file (for external explorer)
          | Smt2     -- ^ SMTLIB2 query file
          | HSmt2    -- ^ Horn query file
          | Min      -- ^ filter constraints with delta debug
@@ -123,6 +124,7 @@ extMap          = go
     go Result   = ".out"
     go Saved    = ".bak"
     go Cache    = ".err"
+    go (Cex n)  = ".cex." <> show n <> ".json"
     go Prog     = ".prog"
     go Smt2     = ".smt2"
     go HSmt2    = ".horn.smt2"

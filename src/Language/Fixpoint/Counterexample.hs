@@ -7,6 +7,7 @@ module Language.Fixpoint.Counterexample
   ) where
 
 import Language.Fixpoint.Types
+import Language.Fixpoint.Counterexample.JSON (jsonCex)
 import Language.Fixpoint.Types.Config (Config, counterExample)
 import Language.Fixpoint.Solver.EnvironmentReduction (dropLikelyIrrelevantBindings)
 
@@ -17,6 +18,7 @@ import Language.Fixpoint.Counterexample.Check
 import qualified Data.HashMap.Strict as Map
 
 import Control.Monad.IO.Class
+import Control.Monad (forM_)
 
 -- TODO: Remove variables from the counter example that got mapped to
 -- the "wrong" type in smt format (e.g. to an int while not being one).
@@ -44,18 +46,22 @@ tryCounterExample cfg si res@Result
     let cids = fst <$> cids'
     smtcex <- checkProg cfg si prog cids
 
-    -- Map the symbols in this substitution to their respective bind id
-    let cexs = Map.mapWithKey (toFullCex si) smtcex
+    -- Extend the smt counterexample to include additional bind info
+    let cexs = toFullCex si <$> smtcex
+
+    -- Store the counterexamples as JSON
+    forM_ cexs $ jsonCex cfg si
 
     dbg $ (fmap . fmap . fmap . fmap $ toFix) <$> cexs
     return res { resCounterexamples = cexs <> cexs' }
 tryCounterExample _ _ res = return res
 
 -- | Extend an SMT counterexample to a full counterexample.
-toFullCex :: SInfo info -> SubcId -> SMTCounterexample -> FullCounterexample (SubcId, info)
-toFullCex si subcid (Counterexample env trace) = Counterexample
+toFullCex :: SInfo info -> SMTCounterexample -> FullCounterexample (SubcId, info)
+toFullCex si (Counterexample env subcid trace) = Counterexample
   { cexEnv = substToCexEnv si subcid env
-  , cexFrames = Map.mapWithKey (toFullCex si . snd) trace
+  , cexConstraint = subcid
+  , cexFrames = toFullCex si <$> trace
   }
 
 -- | Extend an SMT counterexample environment (i.e. the substitution map) to a

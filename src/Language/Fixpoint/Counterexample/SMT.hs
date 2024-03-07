@@ -20,6 +20,7 @@ import Control.Monad.Reader
 
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Text as T
+import Text.Read (readMaybe)
 import Data.String (IsString(..))
 import Data.Bifunctor (first)
 import Data.Char (chr)
@@ -44,11 +45,11 @@ smtDeclare scope (Decl sym sort) = do
   let binders' = Su $ Map.insert sym (EVar sym') sub
   return scope { binders = binders' }
 
--- | Assume the given expression.
+-- | Assert the given expression.
 smtAssert :: MonadSMT s m => Expr -> m ()
 smtAssert = smtAssume . PNot
 
--- | Assert the given expression.
+-- | Assume the given expression.
 smtAssume :: MonadSMT s m => Expr -> m ()
 smtAssume e = do
   ctx <- reader smtContext
@@ -81,10 +82,10 @@ smtModel = do
 
   -- Filter just the variables for which we have a trace
   let renames = first unscopeSym <$> Map.toList sub
-  let traces = [ (trace, sym, e) | (Just (sym, trace), e) <- renames ]
+  let traces = [ (trace, (cid, sym, e)) | (Just (sym, cid, trace), e) <- renames ]
 
   -- Insert per singleton. Entries are monoidically merged when inserted.
-  let insert (trace, sym, e) = cexInsert trace $ Su (Map.singleton sym e)
+  let insert (trace, (cid, sym, e)) = cexInsert trace (cid, Su (Map.singleton sym e))
 
   -- Insert all elements
   let cex = foldl' (flip insert) mempty traces
@@ -95,47 +96,48 @@ scopeSym :: Scope -> Symbol -> Symbol
 scopeSym scope sym = symbol name
   where
     name = intercalate bindSep strs
-    strs = symbolString <$> progPrefix : sym : paths
-    paths = uncurry joinCall <$> path scope
-    joinCall caller callee = symbol . mconcat $ [show caller, callSep, show callee]
+    strs = symbolString <$> progPrefix : sym : cid : paths
+    cid = symbol . show . constraint $ scope
+    paths = symbol . show <$> path scope
 
 -- | We encode the trace of a symbol in its name. This way,
 -- we do not lose it in the SMT solver. This function translates
 -- the encoding back.
-unscopeSym :: Symbol -> Maybe (Symbol, [FrameId])
-unscopeSym sym = case T.splitOn bindSep sym' of
-  (prefix:name:trace) | prefix == progPrefix 
-    -> Just (symbol name, toFrameId <$> trace)
-  _ -> Nothing
-  where
-    toFrameId = split . T.splitOn callSep
+unscopeSym :: Symbol -> Maybe (Symbol, SubcId, [BindId])
+unscopeSym sym = do
+  -- Remove the escape tokens from the SMT formatted symbol
+  sym' <- escapeSmt . symbolText $ sym
 
-    split [caller, callee] = (read' caller, read' callee)
-    split _ = error "Scoped name was not correctly shaped"
+  -- Check if it is in the program form
+  (name, cid, trace) <- case T.splitOn bindSep sym' of
+    (prefix:name:cid:trace) -> do
+      guard $ prefix == progPrefix
+      return (name, cid, trace)
+    _ -> Nothing
 
-    read' :: Read a => T.Text -> a
-    read' = read . T.unpack
+  let read' :: Read a => T.Text -> Maybe a
+      read' = readMaybe . T.unpack
 
-    sym' = escapeSmt . symbolText $ sym
+  -- Try to parse the trace and constraint id
+  trace' <- sequence $ read' <$> trace
+  cid' <- read' cid
+  return (symbol name, cid', trace')
 
-escapeSmt :: T.Text -> T.Text
+-- | Remove escape tokens applied to the input string when it was formatted to
+-- SMT string.
+escapeSmt :: T.Text -> Maybe T.Text
 escapeSmt = go False . T.split (=='$')
   where
-    go _ [] = ""
+    go _ [] = return  ""
     go escape (t:ts) = txt t <> go (not escape) ts
       where
-        txt | escape    = T.singleton . chr . read . T.unpack
-            | otherwise = id
+        txt | escape    = readMaybe . T.unpack >=> return . T.singleton . chr 
+            | otherwise = return
 
 -- | The separator used to encode the stack trace (of binders) inside of smt
 -- symbols.
 bindSep :: IsString a => a
 bindSep = "@"
-
--- | The separator used to separate the caller from the callee inside of a
--- single stack frame of the stack trace.
-callSep :: IsString a => a
-callSep = "~~"
 
 -- | Prefix used to show that this smt symbol was generated during a run of
 -- the program.
