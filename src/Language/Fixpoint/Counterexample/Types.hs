@@ -5,7 +5,6 @@ module Language.Fixpoint.Counterexample.Types
   , SMTCounterexample
   , FullCounterexample
   , CexEnv
-  , cexInsert
   , Trace
   , Runner
   , Scope (..)
@@ -47,7 +46,7 @@ type Runner m = m (Maybe SMTCounterexample)
 -- | A scope contains the current binders in place as well as the path traversed
 -- to reach this scope.
 data Scope = Scope
-  { path :: ![BindId]
+  { path :: !Trace
   -- ^ The path traversed to reach the scope.
   , constraint :: !SubcId
   -- ^ The current constraint, which dictates the binders.
@@ -55,6 +54,11 @@ data Scope = Scope
   -- ^ The binders available in the current scope.
   }
   deriving (Eq, Ord, Show)
+
+-- | A stack trace is built from multiple frame ids. This is mostly used for
+-- SMT encodings. These traces are made into a tree like representation in the
+-- actual counterexample object.
+type Trace = [BindId]
 
 -- | A program, containing multiple function definitions mapped by their name.
 newtype Prog = Prog (HashMap Name Func)

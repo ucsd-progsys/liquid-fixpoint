@@ -51,8 +51,6 @@ tryCounterExample cfg si res@Result
 
     -- Store the counterexamples as JSON
     forM_ cexs $ jsonCex cfg si
-
-    dbg $ (fmap . fmap . fmap . fmap $ toFix) <$> cexs
     return res { resCounterexamples = cexs <> cexs' }
 tryCounterExample _ _ res = return res
 
@@ -74,10 +72,15 @@ substToCexEnv si subcid (Su sub) = benv { beBinds = binds }
     horn = cm si Map.! subcid
     ibenv = senv horn
 
-    -- Get the relevant bindings i.e. those that affect the outcome of the rhs.
+    -- The constraint head symbol and refinement
+    (csym, creft, _) = beBinds benv Map.! cbind horn
+
     symbols = exprSymbolsSet $ crhs horn
     symRefts = Map.fromList $ clhs benv horn
-    relevant = dropLikelyIrrelevantBindings symbols symRefts
+    -- Make sure the rhs is always in the relevant set!
+    relevant = Map.insert csym creft
+    -- Get the relevant bindings i.e. those that affect the outcome of the rhs.
+             $ dropLikelyIrrelevantBindings symbols symRefts
 
     -- This new substitution map contains only the relevant bindings.
     sub' = Map.intersectionWith const sub relevant

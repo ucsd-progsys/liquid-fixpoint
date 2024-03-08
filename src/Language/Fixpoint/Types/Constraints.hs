@@ -63,8 +63,6 @@ module Language.Fixpoint.Types.Constraints (
   -- * Results
   , Counterexample (..)
   , FullCounterexample
-  , Trace
-  , cexInsert
 
   , FixSolution
   , GFixSolution, toGFixSol
@@ -285,28 +283,6 @@ instance PPrint a => PPrint (Counterexample a) where
       pcid = "in constraint" <+> pprintTidy tidy cid
       penv = pprintTidy tidy env
       ptrace = pprintTidy tidy trace
-
-instance Semigroup a => Semigroup (Counterexample a) where
-  lhs <> rhs = Counterexample
-    { cexEnv = cexEnv lhs <> cexEnv rhs
-    , cexConstraint = cexConstraint rhs
-    , cexFrames = M.unionWith (<>) (cexFrames lhs) (cexFrames rhs)
-    }
-
-instance Monoid a => Monoid (Counterexample a) where
-  mempty = Counterexample mempty 0 mempty
-
--- | Monoidically add an element to a counterexample.
-cexInsert :: Monoid a => Trace -> (SubcId, a) -> Counterexample a -> Counterexample a
-cexInsert trace (cid, v) cex = cex <> go trace
-  where
-    go (f:fs) = Counterexample mempty cid $ M.singleton f (go fs)
-    go [] = Counterexample v cid mempty
-
--- | A stack trace is built from multiple frame ids. This is mostly used for
--- SMT encodings. These traces are made into a tree like representation in the
--- actual counterexample object.
-type Trace = [BindId]
 
 -- | A counterexample that was extended with additional information from the
 -- environment. It additionally includes types, bind ids and user info, aside

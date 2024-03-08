@@ -100,7 +100,7 @@ formatEnv si cex = formatVar <$> vars
 
     formatVar (bid, (sym, synth, (conc, _a))) = Variable
       { symbol = ppFormat sym
-      , expression = formatConcrete synth conc
+      , expression = ppFormat conc
       , refinement = ppFormat synth
       , must_instance = must
       , location = Nothing
@@ -110,7 +110,7 @@ formatEnv si cex = formatVar <$> vars
 
 formatConstraint :: F.SInfo info -> F.FullCounterexample a -> Constraint
 formatConstraint si cex = Constraint
-  { concrete = formatConcrete csynth cconcrete
+  { concrete = ppFormat cconcrete
   , synthesized = ppFormat csynth
   , required = ppFormat ccheck
   , location = Nothing
@@ -127,15 +127,9 @@ formatConstraint si cex = Constraint
     cexpr = F.crhs horn
     ccheck = withExpr csynth cexpr
 
-formatConcrete :: F.SortedReft -> F.Expr -> Text
-formatConcrete sr e = ppFormat sort <> "[" <> ppFormat e <> "]"
-  where
-    sort = F.sr_sort sr
-
-withExpr :: F.SortedReft -> F.Expr -> F.SortedReft
-withExpr sr e = sr { F.sr_reft = F.Reft (sort, e) }
-  where
-    F.Reft (sort, _) = F.sr_reft sr
+    withExpr sr e = sr { F.sr_reft = F.Reft (sort, e) }
+      where
+        F.Reft (sort, _) = F.sr_reft sr
 
 ppFormat :: F.PPrint a => a -> Text
 ppFormat = T.pack . show . F.pprint

@@ -35,8 +35,6 @@ type MonadSMT r m = (SMTContext r, MonadReader r m, MonadIO m)
 -- given with this new symbol in it. The substitution map is
 -- required to avoid duplicating variable names.
 smtDeclare :: MonadSMT s m => Scope -> Decl -> m Scope
-smtDeclare scope@Scope { binders = Su binds } (Decl sym _)
-  | Map.member sym binds = return scope
 smtDeclare scope (Decl sym sort) = do
   ctx <- reader smtContext
   let sym' = scopeSym scope sym
@@ -78,18 +76,36 @@ smtCheck = do
 smtModel :: MonadSMT s m => m SMTCounterexample
 smtModel = do
   ctx <- reader smtContext
-  Su sub <- liftIO $ SMT.smtGetModel ctx
+  sub <- liftIO $ SMT.smtGetModel ctx
+  return $ smtSubstToCex sub
 
-  -- Filter just the variables for which we have a trace
-  let renames = first unscopeSym <$> Map.toList sub
-  let traces = [ (trace, (cid, sym, e)) | (Just (sym, cid, trace), e) <- renames ]
+-- | Transform an SMT substitution, which contains SMT scoped symbols, into
+-- a layered, tree-like counterexample.
+smtSubstToCex :: Subst -> SMTCounterexample
+smtSubstToCex (Su sub) = foldl' (flip $ uncurry insertCex) dummyCex traces
+  where
+    -- | Unwind SMT names.
+    renames = first unscopeSym <$> Map.toList sub
 
-  -- Insert per singleton. Entries are monoidically merged when inserted.
-  let insert (trace, (cid, sym, e)) = cexInsert trace (cid, Su (Map.singleton sym e))
+    -- | Keep just the ones that were introduced by the counterexample checker.
+    traces = [ (k, e) | (Just k, e) <- renames ]
 
-  -- Insert all elements
-  let cex = foldl' (flip insert) mempty traces
-  return cex
+    -- | A dummy counterexample to fill empty entries on insertion
+    dummyCex = Counterexample mempty 0 mempty
+
+    -- | Insert a scoped name with its expression into the SMT counterexample
+    insertCex (sym, cid, trace) e = go $ reverse trace
+      where 
+      go :: Trace -> SMTCounterexample -> SMTCounterexample
+      go (t:ts) cex = cex
+        { cexFrames = Map.insertWith (const $ go ts) t dummyCex $ cexFrames cex
+        }
+      go _ cex@Counterexample 
+        { cexEnv = Su su
+        } = cex
+          { cexConstraint = cid
+          , cexEnv = Su . Map.insert sym e $ su
+          }
 
 -- | Returns a version of a symbol with the scope encoded into its name.
 scopeSym :: Scope -> Symbol -> Symbol
@@ -103,7 +119,7 @@ scopeSym scope sym = symbol name
 -- | We encode the trace of a symbol in its name. This way,
 -- we do not lose it in the SMT solver. This function translates
 -- the encoding back.
-unscopeSym :: Symbol -> Maybe (Symbol, SubcId, [BindId])
+unscopeSym :: Symbol -> Maybe (Symbol, SubcId, Trace)
 unscopeSym sym = do
   -- Remove the escape tokens from the SMT formatted symbol
   sym' <- escapeSmt . symbolText $ sym
