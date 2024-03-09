@@ -28,6 +28,7 @@ import           Control.Concurrent                 (setNumCapabilities)
 import qualified Data.HashMap.Strict              as HashMap
 import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
+import qualified Data.List as L
 import qualified Data.Text.Lazy.IO                as LT
 import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
@@ -190,8 +191,14 @@ crashResult m err' = Result res mempty mempty mempty
   where
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- errs err' ]
-    msg | null es = showpp err'
-        | otherwise = "Sorry, unexpected panic in liquid-fixpoint!" -- ++ showpp e
+    msg | null es   = showpp err'
+        | dbgFalse  = "Sorry, unexpected panic in liquid-fixpoint!\n" ++ crashMessage es
+        | otherwise = "Sorry, unexpected panic in liquid-fixpoint!\n"
+
+crashMessage :: [((Integer, a), Maybe String) ] -> String
+crashMessage es = L.intercalate "\n" [ msg i s | ((i,_), Just s) <- es ]
+  where
+    msg i s = "Error in constraint " ++ show i ++ ":\n" ++ s
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
 type ErrorMap a = HashMap.HashMap SrcSpan a

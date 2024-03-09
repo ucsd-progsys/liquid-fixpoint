@@ -969,12 +969,31 @@ class Flatten a where
   flatten :: a -> a
 
 instance Flatten (Cstr a) where
-  flatten (CAnd cstrs) = case flatten cstrs of
-                        [c] -> c
-                        cs -> CAnd cs
-  flatten (Head p a) = Head (flatten p) a
-  flatten (All (Bind x t p l) c) = All (Bind x t (flatten p) l) (flatten c)
-  flatten (Any (Bind x t p l) c) = Any (Bind x t (flatten p) l) (flatten c)
+  flatten c = case (flattenCstr c) of
+                Just c' -> c'
+                Nothing -> CAnd []
+
+  -- flatten (CAnd cstrs) = case flatten cstrs of
+  --                       [c] -> c
+  --                       cs -> CAnd cs
+  -- flatten (Head p a) = Head (flatten p) a
+  -- flatten (All (Bind x t p l) c) = All (Bind x t (flatten p) l) (flatten c)
+  -- flatten (Any (Bind x t p l) c) = Any (Bind x t (flatten p) l) (flatten c)
+
+flattenCstr :: Cstr a -> Maybe (Cstr a)
+flattenCstr = go
+  where
+    go (Head (PAnd [])  _) = Nothing
+    go (Head (Reft p) _)
+      | F.isTautoPred p    = Nothing
+    go (Head p a)          = Just $ Head (flatten p) a
+    go (CAnd cs)           = mk . concatMap splitAnd $ mapMaybe flattenCstr cs
+    go (All (Bind x t p l) c) = All (Bind x t (flatten p) l) <$> go c
+    go (Any (Bind x t p l) c) = Any (Bind x t (flatten p) l) <$> go c
+
+    mk []  = Nothing
+    mk [c] = Just c
+    mk cs  = Just (CAnd cs)
 
 instance Flatten [Cstr a] where
   flatten (CAnd cs : xs) = flatten cs ++ flatten xs
@@ -984,6 +1003,12 @@ instance Flatten [Cstr a] where
     | otherwise                  = fx:flatten xs
     where fx = flatten x
   flatten [] = []
+
+
+
+splitAnd :: Cstr a -> [Cstr a]
+splitAnd (CAnd cs) = cs
+splitAnd c         = [c]
 
 instance Flatten Pred where
   flatten (PAnd preds) = case flatten preds of

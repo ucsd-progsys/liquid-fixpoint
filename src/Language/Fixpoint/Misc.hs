@@ -334,6 +334,9 @@ isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight _         = False
 
+dbgFalse :: Bool
+dbgFalse = 1 > (2 :: Int)
+
 componentsWith :: (Ord c) => (a -> [(b, c, [c])]) -> a -> [[b]]
 componentsWith eF x = map (fst3 . f) <$> vss
   where
@@ -436,4 +439,3 @@ fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
 fold1M _ []         = errorstar "fold1M with empty list"
 fold1M _ [x]        = return x
 fold1M f (x1:x2:xs) = do { x <- f x1 x2; fold1M f (x:xs) }
-
