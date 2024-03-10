@@ -1,3 +1,5 @@
+(fixpoint  --eliminate=horn)
+ 
  
 (var $k_##1 ((int) (int)))
 (var $k_##3 ((int) (int)))

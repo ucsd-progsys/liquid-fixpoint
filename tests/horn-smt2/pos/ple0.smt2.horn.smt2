@@ -1,3 +1,5 @@
+(fixpoint  --rewrite)
+ 
  
  
 (constant adder ((func 0 ((int)  (int)) int)))

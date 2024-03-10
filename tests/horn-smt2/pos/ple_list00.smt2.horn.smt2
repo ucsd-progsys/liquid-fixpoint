@@ -1,3 +1,5 @@
+(fixpoint  --rewrite)
+ 
  
  
 (constant len ((func 1 (((MyList  @(0)))) int)))

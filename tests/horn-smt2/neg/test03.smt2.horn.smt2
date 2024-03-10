@@ -1,3 +1,5 @@
+(fixpoint  --eliminate=horn)
+ 
 (qualif Foo ((v (int))) ((>  v  10)))
  
 (var $k0 ((int)))

@@ -1,3 +1,5 @@
+(fixpoint  --scrape=both)
+ 
  
 (var $k0 ((int) (int) (int)))
 (var $k1 ((int) (int) (int) (int)))

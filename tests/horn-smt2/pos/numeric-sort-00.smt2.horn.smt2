@@ -1,3 +1,5 @@
+(fixpoint)
+ 
 (qualif Bar ((v (Apple))) ((>=  v  0)))
  
 (var $k1 ((Apple)))

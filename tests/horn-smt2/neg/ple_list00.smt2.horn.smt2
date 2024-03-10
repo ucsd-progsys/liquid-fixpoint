@@ -1,3 +1,5 @@
+(fixpoint  --rewrite)
+ 
  
  
 (constant len ((func 1 (((Main.List  @(0)))) int)))

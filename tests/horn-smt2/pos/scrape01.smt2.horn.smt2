@@ -1,3 +1,5 @@
+(fixpoint  --scrape=head)
+ 
 (qualif Le ((a0 (int)) (a1 (int))) ((<=  a0  a1)))
  
 (var $k0 ((int) (int) (int)))

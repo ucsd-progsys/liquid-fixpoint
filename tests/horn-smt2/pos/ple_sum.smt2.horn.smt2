@@ -1,3 +1,5 @@
+(fixpoint  --rewrite  --save)
+ 
  
  
 (constant sum ((func 0 ((int)) int)))

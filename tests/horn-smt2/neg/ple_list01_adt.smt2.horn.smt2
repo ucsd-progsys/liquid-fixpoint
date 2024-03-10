@@ -1,3 +1,5 @@
+(fixpoint  --rewrite)
+ 
  
  
 (constant len ((func 1 (((Vec  @(0)))) int)))

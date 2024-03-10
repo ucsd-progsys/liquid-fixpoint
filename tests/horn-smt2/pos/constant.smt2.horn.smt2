@@ -1,3 +1,5 @@
+(fixpoint)
+ 
 (qualif Foo ((v (int))) ((>  v  100)))
  
 (var $k0 ((int)))

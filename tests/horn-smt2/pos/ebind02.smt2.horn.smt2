@@ -1,3 +1,5 @@
+(fixpoint)
+ 
  
 (var $k ((int)))
  

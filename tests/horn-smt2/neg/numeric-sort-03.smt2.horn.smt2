@@ -1,3 +1,5 @@
+(fixpoint)
+ 
 (qualif Bar ((v (@(0))) (z (@(1)))) ((>=  v  z)))
  
 (var $k1 ((Apple) (Banana)))

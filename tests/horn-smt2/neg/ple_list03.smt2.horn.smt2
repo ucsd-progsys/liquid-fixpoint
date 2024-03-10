@@ -1,3 +1,5 @@
+(fixpoint  --rewrite)
+ 
  
  
 (constant head ((func 1 ((([]  @(0)))) @(0))))

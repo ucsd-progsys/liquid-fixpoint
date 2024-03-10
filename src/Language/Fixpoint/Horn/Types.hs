@@ -340,7 +340,8 @@ instance ToHornSMT (Var a) where
 
 instance ToHornSMT (Query a) where
   toHornSMT q = P.vcat $ L.intersperse " "
-    [ P.vcat   (toHornSMT <$> qQuals q)
+    [ toHornMany (P.text <$> ("fixpoint" : qOpts q))
+    , P.vcat   (toHornSMT <$> qQuals q)
     , P.vcat   (toHornSMT <$> qVars q)
     , P.vcat   [ppCon x (toHornSMT sort') | (x, sort') <- M.toList (qCon q)]
     , P.vcat   (toHornSMT <$> qEqns q)

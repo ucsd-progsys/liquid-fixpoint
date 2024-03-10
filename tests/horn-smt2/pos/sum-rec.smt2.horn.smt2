@@ -1,3 +1,5 @@
+(fixpoint)
+ 
 (qualif Bar ((v (int))) ((>=  v  0)))
  
 (var $k1 ((int) (int)))

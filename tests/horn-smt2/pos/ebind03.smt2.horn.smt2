@@ -1,3 +1,5 @@
+(fixpoint)
+ 
  
 (var $ka ((int)))
 (var $kb ((int)))
