@@ -503,12 +503,12 @@ data QualPattern
   | PatExact  !Symbol       -- ^ str       i.e. exactly match 'str'
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-instance ToJSON   Qualifier   where 
-instance FromJSON Qualifier   where 
-instance ToJSON   QualParam   where 
-instance FromJSON QualParam   where 
-instance ToJSON   QualPattern where 
-instance FromJSON QualPattern where 
+instance ToJSON   Qualifier   where
+instance FromJSON Qualifier   where
+instance ToJSON   QualParam   where
+instance FromJSON QualParam   where
+instance ToJSON   QualPattern where
+instance FromJSON QualPattern where
 instance ToJSON   Equation    where
 instance FromJSON Equation    where
 instance ToJSON   Rewrite     where
@@ -554,7 +554,6 @@ instance Fixpoint Qualifier where
 
 instance PPrint Qualifier where
   pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
-  -- pprintTidy _ q = pprQual q
 
 pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <-> parens args <-> colon <+> parens (toFix p) <+> text "//" <+> toFix l

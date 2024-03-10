@@ -454,7 +454,7 @@ instance Fixpoint DataCtor where
 instance Fixpoint DataDecl where
   toFix (DDecl tc n ctors) = vcat ([header] ++ body ++ [footer])
     where
-      header               = {- text "data" <+> -} toFix tc <+> toFix n <+> text "= ["
+      header               = toFix tc <+> toFix n <+> text "= ["
       body                 = [nest 2 (text "|" <+> toFix ct) | ct <- ctors]
       footer               = text "]"
 
