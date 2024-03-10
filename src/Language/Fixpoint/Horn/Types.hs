@@ -323,7 +323,8 @@ instance F.PPrint (Bind a) where
 
 
 -----------------------------------------------------------------------------------------------------------------
-
+-- Human readable but robustly parseable SMT-LIB format pretty printer
+-----------------------------------------------------------------------------------------------------------------
 class ToHornSMT a where
   toHornSMT :: a -> P.Doc
 
@@ -355,17 +356,20 @@ instance ToHornSMT F.Qualifier where
 instance ToHornSMT F.QualParam where
   toHornSMT qp = toHornSMT (F.qpSym qp, F.qpSort qp)
 
-instance ToHornSMT (F.Symbol, F.Sort) where
+instance ToHornSMT a => ToHornSMT (F.Symbol, a) where
   toHornSMT (x, t) = P.parens $ F.pprint x P.<+> P.parens (toHornSMT t)
 
-toHornArgs :: (ToHornSMT a) => [a] -> P.Doc
-toHornArgs = toHornMany . fmap toHornSMT
+instance ToHornSMT a => ToHornSMT [a] where
+  toHornSMT = toHornMany . fmap toHornSMT
 
 toHornMany :: [P.Doc] -> P.Doc
 toHornMany = P.parens . Misc.intersperse " "
 
+toHornAnd :: (a -> P.Doc) -> [a] -> P.Doc
+toHornAnd f xs = P.parens (P.vcat ("and" : (P.nest 2 . f <$> xs)))
+
 instance ToHornSMT F.Equation where
-  toHornSMT (F.Equ f xs e s _) = P.parens ("define" P.<+> F.pprint f P.<+> toHornArgs xs P.<+> toHornSMT s P.<+> P.parens (toHornSMT e))
+  toHornSMT (F.Equ f xs e s _) = P.parens ("define" P.<+> F.pprint f P.<+> toHornSMT xs P.<+> toHornSMT s P.<+> P.parens (toHornSMT e))
 
 instance ToHornSMT F.DataDecl where
   toHornSMT (F.DDecl tc n ctors) =
@@ -379,7 +383,7 @@ instance ToHornSMT F.FTycon where
 instance ToHornSMT a => ToHornSMT (F.Located a) where
   toHornSMT = toHornSMT . F.val
 instance ToHornSMT F.DataCtor where
-  toHornSMT (F.DCtor x flds) = P.parens (toHornSMT x P.<+> toHornArgs flds)
+  toHornSMT (F.DCtor x flds) = P.parens (toHornSMT x P.<+> toHornSMT flds)
 
 instance ToHornSMT F.DataField where
   toHornSMT (F.DField x t) = toHornSMT (F.val x, t)
@@ -405,22 +409,61 @@ toHornAbsApp _                                    = error "Unexpected nothing fu
 
 toHornFApp     :: [F.Sort] -> P.Doc
 toHornFApp [t] = toHornSMT t
-toHornFApp ts  = toHornArgs ts
+toHornFApp ts  = toHornSMT ts
 
-instance ToHornSMT (Cstr a) where
-  toHornSMT = toHornCstr
-
-
-toHornCstr :: Cstr a -> P.Doc
-toHornCstr (Head p _) = P.parens (toHornSMT p)
-toHornCstr (CAnd cs)  = P.parens (P.vcat ("and" : (P.nest 2 . toHornCstr <$> cs)))
-toHornCstr (All b c)  = P.parens (P.vcat ["forall" P.<+> toHornSMT b
-                                         , P.nest 2 (toHornCstr c)])
-toHornCstr (Any b c)  = P.parens (P.vcat ["exists" P.<+> toHornSMT b
-                                         , P.nest 2 (toHornCstr c)])
+instance ToHornSMT F.Subst where
+  toHornSMT (F.Su m) = toHornSMT (Misc.hashMapToAscList m)
 
 instance ToHornSMT (Bind a) where
   toHornSMT (Bind x t p _) = P.parens (toHornSMT (x, t) P.<+> P.parens (toHornSMT p))
 
 instance ToHornSMT Pred where
+  toHornSMT (Reft p)   = toHornSMT p
+  toHornSMT (Var k xs) = toHornMany (toHornSMT (F.KV k) : (toHornSMT <$> xs))
+  toHornSMT (PAnd ps)  = toHornMany ("and" : (toHornSMT <$> ps))
+
+instance ToHornSMT F.KVar where
+  toHornSMT (F.KV k) = "$" P.<-> toHornSMT k
+
 instance ToHornSMT F.Expr where
+  toHornSMT = toHornExpr
+
+toHornExpr :: F.Expr -> P.Doc
+toHornExpr (F.ESym c)        = F.pprint c
+toHornExpr (F.ECon c)        = F.pprint c
+toHornExpr (F.EVar s)        = toHornSMT s
+toHornExpr (F.ENeg e)        = P.parens ("-" P.<+> toHornExpr e)
+toHornExpr (F.EApp e1 e2)    = toHornSMT [e1, e2]
+toHornExpr (F.EBin o e1 e2)  = toHornOp   (F.pprint o) [e1, e2]
+toHornExpr (F.EIte e1 e2 e3) = toHornOp "ite"  [e1, e2, e3]
+toHornExpr (F.ECst e t)      = toHornMany ["cast", toHornSMT e, toHornSMT t]
+toHornExpr (F.PNot p)        = toHornOp "not"  [p]
+toHornExpr (F.PImp e1 e2)    = toHornOp "=>"   [e1, e2]
+toHornExpr (F.PIff e1 e2)    = toHornOp "<=>"  [e1, e2]
+toHornExpr e@F.PTrue         = F.pprint e
+toHornExpr e@F.PFalse        = F.pprint e
+toHornExpr (F.PAnd es)       = toHornOp "and" es
+toHornExpr (F.POr  es)       = toHornOp "or"  es
+toHornExpr (F.PAtom r e1 e2) = toHornOp (F.pprint r) [e1, e2]
+toHornExpr (F.PAll xts p)    = toHornMany ["forall", toHornSMT xts, toHornSMT p]
+toHornExpr (F.PExist xts p)  = toHornMany ["exists", toHornSMT xts, toHornSMT p]
+toHornExpr (F.ELam b e)      = toHornMany ["lam", toHornSMT b, P.parens (toHornExpr e)]
+toHornExpr (F.ECoerc a t e)  = toHornMany ["coerce", P.parens (toHornSMT a), P.parens (toHornSMT t), toHornSMT e]
+toHornExpr (F.PKVar k su)    = toHornMany [toHornSMT k, toHornSMT su]
+toHornExpr (F.ETApp e s)     = toHornMany ["ETApp" , toHornSMT e, toHornSMT s]
+toHornExpr (F.ETAbs e s)     = toHornMany ["ETAbs" , toHornSMT e, toHornSMT s]
+toHornExpr (F.PGrad k _ _ e) = toHornMany ["&&", toHornSMT e, toHornSMT k]
+
+toHornOp :: ToHornSMT a => P.Doc -> [a] -> P.Doc
+toHornOp op es = toHornMany (op : (toHornSMT <$> es))
+
+instance ToHornSMT (Cstr a) where
+  toHornSMT = toHornCstr
+
+toHornCstr :: Cstr a -> P.Doc
+toHornCstr (Head p _) = P.parens (toHornSMT p)
+toHornCstr (CAnd cs)  = toHornAnd toHornCstr cs
+toHornCstr (All b c)  = P.parens (P.vcat ["forall" P.<+> toHornSMT b
+                                         , P.nest 2 (toHornCstr c)])
+toHornCstr (Any b c)  = P.parens (P.vcat ["exists" P.<+> toHornSMT b
+                                         , P.nest 2 (toHornCstr c)])
