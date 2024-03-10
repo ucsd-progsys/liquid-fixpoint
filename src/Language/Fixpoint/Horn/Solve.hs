@@ -37,7 +37,7 @@ solveHorn baseCfg = do
 
   cfgPragmas <- F.withPragmas cfgElim (H.qOpts q)
 
-  when (F.save cfgPragmas) (saveHornQuery cfgPragmas q)
+  when {- (F.save cfgPragmas) -} True (saveHornQuery cfgPragmas q)
 
   r <- solve cfgPragmas q
   Solver.resultExitCode cfgPragmas r
@@ -46,13 +46,13 @@ parseQuery :: F.Config -> IO H.TagQuery
 parseQuery cfg
   | F.stdin cfg = Parse.parseFromStdIn H.hornP
   | json        = loadFromJSON file
-  | otherwise   = Parse.parseFromFile H.hornP file 
-  where 
+  | otherwise   = Parse.parseFromFile H.hornP file
+  where
     json = Files.isExtFile Files.Json file
     file = F.srcFile cfg
 
 loadFromJSON :: FilePath -> IO H.TagQuery
-loadFromJSON f = do 
+loadFromJSON f = do
   r <- Aeson.eitherDecodeFileStrict f
   case r of
     Right v -> return v
@@ -63,19 +63,19 @@ saveHornQuery cfg q = do
   saveHornSMT2 cfg q
   saveHornJSON cfg q
 
-saveHornSMT2 :: F.PPrint a => F.Config -> a -> IO ()
+saveHornSMT2 :: H.ToHornSMT a => F.Config -> a -> IO ()
 saveHornSMT2 cfg q = do
   let hq   = F.queryFile Files.HSmt2 cfg
   putStrLn $ "Saving Horn Query: " ++ hq ++ "\n"
   Misc.ensurePath hq
-  writeFile hq $ render (F.pprint q)
+  writeFile hq $ render ({- F.pprint -} H.toHornSMT q)
 
 saveHornJSON :: F.Config -> H.Query H.Tag -> IO ()
 saveHornJSON cfg q = do
   let hjson   = F.queryFile Files.HJSON cfg
   putStrLn $ "Saving Horn Query: " ++ hjson ++ "\n"
   Misc.ensurePath hjson
-  Aeson.encodeFile hjson q 
+  Aeson.encodeFile hjson q
 
 ----------------------------------------------------------------------------------
 eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)
