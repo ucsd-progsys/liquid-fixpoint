@@ -1,4 +1,4 @@
-(fixpoint  --eliminate=horn)
+(fixpoint  "--eliminate=horn")
  
  
 (var $ka ((int)))

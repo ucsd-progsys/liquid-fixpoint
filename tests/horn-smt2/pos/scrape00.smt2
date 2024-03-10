@@ -1,4 +1,4 @@
-(fixpoint  --scrape=both)
+(fixpoint  "--scrape=both")
  
  
 (var $k0 ((int) (int) (int)))

@@ -1,4 +1,5 @@
-(fixpoint  --rewrite  --save)
+(fixpoint  "--rewrite")
+(fixpoint  "--save")
  
  
  

@@ -1,4 +1,3 @@
-(fixpoint)
  
 (qualif Bar ((v (Apple))) ((>=  v  0)))
  

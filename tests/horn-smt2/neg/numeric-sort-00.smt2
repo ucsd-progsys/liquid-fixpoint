@@ -1,4 +1,3 @@
-(fixpoint)
  
 (qualif Bar ((v (int))) ((>=  v  0)))
  

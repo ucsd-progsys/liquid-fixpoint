@@ -1,4 +1,3 @@
-(fixpoint)
  
  
 (var $ka ((int)))

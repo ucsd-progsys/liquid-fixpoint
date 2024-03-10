@@ -1,4 +1,6 @@
-(fixpoint  --rewrite  --interpreter=false  --fuel=3)
+(fixpoint  "--rewrite")
+(fixpoint  "--interpreter=false")
+(fixpoint  "--fuel=3")
  
  
  

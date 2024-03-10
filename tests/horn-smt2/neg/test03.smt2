@@ -1,4 +1,4 @@
-(fixpoint  --eliminate=horn)
+(fixpoint  "--eliminate=horn")
  
 (qualif Foo ((v (int))) ((>  v  10)))
  

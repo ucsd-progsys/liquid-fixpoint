@@ -1,4 +1,3 @@
-(fixpoint)
  
 (qualif Foo ((v (int))) ((>  v  0)))
  
