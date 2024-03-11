@@ -47,13 +47,13 @@ solveHorn baseCfg = do
 
 parseQuery :: F.Config -> IO H.TagQuery
 parseQuery cfg
-  | F.stdin cfg = Parse.parseFromStdIn SH.hornP
+  | F.stdin cfg = Parse.parseFromStdIn hornP
   | json        = loadFromJSON file
-  | otherwise   = Parse.parseFromFile SH.hornP file
+  | otherwise   = Parse.parseFromFile hornP file
   where
     json  = Files.isExtFile Files.Json file
     file  = F.srcFile cfg
-    hornP = if noSmtHorn then H.hornP else SH.hornP
+    hornP = if F.noSmtHorn cfg then H.hornP else SH.hornP
 
 loadFromJSON :: FilePath -> IO H.TagQuery
 loadFromJSON f = do
