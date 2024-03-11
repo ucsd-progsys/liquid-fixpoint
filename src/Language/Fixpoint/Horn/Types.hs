@@ -416,7 +416,7 @@ toHornSort (F.FTC c)      = toHornSMT c
 toHornSort t@(F.FApp _ _) = toHornFApp (F.unFApp t)
 
 toHornAbsApp :: F.Sort -> P.Doc
-toHornAbsApp (F.functionSort -> Just (vs, ss, s)) = P.parens ("func" P.<+> P.int (length vs) P.<+> (toHornSMT ss) P.<+> toHornSMT s )
+toHornAbsApp (F.functionSort -> Just (vs, ss, s)) = P.parens ("func" P.<+> P.int (length vs) P.<+> toHornSMT ss P.<+> toHornSMT s )
 toHornAbsApp _                                    = error "Unexpected nothing function sort"
 
 toHornFApp     :: [F.Sort] -> P.Doc

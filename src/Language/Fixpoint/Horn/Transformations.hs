@@ -972,7 +972,7 @@ class Flatten a where
   flatten :: a -> a
 
 instance Flatten (Cstr a) where
-  flatten c = case (flattenCstr c) of
+  flatten c = case flattenCstr c of
                 Just c' -> c'
                 Nothing -> CAnd []
 

@@ -170,8 +170,7 @@ matchP :: FP.Parser F.Rewrite
 matchP = do
   f    <- FP.symbolP
   d:xs <- FP.parens (some FP.symbolP)
-  e    <- exprP
-  return (F.SMeasure f d xs e)
+  F.SMeasure f d xs <$> exprP
 
 sortP :: FP.Parser F.Sort
 sortP =  (string "@" >> (F.FVar <$> FP.parens FP.intP))
