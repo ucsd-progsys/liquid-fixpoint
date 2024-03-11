@@ -15,7 +15,7 @@ import qualified Language.Fixpoint.Parse        as FP
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Horn.Types   as H
 import           Text.Megaparsec                hiding (State)
-import           Text.Megaparsec.Char           (char)
+import           Text.Megaparsec.Char           (string, char)
 import qualified Data.HashMap.Strict            as M
 
 -------------------------------------------------------------------------------
@@ -174,12 +174,13 @@ matchP = do
   return (F.SMeasure f d xs e)
 
 sortP :: FP.Parser F.Sort
-sortP =  FP.tvarP
+sortP =  (string "@" >> (F.FVar <$> FP.parens FP.intP))
      <|> (FP.reserved "Int"  >> return F.FInt)
      <|> (FP.reserved "Real" >> return F.FReal)
      <|> (FP.reserved "Frac" >> return F.FFrac)
      <|> (FP.reserved "num" >> return  F.FNum)
      <|> (F.fAppTC <$> FP.fTyConP <*> pure [])
+     <|> (F.FObj . F.symbol <$> FP.lowerIdP)
      <|> try (FP.parens (FP.reserved "func" >> (ffunc <$> FP.intP <*> sMany sortP <*> sortP)))
      <|> FP.parens (F.fAppTC <$> FP.fTyConP <*> many sortP)
 
@@ -212,7 +213,12 @@ pExprP
   <|> (FP.reserved   "ETAbs"  >> (F.ETAbs  <$> exprP <*> FP.symbolP))
   <|> try (F.EBin  <$> bopP <*> exprP <*> exprP)
   <|> try (F.PAtom <$> brelP <*> exprP <*> exprP)
-  <|>     (FP.sym "-" >> (F.ENeg <$> exprP))
+  <|> try (FP.sym "-" >> (F.ENeg <$> exprP))
+  <|> (mkApp <$> some exprP)
+
+mkApp :: [F.Expr] -> F.Expr
+mkApp (e:es) = F.eApps e es
+mkApp _      = error "impossible"
 
 bopP :: FP.Parser F.Bop
 bopP

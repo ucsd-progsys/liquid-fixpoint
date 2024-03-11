@@ -263,9 +263,6 @@ ppThings pfx qs = P.vcat [ P.parens $ prefix P.<-> F.pprint q | q <- qs]
   where
     prefix      = fromMaybe "" pfx
 
--- ppCon :: F.Symbol -> F.Sort -> P.Doc
--- ppCon x t = P.parens ("constant" P.<+> F.pprint x P.<+> P.parens (F.pprint t))
-
 ppCon :: F.Symbol -> P.Doc -> P.Doc
 ppCon x td = P.parens ("constant" P.<+> F.pprint x P.<+> P.parens td)
 
@@ -348,18 +345,16 @@ instance ToHornSMT (Query a) where
     , P.vcat   (toHornNum <$> qNums q)
     , P.vcat   (toHornSMT <$> qQuals q)
     , P.vcat   (toHornSMT <$> qVars q)
-    , P.vcat   [ppCon x (toHornSMT sort') | (x, sort') <- M.toList (qCon q)]
+    , P.vcat   [toHornCon x t | (x, t) <- M.toList (qCon q)]
     , P.vcat   (toHornSMT <$> qEqns q)
     , P.vcat   (toHornSMT <$> qData q)
     , P.vcat   (toHornSMT <$> qMats q)
     , P.parens (P.vcat ["constraint", P.nest 1 (toHornSMT (qCstr q))])
     ]
-
-toHornNum :: F.Symbol -> P.Doc
-toHornNum x = toHornMany ["numeric", toHornSMT x]
-
-toHornOpt :: String -> P.Doc
-toHornOpt str = toHornMany ["fixpoint", P.text ("\"" ++ str ++ "\"")]
+    where
+      toHornNum x   = toHornMany ["numeric", toHornSMT x]
+      toHornOpt str = toHornMany ["fixpoint", P.text ("\"" ++ str ++ "\"")]
+      toHornCon x t = toHornMany ["constant", toHornSMT x, toHornSMT t]
 
 instance ToHornSMT F.Rewrite where
   toHornSMT (F.SMeasure f d xs e) =  P.parens ("match" P.<+> toHornSMT f P.<+> toHornSMT (d:xs) P.<+> toHornSMT e)
@@ -410,7 +405,7 @@ toHornSort (F.FVar i)     = "@" P.<-> P.parens (P.int i)
 toHornSort F.FInt         = "Int"
 toHornSort F.FReal        = "Real"
 toHornSort F.FFrac        = "Frac"
-toHornSort (F.FObj x)     = P.parens ("obj" P.<+> toHornSMT x)
+toHornSort (F.FObj x)     = toHornSMT x -- P.parens ("obj" P.<+> toHornSMT x)
 toHornSort F.FNum         = "num"
 toHornSort t@(F.FAbs _ _) = toHornAbsApp t
 toHornSort t@(F.FFunc _ _)= toHornAbsApp t
