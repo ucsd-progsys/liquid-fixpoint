@@ -8,6 +8,7 @@ module Language.Fixpoint.Horn.SMTParse (
   , hQualifierP
   , hVarP
   , exprP
+  , sortP
 ) where
 
 import qualified Language.Fixpoint.Parse        as FP
@@ -31,10 +32,11 @@ mkQuery things = H.Query
   , H.qCstr  = H.CAnd     [ c     | HCstr c  <- things ]
   , H.qCon   = M.fromList [ (x,t) | HCon x t <- things ]
   , H.qDis   = M.fromList [ (x,t) | HDis x t <- things ]
-  , H.qEqns  =            [ e     | HDef e  <- things ]
-  , H.qMats  =            [ m     | HMat m  <- things ]
-  , H.qData  =            [ dd    | HDat dd <- things ]
-  , H.qOpts  =            [ o     | HOpt o  <- things ]
+  , H.qEqns  =            [ e     | HDef e   <- things ]
+  , H.qMats  =            [ m     | HMat m   <- things ]
+  , H.qData  =            [ dd    | HDat dd  <- things ]
+  , H.qOpts  =            [ o     | HOpt o   <- things ]
+  , H.qNums  =            [ s     | HNum s   <- things ]
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
@@ -52,7 +54,7 @@ data HThing a
   | HMat  F.Rewrite
   | HDat !F.DataDecl
   | HOpt !String
-  | HNum ()
+  | HNum  F.Symbol
   deriving (Functor)
 
 hThingP :: FP.Parser (HThing H.Tag)
@@ -69,12 +71,11 @@ hThingP  = FP.parens body
         <|> HDat  <$> (FP.reserved "datatype"   *> dataDeclP)
         <|> HNum  <$> (FP.reserved "numeric"    *> numericDeclP)
 
-
-
-numericDeclP :: FP.Parser ()
+numericDeclP :: FP.Parser F.Symbol
 numericDeclP = do
-  sym <- FP.locUpperIdP
-  FP.addNumTyCon (F.val sym)
+  x <- F.val <$> FP.locUpperIdP
+  FP.addNumTyCon x
+  pure x
 
 -------------------------------------------------------------------------------
 hCstrP :: FP.Parser (H.Cstr H.Tag)
@@ -178,7 +179,8 @@ sortP =  FP.tvarP
      <|> (FP.reserved "Real" >> return F.FReal)
      <|> (FP.reserved "Frac" >> return F.FFrac)
      <|> (FP.reserved "num" >> return  F.FNum)
-     <|> FP.parens (FP.reserved "func" >> (ffunc <$> FP.intP <*> sMany sortP <*> sortP))
+     <|> (F.fAppTC <$> FP.fTyConP <*> pure [])
+     <|> try (FP.parens (FP.reserved "func" >> (ffunc <$> FP.intP <*> sMany sortP <*> sortP)))
      <|> FP.parens (F.fAppTC <$> FP.fTyConP <*> many sortP)
 
 ffunc :: Int -> [F.Sort] -> F.Sort -> F.Sort
@@ -195,8 +197,7 @@ exprP
 
 pExprP :: FP.Parser F.Expr
 pExprP
-  =   try (FP.sym "-" >> (F.ENeg <$> exprP))
-  <|> (FP.reserved   "if"     >> (F.EIte   <$> exprP <*> exprP <*> exprP))
+  =   (FP.reserved   "if"     >> (F.EIte   <$> exprP <*> exprP <*> exprP))
   <|> (FP.reserved   "cast"   >> (F.ECst   <$> exprP <*> sortP))
   <|> (FP.reserved   "not"    >> (F.PNot   <$> exprP))
   <|> (FP.reservedOp "=>"     >> (F.PImp   <$> exprP <*> exprP))
@@ -211,6 +212,7 @@ pExprP
   <|> (FP.reserved   "ETAbs"  >> (F.ETAbs  <$> exprP <*> FP.symbolP))
   <|> try (F.EBin  <$> bopP <*> exprP <*> exprP)
   <|> try (F.PAtom <$> brelP <*> exprP <*> exprP)
+  <|>     (FP.sym "-" >> (F.ENeg <$> exprP))
 
 bopP :: FP.Parser F.Bop
 bopP
@@ -228,7 +230,7 @@ brelP
  <|> (FP.sym "!=" >> return F.Ne)
  <|> (FP.sym "~~" >> return F.Ueq)
  <|> (FP.sym "!~" >> return F.Une)
- <|> (FP.sym ">"  >> return F.Gt)
  <|> (FP.sym ">=" >> return F.Ge)
- <|> (FP.sym "<"  >> return F.Lt)
+ <|> (FP.sym ">"  >> return F.Gt)
  <|> (FP.sym "<=" >> return F.Le)
+ <|> (FP.sym "<"  >> return F.Lt)

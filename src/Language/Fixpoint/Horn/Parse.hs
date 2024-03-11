@@ -7,6 +7,7 @@ module Language.Fixpoint.Horn.Parse (
   , hPredP
   , hQualifierP
   , hVarP
+  , numericDeclP
 ) where
 
 import           Language.Fixpoint.Parse
@@ -34,6 +35,7 @@ mkQuery things = H.Query
   , H.qMats  =            [ m     | HMat m  <- things ]
   , H.qData  =            [ dd    | HDat dd <- things ]
   , H.qOpts  =            [ o     | HOpt o  <- things ]
+  , H.qNums  =            [ n     | HNum n  <- things ]
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
@@ -51,7 +53,7 @@ data HThing a
   | HMat  F.Rewrite
   | HDat !F.DataDecl
   | HOpt !String
-  | HNum ()
+  | HNum  F.Symbol
   deriving (Functor)
 
 hThingP :: Parser (HThing H.Tag)
@@ -68,10 +70,11 @@ hThingP  = parens body
         <|> HDat  <$> (reserved "data"       *> dataDeclP)
         <|> HNum  <$> (reserved "numeric"    *> numericDeclP)
 
-numericDeclP :: Parser ()
+numericDeclP :: Parser F.Symbol
 numericDeclP = do
-  x <- locUpperIdP
-  addNumTyCon (F.val x)
+  x <- F.val <$> locUpperIdP
+  addNumTyCon x
+  pure x
 
 -------------------------------------------------------------------------------
 hCstrP :: Parser (H.Cstr H.Tag)

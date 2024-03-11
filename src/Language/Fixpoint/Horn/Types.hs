@@ -208,6 +208,7 @@ data Query a = Query
   , qMats  :: ![F.Rewrite]               -- ^ list of match-es
   , qData  :: ![F.DataDecl]              -- ^ list of data-declarations
   , qOpts  :: ![String]                  -- ^ list of fixpoint options
+  , qNums  :: ![F.Symbol]                -- ^ list of numeric TyCon (?)
   }
   deriving (Data, Typeable, Generic, Functor, ToJSON, FromJSON)
 
@@ -344,14 +345,18 @@ instance ToHornSMT (Var a) where
 instance ToHornSMT (Query a) where
   toHornSMT q = P.vcat $ L.intersperse " "
     [ P.vcat   (toHornOpt <$> qOpts q)
+    , P.vcat   (toHornNum <$> qNums q)
     , P.vcat   (toHornSMT <$> qQuals q)
     , P.vcat   (toHornSMT <$> qVars q)
     , P.vcat   [ppCon x (toHornSMT sort') | (x, sort') <- M.toList (qCon q)]
     , P.vcat   (toHornSMT <$> qEqns q)
     , P.vcat   (toHornSMT <$> qData q)
     , P.vcat   (toHornSMT <$> qMats q)
-    , P.parens (P.vcat ["constraint", P.nest 2 (toHornSMT (qCstr q))])
+    , P.parens (P.vcat ["constraint", P.nest 1 (toHornSMT (qCstr q))])
     ]
+
+toHornNum :: F.Symbol -> P.Doc
+toHornNum x = toHornMany ["numeric", toHornSMT x]
 
 toHornOpt :: String -> P.Doc
 toHornOpt str = toHornMany ["fixpoint", P.text ("\"" ++ str ++ "\"")]
@@ -372,10 +377,10 @@ instance ToHornSMT a => ToHornSMT [a] where
   toHornSMT = toHornMany . fmap toHornSMT
 
 toHornMany :: [P.Doc] -> P.Doc
-toHornMany = P.parens . Misc.intersperse " "
+toHornMany = P.parens . P.sep -- Misc.intersperse " "
 
 toHornAnd :: (a -> P.Doc) -> [a] -> P.Doc
-toHornAnd f xs = P.parens (P.vcat ("and" : (P.nest 2 . f <$> xs)))
+toHornAnd f xs = P.parens (P.vcat ("and" : (P.nest 1 . f <$> xs)))
 
 instance ToHornSMT F.Equation where
   toHornSMT (F.Equ f xs e s _) = P.parens ("define" P.<+> F.pprint f P.<+> toHornSMT xs P.<+> toHornSMT s P.<+> toHornSMT e)
@@ -403,8 +408,8 @@ instance ToHornSMT F.Sort where
 toHornSort :: F.Sort -> P.Doc
 toHornSort (F.FVar i)     = "@" P.<-> P.parens (P.int i)
 toHornSort F.FInt         = "Int"
-toHornSort F.FReal        = "real"
-toHornSort F.FFrac        = "frac"
+toHornSort F.FReal        = "Real"
+toHornSort F.FFrac        = "Frac"
 toHornSort (F.FObj x)     = P.parens ("obj" P.<+> toHornSMT x)
 toHornSort F.FNum         = "num"
 toHornSort t@(F.FAbs _ _) = toHornAbsApp t
@@ -424,7 +429,7 @@ instance ToHornSMT F.Subst where
   toHornSMT (F.Su m) = toHornSMT (Misc.hashMapToAscList m)
 
 instance ToHornSMT (Bind a) where
-  toHornSMT (Bind x t p _) = P.parens (toHornSMT (x, t) P.<+> P.parens (toHornSMT p))
+  toHornSMT (Bind x t p _) = P.parens (toHornSMT (x, t) P.<+> toHornSMT p)
 
 instance ToHornSMT Pred where
   toHornSMT (Reft p)   = P.parens (toHornSMT p)
@@ -473,6 +478,6 @@ toHornCstr :: Cstr a -> P.Doc
 toHornCstr (Head p _) = toHornSMT p
 toHornCstr (CAnd cs)  = toHornAnd toHornCstr cs
 toHornCstr (All b c)  = P.parens (P.vcat ["forall" P.<+> toHornSMT b
-                                         , P.nest 2 (toHornCstr c)])
+                                         , P.nest 1 (toHornCstr c)])
 toHornCstr (Any b c)  = P.parens (P.vcat ["exists" P.<+> toHornSMT b
-                                         , P.nest 2 (toHornCstr c)])
+                                         , P.nest 1 (toHornCstr c)])
