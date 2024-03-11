@@ -113,6 +113,7 @@ data Config = Config
   , noLazyPLE           :: Bool
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
   , restOrdering        :: String      -- ^ Term ordering for use in REST
+  , smtHorn             :: Bool        -- ^ Use SMTLib format for Horn constraints
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -281,6 +282,7 @@ defConfig = Config {
   , restOrdering             = "rpo"
         &= name "rest-ordering"
         &= help "Ordering Constraint Algebra to use for REST"
+  , smtHorn                  = False   &= help "Use SMTLIB format for Horn constraints"
   }
   &= verbosity
   &= program "fixpoint"

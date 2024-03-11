@@ -10,7 +10,7 @@
 
 (constraint
    (and
-      (forall ((x int) ((>  x  0)))
-         (forall ((y int) ((>  y  x)))
-            (forall ((v int) ((==  v  (+  x  y))))
+      (forall ((x Int) ((>  x  0)))
+         (forall ((y Int) ((>  y  x)))
+            (forall ((v Int) ((=  v  (+  x  y))))
                ((>  v  0)))))))

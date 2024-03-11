@@ -402,7 +402,7 @@ instance ToHornSMT F.Sort where
 
 toHornSort :: F.Sort -> P.Doc
 toHornSort (F.FVar i)     = "@" P.<-> P.parens (P.int i)
-toHornSort F.FInt         = "int"
+toHornSort F.FInt         = "Int"
 toHornSort F.FReal        = "real"
 toHornSort F.FFrac        = "frac"
 toHornSort (F.FObj x)     = P.parens ("obj" P.<+> toHornSMT x)
@@ -427,7 +427,7 @@ instance ToHornSMT (Bind a) where
   toHornSMT (Bind x t p _) = P.parens (toHornSMT (x, t) P.<+> P.parens (toHornSMT p))
 
 instance ToHornSMT Pred where
-  toHornSMT (Reft p)   = toHornSMT p
+  toHornSMT (Reft p)   = P.parens (toHornSMT p)
   toHornSMT (Var k xs) = toHornMany (toHornSMT (F.KV k) : (toHornSMT <$> xs))
   toHornSMT (PAnd ps)  = toHornMany ("and" : (toHornSMT <$> ps))
 
@@ -470,7 +470,7 @@ instance ToHornSMT (Cstr a) where
   toHornSMT = toHornCstr
 
 toHornCstr :: Cstr a -> P.Doc
-toHornCstr (Head p _) = P.parens (toHornSMT p)
+toHornCstr (Head p _) = toHornSMT p
 toHornCstr (CAnd cs)  = toHornAnd toHornCstr cs
 toHornCstr (All b c)  = P.parens (P.vcat ["forall" P.<+> toHornSMT b
                                          , P.nest 2 (toHornCstr c)])

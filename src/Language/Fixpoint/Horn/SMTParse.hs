@@ -7,6 +7,7 @@ module Language.Fixpoint.Horn.SMTParse (
   , hPredP
   , hQualifierP
   , hVarP
+  , exprP
 ) where
 
 import qualified Language.Fixpoint.Parse        as FP
@@ -78,13 +79,13 @@ numericDeclP = do
 -------------------------------------------------------------------------------
 hCstrP :: FP.Parser (H.Cstr H.Tag)
 -------------------------------------------------------------------------------
-hCstrP = FP.parens body
+hCstrP =  try (FP.parens body)
+      <|> H.Head <$> hPredP                            <*> pure H.NoTag
   where
     body =  H.CAnd <$> (FP.reserved "and"    *> many hCstrP)
-        <|> H.All  <$> (FP.reserved "forall" *> hBindP)      <*> hCstrP
-        <|> H.Any  <$> (FP.reserved "exists" *> hBindP)      <*> hCstrP
-        <|> H.Head <$> (FP.reserved "tag"    *> hPredP)      <*> (H.Tag <$> FP.stringLiteral)
-        <|> H.Head <$> hPredP                             <*> pure H.NoTag
+        <|> H.All  <$> (FP.reserved "forall" *> hBindP)  <*> hCstrP
+        <|> H.Any  <$> (FP.reserved "exists" *> hBindP)  <*> hCstrP
+        <|> H.Head <$> (FP.reserved "tag"    *> hPredP)  <*> (H.Tag <$> FP.stringLiteral)
 
 hBindP :: FP.Parser (H.Bind H.Tag)
 hBindP   = FP.parens $ do
@@ -96,7 +97,7 @@ hPredP :: FP.Parser H.Pred
 -------------------------------------------------------------------------------
 hPredP = FP.parens body
   where
-    body =  H.Var  <$> kvSymP                           <*> some FP.symbolP
+    body =  H.Var  <$> kvSymP <*> some FP.symbolP
         <|> H.PAnd <$> (FP.reserved "and" *> some hPredP)
         <|> H.Reft <$> exprP
 
@@ -111,7 +112,7 @@ hQualifierP = do
   pos    <- getSourcePos
   n      <- FP.upperIdP
   params <- FP.parens (some symSortP)
-  body   <- FP.parens exprP
+  body   <- exprP
   return  $ F.mkQual n (mkParam <$> params) body pos
 
 mkParam :: (F.Symbol, F.Sort) -> F.QualParam
@@ -122,7 +123,7 @@ mkParam (x, t) = F.QP x F.PatNone t
 -------------------------------------------------------------------------------
 
 hVarP :: FP.Parser (H.Var H.Tag)
-hVarP = H.HVar <$> kvSymP <*> FP.parens (some (FP.parens sortP)) <*> pure H.NoTag
+hVarP = H.HVar <$> kvSymP <*> FP.parens (some sortP) <*> pure H.NoTag
 
 -------------------------------------------------------------------------------
 -- | Helpers
@@ -173,9 +174,9 @@ matchP = do
 
 sortP :: FP.Parser F.Sort
 sortP =  FP.tvarP
-     <|> (FP.reserved "int"  >> return F.FInt)
-     <|> (FP.reserved "real" >> return F.FReal)
-     <|> (FP.reserved "frac" >> return F.FFrac)
+     <|> (FP.reserved "Int"  >> return F.FInt)
+     <|> (FP.reserved "Real" >> return F.FReal)
+     <|> (FP.reserved "Frac" >> return F.FFrac)
      <|> (FP.reserved "num" >> return  F.FNum)
      <|> FP.parens (FP.reserved "func" >> (ffunc <$> FP.intP <*> sMany sortP <*> sortP))
      <|> FP.parens (F.fAppTC <$> FP.fTyConP <*> many sortP)
@@ -194,9 +195,7 @@ exprP
 
 pExprP :: FP.Parser F.Expr
 pExprP
-  =   (FP.sym "-" >> (F.ENeg <$> exprP))
-  <|> (F.EBin  <$> bopP <*> exprP <*> exprP)
-  <|> (F.PAtom <$> brelP <*> exprP <*> exprP)
+  =   try (FP.sym "-" >> (F.ENeg <$> exprP))
   <|> (FP.reserved   "if"     >> (F.EIte   <$> exprP <*> exprP <*> exprP))
   <|> (FP.reserved   "cast"   >> (F.ECst   <$> exprP <*> sortP))
   <|> (FP.reserved   "not"    >> (F.PNot   <$> exprP))
@@ -210,6 +209,8 @@ pExprP
   <|> (FP.reserved   "coerce" >> (F.ECoerc <$> sortP <*> sortP <*> exprP))
   <|> (FP.reserved   "ETApp"  >> (F.ETApp  <$> exprP <*> sortP))
   <|> (FP.reserved   "ETAbs"  >> (F.ETAbs  <$> exprP <*> FP.symbolP))
+  <|> try (F.EBin  <$> bopP <*> exprP <*> exprP)
+  <|> try (F.PAtom <$> brelP <*> exprP <*> exprP)
 
 bopP :: FP.Parser F.Bop
 bopP

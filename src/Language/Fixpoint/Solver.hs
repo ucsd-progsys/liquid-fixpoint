@@ -192,8 +192,8 @@ crashResult m err' = Result res mempty mempty mempty
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- errs err' ]
     msg | null es   = showpp err'
-        | dbgFalse  = "Sorry, unexpected panic in liquid-fixpoint!\n" ++ crashMessage es
-        | otherwise = "Sorry, unexpected panic in liquid-fixpoint!\n"
+        | {-dbgFalse-} True  = "Sorry, unexpected panic in liquid-fixpoint!\n" ++ crashMessage es
+        --  dfdf | otherwise = "Sorry, unexpected panic in liquid-fixpoint!\n"
 
 crashMessage :: [((Integer, a), Maybe String) ] -> String
 crashMessage es = L.intercalate "\n" [ msg i s | ((i,_), Just s) <- es ]
