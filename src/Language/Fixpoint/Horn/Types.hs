@@ -339,7 +339,7 @@ instance ToHornSMT F.Symbol where
   toHornSMT s = F.pprint s
 
 instance ToHornSMT (Var a) where
-  toHornSMT (HVar k ts _) = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts))
+  toHornSMT (HVar k ts _) = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> toHornSMT ts)
 
 instance ToHornSMT (Query a) where
   toHornSMT q = P.vcat $ L.intersperse " "
@@ -360,9 +360,7 @@ instance ToHornSMT F.Rewrite where
   toHornSMT (F.SMeasure f d xs e) =  P.parens ("match" P.<+> toHornSMT f P.<+> toHornSMT (d:xs) P.<+> toHornSMT e)
 
 instance ToHornSMT F.Qualifier where
-  toHornSMT (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (ppArg <$> xts) P.<+> P.parens (toHornSMT p))
-   where
-    ppArg qp    = P.parens $ F.pprint (F.qpSym qp) P.<+> P.parens (toHornSMT (F.qpSort qp))
+  toHornSMT (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> toHornSMT xts P.<+> toHornSMT p)
 
 instance ToHornSMT F.QualParam where
   toHornSMT qp = toHornSMT (F.qpSym qp, F.qpSort qp)
@@ -455,7 +453,7 @@ toHornExpr e@F.PTrue         = F.pprint e
 toHornExpr e@F.PFalse        = F.pprint e
 toHornExpr (F.PAnd es)       = toHornOp "and" es
 toHornExpr (F.POr  es)       = toHornOp "or"  es
-toHornExpr (F.PAtom r e1 e2) = toHornOp (F.pprint r) [e1, e2]
+toHornExpr (F.PAtom r e1 e2) = toHornOp (F.toFix r) [e1, e2]
 toHornExpr (F.PAll xts p)    = toHornMany ["forall", toHornSMT xts, toHornSMT p]
 toHornExpr (F.PExist xts p)  = toHornMany ["exists", toHornSMT xts, toHornSMT p]
 toHornExpr (F.ELam b e)      = toHornMany ["lam", toHornSMT b, toHornSMT e]

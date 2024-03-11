@@ -15,7 +15,10 @@ import qualified Language.Fixpoint.Parse        as Parse
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
-import qualified Language.Fixpoint.Horn.Parse   as H
+
+-- import qualified Language.Fixpoint.Horn.Parse   as H
+import qualified Language.Fixpoint.Horn.SMTParse   as H
+
 import qualified Language.Fixpoint.Horn.Transformations as Tx
 import Text.PrettyPrint.HughesPJ.Compat ( render )
 import Language.Fixpoint.Horn.Info ( hornFInfo )
