@@ -18,7 +18,8 @@
  
 (constraint
   (and
-    (forall ((x Int) (true))
-      (forall ((y Int) ((= y 2)))
-        (forall ((z Int) ((= z 3)))
-          ((= (len ((VCons x) ((VCons y) ((VCons z) VNil)))) 3)))))))
+    (and
+      (forall ((x Int) (true))
+        (forall ((y Int) ((= y 2)))
+          (forall ((z Int) ((= z 3)))
+            ((= (len ((VCons x) ((VCons y) ((VCons z) VNil)))) 3))))))))

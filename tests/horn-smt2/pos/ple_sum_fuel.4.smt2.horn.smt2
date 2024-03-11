@@ -1,5 +1,6 @@
 (fixpoint "--rewrite")
-(fixpoint "--save")
+(fixpoint "--interpreter=false")
+(fixpoint "--fuel=4")
  
  
  
@@ -12,5 +13,6 @@
  
 (constraint
   (and
-    (forall ((x Int) ((= x 5)))
-      ((= (sum x) 15)))))
+    (and
+      (forall ((x Int) ((and (<= 0 (sum (- x 5))) (<= 5 x))))
+        ((<= 15 (sum x)))))))

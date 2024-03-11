@@ -1,18 +1,19 @@
-(fixpoint  "--eliminate=horn")
+(fixpoint "--eliminate=horn")
  
  
-(var $k ((int)))
+ 
+(var $k (Int))
  
  
  
  
  
 (constraint
-   (and
-      (forall ((x int) ((>=  x  0)))
-         (and
-            (forall ((v int) ((==  v  (-  x  1))))
-               (($k  v)))
-            (forall ((y int) (($k  y)))
-               (forall ((v int) ((==  v  (+  y  1))))
-                  ((>=  v  0))))))))
+  (and
+    (forall ((x Int) ((>= x 0)))
+      (and
+        (forall ((v Int) ((= v (- x 1))))
+          ($k v))
+        (forall ((y Int) ($k y))
+          (forall ((v Int) ((= v (+ y 1))))
+            ((>= v 0))))))))

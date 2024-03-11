@@ -1,4 +1,5 @@
-(fixpoint  "--eliminate=horn")
+(fixpoint "--eliminate=horn")
+ 
  
  
  
@@ -7,12 +8,12 @@
  
  
 (constraint
-   (and
-      (forall ((x int) ((>  x  0)))
-         (and
-            (forall ((y int) ((>  y  x)))
-               (forall ((v int) ((==  v  (+  x  y))))
-                  ((>  v  0))))
-            (forall ((z int) ((>  z  10)))
-               (forall ((v int) ((==  v  (+  x  z))))
-                  ((>  v  100))))))))
+  (and
+    (forall ((x Int) ((> x 0)))
+      (and
+        (forall ((y Int) ((> y x)))
+          (forall ((v Int) ((= v (+ x y))))
+            ((> v 0))))
+        (forall ((z Int) ((> z 10)))
+          (forall ((v Int) ((= v (+ x z))))
+            ((> v 100))))))))

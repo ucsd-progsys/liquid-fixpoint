@@ -67,28 +67,28 @@ combineReporters _ _ = error "combineReporters needs TestReporters"
 unitTests :: IO TestTree
 unitTests
   = group "Unit" [
-    --   testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
-    -- , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"    ["float.fq"]   (ExitFailure 1)
-    -- , testGroup "elim-crash" <$> dirTests nativeCmd "tests/crash"  []             (ExitFailure 1)
-    -- , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"    []             ExitSuccess
-    -- , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
-    -- , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
-    -- , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
-    -- , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
-    -- , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
-     testGroup "horn-pos-el"      <$> dirTests elimSaveCmd   "tests/horn/pos"  []          ExitSuccess
+      testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
+    , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"    ["float.fq"]   (ExitFailure 1)
+    , testGroup "elim-crash" <$> dirTests nativeCmd "tests/crash"  []             (ExitFailure 1)
+    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"    []             ExitSuccess
+    , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
+    , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
+    , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
+    , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
+    , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
+    , testGroup "horn-pos-el"      <$> dirTests elimSaveCmd   "tests/horn/pos"  []          ExitSuccess
     , testGroup "horn-neg-el"      <$> dirTests elimSaveCmd   "tests/horn/neg"  []          (ExitFailure 1)
-    -- , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd   "tests/horn/pos/.liquid"  []  ExitSuccess
-    -- , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd   "tests/horn/neg/.liquid"  []  (ExitFailure 1)
-    , testGroup "horn-smt-pos-el" <$> dirHornTests elimHCmd  "tests/horn/pos/.liquid"  []  ExitSuccess
-    , testGroup "horn-smt-neg-el" <$> dirHornTests elimHCmd  "tests/horn/neg/.liquid"  []  (ExitFailure 1)
-    -- , testGroup "horn-pos-na"      <$> dirTests nativeCmd     "tests/horn/pos"  []          ExitSuccess
-    -- , testGroup "horn-neg-na"      <$> dirTests nativeCmd     "tests/horn/neg"  []          (ExitFailure 1)
+    , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd   "tests/horn/pos/.liquid"  []  ExitSuccess
+    , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd   "tests/horn/neg/.liquid"  []  (ExitFailure 1)
+    -- , testGroup "horn-smt-pos-el" <$> dirHornTests elimHCmd  "tests/horn/pos/.liquid"  []  ExitSuccess
+    -- , testGroup "horn-smt-neg-el" <$> dirHornTests elimHCmd  "tests/horn/neg/.liquid"  []  (ExitFailure 1)
+    , testGroup "horn-pos-na"      <$> dirTests nativeCmd     "tests/horn/pos"  []          ExitSuccess
+    , testGroup "horn-neg-na"      <$> dirTests nativeCmd     "tests/horn/neg"  []          (ExitFailure 1)
    ]
    where
-    dirTests = dirTests' isTest
-    -- dirJsonTests = dirTests' ("horn.json" `isSuffixOf`)
-    dirHornTests = dirTests' ("horn.smt2" `isSuffixOf`)
+    dirTests     = dirTests' isTest
+    dirJsonTests = dirTests' ("horn.json" `isSuffixOf`)
+    -- dirHornTests = dirTests' ("horn.smt2" `isSuffixOf`)
 
 isTest   :: FilePath -> Bool
 isTest f = takeExtension f `elem` [".fq", ".smt2"]
@@ -166,9 +166,9 @@ elimCmd :: TestCmd
 elimCmd (LO opts) bin dir file =
   printf "cd %s && %s --eliminate=some %s %s" dir bin opts file
 
-elimHCmd :: TestCmd
-elimHCmd (LO opts) bin dir file =
-  printf "cd %s && %s --smthorn --eliminate=some %s %s" dir bin opts file
+-- elimHCmd :: TestCmd
+-- elimHCmd (LO opts) bin dir file =
+--   printf "cd %s && %s --smthorn --eliminate=some %s %s" dir bin opts file
 
 elimSaveCmd :: TestCmd
 elimSaveCmd (LO opts) bin dir file =

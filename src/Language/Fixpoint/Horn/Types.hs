@@ -388,7 +388,10 @@ instance ToHornSMT F.DataDecl where
     ]
 
 instance ToHornSMT F.FTycon where
-  toHornSMT = toHornSMT . F.symbol
+  toHornSMT c
+    | c == F.listFTyCon = "list"
+    | otherwise         = toHornSMT (F.symbol c)
+
 instance ToHornSMT a => ToHornSMT (F.Located a) where
   toHornSMT = toHornSMT . F.val
 instance ToHornSMT F.DataCtor where

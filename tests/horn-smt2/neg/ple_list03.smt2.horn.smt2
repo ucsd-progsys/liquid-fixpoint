@@ -38,4 +38,5 @@
  
 (constraint
   (and
-    ((= ((filter isPos) ints0) ints2))))
+    (and
+      ((= ((filter isPos) ints0) ints2)))))

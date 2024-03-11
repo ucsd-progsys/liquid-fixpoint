@@ -53,7 +53,7 @@ parseQuery cfg
   where
     json  = Files.isExtFile Files.Json file
     file  = F.srcFile cfg
-    hornP = if F.smtHorn cfg then SH.hornP else H.hornP
+    hornP = if {- F.smtHorn cfg -} True then SH.hornP else H.hornP
 
 loadFromJSON :: FilePath -> IO H.TagQuery
 loadFromJSON f = do

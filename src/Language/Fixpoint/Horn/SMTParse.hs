@@ -181,11 +181,15 @@ sortP =  (string "@" >> (F.FVar <$> FP.parens FP.intP))
      <|> (FP.reserved "num" >> return  F.FNum)
      <|> (F.fAppTC <$> FP.fTyConP <*> pure [])
      <|> (F.FObj . F.symbol <$> FP.lowerIdP)
-     <|> try (FP.parens (FP.reserved "func" >> (ffunc <$> FP.intP <*> sMany sortP <*> sortP)))
+     <|> try (FP.parens (FP.reserved "func" >> (mkFunc <$> FP.intP <*> sMany sortP <*> sortP)))
+     <|> try (FP.parens (FP.reserved "list" >> (mkList <$> sortP)))
      <|> FP.parens (F.fAppTC <$> FP.fTyConP <*> many sortP)
 
-ffunc :: Int -> [F.Sort] -> F.Sort -> F.Sort
-ffunc n ss s = F.mkFFunc n (ss ++ [s])
+mkFunc :: Int -> [F.Sort] -> F.Sort -> F.Sort
+mkFunc n ss s = F.mkFFunc n (ss ++ [s])
+
+mkList :: F.Sort -> F.Sort
+mkList s = F.fAppTC F.listFTyCon [s]
 
 exprP :: FP.Parser F.Expr
 exprP
