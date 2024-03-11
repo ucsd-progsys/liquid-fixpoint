@@ -195,8 +195,8 @@ crashResult m err' = Result res mempty mempty mempty
         --  {-dbgFalse-} True  = "Sorry, unexpected panic in liquid-fixpoint!\n" ++ crashMessage es
         | otherwise = "Sorry, unexpected panic in liquid-fixpoint!\n"
 
-crashMessage :: [((Integer, a), Maybe String) ] -> String
-crashMessage es = L.intercalate "\n" [ msg i s | ((i,_), Just s) <- es ]
+_crashMessage :: [((Integer, a), Maybe String) ] -> String
+_crashMessage es = L.intercalate "\n" [ msg i s | ((i,_), Just s) <- es ]
   where
     msg i s = "Error in constraint " ++ show i ++ ":\n" ++ s
 
