@@ -113,7 +113,6 @@ data Config = Config
   , noLazyPLE           :: Bool
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
   , restOrdering        :: String      -- ^ Term ordering for use in REST
-  , smtHorn             :: Bool        -- ^ Use SMTLib format for Horn constraints
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -251,7 +250,7 @@ defConfig = Config {
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting (PLE)"
   , pleWithUndecidedGuards   =
       False
-        &= name "ple-with-undecided-guards"
+        &= name "plewithundecidedguards"
         &= help "Unfold invocations with undecided guards in PLE"
         &= explicit
   , interpreter              =
@@ -282,7 +281,6 @@ defConfig = Config {
   , restOrdering             = "rpo"
         &= name "rest-ordering"
         &= help "Ordering Constraint Algebra to use for REST"
-  , smtHorn                  = False   &= help "Use SMTLIB format for Horn constraints"
   }
   &= verbosity
   &= program "fixpoint"

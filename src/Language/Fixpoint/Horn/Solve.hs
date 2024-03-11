@@ -40,7 +40,7 @@ solveHorn baseCfg = do
 
   cfgPragmas <- F.withPragmas cfgElim (H.qOpts q)
 
-  when {- (F.save cfgPragmas) -} True (saveHornQuery cfgPragmas q)
+  when (F.save cfgPragmas) (saveHornQuery cfgPragmas q)
 
   r <- solve cfgPragmas q
   Solver.resultExitCode cfgPragmas r
