@@ -254,6 +254,9 @@ instance F.PPrint (Query a) where
     , P.parens (P.vcat ["constraint", F.pprintPrec (prec+2) t (qCstr q)])
     ]
 
+
+
+
 ppThings :: F.PPrint a => Maybe P.Doc -> [a] -> P.Doc
 ppThings pfx qs = P.vcat [ P.parens $ prefix P.<-> F.pprint q | q <- qs]
   where
@@ -346,11 +349,16 @@ instance ToHornSMT (Query a) where
     , P.vcat   [ppCon x (toHornSMT sort') | (x, sort') <- M.toList (qCon q)]
     , P.vcat   (toHornSMT <$> qEqns q)
     , P.vcat   (toHornSMT <$> qData q)
+    , P.vcat   (toHornSMT <$> qMats q)
     , P.parens (P.vcat ["constraint", P.nest 2 (toHornSMT (qCstr q))])
     ]
 
 toHornOpt :: String -> P.Doc
 toHornOpt str = toHornMany ["fixpoint", P.text ("\"" ++ str ++ "\"")]
+
+instance ToHornSMT F.Rewrite where
+  toHornSMT (F.SMeasure f d xs e) =  P.parens ("match" P.<+> toHornSMT f P.<+> toHornSMT (d:xs) P.<+> toHornSMT e)
+
 instance ToHornSMT F.Qualifier where
   toHornSMT (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (ppArg <$> xts) P.<+> P.parens (toHornSMT p))
    where
@@ -360,7 +368,7 @@ instance ToHornSMT F.QualParam where
   toHornSMT qp = toHornSMT (F.qpSym qp, F.qpSort qp)
 
 instance ToHornSMT a => ToHornSMT (F.Symbol, a) where
-  toHornSMT (x, t) = P.parens $ F.pprint x P.<+> P.parens (toHornSMT t)
+  toHornSMT (x, t) = P.parens $ F.pprint x P.<+> toHornSMT t
 
 instance ToHornSMT a => ToHornSMT [a] where
   toHornSMT = toHornMany . fmap toHornSMT
@@ -372,7 +380,7 @@ toHornAnd :: (a -> P.Doc) -> [a] -> P.Doc
 toHornAnd f xs = P.parens (P.vcat ("and" : (P.nest 2 . f <$> xs)))
 
 instance ToHornSMT F.Equation where
-  toHornSMT (F.Equ f xs e s _) = P.parens ("define" P.<+> F.pprint f P.<+> toHornSMT xs P.<+> toHornSMT s P.<+> P.parens (toHornSMT e))
+  toHornSMT (F.Equ f xs e s _) = P.parens ("define" P.<+> F.pprint f P.<+> toHornSMT xs P.<+> toHornSMT s P.<+> toHornSMT e)
 
 instance ToHornSMT F.DataDecl where
   toHornSMT (F.DDecl tc n ctors) =
@@ -407,7 +415,7 @@ toHornSort (F.FTC c)      = toHornSMT c
 toHornSort t@(F.FApp _ _) = toHornFApp (F.unFApp t)
 
 toHornAbsApp :: F.Sort -> P.Doc
-toHornAbsApp (F.functionSort -> Just (vs, ss, s)) = P.parens ("func" P.<+> P.int (length vs) P.<+> toHornMany ( (P.parens . toHornSMT) <$> ss ) P.<+> toHornSMT s )
+toHornAbsApp (F.functionSort -> Just (vs, ss, s)) = P.parens ("func" P.<+> P.int (length vs) P.<+> (toHornSMT ss) P.<+> toHornSMT s )
 toHornAbsApp _                                    = error "Unexpected nothing function sort"
 
 toHornFApp     :: [F.Sort] -> P.Doc
@@ -437,8 +445,8 @@ toHornExpr (F.ECon c)        = F.pprint c
 toHornExpr (F.EVar s)        = toHornSMT s
 toHornExpr (F.ENeg e)        = P.parens ("-" P.<+> toHornExpr e)
 toHornExpr (F.EApp e1 e2)    = toHornSMT [e1, e2]
-toHornExpr (F.EBin o e1 e2)  = toHornOp   (F.pprint o) [e1, e2]
-toHornExpr (F.EIte e1 e2 e3) = toHornOp "ite"  [e1, e2, e3]
+toHornExpr (F.EBin o e1 e2)  = toHornOp   (F.toFix o) [e1, e2]
+toHornExpr (F.EIte e1 e2 e3) = toHornOp "if"  [e1, e2, e3]
 toHornExpr (F.ECst e t)      = toHornMany ["cast", toHornSMT e, toHornSMT t]
 toHornExpr (F.PNot p)        = toHornOp "not"  [p]
 toHornExpr (F.PImp e1 e2)    = toHornOp "=>"   [e1, e2]
@@ -450,8 +458,8 @@ toHornExpr (F.POr  es)       = toHornOp "or"  es
 toHornExpr (F.PAtom r e1 e2) = toHornOp (F.pprint r) [e1, e2]
 toHornExpr (F.PAll xts p)    = toHornMany ["forall", toHornSMT xts, toHornSMT p]
 toHornExpr (F.PExist xts p)  = toHornMany ["exists", toHornSMT xts, toHornSMT p]
-toHornExpr (F.ELam b e)      = toHornMany ["lam", toHornSMT b, P.parens (toHornExpr e)]
-toHornExpr (F.ECoerc a t e)  = toHornMany ["coerce", P.parens (toHornSMT a), P.parens (toHornSMT t), toHornSMT e]
+toHornExpr (F.ELam b e)      = toHornMany ["lam", toHornSMT b, toHornSMT e]
+toHornExpr (F.ECoerc a t e)  = toHornMany ["coerce", toHornSMT a, toHornSMT t, toHornSMT e]
 toHornExpr (F.PKVar k su)    = toHornMany [toHornSMT k, toHornSMT su]
 toHornExpr (F.ETApp e s)     = toHornMany ["ETApp" , toHornSMT e, toHornSMT s]
 toHornExpr (F.ETAbs e s)     = toHornMany ["ETAbs" , toHornSMT e, toHornSMT s]

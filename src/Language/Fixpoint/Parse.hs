@@ -23,6 +23,7 @@ module Language.Fixpoint.Parse (
   , pairP
   , stringLiteral
   , locStringLiteral
+  , sym
 
   -- * Parsing basic entities
 
@@ -98,7 +99,10 @@ module Language.Fixpoint.Parse (
   , dataFieldP
   , dataCtorP
   , dataDeclP
-
+  , fTyConP
+  , intP
+  , tvarP
+  , trueP, falseP, symconstP
   ) where
 
 import           Control.Monad (unless, void)

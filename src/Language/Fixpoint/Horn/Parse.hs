@@ -9,7 +9,7 @@ module Language.Fixpoint.Horn.Parse (
   , hVarP
 ) where
 
-import qualified Language.Fixpoint.Parse        as FP
+import           Language.Fixpoint.Parse
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Horn.Types   as H
 import           Text.Megaparsec                hiding (State)
@@ -17,7 +17,7 @@ import           Text.Megaparsec.Char           (char)
 import qualified Data.HashMap.Strict            as M
 
 -------------------------------------------------------------------------------
-hornP :: FP.Parser H.TagQuery
+hornP :: Parser H.TagQuery
 -------------------------------------------------------------------------------
 hornP = do
   hThings <- many hThingP
@@ -54,64 +54,62 @@ data HThing a
   | HNum ()
   deriving (Functor)
 
-hThingP :: FP.Parser (HThing H.Tag)
-hThingP  = FP.parens body
+hThingP :: Parser (HThing H.Tag)
+hThingP  = parens body
   where
-    body =  HQual <$> (FP.reserved "qualif"     *> hQualifierP)
-        <|> HCstr <$> (FP.reserved "constraint" *> hCstrP)
-        <|> HVar  <$> (FP.reserved "var"        *> hVarP)
-        <|> HOpt  <$> (FP.reserved "fixpoint"   *> FP.stringLiteral)
-        <|> HCon  <$> (FP.reserved "constant"   *> FP.symbolP) <*> sortP
-        <|> HDis  <$> (FP.reserved "distinct"   *> FP.symbolP) <*> sortP
-        <|> HDef  <$> (FP.reserved "define"     *> defineP)
-        <|> HMat  <$> (FP.reserved "match"      *> matchP)
-        <|> HDat  <$> (FP.reserved "data"       *> dataDeclP)
-        <|> HNum  <$> (FP.reserved "numeric"    *> numericDeclP)
+    body =  HQual <$> (reserved "qualif"     *> hQualifierP)
+        <|> HCstr <$> (reserved "constraint" *> hCstrP)
+        <|> HVar  <$> (reserved "var"        *> hVarP)
+        <|> HOpt  <$> (reserved "fixpoint"   *> stringLiteral)
+        <|> HCon  <$> (reserved "constant"   *> symbolP) <*> sortP
+        <|> HDis  <$> (reserved "distinct"   *> symbolP) <*> sortP
+        <|> HDef  <$> (reserved "define"     *> defineP)
+        <|> HMat  <$> (reserved "match"      *> matchP)
+        <|> HDat  <$> (reserved "data"       *> dataDeclP)
+        <|> HNum  <$> (reserved "numeric"    *> numericDeclP)
 
-
-
-numericDeclP :: FP.Parser ()
+numericDeclP :: Parser ()
 numericDeclP = do
-  sym <- FP.locUpperIdP
-  FP.addNumTyCon (F.val sym)
+  x <- locUpperIdP
+  addNumTyCon (F.val x)
 
 -------------------------------------------------------------------------------
-hCstrP :: FP.Parser (H.Cstr H.Tag)
+hCstrP :: Parser (H.Cstr H.Tag)
 -------------------------------------------------------------------------------
-hCstrP = FP.parens body
+hCstrP = parens body
   where
-    body =  H.CAnd <$> (FP.reserved "and"    *> many hCstrP)
-        <|> H.All  <$> (FP.reserved "forall" *> hBindP)      <*> hCstrP
-        <|> H.Any  <$> (FP.reserved "exists" *> hBindP)      <*> hCstrP
-        <|> H.Head <$> (FP.reserved "tag"    *> hPredP)      <*> (H.Tag <$> FP.stringLiteral)
+    body =  H.CAnd <$> (reserved "and"    *> many hCstrP)
+        <|> H.All  <$> (reserved "forall" *> hBindP)      <*> hCstrP
+        <|> H.Any  <$> (reserved "exists" *> hBindP)      <*> hCstrP
+        <|> H.Head <$> (reserved "tag"    *> hPredP)      <*> (H.Tag <$> stringLiteral)
         <|> H.Head <$> hPredP                             <*> pure H.NoTag
 
-hBindP :: FP.Parser (H.Bind H.Tag)
-hBindP   = FP.parens $ do
+hBindP :: Parser (H.Bind H.Tag)
+hBindP   = parens $ do
   (x, t) <- symSortP
   H.Bind x t <$> hPredP <*> pure H.NoTag
 
 -------------------------------------------------------------------------------
-hPredP :: FP.Parser H.Pred
+hPredP :: Parser H.Pred
 -------------------------------------------------------------------------------
-hPredP = FP.parens body
+hPredP = parens body
   where
-    body =  H.Var  <$> kvSymP                           <*> some FP.symbolP
-        <|> H.PAnd <$> (FP.reserved "and" *> some hPredP)
+    body =  H.Var  <$> kvSymP                           <*> some symbolP
+        <|> H.PAnd <$> (reserved "and" *> some hPredP)
         <|> H.Reft <$> predP
 
-kvSymP :: FP.Parser F.Symbol
-kvSymP = char '$' *> FP.symbolP
+kvSymP :: Parser F.Symbol
+kvSymP = char '$' *> symbolP
 
 -------------------------------------------------------------------------------
 -- | Qualifiers
 -------------------------------------------------------------------------------
-hQualifierP :: FP.Parser F.Qualifier
+hQualifierP :: Parser F.Qualifier
 hQualifierP = do
   pos    <- getSourcePos
-  n      <- FP.upperIdP
-  params <- FP.parens (some symSortP)
-  body   <- FP.parens predP
+  n      <- upperIdP
+  params <- parens (some symSortP)
+  body   <- parens predP
   return  $ F.mkQual n (mkParam <$> params) body pos
 
 mkParam :: (F.Symbol, F.Sort) -> F.QualParam
@@ -121,31 +119,12 @@ mkParam (x, t) = F.QP x F.PatNone t
 -- | Horn Variables
 -------------------------------------------------------------------------------
 
-hVarP :: FP.Parser (H.Var H.Tag)
-hVarP = H.HVar <$> kvSymP <*> FP.parens (some (FP.parens sortP)) <*> pure H.NoTag
+hVarP :: Parser (H.Var H.Tag)
+hVarP = H.HVar <$> kvSymP <*> parens (some (parens sortP)) <*> pure H.NoTag
 
 -------------------------------------------------------------------------------
 -- | Helpers
 -------------------------------------------------------------------------------
 
-symSortP :: FP.Parser (F.Symbol, F.Sort)
-symSortP = FP.parens ((,) <$> FP.symbolP <*> sortP)
-
--------------------------------------------------------------------------------
--- | TODO ---------------------------------------------------------------------
--------------------------------------------------------------------------------
-
-predP :: FP.Parser F.Expr
-predP = undefined
-
-sortP :: FP.Parser F.Sort
-sortP = undefined
-
-defineP :: FP.Parser F.Equation
-defineP = undefined
-
-matchP :: FP.Parser F.Rewrite
-matchP = undefined
-
-dataDeclP :: FP.Parser F.DataDecl
-dataDeclP = undefined
+symSortP :: Parser (F.Symbol, F.Sort)
+symSortP = parens ((,) <$> symbolP <*> sortP)
