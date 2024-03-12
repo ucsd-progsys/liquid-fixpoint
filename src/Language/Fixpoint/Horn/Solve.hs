@@ -15,7 +15,10 @@ import qualified Language.Fixpoint.Parse        as Parse
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
+
 import qualified Language.Fixpoint.Horn.Parse   as H
+import qualified Language.Fixpoint.Horn.SMTParse   as SH
+
 import qualified Language.Fixpoint.Horn.Transformations as Tx
 import Text.PrettyPrint.HughesPJ.Compat ( render )
 import Language.Fixpoint.Horn.Info ( hornFInfo )
@@ -44,15 +47,16 @@ solveHorn baseCfg = do
 
 parseQuery :: F.Config -> IO H.TagQuery
 parseQuery cfg
-  | F.stdin cfg = Parse.parseFromStdIn H.hornP
+  | F.stdin cfg = Parse.parseFromStdIn hornP
   | json        = loadFromJSON file
-  | otherwise   = Parse.parseFromFile H.hornP file 
-  where 
-    json = Files.isExtFile Files.Json file
-    file = F.srcFile cfg
+  | otherwise   = Parse.parseFromFile hornP file
+  where
+    json  = Files.isExtFile Files.Json file
+    file  = F.srcFile cfg
+    hornP = if F.noSmtHorn cfg then H.hornP else SH.hornP
 
 loadFromJSON :: FilePath -> IO H.TagQuery
-loadFromJSON f = do 
+loadFromJSON f = do
   r <- Aeson.eitherDecodeFileStrict f
   case r of
     Right v -> return v
@@ -63,19 +67,19 @@ saveHornQuery cfg q = do
   saveHornSMT2 cfg q
   saveHornJSON cfg q
 
-saveHornSMT2 :: F.PPrint a => F.Config -> a -> IO ()
+saveHornSMT2 :: H.ToHornSMT a => F.Config -> a -> IO ()
 saveHornSMT2 cfg q = do
   let hq   = F.queryFile Files.HSmt2 cfg
   putStrLn $ "Saving Horn Query: " ++ hq ++ "\n"
   Misc.ensurePath hq
-  writeFile hq $ render (F.pprint q)
+  writeFile hq $ render ({- F.pprint -} H.toHornSMT q)
 
 saveHornJSON :: F.Config -> H.Query H.Tag -> IO ()
 saveHornJSON cfg q = do
   let hjson   = F.queryFile Files.HJSON cfg
   putStrLn $ "Saving Horn Query: " ++ hjson ++ "\n"
   Misc.ensurePath hjson
-  Aeson.encodeFile hjson q 
+  Aeson.encodeFile hjson q
 
 ----------------------------------------------------------------------------------
 eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)

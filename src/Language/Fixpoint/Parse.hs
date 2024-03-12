@@ -23,6 +23,7 @@ module Language.Fixpoint.Parse (
   , pairP
   , stringLiteral
   , locStringLiteral
+  , sym
 
   -- * Parsing basic entities
 
@@ -98,7 +99,10 @@ module Language.Fixpoint.Parse (
   , dataFieldP
   , dataCtorP
   , dataDeclP
-
+  , fTyConP
+  , intP
+  , tvarP
+  , trueP, falseP, symconstP
   ) where
 
 import           Control.Monad (unless, void)
@@ -1029,7 +1033,6 @@ fTyConP
   =   (reserved "int"     >> return intFTyCon)
   <|> (reserved "Integer" >> return intFTyCon)
   <|> (reserved "Int"     >> return intFTyCon)
-  -- <|> (reserved "int"     >> return intFTyCon) -- TODO:AZ duplicate?
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
