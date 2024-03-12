@@ -251,7 +251,7 @@ defConfig = Config {
   , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting (PLE)"
   , pleWithUndecidedGuards   =
       False
-        &= name "plewithundecidedguards"
+        &= name "ple-with-undecided-guards"
         &= help "Unfold invocations with undecided guards in PLE"
         &= explicit
   , interpreter              =
