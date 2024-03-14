@@ -41,10 +41,7 @@ type SanitizeM a = Either E.Error a
 --------------------------------------------------------------------------------
 sanitize :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize cfg =    -- banIllScopedKvars
-        --      Misc.fM dropAdtMeasures
-        --      >=>
-                     banIrregularData
+sanitize cfg =       banIrregularData
          >=> Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars

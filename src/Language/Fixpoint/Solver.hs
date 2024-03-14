@@ -241,13 +241,16 @@ simplifyFInfo !cfg !fi0 = do
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
   let si2  = {- SCC "wfcUniqify" -} wfcUniqify $!! si1
+  -- writeLoud $ "fq file after wfcUniqify: \n" ++ render (toFixpoint cfg si2)
   let si3  = {- SCC "renameAll"  -} renameAll  $!! si2
   rnf si3 `seq` whenLoud $ donePhase Loud "Uniqify & Rename"
   loudDump 1 cfg si3
   let si4  = {- SCC "defunction" -} defunctionalize cfg $!! si3
+  -- writeLoud $ "fq file after defunc: \n" ++ render (toFixpoint cfg si4)
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
   let si5  = {- SCC "elaborate" -} elaborate (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
+  -- writeLoud $ "fq file after elaborate: \n" ++ render (toFixpoint cfg si5)
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5
   if rewriteAxioms cfg && noLazyPLE cfg

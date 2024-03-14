@@ -82,7 +82,7 @@ saveHornJSON cfg q = do
   Aeson.encodeFile hjson q
 
 ----------------------------------------------------------------------------------
-eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)
+eliminate :: (F.Fixpoint a, F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)
 ----------------------------------------------------------------------------------
 eliminate cfg q
   | F.eliminate cfg == F.Existentials = do
