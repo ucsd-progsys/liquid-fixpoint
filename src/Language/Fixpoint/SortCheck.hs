@@ -782,7 +782,7 @@ proj fld x = case fld of
                FBool -> not b
 ```
 
-## The Problem
+**The Problem**
 
 The problem is you cannot encode the body of `proj` as a well-sorted refinement:
 
@@ -795,7 +795,7 @@ The problem is you cannot encode the body of `proj` as a well-sorted refinement:
 The catch is that `x` is being used BOTH as `Int` and as `Bool`
 which is not supported in SMTLIB.
 
-## Approach: Uninterpreted Functions
+**Approach: Uninterpreted Functions**
 
 We encode `coerce` as an explicit **uninterpreted function**:
 
@@ -833,7 +833,7 @@ because we'd get
 
 and the UIF nature of `coerce_int_int` renders the VC invalid.
 
-## Solution: Eliminate Trivial Coercions
+**Solution: Eliminate Trivial Coercions**
 
 HOWEVER, the solution here, may simply be to use UIFs when the
 coercion is non-trivial (e.g. `a ~ int`) but to eschew them when
