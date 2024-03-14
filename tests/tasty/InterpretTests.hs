@@ -5,7 +5,7 @@ import Language.Fixpoint.Types.Refinements (Expr (..))
 import qualified SimplifyInterpreter
 import Test.Tasty
   ( TestTree,
-    localOption,
+    adjustOption,
     testGroup,
   )
 import Test.Tasty.QuickCheck
@@ -24,7 +24,10 @@ tests =
       [ testProperty "computes a fixpoint" (prop_fixpoint SimplifyInterpreter.interpret')
       ]
   where
-    withOptions tests' = localOption (QuickCheckMaxSize 4) (localOption (QuickCheckTests 500) tests')
+    withOptions tests' =
+      adjustOption (\(QuickCheckMaxSize n) -> QuickCheckMaxSize (div n 4)) $
+      adjustOption (\(QuickCheckTests n) -> QuickCheckTests (n * 20))
+      tests'
 
 prop_fixpoint :: (Expr -> Expr) -> Expr -> Property
 prop_fixpoint f e = f e === f (f e)

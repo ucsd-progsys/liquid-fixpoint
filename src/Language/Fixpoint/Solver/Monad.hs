@@ -29,6 +29,7 @@ module Language.Fixpoint.Solver.Monad
        )
        where
 
+import           Control.Monad (foldM, forM, forM_, when)
 import           Language.Fixpoint.Utils.Progress
 import qualified Language.Fixpoint.Types.Config  as C
 import           Language.Fixpoint.Types.Config  (Config)
@@ -89,7 +90,7 @@ runSolverM cfg sI act =
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
-    fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+    fi       = (siQuery sI) {F.hoInfo = F.cfgHoInfo cfg }
 
 
 --------------------------------------------------------------------------------

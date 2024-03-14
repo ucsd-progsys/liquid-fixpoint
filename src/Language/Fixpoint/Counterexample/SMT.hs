@@ -17,6 +17,7 @@ import Language.Fixpoint.Counterexample.Types
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
 import Control.Monad.Reader
+import Control.Monad (guard, (>=>))
 
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Text as T

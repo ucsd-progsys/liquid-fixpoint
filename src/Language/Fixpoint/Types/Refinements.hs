@@ -131,6 +131,7 @@ import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.Binary as B
+import           Data.Aeson
 
 -- import           Text.Printf               (printf)
 
@@ -236,7 +237,7 @@ refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 --------------------------------------------------------------------------------
 
 newtype KVar = KV { kv :: Symbol }
-               deriving (Eq, Ord, Data, Typeable, Generic, IsString)
+               deriving (Eq, Ord, Data, Typeable, Generic, IsString, ToJSON, FromJSON)
 
 intKvar :: Integer -> KVar
 intKvar = KV . intSymbol "k_"
@@ -258,7 +259,7 @@ instance Hashable Reft
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
 newtype Subst = Su (M.HashMap Symbol Expr)
-                deriving (Eq, Data, Ord, Typeable, Generic)
+                deriving (Eq, Data, Ord, Typeable, Generic, ToJSON, FromJSON)
 
 instance Show Subst where
   show = showFix
@@ -288,7 +289,7 @@ instance PPrint KVSub where
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
 newtype SymConst = SL Text
-                   deriving (Eq, Ord, Show, Data, Typeable, Generic)
+                   deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 data Constant = I !Integer
               | R !Double
@@ -301,6 +302,17 @@ data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
 data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
             -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
+
+instance ToJSON Constant  where
+instance ToJSON Brel      where
+instance ToJSON Bop       where
+instance ToJSON Expr      where
+
+instance FromJSON Constant  where
+instance FromJSON Brel      where
+instance FromJSON Bop       where
+instance FromJSON Expr      where
+
 
 data Expr = ESym !SymConst
           | ECon !Constant
@@ -426,6 +438,9 @@ exprKVars = go
 
 data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance ToJSON   GradInfo
+instance FromJSON GradInfo
 
 srcGradInfo :: SourcePos -> GradInfo
 srcGradInfo src = GradInfo (SS src src) Nothing
@@ -914,7 +929,7 @@ pExist []  p = p
 pExist xts p = PExist xts p
 
 mkProp :: Expr -> Pred
-mkProp = id -- EApp (EVar propConName)
+mkProp = id
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------

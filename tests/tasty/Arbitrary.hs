@@ -375,7 +375,7 @@ chainedAnfGen symGen n = do
     prevSymExpr <- arbitraryExprInvolving prevSym n
     pure (sym, RR FInt (reft otherSym (PAtom Eq (EVar otherSym) prevSymExpr)))
   where
-    pairs xs = zip xs (tail xs)
+    pairs xs = zip xs (drop 1 xs)
 
 -- This is not random, but is simplified so that you can make chains more
 -- easily.

@@ -5,8 +5,6 @@
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Parse (
 
   -- * Top Level Class for Parseable Values
@@ -25,6 +23,7 @@ module Language.Fixpoint.Parse (
   , pairP
   , stringLiteral
   , locStringLiteral
+  , sym
 
   -- * Parsing basic entities
 
@@ -100,9 +99,13 @@ module Language.Fixpoint.Parse (
   , dataFieldP
   , dataCtorP
   , dataDeclP
-
+  , fTyConP
+  , intP
+  , tvarP
+  , trueP, falseP, symconstP
   ) where
 
+import           Control.Monad (unless, void)
 import           Control.Monad.Combinators.Expr
 import qualified Data.IntMap.Strict          as IM
 import qualified Data.HashMap.Strict         as M
@@ -743,6 +746,7 @@ expr0P :: Parser Expr
 expr0P
   =  trueP -- constant "true"
  <|> falseP -- constant "false"
+ <|> (reservedOp "?" *> predP)
  <|> fastIfP EIte exprP -- "if-then-else", starts with "if"
  <|> coerceP exprP -- coercion, starts with "coerce"
  <|> (ESym <$> symconstP) -- string literal, starts with double-quote
@@ -925,6 +929,18 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
                  , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
                  , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
                  , FInfix  (Just 9) "."   applyCompose        AssocRight
+                --  --
+                --  , FInfix  (Just 4) "<"   (Just $ PAtom Lt)  AssocNone
+                --  , FInfix  (Just 4) "=="  (Just $ PAtom Eq)  AssocNone
+                --  , FInfix  (Just 4) "="   (Just $ PAtom Eq)  AssocNone
+                --  , FInfix  (Just 4) "~~"  (Just $ PAtom Ueq) AssocNone
+                --  , FInfix  (Just 4) "!="  (Just $ PAtom Ne)  AssocNone
+                --  , FInfix  (Just 4) "/="  (Just $ PAtom Ne)  AssocNone
+                --  , FInfix  (Just 4) "!~"  (Just $ PAtom Une) AssocNone
+                --  , FInfix  (Just 4) "<"   (Just $ PAtom Lt)  AssocNone
+                --  , FInfix  (Just 4) "<="  (Just $ PAtom Le)  AssocNone
+                --  , FInfix  (Just 4) ">"   (Just $ PAtom Gt)  AssocNone
+                --  , FInfix  (Just 4) ">="  (Just $ PAtom Ge)  AssocNone
                  ]
     applyCompose :: Maybe (Expr -> Expr -> Expr)
     applyCompose = (\f x y -> f `eApps` [x,y]) <$> cmpFun
@@ -934,7 +950,7 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
 -- Andres, TODO: Why is this so complicated?
 --
 funAppP :: Parser Expr
-funAppP            =  litP <|> exprFunP <|> simpleAppP
+funAppP      =  litP <|> exprFunP <|> simpleAppP
   where
     exprFunP = mkEApp <$> funSymbolP <*> funRhsP
     funRhsP  =  some expr0P
@@ -1017,7 +1033,6 @@ fTyConP
   =   (reserved "int"     >> return intFTyCon)
   <|> (reserved "Integer" >> return intFTyCon)
   <|> (reserved "Int"     >> return intFTyCon)
-  -- <|> (reserved "int"     >> return intFTyCon) -- TODO:AZ duplicate?
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
@@ -1025,9 +1040,9 @@ fTyConP
   <|> (mkFTycon          =<<  locUpperIdP)
 
 mkFTycon :: LocSymbol -> Parser FTycon
-mkFTycon locSym = do
+mkFTycon locSymbol = do
   nums  <- gets numTyCons
-  return (symbolNumInfoFTyCon locSym (val locSym `S.member` nums) False)
+  return (symbolNumInfoFTyCon locSymbol (val locSymbol `S.member` nums) False)
 
 
 --------------------------------------------------------------------------------

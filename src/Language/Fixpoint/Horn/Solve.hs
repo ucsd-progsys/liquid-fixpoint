@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 -------------------------------------------------------------------------------
 -- | This module defines a function to solve NNF constraints,
 --   by reducing them to the standard FInfo.
@@ -17,47 +15,74 @@ import qualified Language.Fixpoint.Parse        as Parse
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
+
 import qualified Language.Fixpoint.Horn.Parse   as H
+import qualified Language.Fixpoint.Horn.SMTParse   as SH
+
 import qualified Language.Fixpoint.Horn.Transformations as Tx
 import Text.PrettyPrint.HughesPJ.Compat ( render )
 import Language.Fixpoint.Horn.Info ( hornFInfo )
 
 import System.Console.CmdArgs.Verbosity ( whenLoud )
-
+import qualified Data.Aeson as Aeson
 -- import Debug.Trace (traceM)
 
 ----------------------------------------------------------------------------------
 solveHorn :: F.Config -> IO ExitCode
 ----------------------------------------------------------------------------------
-solveHorn cfg = do
-  (q, opts) <- parseQuery cfg
+solveHorn baseCfg = do
+  q <- parseQuery baseCfg
 
   -- If you want to set --eliminate=none, you better make it a pragma
-  cfg <- if F.eliminate cfg == F.None
-           then pure (cfg { F.eliminate =  F.Some })
-           else pure cfg
+  cfgElim <- if F.eliminate baseCfg == F.None
+           then pure (baseCfg { F.eliminate =  F.Some })
+           else pure baseCfg
 
-  cfg <- F.withPragmas cfg opts
+  cfgPragmas <- F.withPragmas cfgElim (H.qOpts q)
 
-  when (F.save cfg) (saveHornQuery cfg q)
+  when (F.save cfgPragmas) (saveHornQuery cfgPragmas q)
 
-  r <- solve cfg q
-  Solver.resultExitCode cfg r
+  r <- solve cfgPragmas q
+  Solver.resultExitCode cfgPragmas r
 
-parseQuery :: F.Config -> IO (H.Query H.Tag, [String])
+parseQuery :: F.Config -> IO H.TagQuery
 parseQuery cfg
-  | F.stdin cfg = Parse.parseFromStdIn H.hornP
-  | otherwise   = Parse.parseFromFile H.hornP (F.srcFile cfg)
+  | F.stdin cfg = Parse.parseFromStdIn hornP
+  | json        = loadFromJSON file
+  | otherwise   = Parse.parseFromFile hornP file
+  where
+    json  = Files.isExtFile Files.Json file
+    file  = F.srcFile cfg
+    hornP = if F.noSmtHorn cfg then H.hornP else SH.hornP
+
+loadFromJSON :: FilePath -> IO H.TagQuery
+loadFromJSON f = do
+  r <- Aeson.eitherDecodeFileStrict f
+  case r of
+    Right v -> return v
+    Left err -> error ("Error in loadFromJSON: " ++ err)
 
 saveHornQuery :: F.Config -> H.Query H.Tag -> IO ()
 saveHornQuery cfg q = do
+  saveHornSMT2 cfg q
+  saveHornJSON cfg q
+
+saveHornSMT2 :: H.ToHornSMT a => F.Config -> a -> IO ()
+saveHornSMT2 cfg q = do
   let hq   = F.queryFile Files.HSmt2 cfg
   putStrLn $ "Saving Horn Query: " ++ hq ++ "\n"
   Misc.ensurePath hq
-  writeFile hq $ render (F.pprint q)
+  writeFile hq $ render ({- F.pprint -} H.toHornSMT q)
+
+saveHornJSON :: F.Config -> H.Query H.Tag -> IO ()
+saveHornJSON cfg q = do
+  let hjson   = F.queryFile Files.HJSON cfg
+  putStrLn $ "Saving Horn Query: " ++ hjson ++ "\n"
+  Misc.ensurePath hjson
+  Aeson.encodeFile hjson q
 
 ----------------------------------------------------------------------------------
-eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)
+eliminate :: (F.Fixpoint a, F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)
 ----------------------------------------------------------------------------------
 eliminate cfg q
   | F.eliminate cfg == F.Existentials = do
@@ -73,9 +98,9 @@ eliminate cfg q
 solve :: (F.PPrint a, NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a
        -> IO (F.Result (Integer, a))
 ----------------------------------------------------------------------------------
-solve cfg q = do
-  let c = Tx.uniq $ Tx.flatten $ H.qCstr q
+solve cfg qry = do
+  let c = Tx.uniq $ Tx.flatten $ H.qCstr qry
   whenLoud $ putStrLn "Horn Uniq:"
   whenLoud $ putStrLn $ F.showpp c
-  q <- eliminate cfg ({- void $ -} q { H.qCstr = c })
+  q <- eliminate cfg ({- void $ -} qry { H.qCstr = c })
   Solver.solve cfg (hornFInfo cfg q)

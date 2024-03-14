@@ -129,11 +129,9 @@ instKSig _  _   _ _ [] = error "Empty qsig in Solution.instKSig"
 instKSig ho env v t (qp:qps) = do
   (su0, i0, qs0) <- candidatesP senv [(0, t, [v])] qp
   ixs       <- matchP senv tyss [(i0, qs0)] (applyQPP su0 <$> qps)
-  -- return     $ F.notracepp msg (reverse ixs)
   ys        <- instSymbol tyss (tail $ reverse ixs)
   return (v:ys)
   where
-    -- msg        = "instKSig " ++ F.showpp qsig
     tyss       = zipWith (\i (t, ys) -> (i, t, ys)) [1..] (instCands ho env)
     senv       = (`F.lookupSEnvWithDistance` env)
 
@@ -148,22 +146,6 @@ instSymbol tyss = go
       qsu <- maybeToList (matchSym qp y)
       ys  <- go [ (i', applyQPSubst qsu  qp') | (i', qp') <- is]
       return (y:ys)
-
--- instKQ :: Bool
---        -> F.SEnv F.Sort
---        -> F.Symbol
---        -> F.Sort
---        -> F.Qualifier
---        -> [Sol.EQual]
--- instKQ ho env v t q = do
---   (su0, qsu0, v0) <- candidates senv [(t, [v])] qp
---   xs              <- match senv tyss [v0] (applyQP su0 qsu0 <$> qps)
---   return           $ Sol.eQual q (F.notracepp msg (reverse xs))
---   where
---     msg        = "instKQ " ++ F.showpp (F.qName q) ++ F.showpp (F.qParams q)
---     qp : qps   = F.qParams q
---     tyss       = instCands ho env
---     senv       = (`F.lookupSEnvWithDistance` env)
 
 instCands :: Bool -> F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands ho env = filter isOk tyss
@@ -216,8 +198,6 @@ candidatesP env tyss x =
     qPat = F.qpPat  x
     mono = So.isMono xt
 
-
-
 -- --------------------------------------------------------------------------------
 -- candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam
 --            -> [(So.TVSubst, QPSubst, F.Symbol)]
@@ -240,7 +220,7 @@ matchSym qp y' = case qp of
   F.PatNone       -> Just NoSub
   F.PatExact s    -> if s == y then Just NoSub else Nothing
   where
-    y             =  F.tidySymbol y'
+    y             =  F.unKArgSymbol y'
 
 data QPSubst = NoSub | JustSub Int F.Symbol
 

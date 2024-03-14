@@ -41,10 +41,7 @@ type SanitizeM a = Either E.Error a
 --------------------------------------------------------------------------------
 sanitize :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize cfg =    -- banIllScopedKvars
-        --      Misc.fM dropAdtMeasures
-        --      >=>
-                     banIrregularData
+sanitize cfg =       banIrregularData
          >=> Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
@@ -409,7 +406,7 @@ symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
     env0         = F.symEnv sEnv tEnv ds lits ts
     tEnv         = Thy.theorySymbols ds
     ds           = F.ddecls si
-    ts           = Misc.hashNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
+    ts           = Misc.setNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
     sEnv         = (F.tsSort <$> tEnv) `mappend` F.fromListSEnv xts
     xts          = symbolSorts cfg si ++ alits
     lits         = F.dLits si `F.unionSEnv'` F.fromListSEnv alits

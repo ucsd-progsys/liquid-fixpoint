@@ -2,6 +2,32 @@
 
 ## NEXT
 
+## 0.9.6.3 (2024-01-29)
+
+- For now we stopped folding constants that contain NaN [#670](https://github.com/ucsd-progsys/liquid-fixpoint/pull/670)
+
+## 0.9.4.7
+
+- Support GHC 9.6 tuples with `--extensionality` [#666](https://github.com/ucsd-progsys/liquid-fixpoint/issues/641) [#667](https://github.com/ucsd-progsys/liquid-fixpoint/issues/641)
+
+## 0.9.2.5
+
+- Adopt smtlib-backends for interactions with the SMT solvers [#641](https://github.com/ucsd-progsys/liquid-fixpoint/issues/641)
+
+## 0.9.0.2
+
+- Simplified the equalities dumped by PLE [#569](https://github.com/ucsd-progsys/liquid-fixpoint/issues/569) [#605](https://github.com/ucsd-progsys/liquid-fixpoint/issues/605)
+- Add PLE implementation based on interpreting expressions [#502](https://github.com/ucsd-progsys/liquid-fixpoint/pull/502)
+
+## 0.8.10.2
+
+- Dump equalities discovered by PLE [#491](https://github.com/ucsd-progsys/liquid-fixpoint/pull/491) [#569](https://github.com/ucsd-progsys/liquid-fixpoint/issues/569)
+- Dump prettified version of constraints [#473](https://github.com/ucsd-progsys/liquid-fixpoint/pull/473)
+- Constraints now indicate the source code location that originated them [#471](https://github.com/ucsd-progsys/liquid-fixpoint/pull/471)
+- Add support for term rewriting to PLE [#428](https://github.com/ucsd-progsys/liquid-fixpoint/pull/428)
+
+## 0.8.6.4
+
 - Fix bugs in PLE
 - Move to GHC 8.6.4 
 - Add `fuel` parameter to debug unfolding in PLE

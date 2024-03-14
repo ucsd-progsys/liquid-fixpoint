@@ -17,7 +17,7 @@ import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
 import qualified Data.Maybe                     as Mb
 
-hornFInfo :: F.Config -> H.Query a -> F.FInfo a
+hornFInfo :: (F.Fixpoint a, F.PPrint a) => F.Config -> H.Query a -> F.FInfo a
 hornFInfo cfg q = mempty
   { F.cm        = cs
   , F.bs        = be2
@@ -28,6 +28,7 @@ hornFInfo cfg q = mempty
   , F.dLits     = F.fromMapSEnv $ H.qDis q
   , F.ae        = axEnv cfg q cs
   , F.ddecls    = H.qData q
+  , F.hoInfo    = F.cfgHoInfo cfg
   }
   where
     be0         = F.emptyBindEnv
@@ -119,7 +120,7 @@ kvApp kve k ys = F.PKVar (F.KV k) su
     err1       = F.panic ("Unknown Horn variable: " ++ F.showpp k)
 
 ----------------------------------------------------------------------------------
-hornWfs :: F.BindEnv a -> [H.Var a] -> (F.BindEnv a, KVEnv a)
+hornWfs :: (F.PPrint a) => F.BindEnv a -> [H.Var a] -> (F.BindEnv a, KVEnv a)
 ----------------------------------------------------------------------------------
 hornWfs be vars = (be', kve)
   where
@@ -127,7 +128,7 @@ hornWfs be vars = (be', kve)
     (be', is)   = L.mapAccumL kvInfo be vars
     kname       = H.hvName . kvVar
 
-kvInfo :: F.BindEnv a -> H.Var a -> (F.BindEnv a, KVInfo a)
+kvInfo :: (F.PPrint a) => F.BindEnv a -> H.Var a -> (F.BindEnv a, KVInfo a)
 kvInfo be k       = (be', KVInfo k (Misc.fst3 <$> xts) wfc)
   where
     -- make the WfC
@@ -160,10 +161,7 @@ kvEnvWfCs :: KVEnv a -> M.HashMap F.KVar (F.WfC a)
 kvEnvWfCs kve = M.fromList [ (F.KV k, kvWfC info) | (k, info) <- M.toList kve ]
 
 hvarArg :: H.Var a -> Int -> F.Symbol
-hvarArg k i = F.intSymbol (F.suffixSymbol hvarPrefix (H.hvName k)) i
-
-hvarPrefix :: F.Symbol
-hvarPrefix = F.symbol "nnf_arg"
+hvarArg k i = F.hvarArgSymbol (H.hvName k) i
 
 -------------------------------------------------------------------------------
 -- | Automatically scrape qualifiers from all predicates in a constraint

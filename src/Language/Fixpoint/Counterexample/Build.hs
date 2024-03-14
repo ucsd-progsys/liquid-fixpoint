@@ -22,6 +22,7 @@ import Data.List (find)
 
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad (when, forM)
 
 -- | The enviroment used to build a program.
 data BuildEnv info = BuildEnv

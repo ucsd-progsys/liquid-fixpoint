@@ -2,6 +2,8 @@ name: cabal
 
 on:
   push:
+    branches:
+      - develop
   pull_request:
 
 # NOTE: The setup-z3 action constructs the download filename from
@@ -14,10 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cabal: ["3.6"]
+        cabal: ["3.10.1.0"]
         ghc:
-          - "8.10.7"
-          - "9.2.3"
+          - "9.8.1"
+          - "9.6.3"
+          - "9.4.7"
         z3:
           - "4.10.2"
 
@@ -36,7 +39,7 @@ jobs:
         run: sudo chown -R $USER /usr/local/.ghcup
 
       - name: Setup GHC and cabal-install
-        uses: haskell/actions/setup@v2
+        uses: haskell-actions/setup@v2
         with:
           ghc-version: ${{ matrix.ghc }}
           cabal-version: ${{ matrix.cabal }}

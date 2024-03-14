@@ -19,6 +19,8 @@ import           Control.Monad                    (when, forM_, filterM)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import qualified Data.HashSet                     as S
+import qualified Data.Map                         as Map
+import qualified Data.Set                         as Set
 import           Data.Tuple                       (swap)
 import           Data.Maybe
 import           Data.Array                       hiding (indices)
@@ -205,8 +207,8 @@ groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
 allMap :: (Eq k, Hashable k) => (v -> Bool) -> M.HashMap k v -> Bool
 allMap p = L.foldl' (\a v -> a && p v) True
 
-hashNub :: (Eq k, Hashable k) => [k] -> [k]
-hashNub = M.keys . M.fromList . fmap (, ())
+setNub :: Ord k => [k] -> [k]
+setNub = Set.toList . Set.fromList
 
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
@@ -220,8 +222,8 @@ nubOrd (x:t@(y:_))
   | otherwise = x : nubOrd t
 nubOrd xs     = xs
 
-hashNubWith :: (Eq b, Hashable b) => (a -> b) -> [a] -> [a]
-hashNubWith f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
+hashNubWith :: Ord b => (a -> b) -> [a] -> [a]
+hashNubWith f xs = Map.elems $ Map.fromList [ (f x, x) | x <- xs ]
 
 mFromList :: (Eq k, Hashable k) => [(k, v)] -> M.HashMap k v
 mFromList = M.fromList
@@ -332,6 +334,9 @@ isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight _         = False
 
+dbgFalse :: Bool
+dbgFalse = 1 > (2 :: Int)
+
 componentsWith :: (Ord c) => (a -> [(b, c, [c])]) -> a -> [[b]]
 componentsWith eF x = map (fst3 . f) <$> vss
   where
@@ -434,4 +439,3 @@ fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
 fold1M _ []         = errorstar "fold1M with empty list"
 fold1M _ [x]        = return x
 fold1M f (x1:x2:xs) = do { x <- f x1 x2; fold1M f (x:xs) }
-

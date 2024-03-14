@@ -117,7 +117,7 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> SolveM a (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
-  let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
+  let s1   = F.notracepp "solve_ " $ {-# SCC "sol-init" #-} S.init cfg fi ks
   let s2   = mappend s0 s1
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
     -- let s3   = solveEbinds fi s2
@@ -177,14 +177,14 @@ refine bindingsInSmt s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
      i       <- tickIter newScc
      (b, s') <- refineC bindingsInSmt i s c
-     lift $ writeLoud $ refineMsg i c b rnk
+     lift $ writeLoud $ refineMsg i c b rnk (showpp s')
      let w'' = if b then W.push c w' else w'
      refine bindingsInSmt s' w''
   | otherwise = return s
   where
     -- DEBUG
-    refineMsg i c b rnk = printf "\niter=%d id=%d change=%s rank=%d\n"
-                            i (F.subcId c) (show b) rnk
+    refineMsg i c b rnk s = printf "\niter=%d id=%d change=%s rank=%d s=%s\n"
+                             i (F.subcId c) (show b) rnk s
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------

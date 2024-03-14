@@ -60,6 +60,7 @@ module Language.Fixpoint.Types.Names (
   , nonSymbol
   , vvCon
   , tidySymbol
+  , unKArgSymbol
 
   -- * Widely used prefixes
   , anfPrefix
@@ -73,6 +74,7 @@ module Language.Fixpoint.Types.Names (
   , tempSymbol
   , gradIntSymbol
   , appendSymbolText
+  , hvarArgSymbol
 
   -- * Wrapping Symbols
   , litSymbol
@@ -148,6 +150,8 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Utils.Builder as Builder (fromText)
 import Data.Functor.Contravariant (Contravariant(contramap))
 import qualified Data.Binary as B
+import qualified Data.Aeson       as Aeson
+import qualified Data.Aeson.Types as Aeson
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
@@ -174,7 +178,8 @@ data Symbol
   = S { _symbolId      :: !Id
       , symbolRaw      :: T.Text
       , symbolEncoded  :: T.Text
-      } deriving (Data, Typeable, Generic)
+      } 
+    deriving (Data, Typeable, Generic)
 
 instance Eq Symbol where
   S i _ _ == S j _ _ = i == j
@@ -210,8 +215,20 @@ instance S.Store Symbol where
   size = contramap symbolText S.size
 
 instance B.Binary Symbol where
-   get = textSymbol <$> B.get
-   put = B.put . symbolText
+  get = textSymbol <$> B.get
+  put = B.put . symbolText
+
+instance Aeson.ToJSON Symbol where 
+  toJSON = Aeson.toJSON . symbolText 
+
+instance Aeson.FromJSON Symbol where
+  parseJSON = fmap textSymbol . Aeson.parseJSON
+
+instance Aeson.ToJSONKey Symbol where
+  toJSONKey = Aeson.toJSONKeyText symbolText 
+
+instance Aeson.FromJSONKey Symbol where
+  fromJSONKey = Aeson.FromJSONKeyText textSymbol 
 
 sCache :: Cache Symbol
 sCache = mkCache
@@ -478,6 +495,10 @@ existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 gradIntSymbol :: Integer -> Symbol
 gradIntSymbol = intSymbol gradPrefix
 
+hvarArgSymbol :: Symbol -> Int -> Symbol
+hvarArgSymbol s i = intSymbol (suffixSymbol hvarPrefix s) i
+
+
 -- | Used to define functions corresponding to binding predicates
 --
 -- The integer is the BindId.
@@ -498,14 +519,39 @@ testPrefix   = "is$"
 -- ctorPrefix  :: Symbol
 -- ctorPrefix   = "mk$"
 
-kArgPrefix, existPrefix :: Symbol
-kArgPrefix   = "lq_karg$"
-existPrefix  = "lq_ext$"
+kArgPrefix, existPrefix, hvarPrefix :: Symbol
+kArgPrefix  = "lq_karg$"
+existPrefix = "lq_ext$"
+hvarPrefix  = "nnf_arg$"
 
--------------------------------------------------------------------------
+-- | `unKArgSymbol` is like `tidySymbol` (see comment below) except it
+--    (a) *removes* the argument-index, and
+--    (b) *preserves* the `nnf_arg` (without replacing it with `$`)
+--    For example `unKArgSymbol lq_karg$nnf_arg$##k0##0##k0` ---> `nnf_arg##k0`
+
+unKArgSymbol :: Symbol -> Symbol
+unKArgSymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
+
+-- | 'tidySymbol' is used to prettify the names of parameters of kvars appearing in solutions.(*)
+--   For example, if you have a kvar $k0 with two parameters, you may have a solution that looks like
+--       0 <  lq_karg$nnf_arg$##k0##0##k0
+--   where we know it is a kvar-arg because of the
+--      - `kArgPrefix` (`lq_arg`)
+--      - `hvarArgPrefix` (`nnf_arg`)
+--      - `k0` the name of the kvar
+--      - `0`  the parameter index
+--      - `k0` again (IDK why?!)
+--    all of which are separated by `##`
+--   So `tidySymbol` tests if indeed it is a `kArgPrefix`-ed symbol and if so converts
+--      `lq_karg$nnf_arg$##k0##0##k0` ----> `$k0##0`
+
 tidySymbol :: Symbol -> Symbol
--------------------------------------------------------------------------
-tidySymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
+tidySymbol s
+  | s == s'   = s
+  | otherwise = s''
+  where
+    s'        = unPrefixSymbol kArgPrefix s
+    s''       = consSym '$' . unPrefixSymbol symSepName . unSuffixSymbol . unPrefixSymbol hvarPrefix $ s'
 
 unPrefixSymbol :: Symbol -> Symbol -> Symbol
 unPrefixSymbol p s = fromMaybe s (stripPrefix p s)

@@ -93,6 +93,7 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | Cex !Int -- ^ Counterexample JSON file (for external explorer)
          | Smt2     -- ^ SMTLIB2 query file
          | HSmt2    -- ^ Horn query file
+         | HJSON    -- ^ Horn query JSON file
          | Min      -- ^ filter constraints with delta debug
          | MinQuals -- ^ filter qualifiers with delta debug
          | MinKVars -- ^ filter kvars with delta debug
@@ -128,6 +129,7 @@ extMap          = go
     go Prog     = ".prog"
     go Smt2     = ".smt2"
     go HSmt2    = ".horn.smt2"
+    go HJSON    = ".horn.json"
     go (Auto n) = ".auto." ++ show n
     go Dot      = ".dot"
     go BinFq    = ".bfq"

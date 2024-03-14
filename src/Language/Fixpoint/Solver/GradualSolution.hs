@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE FlexibleInstances  #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Solver.GradualSolution
   ( -- * Create Initial Solution
     init
@@ -18,7 +16,7 @@ import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types              as F
 import qualified Language.Fixpoint.Types.Solutions    as Sol
-import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
+import qualified Language.Fixpoint.Types.Constraints  as Cons
 import           Prelude                              hiding (init, lookup)
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv)
 import Language.Fixpoint.SortCheck
@@ -34,9 +32,9 @@ init cfg si = map (elab . refineG si qs genv) gs `using` parList rdeepseq
     gs         = snd <$> gs0
     genv       = instConstants si
 
-    gs0        = L.filter (isGWfc . snd) $ M.toList (F.ws si)
+    gs0        = L.filter (Cons.isGWfc . snd) $ M.toList (F.ws si)
 
-    elab (k, (x,es)) = (k, (x, elaborate (F.atLoc F.dummySpan "init") (sEnv (gsym x) (gsort x)) <$> es))
+    elab (k, (x,es)) = (k, (x, elaborate (F.atLoc F.dummySpan "init") (sEnv (Cons.gsym x) (Cons.gsort x)) <$> es))
 
     sEnv x s    = isEnv {F.seSort = F.insertSEnv x s (F.seSort isEnv)}
     isEnv       = symbolEnv cfg si
@@ -49,7 +47,7 @@ refineG fi qs genv w = (k, (F.gwInfo w, Sol.qbExprs qb))
     (k, qb) = refine fi qs genv w
 
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
-refine fi qs genv w = refineK (allowHOquals fi) env qs $ F.wrft w
+refine fi qs genv w = refineK (Cons.allowHOquals fi) env qs $ F.wrft w
   where
     env             = wenv <> genv
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
@@ -85,7 +83,7 @@ instKQ :: Bool
        -> F.Qualifier
        -> [Sol.EQual]
 instKQ ho env v t q =
-  case qpSort <$> F.qParams q of
+  case Cons.qpSort <$> F.qParams q of
     (qt:qts) -> do
         (su0, v0) <- candidates senv [(t, [v])] qt
         xs        <- match senv tyss [v0] (So.apply su0 <$> qts)

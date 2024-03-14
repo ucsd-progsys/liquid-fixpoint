@@ -20,6 +20,7 @@ import qualified Data.HashMap.Strict as Map
 
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad (forM, foldM)
 
 -- | Environment for the counter example generation.
 data CheckEnv = CheckEnv
