@@ -108,16 +108,16 @@ applyConstantFolding bop e1 e2 =
               else Nothing
         go Nothing = Nothing
 
-        getOp' Div      = Just (/)
-        getOp' RDiv     = Just (/)
-        getOp' op       = getOp op
+        getOp' Div  | right /= 0 = Just (/)
+        getOp' RDiv | right /= 0 = Just (/)
+        getOp' op = getOp op
 
     cfI :: Bop -> Integer -> Integer -> Maybe Expr
     cfI bop left right = fmap go (getOp' bop)
       where
         go f = ECon $ I $ f left right
 
-        getOp' Mod = Just mod
+        getOp' Mod | right /= 0 = Just mod
         getOp' op  = getOp op
 
 isSetPred :: Expr -> Bool
