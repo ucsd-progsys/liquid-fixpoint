@@ -89,7 +89,7 @@ runSolverM cfg sI act =
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
-    fi       = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+    fi       = (siQuery sI) {F.hoInfo = F.cfgHoInfo cfg }
 
 
 --------------------------------------------------------------------------------

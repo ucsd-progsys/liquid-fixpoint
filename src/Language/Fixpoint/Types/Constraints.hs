@@ -74,6 +74,7 @@ module Language.Fixpoint.Types.Constraints (
   , HOInfo (..)
   , allowHO
   , allowHOquals
+  , cfgHoInfo
 
   -- * Axioms
   , AxiomEnv (..)
@@ -99,9 +100,9 @@ import           GHC.Generics              (Generic)
 import qualified Data.List                 as L -- (sort, nub, delete)
 import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
-import           Control.Monad             (void)
+import           Control.Monad             (when, void)
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Config hiding (allowHO)
+import qualified Language.Fixpoint.Types.Config as C
 import           Language.Fixpoint.Types.Triggers
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Errors
@@ -709,6 +710,9 @@ data HOInfo = HOI
   }
   deriving (Eq, Show, Generic)
 
+cfgHoInfo :: C.Config -> HOInfo
+cfgHoInfo cfg = HOI (C.allowHO cfg) (C.allowHOqs cfg)
+
 allowHO, allowHOquals :: GInfo c a -> Bool
 allowHO      = hoBinds . hoInfo
 allowHOquals = hoQuals . hoInfo
@@ -782,7 +786,7 @@ instance PTable (SInfo a) where
 --------------------------------------------------------------------------
 -- | Rendering Queries
 --------------------------------------------------------------------------
-toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
+toFixpoint :: (Fixpoint a, Fixpoint (c a)) => C.Config -> GInfo c a -> Doc
 --------------------------------------------------------------------------
 toFixpoint cfg x' =    cfgDoc   cfg
                   $++$ declsDoc x'
@@ -812,7 +816,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     qualsDoc      = vcat     . map toFix . L.sort . quals
     aeDoc         = toFix    . ae
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
-    mdata         = metadata cfg
+    mdata         = C.metadata cfg
     binfoDoc
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
@@ -826,7 +830,7 @@ sEnvDoc d       = vcat . map kvD . L.sortOn fst . toListSEnv
   where
     kvD (c, so) = d <+> toFix c <+> ":" <+> parens (toFix so)
 
-writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
+writeFInfo :: (Fixpoint a, Fixpoint (c a)) => C.Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 
 --------------------------------------------------------------------------------
@@ -887,27 +891,26 @@ simpcToSubc env s = SubC
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
 ---------------------------------------------------------------------------
-type Solver a = Config -> FInfo a -> IO (Result (Integer, a))
+type Solver a = C.Config -> FInfo a -> IO (Result (Integer, a))
 
 --------------------------------------------------------------------------------
-saveQuery :: (Fixpoint a) => Config -> FInfo a -> IO ()
+saveQuery :: (Fixpoint a) => C.Config -> FInfo a -> IO ()
 --------------------------------------------------------------------------------
-saveQuery cfg fi = {- when (save cfg) $ -} do
+saveQuery cfg fi = when (C.save cfg) $ do
   let fi'  = void fi
   saveBinaryQuery cfg fi'
   saveTextQuery cfg   fi
 
-saveBinaryQuery :: Config -> FInfo () -> IO ()
+saveBinaryQuery :: C.Config -> FInfo () -> IO ()
 saveBinaryQuery cfg fi = do
-  let bfq  = queryFile Files.BinFq cfg
+  let bfq  = C.queryFile Files.BinFq cfg
   putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
   ensurePath bfq
   B.writeFile bfq (S.encode fi)
-  -- B.encodeFile bfq fi
 
-saveTextQuery :: Fixpoint a => Config -> FInfo a -> IO ()
+saveTextQuery :: Fixpoint a => C.Config -> FInfo a -> IO ()
 saveTextQuery cfg fi = do
-  let fq   = queryFile Files.Fq cfg
+  let fq   = C.queryFile Files.Fq cfg
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
   ensurePath fq
   writeFile fq $ render (toFixpoint cfg fi)

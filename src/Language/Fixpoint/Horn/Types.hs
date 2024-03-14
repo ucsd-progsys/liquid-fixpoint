@@ -103,7 +103,7 @@ instance F.Subable Pred where
 -------------------------------------------------------------------------------
 quals :: Cstr a -> [F.Qualifier]
 -------------------------------------------------------------------------------
-quals = F.tracepp "horn.quals" . cstrQuals F.emptySEnv F.vv_
+quals = F.notracepp "horn.quals" . cstrQuals F.emptySEnv F.vv_
 
 cstrQuals :: F.SEnv F.Sort -> F.Symbol -> Cstr a -> [F.Qualifier]
 cstrQuals = go

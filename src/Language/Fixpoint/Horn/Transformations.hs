@@ -71,7 +71,7 @@ printPiSols piSols =
 -- can depend on other ks, pis cannot directly depend on other pis
 -- - predicate for exists binder is `true`. (TODO: is this pre stale?)
 
-solveEbs :: (F.PPrint a) => F.Config -> Query a -> IO (Query a)
+solveEbs :: (F.Fixpoint a, F.PPrint a) => F.Config -> Query a -> IO (Query a)
 ------------------------------------------------------------------------------
 solveEbs cfg query@(Query {}) = do
   let cons = qCon query
@@ -932,7 +932,7 @@ isNNF (CAnd cs) = all isNNF cs
 isNNF (All _ c) = isNNF c
 isNNF Any{} = False
 
-calculateCuts :: F.Config -> Query a -> Cstr a -> S.Set F.Symbol
+calculateCuts :: (F.Fixpoint a, F.PPrint a) => F.Config -> Query a -> Cstr a -> S.Set F.Symbol
 calculateCuts cfg q@(Query {}) nnf = convert $ FG.depCuts deps
   where
     (_, deps) = elimVars cfg (hornFInfo cfg $ q { qCstr = nnf })
