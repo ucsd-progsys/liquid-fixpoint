@@ -1,15 +1,9 @@
 (fixpoint "--allowho")
 (fixpoint "--allowhoqs")
- 
- 
-(qualif MyQual ((v @(0)) (p @(1))) (p v))
- 
+(fixpoint "--scrape=head")
+
 (var $k0 (Int (func 0 (Int) bool)))
- 
- 
- 
- 
- 
+
 (constraint
   (and
     (forall ((p0 (func 0 (Int) bool)) (true))
