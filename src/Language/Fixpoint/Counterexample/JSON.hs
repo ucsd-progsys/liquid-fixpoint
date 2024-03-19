@@ -98,6 +98,7 @@ jsonCex cfg si cex | F.save cfg = do
   cex' <- formatCex si cex
   let ext = Ext.Cex . fromIntegral . F.cexConstraint $ cex
   let file = F.queryFile ext cfg
+  liftIO . putStrLn $ "Saving counterexample json: " ++ file ++ "\n"
   liftIO $ F.ensurePath file
   liftIO $ encodeFile file cex'
 jsonCex _ _ _ = return ()

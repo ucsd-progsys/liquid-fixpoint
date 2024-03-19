@@ -18,7 +18,7 @@ import qualified Language.Fixpoint.Utils.Files as Ext
 
 import Data.Maybe (fromMaybe)
 import qualified Data.HashMap.Strict as Map
-import Data.List (find)
+import Data.List (find, sortBy)
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -55,6 +55,7 @@ hornToProg cfg si = do
   -- Save the program in a file
   liftIO . when (save cfg) $ do
     let file = queryFile Ext.Prog cfg
+    liftIO . putStrLn $ "Saving counterexample program: " ++ file ++ "\n"
     ensurePath file
     writeFile file . show . pprint $ prog
 
@@ -92,8 +93,21 @@ addHorn horn = do
 
   -- Add the horn clause as a function body
   let cid = fromMaybe (-1) $ sid horn
-  let body = Body cid $ lhs <> rhs
+  let statements = sortStatements $ lhs <> rhs
+  let body = Body cid $ statements
   addFunc name $ Func decl [body]
+
+-- | Sort the statements so we do all declarations first.
+-- TODO: Change the `Body` type so it contains a substitution map. Remove the
+-- Let statement from the types of statements we have!
+sortStatements :: [Statement] -> [Statement]
+sortStatements = sortBy cmp
+  where
+    cmp (Let _) (Let _) = EQ
+    cmp (Let _) _ = LT
+    cmp _ (Let _) = GT
+    cmp _ _ = EQ
+
 
 -- | Gets a signature of a KVar from its well foundedness constraint
 getSig :: MonadBuild info m => Name -> m Signature

@@ -117,7 +117,7 @@ runFunc name scope runner = do
       maxDepth' <- reader maxDepth
       let recursionLimit = depth' >= maxDepth'
 
-      result <- if recursionLimit then runner else foldRunners paths
+      result <- if recursionLimit then return Nothing else foldRunners paths
 
       -- Decrement depth after exploring this function
       modify $ \s -> s { depth = depth s - 1}
@@ -137,7 +137,7 @@ runBody scope' body runner = smtScope $ go scope' body
   where
     go _ (Body _ []) = runner
     go scope (Body cid (stmt:ss)) = do
-      -- The remaining statements become a new Runner
+      -- The remaining statements becomes a new Runner
       let runner' = flip go (Body cid ss)
       -- We pass this runner, such that it can be called at a later
       -- point (possibly multiple times) if we were to encounter a call.

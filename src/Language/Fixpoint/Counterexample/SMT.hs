@@ -99,7 +99,7 @@ smtSubstToCex (Su sub) = foldl' (flip $ uncurry insertCex) dummyCex traces
       where 
       go :: Trace -> SMTCounterexample -> SMTCounterexample
       go (t:ts) cex = cex
-        { cexFrames = Map.insertWith (const $ go ts) t dummyCex $ cexFrames cex
+        { cexFrames = Map.insertWith (const $ go ts) t (go ts dummyCex) $ cexFrames cex
         }
       go _ cex@Counterexample 
         { cexEnv = Su su

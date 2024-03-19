@@ -94,7 +94,7 @@ data Config = Config
   , etaElim     :: Bool                -- ^ eta eliminate function definitions
   , gradual     :: Bool                -- ^ solve "gradual" constraints
   , ginteractive :: Bool                -- ^ interactive gradual solving
-  , counterExample :: Bool             -- ^ Tries to produce a counter example if unsafe
+  , counterexample :: Bool             -- ^ Tries to produce a counter example if unsafe
   , autoKuts         :: Bool           -- ^ ignore given kut variables
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
@@ -246,7 +246,7 @@ defConfig = Config {
   , minimalSol               = False &= help "Shrink fixpoint by removing implied qualifiers"
   , gradual                  = False &= help "Solve gradual-refinement typing constraints"
   , ginteractive             = False &= help "Interactive Gradual Solving"
-  , counterExample           = False &= name "counter-example" &= help "Tries to produce a counter example for unsafe clauses"
+  , counterexample           = False &= name "counterexample" &= help "Tries to produce a counter example for unsafe clauses"
   , autoKuts                 = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"

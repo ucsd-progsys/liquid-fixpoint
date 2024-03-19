@@ -8,7 +8,7 @@ module Language.Fixpoint.Counterexample
 
 import Language.Fixpoint.Types
 import Language.Fixpoint.Counterexample.JSON (jsonCex)
-import Language.Fixpoint.Types.Config (Config, counterExample)
+import Language.Fixpoint.Types.Config (Config, counterexample)
 import Language.Fixpoint.Solver.EnvironmentReduction (dropLikelyIrrelevantBindings)
 
 import Language.Fixpoint.Counterexample.Types
@@ -30,7 +30,7 @@ import Control.Monad (forM_)
 
 -- | Try to get a counter example for the given unsafe clauses (if any).
 tryCounterExample
-  :: (MonadIO m, Fixpoint info, Loc info)
+  :: (MonadIO m, Fixpoint info, Loc info, PPrint info)
   => Config
   -> SInfo info
   -> Result (SubcId, info)
@@ -38,7 +38,7 @@ tryCounterExample
 tryCounterExample cfg si res@Result
   { resStatus = Unsafe _ cids'
   , resCounterexamples = cexs'
-  } | counterExample cfg = do
+  } | counterexample cfg = do
     -- Build program from constraints
     prog <- hornToProg cfg si
 
