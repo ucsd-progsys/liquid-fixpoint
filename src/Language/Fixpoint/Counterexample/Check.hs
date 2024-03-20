@@ -18,7 +18,7 @@ import Data.Maybe (fromJust, catMaybes)
 import Data.List (find)
 import qualified Data.HashMap.Strict as Map
 
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Control.Monad.Reader
 import Control.Monad (forM, foldM)
 
@@ -35,14 +35,8 @@ data CheckEnv = CheckEnv
 instance SMTContext CheckEnv where
   smtContext = context
 
--- | State tracked when checking a program.
-newtype CheckState = CheckState
-  { depth :: Int
-  -- ^ Current depth (i.e. number of functions traversed)
-  }
-
 -- | The monad used to generate counter examples from a Prog.
-type MonadCheck m = (MonadReader CheckEnv m, MonadState CheckState m, MonadIO m)
+type MonadCheck m = (MonadReader CheckEnv m, MonadIO m)
 
 -- | Check the given constraints to try and find a counter example.
 checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m [SMTCounterexample]
@@ -51,7 +45,8 @@ checkProg cfg si prog cids = withContext cfg si check
     check ctx = runCheck cids CheckEnv
       { program = prog
       , context = ctx
-      , maxDepth = 7 -- TODO: Perhaps this should be a parameter for the user?
+      -- TODO: Perhaps the max depth should be a parameter for the user?
+      , maxDepth = 7
       }
 
 -- | Run the checker with the SMT solver context.
@@ -69,9 +64,8 @@ withContext cfg si inner = do
 -- | Runs the program checker with the monad stack
 -- unwrapped.
 runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m [SMTCounterexample]
-runCheck cids env = rd . st $ checkAll cids
+runCheck cids env = rd $ checkAll cids
   where
-    st = flip evalStateT $ CheckState 0
     rd = flip runReaderT env
 
 -- | Try to find a counter example for all the given constraints.
@@ -99,33 +93,24 @@ runFunc :: MonadCheck m => Name -> Scope -> Runner m -> Runner m
 runFunc name scope runner = do
   -- Lookup function bodies
   func <- getFunc name
+  maxDepth' <- reader maxDepth
   case func of
-    -- Unconstrained function body, so we just continue with the runner.
-    Nothing -> runner
+    -- Recursion limit reached, so no counterexample.
+    _ | length (path scope) >= maxDepth' -> return Nothing
+    -- Unconstrained function body, so there is no counterexample here. This
+    -- would be equivalent to trying to create an inhabitant of {v:a | false},
+    -- which doesn't exist.
+    Nothing -> return Nothing
     -- Constrained function body
     Just (Func _ bodies) -> do
       -- Generate all execution paths (as runners).
       let runner' body = runBody (extendScope scope body) body runner
       let paths = runner' <$> bodies
 
-      -- Check if we've reached the recursion limit.
-      -- TODO: Perhaps we should make the recursion limit per kvar?
       -- TODO: We should really explore shallow trees first. Right now,
-      -- we explore max depth trees only...
-      depth' <- gets depth
-      put $ CheckState $ depth' + 1
-      maxDepth' <- reader maxDepth
-      let recursionLimit = depth' >= maxDepth'
-
-      result <- if recursionLimit then return Nothing else foldRunners paths
-
-      -- Decrement depth after exploring this function
-      modify $ \s -> s { depth = depth s - 1}
+      -- we might get a large tree, while a much smaller counterexample existed.
+      result <- foldRunners paths
       return result
-
--- | Extend the scope to include the id of the body, i.e. the `SubcId`.
-extendScope :: Scope -> Body -> Scope
-extendScope scope (Body cid _) = scope { constraint = cid }
 
 -- | Run the statements in the body. If there are no more statements to run,
 -- this will execute the Runner that was passed as argument.
@@ -133,7 +118,7 @@ extendScope scope (Body cid _) = scope { constraint = cid }
 -- The passed runner here is thus the rest of the computation, when we "return"
 -- from this function.
 runBody :: MonadCheck m => Scope -> Body -> Runner m  -> Runner m
-runBody scope' body runner = smtScope $ go scope' body
+runBody scope' body@(Body _ _) runner = smtScope $ go scope' body
   where
     go _ (Body _ []) = runner
     go scope (Body cid (stmt:ss)) = do
@@ -170,8 +155,14 @@ getFunc name = do
   Prog prog <- reader program
   return $ Map.lookup name prog
 
-foldRunners :: Monad m => [Runner m] -> Runner m
+-- | Fold the runners, selecting the first one that produced a counterexample,
+-- if any.
+foldRunners :: MonadCheck m => [Runner m] -> Runner m
 foldRunners = foldM select Nothing
   where
     select Nothing r = r
     select cex _ = return cex
+
+-- | Extend the scope to include the id of the body, i.e. the `SubcId`.
+extendScope :: Scope -> Body -> Scope
+extendScope scope (Body cid _) = scope { constraint = cid }

@@ -1,4 +1,4 @@
-bind 0 x : {v: int | v > y}
+bind 0 x : {v: int | $k[v2:=v][karg:=y]}
 bind 1 y : {v: int | y == 0}
 
 constraint:
@@ -7,22 +7,16 @@ constraint:
   rhs {v0: int | v0 > 1}
   id 0 tag []
 
-// bind 3 three : {v: int | v = 3}
+bind 2 z : {v: int | true}
 
-// constraint:
-//   env [3]
-//   lhs {v1: int | [v1 == three]}
-//   rhs {v1: int | $k[vk := v1]}
-//   id 1 tag []
+constraint:
+  env [2]
+  lhs {v1: int | v1 > z}
+  rhs {v1: int | $k[v2:=v1][karg:=z]}
+  id 1 tag []
 
-// bind 4 four : {v: int | v = 4}
+bind 10 karg : {v:int | true}
 
-// constraint:
-//   env [4]
-//   lhs {v2: int | [v2 == four]}
-//   rhs {v2: int | $k[vk := v2]}
-//   id 2 tag []
-
-// wf:
-//   env []
-//   reft {vk: int | [$k]}
+wf:
+  env [10]
+  reft {v2 : int | $k}

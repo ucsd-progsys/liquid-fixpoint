@@ -61,6 +61,7 @@ module Language.Fixpoint.Types.Names (
   , vvCon
   , tidySymbol
   , unKArgSymbol
+  , prefixAlpha
 
   -- * Widely used prefixes
   , anfPrefix

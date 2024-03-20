@@ -50,7 +50,7 @@ hornToProg cfg si = do
        }
 
   -- Run monad that adds all horn clauses to the program
-  prog <- evalStateT (runReaderT buildProg env) initial
+  prog <- sortBodies <$> evalStateT (runReaderT buildProg env) initial
 
   -- Save the program in a file
   liftIO . when (save cfg) $ do
@@ -107,7 +107,6 @@ sortStatements = sortBy cmp
     cmp (Let _) _ = LT
     cmp _ (Let _) = GT
     cmp _ _ = EQ
-
 
 -- | Gets a signature of a KVar from its well foundedness constraint
 getSig :: MonadBuild info m => Name -> m Signature
@@ -179,9 +178,13 @@ reftToStmts (bid, sym, RR
   { sr_sort = sort
   , sr_reft = Reft (v, e)
   }) = do
+    -- Prefix the symbol if required. Otherwise, some symbols won't match their
+    -- fix$36$ version when substituting.
+    let sym' = symbol . prefixAlpha . symbolText $ sym
+
     -- Get correct sort for declaration
     sort' <- elaborateSort sort
-    let decl = Let $ Decl sym sort'
+    let decl = Let $ Decl sym' sort'
 
     -- Get constraints from the expression.
     let constraints = case predKs e of
@@ -219,3 +222,15 @@ addFunc kvar func = do
   let merge (Func _ b) (Func d b') = Func d (b <> b')
   Prog prog <- get
   put . Prog $ Map.insertWith merge kvar func prog
+
+-- | We try to place functions with as little kvars as possible first, as these
+-- most likely find us a counterexample. Ideally, we do something less primitive
+-- than just a sort though...
+sortBodies :: Prog -> Prog
+sortBodies (Prog prog) = Prog $ sortFunc <$> prog
+  where
+    sortFunc (Func sig bodies) = Func sig $ sortBy cmp bodies
+    cmp a b = count a `compare` count b
+    count (Body _ stmts) = length . filter isCall $ stmts
+    isCall (Call _ _) = True
+    isCall _ = False

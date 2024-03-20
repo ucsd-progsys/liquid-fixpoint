@@ -23,6 +23,8 @@ import Data.Aeson (FromJSON, ToJSON, encodeFile)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as Map
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B (lines)
 
 import Control.Exception
 import Control.Monad.IO.Class
@@ -178,7 +180,7 @@ getLocation i = liftIO $ handle ignore $ do
 
   -- Split between what comes before and the rows that actually contain the
   -- content.
-  content <- lines <$> readFile path
+  content <- B.lines <$> B.readFile path
   let (before, rest) = splitAt startRow content
   let (content', _) = splitAt (endRow - startRow) rest
 
@@ -187,16 +189,16 @@ getLocation i = liftIO $ handle ignore $ do
   (hs, l) <- case unsnoc content' of
     Just v -> return v
     _ -> throwIO $ userError "incorrect range"
-  let content'' = hs <> [take endCol l]
+  let content'' = hs <> [B.take endCol l]
   (h, ls) <- case uncons content'' of
     Just v -> return v
     _ -> throwIO $ userError "incorrect range"
-  let content''' = drop startCol h : ls
+  let content''' = B.drop startCol h : ls
 
   -- Calculate the final start and length, including the number of newline
   -- characters.
-  let start = sum (Prelude.length <$> before) + Prelude.length before + startCol
-  let len = sum (Prelude.length <$> content''') + Prelude.length content''' - 1
+  let start = sum (B.length <$> before) + Prelude.length before + startCol
+  let len = sum (B.length <$> content''') + Prelude.length content''' - 1
 
   return . Just $ Location
         { span = Span
