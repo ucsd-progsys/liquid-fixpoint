@@ -91,7 +91,7 @@ import           System.IO.Unsafe (unsafePerformIO)
 
 -- If set to 'True', enable precise logging via CallStacks.
 debugLogs :: Bool
-debugLogs = False
+debugLogs = True
 
 traced :: HasCallStack => (HasCallStack => String) -> String
 traced str =
@@ -123,24 +123,24 @@ class Elaborate a where
 
 
 instance (Loc a) => Elaborate (SInfo a) where
-  elaborate x senv si = si
-    { F.cm      = elaborate x senv <$> F.cm      si
-    , F.bs      = elaborate x senv  $  F.bs      si
-    , F.asserts = elaborate x senv <$> F.asserts si
+  elaborate msg senv si = si
+    { F.cm      = elaborate msg senv <$> F.cm      si
+    , F.bs      = elaborate msg senv  $  F.bs      si
+    , F.asserts = elaborate msg senv <$> F.asserts si
     }
 
 
 instance (Elaborate e) => (Elaborate (Triggered e)) where
-  elaborate x env t = fmap (elaborate x env) t
+  elaborate msg env t = fmap (elaborate msg env) t
 
 instance (Elaborate a) => (Elaborate (Maybe a)) where
-  elaborate x env t = fmap (elaborate x env) t
+  elaborate msg env t = fmap (elaborate msg env) t
 
 instance Elaborate Sort where
   elaborate _ _ = go
    where
       go s | isString s = strSort
-      go (FAbs i s)    = FAbs i   (go s)
+      go (FAbs i s)    = FAbs i  (go s)
       go (FFunc s1 s2) = funSort (go s1) (go s2)
       go (FApp s1 s2)  = FApp    (go s1) (go s2)
       go s             = s
@@ -164,13 +164,109 @@ instance Elaborate Equation where
       env' = insertsSymEnv env (eqArgs eq)
 
 instance Elaborate Expr where
-  elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
+  elaborate msg env e = unsafePerformIO $
+    do
+--      putStrLn "> dump env"
+--      writeLoud $ show env
+      putStrLn "> before elabFSet"
+      writeLoud $ show e
+      let e' = elabFSet e
+      putStrLn "> before elabExpr"
+      writeLoud $ show e'
+      let e'' = elabExpr msg env e'
+      putStrLn "> before rest"
+      writeLoud $ show e''
+      let e''' = elabNumeric $ elabApply env e''
+      putStrLn "> final"
+      writeLoud $ show e'''
+      putStrLn "------------------"
+      pure $ e'''
+
+{-
+PAnd [ EApp (EVar "is$SngBug.Emp") (EVar "lq_tmp$x##477")
+     , PNot (EApp (EVar "is$SngBug.Cons") (EVar "lq_tmp$x##477"))
+     , PAtom Eq (EVar "lq_tmp$x##477")
+                (EVar "SngBug.Emp")
+     , PAtom Eq (EApp (EVar "SngBug.lstHd") (EVar "lq_tmp$x##477"))
+                (EApp (EVar "Set_empty") (ECon (I 0)))]
+
+-- before elabFSet
+
+PAnd [ECst (EApp (ECst (EVar "is$SngBug.Emp") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
+                                                           (FTC (TC "bool" (dummyLoc) ))))
+                 (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 ))
+                                                    (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 ))
+                                                               (FObj "l##a4Vx")))))
+           (FTC (TC "bool" (dummyLoc) ))
+     , PNot (ECst (EApp (ECst (EVar "is$SngBug.Cons") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 ))
+                                                                   (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 ))
+                                                                         (FObj "l##a4Vx")))
+                                                             (FTC (TC "bool" (dummyLoc) ))))
+                        (ECst (EVar "lq_tmp$x##477")
+                              (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 ))
+                                    (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 ))
+                                          (FObj "l##a4Vx")))))
+                  (FTC (TC "bool" (dummyLoc) )))
+     , PAtom Eq (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+                (ECst (EVar "SngBug.Emp") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 ))
+                                                (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+     , PAtom Eq (ECst (EApp (ECst (EVar "SngBug.lstHd") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:309:37-309:47 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
+                                                               (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 ))
+                                                                     (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                            (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                      (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 ))
+                            (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+                (ECst (EApp (ECst (EVar "Set_empty") (FFunc FInt (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:295:39-295:46 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                            (ECst (ECon (I 0)) FInt))
+                      (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:295:39-295:46 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))]
+-}
+
+{-
+PAnd [ ECst (EApp (ECst (EVar "is$SngBug.Emp") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
+                                                      (FTC (TC "bool" (dummyLoc) ))))
+                  (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+            (FTC (TC "bool" (dummyLoc) ))
+     , PNot (ECst (EApp (ECst (EVar "is$SngBug.Cons") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))) (FTC (TC "bool" (dummyLoc) ))))
+                        (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                  (FTC (TC "bool" (dummyLoc) )))
+     , PAtom Eq (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+                (ECst (EVar "SngBug.Emp") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+     , PAtom Eq (ECst (EApp (ECst (EVar "SngBug.lstHd") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:309:37-309:47 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
+                                                               (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                            (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                       (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+                 (ECst (EApp (ECst (EVar "const") (FFunc (FTC (TC "bool" (dummyLoc) )) (FApp (FTC (TC "Set_Set" (dummyLoc) )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))) (ECst (POr []) (FTC (TC "bool" (dummyLoc) ))))
+                       (FApp (FTC (TC "Set_Set" (dummyLoc) )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+     ]
+-}
+
+
+{-
+PAnd [ ECst (EApp (ECst (EVar "is$SngBug.Emp") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
+                                                      (FTC (TC "bool" (dummyLoc) )))) (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+            (FTC (TC "bool" (dummyLoc) ))
+     , PNot (ECst (EApp (ECst (EVar "is$SngBug.Cons") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))) (FTC (TC "bool" (dummyLoc) ))))
+                        (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                  (FTC (TC "bool" (dummyLoc) )))
+     , PAtom Eq (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+                (ECst (EVar "SngBug.Emp") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+     , PAtom Eq (ECst (EApp (EApp (ECst (EVar "apply") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
+                                                              (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                                  (ECst (EVar "SngBug.lstHd") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:309:37-309:47 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
+                                                                     (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))))
+                            (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                      (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+                (ECst (EApp (ECst (EVar "const") (FFunc (FTC (TC "bool" (dummyLoc) )) (FApp (FTC (TC "Set_Set" (dummyLoc) )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
+                            (ECst (POr []) (FTC (TC "bool" (dummyLoc) ))))
+                      (FApp (FTC (TC "Set_Set" (dummyLoc) )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
+     ]
+-}
 
 
 skipElabExpr :: Located String -> SymEnv -> Expr -> Expr
 skipElabExpr msg env e = case elabExprE msg env e of
   Left _   -> e
-  Right e' ->  elabNumeric . elabApply env $ e'
+  Right e' -> elabNumeric . elabApply env $ e'
 
 instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x, elaborate msg env s)
@@ -193,19 +289,64 @@ elabNumeric = Vis.mapExprOnExpr go
       = e
 
 instance Elaborate SortedReft where
-  elaborate x env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
+  elaborate msg env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
     where
-      e'   = elaborate x env' e
+      e'   = unsafePerformIO $ do writeLoud $ show e
+                                  pure $ elaborate msg env' e
       env' = insertSymEnv v s env
 
 instance (Loc a) => Elaborate (BindEnv a) where
   elaborate msg env = mapBindEnv (\i (x, sr, l) -> (x, elaborate (msg' l i x sr) env sr, l))
     where
-      msg' l i x sr = atLoc l (val msg ++ unwords [" elabBE",  show i, show x, show sr])
+      msg' l i x sr = atLoc l (val msg ++ unwords [" elabBE", show i, show x, show sr])
 
 instance (Loc a) => Elaborate (SimpC a) where
   elaborate msg env c = c {_crhs = elaborate msg' env (_crhs c) }
     where msg'        = atLoc c (val msg)
+
+
+---------------------------------------------------------------------------------
+-- | 'elabFSet' replaces all finset theory operations with array-based encodings.
+---------------------------------------------------------------------------------
+elabFSet :: Expr -> Expr
+--  PAnd [ EApp (EVar "is$SngBug.Emp") (EVar "lq_tmp$x##477")
+--       , PNot (EApp (EVar "is$SngBug.Cons") (EVar "lq_tmp$x##477"))
+--       , PAtom Eq (EVar "lq_tmp$x##477") (EVar "SngBug.Emp")
+--       , PAtom Eq (EApp (EVar "SngBug.lstHd") (EVar "lq_tmp$x##477"))
+--                  (EApp (EVar "Set_empty") (ECon (I 0)))
+--      ]
+
+
+    --ECon (L "false" (FAbs 0 $ FFunc intSort (setSort $ FVar 0))) --(FAbs 0 $ setSort $ FVar 0)
+elabFSet (EApp h@(EVar f) e)
+    | f == Thy.setEmpty    = --EApp (ECst (EVar "const") (FAbs 0 $ setSort $ FVar 0)) PFalse
+
+                             EApp (EVar "const") PFalse
+                               --EApp (ECst (EVar "const") (FAbs 0 $ setSort $ FVar 0)) (EVar "false")
+         --ECst (ECon (L "false" boolSort)) (FAbs 0 $ setSort $ FVar 0)
+
+  | f == Thy.setEmp        = PAtom Eq (EApp (EVar "const") PFalse) (elabFSet e)
+  | f == Thy.setSng        = EApp (EApp (EApp (EVar "store") (EApp (EVar "const") PFalse)) (elabFSet e)) PTrue
+  | otherwise              = EApp (elabFSet h) (elabFSet e)
+elabFSet (EApp e1 e2)      = EApp (elabFSet e1) (elabFSet e2)
+elabFSet (ENeg e)          = ENeg (elabFSet e)
+elabFSet (EBin b e1 e2)    = EBin b (elabFSet e1) (elabFSet e2)
+elabFSet (EIte e1 e2 e3)   = EIte (elabFSet e1) (elabFSet e2) (elabFSet e3)
+elabFSet (ECst e t)        = ECst (elabFSet e) t
+elabFSet (ELam b e)        = ELam b (elabFSet e)
+elabFSet (ETApp e t)       = ETApp (elabFSet e) t
+elabFSet (ETAbs e t)       = ETAbs (elabFSet e) t
+elabFSet (PAnd es)         = PAnd (elabFSet <$> es)
+elabFSet (POr es)          = POr (elabFSet <$> es)
+elabFSet (PNot e)          = PNot (elabFSet e)
+elabFSet (PImp e1 e2)      = PImp (elabFSet e1) (elabFSet e2)
+elabFSet (PIff e1 e2)      = PIff (elabFSet e1) (elabFSet e2)
+elabFSet (PAtom r e1 e2)   = PAtom r (elabFSet e1) (elabFSet e2)
+elabFSet (PAll   bs e)     = PAll bs (elabFSet e)
+elabFSet (PExist bs e)     = PExist bs (elabFSet e)
+elabFSet (PGrad  k su i e) = PGrad k su i (elabFSet e)
+elabFSet (ECoerc a t e)    = ECoerc a t (elabFSet e)
+elabFSet e                 = e
 
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
@@ -217,7 +358,7 @@ elabExpr msg env e = case elabExprE msg env e of
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
-  case runCM0 (srcSpan msg) (elab (env, envLookup) e) of
+  case runCM0 (srcSpan msg) (tracepp "ELABEXPR" <$> elab (env, envLookup) e) of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
@@ -436,32 +577,32 @@ instance Checkable SortedReft where
 --------------------------------------------------------------------------------
 -- | Checking Expressions ------------------------------------------------------
 --------------------------------------------------------------------------------
-checkExpr                  :: Env -> Expr -> CheckM Sort
-checkExpr _ (ESym _)       = return strSort
-checkExpr _ (ECon (I _))   = return FInt
-checkExpr _ (ECon (R _))   = return FReal
-checkExpr _ (ECon (L _ s)) = return s
-checkExpr f (EVar x)       = checkSym f x
-checkExpr f (ENeg e)       = checkNeg f e
-checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
-checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
-checkExpr f (ECst e t)     = checkCst f t e
-checkExpr f (EApp g e)     = checkApp f Nothing g e
-checkExpr f (PNot p)       = checkPred f p >> return boolSort
-checkExpr f (PImp p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
-checkExpr f (PIff p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
-checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
-checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
-checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
-checkExpr _ PKVar{}        = return boolSort
-checkExpr f (PGrad _ _ _ e)  = checkPred f e >> return boolSort
+checkExpr                   :: Env -> Expr -> CheckM Sort
+checkExpr _ (ESym _)        = return strSort
+checkExpr _ (ECon (I _))    = return FInt
+checkExpr _ (ECon (R _))    = return FReal
+checkExpr _ (ECon (L _ s))  = return s
+checkExpr f (EVar x)        = checkSym f x
+checkExpr f (ENeg e)        = checkNeg f e
+checkExpr f (EBin o e1 e2)  = checkOp f e1 o e2
+checkExpr f (EIte p e1 e2)  = checkIte f p e1 e2
+checkExpr f (ECst e t)      = checkCst f t e
+checkExpr f (EApp g e)      = checkApp f Nothing g e
+checkExpr f (PNot p)        = checkPred f p >> return boolSort
+checkExpr f (PImp p p')     = mapM_ (checkPred f) [p, p'] >> return boolSort
+checkExpr f (PIff p p')     = mapM_ (checkPred f) [p, p'] >> return boolSort
+checkExpr f (PAnd ps)       = mapM_ (checkPred f) ps >> return boolSort
+checkExpr f (POr ps)        = mapM_ (checkPred f) ps >> return boolSort
+checkExpr f (PAtom r e e')  = checkRel f r e e' >> return boolSort
+checkExpr _ PKVar{}         = return boolSort
+checkExpr f (PGrad _ _ _ e) = checkPred f e >> return boolSort
 
-checkExpr f (PAll  bs e )  = checkExpr (addEnv f bs) e
-checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e
-checkExpr f (ELam (x,t) e) = FFunc t <$> checkExpr (addEnv f [(x,t)]) e
-checkExpr f (ECoerc s t e) = checkExpr f (ECst e s) >> return t
-checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
-checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
+checkExpr f (PAll  bs e )   = checkExpr (addEnv f bs) e
+checkExpr f (PExist bs e)   = checkExpr (addEnv f bs) e
+checkExpr f (ELam (x,t) e)  = FFunc t <$> checkExpr (addEnv f [(x,t)]) e
+checkExpr f (ECoerc s t e)  = checkExpr f (ECst e s) >> return t
+checkExpr _ (ETApp _ _)     = error "SortCheck.checkExpr: TODO: implement ETApp"
+checkExpr _ (ETAbs _ _)     = error "SortCheck.checkExpr: TODO: implement ETAbs"
 
 addEnv :: Eq a => (a -> SESearch b) -> [(a, b)] -> a -> SESearch b
 addEnv f bs x
@@ -488,7 +629,7 @@ elab f (EApp e1@(EApp _ _) e2) = do
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab f (EApp e1 e2) = do
-  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
+  (e1', s1, e2', s2, s) <- tracepp "ELABAPP" <$> elabEApp f e1 e2
   let e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
@@ -560,14 +701,16 @@ elab f (POr ps) = do
   return (POr (fst <$> ps'), boolSort)
 
 elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
-  t1        <- checkExpr g e1
-  t2        <- checkExpr g e2
-  (t1',t2') <- unite g e  t1 t2 `withError` errElabExpr e
+  t2        <- tracepp "CHECKEXPR2" --("CHECKEXPR2 and also t1 = " ++ show t1)
+                <$> checkExpr g e2
+  t1        <- tracepp ("CHECKEXPR1 and also t2 = " ++ show t2) --"CHECKEXPR1"
+                <$> checkExpr g e1
+  (t1',t2') <- unite g e t1 t2 `withError` errElabExpr e
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
   e1''      <- eCstAtom f e1' t1'
   e2''      <- eCstAtom f e2' t2'
-  return (PAtom eq  e1'' e2'' , boolSort)
+  return (PAtom eq e1'' e2'' , boolSort)
 
 elab f (PAtom r e1 e2)
   | r == Ueq || r == Une = do
@@ -623,36 +766,37 @@ elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
 
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
-elabAs f t e = notracepp _msg <$>  go e
+elabAs f t e = tracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
-    go (EApp e1 e2)   = elabAppAs f t e1 e2
-    go e'              = fst    <$> elab f e'
+    go (EApp e1 e2) = elabAppAs f t e1 e2
+    go e'           = fst <$> elab f e'
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs env@(_, f) t g e = do
   gT       <- checkExpr f g
-  eT       <- checkExpr f e
+  eT       <- tracepp ("elabAppAs: e = " ++ showpp e ++ " gT = " ++ showpp gT) <$> checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
-  let ge    = Just (EApp g e)
-  su       <- unifyMany f ge isu [oT, iT] [t, eT]
-  let tg    = apply su gT
-  g'       <- elabAs env tg g
-  let te    = apply su eT
-  e'       <- elabAs env te e
+  let ge    = tracepp ("elabAppAs_ge: oT = " ++ showpp oT ++ " iT = " ++ showpp iT ++ " t = " ++ showpp t ++ " eT = " ++ showpp eT) $ Just (EApp g e)
+  let (oT' , t') = coerceSetToArray oT t
+  su       <- unifyMany f ge isu [oT', iT] [t', eT]
+  let tg    = tracepp "elabAppAs_tg" $ apply su gT
+  g'       <- tracepp "elabAppAs_g" <$> elabAs env tg g
+  let te    = tracepp "elabAppAs_te" $ apply su eT
+  e'       <- tracepp "elabAppAs_e" <$> elabAs env te e
   return    $ EApp (ECst g' tg) (ECst e' te)
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1)     <- notracepp ("elabEApp1: e1 = " ++ showpp e1) <$> elab f e1
+  (e1', s1)     <- tracepp ("elabEApp1: e1 = " ++ showpp e1) <$> elab f e1
   (e2', s2)     <- elab f e2
   (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
   return           (e1'', s1', e2'', s2', s)
 
 elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
-  let e            = Just (EApp e1 e2)
+  let e            = tracepp "elabAppSort" $ Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
   su'             <- unify1 f e su sIn s2
   return (applyExpr (Just su') e1, applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
@@ -662,7 +806,7 @@ elabAppSort f e1 e2 s1 s2 = do
 -- | defuncEApp monomorphizes function applications.
 --------------------------------------------------------------------------------
 defuncEApp :: SymEnv -> Expr -> [(Expr, Sort)] -> Expr
-defuncEApp _env e [] = e
+defuncEApp _   e [] = e
 defuncEApp env e es = eCst (L.foldl' makeApplication e' es') (snd $ last es)
   where
     (e', es')       = takeArgs (seTheory env) e es
@@ -678,7 +822,7 @@ takeArgs env e es =
 makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
   where
-    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
+    f                      = {- tracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
     t2                     = exprSort "makeAppl" e2
 
 applyAt :: Sort -> Sort -> Expr
@@ -751,7 +895,7 @@ splitArgs = go []
 
      are represented, in SMTLIB, as
 
-        (Eapp (EApp apply e1) e2)
+        (EApp (EApp apply e1) e2)
 
      where 'apply' is 'ECst (EVar "apply") t' and
            't'     is 'FFunc a b'
@@ -886,12 +1030,31 @@ genSort t          = t
 
 unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
 unite f e t1 t2 = do
-  su <- unifys f (Just e) [t1] [t2]
-  return (apply su t1, apply su t2)
+  let (t1',t2') = coerceSetToArray t1 t2
+  su <- unifys f (Just e) [t1'] [t2']
+  return (apply su t1', apply su t2')
+
+-- FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))
+--           (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FObj "l##a4Vx"))
+-- FApp (FApp (FTC (TC "Array" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))
+--            (FVar 46))
+--      (FTC (TC "bool" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))
+
+coerceSetToArray :: Sort -> Sort -> (Sort, Sort)
+coerceSetToArray s1@(FApp sf1 sa1) s2@(FApp (FApp sf2 sa2) sb2)
+  | isSet sf1 && isArray sf2 && isBool sb2 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
+  | otherwise = (s1, s2)
+coerceSetToArray s1@(FApp (FApp sf1 sa1) sb1) s2@(FApp sf2 sa2)
+  | isSet sf2 && isArray sf1 && isBool sb1 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
+  | otherwise = (s1, s2)
+coerceSetToArray s1@(FApp sf1 sa1) s2@(FApp sf2 sa2)
+  | isSet sf1 && isSet sf2 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
+  | otherwise = (s1, s2)
+coerceSetToArray s1 s2 = (s1, s2)
 
 throwErrorAt :: String -> CheckM a
 throwErrorAt ~err' = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
-                       -- See Note [Lazy error messages]
+                        -- See Note [Lazy error messages]
   sp <- asks chSpan
   liftIO $ throwIO (ChError (\_ -> atLoc sp err'))
 
@@ -955,16 +1118,16 @@ checkExprAs f t e
 -- DUPLICATION with 'elabAppAs'
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g e = do
-  gt       <- checkExpr f g
-  et       <- checkExpr f e
+  gt       <- tracepp ("checkApp': g = " ++ showpp g) <$> checkExpr f g
+  et       <- tracepp ("checkApp': e = " ++ showpp e) <$> checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
   su        <- unifyMany f ge isu [it] [et]
-  let t     = apply su ot
+  let t     = tracepp ("checkApp': t ") $ apply su ot
   case to of
     Nothing    -> return (su, t)
     Just t'    -> do θ' <- unifyMany f ge su [t] [t']
-                     let ti = apply θ' et
+                     let ti = tracepp ("checkApp': ti " ) $ apply θ' et
                      _ <- checkExprAs f ti e
                      return (θ', apply θ' t)
 

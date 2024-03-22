@@ -190,8 +190,8 @@ crashResult m err' = Result res mempty mempty mempty
   where
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- errs err' ]
-    msg | null es = showpp err'
-        | otherwise = "Sorry, unexpected panic in liquid-fixpoint!" -- ++ showpp e
+    msg | null es   = "Sorry, unexpected panic in liquid-fixpoint!"
+        | otherwise = showpp err'
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
 type ErrorMap a = HashMap.HashMap SrcSpan a
@@ -211,7 +211,7 @@ errorMap fi = HashMap.fromList [ (srcSpan a, a) | a <- anns ]
             ++ [ a | (_, (_,_, a)) <- bindEnvToList (Types.bs fi) ]
 
 loudDump :: (Fixpoint a) => Int -> Config -> SInfo a -> IO ()
-loudDump i cfg si = when False (writeLoud $ msg ++ render (toFixpoint cfg si))
+loudDump i cfg si = when True (writeLoud $ msg ++ render (toFixpoint cfg si))
   where
     msg           = "fq file after Uniqify & Rename " ++ show i ++ "\n"
 
@@ -243,6 +243,7 @@ simplifyFInfo !cfg !fi0 = do
   let si5  = {- SCC "elaborate" -} elaborate (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5
+-- loudDump 4 cfg si6
   if rewriteAxioms cfg && noLazyPLE cfg
     then instantiate cfg si6 $!! Nothing
     else return si6
@@ -260,7 +261,9 @@ reduceFInfo cfg fi = do
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
+-- writeLoud $ "\nSI6:\n"  ++ show si6
   res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
+-- writeLoud $ "\nRES:\n"  ++ show res
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   -- saveSolution cfg res

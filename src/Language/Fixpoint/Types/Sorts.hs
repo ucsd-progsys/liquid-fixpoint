@@ -38,6 +38,7 @@ module Language.Fixpoint.Types.Sorts (
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   -- , bitVec32Sort, bitVec64Sort
   , setSort, bitVecSort
+  , arraySort
   , sizedBitVecSort
   , mapSort, charSort
   , listFTyCon
@@ -64,7 +65,7 @@ module Language.Fixpoint.Types.Sorts (
   , sortSymbols
   , substSort
 
-  , isNumeric, isReal, isString, isPolyInst
+  , isBool, isNumeric, isReal, isString, isSet, isArray, isPolyInst
 
   -- * User-defined ADTs
   , DataField (..)
@@ -142,16 +143,16 @@ defStrInfo  = False
 
 charFTyCon, intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon :: FTycon
 strFTyCon, listFTyCon, mapFTyCon, setFTyCon :: FTycon
-intFTyCon  = TC (dummyLoc "int"      ) numTcInfo
-boolFTyCon = TC (dummyLoc "bool"     ) defTcInfo
-realFTyCon = TC (dummyLoc "real"     ) realTcInfo
-numFTyCon  = TC (dummyLoc "num"      ) numTcInfo
-funcFTyCon = TC (dummyLoc "function" ) defTcInfo
-strFTyCon  = TC (dummyLoc strConName ) strTcInfo
-listFTyCon = TC (dummyLoc listConName) defTcInfo
-charFTyCon = TC (dummyLoc charConName) defTcInfo
-setFTyCon  = TC (dummyLoc setConName ) defTcInfo
-mapFTyCon  = TC (dummyLoc mapConName ) defTcInfo
+intFTyCon  = TC (dummyLoc "int"       ) numTcInfo
+boolFTyCon = TC (dummyLoc boolLConName) defTcInfo
+realFTyCon = TC (dummyLoc "real"      ) realTcInfo
+numFTyCon  = TC (dummyLoc "num"       ) numTcInfo
+funcFTyCon = TC (dummyLoc "function"  ) defTcInfo
+strFTyCon  = TC (dummyLoc strConName  ) strTcInfo
+listFTyCon = TC (dummyLoc listConName ) defTcInfo
+charFTyCon = TC (dummyLoc charConName ) defTcInfo
+setFTyCon  = TC (dummyLoc setConName  ) defTcInfo
+mapFTyCon  = TC (dummyLoc mapConName  ) defTcInfo
 
 isListConName :: LocSymbol -> Bool
 isListConName x = c == listConName || c == listLConName --"List"
@@ -160,6 +161,22 @@ isListConName x = c == listConName || c == listLConName --"List"
 
 isListTC :: FTycon -> Bool
 isListTC (TC z _) = isListConName z
+
+isSetConName :: LocSymbol -> Bool
+isSetConName x = c == setConName
+  where
+    c           = val x
+
+isSetTC :: FTycon -> Bool
+isSetTC (TC z _) = isSetConName z
+
+isArrayConName :: LocSymbol -> Bool
+isArrayConName x = c == arrayConName
+  where
+    c           = val x
+
+isArrayTC :: FTycon -> Bool
+isArrayTC (TC z _) = isArrayConName z
 
 sizeBv :: FTycon -> Maybe Int
 sizeBv tc = do
@@ -334,6 +351,10 @@ isFunction (FAbs _ s)  = isFunction s
 isFunction (FFunc _ _) = True
 isFunction _           = False
 
+isBool :: Sort -> Bool
+isBool (FTC (TC c _)) = val c == boolLConName
+isBool _              = False
+
 isNumeric :: Sort -> Bool
 isNumeric FInt           = True
 isNumeric FReal          = True
@@ -349,7 +370,6 @@ isReal (FTC (TC _ i)) = tc_isReal i
 isReal (FAbs _ s)     = isReal s
 isReal _              = False
 
-
 isString :: Sort -> Bool
 isString (FApp l c)     = (isList l && isChar c) || isString l
 isString (FTC (TC c i)) = val c == strConName || tc_isString i
@@ -359,6 +379,14 @@ isString _              = False
 isList :: Sort -> Bool
 isList (FTC c) = isListTC c
 isList _       = False
+
+isSet :: Sort -> Bool
+isSet (FTC c) = isSetTC c
+isSet _       = False
+
+isArray :: Sort -> Bool
+isArray (FTC c) = isArrayTC c
+isArray _       = False
 
 isChar :: Sort -> Bool
 isChar (FTC c) = c == charFTyCon
@@ -483,7 +511,7 @@ realSort = fTyconSort realFTyCon
 funcSort = fTyconSort funcFTyCon
 
 setSort :: Sort -> Sort
-setSort    = FApp (FTC setFTyCon)
+setSort = FApp (FTC setFTyCon)
 
 -- bitVecSort :: Sort -> Sort
 -- bitVecSort = FApp (FTC $ symbolFTycon' bitVecName)
@@ -502,6 +530,9 @@ sizedBitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' i
 
 mapSort :: Sort -> Sort -> Sort
 mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))
+
+arraySort :: Sort -> Sort -> Sort
+arraySort = FApp . FApp (FTC (symbolFTycon' arrayConName))
 
 symbolFTycon' :: Symbol -> FTycon
 symbolFTycon' = symbolFTycon . dummyLoc

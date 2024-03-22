@@ -70,10 +70,11 @@ elt  = "Elt"
 set  = "LSet"
 map  = "Map"
 
-emp, sng, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef, mprj :: Raw
+--emp, sng,
+add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef, mprj :: Raw
 mToSet, mshift, mmax, mmin :: Raw
-emp   = "smt_set_emp"
-sng   = "smt_set_sng"
+--emp   = "smt_set_emp"
+--sng   = "smt_set_sng"
 add   = "smt_set_add"
 cup   = "smt_set_cup"
 cap   = "smt_set_cap"
@@ -242,14 +243,14 @@ z3Preamble u
         "Int"
     , bSort set
         (key2 "Array" (fromText elt) "Bool")
-    , bFun emp
-        []
-        (fromText set)
-        (parens (key "as const" (fromText set) <+> "false"))
-    , bFun sng
-        [("x", fromText elt)]
-        (fromText set)
-        (key3 "store" (parens (key "as const" (fromText set) <+> "false")) "x" "true")
+--    , bFun emp
+--        []
+--        (fromText set)
+--        (parens (key "as const" (fromText set) <+> "false"))
+--    , bFun sng
+--        [("x", fromText elt)]
+--        (fromText set)
+--        (key3 "store" (parens (key "as const" (fromText set) <+> "false")) "x" "true")
     , bFun mem
         [("x", fromText elt), ("s", fromText set)]
         "Bool"
@@ -274,10 +275,10 @@ z3Preamble u
         [("s1", fromText set), ("s2", fromText set)]
         (fromText set)
         (key2 (fromText cap) "s1" (key (fromText com) "s2"))
-    , bFun sub
-        [("s1", fromText set), ("s2", fromText set)]
-        "Bool"
-        (key2 "=" (fromText emp) (key2 (fromText dif) "s1" "s2"))
+--    , bFun sub
+--        [("s1", fromText set), ("s2", fromText set)]
+--        "Bool"
+--        (key2 "=" (fromText emp) (key2 (fromText dif) "s1" "s2"))
 
     -- Maps
     , bSort map
@@ -366,8 +367,8 @@ commonPreamble _ --TODO use uif flag u (see z3Preamble)
   = [ bSort elt    "Int"
     , bSort set    "Int"
     , bSort string "Int"
-    , bFun' emp []               (fromText set)
-    , bFun' sng [fromText elt]         (fromText set)
+--    , bFun' emp []               (fromText set)
+--    , bFun' sng [fromText elt]         (fromText set)
     , bFun' add [fromText set, fromText elt] (fromText set)
     , bFun' cup [fromText set, fromText set] (fromText set)
     , bFun' cap [fromText set, fromText set] (fromText set)
@@ -423,6 +424,7 @@ smt2SmtSort SBool        = "Bool"
 smt2SmtSort SString      = fromText string
 smt2SmtSort SSet         = fromText set
 smt2SmtSort SMap         = fromText map
+smt2SmtSort (SArray a b) = key2 "Array" (smt2SmtSort a) (smt2SmtSort b)
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
 smt2SmtSort (SVar n)     = "T" <> bShow n
 smt2SmtSort (SData c []) = symbolBuilder c
@@ -437,10 +439,10 @@ type VarAs = SymEnv -> Symbol -> Sort -> Builder
 --------------------------------------------------------------------------------
 smt2App :: VarAs -> SymEnv -> Expr -> [Builder] -> Maybe Builder
 --------------------------------------------------------------------------------
-smt2App _ _ (dropECst -> EVar f) [d]
-  | f == setEmpty = Just (fromText emp)
-  | f == setEmp   = Just (key2 "=" (fromText emp) d)
-  | f == setSng   = Just (key (fromText sng) d) -- Just (key2 (bb add) (bb emp) d)
+--smt2App _ _ (dropECst -> EVar f) [d]
+--  | f == setEmpty = Just (fromText emp)
+--  | f == setEmp   = Just (key2 "=" (fromText emp) d)
+--  | f == setSng   = Just (key (fromText sng) d) -- Just (key2 (bb add) (bb emp) d)
 
 smt2App k env f (builder:builders)
   | Just fb <- smt2AppArg k env f
@@ -468,10 +470,11 @@ ffuncOut t = maybe t (last . snd) (bkFFunc t)
 isSmt2App :: SEnv TheorySymbol -> Expr -> Maybe Int
 --------------------------------------------------------------------------------
 isSmt2App g  (dropECst -> EVar f)
-  | f == setEmpty = Just 1
-  | f == setEmp   = Just 1
-  | f == setSng   = Just 1
-  | otherwise     = lookupSEnv f g >>= thyAppInfo
+--  | f == setEmpty = Just 1
+--  | f == setEmp   = Just 1
+--  | f == setSng   = Just 1
+--  | otherwise
+  = lookupSEnv f g >>= thyAppInfo
 isSmt2App _ _     = Nothing
 
 thyAppInfo :: TheorySymbol -> Maybe Int
@@ -507,10 +510,19 @@ theorySymbols ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
 interpSymbols :: [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
 interpSymbols =
-  [ interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
-  , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
-  , interpSym setSng   sng  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
-  , interpSym setAdd   add   setAddSort
+  [
+--    interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
+--  , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
+--  , interpSym setSng   sng  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
+
+   ("const", Thy "const" "const" (FAbs 0 $ FFunc boolSort (arraySort (FVar 0) boolSort)) Theory)
+ , ("store", Thy "store" "store" (FAbs 0 $ FFunc (arraySort (FVar 0) boolSort) $ FFunc (FVar 0) $ FFunc boolSort (arraySort (FVar 0) boolSort)) Theory)
+
+    --("const", Thy "const" "const" (FAbs 0 $ FFunc boolSort (setSort (FVar 0))) Theory)
+  --, ("store", Thy "store" "store" (FAbs 0 $ FFunc (setSort (FVar 0)) $ FFunc (FVar 0) $ FFunc boolSort (setSort (FVar 0))) Theory)
+--    interpSym "const" "const"  (FAbs 0 $ setSort $ FVar 0)
+  ,
+    interpSym setAdd   add   setAddSort
   , interpSym setCup   cup   setBopSort
   , interpSym setCap   cap   setBopSort
   , interpSym setMem   mem   setMemSort
