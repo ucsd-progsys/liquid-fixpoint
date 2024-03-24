@@ -58,8 +58,6 @@ hornToProg cfg si = do
        , symbols = symbolEnv cfg si
        }
 
-  liftIO . print . ae $ si
-
   -- Run monad that adds all horn clauses to the program
   prog <- sortBodies <$> evalStateT (runReaderT buildProg env) initial
 
