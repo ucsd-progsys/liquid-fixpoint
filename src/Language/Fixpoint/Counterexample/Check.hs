@@ -9,10 +9,8 @@ module Language.Fixpoint.Counterexample.Check
 
 import Language.Fixpoint.Types
 import Language.Fixpoint.Counterexample.Types
-import Language.Fixpoint.Counterexample.SMT
-import Language.Fixpoint.Types.Config (Config, srcFile)
-import Language.Fixpoint.Solver.Sanitize (symbolEnv)
-import qualified Language.Fixpoint.Smt.Interface as SMT
+import Language.Fixpoint.Counterexample.SMT as SMT
+import Language.Fixpoint.Types.Config (Config)
 
 import Data.Maybe (fromJust, catMaybes)
 import Data.List (find)
@@ -40,26 +38,14 @@ type MonadCheck m = (MonadReader CheckEnv m, MonadIO m)
 
 -- | Check the given constraints to try and find a counter example.
 checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m [SMTCounterexample]
-checkProg cfg si prog cids = withContext cfg si check
+checkProg cfg si prog cids = SMT.withContext cfg si check
   where
     check ctx = runCheck cids CheckEnv
       { program = prog
       , context = ctx
       -- TODO: Perhaps the max depth should be a parameter for the user?
-      , maxDepth = 7
+      , maxDepth = 10
       }
-
--- | Run the checker with the SMT solver context.
-withContext :: MonadIO m => Config -> SInfo info -> (SMT.Context -> m a) -> m a
-withContext cfg si inner = do
-  let file = srcFile cfg <> ".prog"
-  let env = symbolEnv cfg si
-  ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env
-
-  !result <- inner ctx
-
-  liftIO $ SMT.cleanupContext ctx
-  return result
 
 -- | Runs the program checker with the monad stack
 -- unwrapped.
@@ -71,8 +57,14 @@ runCheck cids env = rd $ checkAll cids
 -- | Try to find a counter example for all the given constraints.
 checkAll :: MonadCheck m => [SubcId] -> m [SMTCounterexample]
 checkAll cids = do
+  setDefinitions
   cexs <- forM cids checkConstraint
   return $ catMaybes cexs
+
+setDefinitions :: MonadCheck m => m ()
+setDefinitions = do
+  defs <- reader $ definitions . program
+  mapM_ SMT.assume defs
 
 -- | Check a specific constraint id. This will only do actual
 -- checks for constraints without a KVar on the rhs, as we cannot
@@ -83,7 +75,7 @@ checkConstraint cid = do
   let cmp (Body bid _) = bid == cid
   let scope = Scope mempty cid mempty
   case find cmp bodies of
-    Just body -> runBody scope body smtCheck
+    Just body -> runBody scope body SMT.checkSat
     Nothing -> return Nothing
 
 -- | Run a function. This essentially makes one running branch for
@@ -107,8 +99,9 @@ runFunc name scope runner = do
       let runner' body = runBody (extendScope scope body) body runner
       let paths = runner' <$> bodies
 
-      -- TODO: We should really explore shallow trees first. Right now,
-      -- we might get a large tree, while a much smaller counterexample existed.
+      -- TODO: We should really explore shallow trees first. The current thing
+      -- can search for a really long time if there are a large number of paths
+      -- before the actual counterexample...
       result <- foldRunners paths
       return result
 
@@ -118,7 +111,7 @@ runFunc name scope runner = do
 -- The passed runner here is thus the rest of the computation, when we "return"
 -- from this function.
 runBody :: MonadCheck m => Scope -> Body -> Runner m  -> Runner m
-runBody scope' body@(Body _ _) runner = smtScope $ go scope' body
+runBody scope' body@(Body _ _) runner = SMT.inScope $ go scope' body
   where
     go _ (Body _ []) = runner
     go scope (Body cid (stmt:ss)) = do
@@ -143,17 +136,17 @@ runStatement scope stmt runner = do
       let scope' app = Scope (origin:path scope) 0 app
       let runCall (name, app) = runFunc name (scope' app) runner'
       foldRunners $ runCall <$> calls
-    Assume e -> smtAssume e >> runner'
-    Assert e -> smtAssert e >> runner'
+    Assume e -> SMT.assume e >> runner'
+    Assert e -> SMT.assert e >> runner'
     Let decl -> do
-      scope' <- smtDeclare scope decl
+      scope' <- SMT.declare scope decl
       runner scope'
 
 -- | Get a function from the program given its name.
 getFunc :: MonadCheck m => Name -> m (Maybe Func)
 getFunc name = do
-  Prog prog <- reader program
-  return $ Map.lookup name prog
+  funcs <- reader $ functions . program
+  return $ Map.lookup name funcs
 
 -- | Fold the runners, selecting the first one that produced a counterexample,
 -- if any.

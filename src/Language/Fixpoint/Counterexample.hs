@@ -30,7 +30,11 @@ import Control.Monad (forM_)
 
 -- | Try to get a counter example for the given unsafe clauses (if any).
 tryCounterExample
-  :: (MonadIO m, Fixpoint info, Loc info, PPrint info)
+  :: MonadIO m
+  => Show info
+  => Fixpoint info
+  => Loc info
+  => PPrint info
   => Config
   -> SInfo info
   -> Result (SubcId, info)

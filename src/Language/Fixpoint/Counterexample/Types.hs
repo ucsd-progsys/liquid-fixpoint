@@ -61,7 +61,12 @@ data Scope = Scope
 type Trace = [BindId]
 
 -- | A program, containing multiple function definitions mapped by their name.
-newtype Prog = Prog (HashMap Name Func)
+data Prog = Prog
+  { functions :: (HashMap Name Func)
+  -- ^ The functions of this program.
+  , definitions :: [Expr]
+  -- ^ Constraints that need to hold originating from define statements.
+  }
   deriving Show
 
 -- | Identifier of a function. All KVars are translated into functions, so it is
@@ -103,11 +108,21 @@ mainName :: Name
 mainName = KV "main"
 
 instance PPrint Prog where
-  pprintTidy tidy (Prog funcs) = PP.vcat
-                               . PP.punctuate "\n"
-                               . map (uncurry $ ppfunc tidy)
-                               . Map.toList
-                               $ funcs
+  pprintTidy tidy prog = pcstr $+$ pfuncs
+    where
+      pcstr = PP.vcat
+            . PP.punctuate "\n"
+            . map (pprintTidy tidy)
+            . definitions
+            $ prog
+
+      pfuncs = PP.vcat
+             . PP.punctuate "\n"
+             . map (uncurry $ ppfunc tidy)
+             . Map.toList
+             . functions
+             $ prog
+
 
 instance PPrint Func where
   pprintTidy tidy = ppfunc tidy anonymous

@@ -3,16 +3,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Language.Fixpoint.Counterexample.SMT
-  ( SMTContext (..)
-  , smtDeclare
-  , smtAssert
-  , smtAssume
-  , smtScope
-  , smtCheck
-  , smtModel
+  ( SMT.Context
+  , SMTContext (..)
+  , withContext
+  , declare
+  , assert
+  , assume
+  , inScope
+  , checkSat
   ) where
 
 import Language.Fixpoint.Types
+import Language.Fixpoint.Types.Config (Config, srcFile)
+import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import Language.Fixpoint.Counterexample.Types
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
@@ -32,11 +35,23 @@ class SMTContext a where
 
 type MonadSMT r m = (SMTContext r, MonadReader r m, MonadIO m)
 
+-- | Run the checker with the SMT solver context.
+withContext :: MonadIO m => Config -> SInfo info -> (SMT.Context -> m a) -> m a
+withContext cfg si inner = do
+  let file = srcFile cfg <> ".prog"
+  let env = symbolEnv cfg si
+  ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env
+
+  !result <- inner ctx
+
+  liftIO $ SMT.cleanupContext ctx
+  return result
+
 -- | Declare a new symbol, returning an updated substitution
 -- given with this new symbol in it. The substitution map is
 -- required to avoid duplicating variable names.
-smtDeclare :: MonadSMT s m => Scope -> Decl -> m Scope
-smtDeclare scope (Decl sym sort) = do
+declare :: MonadSMT s m => Scope -> Decl -> m Scope
+declare scope (Decl sym sort) = do
   ctx <- reader smtContext
   let sym' = scopeSym scope sym
   liftIO $ SMT.smtDecl ctx sym' sort
@@ -45,43 +60,42 @@ smtDeclare scope (Decl sym sort) = do
   return scope { binders = binders' }
 
 -- | Assert the given expression.
-smtAssert :: MonadSMT s m => Expr -> m ()
-smtAssert = smtAssume . PNot
+assert :: MonadSMT s m => Expr -> m ()
+assert = assume . PNot
 
 -- | Assume the given expression.
-smtAssume :: MonadSMT s m => Expr -> m ()
-smtAssume e = do
+assume :: MonadSMT s m => Expr -> m ()
+assume e = do
   ctx <- reader smtContext
   liftIO $ SMT.smtAssert ctx e
 
 -- | Run the checker within a scope (i.e. a push/pop pair).
-smtScope :: MonadSMT s m => m a -> m a
-smtScope inner = do
+inScope :: MonadSMT s m => m a -> m a
+inScope inner = do
   ctx <- reader smtContext
   liftIO $ SMT.smtPush ctx
   !result <- inner
   liftIO $ SMT.smtPop ctx
   return result
 
--- | Check if there is a counterexample, returing one
--- if it is available.
-smtCheck :: MonadSMT s m => Runner m
-smtCheck = do
+-- | Check if there is a counterexample, returing one if it is available.
+checkSat :: MonadSMT s m => Runner m
+checkSat = do
   ctx <- reader smtContext
   valid <- liftIO $ SMT.smtCheckUnsat ctx
 
-  if valid then return Nothing else Just <$> smtModel
+  if valid then return Nothing else Just <$> getModel
 
--- | Returns a model, with as precondition that the SMT 
--- solver had a satisfying assignment prior to this.
-smtModel :: MonadSMT s m => m SMTCounterexample
-smtModel = do
+-- | Returns a model, with as precondition that the SMT  solver had a satisfying
+-- assignment prior to this.
+getModel :: MonadSMT s m => m SMTCounterexample
+getModel = do
   ctx <- reader smtContext
   sub <- liftIO $ SMT.smtGetModel ctx
   return $ smtSubstToCex sub
 
--- | Transform an SMT substitution, which contains SMT scoped symbols, into
--- a layered, tree-like counterexample.
+-- | Transform an SMT substitution, which contains SMT scoped symbols, into a
+-- layered, tree-like counterexample.
 smtSubstToCex :: Subst -> SMTCounterexample
 smtSubstToCex (Su sub) = foldl' (flip $ uncurry insertCex) dummyCex traces
   where

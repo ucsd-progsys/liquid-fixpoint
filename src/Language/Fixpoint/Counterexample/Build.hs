@@ -12,13 +12,13 @@ import Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Types.Config (Config, queryFile, save)
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import Language.Fixpoint.Misc (ensurePath)
-import Language.Fixpoint.SortCheck (elaborate)
+import Language.Fixpoint.SortCheck (Elaborate (..))
 
 import qualified Language.Fixpoint.Utils.Files as Ext
 
 import Data.Maybe (fromMaybe)
 import qualified Data.HashMap.Strict as Map
-import Data.List (find, sortBy)
+import Data.List (find, sortBy, foldl')
 
 import Control.Monad.State
 import Control.Monad.Reader
@@ -40,14 +40,25 @@ type Binding = (BindId, Symbol, SortedReft)
 
 -- | Make an imperative program from horn clauses. This
 -- can be used to generate a counter example.
-hornToProg :: MonadIO m => Config -> SInfo info -> m Prog
+hornToProg
+  :: MonadIO m
+  => Fixpoint info
+  => Show info
+  => Config
+  -> SInfo info
+  -> m Prog
 hornToProg cfg si = do
   -- Initial program is just an empty main.
-  let initial = Prog $ Map.singleton mainName (Func [] [])
+  let initial = Prog
+       { functions = Map.singleton mainName (Func [] [])
+       , definitions = mempty
+       }
   let env = BuildEnv
        { info = si
        , symbols = symbolEnv cfg si
        }
+
+  liftIO . print . ae $ si
 
   -- Run monad that adds all horn clauses to the program
   prog <- sortBodies <$> evalStateT (runReaderT buildProg env) initial
@@ -66,9 +77,24 @@ hornToProg cfg si = do
 -- inside the monad
 buildProg :: MonadBuild info m => m Prog
 buildProg = do
+  addDefinitions
   constraints <- reader $ cm . info
   mapM_ addHorn constraints
   get
+
+addDefinitions :: MonadBuild info m => m ()
+addDefinitions = do
+  eqs <- reader $ aenvEqs . ae . info
+  mapM_ addEquation eqs
+
+addEquation :: MonadBuild info m => Equation -> m ()
+addEquation equ = do
+  -- Build a constraint from the equation
+  let call = foldl' EApp (EVar $ eqName equ) (EVar . fst <$> eqArgs equ)
+  let eq = PAtom Eq call $ eqBody equ
+  constraint' <- elaborate' $ PAll (eqArgs equ) eq
+
+  modify (\s -> s { definitions = constraint' : definitions s })
 
 -- | Given a horn clause, generates a body for a function.
 --
@@ -172,6 +198,7 @@ filterLits env = do
 
 -- | Map a refinement to a declaration and constraint pair
 reftToStmts :: MonadBuild info m => Binding -> m [Statement]
+-- Ignore abstractions and functions, as they don't have refinements.
 reftToStmts (_, _, RR { sr_sort = FAbs _ _ }) = return []
 reftToStmts (_, _, RR { sr_sort = FFunc _ _ }) = return []
 reftToStmts (bid, sym, RR
@@ -183,7 +210,7 @@ reftToStmts (bid, sym, RR
     let sym' = symbol . prefixAlpha . symbolText $ sym
 
     -- Get correct sort for declaration
-    sort' <- elaborateSort sort
+    sort' <- elaborate' sort
     let decl = Let $ Decl sym' sort'
 
     -- Get constraints from the expression.
@@ -204,15 +231,15 @@ predKs (PAnd ps)    = mconcat $ map predKs ps
 predKs (PKVar k su) = [(k, su)]
 predKs _            = []
 
--- | The sorts for the apply monomorphization only match if
--- we do this elaborate on the sort. Not sure why...
+-- | The sorts for the apply monomorphization only match if we do this elaborate
+-- on the sort. Not sure why...
 --
--- This elaboration also happens inside the declaration
--- of the symbol environment, so that's where I got the idea.
-elaborateSort :: MonadBuild info m => Sort -> m Sort
-elaborateSort sym = do
+-- This elaboration also happens inside the declaration of the symbol
+-- environment, so that's where I got the idea.
+elaborate' :: MonadBuild info m => Elaborate a => a -> m a
+elaborate' x = do
   symbols' <- reader symbols
-  return $ elaborate "elaborateSort" symbols' sym
+  return $ elaborate "elaborateSort" symbols' x
 
 -- | Add a function to the function map with index by its name.
 -- If an entry already exists, it will merge the function
@@ -220,15 +247,18 @@ elaborateSort sym = do
 addFunc :: MonadBuild info m => Name -> Func -> m ()
 addFunc kvar func = do
   let merge (Func _ b) (Func d b') = Func d (b <> b')
-  Prog prog <- get
-  put . Prog $ Map.insertWith merge kvar func prog
+  prog <- get
+  let functions' = Map.insertWith merge kvar func $ functions prog
+  put $ prog { functions = functions' }
 
 -- | We try to place functions with as little kvars as possible first, as these
 -- most likely find us a counterexample. Ideally, we do something less primitive
 -- than just a sort though...
 sortBodies :: Prog -> Prog
-sortBodies (Prog prog) = Prog $ sortFunc <$> prog
+sortBodies prog = prog { functions = functions' }
   where
+    functions' = sortFunc <$> functions prog
+
     sortFunc (Func sig bodies) = Func sig $ sortBy cmp bodies
     cmp a b = count a `compare` count b
     count (Body _ stmts) = length . filter isCall $ stmts
