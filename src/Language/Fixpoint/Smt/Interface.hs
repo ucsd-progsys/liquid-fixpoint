@@ -50,6 +50,8 @@ module Language.Fixpoint.Smt.Interface (
     , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
+    , smtGetValues
+    , smtGetModel
 
     -- * Check Validity
     , checkValid
@@ -75,6 +77,7 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
 import           Control.Applicative      ((<|>))
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           Control.Exception
 import           Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as BS
@@ -83,6 +86,7 @@ import qualified Data.ByteString.Lazy.Char8 as Char8
 import           Data.Char
 import qualified Data.HashMap.Strict      as M
 import           Data.Maybe              (fromMaybe)
+import           Data.List (foldl')
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as TE
 import qualified Data.Text.IO
@@ -93,6 +97,7 @@ import           System.Console.CmdArgs.Verbosity
 import           System.FilePath
 import           System.IO
 import qualified Data.Attoparsec.Text     as A
+import qualified Data.Scientific as S
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
@@ -158,7 +163,7 @@ checkValids cfg f xts ps
 
 --------------------------------------------------------------------------------
 {-# SCC command #-}
-command              :: Context -> Command -> IO Response
+command :: Context -> Command -> IO Response
 --------------------------------------------------------------------------------
 command Ctx {..} !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
@@ -168,19 +173,15 @@ command Ctx {..} !cmd       = do
     LBS.hPutStr h "\n"
   case cmd of
     CheckSat   -> commandRaw
-    GetValue _ -> commandRaw
     _          -> SMTLIB.Backends.command_ ctxSolver cmdBS >> return Ok
   where
     commandRaw      = do
       resp <- SMTLIB.Backends.command ctxSolver cmdBS
-      let respTxt =
-            TE.decodeUtf8With (const $ const $ Just ' ') $
-            LBS.toStrict resp
-      parse respTxt
-    cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
+      parse $ bs2txt resp
+    cmdBS = {-# SCC "Command-runSmt2" #-} smt2 ctxSymEnv cmd
     parse resp      = do
       case A.parseOnly responseP resp of
-        Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
+        Left e  -> Misc.errorstar $ "SMTREAD: " ++ e ++ "\n" ++ T.unpack resp
         Right r -> do
           let textResponse = "; SMT Says: " <> T.pack (show r)
           forM_ ctxLog $ \h ->
@@ -189,48 +190,138 @@ command Ctx {..} !cmd       = do
             Data.Text.IO.putStrLn textResponse
           return r
 
+bs2txt :: Char8.ByteString -> T.Text
+bs2txt = TE.decodeUtf8With (const $ const $ Just ' ') . LBS.toStrict
+
+smtGetValues :: MonadIO m => Context -> [Symbol] -> m Subst
+smtGetValues _ [] = return $ Su M.empty
+smtGetValues Ctx {..} symbols = do
+  let cmd = key "get-value" (parenSeqs $ map (smt2 ctxSymEnv) symbols)
+  bytestring <- liftIO $ SMTLIB.Backends.command ctxSolver cmd
+  let txt = bs2txt bytestring
+  case A.parseOnly valuesP txt of
+    Left e -> Misc.errorstar $ "Parse error on get-value: " ++ e ++ "\n\n" ++ show txt
+    Right sol -> return sol
+
+smtGetModel :: MonadIO m => Context -> m Subst
+smtGetModel Ctx {..} = do
+  let cmd = "(get-model)"
+  bytestring <- liftIO $ SMTLIB.Backends.command ctxSolver cmd
+  let txt = bs2txt bytestring
+  case A.parseOnly modelP txt of
+    Left e -> Misc.errorstar $ "Parse error on get-model: " ++ e ++ "\n\n" ++ show txt
+    Right sol -> return sol
+
 smtSetMbqi :: Context -> IO ()
 smtSetMbqi me = interact' me SetMbqi
 
 type SmtParser a = Parser T.Text a
 
-responseP :: SmtParser Response
-responseP = {- SCC "responseP" -} A.char '(' *> sexpP
-         <|> A.string "sat"     *> return Sat
-         <|> A.string "unsat"   *> return Unsat
-         <|> A.string "unknown" *> return Unknown
+modelP :: SmtParser Subst
+modelP = parenP $ do
+  defs <- A.many' defP
+  return $ Su (M.fromList defs)
 
-sexpP :: SmtParser Response
-sexpP = {- SCC "sexpP" -} A.string "error" *> (Error <$> errorP)
-     <|> Values <$> valuesP
+defP :: SmtParser (Symbol, Expr)
+defP = parenP $ do
+  _ <- A.string "define-fun"
+  sym <- symbolP
+  sortP
+  e <- exprP
+  return (sym, e)
 
-errorP :: SmtParser T.Text
-errorP = A.skipSpace *> A.char '"' *> A.takeWhile1 (/='"') <* A.string "\")"
+sortP :: SmtParser ()
+sortP = do
+  -- A type is just an S-Expression, we can reuse the parser
+  let tyP = void exprP
+  _ <- parenP $ A.many' tyP
+  tyP
 
-valuesP :: SmtParser [(Symbol, T.Text)]
-valuesP = A.many1' pairP <* A.char ')'
+valuesP :: SmtParser Subst
+valuesP = parenP $ do
+  vs <- A.many' valueP
+  return $ Su (M.fromList vs)
 
-pairP :: SmtParser (Symbol, T.Text)
-pairP = {- SCC "pairP" -}
-  do A.skipSpace
-     _ <- A.char '('
-     !x <- symbolP
-     A.skipSpace
-     !v <- valueP
-     _ <- A.char ')'
-     return (x,v)
+valueP :: SmtParser (Symbol, Expr)
+valueP = parenP $ do
+  sym <- symbolP
+  e <- exprP
+  return (sym, e)
+
+exprP :: SmtParser Expr
+exprP = appP <|> litP
+
+appP :: SmtParser Expr
+appP = do
+  (e:es) <- parenP $ A.many1' exprP
+  return $ foldl' EApp e es
+
+litP :: SmtParser Expr
+litP = scientificP <|> boolP <|> bitvecP <|> (EVar <$> symbolP)
+
+scientificP :: SmtParser Expr
+scientificP = do
+  val <- A.scientific
+  let con = case S.floatingOrInteger val of
+        Left double -> R double
+        Right int -> I int
+  return $ ECon con
+
+boolP :: SmtParser Expr
+boolP = trueP <|> falseP
+  where
+    trueP = A.string "true" >> return PTrue
+    falseP = A.string "false" >> return PFalse
+
+bitvecP :: SmtParser Expr
+bitvecP = do
+  _ <- A.char '#'
+  (bv, _) <- A.match (hexP <|> binP)
+  return $ ECon (L bv $ sizedBitVecSort "x")
+  where
+    hexP = do
+      _ <- A.char 'x'
+      _ <- A.hexadecimal :: SmtParser Integer
+      return ()
+    binP = do
+      _ <- A.char 'b'
+      _ <- A.many1' (A.char '0' <|> A.char '1')
+      return ()
 
 symbolP :: SmtParser Symbol
-symbolP = {- SCC "symbolP" -} symbol <$> A.takeWhile1 (not . isSpace)
+symbolP = {- SCC "symbolP" -} do
+  A.skipSpace
+  raw <- A.takeWhile1 (not . exclude)
+  A.skipSpace
+  return $ symbol raw
+  where
+    exclude x = isSpace x || x == '(' || x == ')'
 
-valueP :: SmtParser T.Text
-valueP = {- SCC "valueP" -} negativeP
-      <|> A.takeWhile1 (\c -> not (c == ')' || isSpace c))
+parenP :: SmtParser a -> SmtParser a
+parenP inner = do
+  A.skipSpace
+  _ <- A.char '('
+  res <- inner
+  _ <- A.char ')'
+  A.skipSpace
+  return res
 
-negativeP :: SmtParser T.Text
-negativeP
-  = do v <- A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
-       return $ "(" <> v <> ")"
+responseP :: SmtParser Response
+responseP = {- SCC "responseP" -}
+             A.string "sat"     *> return Sat
+         <|> A.string "unsat"   *> return Unsat
+         <|> A.string "unknown" *> return Unknown
+         <|> (Error <$> errorP)
+
+errorP :: SmtParser T.Text
+errorP = do
+  A.skipSpace
+  _ <- A.string "error"
+  A.skipSpace
+  _ <- A.string "(\""
+  res <- A.takeWhile1 (/= '"')
+  _ <- A.string "\")"
+  return res
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------

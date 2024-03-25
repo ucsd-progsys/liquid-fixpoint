@@ -37,7 +37,7 @@ module Language.Fixpoint.Types.Sorts (
   , mapFVar
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   -- , bitVec32Sort, bitVec64Sort
-  , setSort, bitVecSort
+  , setSort, bitVecSort, seqSort
   , sizedBitVecSort
   , mapSort, charSort
   , listFTyCon
@@ -493,6 +493,10 @@ setSort    = FApp (FTC setFTyCon)
 --
 -- bitVec64Sort :: Sort
 -- bitVec64Sort = bitVecSort (FTC (symbolFTycon' size64Name))
+
+-- | Produces a `Seq a` from a given polymorphic identifier.
+seqSort :: Int -> Sort
+seqSort i = FApp (FTC $ symbolFTycon' seqName) (FVar i)
 
 bitVecSort :: Int -> Sort
 bitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FVar i)

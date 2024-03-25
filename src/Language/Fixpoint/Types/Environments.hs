@@ -48,6 +48,7 @@ module Language.Fixpoint.Types.Environments (
   , filterBindEnv, mapBindEnv, mapWithKeyMBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList, deleteBindEnv, elemsBindEnv
   , EBindEnv, splitByQuantifiers
+  , CexEnv
 
   -- * Information needed to lookup and update Solutions
   -- , SolEnv (..)
@@ -98,6 +99,10 @@ instance PPrint a => PPrint (SizedEnv a) where
 -- Invariant: All BindIds in the map are less than beSize
 type BindEnv a     = SizedEnv (Symbol, SortedReft, a)
 newtype EBindEnv a = EB (BindEnv a)
+
+-- | A counterexample environment. Contains an expression (the concrete
+-- instance) aside from the regular symbol and refinement.
+type CexEnv a = BindEnv (Expr, a)
 
 splitByQuantifiers :: BindEnv a -> [BindId] -> (BindEnv a, EBindEnv a)
 splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> notElem k ebs) bs

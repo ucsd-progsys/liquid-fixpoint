@@ -1,0 +1,22 @@
+bind 0 x : {v: int | $k[v2:=v][karg:=y]}
+bind 1 y : {v: int | y == 0}
+
+constraint:
+  env [0; 1]
+  lhs {v0: int | v0 == x}
+  rhs {v0: int | v0 > 1}
+  id 0 tag []
+
+bind 2 z : {v: int | true}
+
+constraint:
+  env [2]
+  lhs {v1: int | v1 > z}
+  rhs {v1: int | $k[v2:=v1][karg:=z]}
+  id 1 tag []
+
+bind 10 karg : {v:int | true}
+
+wf:
+  env [10]
+  reft {v2 : int | $k}

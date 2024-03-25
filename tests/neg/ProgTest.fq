@@ -1,0 +1,24 @@
+wf:
+  env []
+  reft {vk: int | [$k0]}
+
+bind 1 x : {v: int | $k0[vk := v]}
+bind 2 y : {v: int | $k0[vk := v]}
+
+constraint:
+  env [1; 2]
+  lhs {v: int | v == x + y}
+  rhs {v: int | v != 7}
+  id 0 tag []
+
+constraint:
+  env []
+  lhs {v: int | v == 3}
+  rhs {v: int | $k0[vk := v]}
+  id 1 tag []
+
+constraint:
+  env []
+  lhs {v: int | v == 4}
+  rhs {v: int | $k0[vk := v]}
+  id 2 tag []

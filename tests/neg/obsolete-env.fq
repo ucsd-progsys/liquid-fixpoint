@@ -1,0 +1,12 @@
+
+bind 0 x : {v: int | true}
+bind 1 y : {v: int | v >= 0}
+bind 2 unused0 : {v:int | v = 2}
+bind 3 unused1 : {v:int | v = 3}
+bind 4 unused2 : {v:int | v = 4}
+
+constraint:
+  env [0; 1; 2; 3; 4]
+  lhs {v: int | v == x + y}
+  rhs {v: int | v >= 0}
+  id 0 tag []

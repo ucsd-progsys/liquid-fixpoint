@@ -1,0 +1,30 @@
+fixpoint "--counterexample"
+
+bind 0 x : {v: int | [$k[vk := v]]}
+bind 1 y : {v: int | [$k[vk := v]]}
+
+constraint:
+  env [0; 1]
+  lhs {v0: int | v0 == x + y}
+  rhs {v0: int | v0 != 7}
+  id 0 tag []
+
+bind 3 three : {v: int | v = 3}
+
+constraint:
+  env [3]
+  lhs {v1: int | [v1 == three]}
+  rhs {v1: int | $k[vk := v1]}
+  id 1 tag []
+
+bind 4 four : {v: int | v = 4}
+
+constraint:
+  env [4]
+  lhs {v2: int | [v2 == four]}
+  rhs {v2: int | $k[vk := v2]}
+  id 2 tag []
+
+wf:
+  env []
+  reft {vk: int | [$k]}

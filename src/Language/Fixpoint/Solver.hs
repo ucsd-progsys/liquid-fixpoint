@@ -57,9 +57,11 @@ import           Language.Fixpoint.Types hiding (GInfo(..), fi)
 import qualified Language.Fixpoint.Types as Types (GInfo(..))
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.Instantiate (instantiate)
+import           Language.Fixpoint.Counterexample
 import           Control.DeepSeq
 import qualified Data.ByteString as B
 import Data.Maybe (catMaybes)
+
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -187,7 +189,7 @@ solveNative !cfg !fi0 = solveNative' cfg fi0
                              (return . crashResult (errorMap fi0))
 
 crashResult :: (PPrint a) => ErrorMap a -> Error -> Result (Integer, a)
-crashResult m err' = Result res mempty mempty mempty
+crashResult m err' = Result res mempty mempty mempty mempty
   where
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- errs err' ]
@@ -271,13 +273,8 @@ reduceFInfo cfg fi = do
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
   res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
-  -- rnf soln `seq` donePhase Loud "Solve2"
-  --let stat = resStatus res
-  -- saveSolution cfg res
   when (save cfg) $ saveSolution cfg res
-  -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
-  -- colorStrLn (colorResult stat) (show stat)
-  return res
+  tryCounterExample cfg si6 res
 
 --------------------------------------------------------------------------------
 -- | Parse External Qualifiers -------------------------------------------------
@@ -290,9 +287,9 @@ parseFI :: FilePath -> IO (FInfo a)
 parseFI f = do
   str   <- readFile f
   let fi = rr' f str :: FInfo ()
-  return $ mempty { Types.quals = Types.quals  fi
-                  , Types.gLits = Types.gLits  fi
-                  , Types.dLits = Types.dLits  fi }
+  return $ mempty { Types.quals = Types.quals fi
+                  , Types.gLits = Types.gLits fi
+                  , Types.dLits = Types.dLits fi }
 
 saveSolution :: Config -> Result a -> IO ()
 saveSolution cfg res = when (save cfg) $ do

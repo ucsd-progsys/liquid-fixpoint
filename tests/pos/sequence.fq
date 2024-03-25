@@ -1,0 +1,7 @@
+bind 0 xs : {v: Seq int | xs == Seq$concat (Seq$unit 0) (Seq$unit 1)}
+
+constraint:
+  env [0]
+  lhs {v : Seq int | v == xs}
+  rhs {v : Seq int | Seq$len v == 2}
+  id 0 tag []
