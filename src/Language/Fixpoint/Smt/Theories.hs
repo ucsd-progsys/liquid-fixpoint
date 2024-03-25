@@ -171,6 +171,191 @@ mapPrj   = "Map_project"
 mapShift = "Map_shift" -- See [Map key shift]
 mapToSet = "Map_to_set"
 
+-- | (seq.unit elem)
+-- Sequence with a single element `elem`.
+seqUnit :: TheorySymbol
+seqUnit = Thy
+  { tsSym = "Seq$unit"
+  , tsRaw = "seq.unit"
+  -- forall a. a -> Seq a
+  , tsSort = FAbs 0 $ FFunc (FVar 0) $ seqSort 0
+  , tsInterp = Theory
+  }
+
+-- | (as seq.empty (Seq Int))
+-- The empty sequence of integers.
+seqEmpty :: TheorySymbol
+seqEmpty = Thy
+  { tsSym = "Seq$empty"
+  , tsRaw = "seq.empty"
+  -- forall a. Seq a
+  , tsSort = FAbs 0 $ seqSort 0
+  , tsInterp = Theory
+  }
+
+-- | (seq.++ a b c)
+-- Concatenation of one or more sequences.
+--
+-- We define the concat in fixpoint as just joining two sequences.
+seqConcat :: TheorySymbol
+seqConcat = Thy
+  { tsSym = "Seq$concat"
+  , tsRaw = "seq.++"
+  -- forall a. Seq a -> Seq a -> Seq a
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc (seqSort 0) $ seqSort 0
+  , tsInterp = Theory
+  }
+
+-- | (seq.len s)
+-- Sequence length. Returns an integer.
+seqLen :: TheorySymbol
+seqLen = Thy
+  { tsSym = "Seq$len"
+  , tsRaw = "seq.len"
+  -- forall a. Seq a -> Int
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) intSort
+  , tsInterp = Theory
+  }
+
+-- | (seq.extract s offset length)
+-- Retrieves sub-sequence of `s` at `offset`.
+seqExtract :: TheorySymbol
+seqExtract = Thy
+  { tsSym = "Seq$extract"
+  , tsRaw = "seq.extract"
+  -- forall a. Seq a -> Int -> Int -> Seq a
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc intSort $ FFunc intSort $ seqSort 0
+  , tsInterp = Theory
+  }
+
+-- | (seq.indexof s sub [offset])
+-- Retrieves first position of `sub` in `s`, -1 if there are no occurrences.
+--
+-- We don't take the optional `offset` argument in fixpoint.
+seqIndexOf :: TheorySymbol
+seqIndexOf = Thy
+  { tsSym = "Seq$indexof"
+  , tsRaw = "seq.indexof"
+  -- forall a. Seq a -> a -> Int
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc (FVar 0) $ intSort
+  , tsInterp = Theory
+  }
+
+-- | (seq.at s offset)
+-- Sub-sequence of length 1 at offset in s.
+seqAt :: TheorySymbol
+seqAt = Thy
+  { tsSym = "Seq$at"
+  , tsRaw = "seq.at"
+  -- forall a. Seq a -> Int -> Seq a
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc intSort $ seqSort 0
+  , tsInterp = Theory
+  }
+
+-- | (seq.nth s offset)
+-- Element at offset in s. If offset is out of bounds the result is
+-- under-specified. In other words, it is treated as a fresh variable.
+seqNth :: TheorySymbol
+seqNth = Thy
+  { tsSym = "Seq$nth"
+  , tsRaw = "seq.nth"
+  -- forall a. Seq a -> Int -> a
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc intSort $ FVar 0
+  , tsInterp = Theory
+  }
+
+-- | (seq.contains s sub)
+-- Does s contain the sub-sequence sub?
+seqContains :: TheorySymbol
+seqContains = Thy
+  { tsSym = "Seq$contains"
+  , tsRaw = "seq.contains"
+  -- forall a. Seq a -> Seq a -> Bool
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc (seqSort 0) $ boolSort
+  , tsInterp = Theory
+  }
+
+-- | (seq.prefixof pre s)
+-- Is pre a prefix of s?
+seqPrefixOf :: TheorySymbol
+seqPrefixOf = Thy
+  { tsSym = "Seq$prefixof"
+  , tsRaw = "seq.prefixof"
+  -- forall a. Seq a -> Seq a -> Bool
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc (seqSort 0) $ boolSort
+  , tsInterp = Theory
+  }
+
+-- | (seq.suffixof suf s)
+-- Is suf a suffix of s?
+seqSuffixOf :: TheorySymbol
+seqSuffixOf = Thy
+  { tsSym = "Seq$suffixof"
+  , tsRaw = "seq.suffixof"
+  -- forall a. Seq a -> Seq a -> Bool
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc (seqSort 0) $ boolSort
+  , tsInterp = Theory
+  }
+
+-- | (seq.replace s src dst)
+-- Replace the first occurrence of src by dst in s.
+seqReplace :: TheorySymbol
+seqReplace = Thy
+  { tsSym = "Seq$replace"
+  , tsRaw = "seq.replace"
+  -- forall a. Seq a -> a -> a -> Seq a
+  , tsSort = FAbs 0 $ FFunc (seqSort 0) $ FFunc (FVar 0) $ FFunc (FVar 0) $ seqSort 0
+  , tsInterp = Theory
+  }
+
+-- | (seq.map fn s)
+-- Map function `fn` (an expression of sort (Array S T)) on sequence `s` of sort
+-- (Seq S).
+seqMap :: TheorySymbol
+seqMap = Thy
+  { tsSym = "Seq$map"
+  , tsRaw = "seq.map"
+  -- TODO: Define correct type (this requires array type)
+  , tsSort = intSort
+  , tsInterp = Theory
+  }
+
+-- (seq.mapi fn o s)
+-- Map function `fn` (an expression of sort (Array Int S T)) on offset `o` and
+-- sequence `s` of sort (Seq S).
+seqMapi :: TheorySymbol
+seqMapi = Thy
+  { tsSym = "Seq$mapi"
+  , tsRaw = "seq.mapi"
+  -- TODO: Define correct type (this requires array type)
+  , tsSort = intSort
+  , tsInterp = Theory
+  }
+
+-- | (seq.fold_left fn b s)
+-- Fold function `fn` (an expression of sort (Array T S T)) on initial value `b`
+-- of sort `T` and sequence `s` of sort (Seq S).
+seqFoldLeft :: TheorySymbol
+seqFoldLeft = Thy
+  { tsSym = "Seq$fold_left"
+  , tsRaw = "seq.fold_left"
+  -- TODO: Define correct type (this requires array type)
+  , tsSort = intSort
+  , tsInterp = Theory
+  }
+
+-- | (seq.fold_lefti fn o b s)
+-- Fold function `fn` (an expression of sort (Array Int T S T)) on offset `o`,
+-- initial value `b` of sort `T` and sequence `s` of sort (Seq S).
+seqFoldLefti :: TheorySymbol
+seqFoldLefti = Thy
+  { tsSym = "Seq$fold_lefti"
+  , tsRaw = "seq.fold_lefti"
+  -- TODO: Define correct type (this requires array type)
+  , tsSort = intSort
+  , tsInterp = Theory
+  }
+
 -- [Interaction between Map and Set]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Function mapToSet: Convert a map to a set. The map's key may be of
@@ -423,6 +608,7 @@ smt2SmtSort SBool        = "Bool"
 smt2SmtSort SString      = fromText string
 smt2SmtSort SSet         = fromText set
 smt2SmtSort SMap         = fromText map
+smt2SmtSort (SSeq a)     = parens $ "Seq" <+> smt2SmtSort a
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
 smt2SmtSort (SVar n)     = "T" <> bShow n
 smt2SmtSort (SData c []) = symbolBuilder c
@@ -506,7 +692,7 @@ theorySymbols ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
 --------------------------------------------------------------------------------
 interpSymbols :: [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
-interpSymbols =
+interpSymbols = interpSeq <>
   [ interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
   , interpSym setSng   sng  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
@@ -586,7 +772,6 @@ interpSymbols =
   , interpSym intbv64Name "(_ int2bv 64)"   (FFunc intSort bv64)
   , interpSym bv32intName  "(_ bv2int 32)"  (FFunc bv32    intSort)
   , interpSym bv64intName   "(_ bv2int 64)" (FFunc bv64    intSort)
-
   ]
   where
     -- (sizedBitVecSort "Size1")
@@ -621,6 +806,28 @@ interpSymbols =
     mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
 
+interpSeq :: [(Symbol, TheorySymbol)]
+interpSeq = interpTheorySymbol <$>
+  [ seqUnit
+  , seqEmpty
+  , seqConcat
+  , seqLen
+  , seqExtract
+  , seqIndexOf
+  , seqAt
+  , seqNth
+  , seqContains
+  , seqPrefixOf
+  , seqSuffixOf
+  , seqReplace
+  , seqMap
+  , seqMapi
+  , seqFoldLeft
+  , seqFoldLefti
+  ]
+
+interpTheorySymbol :: TheorySymbol -> (Symbol, TheorySymbol)
+interpTheorySymbol ts = (tsSym ts, ts)
 
 interpBvUop :: Symbol -> (Symbol, TheorySymbol)
 interpBvUop name = interpSym' name bvUopSort

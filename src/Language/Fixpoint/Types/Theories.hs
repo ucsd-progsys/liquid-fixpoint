@@ -230,6 +230,7 @@ data SmtSort
   | SString
   | SSet
   | SMap
+  | SSeq SmtSort
   | SBitVec !Int
   | SVar    !Int
   | SData   !FTycon ![SmtSort]
@@ -274,6 +275,8 @@ fappSmtSort poly m env = go
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
     go (FTC c) _
       | setConName == symbol c  = SSet
+    go (FTC c) [s]
+      | seqName == symbol c = SSeq $ sortSmtSort poly env s
     go (FTC c) _
       | mapConName == symbol c  = SMap
     go (FTC bv) [FTC s]
@@ -299,6 +302,7 @@ instance PPrint SmtSort where
   pprintTidy _ SString      = text "Str"
   pprintTidy _ SSet         = text "Set"
   pprintTidy _ SMap         = text "Map"
+  pprintTidy k (SSeq a)     = text "Seq" <+> pprintTidy k a
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
   pprintTidy _ (SVar i)     = text "@" <-> int i
 --  HKT pprintTidy k (SApp ts)    = ppParens k (pprintTidy k tyAppName) ts

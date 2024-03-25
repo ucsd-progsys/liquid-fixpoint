@@ -107,6 +107,7 @@ module Language.Fixpoint.Types.Names (
   , vvName
   , sizeName
   , bitVecName
+  , seqName
   -- , bvAndName, bvOrName, bvSubName, bvAddName
   , intbv32Name, intbv64Name, bv32intName, bv64intName
   , propConName
@@ -684,11 +685,12 @@ intbv64Name = "int_to_bv64"
 bv32intName = "bv32_to_int"
 bv64intName = "bv64_to_int"
 
-nilName, consName, sizeName, bitVecName :: Symbol
+nilName, consName, sizeName, bitVecName, seqName :: Symbol
 nilName       = "nil"
 consName      = "cons"
 sizeName      = "Size"
 bitVecName    = "BitVec"
+seqName       = "Seq"
 
 
 mulFuncName, divFuncName :: Symbol
