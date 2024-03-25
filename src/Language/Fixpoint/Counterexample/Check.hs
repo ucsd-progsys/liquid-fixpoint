@@ -18,7 +18,7 @@ import qualified Data.HashMap.Strict as Map
 
 import Control.Monad.State.Strict
 import Control.Monad.Reader
-import Control.Monad (forM, foldM)
+import Control.Monad (forM, foldM, when)
 
 -- | Environment for the counter example generation.
 data CheckEnv = CheckEnv
@@ -57,7 +57,10 @@ runCheck cids env = rd $ checkAll cids
 -- | Try to find a counter example for all the given constraints.
 checkAll :: MonadCheck m => [SubcId] -> m [SMTCounterexample]
 checkAll cids = do
-  setDefinitions
+  -- Using definitions as quantified axioms is really slow! Perhaps this should
+  -- be feature gated, or we should just never do this as there are most likely
+  -- faster alternatives. I'll leave it like this for now.
+  when False setDefinitions
   cexs <- forM cids checkConstraint
   return $ catMaybes cexs
 
