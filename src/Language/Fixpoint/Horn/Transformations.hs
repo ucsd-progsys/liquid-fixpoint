@@ -774,18 +774,18 @@ substPred su (Var k xs) = Var k $ upd <$> xs
 
 ------------------------------------------------------------------------------
 -- | elim solves all of the KVars in a Cstr
--- >>> elim defConfig . fst <$> parseFromFile hornP "tests/horn/pos/test00.smt2"
+-- >>> elim defConfig <$> Language.Fixpoint.Horn.SMTParse.parseFromFile hornP "tests/horn/pos/test00.smt2"
 -- (and (forall ((x int) (x > 0)) (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0))))))
--- >>> elim defConfig . fst <$> parseFromFile hornP "tests/horn/pos/test01.smt2"
+-- >>> elim defConfig <$> parseFromFile Language.Fixpoint.Horn.SMTParse.hornP "tests/horn/pos/test01.smt2"
 -- (and (forall ((x int) (x > 0)) (and (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0)))) (forall ((z int) (z > 100)) (forall ((v int) (v == x + z)) ((v > 100)))))))
--- >>> elim defConfig . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
+-- >>> elim defConfig <$> parseFromFile Language.Fixpoint.Horn.SMTParse.hornP "tests/horn/pos/test02.smt2"
 -- (and (forall ((x int) (x > 0)) (and (forall ((y int) (y > x + 100)) (forall ((v int) (v == x + y)) ((true)))) (forall ((y int) (y > x + 100)) (forall ((v int) (v == x + y)) (forall ((z int) (z == v)) (forall ((v int) (v == x + z)) ((v > 100)))))))))
--- >>> elim defConfig . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
+-- >>> elim defConfig <$> parseFromFile Language.Fixpoint.Horn.SMTParse.hornP "tests/horn/pos/test03.smt2"
 -- (and (and (forall ((x int) (x > 0)) (forall ((v int) (v == x)) (($k0 v)))) (forall ((y int) ($k0 y)) (forall ((v int) (v == y + 1)) (($k0 v)))) (forall ((z int) ($k0 z)) ((z > 0)))))
--- >>> elim defConfig . fst <$> parseFromFile hornP "tests/horn/pos/test04.smt2"
+-- >>> elim defConfig <$> parseFromFile Language.Fixpoint.Horn.SMTParse.hornP "tests/horn/pos/test04.smt2"
 -- (and (forall ((x int) (x > 0)) (forall ((v int) (v == x)) (($k0 v)))) (forall ((y int) ($k0 y)) (forall ((yyy int) (true)) (forall ((vvv int) (vvv == yyy + 1)) (forall ((v int) (and (v == vvv) (y == yyy))) (($k0 v)))))) (forall ((z int) ($k0 z)) ((z > 0))))
 ------------------------------------------------------------------------------
-elim :: (F.PPrint a) => F.Config -> Query a -> Cstr a
+elim :: (F.Fixpoint a, F.PPrint a) => F.Config -> Query a -> Cstr a
 ------------------------------------------------------------------------------
 elim cfg query = S.foldl' elim1 c acyclicKs
   where
