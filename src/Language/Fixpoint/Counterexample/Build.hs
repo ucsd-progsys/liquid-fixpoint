@@ -211,23 +211,26 @@ reftToStmts (bid, sym, RR
     sort' <- elaborate' sort
     let decl = Let $ Decl sym' sort'
 
-    -- Get constraints from the expression.
-    let constraints = case predKs e of
-          [] -> Assume e
-          ks -> Call bid ks
+    -- TODO: Could we perhaps remove duplicate calls here? There seem to be a
+    -- lot, so this could eliminate a lot of overhead potentially!
 
+    -- Get constraints from the expression.
+    let constraints = exprStmts bid e
     -- Do substitution of self variable in the constraints
     let sub = Su $ Map.singleton v (EVar sym)
-    return [decl, subst sub constraints]
+    return $ decl : subst sub constraints
 
--- | Get the kvars from an expression.
+-- | Split the expression into a number of statements
 --
--- I think this should be the only way in which kvars appear?
--- Otherwise, this should be changed!
-predKs :: Expr -> [(KVar, Subst)]
-predKs (PAnd ps)    = mconcat $ map predKs ps
-predKs (PKVar k su) = [(k, su)]
-predKs _            = []
+-- Note that kvars should only appear as conjuncted from the root expression,
+-- or as the root itself. This function does not catch nested kvars.
+exprStmts :: BindId -> Expr -> [Statement]
+exprStmts bid = go
+  where
+    go (PAnd ps) = ps >>= go
+    -- TODO: Change call so it doesn't take a list of locations.
+    go (PKVar k su) = [Call bid [(k, su)]]
+    go e = [Assume e]
 
 -- | The sorts for the apply monomorphization only match if we do this elaborate
 -- on the sort. Not sure why...
