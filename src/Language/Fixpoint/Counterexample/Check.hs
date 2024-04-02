@@ -12,9 +12,10 @@ import Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Counterexample.SMT as SMT
 import Language.Fixpoint.Types.Config (Config)
 
-import Data.Maybe (fromJust, catMaybes)
+import Data.Maybe (fromJust, catMaybes, isJust)
 import Data.List (find)
 import qualified Data.HashMap.Strict as Map
+import qualified Data.HashSet as Set
 
 import Control.Monad.State.Strict
 import Control.Monad.Reader
@@ -26,15 +27,24 @@ data CheckEnv = CheckEnv
   -- ^ The program we are checking
   , context :: !SMT.Context
   -- ^ The SMT context we write the constraints from the program to.
-  , maxDepth :: !Int
-  -- ^ The maximum number of functions to traverse (to avoid state blow-up).
+  , maxIterations :: !Int
+  -- ^ The checker is an iterative deepening DFS. This is the maximum number of
+  -- iterations before we give up entirely.
+  }
+
+data CheckState = CheckState
+  { curRec :: !Int
+  -- ^ The number of recursive unfoldings currently in the path.
+  , maxRec :: !Int
+  -- ^ The maximum number of recursive unfoldings we allow in any path for this
+  -- iteration.
   }
 
 instance SMTContext CheckEnv where
   smtContext = context
 
 -- | The monad used to generate counter examples from a Prog.
-type MonadCheck m = (MonadReader CheckEnv m, MonadIO m)
+type MonadCheck m = (MonadReader CheckEnv m, MonadIO m, MonadState CheckState m)
 
 -- | The runner is a computation path in the program. We use this as an argument
 -- to pass around the remainder of a computation. This way, we can pop paths in
@@ -48,16 +58,20 @@ checkProg cfg si prog cids = SMT.withContext cfg si check
     check ctx = runCheck cids CheckEnv
       { program = prog
       , context = ctx
-      -- TODO: Perhaps the max depth should be a parameter for the user?
-      , maxDepth = 10
+      -- TODO: Perhaps the max iterative depth should be a user parameter?
+      , maxIterations = 3
       }
 
 -- | Runs the program checker with the monad stack
 -- unwrapped.
 runCheck :: MonadIO m => [SubcId] -> CheckEnv -> m [SMTCounterexample]
-runCheck cids env = rd $ checkAll cids
+runCheck cids env = rd . st $ checkAll cids
   where
     rd = flip runReaderT env
+    st = flip evalStateT CheckState
+      { curRec = 0
+      , maxRec = 0
+      }
 
 -- | Try to find a counter example for all the given constraints.
 checkAll :: MonadCheck m => [SubcId] -> m [SMTCounterexample]
@@ -81,27 +95,46 @@ checkConstraint :: MonadCheck m => SubcId -> m (Maybe SMTCounterexample)
 checkConstraint cid = do
   Func _ bodies <- fromJust <$> getFunc mainName
   let cmp (Body bid _) = bid == cid
-  let scope = Scope mempty cid mempty
+  let scope = Scope
+       { path = mempty
+       , constraint = cid
+       , binders = mempty
+       , visited = mempty
+       }
   case find cmp bodies of
-    Just body -> runBody scope body SMT.getModel
+    Just body -> iterateDepth $ runBody scope body SMT.getModel
     Nothing -> return Nothing
+
+-- | Does iterative deepening of search; it checks if the current runner
+-- produces a counterexample. If not, it increments the allowed recursion limit.
+-- It will continue doing so until either a counterexample is found or the
+-- iteration limit is reached.
+iterateDepth :: MonadCheck m => Runner m -> Runner m
+iterateDepth runner = do
+  cex <- runner
+  curLimit <- gets maxRec
+  limit <- reader maxIterations
+  case cex of
+    Just _ -> return cex
+    _ | curLimit > limit -> return Nothing
+    _ -> do
+      modify $ \s -> s { maxRec = maxRec s + 1 }
+      cex' <- iterateDepth runner
+      modify $ \s -> s { maxRec = maxRec s - 1 }
+      return cex'
 
 -- | Run a function. This essentially makes one running branch for
 -- each body inside of the function. It will try each branch
 -- sequentially, returning early if a counterexample was found.
 runFunc :: MonadCheck m => Name -> Scope -> Runner m -> Runner m
-runFunc name scope runner = do
+runFunc name scope' runner = withRec name scope' $ \scope -> do
   -- Lookup function bodies
   func <- getFunc name
-  maxDepth' <- reader maxDepth
   sat <- SMT.checkSat
   case func of
     -- This sub tree is already unsatisfiable. Adding more constraints never
     -- makes it satisfiable and, as such, we prune this subtree.
     _ | not sat -> return Nothing
-
-    -- Recursion limit reached, so no counterexample.
-    _ | length (path scope) >= maxDepth' -> return Nothing
 
     -- Unconstrained function body, so there is no counterexample here. This
     -- would be equivalent to trying to create an inhabitant of {v:a | false},
@@ -113,12 +146,28 @@ runFunc name scope runner = do
       -- Generate all execution paths (as runners).
       let runner' body = runBody (extendScope scope body) body runner
       let paths = runner' <$> bodies
+      foldRunners paths
 
-      -- TODO: We should really explore shallow trees first. The current thing
-      -- can search for a really long time if there are a large number of paths
-      -- before the actual counterexample...
-      result <- foldRunners paths
-      return result
+-- | Increments the recursive call counter for the entire remaining runner. We
+-- only allow `maxRec` recursive calls over an entire path, not of the subtree.
+withRec :: MonadCheck m => Name -> Scope -> (Scope -> Runner m) -> Runner m
+withRec name scope runner
+  | name `Set.member` visited scope = do
+    modify $ \s -> s { curRec = curRec s + 1 }
+    limit <- recursionLimit
+    result <- if limit then return Nothing else runner'
+    modify $ \s -> s { curRec = curRec s - 1 }
+    return result
+  | otherwise = runner'
+  where
+    runner' = runner scope { visited = Set.insert name (visited scope)}
+
+-- | Returns whether the recursion limit has been hit.
+recursionLimit :: MonadCheck m => m Bool
+recursionLimit = do
+  nrec <- gets curRec
+  limit <- gets maxRec
+  return $ nrec > limit
 
 -- | Run the statements in the body. If there are no more statements to run,
 -- this will execute the Runner that was passed as argument.
@@ -145,17 +194,22 @@ runStatement scope stmt runner = do
   let runner' = runner scope
   let stmt' = subst (binders scope) stmt
   case stmt' of
-    Call origin calls -> do
-      -- We fake a SubcId here, it will later get mapped into the scope when we
-      -- decide which body to run.
-      let scope' app = Scope (origin:path scope) 0 app
-      let runCall (name, app) = runFunc name (scope' app) runner'
-      foldRunners $ runCall <$> calls
     Assume e -> SMT.assume e >> runner'
     Assert e -> SMT.assert e >> runner'
     Let decl -> do
       scope' <- SMT.declare scope decl
       runner scope'
+    Call origin calls -> do
+      let scope' app = Scope
+           { path = origin : path scope
+           -- We fake a SubcId here, it will later get mapped into the scope
+           -- when we decide which body to run.
+           , constraint = 0
+           , binders = app
+           , visited = visited scope
+           }
+      let runCall (name, app) = runFunc name (scope' app) runner'
+      foldRunners $ runCall <$> calls
 
 -- | Get a function from the program given its name.
 getFunc :: MonadCheck m => Name -> m (Maybe Func)

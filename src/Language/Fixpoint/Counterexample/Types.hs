@@ -23,6 +23,7 @@ module Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Types
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
+import Data.HashSet (HashSet)
 import Data.Bifunctor (second)
 
 import Text.PrettyPrint.HughesPJ ((<+>), ($+$))
@@ -46,6 +47,9 @@ data Scope = Scope
   -- ^ The current constraint, which dictates the binders.
   , binders :: !Subst
   -- ^ The binders available in the current scope.
+  , visited :: HashSet Name
+  -- ^ The functions that have already been visited. This is to track whether we
+  -- want to expand a function or if we have already hit the recursion limit.
   }
   deriving (Eq, Ord, Show)
 
