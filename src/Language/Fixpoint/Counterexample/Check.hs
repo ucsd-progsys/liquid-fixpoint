@@ -12,7 +12,7 @@ import Language.Fixpoint.Counterexample.Types
 import Language.Fixpoint.Counterexample.SMT as SMT
 import Language.Fixpoint.Types.Config (Config)
 
-import Data.Maybe (fromJust, catMaybes, isJust)
+import Data.Maybe (fromJust, catMaybes)
 import Data.List (find)
 import qualified Data.HashMap.Strict as Map
 import qualified Data.HashSet as Set
