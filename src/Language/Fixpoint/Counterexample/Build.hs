@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Language.Fixpoint.Counterexample.Build
   ( hornToProg
@@ -17,9 +18,13 @@ import Language.Fixpoint.SortCheck (Elaborate (..))
 import qualified Language.Fixpoint.Utils.Files as Ext
 
 import Data.Maybe (fromMaybe)
+import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
+import qualified Data.Set as Set
 import Data.List (find, sortBy, foldl')
+import qualified Data.List as List
 
+import Control.Monad (foldM)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad (when, forM)
@@ -117,20 +122,14 @@ addHorn horn = do
 
   -- Add the horn clause as a function body
   let cid = fromMaybe (-1) $ sid horn
-  let statements = sortStatements $ lhs <> rhs
+  -- TODO: The exploration ideally doesn't need the ordering on the calls for
+  -- the pruning of branches.
+  -- TODO: It might be better to replace Let statements by a substitution map.
+  -- Sort the statements, let bindings should go first. Calls last. We want
+  -- to have all available variables at the start.
+  let statements = dedupCalls decl . List.sort $ lhs <> rhs
   let body = Body cid $ statements
   addFunc name $ Func decl [body]
-
--- | Sort the statements so we do all declarations first.
--- TODO: Change the `Body` type so it contains a substitution map. Remove the
--- Let statement from the types of statements we have!
-sortStatements :: [Statement] -> [Statement]
-sortStatements = sortBy cmp
-  where
-    cmp (Let _) (Let _) = EQ
-    cmp (Let _) _ = LT
-    cmp _ (Let _) = GT
-    cmp _ _ = EQ
 
 -- | Gets a signature of a KVar from its well foundedness constraint
 getSig :: MonadBuild info m => Name -> m Signature
@@ -211,9 +210,6 @@ reftToStmts (bid, sym, RR
     sort' <- elaborate' sort
     let decl = Let $ Decl sym' sort'
 
-    -- TODO: Could we perhaps remove duplicate calls here? There seem to be a
-    -- lot, so this could eliminate a lot of overhead potentially!
-
     -- Get constraints from the expression.
     let constraints = exprStmts bid e
     -- Do substitution of self variable in the constraints
@@ -265,3 +261,74 @@ sortBodies prog = prog { functions = functions' }
     count (Body _ stmts) = length . filter isCall $ stmts
     isCall (Call _ _) = True
     isCall _ = False
+
+type Equivalents = HashMap Symbol ID
+type ID = Int
+
+-- | Check if two symbols are equivalent.
+symEq :: Equivalents -> Symbol -> Symbol -> Bool
+symEq alias lhs rhs = Map.lookup lhs alias == Map.lookup rhs alias
+
+-- | Get a map of all equivalent symbols. I.e. symbols which were literally
+-- defined to be by a statement of the form; assume x == y
+getEqs :: Signature -> [Statement] -> Equivalents
+getEqs sig statements = evalState getAliases' 0
+  where
+    statements' = (Let <$> sig) <> statements
+    getAliases' = foldM go mempty statements'
+
+    go acc (Let (Decl sym _)) = do
+      identifier <- fresh
+      return $ acc <> Map.singleton sym identifier
+    go acc (Assume (PAtom Eq lhs rhs))
+      | EVar lhs' <- uncst lhs
+      , EVar rhs' <- uncst rhs = do
+        let identifier = Map.lookup lhs' acc
+        let old = Map.lookup rhs' acc
+        case (identifier, old) of
+          -- Add to aliases if both names are defined in the environment.
+          (Just identifier', Just old') -> do
+            let rename current = if current == old' then identifier' else current
+            return $ rename <$> acc
+
+          -- Otherwise, just return the accumulator as is
+          _ -> return acc
+    go acc _ = return acc
+
+    fresh = state $ \s -> (s, s + 1)
+
+    uncst (ECst e _) = uncst e
+    uncst e = e
+
+-- | Deduplicate calls by building an equivalence map and checking whether
+-- substitution maps are submaps of each other.
+dedupCalls :: Signature -> [Statement] -> [Statement]
+dedupCalls signature statements = dedup $ replace <$> statements
+  where
+    dedup = Set.toList . Set.fromList
+
+    -- FIXME: I don't think this captures all cases! (has to do with ordering of
+    -- statements)
+    -- Replaces a submap subst with the bigger version.
+    replace (Call _ [(_, sub)])
+      | Just v <- find (isSubmap' sub) statements = v
+    replace s = s
+
+    isSubmap' sub (Call _ [(_, sub')]) = isSubmap eqs sub sub'
+    isSubmap' _ _ = False
+
+    eqs = getEqs signature statements
+
+-- | Returns whether the first substitution map is a sub-assignment of the
+-- second. In other words, if the first subst can be ignored if both as it
+-- places the same (but less) constraints as the second subst.
+isSubmap :: Equivalents -> Subst -> Subst -> Bool
+isSubmap eqs (Su sub0) (Su sub1) = null remaining
+  where
+    remaining = Map.differenceWith diff sub0 sub1
+
+    diff (EVar sym0) (EVar sym1)
+      | not $ eq' sym0 sym1 = Just $ EVar sym0
+    diff _ _ = Nothing
+
+    eq' = symEq eqs

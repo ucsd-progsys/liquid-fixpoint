@@ -11,6 +11,8 @@ module Language.Fixpoint.Counterexample.SMT
   , assume
   , inScope
   , checkSat
+  , getModel
+  , getModelUnsafe
   ) where
 
 import Language.Fixpoint.Types
@@ -79,20 +81,26 @@ inScope inner = do
   return result
 
 -- | Check if there is a counterexample, returing one if it is available.
-checkSat :: MonadSMT s m => Runner m
+checkSat :: MonadSMT s m => m Bool
 checkSat = do
   ctx <- reader smtContext
-  valid <- liftIO $ SMT.smtCheckUnsat ctx
+  liftIO $ not <$> SMT.smtCheckUnsat ctx
 
-  if valid then return Nothing else Just <$> getModel
-
--- | Returns a model, with as precondition that the SMT  solver had a satisfying
--- assignment prior to this.
-getModel :: MonadSMT s m => m SMTCounterexample
-getModel = do
+-- | Returns a model, with as precondition that the SMT solver had a satisfying
+-- assignment prior to this. Hence, this is "unsafe", as calling it without
+-- this precondition will crash the program.
+getModelUnsafe :: MonadSMT s m => m SMTCounterexample
+getModelUnsafe = do
   ctx <- reader smtContext
   sub <- liftIO $ SMT.smtGetModel ctx
   return $ smtSubstToCex sub
+
+-- | Checks satisfiability, returning a model if available.
+getModel :: MonadSMT s m => m (Maybe SMTCounterexample)
+getModel = do
+  sat <- checkSat
+  if sat then Just <$> getModelUnsafe else return Nothing
+
 
 -- | Transform an SMT substitution, which contains SMT scoped symbols, into a
 -- layered, tree-like counterexample.

@@ -36,6 +36,11 @@ instance SMTContext CheckEnv where
 -- | The monad used to generate counter examples from a Prog.
 type MonadCheck m = (MonadReader CheckEnv m, MonadIO m)
 
+-- | The runner is a computation path in the program. We use this as an argument
+-- to pass around the remainder of a computation. This way, we can pop paths in
+-- the SMT due to conditionals. Allowing us to retain anything prior to that.
+type Runner m = m (Maybe SMTCounterexample)
+
 -- | Check the given constraints to try and find a counter example.
 checkProg :: MonadIO m => Config -> SInfo info -> Prog -> [SubcId] -> m [SMTCounterexample]
 checkProg cfg si prog cids = SMT.withContext cfg si check
@@ -78,7 +83,7 @@ checkConstraint cid = do
   let cmp (Body bid _) = bid == cid
   let scope = Scope mempty cid mempty
   case find cmp bodies of
-    Just body -> runBody scope body SMT.checkSat
+    Just body -> runBody scope body SMT.getModel
     Nothing -> return Nothing
 
 -- | Run a function. This essentially makes one running branch for
@@ -89,13 +94,20 @@ runFunc name scope runner = do
   -- Lookup function bodies
   func <- getFunc name
   maxDepth' <- reader maxDepth
+  sat <- SMT.checkSat
   case func of
+    -- This sub tree is already unsatisfiable. Adding more constraints never
+    -- makes it satisfiable and, as such, we prune this subtree.
+    _ | not sat -> return Nothing
+
     -- Recursion limit reached, so no counterexample.
     _ | length (path scope) >= maxDepth' -> return Nothing
+
     -- Unconstrained function body, so there is no counterexample here. This
     -- would be equivalent to trying to create an inhabitant of {v:a | false},
     -- which doesn't exist.
     Nothing -> return Nothing
+
     -- Constrained function body
     Just (Func _ bodies) -> do
       -- Generate all execution paths (as runners).

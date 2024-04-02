@@ -6,7 +6,6 @@ module Language.Fixpoint.Counterexample.Types
   , FullCounterexample
   , CexEnv
   , Trace
-  , Runner
   , Scope (..)
 
   , Prog (..)
@@ -37,11 +36,6 @@ dbg = liftIO . print . pprint
 -- | A counterexample that was mapped from an SMT result. It is a simple mapping
 -- from symbol to concrete instance.
 type SMTCounterexample = Counterexample Subst
-
--- | The runner is a computation path in the program. We use this as an argument
--- to pass around the remainder of a computation. This way, we can pop paths in
--- the SMT due to conditionals. Allowing us to retain anything prior to that.
-type Runner m = m (Maybe SMTCounterexample)
 
 -- | A scope contains the current binders in place as well as the path traversed
 -- to reach this scope.
@@ -86,6 +80,12 @@ data Body = Body !SubcId ![Statement]
 
 -- | A statement used to introduce/check constraints, together with its location
 -- information.
+--
+-- WARNING: We rely on the order of these declarations for the derive of Ord.
+-- Specifically, to sort the statements in this same order for the builder.
+-- Let bindings should appear first so everything is in scope and correctly
+-- named. Calls should be last: this allows us to prune branches when executing
+-- them. Do not change these unless you know what you are doing!
 data Statement
   = Let !Decl
   -- ^ Introduces a new variable.
@@ -96,11 +96,11 @@ data Statement
   | Call !BindId ![(Name, Subst)]
   -- ^ Call to function. The bind id is used to trace callstacks. I.e. it is the
   -- caller of the function.
-  deriving Show
+  deriving (Show, Eq, Ord)
 
 -- | A declaration of a Symbol with a Sort.
 data Decl = Decl !Symbol !Sort
-  deriving Show
+  deriving (Show, Eq, Ord)
 
 -- | The main function, which any horn clause without a KVar on the rhs will be
 -- added to.
