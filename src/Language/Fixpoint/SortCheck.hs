@@ -182,87 +182,6 @@ instance Elaborate Expr where
       putStrLn "------------------"
       pure $ e'''
 
-{-
-PAnd [ EApp (EVar "is$SngBug.Emp") (EVar "lq_tmp$x##477")
-     , PNot (EApp (EVar "is$SngBug.Cons") (EVar "lq_tmp$x##477"))
-     , PAtom Eq (EVar "lq_tmp$x##477")
-                (EVar "SngBug.Emp")
-     , PAtom Eq (EApp (EVar "SngBug.lstHd") (EVar "lq_tmp$x##477"))
-                (EApp (EVar "Set_empty") (ECon (I 0)))]
-
--- before elabFSet
-
-PAnd [ECst (EApp (ECst (EVar "is$SngBug.Emp") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
-                                                           (FTC (TC "bool" (dummyLoc) ))))
-                 (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 ))
-                                                    (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 ))
-                                                               (FObj "l##a4Vx")))))
-           (FTC (TC "bool" (dummyLoc) ))
-     , PNot (ECst (EApp (ECst (EVar "is$SngBug.Cons") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 ))
-                                                                   (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 ))
-                                                                         (FObj "l##a4Vx")))
-                                                             (FTC (TC "bool" (dummyLoc) ))))
-                        (ECst (EVar "lq_tmp$x##477")
-                              (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 ))
-                                    (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 ))
-                                          (FObj "l##a4Vx")))))
-                  (FTC (TC "bool" (dummyLoc) )))
-     , PAtom Eq (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-                (ECst (EVar "SngBug.Emp") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 ))
-                                                (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-     , PAtom Eq (ECst (EApp (ECst (EVar "SngBug.lstHd") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:309:37-309:47 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
-                                                               (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 ))
-                                                                     (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                            (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                      (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 ))
-                            (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-                (ECst (EApp (ECst (EVar "Set_empty") (FFunc FInt (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:295:39-295:46 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                            (ECst (ECon (I 0)) FInt))
-                      (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:295:39-295:46 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))]
--}
-
-{-
-PAnd [ ECst (EApp (ECst (EVar "is$SngBug.Emp") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
-                                                      (FTC (TC "bool" (dummyLoc) ))))
-                  (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-            (FTC (TC "bool" (dummyLoc) ))
-     , PNot (ECst (EApp (ECst (EVar "is$SngBug.Cons") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))) (FTC (TC "bool" (dummyLoc) ))))
-                        (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                  (FTC (TC "bool" (dummyLoc) )))
-     , PAtom Eq (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-                (ECst (EVar "SngBug.Emp") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-     , PAtom Eq (ECst (EApp (ECst (EVar "SngBug.lstHd") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:309:37-309:47 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
-                                                               (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                            (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                       (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-                 (ECst (EApp (ECst (EVar "const") (FFunc (FTC (TC "bool" (dummyLoc) )) (FApp (FTC (TC "Set_Set" (dummyLoc) )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))) (ECst (POr []) (FTC (TC "bool" (dummyLoc) ))))
-                       (FApp (FTC (TC "Set_Set" (dummyLoc) )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-     ]
--}
-
-
-{-
-PAnd [ ECst (EApp (ECst (EVar "is$SngBug.Emp") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
-                                                      (FTC (TC "bool" (dummyLoc) )))) (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-            (FTC (TC "bool" (dummyLoc) ))
-     , PNot (ECst (EApp (ECst (EVar "is$SngBug.Cons") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))) (FTC (TC "bool" (dummyLoc) ))))
-                        (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                  (FTC (TC "bool" (dummyLoc) )))
-     , PAtom Eq (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-                (ECst (EVar "SngBug.Emp") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:8:6-8:16 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-     , PAtom Eq (ECst (EApp (EApp (ECst (EVar "apply") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
-                                                              (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                                  (ECst (EVar "SngBug.lstHd") (FFunc (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:309:37-309:47 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))
-                                                                     (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))))
-                            (ECst (EVar "lq_tmp$x##477") (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:65-680:75 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                      (FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-                (ECst (EApp (ECst (EVar "const") (FFunc (FTC (TC "bool" (dummyLoc) )) (FApp (FTC (TC "Set_Set" (dummyLoc) )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx")))))
-                            (ECst (POr []) (FTC (TC "bool" (dummyLoc) ))))
-                      (FApp (FTC (TC "Set_Set" (dummyLoc) )) (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 )) (FObj "l##a4Vx"))))
-     ]
--}
-
-
 skipElabExpr :: Located String -> SymEnv -> Expr -> Expr
 skipElabExpr msg env e = case elabExprE msg env e of
   Left _   -> e
@@ -309,25 +228,14 @@ instance (Loc a) => Elaborate (SimpC a) where
 -- | 'elabFSet' replaces all finset theory operations with array-based encodings.
 ---------------------------------------------------------------------------------
 elabFSet :: Expr -> Expr
---  PAnd [ EApp (EVar "is$SngBug.Emp") (EVar "lq_tmp$x##477")
---       , PNot (EApp (EVar "is$SngBug.Cons") (EVar "lq_tmp$x##477"))
---       , PAtom Eq (EVar "lq_tmp$x##477") (EVar "SngBug.Emp")
---       , PAtom Eq (EApp (EVar "SngBug.lstHd") (EVar "lq_tmp$x##477"))
---                  (EApp (EVar "Set_empty") (ECon (I 0)))
---      ]
-
-
-    --ECon (L "false" (FAbs 0 $ FFunc intSort (setSort $ FVar 0))) --(FAbs 0 $ setSort $ FVar 0)
 elabFSet (EApp h@(EVar f) e)
-    | f == Thy.setEmpty    = --EApp (ECst (EVar "const") (FAbs 0 $ setSort $ FVar 0)) PFalse
-
-                             EApp (EVar "const") PFalse
-                               --EApp (ECst (EVar "const") (FAbs 0 $ setSort $ FVar 0)) (EVar "false")
-         --ECst (ECon (L "false" boolSort)) (FAbs 0 $ setSort $ FVar 0)
-
+  | f == Thy.setEmpty    = EApp (EVar "const") PFalse
   | f == Thy.setEmp        = PAtom Eq (EApp (EVar "const") PFalse) (elabFSet e)
   | f == Thy.setSng        = EApp (EApp (EApp (EVar "store") (EApp (EVar "const") PFalse)) (elabFSet e)) PTrue
   | otherwise              = EApp (elabFSet h) (elabFSet e)
+elabFSet (EApp (EApp h@(EVar f) ex) es)
+  | f == Thy.setMem        = EApp (EApp (EVar "select") (elabFSet es)) (elabFSet ex)
+  | otherwise              = EApp (EApp (elabFSet h) (elabFSet ex)) (elabFSet es)
 elabFSet (EApp e1 e2)      = EApp (elabFSet e1) (elabFSet e2)
 elabFSet (ENeg e)          = ENeg (elabFSet e)
 elabFSet (EBin b e1 e2)    = EBin b (elabFSet e1) (elabFSet e2)
@@ -789,8 +697,8 @@ elabAppAs env@(_, f) t g e = do
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1)     <- tracepp ("elabEApp1: e1 = " ++ showpp e1) <$> elab f e1
-  (e2', s2)     <- elab f e2
+  (e1', s1)     <- tracepp ("elabEApp: e1 = " ++ showpp e1) <$> elab f e1
+  (e2', s2)     <- tracepp ("elabEApp: e2 = " ++ showpp e2) <$> elab f e2
   (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
   return           (e1'', s1', e2'', s2', s)
 
@@ -798,8 +706,9 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, 
 elabAppSort f e1 e2 s1 s2 = do
   let e            = tracepp "elabAppSort" $ Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  su'             <- unify1 f e su sIn s2
-  return (applyExpr (Just su') e1, applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
+  let (sIn', s2')  = tracepp "elabAppSort2" $ coerceSetToArray sIn s2
+  su'             <- unify1 f e su sIn' s2'
+  return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
 
 --------------------------------------------------------------------------------

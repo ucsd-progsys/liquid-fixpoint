@@ -70,15 +70,15 @@ elt  = "Elt"
 set  = "LSet"
 map  = "Map"
 
---emp, sng,
-add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef, mprj :: Raw
+--emp, sng, mem,
+add, cap, cup, dif, sub, com, sel, sto, mcup, mdef, mprj :: Raw
 mToSet, mshift, mmax, mmin :: Raw
 --emp   = "smt_set_emp"
 --sng   = "smt_set_sng"
 add   = "smt_set_add"
 cup   = "smt_set_cup"
 cap   = "smt_set_cap"
-mem   = "smt_set_mem"
+-- mem   = "smt_set_mem"
 dif   = "smt_set_dif"
 sub   = "smt_set_sub"
 com   = "smt_set_com"
@@ -251,10 +251,10 @@ z3Preamble u
 --        [("x", fromText elt)]
 --        (fromText set)
 --        (key3 "store" (parens (key "as const" (fromText set) <+> "false")) "x" "true")
-    , bFun mem
-        [("x", fromText elt), ("s", fromText set)]
-        "Bool"
-        "(select s x)"
+--    , bFun mem
+--        [("x", fromText elt), ("s", fromText set)]
+--        "Bool"
+--        "(select s x)"
     , bFun add
         [("s", fromText set), ("x", fromText elt)]
         (fromText set)
@@ -374,7 +374,7 @@ commonPreamble _ --TODO use uif flag u (see z3Preamble)
     , bFun' cap [fromText set, fromText set] (fromText set)
     , bFun' dif [fromText set, fromText set] (fromText set)
     , bFun' sub [fromText set, fromText set] "Bool"
-    , bFun' mem [fromText elt, fromText set] "Bool"
+--    , bFun' mem [fromText elt, fromText set] "Bool"
     , bFun boolToIntName [("b", "Bool")] "Int" "(ite b 1 0)"
     ]
 
@@ -522,8 +522,12 @@ interpSymbols =
 --  , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
 --  , interpSym setSng   sng  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
 
+  -- TODO we need two versions for these - one for set and one for map
+
    ("const", Thy "const" "const" (FAbs 0 $ FFunc boolSort (arraySort (FVar 0) boolSort)) Theory)
  , ("store", Thy "store" "store" (FAbs 0 $ FFunc (arraySort (FVar 0) boolSort) $ FFunc (FVar 0) $ FFunc boolSort (arraySort (FVar 0) boolSort)) Theory)
+ , ("select", Thy "select" "select" (FAbs 0 $ FFunc (arraySort (FVar 0) boolSort) $ FFunc (FVar 0) boolSort) Theory)
+
 
     --("const", Thy "const" "const" (FAbs 0 $ FFunc boolSort (setSort (FVar 0))) Theory)
   --, ("store", Thy "store" "store" (FAbs 0 $ FFunc (setSort (FVar 0)) $ FFunc (FVar 0) $ FFunc boolSort (setSort (FVar 0))) Theory)
@@ -532,7 +536,7 @@ interpSymbols =
     interpSym setAdd   add   setAddSort
   , interpSym setCup   cup   setBopSort
   , interpSym setCap   cap   setBopSort
-  , interpSym setMem   mem   setMemSort
+--   , interpSym setMem   mem   setMemSort
   , interpSym setDif   dif   setBopSort
   , interpSym setSub   sub   setCmpSort
   , interpSym setCom   com   setCmpSort
@@ -614,7 +618,7 @@ interpSymbols =
     boolInt    = boolToIntName
     setAddSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (FVar 0)           (setSort $ FVar 0)
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
-    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+--    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     -- select :: forall i a. Map i a -> i -> a
     mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
