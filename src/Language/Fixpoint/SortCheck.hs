@@ -229,13 +229,17 @@ instance (Loc a) => Elaborate (SimpC a) where
 ---------------------------------------------------------------------------------
 elabFSet :: Expr -> Expr
 elabFSet (EApp h@(EVar f) e)
-  | f == Thy.setEmpty    = EApp (EVar "const") PFalse
+  | f == Thy.setEmpty      = EApp (EVar "const") PFalse
   | f == Thy.setEmp        = PAtom Eq (EApp (EVar "const") PFalse) (elabFSet e)
   | f == Thy.setSng        = EApp (EApp (EApp (EVar "store") (EApp (EVar "const") PFalse)) (elabFSet e)) PTrue
+  | f == Thy.setCom        = EApp (EVar Thy.arrMapNot) (elabFSet e)
   | otherwise              = EApp (elabFSet h) (elabFSet e)
-elabFSet (EApp (EApp h@(EVar f) ex) es)
-  | f == Thy.setMem        = EApp (EApp (EVar "select") (elabFSet es)) (elabFSet ex)
-  | otherwise              = EApp (EApp (elabFSet h) (elabFSet ex)) (elabFSet es)
+elabFSet (EApp (EApp h@(EVar f) e1) e2)
+  | f == Thy.setMem        = EApp (EApp (EVar "select") (elabFSet e2)) (elabFSet e1)
+  | f == Thy.setCup        = EApp (EApp (EVar Thy.arrMapOr) (elabFSet e1)) (elabFSet e2)
+  | f == Thy.setCap        = EApp (EApp (EVar Thy.arrMapAnd) (elabFSet e1)) (elabFSet e2)
+  | f == Thy.setAdd        = EApp (EApp (EApp (EVar "store") (elabFSet e1)) (elabFSet e2)) PTrue
+  | otherwise              = EApp (EApp (elabFSet h) (elabFSet e1)) (elabFSet e2)
 elabFSet (EApp e1 e2)      = EApp (elabFSet e1) (elabFSet e2)
 elabFSet (ENeg e)          = ENeg (elabFSet e)
 elabFSet (EBin b e1 e2)    = EBin b (elabFSet e1) (elabFSet e2)
@@ -688,10 +692,11 @@ elabAppAs env@(_, f) t g e = do
   (iT, oT, isu) <- checkFunSort gT
   let ge    = tracepp ("elabAppAs_ge: oT = " ++ showpp oT ++ " iT = " ++ showpp iT ++ " t = " ++ showpp t ++ " eT = " ++ showpp eT) $ Just (EApp g e)
   let (oT' , t') = coerceSetToArray oT t
-  su       <- unifyMany f ge isu [oT', iT] [t', eT]
+  let (iT' , eT') = coerceSetToArray iT eT
+  su       <- unifyMany f ge isu [oT', iT'] [t', eT']
   let tg    = tracepp "elabAppAs_tg" $ apply su gT
   g'       <- tracepp "elabAppAs_g" <$> elabAs env tg g
-  let te    = tracepp "elabAppAs_te" $ apply su eT
+  let te    = tracepp "elabAppAs_te" $ apply su eT'
   e'       <- tracepp "elabAppAs_e" <$> elabAs env te e
   return    $ EApp (ECst g' tg) (ECst e' te)
 
@@ -1030,13 +1035,14 @@ checkApp' f to g e = do
   gt       <- tracepp ("checkApp': g = " ++ showpp g) <$> checkExpr f g
   et       <- tracepp ("checkApp': e = " ++ showpp e) <$> checkExpr f e
   (it, ot, isu) <- checkFunSort gt
-  let ge    = Just (EApp g e)
-  su        <- unifyMany f ge isu [it] [et]
+  let ge    = tracepp ("checkApp': it = " ++ showpp it) $ Just (EApp g e)
+  let (it' , et') = coerceSetToArray it et
+  su        <- unifyMany f ge isu [it'] [et']
   let t     = tracepp ("checkApp': t ") $ apply su ot
   case to of
     Nothing    -> return (su, t)
     Just t'    -> do θ' <- unifyMany f ge su [t] [t']
-                     let ti = tracepp ("checkApp': ti " ) $ apply θ' et
+                     let ti = tracepp ("checkApp': ti " ) $ apply θ' et'
                      _ <- checkExprAs f ti e
                      return (θ', apply θ' t)
 

@@ -32,7 +32,11 @@ module Language.Fixpoint.Smt.Theories
 
        -- * Theories
      , setEmpty, setEmp, setCap, setSub, setAdd, setMem
-     , setCom, setCup, setDif, setSng, mapSel, mapCup, mapSto, mapDef
+     , setCom, setCup, setDif, setSng
+
+     , mapSel, mapCup, mapSto, mapDef
+
+     , arrMapOr, arrMapAnd, arrMapNot
 
       -- * Query Theories
      , isSmt2App
@@ -70,18 +74,19 @@ elt  = "Elt"
 set  = "LSet"
 map  = "Map"
 
---emp, sng, mem,
-add, cap, cup, dif, sub, com, sel, sto, mcup, mdef, mprj :: Raw
+--emp, sng, mem, add, cap, cup, com,
+dif, sub, sel, sto, mcup, mdef, mprj :: Raw
 mToSet, mshift, mmax, mmin :: Raw
 --emp   = "smt_set_emp"
 --sng   = "smt_set_sng"
-add   = "smt_set_add"
-cup   = "smt_set_cup"
-cap   = "smt_set_cap"
+--add   = "smt_set_add"
+-- cup   = "smt_set_cup"
+--cap   = "smt_set_cap"
 -- mem   = "smt_set_mem"
 dif   = "smt_set_dif"
 sub   = "smt_set_sub"
-com   = "smt_set_com"
+--com   = "smt_set_com"
+
 sel   = "smt_map_sel"
 sto   = "smt_map_sto"
 mcup  = "smt_map_cup"
@@ -159,6 +164,12 @@ setCom   = "Set_com"
 setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
+
+--- Array HOFs
+arrMapOr, arrMapAnd, arrMapNot :: Symbol
+arrMapOr = "arr_map_or"
+arrMapAnd = "arr_map_and"
+arrMapNot = "arr_map_not"
 
 mapSel, mapSto, mapCup, mapDef, mapPrj, mapToSet :: Symbol
 mapMax, mapMin, mapShift :: Symbol
@@ -255,26 +266,26 @@ z3Preamble u
 --        [("x", fromText elt), ("s", fromText set)]
 --        "Bool"
 --        "(select s x)"
-    , bFun add
-        [("s", fromText set), ("x", fromText elt)]
-        (fromText set)
-        "(store s x true)"
-    , bFun cup
-        [("s1", fromText set), ("s2", fromText set)]
-        (fromText set)
-        "((_ map or) s1 s2)"
-    , bFun cap
-        [("s1", fromText set), ("s2", fromText set)]
-        (fromText set)
-        "((_ map and) s1 s2)"
-    , bFun com
-        [("s", fromText set)]
-        (fromText set)
-        "((_ map not) s)"
-    , bFun dif
-        [("s1", fromText set), ("s2", fromText set)]
-        (fromText set)
-        (key2 (fromText cap) "s1" (key (fromText com) "s2"))
+--    , bFun add
+--        [("s", fromText set), ("x", fromText elt)]
+--        (fromText set)
+--        "(store s x true)"
+--    , bFun cup
+--        [("s1", fromText set), ("s2", fromText set)]
+--        (fromText set)
+--        "((_ map or) s1 s2)"
+--    , bFun cap
+--        [("s1", fromText set), ("s2", fromText set)]
+--        (fromText set)
+--        "((_ map and) s1 s2)"
+--    , bFun com
+--        [("s", fromText set)]
+--        (fromText set)
+--        "((_ map not) s)"
+--    , bFun dif
+--        [("s1", fromText set), ("s2", fromText set)]
+--        (fromText set)
+--        (key2 (fromText cap) "s1" (key (fromText com) "s2"))
 --    , bFun sub
 --        [("s1", fromText set), ("s2", fromText set)]
 --        "Bool"
@@ -369,9 +380,9 @@ commonPreamble _ --TODO use uif flag u (see z3Preamble)
     , bSort string "Int"
 --    , bFun' emp []               (fromText set)
 --    , bFun' sng [fromText elt]         (fromText set)
-    , bFun' add [fromText set, fromText elt] (fromText set)
-    , bFun' cup [fromText set, fromText set] (fromText set)
-    , bFun' cap [fromText set, fromText set] (fromText set)
+--    , bFun' add [fromText set, fromText elt] (fromText set)
+--    , bFun' cup [fromText set, fromText set] (fromText set)
+--    , bFun' cap [fromText set, fromText set] (fromText set)
     , bFun' dif [fromText set, fromText set] (fromText set)
     , bFun' sub [fromText set, fromText set] "Bool"
 --    , bFun' mem [fromText elt, fromText set] "Bool"
@@ -522,24 +533,28 @@ interpSymbols =
 --  , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
 --  , interpSym setSng   sng  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
 
-  -- TODO we need two versions for these - one for set and one for map
+  -- TODO we need two versions for these - one for sets and one for maps
 
    ("const", Thy "const" "const" (FAbs 0 $ FFunc boolSort (arraySort (FVar 0) boolSort)) Theory)
  , ("store", Thy "store" "store" (FAbs 0 $ FFunc (arraySort (FVar 0) boolSort) $ FFunc (FVar 0) $ FFunc boolSort (arraySort (FVar 0) boolSort)) Theory)
  , ("select", Thy "select" "select" (FAbs 0 $ FFunc (arraySort (FVar 0) boolSort) $ FFunc (FVar 0) boolSort) Theory)
 
+  , interpSym arrMapOr "(_ map or)" (FFunc (arraySort (FVar 0) boolSort) $ FFunc (arraySort (FVar 0) boolSort) (arraySort (FVar 0) boolSort))
+  , interpSym arrMapAnd "(_ map and)" (FFunc (arraySort (FVar 0) boolSort) $ FFunc (arraySort (FVar 0) boolSort) (arraySort (FVar 0) boolSort))
+  , interpSym arrMapNot "(_ map not)" (FFunc (arraySort (FVar 0) boolSort) (arraySort (FVar 0) boolSort))
+-- , ("map", Thy "map" "map" (FAbs 0 $ FFunc (arraySort (FVar 0) boolSort) $ FFunc (FVar 0) boolSort) Theory)
 
     --("const", Thy "const" "const" (FAbs 0 $ FFunc boolSort (setSort (FVar 0))) Theory)
   --, ("store", Thy "store" "store" (FAbs 0 $ FFunc (setSort (FVar 0)) $ FFunc (FVar 0) $ FFunc boolSort (setSort (FVar 0))) Theory)
 --    interpSym "const" "const"  (FAbs 0 $ setSort $ FVar 0)
-  ,
-    interpSym setAdd   add   setAddSort
-  , interpSym setCup   cup   setBopSort
-  , interpSym setCap   cap   setBopSort
+
+--    interpSym setAdd   add   setAddSort
+--  , interpSym setCup   cup   setBopSort
+--  , interpSym setCap   cap   setBopSort
 --   , interpSym setMem   mem   setMemSort
   , interpSym setDif   dif   setBopSort
   , interpSym setSub   sub   setCmpSort
-  , interpSym setCom   com   setCmpSort
+--  , interpSym setCom   com   setCmpSort
 
   , interpSym mapSel   sel   mapSelSort
   , interpSym mapSto   sto   mapStoSort
@@ -616,7 +631,7 @@ interpSymbols =
     bv32       = sizedBitVecSort "Size32"
     bv64       = sizedBitVecSort "Size64"
     boolInt    = boolToIntName
-    setAddSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (FVar 0)           (setSort $ FVar 0)
+--    setAddSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (FVar 0)           (setSort $ FVar 0)
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
 --    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
