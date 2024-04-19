@@ -229,19 +229,19 @@ instance (Loc a) => Elaborate (SimpC a) where
 ---------------------------------------------------------------------------------
 elabFSet :: Expr -> Expr
 elabFSet (EApp h@(EVar f) e)
-  | f == Thy.setEmpty      = EApp (EVar "const") PFalse
-  | f == Thy.setEmp        = PAtom Eq (EApp (EVar "const") PFalse) (elabFSet e)
-  | f == Thy.setSng        = EApp (EApp (EApp (EVar "store") (EApp (EVar "const") PFalse)) (elabFSet e)) PTrue
+  | f == Thy.setEmpty      = EApp (EVar Thy.arrConst) PFalse
+  | f == Thy.setEmp        = PAtom Eq (EApp (EVar Thy.arrConst) PFalse) (elabFSet e)
+  | f == Thy.setSng        = EApp (EApp (EApp (EVar Thy.arrStore) (EApp (EVar Thy.arrConst) PFalse)) (elabFSet e)) PTrue
   | f == Thy.setCom        = EApp (EVar Thy.arrMapNot) (elabFSet e)
   | otherwise              = EApp (elabFSet h) (elabFSet e)
 elabFSet (EApp (EApp h@(EVar f) e1) e2)
-  | f == Thy.setMem        = EApp (EApp (EVar "select") (elabFSet e2)) (elabFSet e1)
+  | f == Thy.setMem        = EApp (EApp (EVar Thy.arrSelect) (elabFSet e2)) (elabFSet e1)
   | f == Thy.setCup        = EApp (EApp (EVar Thy.arrMapOr) (elabFSet e1)) (elabFSet e2)
   | f == Thy.setCap        = EApp (EApp (EVar Thy.arrMapAnd) (elabFSet e1)) (elabFSet e2)
-  | f == Thy.setAdd        = EApp (EApp (EApp (EVar "store") (elabFSet e1)) (elabFSet e2)) PTrue
+  | f == Thy.setAdd        = EApp (EApp (EApp (EVar Thy.arrStore) (elabFSet e1)) (elabFSet e2)) PTrue
   -- S1 \ S2 = S1 /\ ~S2 = ~ (S1 => S2)
   | f == Thy.setDif        = EApp (EApp (EVar Thy.arrMapAnd) (elabFSet e1)) (EApp (EVar Thy.arrMapNot) (elabFSet e2))
-  | f == Thy.setSub        = PAtom Eq (EApp (EVar "const") PTrue) (EApp (EApp (EVar Thy.arrMapImp) (elabFSet e1)) (elabFSet e2))
+  | f == Thy.setSub        = PAtom Eq (EApp (EVar Thy.arrConst) PTrue) (EApp (EApp (EVar Thy.arrMapImp) (elabFSet e1)) (elabFSet e2))
   | otherwise              = EApp (EApp (elabFSet h) (elabFSet e1)) (elabFSet e2)
 elabFSet (EApp e1 e2)      = EApp (elabFSet e1) (elabFSet e2)
 elabFSet (ENeg e)          = ENeg (elabFSet e)
@@ -694,8 +694,8 @@ elabAppAs env@(_, f) t g e = do
   eT       <- tracepp ("elabAppAs: e = " ++ showpp e ++ " gT = " ++ showpp gT) <$> checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = tracepp ("elabAppAs_ge: oT = " ++ showpp oT ++ " iT = " ++ showpp iT ++ " t = " ++ showpp t ++ " eT = " ++ showpp eT) $ Just (EApp g e)
-  let (oT' , t') = coerceSetToArray oT t
-  let (iT' , eT') = coerceSetToArray iT eT
+  let (oT' , t') = coerceSetToArray2 oT t
+  let (iT' , eT') = coerceSetToArray2 iT eT
   su       <- unifyMany f ge isu [oT', iT'] [t', eT']
   let tg    = tracepp "elabAppAs_tg" $ apply su gT
   g'       <- tracepp "elabAppAs_g" <$> elabAs env tg g
@@ -714,7 +714,7 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, 
 elabAppSort f e1 e2 s1 s2 = do
   let e            = tracepp "elabAppSort" $ Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  let (sIn', s2')  = tracepp "elabAppSort2" $ coerceSetToArray sIn s2
+  let (sIn', s2')  = tracepp "elabAppSort2" $ coerceSetToArray2 sIn s2
   su'             <- unify1 f e su sIn' s2'
   return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
@@ -737,9 +737,10 @@ takeArgs env e es =
 
 -- 'e1' is the function, 'e2' is the argument, 's' is the OUTPUT TYPE
 makeApplication :: Expr -> (Expr, Sort) -> Expr
-makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
+makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s'
   where
-    f                      = {- tracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
+    s'                     = coerceSetToArray s
+    f                      = {- tracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s'
     t2                     = exprSort "makeAppl" e2
 
 applyAt :: Sort -> Sort -> Expr
@@ -947,7 +948,7 @@ genSort t          = t
 
 unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
 unite f e t1 t2 = do
-  let (t1',t2') = coerceSetToArray t1 t2
+  let (t1',t2') = coerceSetToArray2 t1 t2
   su <- unifys f (Just e) [t1'] [t2']
   return (apply su t1', apply su t2')
 
@@ -957,17 +958,23 @@ unite f e t1 t2 = do
 --            (FVar 46))
 --      (FTC (TC "bool" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))
 
-coerceSetToArray :: Sort -> Sort -> (Sort, Sort)
-coerceSetToArray s1@(FApp sf1 sa1) s2@(FApp (FApp sf2 sa2) sb2)
+coerceSetToArray :: Sort -> Sort
+coerceSetToArray s@(FApp sf sa)
+  | isSet sf = arraySort sa boolSort
+  | otherwise = s
+coerceSetToArray s = s
+
+coerceSetToArray2 :: Sort -> Sort -> (Sort, Sort)
+coerceSetToArray2 s1@(FApp sf1 sa1) s2@(FApp (FApp sf2 sa2) sb2)
   | isSet sf1 && isArray sf2 && isBool sb2 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
   | otherwise = (s1, s2)
-coerceSetToArray s1@(FApp (FApp sf1 sa1) sb1) s2@(FApp sf2 sa2)
+coerceSetToArray2 s1@(FApp (FApp sf1 sa1) sb1) s2@(FApp sf2 sa2)
   | isSet sf2 && isArray sf1 && isBool sb1 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
   | otherwise = (s1, s2)
-coerceSetToArray s1@(FApp sf1 sa1) s2@(FApp sf2 sa2)
+coerceSetToArray2 s1@(FApp sf1 sa1) s2@(FApp sf2 sa2)
   | isSet sf1 && isSet sf2 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
   | otherwise = (s1, s2)
-coerceSetToArray s1 s2 = (s1, s2)
+coerceSetToArray2 s1 s2 = (s1, s2)
 
 throwErrorAt :: String -> CheckM a
 throwErrorAt ~err' = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
@@ -1039,7 +1046,7 @@ checkApp' f to g e = do
   et       <- tracepp ("checkApp': e = " ++ showpp e) <$> checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = tracepp ("checkApp': it = " ++ showpp it) $ Just (EApp g e)
-  let (it' , et') = coerceSetToArray it et
+  let (it' , et') = coerceSetToArray2 it et
   su        <- unifyMany f ge isu [it'] [et']
   let t     = tracepp ("checkApp': t ") $ apply su ot
   case to of

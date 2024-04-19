@@ -458,7 +458,7 @@ type VarAs = SymEnv -> Symbol -> Sort -> Builder
 smt2App :: VarAs -> SymEnv -> Expr -> [Builder] -> Maybe Builder
 --------------------------------------------------------------------------------
 smt2App _ env ex@(dropECst -> EVar f) [d]
-  | f == "const" = Just (key (key "as const" (getTarget ex)) d)
+  | f == arrConst = Just (key (key "as const" (getTarget ex)) d)
   where
     getTarget :: Expr -> Builder
     -- const is a function, but SMT expects only the output sort
