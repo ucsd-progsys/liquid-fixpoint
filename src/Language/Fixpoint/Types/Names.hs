@@ -655,7 +655,7 @@ listLConName = "List"
 tupConName   = "Tuple"
 setConName   = "Set_Set"
 mapConName   = "Map_t"
-arrayConName = "Array"
+arrayConName = "Array_t"
 vvName       = "VV"
 propConName  = "Prop"
 _hpropConName = "HProp"
@@ -727,6 +727,7 @@ prims = S.fromList
   , "Map_store"
   , "Map_union"
   , "Map_default"
+  , arrayConName
   -- Currently we parse X in "SizeX" to get the bitvec size
   -- so there is no finite set of names to add here...
   -- , size32Name
