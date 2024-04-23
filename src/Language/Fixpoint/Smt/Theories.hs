@@ -154,8 +154,7 @@ bvSLeName  = "bvsle"
 bvSGtName  = "bvsgt"
 bvSGeName  = "bvsge"
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup :: Symbol
-setDif, setSng :: Symbol
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a -- Symbol
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -169,11 +168,11 @@ setSng   = "Set_sng"
 
 --- Array operations
 arrConst, arrStore, arrSelect, arrMapNot, arrMapOr, arrMapAnd, arrMapImp :: Symbol
-arrConst = "const"
-arrStore = "store"
+arrConst  = "const"
+arrStore  = "store"
 arrSelect = "select"
 arrMapNot = "arr_map_not"
-arrMapOr = "arr_map_or"
+arrMapOr  = "arr_map_or"
 arrMapAnd = "arr_map_and"
 arrMapImp = "arr_map_imp"
 
@@ -536,30 +535,30 @@ interpSymbols :: [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
 interpSymbols =
   [
---    interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
---  , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
---  , interpSym setSng   sng  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
 
 --   ("const", Thy "const" "const" (FAbs 0 $ FFunc boolSort (arraySort (FVar 0) boolSort)) Theory)
 -- , ("store", Thy "store" "store" (FAbs 0 $ FFunc (arraySort (FVar 0) boolSort) $ FFunc (FVar 0) $ FFunc boolSort (arraySort (FVar 0) boolSort)) Theory)
 -- , ("select", Thy "select" "select" (FAbs 0 $ FFunc (arraySort (FVar 0) boolSort) $ FFunc (FVar 0) boolSort) Theory)
 
   -- TODO we need two versions for these - one for sets and one for maps
-    interpSym arrConst "const" (FAbs 0 $ FFunc boolSort setArrSort)
-  , interpSym arrStore "store" (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) $ FFunc boolSort setArrSort)
-  , interpSym arrSelect "select" (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) boolSort)
+    interpSym arrConst  "const"       (FAbs 0 $ FFunc boolSort setArrSort)
+  , interpSym arrStore  "store"       (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) $ FFunc boolSort setArrSort)
+  , interpSym arrSelect "select"      (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) boolSort)
   , interpSym arrMapNot "(_ map not)" (FFunc setArrSort setArrSort)
-  , interpSym arrMapOr "(_ map or)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
+  , interpSym arrMapOr  "(_ map or)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
   , interpSym arrMapAnd "(_ map and)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
-  , interpSym arrMapImp "(_ map =>)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
+  , interpSym arrMapImp "(_ map =>)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
 
---    interpSym setAdd   add   setAddSort
---  , interpSym setCup   cup   setBopSort
---  , interpSym setCap   cap   setBopSort
---   , interpSym setMem   mem   setMemSort
---  , interpSym setDif   dif   setBopSort
---  , interpSym setSub   sub   setCmpSort
---  , interpSym setCom   com   setCmpSort
+  , interpSym setEmp   setEmp   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
+  , interpSym setEmpty setEmpty (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
+  , interpSym setSng   setSng   (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
+  , interpSym setAdd   setAdd   setAddSort
+  , interpSym setCup   setCup   setBopSort
+  , interpSym setCap   setCap   setBopSort
+  , interpSym setMem   setMem   setMemSort
+  , interpSym setDif   setDif   setBopSort
+  , interpSym setSub   setSub   setCmpSort
+  , interpSym setCom   setCom   setCmpSort
 
   , interpSym mapSel   sel   mapSelSort
   , interpSym mapSto   sto   mapStoSort
@@ -570,6 +569,7 @@ interpSymbols =
   , interpSym mapPrj   mprj  mapPrjSort
   , interpSym mapShift mshift mapShiftSort
   , interpSym mapToSet mToSet mapToSetSort
+
   -- , interpSym bvOrName  "bvor"  bvBopSort
   -- , interpSym bvAndName "bvand" bvBopSort
   -- , interpSym bvAddName "bvadd" bvBopSort
@@ -637,10 +637,12 @@ interpSymbols =
     bv32       = sizedBitVecSort "Size32"
     bv64       = sizedBitVecSort "Size64"
     boolInt    = boolToIntName
---    setAddSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (FVar 0)           (setSort $ FVar 0)
---    setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
---    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
---    setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+
+    setAddSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (FVar 0)           (setSort $ FVar 0)
+    setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
+    setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+
     -- select :: forall i a. Map i a -> i -> a
     mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0) (FVar 1)

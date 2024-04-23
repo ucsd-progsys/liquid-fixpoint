@@ -5,10 +5,6 @@ constant lit$director : (Str)
 
 constant listElts : (func(0, [LLChar; (Set_Set Str)]))
 constant Set_sng : (func(1, [@(0); (Set_Set  @(0))]))
-constant Set_cup : (func(1 , [(Set_Set @(0));
-                              (Set_Set @(0));
-                              (Set_Set @(0))]))
-constant Set_mem : (func(1 , [@(0); (Set_Set @(0)); bool]))
 
 bind 1 a  : {a : Str | a == "director" }
 bind 2 things : {v : LLChar | (listElts v == (Set_cup (Set_sng lit$year) (Set_cup (Set_sng lit$star) (Set_cup (Set_sng lit$director) (Set_sng lit$title)))))}
