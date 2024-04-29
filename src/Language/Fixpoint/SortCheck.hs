@@ -1051,10 +1051,11 @@ checkApp' f to g e = do
   let t     = tracepp ("checkApp': t ") $ apply su ot
   case to of
     Nothing    -> return (su, t)
-    Just t'    -> do θ' <- unifyMany f ge su [t] [t']
+    Just t'    -> do let (t0 , t1) = coerceSetToArray2 t t'
+                     θ' <- unifyMany f ge su [t0] [t1]
                      let ti = tracepp ("checkApp': ti " ) $ apply θ' et'
                      _ <- checkExprAs f ti e
-                     return (θ', apply θ' t)
+                     return (θ', apply θ' t0)
 
 
 -- | Helper for checking binary (numeric) operations
