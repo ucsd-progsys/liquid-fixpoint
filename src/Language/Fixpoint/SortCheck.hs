@@ -1031,8 +1031,9 @@ checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
 checkExprAs f t e
   = do t' <- checkExpr f e
-       θ  <- unifys f (Just e) [t'] [t]
-       return $ apply θ t
+       let (t1 , t0) = coerceSetToArray2 t' t
+       θ  <- unifys f (Just e) [t1] [t0]
+       return $ apply θ t0
 
 -- | Helper for checking uninterpreted function applications
 -- | Checking function application should be curried, e.g.
