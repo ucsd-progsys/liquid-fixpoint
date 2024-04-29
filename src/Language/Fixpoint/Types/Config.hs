@@ -231,7 +231,7 @@ defConfig = Config {
   , smtTimeout               = Nothing &= name "smtTimeout"  &= help "smt timeout in msec"
   , elimStats                = False   &= help "(alpha) Print eliminate stats"
   , solverStats              = False   &= help "Print solver stats"
-  , save                     = True    &= help "Save Query as .fq and .bfq files"
+  , save                     = False   &= help "Save Query as .fq and .bfq files"
   , metadata                 = False   &= help "Print meta-data associated with constraints"
   , stats                    = False   &= help "Compute constraint statistics"
   , etaElim                  = False   &= help "eta elimination in function definition"
