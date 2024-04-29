@@ -71,16 +71,19 @@ printPiSols piSols =
 -- can depend on other ks, pis cannot directly depend on other pis
 -- - predicate for exists binder is `true`. (TODO: is this pre stale?)
 
-solveEbs :: (F.PPrint a) => F.Config -> Query a -> IO (Query a)
+solveEbs :: (F.Fixpoint a, F.PPrint a) => F.Config -> Query a -> IO (Query a)
 ------------------------------------------------------------------------------
-solveEbs cfg query@(Query qs vs cstr cons dist eqns mats dds opts) = do
+solveEbs cfg query@(Query {}) = do
+  let cons = qCon query
+  let cstr = qCstr query
+  let dist = qDis query
   -- clean up
   let normalizedC = flatten . pruneTauts $ hornify cstr
   whenLoud $ putStrLn "Normalized EHC:"
   whenLoud $ putStrLn $ F.showpp normalizedC
 
   -- short circuit if no ebinds are present
-  if isNNF cstr then pure $ Query qs vs normalizedC cons dist eqns mats dds opts else do
+  if isNNF cstr then pure $ query{ qCstr = normalizedC } else do
   let kvars = boundKvars normalizedC
 
   whenLoud $ putStrLn "Skolemized:"
@@ -129,7 +132,7 @@ solveEbs cfg query@(Query qs vs cstr cons dist eqns mats dds opts) = do
   let solvedSide = substPiSols solvedPiCstrs sideCut
   whenLoud $ putStrLn $ F.showpp solvedSide
 
-  pure (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist eqns mats dds opts)
+  pure (query { qCstr = CAnd [solvedHorn, solvedSide] })
 
 -- | Collects the defining constraint for π
 -- that is, given `∀ Γ.∀ n.π => c`, returns `((π, n:Γ), c)`
@@ -929,10 +932,10 @@ isNNF (CAnd cs) = all isNNF cs
 isNNF (All _ c) = isNNF c
 isNNF Any{} = False
 
-calculateCuts :: F.Config -> Query a -> Cstr a -> S.Set F.Symbol
-calculateCuts cfg (Query qs vs _ cons dist eqns mats dds opts) nnf = convert $ FG.depCuts deps
+calculateCuts :: (F.Fixpoint a, F.PPrint a) => F.Config -> Query a -> Cstr a -> S.Set F.Symbol
+calculateCuts cfg q@(Query {}) nnf = convert $ FG.depCuts deps
   where
-    (_, deps) = elimVars cfg (hornFInfo cfg $ Query qs vs nnf cons dist eqns mats dds opts)
+    (_, deps) = elimVars cfg (hornFInfo cfg $ q { qCstr = nnf })
     convert hashset = S.fromList $ F.kv <$> HS.toList hashset
 
 forgetPiVars :: S.Set F.Symbol -> Cstr a -> Cstr a
@@ -969,12 +972,31 @@ class Flatten a where
   flatten :: a -> a
 
 instance Flatten (Cstr a) where
-  flatten (CAnd cstrs) = case flatten cstrs of
-                        [c] -> c
-                        cs -> CAnd cs
-  flatten (Head p a) = Head (flatten p) a
-  flatten (All (Bind x t p l) c) = All (Bind x t (flatten p) l) (flatten c)
-  flatten (Any (Bind x t p l) c) = Any (Bind x t (flatten p) l) (flatten c)
+  flatten c = case flattenCstr c of
+                Just c' -> c'
+                Nothing -> CAnd []
+
+  -- flatten (CAnd cstrs) = case flatten cstrs of
+  --                       [c] -> c
+  --                       cs -> CAnd cs
+  -- flatten (Head p a) = Head (flatten p) a
+  -- flatten (All (Bind x t p l) c) = All (Bind x t (flatten p) l) (flatten c)
+  -- flatten (Any (Bind x t p l) c) = Any (Bind x t (flatten p) l) (flatten c)
+
+flattenCstr :: Cstr a -> Maybe (Cstr a)
+flattenCstr = go
+  where
+    go (Head (PAnd [])  _) = Nothing
+    go (Head (Reft p) _)
+      | F.isTautoPred p    = Nothing
+    go (Head p a)          = Just $ Head (flatten p) a
+    go (CAnd cs)           = mk . concatMap splitAnd $ mapMaybe flattenCstr cs
+    go (All (Bind x t p l) c) = All (Bind x t (flatten p) l) <$> go c
+    go (Any (Bind x t p l) c) = Any (Bind x t (flatten p) l) <$> go c
+
+    mk []  = Nothing
+    mk [c] = Just c
+    mk cs  = Just (CAnd cs)
 
 instance Flatten [Cstr a] where
   flatten (CAnd cs : xs) = flatten cs ++ flatten xs
@@ -984,6 +1006,12 @@ instance Flatten [Cstr a] where
     | otherwise                  = fx:flatten xs
     where fx = flatten x
   flatten [] = []
+
+
+
+splitAnd :: Cstr a -> [Cstr a]
+splitAnd (CAnd cs) = cs
+splitAnd c         = [c]
 
 instance Flatten Pred where
   flatten (PAnd preds) = case flatten preds of

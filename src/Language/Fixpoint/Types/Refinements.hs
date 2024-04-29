@@ -929,7 +929,7 @@ pExist []  p = p
 pExist xts p = PExist xts p
 
 mkProp :: Expr -> Pred
-mkProp = id -- EApp (EVar propConName)
+mkProp = id
 
 --------------------------------------------------------------------------------
 -- | Predicates ----------------------------------------------------------------

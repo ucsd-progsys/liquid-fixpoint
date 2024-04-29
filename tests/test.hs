@@ -76,21 +76,19 @@ unitTests
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
     , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
-
     , testGroup "horn-pos-el"      <$> dirTests elimSaveCmd   "tests/horn/pos"  []          ExitSuccess
     , testGroup "horn-neg-el"      <$> dirTests elimSaveCmd   "tests/horn/neg"  []          (ExitFailure 1)
-    , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd   "tests/horn/pos/.liquid"  []          ExitSuccess
-    , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd   "tests/horn/neg/.liquid"  []          (ExitFailure 1)
-
-    , testGroup "horn-pos-na" <$> dirTests nativeCmd "tests/horn/pos"  []          ExitSuccess
-    , testGroup "horn-neg-na" <$> dirTests nativeCmd "tests/horn/neg"  []          (ExitFailure 1)
-
-    -- , testGroup "todo"       <$> dirTests elimCmd   "tests/todo"   []            (ExitFailure 1)
-    -- , testGroup "todo-crash" <$> dirTests elimCmd   "tests/todo-crash" []        (ExitFailure 2)
+    , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd   "tests/horn/pos/.liquid"  []  ExitSuccess
+    , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd   "tests/horn/neg/.liquid"  []  (ExitFailure 1)
+    , testGroup "horn-smt2-pos-el" <$> dirHornTests elimCmd  "tests/horn/pos/.liquid"  []  ExitSuccess
+    , testGroup "horn-smt2-neg-el" <$> dirHornTests elimCmd  "tests/horn/neg/.liquid"  []  (ExitFailure 1)
+    , testGroup "horn-pos-na"      <$> dirTests nativeCmd     "tests/horn/pos"  []          ExitSuccess
+    , testGroup "horn-neg-na"      <$> dirTests nativeCmd     "tests/horn/neg"  []          (ExitFailure 1)
    ]
    where
-    dirTests = dirTests' isTest
-    dirJsonTests = dirTests' ("horn.json" `isSuffixOf`) 
+    dirTests     = dirTests' isTest
+    dirJsonTests = dirTests' ("horn.json" `isSuffixOf`)
+    dirHornTests = dirTests' ("horn.smt2" `isSuffixOf`)
 
 isTest   :: FilePath -> Bool
 isTest f = takeExtension f `elem` [".fq", ".smt2"]

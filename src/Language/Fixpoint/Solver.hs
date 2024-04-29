@@ -28,6 +28,7 @@ import           Control.Concurrent                 (setNumCapabilities)
 import qualified Data.HashMap.Strict              as HashMap
 import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
+import qualified Data.List as L
 import qualified Data.Text.Lazy.IO                as LT
 import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
@@ -191,7 +192,13 @@ crashResult m err' = Result res mempty mempty mempty
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- errs err' ]
     msg | null es   = "Sorry, unexpected panic in liquid-fixpoint!"
+        --  {-dbgFalse-} True  = "Sorry, unexpected panic in liquid-fixpoint!\n" ++ crashMessage es
         | otherwise = showpp err'
+
+_crashMessage :: [((Integer, a), Maybe String) ] -> String
+_crashMessage es = L.intercalate "\n" [ msg i s | ((i,_), Just s) <- es ]
+  where
+    msg i s = "Error in constraint " ++ show i ++ ":\n" ++ s
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
 type ErrorMap a = HashMap.HashMap SrcSpan a
@@ -234,13 +241,16 @@ simplifyFInfo !cfg !fi0 = do
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
   let si2  = {- SCC "wfcUniqify" -} wfcUniqify $!! si1
+  -- writeLoud $ "fq file after wfcUniqify: \n" ++ render (toFixpoint cfg si2)
   let si3  = {- SCC "renameAll"  -} renameAll  $!! si2
   rnf si3 `seq` whenLoud $ donePhase Loud "Uniqify & Rename"
   loudDump 1 cfg si3
   let si4  = {- SCC "defunction" -} defunctionalize cfg $!! si3
+  -- writeLoud $ "fq file after defunc: \n" ++ render (toFixpoint cfg si4)
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
   let si5  = {- SCC "elaborate" -} elaborate (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
+  -- writeLoud $ "fq file after elaborate: \n" ++ render (toFixpoint cfg si5)
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5
 -- loudDump 4 cfg si6

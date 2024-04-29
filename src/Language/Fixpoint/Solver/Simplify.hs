@@ -8,8 +8,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ViewPatterns              #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing    #-}
-
 module Language.Fixpoint.Solver.Simplify (applyBooleanFolding, applyConstantFolding, applySetFolding, isSetPred) where
 
 import           Language.Fixpoint.Types hiding (simplify)
@@ -20,20 +18,20 @@ import qualified Data.Maybe           as Mb
 
 
 applyBooleanFolding :: Brel -> Expr -> Expr -> Expr
-applyBooleanFolding brel e1 e2 =
+applyBooleanFolding brel' e1 e2 =
   case (e1, e2) of
     (ECon (R left), ECon (R right)) ->
-      Mb.fromMaybe e (bfR brel left right)
+      Mb.fromMaybe e (bfR brel' left right)
     (ECon (R left), ECon (I right)) ->
-      Mb.fromMaybe e (bfR brel left (fromIntegral right))
+      Mb.fromMaybe e (bfR brel' left (fromIntegral right))
     (ECon (I left), ECon (R right)) ->
-      Mb.fromMaybe e (bfR brel (fromIntegral left) right)
+      Mb.fromMaybe e (bfR brel' (fromIntegral left) right)
     (ECon (I left), ECon (I right)) ->
-      Mb.fromMaybe e (bfI brel left right)
+      Mb.fromMaybe e (bfI brel' left right)
     _ -> if isTautoPred e then PTrue else
            if isContraPred e then PFalse else e
   where
-    e = PAtom brel e1 e2
+    e = PAtom brel' e1 e2
 
     getOp :: Ord a => Brel -> (a -> a -> Bool)
     getOp Gt   =  (>)
@@ -55,28 +53,28 @@ applyBooleanFolding brel e1 e2 =
 -- | Replace constant integer and floating point expressions by constant values
 -- where possible.
 applyConstantFolding :: Bop -> Expr -> Expr -> Expr
-applyConstantFolding bop e1 e2 =
+applyConstantFolding bop' e1 e2 =
   case (dropECst e1, dropECst e2) of
     (ECon (R left), ECon (R right)) ->
-      Mb.fromMaybe e (cfR bop left right)
+      Mb.fromMaybe e (cfR bop' left right)
     (ECon (R left), ECon (I right)) ->
-      Mb.fromMaybe e (cfR bop left (fromIntegral right))
+      Mb.fromMaybe e (cfR bop' left (fromIntegral right))
     (ECon (I left), ECon (R right)) ->
-      Mb.fromMaybe e (cfR bop (fromIntegral left) right)
+      Mb.fromMaybe e (cfR bop' (fromIntegral left) right)
     (ECon (I left), ECon (I right)) ->
-      Mb.fromMaybe e (cfI bop left right)
+      Mb.fromMaybe e (cfI bop' left right)
     (EBin Mod  _   _              , _)  -> e
     (EBin bop1 e11 (dropECst -> ECon (R left)), ECon (R right))
-      | bop == bop1 -> maybe e (EBin bop e11) (cfR (rop bop) left right)
+      | bop' == bop1 -> maybe e (EBin bop' e11) (cfR (rop bop') left right)
       | otherwise   -> e
     (EBin bop1 e11 (dropECst -> ECon (R left)), ECon (I right))
-      | bop == bop1 -> maybe e (EBin bop e11) (cfR (rop bop) left (fromIntegral right))
+      | bop' == bop1 -> maybe e (EBin bop' e11) (cfR (rop bop') left (fromIntegral right))
       | otherwise   -> e
     (EBin bop1 e11 (dropECst -> ECon (I left)), ECon (R right))
-      | bop == bop1 -> maybe e (EBin bop e11) (cfR (rop bop) (fromIntegral left) right)
+      | bop' == bop1 -> maybe e (EBin bop' e11) (cfR (rop bop') (fromIntegral left) right)
       | otherwise   -> e
     (EBin bop1 e11 (dropECst -> ECon (I left)), ECon (I right))
-      | bop == bop1 -> maybe e (EBin bop e11) (cfI (rop bop) left right)
+      | bop' == bop1 -> maybe e (EBin bop' e11) (cfI (rop bop') left right)
       | otherwise   -> e
     _ -> e
   where
@@ -90,7 +88,7 @@ applyConstantFolding bop e1 e2 =
     rop RDiv   = RTimes
     rop Mod    = Mod
 
-    e = EBin bop e1 e2
+    e = EBin bop' e1 e2
 
     getOp :: Num a => Bop -> Maybe (a -> a -> a)
     getOp Minus    = Just (-)
@@ -108,16 +106,16 @@ applyConstantFolding bop e1 e2 =
               else Nothing
         go Nothing = Nothing
 
-        getOp' Div      = Just (/)
-        getOp' RDiv     = Just (/)
-        getOp' op       = getOp op
+        getOp' Div  | right /= 0 = Just (/)
+        getOp' RDiv | right /= 0 = Just (/)
+        getOp' op = getOp op
 
     cfI :: Bop -> Integer -> Integer -> Maybe Expr
     cfI bop left right = fmap go (getOp' bop)
       where
         go f = ECon $ I $ f left right
 
-        getOp' Mod = Just mod
+        getOp' Mod | right /= 0 = Just mod
         getOp' op  = getOp op
 
 isSetPred :: Expr -> Bool
@@ -129,18 +127,18 @@ isSetPred _                               = False
 
 -- Note: this is currently limited to sets of integer constants
 applySetFolding :: Expr -> Expr -> Expr
-applySetFolding e1 e2   = case e1 of
+applySetFolding expr1 expr2   = case expr1 of
     (EVar s) | s == setEmp
-      -> maybe e (fromBool . S.null) (evalSetI e2)
+      -> maybe e (fromBool . S.null) (evalSetI expr2)
     (EApp (EVar s) e1') | s == setMem
-      -> maybe e fromBool (S.member <$> getInt e1' <*> evalSetI e2)
+      -> maybe e fromBool (S.member <$> getInt e1' <*> evalSetI expr2)
                         | s == setEmp
-      -> maybe e (fromBool . S.null) (S.difference <$> evalSetI e1' <*> evalSetI e2)
+      -> maybe e (fromBool . S.null) (S.difference <$> evalSetI e1' <*> evalSetI expr2)
                         | otherwise
       -> e
     _                   -> e
   where
-    e = EApp e1 e2
+    e = EApp expr1 expr2
 
     fromBool True  = PTrue
     fromBool False = PFalse

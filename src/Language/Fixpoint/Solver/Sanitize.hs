@@ -4,8 +4,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards     #-}
 
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
-
 module Language.Fixpoint.Solver.Sanitize
   ( -- * Transform FInfo to enforce invariants
     sanitize
@@ -41,10 +39,7 @@ type SanitizeM a = Either E.Error a
 --------------------------------------------------------------------------------
 sanitize :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize cfg =    -- banIllScopedKvars
-        --      Misc.fM dropAdtMeasures
-        --      >=>
-                     banIrregularData
+sanitize cfg =       banIrregularData
          >=> Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
@@ -335,14 +330,14 @@ known fi  = \x -> F.memberSEnv x lits || F.memberSEnv x prims
     prims = Thy.theorySymbols . F.ddecls $ fi
 
 cNoFreeVars :: F.SInfo a -> (F.Symbol -> Bool) -> F.SimpC a -> Maybe [F.Symbol]
-cNoFreeVars fi known c = if S.null fv then Nothing else Just (S.toList fv)
+cNoFreeVars fi knownSym c = if S.null fv then Nothing else Just (S.toList fv)
   where
     be   = F.bs fi
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [Misc.fst3 $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . Misc.snd3 $ F.lookupBindEnv i be | i <- ids]
         ++ F.syms (F.crhs c)
-    fv   = (`Misc.nubDiff` cDom) . filter (not . known) $ cRng
+    fv   = (`Misc.nubDiff` cDom) . filter (not . knownSym) $ cRng
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
