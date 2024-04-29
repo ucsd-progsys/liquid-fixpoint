@@ -109,8 +109,8 @@ solve cfg q
 
 solve' :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a) => Solver a
 solve' cfg q = do
-  !() <- when (save cfg) $ saveQuery   cfg q
-  configSW  cfg            solveNative cfg q
+  when (save cfg) $! saveQuery   cfg q
+  configSW  cfg      solveNative cfg q
 
 configSW :: (NFData a, Fixpoint a, Show a, Loc a) => Config -> Solver a -> Solver a
 configSW cfg
