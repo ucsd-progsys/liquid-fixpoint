@@ -109,8 +109,8 @@ solve cfg q
 
 solve' :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a) => Solver a
 solve' cfg q = do
-  when (save cfg) $! saveQuery   cfg q
-  configSW  cfg      solveNative cfg q
+  when (save cfg) $ saveQuery   cfg q
+  configSW  cfg     solveNative cfg q
 
 configSW :: (NFData a, Fixpoint a, Show a, Loc a) => Config -> Solver a -> Solver a
 configSW cfg
@@ -218,7 +218,7 @@ errorMap fi = HashMap.fromList [ (srcSpan a, a) | a <- anns ]
             ++ [ a | (_, (_,_, a)) <- bindEnvToList (Types.bs fi) ]
 
 loudDump :: (Fixpoint a) => Int -> Config -> SInfo a -> IO ()
-loudDump i cfg si = when True (writeLoud $ msg ++ render (toFixpoint cfg si))
+loudDump i cfg si = when False (writeLoud $ msg ++ render (toFixpoint cfg si))
   where
     msg           = "fq file after Uniqify & Rename " ++ show i ++ "\n"
 
@@ -253,7 +253,6 @@ simplifyFInfo !cfg !fi0 = do
   -- writeLoud $ "fq file after elaborate: \n" ++ render (toFixpoint cfg si5)
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5
--- loudDump 4 cfg si6
   if rewriteAxioms cfg && noLazyPLE cfg
     then instantiate cfg si6 $!! Nothing
     else return si6
@@ -271,9 +270,7 @@ reduceFInfo cfg fi = do
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
--- writeLoud $ "\nSI6:\n"  ++ show si6
   res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
--- writeLoud $ "\nRES:\n"  ++ show res
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   -- saveSolution cfg res
