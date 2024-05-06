@@ -91,7 +91,7 @@ import           System.IO.Unsafe (unsafePerformIO)
 
 -- If set to 'True', enable precise logging via CallStacks.
 debugLogs :: Bool
-debugLogs = True
+debugLogs = False
 
 traced :: HasCallStack => (HasCallStack => String) -> String
 traced str =
@@ -164,23 +164,7 @@ instance Elaborate Equation where
       env' = insertsSymEnv env (eqArgs eq)
 
 instance Elaborate Expr where
-  elaborate msg env e = unsafePerformIO $
-    do
---      putStrLn "> dump env"
---      writeLoud $ show env
---      putStrLn "> before elabFSet"
---      writeLoud $ show e
-      let e' = elabFSet e
---      putStrLn "> before elabExpr"
---      writeLoud $ show e'
-      let e'' = elabExpr msg env e'
---      putStrLn "> before rest"
---      writeLoud $ show e''
-      let e''' = elabNumeric $ elabApply env e''
---      putStrLn "> final"
---      writeLoud $ show e'''
---      putStrLn "------------------"
-      pure $ e'''
+  elaborate msg env = elabNumeric . elabApply env . elabExpr msg env . elabFSet
 
 skipElabExpr :: Located String -> SymEnv -> Expr -> Expr
 skipElabExpr msg env e = case elabExprE msg env e of
@@ -210,8 +194,7 @@ elabNumeric = Vis.mapExprOnExpr go
 instance Elaborate SortedReft where
   elaborate msg env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
     where
-      e'   = unsafePerformIO $ do writeLoud $ show e
-                                  pure $ elaborate msg env' e
+      e'   = elaborate msg env' e
       env' = insertSymEnv v s env
 
 instance (Loc a) => Elaborate (BindEnv a) where
@@ -239,7 +222,7 @@ elabFSet (EApp (EApp h@(EVar f) e1) e2)
   | f == Thy.setCup        = EApp (EApp (EVar Thy.arrMapOr) (elabFSet e1)) (elabFSet e2)
   | f == Thy.setCap        = EApp (EApp (EVar Thy.arrMapAnd) (elabFSet e1)) (elabFSet e2)
   | f == Thy.setAdd        = EApp (EApp (EApp (EVar Thy.arrStore) (elabFSet e1)) (elabFSet e2)) PTrue
-  -- S1 \ S2 = S1 /\ ~S2 = ~ (S1 => S2)
+  -- A \ B == A /\ ~B == ~(A => B)
   | f == Thy.setDif        = EApp (EApp (EVar Thy.arrMapAnd) (elabFSet e1)) (EApp (EVar Thy.arrMapNot) (elabFSet e2))
   | f == Thy.setSub        = PAtom Eq (EApp (EVar Thy.arrConst) PTrue) (EApp (EApp (EVar Thy.arrMapImp) (elabFSet e1)) (elabFSet e2))
   | otherwise              = EApp (EApp (elabFSet h) (elabFSet e1)) (elabFSet e2)
@@ -273,7 +256,7 @@ elabExpr msg env e = case elabExprE msg env e of
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
-  case runCM0 (srcSpan msg) ({-tracepp "ELABEXPR" <$> -} elab (env, envLookup) e) of
+  case runCM0 (srcSpan msg) (elab (env, envLookup) e) of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
@@ -544,8 +527,7 @@ elab f (EApp e1@(EApp _ _) e2) = do
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab f (EApp e1 e2) = do
-  (e1', s1, e2', s2, s) <- -- tracepp "ELABAPP" <$>
-                           elabEApp f e1 e2
+  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
   let e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
@@ -617,12 +599,8 @@ elab f (POr ps) = do
   return (POr (fst <$> ps'), boolSort)
 
 elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
-  t2        <- --tracepp "CHECKEXPR2" --("CHECKEXPR2 and also t1 = " ++ show t1)
-               -- <$>
-               checkExpr g e2
-  t1        <- --tracepp ("CHECKEXPR1 and also t2 = " ++ show t2) --"CHECKEXPR1"
-               -- <$>
-               checkExpr g e1
+  t2        <- checkExpr g e2
+  t1        <- checkExpr g e1
   (t1',t2') <- unite g e t1 t2 `withError` errElabExpr e
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
@@ -694,40 +672,30 @@ elabAs f t e = notracepp _msg <$> go e
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs env@(_, f) t g e = do
   gT       <- checkExpr f g
-  eT       <- --tracepp ("elabAppAs: e = " ++ showpp e ++ " gT = " ++ showpp gT) <$>
-              checkExpr f e
+  eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
-  let ge    = -- tracepp ("elabAppAs_ge: oT = " ++ showpp oT ++ " iT = " ++ showpp iT ++ " t = " ++ showpp t ++ " eT = " ++ showpp eT) $
-              Just (EApp g e)
+  let ge    = Just (EApp g e)
   let (oT' , t') = coerceSetToArray2 oT t
   let (iT' , eT') = coerceSetToArray2 iT eT
   su       <- unifyMany f ge isu [oT', iT'] [t', eT']
-  let tg    = -- tracepp "elabAppAs_tg" $
-              apply su gT
-  g'       <- -- tracepp "elabAppAs_g" <$>
-              elabAs env tg g
-  let te    = -- tracepp "elabAppAs_te" $
-              apply su eT'
-  e'       <- -- tracepp "elabAppAs_e" <$>
-              elabAs env te e
+  let tg    = apply su gT
+  g'       <- elabAs env tg g
+  let te    = apply su eT'
+  e'       <- elabAs env te e
   return    $ EApp (ECst g' tg) (ECst e' te)
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1)     <- -- tracepp ("elabEApp: e1 = " ++ showpp e1) <$>
-                   elab f e1
-  (e2', s2)     <- -- tracepp ("elabEApp: e2 = " ++ showpp e2) <$>
-                   elab f e2
+  (e1', s1)     <- {- notracepp ("elabEApp: e1 = " ++ showpp e1) <$> -} elab f e1
+  (e2', s2)     <- elab f e2
   (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
   return           (e1'', s1', e2'', s2', s)
 
 elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
-  let e            = -- tracepp "elabAppSort" $
-                     Just (EApp e1 e2)
+  let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  let (sIn', s2')  = --tracepp "elabAppSort2" $
-                     coerceSetToArray2 sIn s2
+  let (sIn', s2')  = coerceSetToArray2 sIn s2
   su'             <- unify1 f e su sIn' s2'
   return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
@@ -753,7 +721,7 @@ makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s'
   where
     s'                     = coerceSetToArray s
-    f                      = {- tracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s'
+    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s'
     t2                     = exprSort "makeAppl" e2
 
 applyAt :: Sort -> Sort -> Expr
@@ -965,12 +933,6 @@ unite f e t1 t2 = do
   su <- unifys f (Just e) [t1'] [t2']
   return (apply su t1', apply su t2')
 
--- FApp (FTC (TC "Set_Set" defined at: SngBug.hs.fq:310:37-310:44 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))
---           (FApp (FTC (TC "SngBug.Lst" defined at: SngBug.hs.fq:680:77-680:87 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FObj "l##a4Vx"))
--- FApp (FApp (FTC (TC "Array" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))
---            (FVar 46))
---      (FTC (TC "bool" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))
-
 coerceSetToArray :: Sort -> Sort
 coerceSetToArray s@(FApp sf sa)
   | isSet sf = arraySort sa boolSort
@@ -1034,8 +996,7 @@ checkCst :: Env -> Sort -> Expr -> CheckM Sort
 checkCst f t (EApp g e)
   = checkApp f (Just t) g e
 checkCst f t e
-  = do t' <- --tracepp ("checkCst t = " ++ show t) <$>
-             checkExpr f e
+  = do t' <- checkExpr f e
        ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` errCast e t' t
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
@@ -1059,23 +1020,18 @@ checkExprAs f t e
 -- DUPLICATION with 'elabAppAs'
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g e = do
-  gt       <- -- tracepp ("checkApp': g = " ++ showpp g) <$>
-              checkExpr f g
-  et       <- -- tracepp ("checkApp': e = " ++ showpp e) <$>
-              checkExpr f e
+  gt       <- checkExpr f g
+  et       <- checkExpr f e
   (it, ot, isu) <- checkFunSort gt
-  let ge    = -- tracepp ("checkApp': it = " ++ showpp it) $
-              Just (EApp g e)
+  let ge    = Just (EApp g e)
   let (it' , et') = coerceSetToArray2 it et
   su        <- unifyMany f ge isu [it'] [et']
-  let t     = -- tracepp ("checkApp': t ") $
-              apply su ot
+  let t     = apply su ot
   case to of
     Nothing    -> return (su, t)
     Just t'    -> do let (t0 , t1) = coerceSetToArray2 t t'
                      θ' <- unifyMany f ge su [t0] [t1]
-                     let ti = -- tracepp ("checkApp': ti " ) $
-                              apply θ' et'
+                     let ti = apply θ' et'
                      _ <- checkExprAs f ti e
                      return (θ', apply θ' t0)
 
@@ -1150,10 +1106,8 @@ checkBoolSort e s
 -- | Checking Relations
 checkRel :: HasCallStack => Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2 = do
-  t1 <- --tracepp "checkRel1" <$>
-        checkExpr f e1
-  t2 <- --tracepp "checkRel2" <$>
-        checkExpr f e2
+  t1 <- checkExpr f e1
+  t2 <- checkExpr f e2
   let (t1' , t2') = coerceSetToArray2 t1 t2
   su <- unifys f (Just e) [t1'] [t2'] `withError` errRel e t1' t2'
   _  <- checkExprAs f (apply su t1') e1
@@ -1180,14 +1134,8 @@ checkRelTy f _ _ FInt  s2    = checkNumeric    f s2 `withError` errNonNumeric s2
 checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` errNonNumeric s1
 checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` errNonFractional s2
 checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` errNonFractional s1
-checkRelTy f e Eq t1 t2      =
-    do let ee = --tracepp "checkRelTyEq" $
-                Just e
-       void (unifys f ee [t1] [t2] `withError` errRel e t1 t2)
-checkRelTy f e Ne t1 t2      =
-    do let ee = --tracepp "checkRelTyNe" $
-                Just e
-       void (unifys f ee [t1] [t2] `withError` errRel e t1 t2)
+checkRelTy f e Eq t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2)
+checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2)
 checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwErrorAt $ errRel e t1 t2)
 
 checkURel :: Expr -> Sort -> Sort -> CheckM ()
