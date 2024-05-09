@@ -599,8 +599,8 @@ elab f (POr ps) = do
   return (POr (fst <$> ps'), boolSort)
 
 elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
-  t2        <- checkExpr g e2
   t1        <- checkExpr g e1
+  t2        <- checkExpr g e2
   (t1',t2') <- unite g e t1 t2 `withError` errElabExpr e
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
@@ -675,8 +675,10 @@ elabAppAs env@(_, f) t g e = do
   eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
-  let (oT' , t') = coerceSetToArray2 oT t
-  let (iT' , eT') = coerceSetToArray2 iT eT
+  let oT' = coerceSetToArray oT
+  let t'  = coerceSetToArray t
+  let iT' = coerceSetToArray iT
+  let eT' = coerceSetToArray eT
   su       <- unifyMany f ge isu [oT', iT'] [t', eT']
   let tg    = apply su gT
   g'       <- elabAs env tg g
@@ -695,7 +697,8 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, 
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  let (sIn', s2')  = coerceSetToArray2 sIn s2
+  let sIn' = coerceSetToArray sIn
+  let s2'  = coerceSetToArray s2
   su'             <- unify1 f e su sIn' s2'
   return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
@@ -929,7 +932,8 @@ genSort t          = t
 
 unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
 unite f e t1 t2 = do
-  let (t1',t2') = coerceSetToArray2 t1 t2
+  let t1' = coerceSetToArray t1
+  let t2' = coerceSetToArray t2
   su <- unifys f (Just e) [t1'] [t2']
   return (apply su t1', apply su t2')
 
@@ -938,18 +942,6 @@ coerceSetToArray s@(FApp sf sa)
   | isSet sf = arraySort sa boolSort
   | otherwise = s
 coerceSetToArray s = s
-
-coerceSetToArray2 :: Sort -> Sort -> (Sort, Sort)
-coerceSetToArray2 s1@(FApp sf1 sa1) s2@(FApp (FApp sf2 sa2) sb2)
-  | isSet sf1 && isArray sf2 && isBool sb2 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
-  | otherwise = (s1, s2)
-coerceSetToArray2 s1@(FApp (FApp sf1 sa1) sb1) s2@(FApp sf2 sa2)
-  | isSet sf2 && isArray sf1 && isBool sb1 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
-  | otherwise = (s1, s2)
-coerceSetToArray2 s1@(FApp sf1 sa1) s2@(FApp sf2 sa2)
-  | isSet sf1 && isSet sf2 = (arraySort sa1 boolSort, arraySort sa2 boolSort)
-  | otherwise = (s1, s2)
-coerceSetToArray2 s1 s2 = (s1, s2)
 
 throwErrorAt :: String -> CheckM a
 throwErrorAt ~err' = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
@@ -981,7 +973,8 @@ getIte :: Env -> Expr -> Expr -> CheckM Sort
 getIte f e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  let (t1',t2') = coerceSetToArray2 t1 t2
+  let t1' = coerceSetToArray t1
+  let t2' = coerceSetToArray t2
   (`apply` t1') <$> unifys f Nothing [t1'] [t2']
 
 checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
@@ -989,7 +982,8 @@ checkIteTy f p e1 e2 t1 t2 =
   ((`apply` t1') <$> unifys f e' [t1'] [t2']) `withError` errIte e1 e2 t1' t2'
   where
     e' = Just (EIte p e1 e2)
-    (t1',t2') = coerceSetToArray2 t1 t2
+    t1' = coerceSetToArray t1
+    t2' = coerceSetToArray t2
 
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
@@ -1008,7 +1002,8 @@ checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
 checkExprAs f t e
   = do t' <- checkExpr f e
-       let (t1 , t0) = coerceSetToArray2 t' t
+       let t1 = coerceSetToArray t'
+       let t0 = coerceSetToArray t
        θ  <- unifys f (Just e) [t1] [t0]
        return $ apply θ t0
 
@@ -1024,12 +1019,14 @@ checkApp' f to g e = do
   et       <- checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  let (it' , et') = coerceSetToArray2 it et
+  let it' = coerceSetToArray it
+  let et' = coerceSetToArray et
   su        <- unifyMany f ge isu [it'] [et']
   let t     = apply su ot
   case to of
     Nothing    -> return (su, t)
-    Just t'    -> do let (t0 , t1) = coerceSetToArray2 t t'
+    Just t'    -> do let t0 = coerceSetToArray t
+                     let t1 = coerceSetToArray t'
                      θ' <- unifyMany f ge su [t0] [t1]
                      let ti = apply θ' et'
                      _ <- checkExprAs f ti e
@@ -1108,7 +1105,8 @@ checkRel :: HasCallStack => Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  let (t1' , t2') = coerceSetToArray2 t1 t2
+  let t1' = coerceSetToArray t1
+  let t2' = coerceSetToArray t2
   su <- unifys f (Just e) [t1'] [t2'] `withError` errRel e t1' t2'
   _  <- checkExprAs f (apply su t1') e1
   _  <- checkExprAs f (apply su t2') e2
@@ -1266,11 +1264,13 @@ unify1 _ _ !θ (FTC !l1) (FTC !l2)
   = return θ
 unify1 f e !θ t1@(FAbs _ _) !t2 = do
   !t1' <- instantiate t1
-  let (t3 , t4) = coerceSetToArray2 t1' t2
+  let t3 = coerceSetToArray t1'
+  let t4 = coerceSetToArray t2
   unifyMany f e θ [t3] [t4]
 unify1 f e !θ !t1 t2@(FAbs _ _) = do
   !t2' <- instantiate t2
-  let (t3 , t4) = coerceSetToArray2 t1 t2'
+  let t3 = coerceSetToArray t1
+  let t4 = coerceSetToArray t2'
   unifyMany f e θ [t3] [t4]
 unify1 _ _ !θ !s1 !s2
   | isString s1, isString s2
