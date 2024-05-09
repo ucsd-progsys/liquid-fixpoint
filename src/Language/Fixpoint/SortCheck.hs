@@ -246,6 +246,12 @@ elabFSet (PGrad  k su i e) = PGrad k su i (elabFSet e)
 elabFSet (ECoerc a t e)    = ECoerc a t (elabFSet e)
 elabFSet e                 = e
 
+coerceSetToArray :: Sort -> Sort
+coerceSetToArray s@(FApp sf sa)
+  | isSet sf = arraySort sa boolSort
+  | otherwise = s
+coerceSetToArray s = s
+
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
@@ -936,12 +942,6 @@ unite f e t1 t2 = do
   let t2' = coerceSetToArray t2
   su <- unifys f (Just e) [t1'] [t2']
   return (apply su t1', apply su t2')
-
-coerceSetToArray :: Sort -> Sort
-coerceSetToArray s@(FApp sf sa)
-  | isSet sf = arraySort sa boolSort
-  | otherwise = s
-coerceSetToArray s = s
 
 throwErrorAt :: String -> CheckM a
 throwErrorAt ~err' = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
