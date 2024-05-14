@@ -230,6 +230,7 @@ data SmtSort
   | SString
   | SSet
   | SMap
+  | SSeq SmtSort
   | SBitVec !Int
   | SVar    !Int
   | SData   !FTycon ![SmtSort]
@@ -240,12 +241,17 @@ instance Hashable SmtSort
 instance NFData   SmtSort
 instance S.Store SmtSort
 
+
+
 -- | The 'poly' parameter is True when we are *declaring* sorts,
 --   and so we need to leave the top type variables be; it is False when
 --   we are declaring variables etc., and there, we serialize them
 --   using `Int` (though really, there SHOULD BE NO floating tyVars...
 --   'smtSort True  msg t' serializes a sort 't' using type variables,
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
+--
+-- Perhaps we should change this to not use ints as a default, but a new sort?
+-- (i.e. declare a new sort (declare-sort Default) for this use)
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
 sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) else id) $ -}  go . unAbs $ t
   where
@@ -269,6 +275,8 @@ fappSmtSort poly m env = go
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
     go (FTC c) _
       | setConName == symbol c  = SSet
+    go (FTC c) [s]
+      | seqName == symbol c = SSeq $ sortSmtSort poly env s
     go (FTC c) _
       | mapConName == symbol c  = SMap
     go (FTC bv) [FTC s]
@@ -294,6 +302,7 @@ instance PPrint SmtSort where
   pprintTidy _ SString      = text "Str"
   pprintTidy _ SSet         = text "Set"
   pprintTidy _ SMap         = text "Map"
+  pprintTidy k (SSeq a)     = text "Seq" <+> pprintTidy k a
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
   pprintTidy _ (SVar i)     = text "@" <-> int i
 --  HKT pprintTidy k (SApp ts)    = ppParens k (pprintTidy k tyAppName) ts

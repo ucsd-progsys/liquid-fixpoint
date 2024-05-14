@@ -61,6 +61,9 @@ module Language.Fixpoint.Types.Constraints (
   , qualBinds
 
   -- * Results
+  , Counterexample (..)
+  , FullCounterexample
+
   , FixSolution
   , GFixSolution, toGFixSol
   , Result (..)
@@ -263,6 +266,30 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
+-- | A counterexample in a tree like representation.
+data Counterexample a = Counterexample
+  { cexEnv :: !a
+  -- ^ The environment in the current stack frame.
+  , cexConstraint :: !SubcId
+  -- ^ The constraint which the environment belongs to.
+  , cexFrames :: !(M.HashMap BindId (Counterexample a))
+  -- ^ The counterexamples stack frames that can be explored from the current
+  -- environment.
+  }
+  deriving (Generic, Show, Functor)
+
+instance PPrint a => PPrint (Counterexample a) where
+  pprintTidy tidy (Counterexample env cid trace) = pcid $+$ penv $+$ ptrace
+    where
+      pcid = "in constraint" <+> pprintTidy tidy cid
+      penv = pprintTidy tidy env
+      ptrace = pprintTidy tidy trace
+
+-- | A counterexample that was extended with additional information from the
+-- environment. It additionally includes types, bind ids and user info, aside
+-- from what is already provided from an `SMTCounterexample`.
+type FullCounterexample a = Counterexample (CexEnv a)
+
 type GFixSolution = GFixSol Expr
 
 type FixSolution  = M.HashMap KVar Expr
@@ -273,12 +300,12 @@ newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
 toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
 
-
 data Result a = Result
-  { resStatus    :: !(FixResult a)
-  , resSolution  :: !FixSolution
+  { resStatus :: !(FixResult a)
+  , resSolution :: !FixSolution
   , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution
+  , resCounterexamples :: ![FullCounterexample a]
   }
   deriving (Generic, Show, Functor)
 
@@ -288,15 +315,16 @@ instance ToJSON a => ToJSON (Result a) where
   toJSON = toJSON . resStatus
 
 instance Semigroup (Result a) where
-  r1 <> r2  = Result stat soln nonCutsSoln gsoln
+  r1 <> r2  = Result stat soln nonCutsSoln gsoln cntExs
     where
       stat  = resStatus r1    <> resStatus r2
       soln  = resSolution r1  <> resSolution r2
       nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
       gsoln = gresSolution r1 <> gresSolution r2
+      cntExs = resCounterexamples r1 <> resCounterexamples r2
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty mempty mempty
+  mempty        = Result mempty mempty mempty mempty mempty
   mappend       = (<>)
 
 unsafe, safe :: Result a
@@ -414,6 +442,7 @@ instance (NFData a) => NFData (WfC a)
 instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
 instance (NFData a) => NFData (Result a)
+instance (NFData a) => NFData (Counterexample a)
 
 instance Hashable Qualifier
 instance Hashable QualPattern

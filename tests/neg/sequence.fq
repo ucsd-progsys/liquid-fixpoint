@@ -1,0 +1,10 @@
+fixpoint "--counterexample"
+
+bind 0 xs : {v: Seq int | Seq$len v == 2}
+bind 1 ys : {v: Seq int | Seq$len v == 2}
+
+constraint:
+  env [0;1]
+  lhs {v : Seq int | v == xs}
+  rhs {v : Seq int | v == ys}
+  id 0 tag []

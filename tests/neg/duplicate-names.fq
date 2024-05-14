@@ -1,0 +1,26 @@
+fixpoint "--counterexample"
+
+distinct True : (bool)
+distinct False : (bool)
+
+bind 2 True : {v: bool | v}
+bind 3 False : {v: bool | ~v}
+
+bind 0 dup : {v: int | $k}
+bind 1 dup : {v: int | $k}
+
+constraint:
+  env []
+  lhs {v : int | v = 0}
+  rhs {v : int | $k}
+  id 0 tag []
+
+constraint:
+  env [0; 1; 2; 3]
+  lhs {v : int | v = dup}
+  rhs {v : int | v > 0}
+  id 1 tag []
+
+wf:
+  env []
+  reft {v : int | $k}

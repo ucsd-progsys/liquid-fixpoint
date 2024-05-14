@@ -1,0 +1,17 @@
+bind 0 x : {v: real | $k}
+
+constraint:
+  env []
+  lhs {v : real | v = 0.0}
+  rhs {v : real | $k}
+  id 0 tag []
+
+constraint:
+  env [0]
+  lhs {v : real | v = x}
+  rhs {v : real | v > 0.0}
+  id 1 tag []
+
+wf:
+  env []
+  reft {v : real | $k}
