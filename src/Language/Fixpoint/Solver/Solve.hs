@@ -40,7 +40,7 @@ import Language.Fixpoint.Solver.Instantiate (instantiate)
 --import Debug.Trace                      (trace)
 
 mytrace :: String -> a -> a
-mytrace _ x = {- trace -} x
+mytrace _ x = {- trace s -} x
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
@@ -54,11 +54,11 @@ solve cfg fi = do
     -- print (numIter stat)
     return res
   where
-    act  = solve_ cfg fi s0 ks  wkl
-    sI   = solverInfo cfg fi
-    wkl  = W.init sI
-    s0   = siSol  sI
-    ks   = siVars sI
+    act = solve_ cfg fi s0 ks  wkl
+    sI  = solverInfo cfg fi
+    wkl = W.init sI
+    s0  = siSol  sI
+    ks  = siVars sI
 
 
 --------------------------------------------------------------------------------

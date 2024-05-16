@@ -461,12 +461,12 @@ splitEAppThroughECst :: Expr -> (Expr, [Expr])
 splitEAppThroughECst = go []
   where
     go acc (dropECst -> (EApp f e)) = go (e:acc) f
-    go acc e          = (e, acc)
+    go acc e                        = (e, acc)
 
 dropECst :: Expr -> Expr
 dropECst e = case e of
   ECst e' _ -> dropECst e'
-  _ -> e
+  _         -> e
 
 splitPAnd :: Expr -> [Expr]
 splitPAnd (PAnd es) = concatMap splitPAnd es
@@ -477,7 +477,7 @@ eAppC s e1 e2 = eCst (EApp e1 e2) s
 
 -- | Eliminates redundant casts
 eCst :: Expr -> Sort -> Expr
-eCst e t = ECst (dropECst e) t
+eCst e s = ECst (dropECst e) s
 
 --------------------------------------------------------------------------------
 debruijnIndex :: Expr -> Int

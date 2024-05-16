@@ -93,12 +93,14 @@ module Language.Fixpoint.Types.Names (
   , dummyName
   , preludeName
   , boolConName
+  , boolLConName
   , funConName
   , listConName
   , listLConName
   , tupConName
   , setConName
   , mapConName
+  , arrayConName
   , strConName
   , charConName
   , nilName
@@ -178,7 +180,7 @@ data Symbol
   = S { _symbolId      :: !Id
       , symbolRaw      :: T.Text
       , symbolEncoded  :: T.Text
-      } 
+      }
     deriving (Data, Typeable, Generic)
 
 instance Eq Symbol where
@@ -218,17 +220,17 @@ instance B.Binary Symbol where
   get = textSymbol <$> B.get
   put = B.put . symbolText
 
-instance Aeson.ToJSON Symbol where 
-  toJSON = Aeson.toJSON . symbolText 
+instance Aeson.ToJSON Symbol where
+  toJSON = Aeson.toJSON . symbolText
 
 instance Aeson.FromJSON Symbol where
   parseJSON = fmap textSymbol . Aeson.parseJSON
 
 instance Aeson.ToJSONKey Symbol where
-  toJSONKey = Aeson.toJSONKeyText symbolText 
+  toJSONKey = Aeson.toJSONKeyText symbolText
 
 instance Aeson.FromJSONKey Symbol where
-  fromJSONKey = Aeson.FromJSONKeyText textSymbol 
+  fromJSONKey = Aeson.FromJSONKeyText textSymbol
 
 sCache :: Cache Symbol
 sCache = mkCache
@@ -639,19 +641,21 @@ applyName = "apply"
 coerceName :: Symbol
 coerceName = "coerce"
 
-preludeName, dummyName, boolConName, funConName :: Symbol
+preludeName, dummyName, boolConName, boolLConName, funConName :: Symbol
 preludeName  = "Prelude"
 dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
+boolLConName  = "bool"
 funConName   = "->"
 
 
-listConName, listLConName, tupConName, propConName, _hpropConName, vvName, setConName, mapConName :: Symbol
+listConName, listLConName, tupConName, propConName, _hpropConName, vvName, setConName, mapConName, arrayConName:: Symbol
 listConName  = "[]"
 listLConName = "List"
 tupConName   = "Tuple"
 setConName   = "Set_Set"
 mapConName   = "Map_t"
+arrayConName = "Array_t"
 vvName       = "VV"
 propConName  = "Prop"
 _hpropConName = "HProp"
@@ -723,6 +727,7 @@ prims = S.fromList
   , "Map_store"
   , "Map_union"
   , "Map_default"
+  , arrayConName
   -- Currently we parse X in "SizeX" to get the bitvec size
   -- so there is no finite set of names to add here...
   -- , size32Name

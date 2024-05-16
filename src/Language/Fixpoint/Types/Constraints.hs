@@ -119,6 +119,8 @@ import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import qualified Data.ByteString           as B
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.Binary as B
 
 --------------------------------------------------------------------------------
@@ -913,7 +915,7 @@ saveTextQuery cfg fi = do
   let fq   = C.queryFile Files.Fq cfg
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
   ensurePath fq
-  writeFile fq $ render (toFixpoint cfg fi)
+  T.writeFile fq $ T.pack $ render (toFixpoint cfg fi)
 
 ---------------------------------------------------------------------------
 -- | Axiom Instantiation Information --------------------------------------
