@@ -65,7 +65,7 @@ module Language.Fixpoint.Types.Sorts (
   , sortSymbols
   , substSort
 
-  , isBool, isNumeric, isReal, isString, isSet, isArray, isPolyInst
+  , isBool, isNumeric, isReal, isString, isSet, isMap, isArray, isPolyInst
 
   -- * User-defined ADTs
   , DataField (..)
@@ -169,6 +169,14 @@ isSetConName x = c == setConName
 
 isSetTC :: FTycon -> Bool
 isSetTC (TC z _) = isSetConName z
+
+isMapConName :: LocSymbol -> Bool
+isMapConName x = c == mapConName
+  where
+    c           = val x
+
+isMapTC :: FTycon -> Bool
+isMapTC (TC z _) = isMapConName z
 
 isArrayConName :: LocSymbol -> Bool
 isArrayConName x = c == arrayConName
@@ -383,6 +391,10 @@ isList _       = False
 isSet :: Sort -> Bool
 isSet (FTC c) = isSetTC c
 isSet _       = False
+
+isMap :: Sort -> Bool
+isMap (FTC c) = isMapTC c
+isMap _       = False
 
 isArray :: Sort -> Bool
 isArray (FTC c) = isArrayTC c
