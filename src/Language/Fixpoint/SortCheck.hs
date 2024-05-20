@@ -167,7 +167,7 @@ instance Elaborate Expr where
   elaborate msg env e = unsafePerformIO $ do -- traceM $ "elaborate: " ++ showpp e
     putStrLn "-----------------"
     putStrLn ("before: " ++ show e)
-    let e' = elabFSetBag e
+    let e' = elabFSetMap e
     putStrLn ("after: " ++ show e')
 
     return $ elabNumeric $ elabApply env $ elabExpr msg env e'
@@ -216,57 +216,60 @@ instance (Loc a) => Elaborate (SimpC a) where
 
 
 -------------------------------------------------------------------------------------------
--- | 'elabFSetBag' replaces all finset/finbag theory operations with array-based encodings.
+-- | 'elabFSetMap' replaces all finset/finmap theory operations with array-based encodings.
 -------------------------------------------------------------------------------------------
-elabFSetBag :: Expr -> Expr
-elabFSetBag (EApp h@(EVar f) e)
+elabFSetMap :: Expr -> Expr
+elabFSetMap (EApp h@(EVar f) e)
   | f == Thy.setEmpty      = EApp (EVar Thy.arrConstS) PFalse
-  | f == Thy.setEmp        = PAtom Eq (EApp (EVar Thy.arrConstS) PFalse) (elabFSetBag e)
-  | f == Thy.setSng        = EApp (EApp (EApp (EVar Thy.arrStoreS) (EApp (EVar Thy.arrConstS) PFalse)) (elabFSetBag e)) PTrue
-  | f == Thy.setCom        = EApp (EVar Thy.arrMapNotS) (elabFSetBag e)
-  | f == Thy.mapDef        = EApp (EVar Thy.arrConstB) (elabFSetBag e)
-  | otherwise              = EApp (elabFSetBag h) (elabFSetBag e)
-elabFSetBag (EApp (EApp h@(EVar f) e1) e2)
-  | f == Thy.setMem        = EApp (EApp (EVar Thy.arrSelectS) (elabFSetBag e2)) (elabFSetBag e1)
-  | f == Thy.setCup        = EApp (EApp (EVar Thy.arrMapOrS) (elabFSetBag e1)) (elabFSetBag e2)
-  | f == Thy.setCap        = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetBag e1)) (elabFSetBag e2)
-  | f == Thy.setAdd        = EApp (EApp (EApp (EVar Thy.arrStoreS) (elabFSetBag e1)) (elabFSetBag e2)) PTrue
+  | f == Thy.setEmp        = PAtom Eq (EApp (EVar Thy.arrConstS) PFalse) (elabFSetMap e)
+  | f == Thy.setSng        = EApp (EApp (EApp (EVar Thy.arrStoreS) (EApp (EVar Thy.arrConstS) PFalse)) (elabFSetMap e)) PTrue
+  | f == Thy.setCom        = EApp (EVar Thy.arrMapNotS) (elabFSetMap e)
+  | f == Thy.mapDef        = EApp (EVar Thy.arrConstB) (elabFSetMap e)
+  | f == Thy.mapToSet      = EApp (EApp (EVar Thy.arrMapGtB) (elabFSetMap e)) (EApp (EVar Thy.arrConstB) (ECon $ I 0))
+  | otherwise              = EApp (elabFSetMap h) (elabFSetMap e)
+elabFSetMap (EApp (EApp h@(EVar f) e1) e2)
+  | f == Thy.setMem        = EApp (EApp (EVar Thy.arrSelectS) (elabFSetMap e2)) (elabFSetMap e1)
+  | f == Thy.setCup        = EApp (EApp (EVar Thy.arrMapOrS) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.setCap        = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.setAdd        = EApp (EApp (EApp (EVar Thy.arrStoreS) (elabFSetMap e1)) (elabFSetMap e2)) PTrue
   -- A \ B == A /\ ~B == ~(A => B)
-  | f == Thy.setDif        = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetBag e1)) (EApp (EVar Thy.arrMapNotS) (elabFSetBag e2))
-  | f == Thy.setSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapImpS) (elabFSetBag e1)) (elabFSetBag e2))
-  | f == Thy.mapSel        = EApp (EApp (EVar Thy.arrSelectB) (elabFSetBag e1)) (elabFSetBag e2)
-  | otherwise              = EApp (EApp (elabFSetBag h) (elabFSetBag e1)) (elabFSetBag e2)
-elabFSetBag (EApp (EApp (EApp h@(EVar f) e1) e2) e3)
-  | f == Thy.mapSto        = EApp (EApp (EApp (EVar Thy.arrStoreB) (elabFSetBag e1)) (elabFSetBag e2)) (elabFSetBag e3)
-  | otherwise              = EApp (EApp (EApp (elabFSetBag h) (elabFSetBag e1)) (elabFSetBag e2)) (elabFSetBag e3)
-elabFSetBag (EApp e1 e2)      = EApp (elabFSetBag e1) (elabFSetBag e2)
-elabFSetBag (ENeg e)          = ENeg (elabFSetBag e)
-elabFSetBag (EBin b e1 e2)    = EBin b (elabFSetBag e1) (elabFSetBag e2)
-elabFSetBag (EIte e1 e2 e3)   = EIte (elabFSetBag e1) (elabFSetBag e2) (elabFSetBag e3)
-elabFSetBag (ECst e t)        = ECst (elabFSetBag e) t
-elabFSetBag (ELam b e)        = ELam b (elabFSetBag e)
-elabFSetBag (ETApp e t)       = ETApp (elabFSetBag e) t
-elabFSetBag (ETAbs e t)       = ETAbs (elabFSetBag e) t
-elabFSetBag (PAnd es)         = PAnd (elabFSetBag <$> es)
-elabFSetBag (POr es)          = POr (elabFSetBag <$> es)
-elabFSetBag (PNot e)          = PNot (elabFSetBag e)
-elabFSetBag (PImp e1 e2)      = PImp (elabFSetBag e1) (elabFSetBag e2)
-elabFSetBag (PIff e1 e2)      = PIff (elabFSetBag e1) (elabFSetBag e2)
-elabFSetBag (PAtom r e1 e2)   = PAtom r (elabFSetBag e1) (elabFSetBag e2)
-elabFSetBag (PAll   bs e)     = PAll bs (elabFSetBag e)
-elabFSetBag (PExist bs e)     = PExist bs (elabFSetBag e)
-elabFSetBag (PGrad  k su i e) = PGrad k su i (elabFSetBag e)
-elabFSetBag (ECoerc a t e)    = ECoerc a t (elabFSetBag e)
-elabFSetBag e                 = e
+  | f == Thy.setDif        = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetMap e1)) (EApp (EVar Thy.arrMapNotS) (elabFSetMap e2))
+  | f == Thy.setSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapImpS) (elabFSetMap e1)) (elabFSetMap e2))
+  | f == Thy.mapSel        = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.mapCup        = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.mapPrj        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (elabFSetMap e1)) (elabFSetMap e2)) (EApp (EVar Thy.arrConstB) (ECon $ I 0))
+  | otherwise              = EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)
+elabFSetMap (EApp (EApp (EApp h@(EVar f) e1) e2) e3)
+  | f == Thy.mapSto        = EApp (EApp (EApp (EVar Thy.arrStoreB) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)
+  | otherwise              = EApp (EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)
+elabFSetMap (EApp e1 e2)      = EApp (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (ENeg e)          = ENeg (elabFSetMap e)
+elabFSetMap (EBin b e1 e2)    = EBin b (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (EIte e1 e2 e3)   = EIte (elabFSetMap e1) (elabFSetMap e2) (elabFSetMap e3)
+elabFSetMap (ECst e t)        = ECst (elabFSetMap e) t
+elabFSetMap (ELam b e)        = ELam b (elabFSetMap e)
+elabFSetMap (ETApp e t)       = ETApp (elabFSetMap e) t
+elabFSetMap (ETAbs e t)       = ETAbs (elabFSetMap e) t
+elabFSetMap (PAnd es)         = PAnd (elabFSetMap <$> es)
+elabFSetMap (POr es)          = POr (elabFSetMap <$> es)
+elabFSetMap (PNot e)          = PNot (elabFSetMap e)
+elabFSetMap (PImp e1 e2)      = PImp (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (PIff e1 e2)      = PIff (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (PAtom r e1 e2)   = PAtom r (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (PAll   bs e)     = PAll bs (elabFSetMap e)
+elabFSetMap (PExist bs e)     = PExist bs (elabFSetMap e)
+elabFSetMap (PGrad  k su i e) = PGrad k su i (elabFSetMap e)
+elabFSetMap (ECoerc a t e)    = ECoerc a t (elabFSetMap e)
+elabFSetMap e                 = e
 
-coerceSetBagToArray :: Sort -> Sort
-coerceSetBagToArray s@(FApp (FApp sf sa) FInt) -- TODO currently only handles ints
+coerceSetMapToArray :: Sort -> Sort
+coerceSetMapToArray s@(FApp (FApp sf sa) FInt) -- TODO currently only handles ints
   | isMap sf = arraySort sa intSort
   | otherwise = s
-coerceSetBagToArray s@(FApp sf sa)
+coerceSetMapToArray s@(FApp sf sa)
   | isSet sf = arraySort sa boolSort
   | otherwise = s
-coerceSetBagToArray s = s
+coerceSetMapToArray s = s
 
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
@@ -697,10 +700,10 @@ elabAppAs env@(_, f) t g e = do
   eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
-  let oT' = coerceSetBagToArray oT
-  let t'  = coerceSetBagToArray t
-  let iT' = coerceSetBagToArray iT
-  let eT' = coerceSetBagToArray eT
+  let oT' = coerceSetMapToArray oT
+  let t'  = coerceSetMapToArray t
+  let iT' = coerceSetMapToArray iT
+  let eT' = coerceSetMapToArray eT
   su       <- unifyMany f ge isu [oT', iT'] [t', eT']
   let tg    = apply su gT
   g'       <- elabAs env tg g
@@ -719,8 +722,8 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, 
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  let sIn' = coerceSetBagToArray sIn
-  let s2'  = coerceSetBagToArray s2
+  let sIn' = coerceSetMapToArray sIn
+  let s2'  = coerceSetMapToArray s2
   su'             <- unify1 f e su sIn' s2'
   return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
@@ -745,7 +748,7 @@ takeArgs env e es =
 makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s'
   where
-    s'                     = coerceSetBagToArray s
+    s'                     = coerceSetMapToArray s
     f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s'
     t2                     = exprSort "makeAppl" e2
 
@@ -945,7 +948,7 @@ exprSortMaybe = go
     go (ELam (_, sx) e) = FFunc sx <$> go e
     go (EApp e ex)
       | Just (FFunc sx s) <- genSort <$> go e
-      = maybe s (`apply` s) <$> ((`unifySorts` sx) <$> go ex)
+      = maybe s (`apply` s) . (`unifySorts` sx) <$> go ex
     go _ = Nothing
 
 genSort :: Sort -> Sort
@@ -954,8 +957,8 @@ genSort t          = t
 
 unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
 unite f e t1 t2 = do
-  let t1' = tracepp "UNITE1" $ coerceSetBagToArray t1
-  let t2' = tracepp "UNITE2" $ coerceSetBagToArray t2
+  let t1' = tracepp "UNITE1" $ coerceSetMapToArray t1
+  let t2' = tracepp "UNITE2" $ coerceSetMapToArray t2
   su <- unifys f (Just e) [t1'] [t2']
   return (apply su t1', apply su t2')
 
@@ -989,8 +992,8 @@ getIte :: Env -> Expr -> Expr -> CheckM Sort
 getIte f e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  let t1' = coerceSetBagToArray t1
-  let t2' = coerceSetBagToArray t2
+  let t1' = coerceSetMapToArray t1
+  let t2' = coerceSetMapToArray t2
   (`apply` t1') <$> unifys f Nothing [t1'] [t2']
 
 checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
@@ -998,8 +1001,8 @@ checkIteTy f p e1 e2 t1 t2 =
   ((`apply` t1') <$> unifys f e' [t1'] [t2']) `withError` errIte e1 e2 t1' t2'
   where
     e' = Just (EIte p e1 e2)
-    t1' = coerceSetBagToArray t1
-    t2' = coerceSetBagToArray t2
+    t1' = coerceSetMapToArray t1
+    t2' = coerceSetMapToArray t2
 
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
@@ -1018,8 +1021,8 @@ checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
 checkExprAs f t e
   = do t' <- checkExpr f e
-       let t1 = coerceSetBagToArray t'
-       let t0 = coerceSetBagToArray t
+       let t1 = coerceSetMapToArray t'
+       let t0 = coerceSetMapToArray t
        θ  <- unifys f (Just e) [t1] [t0]
        return $ apply θ t0
 
@@ -1035,14 +1038,14 @@ checkApp' f to g e = do
   et       <- checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  let it' = coerceSetBagToArray it
-  let et' = coerceSetBagToArray et
+  let it' = coerceSetMapToArray it
+  let et' = coerceSetMapToArray et
   su        <- unifyMany f ge isu [it'] [et']
   let t     = apply su ot
   case to of
     Nothing    -> return (su, t)
-    Just t'    -> do let t0 = coerceSetBagToArray t
-                     let t1 = coerceSetBagToArray t'
+    Just t'    -> do let t0 = coerceSetMapToArray t
+                     let t1 = coerceSetMapToArray t'
                      θ' <- unifyMany f ge su [t0] [t1]
                      let ti = apply θ' et'
                      _ <- checkExprAs f ti e
@@ -1121,8 +1124,8 @@ checkRel :: HasCallStack => Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  let t1' = coerceSetBagToArray t1
-  let t2' = coerceSetBagToArray t2
+  let t1' = coerceSetMapToArray t1
+  let t2' = coerceSetMapToArray t2
   su <- unifys f (Just e) [t1'] [t2'] `withError` errRel e t1' t2'
   _  <- checkExprAs f (apply su t1') e1
   _  <- checkExprAs f (apply su t2') e2
@@ -1280,13 +1283,13 @@ unify1 _ _ !θ (FTC !l1) (FTC !l2)
   = return θ
 unify1 f e !θ t1@(FAbs _ _) !t2 = do
   !t1' <- instantiate t1
-  let t3 = coerceSetBagToArray t1'
-  let t4 = coerceSetBagToArray t2
+  let t3 = coerceSetMapToArray t1'
+  let t4 = coerceSetMapToArray t2
   unifyMany f e θ [t3] [t4]
 unify1 f e !θ !t1 t2@(FAbs _ _) = do
   !t2' <- instantiate t2
-  let t3 = coerceSetBagToArray t1
-  let t4 = coerceSetBagToArray t2'
+  let t3 = coerceSetMapToArray t1
+  let t4 = coerceSetMapToArray t2'
   unifyMany f e θ [t3] [t4]
 unify1 _ _ !θ !s1 !s2
   | isString s1, isString s2

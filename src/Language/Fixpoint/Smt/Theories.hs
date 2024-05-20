@@ -29,15 +29,17 @@ module Language.Fixpoint.Smt.Theories
      , theorySymbols
      , dataDeclSymbols
 
-
        -- * Theories
-     , setEmpty, setEmp, setCap, setSub, setAdd, setMem
-     , setCom, setCup, setDif, setSng
+     , setEmpty, setEmp, setSng, setAdd, setMem
+     , setCom, setCap, setCup, setDif, setSub
 
-     , mapSel, mapCup, mapSto, mapDef
+     , mapDef, mapSel, mapSto
+     , mapCup, mapToSet, mapPrj, mapMax, mapMin, mapShift
 
-     , arrConstS, arrStoreS, arrSelectS, arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS
+     , arrConstS, arrStoreS, arrSelectS
+     , arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS
      , arrConstB, arrStoreB, arrSelectB
+     , arrMapPlusB, arrMapGtB, arrMapIteB
 
       -- * Query Theories
      , isSmt2App
@@ -78,17 +80,18 @@ set  = "LSet"
 map  = "Map"
 
 --mdef, sel, sto,
-mcup,  mprj :: Raw
-mToSet, mshift, mmax, mmin :: Raw
+--mcup, mToSet, mprj,
+mmax, mmin, mshift :: Raw
 --mdef  = "smt_map_def"
 --sel   = "smt_map_sel"
 --sto   = "smt_map_sto"
-mcup  = "smt_map_cup"
+
+--mcup  = "smt_map_cup"
+--mToSet = "smt_map_to_set"
+--mprj  = "smt_map_prj"
 mmax  = "smt_map_max"
 mmin  = "smt_map_min"
-mprj  = "smt_map_prj"
 mshift = "smt_map_shift"
-mToSet = "smt_map_to_set"
 
 ---- Size changes
 bvConcatName, bvExtractName, bvRepeatName, bvZeroExtName, bvSignExtName :: Symbol
@@ -157,33 +160,20 @@ setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
 
-mapDef, mapSel, mapSto, mapCup, mapMax, mapMin, mapShift :: (IsString a) => a
+-- Map operations that are polymorphic in the value type
+mapDef, mapSel, mapSto :: (IsString a) => a
 mapDef   = "Map_default"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
+
+-- Map operations specialized for Int values
+mapCup, mapToSet, mapPrj, mapMax, mapMin, mapShift :: (IsString a) => a
 mapCup   = "Map_union"
-mapMax   = "Map_union_max"
+mapToSet = "Map_to_set" -- See [Interaction Between Map and Set]
+mapPrj   = "Map_project"
+mapMax   = "Map_union_max" -- See [Map max and min]
 mapMin   = "Map_union_min"
 mapShift = "Map_shift" -- See [Map key shift]
-
--- [Map key shift]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Function mapShift: Add an integer to all keys in a map. Type signature:
---   mapShift : Int -> Map Int v -> Map Int v
--- Let's call the first argument (the shift amount) N, the second argument K1,
--- and the result K2. For all indices i, we have K2[i] = K1[i - N].
--- This is implemented with Z3's lambda, which lets us construct an array
--- from a function.
---
--- [Map max and min]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Functions mapMax and mapMin: Union two maps, combining the elements by
--- taking either the greatest (mapMax) or the least (mapMin) of them.
---   mapMax, mapMin : Map v Int -> Map v Int -> Map v Int
-
-mapToSet, mapPrj :: Symbol
-mapToSet = "Map_to_set"
-mapPrj   = "Map_project"
 
 -- [Interaction between Map and Set]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -203,6 +193,21 @@ mapPrj   = "Map_project"
 -- in the output. Keys not present in the set are mapped to zero. Keys not
 -- present in the set are mapped to zero.
 
+-- [Map key shift]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Function mapShift: Add an integer to all keys in a map. Type signature:
+--   mapShift : Int -> Map Int v -> Map Int v
+-- Let's call the first argument (the shift amount) N, the second argument K1,
+-- and the result K2. For all indices i, we have K2[i] = K1[i - N].
+-- This is implemented with Z3's lambda, which lets us construct an array
+-- from a function.
+--
+-- [Map max and min]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- Functions mapMax and mapMin: Union two maps, combining the elements by
+-- taking either the greatest (mapMax) or the least (mapMin) of them.
+--   mapMax, mapMin : Map v Int -> Map v Int -> Map v Int
+
 --- Array operations for sets
 arrConstS, arrStoreS, arrSelectS, arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS :: Symbol
 arrConstS  = "const"
@@ -213,11 +218,17 @@ arrMapOrS  = "arr_map_or"
 arrMapAndS = "arr_map_and"
 arrMapImpS = "arr_map_imp"
 
---- Array operations for bags
+--- Array operations for maps
 arrConstB, arrStoreB, arrSelectB :: Symbol
 arrConstB  = "const"
 arrStoreB  = "store"
 arrSelectB = "select"
+
+--- Array operations for bags
+arrMapPlusB, arrMapGtB, arrMapIteB :: Symbol
+arrMapPlusB = "arr_map_plus"
+arrMapGtB = "arr_map_gt"
+arrMapIteB = "arr_map_ite"
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
@@ -261,6 +272,10 @@ z3Preamble u
     -- Maps
     , bSort map
         (key2 "Array" (fromText elt) (fromText elt))
+--    , bFun mdef
+--        [("v", fromText elt)]
+--        (fromText map)
+--        (key (key "as const" (parens (fromText map))) "v")
 --    , bFun sel
 --        [("m", fromText map), ("k", fromText elt)]
 --        (fromText elt)
@@ -269,37 +284,38 @@ z3Preamble u
 --        [("m", fromText map), ("k", fromText elt), ("v", fromText elt)]
 --        (fromText map)
 --        "(store m k v)"
-    , bFun mcup
-        [("m1", fromText map), ("m2", fromText map)]
-        (fromText map)
-        (key2 (key "_ map" (key2 "+" (parens (fromText elt <+> fromText elt)) (fromText elt))) "m1" "m2")
-    , bFun mprj -- See [Interaction Between Map and Set]
-        [("s", fromText set), ("m", fromText map)]
-        (fromText map)
-        (key3
-          (key "_ map"
-            (key2 "ite"
-              (parens ("Bool" <+> fromText elt <+> fromText elt))
-              (fromText elt)
-            )
-          )
-          "s"
-          "m"
-          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
-        )
-    , bFun mToSet -- See [Interaction Between Map and Set]
-        [("m", fromText map)]
-        (fromText set)
-        (key2
-          (key "_ map"
-            (key2 ">"
-              (parens (fromText elt <+> fromText elt))
-              "Bool"
-            )
-          )
-          "m"
-          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
-        )
+
+--    , bFun mcup
+--        [("m1", fromText map), ("m2", fromText map)]
+--        (fromText map)
+--        (key2 (key "_ map" (key2 "+" (parens (fromText elt <+> fromText elt)) (fromText elt))) "m1" "m2")
+--    , bFun mToSet -- See [Interaction Between Map and Set]
+--        [("m", fromText map)]
+--        (fromText set)
+--        (key2
+--          (key "_ map"
+--            (key2 ">"
+--              (parens (fromText elt <+> fromText elt))
+--              "Bool"
+--            )
+--          )
+--          "m"
+--          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
+--        )
+--    , bFun mprj -- See [Interaction Between Map and Set]
+--        [("s", fromText set), ("m", fromText map)]
+--        (fromText map)
+--        (key3
+--          (key "_ map"
+--            (key2 "ite"
+--              (parens ("Bool" <+> fromText elt <+> fromText elt))
+--              (fromText elt)
+--            )
+--          )
+--          "s"
+--          "m"
+--          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
+--        )
     , bFun mmax -- See [Map max and min]
         [("m1", fromText map),("m2", fromText map)]
         (fromText map)
@@ -312,10 +328,6 @@ z3Preamble u
         [("n", "Int"),("m", fromText map)]
         (fromText map)
         "(lambda ((i Int)) (select m (- i n)))"
---    , bFun mdef
---        [("v", fromText elt)]
---        (fromText map)
---        (key (key "as const" (parens (fromText map))) "v")
     , bFun boolToIntName
         [("b", "Bool")]
         "Int"
@@ -489,9 +501,13 @@ interpSymbols =
   , interpSym arrMapAndS "(_ map and)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
   , interpSym arrMapImpS "(_ map =>)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
 
-  , interpSym arrConstB  "const"       (FAbs 0 $ FFunc intSort bagArrSort)
-  , interpSym arrSelectB "select"      (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) intSort)
-  , interpSym arrStoreB  "store"       (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) $ FFunc intSort bagArrSort)
+  , interpSym arrConstB  "const"  (FAbs 0 $ FFunc intSort bagArrSort)
+  , interpSym arrSelectB "select" (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) intSort)
+  , interpSym arrStoreB  "store"  (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) $ FFunc intSort bagArrSort)
+
+  , interpSym arrMapPlusB "(_ map (+ (Int Int) Int))"        (FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
+  , interpSym arrMapGtB   "(_ map (> (Int Int) Bool))"       (FFunc bagArrSort $ FFunc bagArrSort setArrSort)
+  , interpSym arrMapIteB  "(_ map (ite (Bool Int Int) Int))" (FFunc setArrSort $ FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
 
   , interpSym setEmp   setEmp   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty setEmpty (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
@@ -504,18 +520,17 @@ interpSymbols =
   , interpSym setSub   setSub   setCmpSort
   , interpSym setCom   setCom   setCmpSort
 
---  , interpSym mapDef   mdef  mapDefSort
   , interpSym mapDef   mapDef  mapDefSort
---  , interpSym mapSel   sel   mapSelSort
   , interpSym mapSel   mapSel mapSelSort
---  , interpSym mapSto   sto    mapStoSort
   , interpSym mapSto   mapSto    mapStoSort
-  , interpSym mapCup   mcup  mapCupSort
+
+  , interpSym mapCup   mapCup  mapCupSort
+  , interpSym mapToSet mapToSet mapToSetSort
+  , interpSym mapPrj   mapPrj  mapPrjSort
+
   , interpSym mapMax   mmax  mapMaxSort
   , interpSym mapMin   mmin  mapMinSort
-  , interpSym mapPrj   mprj  mapPrjSort
   , interpSym mapShift mshift mapShiftSort
-  , interpSym mapToSet mToSet mapToSetSort
 
   -- , interpSym bvOrName  "bvor"  bvBopSort
   -- , interpSym bvAndName "bvand" bvBopSort
