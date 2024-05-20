@@ -80,8 +80,7 @@ set  = "LSet"
 map  = "Map"
 
 --mdef, sel, sto,
---mcup, mToSet, mprj,
-mmax, mmin, mshift :: Raw
+--mcup, mToSet, mprj, mmax, mmin, mshift :: Raw
 --mdef  = "smt_map_def"
 --sel   = "smt_map_sel"
 --sto   = "smt_map_sto"
@@ -89,9 +88,9 @@ mmax, mmin, mshift :: Raw
 --mcup  = "smt_map_cup"
 --mToSet = "smt_map_to_set"
 --mprj  = "smt_map_prj"
-mmax  = "smt_map_max"
-mmin  = "smt_map_min"
-mshift = "smt_map_shift"
+-- mmax  = "smt_map_max"
+--mmin  = "smt_map_min"
+-- mshift = "smt_map_shift"
 
 ---- Size changes
 bvConcatName, bvExtractName, bvRepeatName, bvZeroExtName, bvSignExtName :: Symbol
@@ -167,12 +166,15 @@ mapSel   = "Map_select"
 mapSto   = "Map_store"
 
 -- Map operations specialized for Int values
-mapCup, mapToSet, mapPrj, mapMax, mapMin, mapShift :: (IsString a) => a
+mapCup, mapToSet, mapPrj, mapMax, mapMin :: (IsString a) => a
 mapCup   = "Map_union"
 mapToSet = "Map_to_set" -- See [Interaction Between Map and Set]
 mapPrj   = "Map_project"
 mapMax   = "Map_union_max" -- See [Map max and min]
 mapMin   = "Map_union_min"
+
+-- Map operations specialized for Int keys
+mapShift :: (IsString a) => a
 mapShift = "Map_shift" -- See [Map key shift]
 
 -- [Interaction between Map and Set]
@@ -264,7 +266,8 @@ bSort name def = key "define-sort" (fromText name <+> "()" <+> def)
 z3Preamble :: Config -> [Builder]
 z3Preamble u
   = stringPreamble u ++
-    [ bSort elt
+    [
+      bSort elt
         "Int"
     , bSort set
         (key2 "Array" (fromText elt) "Bool")
@@ -316,19 +319,20 @@ z3Preamble u
 --          "m"
 --          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
 --        )
-    , bFun mmax -- See [Map max and min]
-        [("m1", fromText map),("m2", fromText map)]
-        (fromText map)
-        "(lambda ((i Int)) (ite (> (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
-    , bFun mmin -- See [Map max and min]
-        [("m1", fromText map),("m2", fromText map)]
-        (fromText map)
-        "(lambda ((i Int)) (ite (< (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
-    , bFun mshift -- See [Map key shift]
-        [("n", "Int"),("m", fromText map)]
-        (fromText map)
-        "(lambda ((i Int)) (select m (- i n)))"
-    , bFun boolToIntName
+--    , bFun mmax -- See [Map max and min]
+--        [("m1", fromText map),("m2", fromText map)]
+--        (fromText map)
+--        "(lambda ((i Int)) (ite (> (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
+--    , bFun mmin -- See [Map max and min]
+--        [("m1", fromText map),("m2", fromText map)]
+--        (fromText map)
+--        "(lambda ((i Int)) (ite (< (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
+--    , bFun mshift -- See [Map key shift]
+--        [("n", "Int"),("m", fromText map)]
+--        (fromText map)
+--        "(lambda ((i Int)) (select m (- i n)))"
+    ,
+      bFun boolToIntName
         [("b", "Bool")]
         "Int"
         "(ite b 1 0)"
@@ -354,9 +358,11 @@ cvc4Preamble z
 
 commonPreamble :: Config -> [Builder]
 commonPreamble _ --TODO use uif flag u (see z3Preamble)
-  = [ bSort elt    "Int"
+  = [
+      bSort elt    "Int"
     , bSort set    "Int"
-    , bSort string "Int"
+    ,
+      bSort string "Int"
     , bFun boolToIntName [("b", "Bool")] "Int" "(ite b 1 0)"
     ]
 
@@ -370,10 +376,10 @@ cvc4MapPreamble _ =
 smtlibPreamble :: Config -> [Builder]
 smtlibPreamble z --TODO use uif flag u (see z3Preamble)
   = commonPreamble z
- ++ [ bSort map "Int"
+-- ++ [ -- bSort map "Int"
 --    , bFun' sel [fromText map, fromText elt] (fromText elt)
 --    , bFun' sto [fromText map, fromText elt, fromText elt] (fromText map)
-    ]
+--    ]
 
 stringPreamble :: Config -> [Builder]
 stringPreamble cfg | stringTheory cfg
@@ -404,8 +410,10 @@ smt2SmtSort SInt         = "Int"
 smt2SmtSort SReal        = "Real"
 smt2SmtSort SBool        = "Bool"
 smt2SmtSort SString      = fromText string
+
 smt2SmtSort SSet         = fromText set
 smt2SmtSort SMap         = fromText map
+
 smt2SmtSort (SArray a b) = key2 "Array" (smt2SmtSort a) (smt2SmtSort b)
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
 smt2SmtSort (SVar n)     = "T" <> bShow n
@@ -521,16 +529,15 @@ interpSymbols =
   , interpSym setCom   setCom   setCmpSort
 
   , interpSym mapDef   mapDef  mapDefSort
-  , interpSym mapSel   mapSel mapSelSort
-  , interpSym mapSto   mapSto    mapStoSort
+  , interpSym mapSel   mapSel  mapSelSort
+  , interpSym mapSto   mapSto  mapStoSort
 
-  , interpSym mapCup   mapCup  mapCupSort
+  , interpSym mapCup   mapCup   mapCupSort
   , interpSym mapToSet mapToSet mapToSetSort
-  , interpSym mapPrj   mapPrj  mapPrjSort
-
-  , interpSym mapMax   mmax  mapMaxSort
-  , interpSym mapMin   mmin  mapMinSort
-  , interpSym mapShift mshift mapShiftSort
+  , interpSym mapPrj   mapPrj   mapPrjSort
+  , interpSym mapMax   mapMax   mapMaxSort
+  , interpSym mapMin   mapMin   mapMinSort
+  , interpSym mapShift mapShift mapShiftSort
 
   -- , interpSym bvOrName  "bvor"  bvBopSort
   -- , interpSym bvAndName "bvand" bvBopSort
