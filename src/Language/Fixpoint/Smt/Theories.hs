@@ -212,9 +212,10 @@ mapShift = "Map_shift" -- See [Map key shift]
 
 --- Array operations for sets
 arrConstS, arrStoreS, arrSelectS, arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS :: Symbol
-arrConstS  = "const"
-arrStoreS  = "store"
-arrSelectS = "select"
+arrConstS  = "arr_const_s"
+arrStoreS  = "arr_store_s"
+arrSelectS = "arr_select_s"
+
 arrMapNotS = "arr_map_not"
 arrMapOrS  = "arr_map_or"
 arrMapAndS = "arr_map_and"
@@ -222,15 +223,15 @@ arrMapImpS = "arr_map_imp"
 
 --- Array operations for maps
 arrConstB, arrStoreB, arrSelectB :: Symbol
-arrConstB  = "const"
-arrStoreB  = "store"
-arrSelectB = "select"
+arrConstB  = "arr_const_b"
+arrStoreB  = "arr_store_b"
+arrSelectB = "arr_select_b"
 
 --- Array operations for bags
 arrMapPlusB, arrMapGtB, arrMapIteB :: Symbol
 arrMapPlusB = "arr_map_plus"
-arrMapGtB = "arr_map_gt"
-arrMapIteB = "arr_map_ite"
+arrMapGtB   = "arr_map_gt"
+arrMapIteB  = "arr_map_ite"
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
@@ -501,9 +502,10 @@ interpSymbols :: [(Symbol, TheorySymbol)]
 interpSymbols =
   [
   -- TODO we'll probably need two versions of these - one for sets and one for maps
-    interpSym arrConstS  "const"       (FAbs 0 $ FFunc boolSort setArrSort)
-  , interpSym arrSelectS "select"      (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) boolSort)
-  , interpSym arrStoreS  "store"       (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) $ FFunc boolSort setArrSort)
+    interpSym arrConstS  "const"  (FAbs 0 $ FFunc boolSort setArrSort)
+  , interpSym arrSelectS "select" (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) boolSort)
+  , interpSym arrStoreS  "store"  (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) $ FFunc boolSort setArrSort)
+
   , interpSym arrMapNotS "(_ map not)" (FFunc setArrSort setArrSort)
   , interpSym arrMapOrS  "(_ map or)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
   , interpSym arrMapAndS "(_ map and)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
