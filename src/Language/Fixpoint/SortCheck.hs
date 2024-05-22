@@ -238,6 +238,8 @@ elabFSetMap (EApp (EApp h@(EVar f) e1) e2)
   | f == Thy.mapSel        = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (elabFSetMap e2)
   | f == Thy.mapCup        = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetMap e1)) (elabFSetMap e2)
   | f == Thy.mapPrj        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (elabFSetMap e1)) (elabFSetMap e2)) (EApp (EVar Thy.arrConstB) (ECon $ I 0))
+  -- array lambdas
+
   | f == Thy.mapMax        = let e1i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (EVar "i")
                                  e2i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (EVar "i")
                                in
@@ -247,6 +249,7 @@ elabFSetMap (EApp (EApp h@(EVar f) e1) e2)
                                in
                              ELam ("i", FVar 0) (EIte (PAtom Lt e1i e2i) e1i e2i)
   | f == Thy.mapShift      = ELam ("i", intSort) (EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (EBin Minus (EVar "i") e1))
+
   | otherwise              = EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)
 elabFSetMap (EApp (EApp (EApp h@(EVar f) e1) e2) e3)
   | f == Thy.mapSto        = EApp (EApp (EApp (EVar Thy.arrStoreB) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)
@@ -555,13 +558,17 @@ elab f@(_, g) e@(EBin o e1 e2) = do
   return (EBin o (eCst e1' s1) (eCst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
-  (e1', _, e2', s2, s) <- tracepp "ELAB-EAPP" <$> elabEApp f e1 e2
+  let _ = tracepp "ELAB-EAPPXa" e1
+  let _ = tracepp "ELAB-EAPPXb" e2
+  (e1', _, e2', s2, s) <- tracepp "ELAB-EAPPXc" <$> elabEApp f e1 e2
   let e = eAppC s e1' (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab f (EApp e1 e2) = do
-  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
+  let _ = tracepp "ELAB-EAPPa" e1
+  let _ = tracepp "ELAB-EAPPb" e2
+  (e1', s1, e2', s2, s) <- tracepp "ELAB-EAPPc" <$> elabEApp f e1 e2
   let e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
@@ -585,7 +592,8 @@ elab f (PGrad k su i e) =
   (, boolSort) . PGrad k su i . fst <$> elab f e
 
 elab (_, f) e@(EVar x) =
-  (e,) <$> checkSym f x
+  do cs <- tracepp "ELAB-EVAR" <$> checkSym f x
+     pure (e, cs)
 
 elab f (ENeg e) = do
   (e', s) <- elab f e
@@ -722,17 +730,17 @@ elabAppAs env@(_, f) t g e = do
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1)     <- {- notracepp ("elabEApp: e1 = " ++ showpp e1) <$> -} elab f e1
-  (e2', s2)     <- elab f e2
+  (e1', s1)     <- tracepp ("elabEApp: e1 = " ++ show e1) <$> elab f e1
+  (e2', s2)     <- tracepp ("elabEApp: e2 = " ++ show e2) <$> elab f e2
   (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
   return           (e1'', s1', e2'', s2', s)
 
 elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
-  let e            = Just (EApp e1 e2)
+  let e            = tracepp ("elabAppSort s1 = " ++ show s1) <$> Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  let sIn' = coerceSetMapToArray sIn
-  let s2'  = coerceSetMapToArray s2
+  let sIn'         = tracepp ("elabAppSort sIn = " ++ show sIn) $ coerceSetMapToArray sIn
+  let s2'          = tracepp ("elabAppSort s2 = " ++ show s2) $ coerceSetMapToArray s2
   su'             <- unify1 f e su sIn' s2'
   return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
@@ -1103,7 +1111,7 @@ checkFractional _ s
 
 checkNumeric :: Env -> Sort -> CheckM ()
 checkNumeric f s@(FObj l)
-  = do t <- checkSym f l
+  = do t <- tracepp "checkNumeric" <$> checkSym f l
        unless (t `elem` [FNum, FFrac, intSort, FInt]) (throwErrorAt $ errNonNumeric s)
 checkNumeric _ s
   = unless (isNumeric s) (throwErrorAt $ errNonNumeric s)
@@ -1308,10 +1316,12 @@ unify1 _ _ !θ FInt  FReal = return θ
 unify1 _ _ !θ FReal FInt  = return θ
 
 unify1 f e !θ !t FInt = do
+  let _ = tracepp "unify1FIntL" e
   checkNumeric f t `withError` errUnify e t FInt
   return θ
 
 unify1 f e !θ FInt !t = do
+  let _ = tracepp ("unify1FIntR " ++ show e) t
   checkNumeric f t `withError` errUnify e FInt t
   return θ
 

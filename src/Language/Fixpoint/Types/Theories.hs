@@ -229,8 +229,10 @@ data SmtSort
   | SReal
   | SString
   -- TODO remove these now that we use SArray directly
+
   | SSet
   | SMap
+
   | SArray !SmtSort !SmtSort
   | SBitVec !Int
   | SVar    !Int
@@ -269,10 +271,12 @@ fappSmtSort :: Bool -> Int -> SEnv DataDecl -> Sort -> [Sort] -> SmtSort
 fappSmtSort poly m env = go
   where
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
+
     go (FTC c) _
       | setConName == symbol c  = SSet
     go (FTC c) _
       | mapConName == symbol c  = SMap
+
     go (FTC c) [a, b]
       | arrayConName == symbol c = SArray (sortSmtSort poly env a) (sortSmtSort poly env b)
     go (FTC bv) [FTC s]
@@ -296,8 +300,10 @@ instance PPrint SmtSort where
   pprintTidy _ SBool        = text "Bool"
   pprintTidy _ SReal        = text "Real"
   pprintTidy _ SString      = text "Str"
+
   pprintTidy _ SSet         = text "Set"
   pprintTidy _ SMap         = text "Map"
+
   pprintTidy k (SArray a b) = ppParens k (text "Array") [a, b]
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
   pprintTidy _ (SVar i)     = text "@" <-> int i
