@@ -248,7 +248,7 @@ defConfig = Config {
   , autoKuts                 = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"
-  , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting (PLE)"
+  , rewriteAxioms            = False &= name "ple" &= help "allow axiom instantiation via rewriting (PLE)"
   , pleWithUndecidedGuards   =
       False
         &= name "ple-with-undecided-guards"
