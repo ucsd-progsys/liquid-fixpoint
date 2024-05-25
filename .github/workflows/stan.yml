@@ -8,13 +8,15 @@ on:
 
 jobs:
   build:
-    name: ghc-${{ matrix.ghc }} z3-4.10.2
+    name: ghc-${{ matrix.ghc }} z3-${{ matrix.z3 }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         cabal: ["3.10.1.0"]
         ghc:
-          - "9.6.3"
+          - "9.6.5"
+        z3:
+          - "4.10.2"
 
     steps:
       - uses: actions/checkout@v4
@@ -36,9 +38,9 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.ghc }}-cabal
 
       - uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
-        name: setup z3
+        name: Setup z3-${{ matrix.z3 }}
         with:
-          version: "4.10.2"
+          version: ${{ matrix.z3 }}
 
       - name: update
         run: cabal update

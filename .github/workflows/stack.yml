@@ -12,21 +12,25 @@ env:
 
 jobs:
   build:
-    name: ghc-${{ matrix.ghc }} z3-4.10.2
+    name: ghc-${{ matrix.vers.ghc }} z3-${{ matrix.z3 }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         cabal: ["3.6"]
-        ghc:
-          - "9.8.1"
+        vers:
+          - {ghc: "9.8.2", stackage: "nightly-2024-05-25"}
+          - {ghc: "9.6.5", stackage: "lts-22.23"}
+          - {ghc: "9.4.8", stackage: "lts-21.25"}
+        z3:
+          - "4.10.2"
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup z3
+      - name: Setup z3-${{ matrix.z3 }}
         uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
         with:
-          version: "4.10.2"
+          version: ${{ matrix.z3 }}
 
       - name: Workaround runner image issue
         # https://github.com/actions/runner-images/issues/7061
@@ -35,7 +39,7 @@ jobs:
       - name: Setup Stack
         uses: haskell-actions/setup@v2
         with:
-          ghc-version: ${{ matrix.ghc }}
+          ghc-version: ${{ matrix.vers.ghc }}
           cabal-version: ${{ matrix.cabal }}
           enable-stack: true
           stack-version: "latest"
@@ -49,7 +53,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('**/*.cabal', './stack.yaml', './stack.yaml.lock') }}
 
       - name: Build
-        run: stack test --no-run-tests $STACK_FLAGS
+        run: stack test --no-run-tests $STACK_FLAGS --resolver ${{ matrix.vers.stackage }}
 
       - name: Test
-        run: stack test --test-arguments "--color=always" $STACK_FLAGS
+        run: stack test --test-arguments "--color=always" $STACK_FLAGS --resolver ${{ matrix.vers.stackage }}
