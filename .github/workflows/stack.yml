@@ -58,14 +58,9 @@ jobs:
         if: ${{ matrix.vers.ghc == matrix.ghc-default }}
         run: grep "${{ matrix.vers.stackage }}" stack.yaml
 
-      # The lock file is not used if --resolver is specified, dropping this
-      # option with --dry-run is enough to regenerate the lock file that we then
-      # check.
       - name: Stack lock check
         if: ${{ matrix.vers.ghc == matrix.ghc-default }}
-        run: |
-          stack test --no-run-tests --dry-run
-          git diff --exit-code stack.yaml.lock
+        run: stack test --no-run-tests --dry-run --lock-file=error-on-write
 
       - name: Build
         run: stack test --no-run-tests $STACK_FLAGS --resolver ${{ matrix.vers.stackage }}
