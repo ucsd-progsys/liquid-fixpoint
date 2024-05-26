@@ -18,6 +18,7 @@ jobs:
       matrix:
         cabal: ["3.10.3.0"]
         vers:
+          # Reminder to also update the lock check.
           - {ghc: "9.8.2", stackage: "nightly-2024-05-25"}
           - {ghc: "9.6.5", stackage: "lts-22.23"}
           - {ghc: "9.4.8", stackage: "lts-21.25"}
@@ -51,6 +52,15 @@ jobs:
             ~/.stack
             .stack-work
           key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('**/*.cabal', './stack.yaml', './stack.yaml.lock') }}
+
+      # The lock file is not used if --resolver is specified, dropping this
+      # option with --dry-run is enough to regenerate the lock file that we then
+      # check.
+      - name: Stack lock check
+        if: ${{ matrix.vers.ghc == '9.8.2' }}
+        run: |
+          stack test --no-run-tests --dry-run
+          git diff --exit-code stack.yaml.lock
 
       - name: Build
         run: stack test --no-run-tests $STACK_FLAGS --resolver ${{ matrix.vers.stackage }}
