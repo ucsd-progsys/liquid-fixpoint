@@ -991,7 +991,10 @@ checkCst f t (EApp g e)
   = checkApp f (Just t) g e
 checkCst f t e
   = do t' <- checkExpr f e
-       ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` errCast e t' t
+       let t1 = coerceSetToArray t
+       let t2 = coerceSetToArray t'
+       su <- unifys f (Just e) [t1] [t2] `withError` errCast e t2 t1
+       pure (apply su t1)
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
