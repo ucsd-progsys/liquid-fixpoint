@@ -1077,6 +1077,8 @@ checkNumeric :: Env -> Sort -> CheckM ()
 checkNumeric f s@(FObj l)
   = do t <- checkSym f l
        unless (t `elem` [FNum, FFrac, intSort, FInt]) (throwErrorAt $ errNonNumeric s)
+checkNumeric _ (FVar _)
+  = return ()
 checkNumeric _ s
   = unless (isNumeric s) (throwErrorAt $ errNonNumeric s)
 
