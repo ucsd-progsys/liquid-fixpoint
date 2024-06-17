@@ -71,7 +71,7 @@ import           Control.Monad
 import           Control.Monad.Reader
 
 import qualified Data.HashMap.Strict       as M
-import qualified Data.Bifunctor            as BF
+--import qualified Data.Bifunctor            as BF
 import           Data.IORef
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
@@ -167,10 +167,10 @@ instance Elaborate Equation where
 instance Elaborate Expr where
   elaborate msg env e =
     let _ = notracepp "elaborate e " e
-        ce = notracepp "elaborate ce " $ coerceExpr e
+        --ce = notracepp "elaborate ce " $ coerceExpr e
         cenv = coerceEnv env
        in
-    (elabNumeric . elabApply cenv . elabExpr msg cenv . elabFSet) ce
+    (elabNumeric . elabApply cenv . elabExpr msg cenv . elabFSet) e --ce
 
 skipElabExpr :: Located String -> SymEnv -> Expr -> Expr
 skipElabExpr msg env e = case elabExprE msg env e of
@@ -266,6 +266,7 @@ coerceSetToArrayRec s@(FApp sf sa)
   | otherwise = s
 coerceSetToArrayRec s = s
 
+{-
 coerceExpr :: Expr -> Expr
 coerceExpr (ECon (L t s))   = ECon (L t (coerceSetToArrayRec s))
 coerceExpr (ECon c)         = ECon c
@@ -289,6 +290,7 @@ coerceExpr (PExist bs e)    = PExist (BF.second coerceSetToArrayRec <$> bs) (coe
 coerceExpr (PGrad k su i e) = PGrad k su i (coerceExpr e)
 coerceExpr (ECoerc s t e)   = ECoerc (coerceSetToArrayRec s) (coerceSetToArrayRec t) (coerceExpr e)
 coerceExpr e                = e
+-}
 
 coerceSortEnv :: SEnv Sort -> SEnv Sort
 coerceSortEnv ss = coerceSetToArrayRec <$> ss
