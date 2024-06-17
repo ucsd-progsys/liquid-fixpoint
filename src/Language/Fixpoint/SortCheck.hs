@@ -477,7 +477,7 @@ checkSortFull sp γ s t =
     Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
-      γ' = coerceSortEnv (sr_sort <$> γ)
+      γ' = sr_sort <$> γ
 
 checkSorted :: Checkable a => SrcSpan -> SEnv Sort -> a -> Maybe Doc
 checkSorted sp γ t =
