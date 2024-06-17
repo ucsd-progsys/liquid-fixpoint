@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Fixed the polymorphism-related crash caused by a restrictive Set theory encoding [#688](https://github.com/ucsd-progsys/liquid-fixpoint/pull/688).
+
 ## 0.9.6.3 (2024-01-29)
 
 - For now we stopped folding constants that contain NaN [#670](https://github.com/ucsd-progsys/liquid-fixpoint/pull/670)
@@ -29,27 +31,27 @@
 ## 0.8.6.4
 
 - Fix bugs in PLE
-- Move to GHC 8.6.4 
+- Move to GHC 8.6.4
 - Add `fuel` parameter to debug unfolding in PLE
 
-## 0.8.0.1 
+## 0.8.0.1
 
 - Support for HORN-NNF format clauses, see `tests/horn/{pos,neg}/*.smt2`
 - Support for "existential binders", see `tests/pos/ebind-*.fq` for example.
   This only works with `--eliminate`.
-- Move to GHC 8.4.3 
+- Move to GHC 8.4.3
 
 ## 0.7.0.0
 
 - New `eliminate` based solver (see ICFP 2017 paper for algorithm)
 - Proof by Logical Evaluation see `tests/proof`
-- SMTLIB2 ADTs to make data constructors injective 
+- SMTLIB2 ADTs to make data constructors injective
 - Uniformly support polymorphic functions via `apply` and elaborate
 
 ## 0.3.0.0
 
 - Make interpreted mul and div the default, when `solver = z3`
-- Use `higherorder` flag to allow higher order binders into the environment 
+- Use `higherorder` flag to allow higher order binders into the environment
 
 ## 0.2.2.0
 
