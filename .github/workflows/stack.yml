@@ -12,23 +12,27 @@ env:
 
 jobs:
   build:
-    name: ghc-${{ matrix.ghc }} z3-4.10.2
+    name: ghc-${{ matrix.vers.ghc }} z3-${{ matrix.z3 }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cabal: ["3.6"]
-        ghc:
+        cabal: ["3.10.3.0"]
+        vers:
+          - {ghc: "9.8.2", stackage: "nightly-2024-05-25"}
+          - {ghc: "9.6.5", stackage: "lts-22.23"}
+          - {ghc: "9.4.8", stackage: "lts-21.25"}
+        ghc-default:
           - "9.8.2"
+        z3:
+          - "4.10.2"
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
+      - uses: actions/checkout@v4
 
-      - name: Setup z3
+      - name: Setup z3-${{ matrix.z3 }}
         uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
         with:
-          version: "4.10.2"
+          version: ${{ matrix.z3 }}
 
       - name: Workaround runner image issue
         # https://github.com/actions/runner-images/issues/7061
@@ -36,22 +40,52 @@ jobs:
 
       - name: Setup Stack
         uses: haskell-actions/setup@v2
+        id: setup
         with:
-          ghc-version: ${{ matrix.ghc }}
+          ghc-version: ${{ matrix.vers.ghc }}
           cabal-version: ${{ matrix.cabal }}
           enable-stack: true
-          stack-version: "latest"
+          stack-version: '2.15.7'
 
-      - name: Cache ~/.stack and .stack-work
-        uses: actions/cache@v3
+      - name: Configure stack
+        run: |
+          stack config set system-ghc --global true
+          stack config set install-ghc --global false
+
+      - name: List dependencies
+        run: stack ls dependencies json | jq > stack-deps.json
+
+      - name: Restore cached dependency of Pantry (Stackage package index)
+        uses: actions/cache/restore@v4
+        id: pantry
+        env:
+          key: ghc-${{ steps.setup.outputs.ghc-version }}-stack-${{ steps.setup.outputs.stack-version }}
         with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-${{ matrix.ghc }}-stack-${{ hashFiles('**/*.cabal', './stack.yaml', './stack.yaml.lock') }}
+          path: ${{ steps.setup.outputs.stack-root }}/pantry
+          key: ${{ env.key }}-plan-${{ hashFiles('stack-deps.json') }}
+          restore-keys: ${{ env.key }}-
+
+      - name: Recompute Stackage package index (~/.stack/pantry)
+        if: steps.pantry.outputs.cache-hit != 'true'
+        run: stack update
+
+      - name: Stack resolver check
+        if: ${{ matrix.vers.ghc == matrix.ghc-default }}
+        run: grep "${{ matrix.vers.stackage }}" stack.yaml
+
+      - name: Stack lock check
+        if: ${{ matrix.vers.ghc == matrix.ghc-default }}
+        run: stack test --no-run-tests --dry-run --lock-file=error-on-write
 
       - name: Build
-        run: stack test --no-run-tests $STACK_FLAGS
+        run: stack test --no-run-tests $STACK_FLAGS --resolver ${{ matrix.vers.stackage }} --lock-file=ignore
 
       - name: Test
-        run: stack test --test-arguments "--color=always" $STACK_FLAGS
+        run: stack test --test-arguments "--color=always" $STACK_FLAGS --resolver ${{ matrix.vers.stackage }} --lock-file=ignore
+
+      - name: Save cached dependencies of Pantry
+        uses: actions/cache/save@v4
+        if: steps.pantry.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.setup.outputs.stack-root }}/pantry
+          key: ${{ steps.pantry.outputs.cache-primary-key }}

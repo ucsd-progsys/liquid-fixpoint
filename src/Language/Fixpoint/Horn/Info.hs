@@ -6,6 +6,7 @@ module Language.Fixpoint.Horn.Info (
   ) where
 
 import           Control.Monad (forM)
+import           Data.Ord (Down(..), comparing)
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import qualified Data.Tuple                     as Tuple
@@ -225,7 +226,7 @@ qualParams env e = do
     ixts <- forM xs $ \x -> do
               (t, i) <- lookupBindEnv x env
               return (i, x, t)
-    return [ (x, t) | (_, x, t) <- reverse . L.sort $ ixts ]
+    return [ (x, t) | (_, x, t) <- L.sortBy (comparing Down) ixts ]
 
     -- ixts = [ (i, x, t) | x <- xs, (i, t) <- lookupBindEnv x env ]
 
