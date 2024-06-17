@@ -518,12 +518,11 @@ instance Checkable Expr where
   check γ e =
     let _ = notracepp "checkExpr" e in
     void $ checkExpr f e
-   where f =  (`lookupSEnvWithDistance` (coerceSortEnv γ))
+   where f = (`lookupSEnvWithDistance` coerceSortEnv γ)
 
   checkSort γ s e = let e' = F.notracepp ("checkSort; s = " ++ show s) e in
                     void $ checkExpr f (ECst e' (coerceSetToArrayRec s))
-    where
-      f           =  (`lookupSEnvWithDistance` (coerceSortEnv γ))
+   where f = (`lookupSEnvWithDistance` coerceSortEnv γ)
 
 instance Checkable SortedReft where
   check γ (RR s (Reft (v, ra))) = check γ' ra
@@ -1091,10 +1090,10 @@ checkApp' f to g e = do
   et       <- notracepp ("checkApp'2 " ++ show e) <$> checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  let it' = coerceSetToArray it
-  let et' = coerceSetToArray et
-  su        <- unifyMany f ge isu [it'] [et']
---  su        <- unifyMany f ge isu [it] [et]
+  --let it' = coerceSetToArray it
+  --let et' = coerceSetToArray et
+  --su        <- unifyMany f ge isu [it'] [et']
+  su        <- unifyMany f ge isu [it] [et]
   let t     = apply su ot
   case to of
     Nothing    -> return (su, t)
