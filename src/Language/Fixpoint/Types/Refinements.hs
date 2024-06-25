@@ -73,7 +73,6 @@ module Language.Fixpoint.Types.Refinements (
   , isTautoSortedReft
   , isSingletonExpr
   , isSingletonReft
-  , isFalse
 
   -- * Destructing
   , flattenRefas
@@ -1020,21 +1019,6 @@ conjuncts (PAnd ps) = concatMap conjuncts ps
 conjuncts p
   | isTautoPred p   = []
   | otherwise       = [p]
-
-
--------------------------------------------------------------------------
--- | TODO: This doesn't seem to merit a TC ------------------------------
--------------------------------------------------------------------------
-
-class Falseable a where
-  isFalse :: a -> Bool
-
-instance Falseable Expr where
-  isFalse PFalse = True
-  isFalse _      = False
-
-instance Falseable Reft where
-  isFalse (Reft (_, ra)) = isFalse ra
 
 class Subable a where
   syms   :: a -> [Symbol]                   -- ^ free symbols of a
