@@ -102,7 +102,7 @@ accumBinds k a (fi, ids) i = (fi', i' : ids)
 newTopBind :: Symbol -> SortedReft -> a -> SInfo a -> (BindId, SInfo a)
 newTopBind x sr a fi = (i', fi {bs = be'})
   where
-    (i', be')        = insertBindEnv x (top sr) a (bs fi)
+    (i', be')        = insertBindEnv x (sr {sr_reft = trueReft}) a (bs fi)
 
 --------------------------------------------------------------
 

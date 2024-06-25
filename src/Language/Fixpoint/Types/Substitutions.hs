@@ -218,45 +218,10 @@ instance Subable SortedReft where
   substf f (RR so r) = RR so $ substf f r
   substa f (RR so r) = RR so $ substa f r
 
-instance Reftable () where
-  isTauto _ = True
-  ppTy _  d = d
-  top  _    = ()
-  bot  _    = ()
-  meet _ _  = ()
-  toReft _  = mempty
-  ofReft _  = mempty
-  params _  = []
-
-instance Reftable Reft where
-  isTauto  = all isTautoPred . conjuncts . reftPred
-  ppTy     = pprReft
-  toReft   = id
-  ofReft   = id
-  params _ = []
-  bot    _        = falseReft
-  top (Reft(v,_)) = Reft (v, mempty)
-
-pprReft :: Reft -> Doc -> Doc
-pprReft (Reft (v, p)) d
-  | isTautoPred p
-  = d
-  | otherwise
-  = braces (toFix v <+> colon <+> d <+> text "|" <+> ppRas [p])
-
-instance Reftable SortedReft where
-  isTauto  = isTauto . toReft
-  ppTy     = ppTy . toReft
-  toReft   = sr_reft
-  ofReft   = errorstar "No instance of ofReft for SortedReft"
-  params _ = []
-  bot s    = s { sr_reft = falseReft }
-  top s    = s { sr_reft = trueReft }
-
 -- RJ: this depends on `isTauto` hence, here.
 instance PPrint Reft where
   pprintTidy k r
-    | isTauto r        = text "true"
+    | isTautoReft r        = text "true"
     | otherwise        = pprintReft k r
 
 instance PPrint SortedReft where

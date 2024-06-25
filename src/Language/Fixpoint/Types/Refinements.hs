@@ -50,7 +50,6 @@ module Language.Fixpoint.Types.Refinements (
   , Expression (..)
   , Predicate (..)
   , Subable (..)
-  , Reftable (..)
 
   -- * Constructors
   , reft                    -- "smart
@@ -68,9 +67,10 @@ module Language.Fixpoint.Types.Refinements (
 
   -- * Predicates
   , isFunctionSortedReft, functionSort
-  , isNonTrivial
   , isContraPred
   , isTautoPred
+  , isTautoReft
+  , isTautoSortedReft
   , isSingletonExpr
   , isSingletonReft
   , isFalse
@@ -965,8 +965,11 @@ mapPredReft f (Reft (v, p)) = Reft (v, f p)
 isFunctionSortedReft :: SortedReft -> Bool
 isFunctionSortedReft = isJust . functionSort . sr_sort
 
-isNonTrivial :: Reftable r => r -> Bool
-isNonTrivial = not . isTauto
+isTautoSortedReft :: SortedReft -> Bool
+isTautoSortedReft = isTautoReft . sr_reft
+
+isTautoReft :: Reft -> Bool
+isTautoReft = all isTautoPred . conjuncts . reftPred
 
 reftPred :: Reft -> Expr
 reftPred (Reft (_, p)) = p
@@ -1033,10 +1036,6 @@ instance Falseable Expr where
 instance Falseable Reft where
   isFalse (Reft (_, ra)) = isFalse ra
 
--------------------------------------------------------------------------
--- | Class Predicates for Valid Refinements -----------------------------
--------------------------------------------------------------------------
-
 class Subable a where
   syms   :: a -> [Symbol]                   -- ^ free symbols of a
   substa :: (Symbol -> Symbol) -> a -> a
@@ -1052,23 +1051,6 @@ instance Subable a => Subable (Located a) where
   substa f (Loc l l' x) = Loc l l' (substa f x)
   substf f (Loc l l' x) = Loc l l' (substf f x)
   subst su (Loc l l' x) = Loc l l' (subst su x)
-
-
-class (Monoid r, Subable r) => Reftable r where
-  isTauto :: r -> Bool
-  ppTy    :: r -> Doc -> Doc
-
-  top     :: r -> r
-  top _   =  mempty
-
-  bot     :: r -> r
-
-  meet    :: r -> r -> r
-  meet    = mappend
-
-  toReft  :: r -> Reft
-  ofReft  :: Reft -> r
-  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
 
 instance Fixpoint Doc where
   toFix = id
