@@ -77,7 +77,7 @@ instance Semigroup Pred where
   p1 <> p2 = PAnd [p1, p2]
 
 instance Monoid Pred where
-  mempty = Reft mempty
+  mempty = Reft F.PTrue
 
 instance F.Subable Pred where
   syms (Reft e)   = F.syms e

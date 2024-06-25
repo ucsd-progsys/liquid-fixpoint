@@ -170,7 +170,7 @@ simplifySubC tm (i, c)
 simplifySortedReft :: NonTrivSorts -> SortedReft -> SortedReft
 simplifySortedReft tm sr
   | nonTrivial = sr
-  | otherwise  = sr { sr_reft = mempty }
+  | otherwise  = sr { sr_reft = trueReft }
   where
     nonTrivial = isNonTrivialSort tm (sr_sort sr)
 

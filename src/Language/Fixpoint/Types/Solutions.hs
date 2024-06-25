@@ -381,7 +381,7 @@ instance Loc EQual where
   srcSpan = srcSpan . eqQual
 
 trueEqual :: EQual
-trueEqual = EQL trueQual mempty []
+trueEqual = EQL trueQual PTrue []
 
 instance PPrint EQual where
   pprintTidy k = pprintTidy k . eqPred
