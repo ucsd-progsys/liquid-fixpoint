@@ -33,7 +33,9 @@ module Language.Fixpoint.Types.Theories (
     , symbolAtName
     , symbolAtSmtName
 
-
+    -- * Coercing sorts in environments
+    , coerceEnv
+    , coerceSortEnv
     ) where
 
 
@@ -306,3 +308,18 @@ instance PPrint SmtSort where
 
 ppParens :: (PPrint d) => Tidy -> Doc -> [d] -> Doc
 ppParens k d ds = parens $ Misc.intersperse (text "") (d : (pprintTidy k <$> ds))
+
+--------------------------------------------------------------------------------
+-- | Coercing sorts inside environments for SMT theory encoding
+--------------------------------------------------------------------------------
+
+coerceSortEnv :: SEnv Sort -> SEnv Sort
+coerceSortEnv ss = coerceSetToArray <$> ss
+
+coerceEnv :: SymEnv -> SymEnv
+coerceEnv env = SymEnv { seSort   = coerceSortEnv (seSort env)
+                       , seTheory = seTheory env
+                       , seData   = seData   env
+                       , seLits   = seLits   env
+                       , seAppls  = seAppls  env
+                       }

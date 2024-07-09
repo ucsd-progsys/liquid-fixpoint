@@ -249,25 +249,6 @@ elabFSet (PGrad  k su i e) = PGrad k su i (elabFSet e)
 elabFSet (ECoerc a t e)    = ECoerc a t (elabFSet e)
 elabFSet e                 = e
 
-coerceSetToArray :: Sort -> Sort
-coerceSetToArray   (FFunc sf sa) = FFunc (coerceSetToArray sf) (coerceSetToArray sa)
-coerceSetToArray   (FAbs i sa)   = FAbs i (coerceSetToArray sa)
-coerceSetToArray s@(FApp sf sa)
-  | isSet sf = arraySort (coerceSetToArray sa) boolSort
-  | otherwise = s
-coerceSetToArray s = s
-
-coerceSortEnv :: SEnv Sort -> SEnv Sort
-coerceSortEnv ss = coerceSetToArray <$> ss
-
-coerceEnv :: SymEnv -> SymEnv
-coerceEnv env = SymEnv { seSort   = coerceSortEnv (seSort env)
-                       , seTheory = seTheory env
-                       , seData   = seData   env
-                       , seLits   = seLits   env
-                       , seAppls  = seAppls  env
-                       }
-
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------

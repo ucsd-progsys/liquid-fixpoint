@@ -82,6 +82,9 @@ module Language.Fixpoint.Types.Sorts (
   , tceInsert
   , tceInsertWith
   , tceMap
+
+  -- * Sort coercion for SMT theory encoding
+  , coerceSetToArray
   ) where
 
 import qualified Data.Store as S
@@ -659,3 +662,15 @@ tceToList (TCE m) = M.toList m
 
 tceMember :: (Eq a, Hashable a) => a -> TCEmb a -> Bool
 tceMember k (TCE m) = M.member k m
+
+-------------------------------------------------------------------------------
+-- | Sort coercion for SMT theory encoding
+-------------------------------------------------------------------------------
+
+coerceSetToArray :: Sort -> Sort
+coerceSetToArray   (FFunc sf sa) = FFunc (coerceSetToArray sf) (coerceSetToArray sa)
+coerceSetToArray   (FAbs i sa)   = FAbs i (coerceSetToArray sa)
+coerceSetToArray s@(FApp sf sa)
+  | isSet sf = arraySort (coerceSetToArray sa) boolSort
+  | otherwise = s
+coerceSetToArray s = s

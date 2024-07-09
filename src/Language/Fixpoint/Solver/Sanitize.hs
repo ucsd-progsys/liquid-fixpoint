@@ -24,6 +24,7 @@ import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config)
 import qualified Language.Fixpoint.Types.Config as Cfg
 import qualified Language.Fixpoint.Types.Errors                    as E
+import qualified Language.Fixpoint.Types.Theories                  as Tht
 import qualified Language.Fixpoint.Smt.Theories                    as Thy
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
 import qualified Data.HashMap.Strict                               as M
@@ -397,7 +398,7 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
-symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
+symbolEnv cfg si = F.symEnv (Tht.coerceSortEnv sEnv) tEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae'
     ae'          = elaborate (F.atLoc E.dummySpan "symbolEnv") env0 (F.ae si)
