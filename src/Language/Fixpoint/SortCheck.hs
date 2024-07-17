@@ -170,9 +170,10 @@ instance Elaborate Expr where
     let e' = elabFSetMap e
     putStrLn ("after: " ++ show e')
 
-    return $ elabNumeric $ elabApply env $ elabExpr msg env e'
-
+    return $ elabNumeric $ elabApply env' $ elabExpr msg env' e'
   --elaborate msg env = elabNumeric . elabApply env . elabExpr msg env . elabFSetBag
+      where
+        env' = coerceEnv env
 
 skipElabExpr :: Located String -> SymEnv -> Expr -> Expr
 skipElabExpr msg env e = case elabExprE msg env e of
@@ -273,15 +274,6 @@ elabFSetMap (PExist bs e)     = PExist bs (elabFSetMap e)
 elabFSetMap (PGrad  k su i e) = PGrad k su i (elabFSetMap e)
 elabFSetMap (ECoerc a t e)    = ECoerc a t (elabFSetMap e)
 elabFSetMap e                 = e
-
-coerceSetMapToArray :: Sort -> Sort
-coerceSetMapToArray s@(FApp (FApp sf sa) FInt) -- TODO currently only handles ints
-  | isMap sf = arraySort sa intSort
-  | otherwise = s
-coerceSetMapToArray s@(FApp sf sa)
-  | isSet sf = arraySort sa boolSort
-  | otherwise = s
-coerceSetMapToArray s = s
 
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
@@ -498,11 +490,10 @@ class Checkable a where
 
 instance Checkable Expr where
   check γ e = void $ checkExpr f e
-   where f =  (`lookupSEnvWithDistance` γ)
+   where f = (`lookupSEnvWithDistance` coerceSortEnv γ)
 
-  checkSort γ s e = void $ checkExpr f (ECst e s)
-    where
-      f           =  (`lookupSEnvWithDistance` γ)
+  checkSort γ s e = void $ checkExpr f (ECst e (coerceSetToArray s))
+   where f = (`lookupSEnvWithDistance` coerceSortEnv γ)
 
 instance Checkable SortedReft where
   check γ (RR s (Reft (v, ra))) = check γ' ra
@@ -706,7 +697,7 @@ elabAddEnv (g, f) bs = (g, addEnv f bs)
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
 elabAs f t e = notracepp _msg <$> go e
   where
-    _msg  = "elabAs: t = " ++ showpp t ++ " e = " ++ showpp e
+    _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
     go (EApp e1 e2) = elabAppAs f t e1 e2
     go e'           = fst <$> elab f e'
 
@@ -717,16 +708,12 @@ elabAppAs env@(_, f) t g e = do
   eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
-  let oT' = coerceSetMapToArray oT
-  let t'  = coerceSetMapToArray t
-  let iT' = coerceSetMapToArray iT
-  let eT' = coerceSetMapToArray eT
-  su       <- unifyMany f ge isu [oT', iT'] [t', eT']
+  su       <- unifyMany f ge isu [oT, iT] [t, eT]
   let tg    = apply su gT
   g'       <- elabAs env tg g
-  let te    = apply su eT'
+  let te    = apply su eT
   e'       <- elabAs env te e
-  return    $ EApp (ECst g' tg) (ECst e' te)
+  pure     $ EApp (ECst g' tg) (ECst e' te)
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
@@ -763,10 +750,12 @@ takeArgs env e es =
 
 -- 'e1' is the function, 'e2' is the argument, 's' is the OUTPUT TYPE
 makeApplication :: Expr -> (Expr, Sort) -> Expr
-makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s'
+makeApplication e1 (e2, s) =
+  ECst (EApp (EApp f e1) e2) s
   where
-    s'                     = coerceSetMapToArray s
-    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s'
+--    s'                     = coerceSetMapToArray s
+--    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s'
+    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
     t2                     = exprSort "makeAppl" e2
 
 applyAt :: Sort -> Sort -> Expr
@@ -939,7 +928,7 @@ which, I imagine is what happens _somewhere_ inside GHC too?
 --------------------------------------------------------------------------------
 applySorts :: Vis.Visitable t => t -> [Sort]
 --------------------------------------------------------------------------------
-applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
+applySorts = {- notracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
   where
     defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
     vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
@@ -974,10 +963,8 @@ genSort t          = t
 
 unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
 unite f e t1 t2 = do
-  let t1' = tracepp "UNITE1" $ coerceSetMapToArray t1
-  let t2' = tracepp "UNITE2" $ coerceSetMapToArray t2
-  su <- unifys f (Just e) [t1'] [t2']
-  return (apply su t1', apply su t2')
+  su <- unifys f (Just e) [t1] [t2]
+  return (apply su t1, apply su t2)
 
 throwErrorAt :: String -> CheckM a
 throwErrorAt ~err' = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
@@ -1009,17 +996,13 @@ getIte :: Env -> Expr -> Expr -> CheckM Sort
 getIte f e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  let t1' = coerceSetMapToArray t1
-  let t2' = coerceSetMapToArray t2
-  (`apply` t1') <$> unifys f Nothing [t1'] [t2']
+  (`apply` t1) <$> unifys f Nothing [t1] [t2]
 
 checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
 checkIteTy f p e1 e2 t1 t2 =
-  ((`apply` t1') <$> unifys f e' [t1'] [t2']) `withError` errIte e1 e2 t1' t2'
+  ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` errIte e1 e2 t1 t2
   where
     e' = Just (EIte p e1 e2)
-    t1' = coerceSetMapToArray t1
-    t2' = coerceSetMapToArray t2
 
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
@@ -1027,7 +1010,8 @@ checkCst f t (EApp g e)
   = checkApp f (Just t) g e
 checkCst f t e
   = do t' <- checkExpr f e
-       ((`apply` t) <$> unifys f (Just e) [t] [t']) `withError` errCast e t' t
+       su <- unifys f (Just e) [t] [t'] `withError` errCast e t' t
+       pure (apply su t)
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
@@ -1038,10 +1022,8 @@ checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
 checkExprAs f t e
   = do t' <- checkExpr f e
-       let t1 = coerceSetMapToArray t'
-       let t0 = coerceSetMapToArray t
-       θ  <- unifys f (Just e) [t1] [t0]
-       return $ apply θ t0
+       θ  <- unifys f (Just e) [t'] [t]
+       pure $ apply θ t
 
 -- | Helper for checking uninterpreted function applications
 -- | Checking function application should be curried, e.g.
@@ -1055,18 +1037,14 @@ checkApp' f to g e = do
   et       <- checkExpr f e
   (it, ot, isu) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  let it' = coerceSetMapToArray it
-  let et' = coerceSetMapToArray et
-  su        <- unifyMany f ge isu [it'] [et']
+  su        <- unifyMany f ge isu [it] [et]
   let t     = apply su ot
   case to of
     Nothing    -> return (su, t)
-    Just t'    -> do let t0 = coerceSetMapToArray t
-                     let t1 = coerceSetMapToArray t'
-                     θ' <- unifyMany f ge su [t0] [t1]
-                     let ti = apply θ' et'
+    Just t'    -> do θ' <- unifyMany f ge su [t] [t']
+                     let ti = apply θ' et
                      _ <- checkExprAs f ti e
-                     return (θ', apply θ' t0)
+                     return (θ', apply θ' t)
 
 
 -- | Helper for checking binary (numeric) operations
@@ -1141,12 +1119,10 @@ checkRel :: HasCallStack => Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  let t1' = coerceSetMapToArray t1
-  let t2' = coerceSetMapToArray t2
-  su <- unifys f (Just e) [t1'] [t2'] `withError` errRel e t1' t2'
-  _  <- checkExprAs f (apply su t1') e1
-  _  <- checkExprAs f (apply su t2') e2
-  checkRelTy f e Eq t1' t2'
+  su <- unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2
+  _  <- checkExprAs f (apply su t1) e1
+  _  <- checkExprAs f (apply su t2) e2
+  checkRelTy f e Eq t1 t2
   where
     e = PAtom Eq e1 e2
 
@@ -1300,14 +1276,10 @@ unify1 _ _ !θ (FTC !l1) (FTC !l2)
   = return θ
 unify1 f e !θ t1@(FAbs _ _) !t2 = do
   !t1' <- instantiate t1
-  let t3 = coerceSetMapToArray t1'
-  let t4 = coerceSetMapToArray t2
-  unifyMany f e θ [t3] [t4]
+  unifyMany f e θ [t1'] [t2]
 unify1 f e !θ !t1 t2@(FAbs _ _) = do
   !t2' <- instantiate t2
-  let t3 = coerceSetMapToArray t1
-  let t4 = coerceSetMapToArray t2'
-  unifyMany f e θ [t3] [t4]
+  unifyMany f e θ [t1] [t2']
 unify1 _ _ !θ !s1 !s2
   | isString s1, isString s2
   = return θ

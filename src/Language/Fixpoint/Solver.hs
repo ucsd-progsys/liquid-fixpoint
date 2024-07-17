@@ -190,8 +190,9 @@ crashResult :: (PPrint a) => ErrorMap a -> Error -> Result (Integer, a)
 crashResult m err' = Result res mempty mempty mempty
   where
     res           = Crash es msg
-    es            = catMaybes [ findError m e | e <- errs err' ]
-    msg | null es   = "Sorry, unexpected panic in liquid-fixpoint!"
+    es            = catMaybes [ findError m e | e <- ers ]
+    ers           = errs err'
+    msg | null ers = "Sorry, unexpected panic in liquid-fixpoint!"
         --  {-dbgFalse-} True  = "Sorry, unexpected panic in liquid-fixpoint!\n" ++ crashMessage es
         | otherwise = showpp err'
 

@@ -16,20 +16,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cabal: ["3.10.1.0"]
+        cabal: ["3.10.3.0"]
         ghc:
-          - "9.8.1"
-          - "9.6.3"
-          - "9.4.7"
+          - "9.8.2"
+          - "9.6.5"
+          - "9.4.8"
         z3:
           - "4.10.2"
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
+      - uses: actions/checkout@v4
 
-      - name: Setup z3-4.10.2
+      - name: Setup z3-${{ matrix.z3 }}
         uses: pavpanchekha/setup-z3@6b2d476d7a9227e0d8d2b94f73cd9fcba91b5e98
         with:
           version: ${{ matrix.z3 }}
