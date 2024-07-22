@@ -49,6 +49,8 @@ module Language.Fixpoint.Types.Environments (
   , bindEnvFromList, bindEnvToList, deleteBindEnv, elemsBindEnv
   , EBindEnv, splitByQuantifiers
 
+  , coerceBindEnv
+
   -- * Information needed to lookup and update Solutions
   -- , SolEnv (..)
 
@@ -73,6 +75,7 @@ import           Control.DeepSeq
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
+import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions ()
 import           Language.Fixpoint.Misc
@@ -360,3 +363,6 @@ makePack kvss = Packs (M.fromList kIs)
   where
     kIs       = [ (k, i) | (i, ks) <- kPacks, k <- ks ]
     kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss
+
+coerceBindEnv :: BindEnv a -> BindEnv a
+coerceBindEnv be = be { beBinds = M.map (\(s, sr, a) -> (s, sr { sr_sort = coerceSetToArray (sr_sort sr) } , a)) (beBinds be) }

@@ -470,9 +470,9 @@ instance SymConsts Rewrite where
 instance (SymConsts (c a)) => SymConsts (GInfo c a) where
   symConsts fi = Misc.sortNub $ csLits ++ bsLits ++ qsLits
     where
-      csLits   = concatMap symConsts $ M.elems  $  cm    fi
-      bsLits   = symConsts           $ bs                fi
-      qsLits   = concatMap symConsts $ qBody   <$> quals fi
+      csLits   = concatMap symConsts $ M.elems $ cm    fi
+      bsLits   = symConsts                     $ bs    fi
+      qsLits   = concatMap (symConsts . qBody) $ quals fi
 
 instance SymConsts (BindEnv a) where
   symConsts    = concatMap (symConsts . Misc.snd3) . M.elems . beBinds
