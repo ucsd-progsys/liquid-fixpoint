@@ -15,6 +15,7 @@ module Language.Fixpoint.Parse (
 
   -- * Some Important keyword and parsers
   , reserved, reservedOp
+  , reserved', reservedOp'
   , locReserved
   , parens  , brackets, angles, braces
   , semi    , comma
@@ -22,19 +23,23 @@ module Language.Fixpoint.Parse (
   , dot
   , pairP
   , stringLiteral
+  , stringR
   , locStringLiteral
   , sym
 
   -- * Parsing basic entities
 
   --   fTyConP  -- Type constructors
-  , lowerIdP    -- Lower-case identifiers
-  , upperIdP    -- Upper-case identifiers
-  -- , infixIdP    -- String Haskell infix Id
-  , symbolP     -- Arbitrary Symbols
+  , lowerIdP
+  , lowerIdR    -- Lower-case identifiers
+  , upperIdP
+  , upperIdR    -- Upper-case identifiers
+  , symbolP
+  , symbolR     -- Arbitrary Symbols
   , locSymbolP
   , constantP   -- (Integer) Constants
-  , natural     -- Non-negative integer
+  , natural
+  , naturalR    -- Non-negative integer
   , locNatural
   , bindP       -- Binder (lowerIdP <* colon)
   , sortP       -- Sort
@@ -69,8 +74,10 @@ module Language.Fixpoint.Parse (
   , condIdR
 
   -- * Lexemes and lexemes with location
+  , lexeme'
   , lexeme
   , located
+  , locLexeme'
   , locLexeme
   , locLowerIdP
   , locUpperIdP
@@ -100,6 +107,7 @@ module Language.Fixpoint.Parse (
   , dataCtorP
   , dataDeclP
   , fTyConP
+  , mkFTycon
   , intP
   , tvarP
   , trueP, falseP, symconstP
@@ -324,10 +332,13 @@ strictGuardLayout = do
 -- whether we are in a position permitted by the layout stack.
 -- After the token, consume whitespace and potentially change state.
 --
-lexeme :: Parser a -> Parser a
-lexeme p = do
+lexeme' :: Parser () -> Parser a -> Parser a
+lexeme' spacesP p = do
   after <- guardLayout
-  p <* spaces <* after
+  p <* spacesP <* after
+
+lexeme :: Parser a -> Parser a
+lexeme = lexeme' spaces
 
 -- | Indentation-aware located lexeme parser.
 --
@@ -335,14 +346,17 @@ lexeme p = do
 -- covered by the identifier. I.e., it consumes additional whitespace in the
 -- end, but that is not part of the source range reported for the identifier.
 --
-locLexeme :: Parser a -> Parser (Located a)
-locLexeme p = do
+locLexeme' :: Parser () -> Parser a -> Parser (Located a)
+locLexeme' spacesP p = do
   after <- guardLayout
   l1 <- getSourcePos
   x <- p
   l2 <- getSourcePos
-  spaces <* after
+  spacesP <* after
   pure (Loc l1 l2 x)
+
+locLexeme :: Parser a -> Parser (Located a)
+locLexeme = locLexeme' spaces
 
 -- | Make a parser location-aware.
 --
@@ -558,6 +572,11 @@ reserved :: String -> Parser ()
 reserved x =
   void $ lexeme (try (string x <* notFollowedBy identLetter))
 
+reserved' :: Parser () -> String -> Parser ()
+reserved' spacesP x =
+  void $ lexeme' spacesP (try (string x <* notFollowedBy identLetter))
+
+
 locReserved :: String -> Parser (Located String)
 locReserved x =
   locLexeme (try (string x <* notFollowedBy identLetter))
@@ -572,6 +591,11 @@ locReserved x =
 reservedOp :: String -> Parser ()
 reservedOp x =
   void $ lexeme (try (string x <* notFollowedBy opLetter))
+
+reservedOp' :: Parser () -> String -> Parser ()
+reservedOp' spacesP x =
+  void $ lexeme' spacesP (try (string x <* notFollowedBy opLetter))
+
 
 -- | Parser that consumes the given symbol.
 --
@@ -866,19 +890,19 @@ addNumTyCon tc = modify $ \s -> s{ numTyCons = S.insert tc (numTyCons s) }
 infixSymbolP :: Parser Symbol
 infixSymbolP = do
   ops <- gets infixOps
-  choice (reserved' <$> ops)
+  choice (resX <$> ops)
   where
     infixOps st = [s | FInfix _ s _ _ <- fixityOps st]
-    reserved' x = reserved x >> return (symbol x)
+    resX x = reserved x >> return (symbol x)
 
 -- | Located version of 'infixSymbolP'.
 locInfixSymbolP :: Parser (Located Symbol)
 locInfixSymbolP = do
   ops <- gets infixOps
-  choice (reserved' <$> ops)
+  choice (resX <$> ops)
   where
     infixOps st = [s | FInfix _ s _ _ <- fixityOps st]
-    reserved' x = locReserved x >>= \ (Loc l1 l2 _) -> return (Loc l1 l2 (symbol x))
+    resX x = locReserved x >>= \ (Loc l1 l2 _) -> return (Loc l1 l2 (symbol x))
 
 -- | Helper function that turns an associativity into the right constructor for 'Operator'.
 mkInfix :: Assoc -> parser (expr -> expr -> expr) -> Operator parser expr
