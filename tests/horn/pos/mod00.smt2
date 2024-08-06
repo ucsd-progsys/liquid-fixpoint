@@ -1,4 +1,7 @@
+; this is a comment too.
+
 (var $k0 (int))
+
 
 ; this is a comment
 (constraint

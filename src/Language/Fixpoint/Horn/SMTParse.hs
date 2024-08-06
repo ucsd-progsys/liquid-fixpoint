@@ -46,7 +46,7 @@ spaces =
     blockComment
 
 lineComment :: FParser ()
-lineComment = L.skipLineComment "; "
+lineComment = L.skipLineComment ";"
 
 blockComment :: FParser ()
 blockComment = L.skipBlockComment "/* " "*/"
@@ -120,6 +120,7 @@ constantP =
 hornP :: FParser H.TagQuery
 -------------------------------------------------------------------------------
 hornP = do
+  spaces
   hThings <- many hThingP
   pure (mkQuery hThings)
 
@@ -156,7 +157,7 @@ data HThing a
   deriving (Functor)
 
 hThingP :: FParser (HThing H.Tag)
-hThingP  = parens body
+hThingP  = spaces >> parens body
   where
     body =  HQual <$> (reserved "qualif"     *> hQualifierP)
         <|> HCstr <$> (reserved "constraint" *> hCstrP)
