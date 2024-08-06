@@ -1,7 +1,8 @@
 (var $k0 (int))
 
+
 (constraint
-  (and
+  (and // this is a random comment
     (and
       (forall ((a0 int) ((= a0 4)))
         ($k0 a0)
