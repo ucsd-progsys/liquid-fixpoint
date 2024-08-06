@@ -230,13 +230,13 @@ mkApp _      = error "impossible"
 
 bopP :: FP.Parser F.Bop
 bopP
-  =  (FP.sym "+" >> return F.Plus)
- <|> (FP.sym "-" >> return F.Minus)
- <|> (FP.sym "*" >> return F.Times)
- <|> (FP.sym "/" >> return F.Div)
- <|> (FP.sym "mod" >> return F.Div)
- <|> (FP.sym "*." >> return F.RTimes)
- <|> (FP.sym "/." >> return F.RDiv)
+  =  (FP.sym "+"   >> return F.Plus)
+ <|> (FP.sym "-"   >> return F.Minus)
+ <|> (FP.sym "*"   >> return F.Times)
+ <|> (FP.sym "/"   >> return F.Div)
+ <|> (FP.sym "mod" >> return F.Mod)
+ <|> (FP.sym "*."  >> return F.RTimes)
+ <|> (FP.sym "/."  >> return F.RDiv)
 
 brelP :: FP.Parser F.Brel
 brelP
