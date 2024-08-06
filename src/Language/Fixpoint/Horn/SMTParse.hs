@@ -17,6 +17,7 @@ import qualified Language.Fixpoint.Horn.Types   as H
 import           Text.Megaparsec                hiding (State)
 import           Text.Megaparsec.Char           (string, char)
 import qualified Data.HashMap.Strict            as M
+import qualified Data.Text as T
 
 -------------------------------------------------------------------------------
 hornP :: FP.Parser H.TagQuery
@@ -202,6 +203,7 @@ exprP
 pExprP :: FP.Parser F.Expr
 pExprP
   =   (FP.reserved   "if"     >> (F.EIte   <$> exprP <*> exprP <*> exprP))
+  <|> (FP.reserved   "lit"    >> (mkLit    <$> FP.stringLiteral <*> sortP))
   <|> (FP.reserved   "cast"   >> (F.ECst   <$> exprP <*> sortP))
   <|> (FP.reserved   "not"    >> (F.PNot   <$> exprP))
   <|> (FP.reservedOp "=>"     >> (F.PImp   <$> exprP <*> exprP))
@@ -218,6 +220,9 @@ pExprP
   <|> try (F.PAtom <$> brelP <*> exprP <*> exprP)
   <|> try (FP.sym "-" >> (F.ENeg <$> exprP))
   <|> (mkApp <$> some exprP)
+
+mkLit :: String -> F.Sort -> F.Expr
+mkLit l t = F.ECon (F.L (T.pack l) t)
 
 mkApp :: [F.Expr] -> F.Expr
 mkApp (e:es) = F.eApps e es

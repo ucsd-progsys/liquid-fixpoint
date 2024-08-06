@@ -1,11 +1,3 @@
- 
- 
- 
- 
- 
- 
- 
- 
 (constraint
   (and
     (forall ((one_ (BitVec Size32)) ((= one_ (int_to_bv32 1))))
