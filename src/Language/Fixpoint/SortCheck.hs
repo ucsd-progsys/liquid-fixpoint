@@ -216,17 +216,17 @@ instance (Loc a) => Elaborate (SimpC a) where
     where msg'        = atLoc c (val msg)
 
 
--------------------------------------------------------------------------------------------
--- | 'elabFSetMap' replaces all finset/finmap theory operations with array-based encodings.
--------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
+-- | 'elabFSetMap' replaces all finset/finmap/finbag theory operations with array-based encodings.
+--------------------------------------------------------------------------------------------------
 elabFSetMap :: Expr -> Expr
 elabFSetMap (EApp h@(EVar f) e)
   | f == Thy.setEmpty      = EApp (EVar Thy.arrConstS) PFalse
   | f == Thy.setEmp        = PAtom Eq (EApp (EVar Thy.arrConstS) PFalse) (elabFSetMap e)
   | f == Thy.setSng        = EApp (EApp (EApp (EVar Thy.arrStoreS) (EApp (EVar Thy.arrConstS) PFalse)) (elabFSetMap e)) PTrue
   | f == Thy.setCom        = EApp (EVar Thy.arrMapNotS) (elabFSetMap e)
-  | f == Thy.mapDef        = EApp (EVar Thy.arrConstB) (elabFSetMap e)
-  | f == Thy.mapToSet      = EApp (EApp (EVar Thy.arrMapGtB) (elabFSetMap e)) (EApp (EVar Thy.arrConstB) (ECon $ I 0))
+  | f == Thy.mapDef        = EApp (EVar Thy.arrConstM) (elabFSetMap e)
+  | f == Thy.bagEmpty      = EApp (EVar Thy.arrConstB) (ECon (I 0))
   | otherwise              = EApp (elabFSetMap h) (elabFSetMap e)
 elabFSetMap (EApp (EApp h@(EVar f) e1) e2)
   | f == Thy.setMem        = EApp (EApp (EVar Thy.arrSelectS) (elabFSetMap e2)) (elabFSetMap e1)
@@ -236,24 +236,27 @@ elabFSetMap (EApp (EApp h@(EVar f) e1) e2)
   -- A \ B == A /\ ~B == ~(A => B)
   | f == Thy.setDif        = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetMap e1)) (EApp (EVar Thy.arrMapNotS) (elabFSetMap e2))
   | f == Thy.setSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapImpS) (elabFSetMap e1)) (elabFSetMap e2))
-  | f == Thy.mapSel        = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (elabFSetMap e2)
-  | f == Thy.mapCup        = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetMap e1)) (elabFSetMap e2)
-  | f == Thy.mapPrj        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (elabFSetMap e1)) (elabFSetMap e2)) (EApp (EVar Thy.arrConstB) (ECon $ I 0))
-  -- array lambdas
 
-  | f == Thy.mapMax        = let e1i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (EVar "i")
+  | f == Thy.mapSel        = EApp (EApp (EVar Thy.arrSelectM) (elabFSetMap e1)) (elabFSetMap e2)
+
+  | f == Thy.bagCount      = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (elabFSetMap e1)
+  | f == Thy.bagSng        = EApp (EApp (EApp (EVar Thy.arrStoreB) (EApp (EVar Thy.arrConstB) (elabFSetMap e1))) (elabFSetMap e2)) PTrue
+  | f == Thy.bagCup        = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.bagSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetMap e1)) (elabFSetMap e2))
+
+  -- array lambdas (can we rewrite these via `map max/min`?)
+  | f == Thy.bagMax        = let e1i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (EVar "i")
                                  e2i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (EVar "i")
                                in
                              ELam ("i", FVar 0) (EIte (PAtom Gt e1i e2i) e1i e2i)
-  | f == Thy.mapMin        = let e1i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (EVar "i")
+  | f == Thy.bagMin        = let e1i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (EVar "i")
                                  e2i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (EVar "i")
                                in
                              ELam ("i", FVar 0) (EIte (PAtom Lt e1i e2i) e1i e2i)
-  | f == Thy.mapShift      = ELam ("i", intSort) (EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (EBin Minus (EVar "i") e1))
 
   | otherwise              = EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)
 elabFSetMap (EApp (EApp (EApp h@(EVar f) e1) e2) e3)
-  | f == Thy.mapSto        = EApp (EApp (EApp (EVar Thy.arrStoreB) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)
+  | f == Thy.mapSto        = EApp (EApp (EApp (EVar Thy.arrStoreM) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)
   | otherwise              = EApp (EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)
 elabFSetMap (EApp e1 e2)      = EApp (elabFSetMap e1) (elabFSetMap e2)
 elabFSetMap (ENeg e)          = ENeg (elabFSetMap e)
@@ -492,7 +495,7 @@ instance Checkable Expr where
   check γ e = void $ checkExpr f e
    where f = (`lookupSEnvWithDistance` coerceSortEnv γ)
 
-  checkSort γ s e = void $ checkExpr f (ECst e (coerceSetToArray s))
+  checkSort γ s e = void $ checkExpr f (ECst e (coerceSetMapToArray s))
    where f = (`lookupSEnvWithDistance` coerceSortEnv γ)
 
 instance Checkable SortedReft where

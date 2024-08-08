@@ -320,7 +320,7 @@ ppParens k d ds = parens $ Misc.intersperse (text "") (d : (pprintTidy k <$> ds)
 --------------------------------------------------------------------------------
 
 coerceSortEnv :: SEnv Sort -> SEnv Sort
-coerceSortEnv ss = coerceSetToArray <$> ss
+coerceSortEnv ss = coerceSetMapToArray <$> ss
 
 coerceEnv :: SymEnv -> SymEnv
 coerceEnv env = SymEnv { seSort   = coerceSortEnv (seSort env)

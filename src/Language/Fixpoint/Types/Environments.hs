@@ -365,4 +365,4 @@ makePack kvss = Packs (M.fromList kIs)
     kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss
 
 coerceBindEnv :: BindEnv a -> BindEnv a
-coerceBindEnv be = be { beBinds = M.map (\(s, sr, a) -> (s, sr { sr_sort = coerceSetToArray (sr_sort sr) } , a)) (beBinds be) }
+coerceBindEnv be = be { beBinds = M.map (\(s, sr, a) -> (s, sr { sr_sort = coerceSetMapToArray (sr_sort sr) } , a)) (beBinds be) }

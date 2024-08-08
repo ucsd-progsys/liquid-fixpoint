@@ -34,12 +34,18 @@ module Language.Fixpoint.Smt.Theories
      , setCom, setCap, setCup, setDif, setSub
 
      , mapDef, mapSel, mapSto
-     , mapCup, mapToSet, mapPrj, mapMax, mapMin, mapShift
+
+     , bagEmpty, bagSng, bagCount, bagSub, bagCup, bagMax, bagMin
+
+     -- * Z3 theory array encodings
 
      , arrConstS, arrStoreS, arrSelectS
      , arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS
+
+     , arrConstM, arrStoreM, arrSelectM
+
      , arrConstB, arrStoreB, arrSelectB
-     , arrMapPlusB, arrMapGtB, arrMapIteB
+     , arrMapPlusB, arrMapLeB
 
       -- * Query Theories
      , isSmt2App
@@ -159,56 +165,25 @@ setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
 
--- Map operations that are polymorphic in the value type
 mapDef, mapSel, mapSto :: (IsString a) => a
 mapDef   = "Map_default"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
--- Map operations specialized for Int values
-mapCup, mapToSet, mapPrj, mapMax, mapMin :: (IsString a) => a
-mapCup   = "Map_union"
-mapToSet = "Map_to_set" -- See [Interaction Between Map and Set]
-mapPrj   = "Map_project"
-mapMax   = "Map_union_max" -- See [Map max and min]
-mapMin   = "Map_union_min"
+bagEmpty, bagSng, bagCount, bagSub, bagCup, bagMax, bagMin :: (IsString a) => a
+bagEmpty = "Bag_empty"
+bagSng   = "Bag_sng"
+bagCount = "Bag_count"
+bagSub   = "Bag_union"
+bagCup   = "Bag_union"
+bagMax   = "Bag_union_max" -- See [Bag max and min]
+bagMin   = "Bag_inter_min"
 
--- Map operations specialized for Int keys
-mapShift :: (IsString a) => a
-mapShift = "Map_shift" -- See [Map key shift]
-
--- [Interaction between Map and Set]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Function mapToSet: Convert a map to a set. The map's key may be of
--- any type and is preserved as the set's element type. More precisely:
---   mapToSet : Map k Int -> Set k
--- The element type must be Int. All non-positive elements are mapped
--- to False, and all positive elements are mapped to True. In practice,
--- negative elements should not exist because Map is intended to be used
--- as a bag, so the element is a non-negative number representing
--- the occurrences of its corresponding key.
---
--- Function mapPrj: Project a subset of a map. Type signature:
---   mapPrj : Set k -> Map k Int -> Map k Int
--- If the key is present in both the argument set and the argument map,
--- then the key (along with its associated value in the map) are preserved
--- in the output. Keys not present in the set are mapped to zero. Keys not
--- present in the set are mapped to zero.
-
--- [Map key shift]
+-- [Bag max and min]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Function mapShift: Add an integer to all keys in a map. Type signature:
---   mapShift : Int -> Map Int v -> Map Int v
--- Let's call the first argument (the shift amount) N, the second argument K1,
--- and the result K2. For all indices i, we have K2[i] = K1[i - N].
--- This is implemented with Z3's lambda, which lets us construct an array
--- from a function.
---
--- [Map max and min]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Functions mapMax and mapMin: Union two maps, combining the elements by
--- taking either the greatest (mapMax) or the least (mapMin) of them.
---   mapMax, mapMin : Map v Int -> Map v Int -> Map v Int
+-- Functions bagMax and bagMin: Union/intersect two bags, combining the elements by
+-- taking either the greatest (bagMax) or the least (bagMin) of them.
+--   bagMax, bagMin : Map v Int -> Map v Int -> Map v Int
 
 --- Array operations for sets
 arrConstS, arrStoreS, arrSelectS, arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS :: Symbol
@@ -221,17 +196,21 @@ arrMapOrS  = "arr_map_or"
 arrMapAndS = "arr_map_and"
 arrMapImpS = "arr_map_imp"
 
---- Array operations for maps
+--- Array operations for polymorphic maps
+arrConstM, arrStoreM, arrSelectM :: Symbol
+arrConstM  = "arr_const_m"
+arrStoreM  = "arr_store_m"
+arrSelectM = "arr_select_m"
+
+--- Array operations for bags
 arrConstB, arrStoreB, arrSelectB :: Symbol
 arrConstB  = "arr_const_b"
 arrStoreB  = "arr_store_b"
 arrSelectB = "arr_select_b"
 
---- Array operations for bags
-arrMapPlusB, arrMapGtB, arrMapIteB :: Symbol
+arrMapPlusB, arrMapLeB :: Symbol
 arrMapPlusB = "arr_map_plus"
-arrMapGtB   = "arr_map_gt"
-arrMapIteB  = "arr_map_ite"
+arrMapLeB   = "arr_map_le"
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
@@ -511,13 +490,16 @@ interpSymbols =
   , interpSym arrMapAndS "(_ map and)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
   , interpSym arrMapImpS "(_ map =>)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
 
+  , interpSym arrConstM  "const"  (FAbs 0 $ FFunc (FVar 1) mapArrSort)
+  , interpSym arrSelectM "select" (FAbs 0 $ FFunc mapArrSort $ FFunc (FVar 0) (FVar 1))
+  , interpSym arrStoreM  "store"  (FAbs 0 $ FFunc mapArrSort $ FFunc (FVar 0) $ FFunc (FVar 1) mapArrSort)
+
   , interpSym arrConstB  "const"  (FAbs 0 $ FFunc intSort bagArrSort)
   , interpSym arrSelectB "select" (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) intSort)
   , interpSym arrStoreB  "store"  (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) $ FFunc intSort bagArrSort)
 
   , interpSym arrMapPlusB "(_ map (+ (Int Int) Int))"        (FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
-  , interpSym arrMapGtB   "(_ map (> (Int Int) Bool))"       (FFunc bagArrSort $ FFunc bagArrSort setArrSort)
-  , interpSym arrMapIteB  "(_ map (ite (Bool Int Int) Int))" (FFunc setArrSort $ FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
+  , interpSym arrMapLeB   "(_ map (<= (Int Int) Bool))"      (FFunc bagArrSort $ FFunc bagArrSort setArrSort)
 
   , interpSym setEmp   setEmp   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty setEmpty (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
@@ -534,12 +516,13 @@ interpSymbols =
   , interpSym mapSel   mapSel  mapSelSort
   , interpSym mapSto   mapSto  mapStoSort
 
-  , interpSym mapCup   mapCup   mapCupSort
-  , interpSym mapToSet mapToSet mapToSetSort
-  , interpSym mapPrj   mapPrj   mapPrjSort
-  , interpSym mapMax   mapMax   mapMaxSort
-  , interpSym mapMin   mapMin   mapMinSort
-  , interpSym mapShift mapShift mapShiftSort
+  , interpSym bagEmpty bagEmpty (FAbs 0 $ FFunc intSort (bagSort $ FVar 0))
+  , interpSym bagSng   bagSng   (FAbs 0 $ FFunc (FVar 0) $ FFunc intSort (setSort $ FVar 0))
+  , interpSym bagCount bagCount bagCountSort
+  , interpSym bagCup   bagCup   bagBopSort
+  , interpSym bagMax   bagMax   bagBopSort
+  , interpSym bagMin   bagMin   bagBopSort
+  , interpSym bagSub   bagSub   bagSubSort
 
   -- , interpSym bvOrName  "bvor"  bvBopSort
   -- , interpSym bvAndName "bvand" bvBopSort
@@ -603,6 +586,7 @@ interpSymbols =
 
   ]
   where
+    mapArrSort = arraySort (FVar 0) (FVar 1)
     setArrSort = arraySort (FVar 0) boolSort
     bagArrSort = arraySort (FVar 0) intSort
     -- (sizedBitVecSort "Size1")
@@ -625,21 +609,13 @@ interpSymbols =
                                  $ FFunc (FVar 0)
                                  $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
+
+    bagCountSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (bagSort $ FVar 0) intSort
     -- cup :: forall i. Map i Int -> Map i Int -> Map i Int
-    mapCupSort = FAbs 0          $ FFunc (mapSort (FVar 0) intSort)
-                                 $ FFunc (mapSort (FVar 0) intSort)
-                                         (mapSort (FVar 0) intSort)
-    mapMaxSort = mapCupSort
-    mapMinSort = mapCupSort
-    mapPrjSort = FAbs 0          $ FFunc (setSort (FVar 0))
-                                 $ FFunc (mapSort (FVar 0) intSort)
-                                         (mapSort (FVar 0) intSort)
-    mapShiftSort = FAbs 0        $ FFunc intSort
-                                 $ FFunc (mapSort intSort (FVar 0))
-                                         (mapSort intSort (FVar 0))
-    mapToSetSort = FAbs 0        $ FFunc (mapSort (FVar 0) intSort) (setSort (FVar 0))
-
-
+    bagBopSort = FAbs 0          $ FFunc (bagSort $ FVar 0)
+                                 $ FFunc (bagSort $ FVar 0)
+                                         (bagSort $ FVar 0)
+    bagSubSort = FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort
 interpBvUop :: Symbol -> (Symbol, TheorySymbol)
 interpBvUop name = interpSym' name bvUopSort
 interpBvBop :: Symbol -> (Symbol, TheorySymbol)
