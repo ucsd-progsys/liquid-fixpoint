@@ -236,18 +236,13 @@ elabFSetMap (EApp (EApp h@(EVar f) e1) e2)
   -- A \ B == A /\ ~B == ~(A => B)
   | f == Thy.setDif        = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetMap e1)) (EApp (EVar Thy.arrMapNotS) (elabFSetMap e2))
   | f == Thy.setSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapImpS) (elabFSetMap e1)) (elabFSetMap e2))
-
   | f == Thy.mapSel        = EApp (EApp (EVar Thy.arrSelectM) (elabFSetMap e1)) (elabFSetMap e2)
-
   | f == Thy.bagCount      = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (elabFSetMap e2)
   | f == Thy.bagSng        = EApp (EApp (EApp (EVar Thy.arrStoreB) (EApp (EVar Thy.arrConstB) (ECon (I 0)))) (elabFSetMap e1)) (elabFSetMap e2)
   | f == Thy.bagCup        = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetMap e1)) (elabFSetMap e2)
   | f == Thy.bagSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetMap e1)) (elabFSetMap e2))
-
-  -- array lambdas (can we rewrite these via `map max/min`?)
   | f == Thy.bagMax        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapGtB) (elabFSetMap e1)) (elabFSetMap e2))) (elabFSetMap e1)) (elabFSetMap e2)
   | f == Thy.bagMin        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetMap e1)) (elabFSetMap e2))) (elabFSetMap e1)) (elabFSetMap e2)
-
   | otherwise              = EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)
 elabFSetMap (EApp (EApp (EApp h@(EVar f) e1) e2) e3)
   | f == Thy.mapSto        = EApp (EApp (EApp (EVar Thy.arrStoreM) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)

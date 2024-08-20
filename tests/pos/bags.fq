@@ -12,26 +12,37 @@ constraint:
   id 1 tag []
 
 constraint:
-  env [ 1; 2 ]
+  env [ 2 ]
   lhs {v : int | v = Bag_count b2 100 }
   rhs {v : int | v = 0 }
   id 2 tag []
 
 constraint:
-  env [ 1; 2 ]
+  env [ 2 ]
   lhs {v : int | v = Bag_count b2 10 }
   rhs {v : int | v = 1 }
   id 3 tag []
 
 constraint:
-  env [ 1; 2; 3 ]
+  env [ 2; 3 ]
   lhs {v : int | true }
   rhs {v : int | b2 = b3 }
   id 4 tag []
 
 constraint:
-  env [ 1; 2; 3; 4; 5 ]
+  env [ 2; 4; 5 ]
   lhs {v : int | true }
   rhs {v : int | b2 = Bag_union b4 b5 }
   id 5 tag []
 
+constraint:
+  env [ 2; 4 ]
+  lhs {v : bool | v = Bag_sub b4 b2 }
+  rhs {v : bool | v = true }
+  id 6 tag []
+
+constraint:
+  env [ 3; 5 ]
+  lhs {v : bool | v = Bag_sub b3 b5 }
+  rhs {v : bool | v = false }
+  id 7 tag []
