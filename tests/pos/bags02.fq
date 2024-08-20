@@ -1,0 +1,39 @@
+bind 1 b1 : {v : Bag_t Int | v = Bag_empty 0 }
+bind 2 b2 : {v : Bag_t Int | v = (Bag_union (Bag_union (Bag_sng 10 1) (Bag_sng 20 2)) (Bag_sng 30 3)) }
+bind 3 b3 : {v : Bag_t Int | v = (Bag_union (Bag_union (Bag_sng 10 1) (Bag_sng 20 1)) (Bag_sng 30 1)) }
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : Bag_t Int | v = Bag_union_max b2 b3}
+  rhs {v : Bag_t Int | v = b2 }
+  id 1 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : Bag_t Int | v = Bag_union_max b1 b2}
+  rhs {v : Bag_t Int | v = b2 }
+  id 2 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : Bag_t Int | v = Bag_union_max b1 b3}
+  rhs {v : Bag_t Int | v = b3 }
+  id 3 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : Bag_t Int | v = Bag_inter_min b2 b3}
+  rhs {v : Bag_t Int | v = b3 }
+  id 4 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : Bag_t Int | v = Bag_inter_min b1 b2}
+  rhs {v : Bag_t Int | v = b1 }
+  id 5 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : Bag_t Int | v = Bag_inter_min b1 b3}
+  rhs {v : Bag_t Int | v = b1 }
+  id 6 tag []

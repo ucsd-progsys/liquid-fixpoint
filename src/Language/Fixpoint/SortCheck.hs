@@ -239,20 +239,14 @@ elabFSetMap (EApp (EApp h@(EVar f) e1) e2)
 
   | f == Thy.mapSel        = EApp (EApp (EVar Thy.arrSelectM) (elabFSetMap e1)) (elabFSetMap e2)
 
-  | f == Thy.bagCount      = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (elabFSetMap e1)
-  | f == Thy.bagSng        = EApp (EApp (EApp (EVar Thy.arrStoreB) (EApp (EVar Thy.arrConstB) (elabFSetMap e1))) (elabFSetMap e2)) PTrue
+  | f == Thy.bagCount      = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.bagSng        = EApp (EApp (EApp (EVar Thy.arrStoreB) (EApp (EVar Thy.arrConstB) (ECon (I 0)))) (elabFSetMap e1)) (elabFSetMap e2)
   | f == Thy.bagCup        = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetMap e1)) (elabFSetMap e2)
   | f == Thy.bagSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetMap e1)) (elabFSetMap e2))
 
   -- array lambdas (can we rewrite these via `map max/min`?)
-  | f == Thy.bagMax        = let e1i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (EVar "i")
-                                 e2i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (EVar "i")
-                               in
-                             ELam ("i", FVar 0) (EIte (PAtom Gt e1i e2i) e1i e2i)
-  | f == Thy.bagMin        = let e1i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (EVar "i")
-                                 e2i = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e2)) (EVar "i")
-                               in
-                             ELam ("i", FVar 0) (EIte (PAtom Lt e1i e2i) e1i e2i)
+  | f == Thy.bagMax        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapGtB) (elabFSetMap e1)) (elabFSetMap e2))) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.bagMin        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetMap e1)) (elabFSetMap e2))) (elabFSetMap e1)) (elabFSetMap e2)
 
   | otherwise              = EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)
 elabFSetMap (EApp (EApp (EApp h@(EVar f) e1) e2) e3)

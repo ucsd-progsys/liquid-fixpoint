@@ -1,0 +1,37 @@
+
+bind 1 b1 : {v : Bag_t Int | v = Bag_empty 0 }
+bind 2 b2 : {v : Bag_t Int | v = (Bag_union (Bag_sng 10 1) (Bag_sng 20 1)) }
+bind 3 b3 : {v : Bag_t Int | v = (Bag_union (Bag_sng 20 1) (Bag_sng 10 1)) }
+bind 4 b4 : {v : Bag_t Int | v = (Bag_sng 10 1) }
+bind 5 b5 : {v : Bag_t Int | v = (Bag_sng 20 1) }
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | v = Bag_count b1 100 }
+  rhs {v : int | v = 0 }
+  id 1 tag []
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : int | v = Bag_count b2 100 }
+  rhs {v : int | v = 0 }
+  id 2 tag []
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : int | v = Bag_count b2 10 }
+  rhs {v : int | v = 1 }
+  id 3 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : int | true }
+  rhs {v : int | b2 = b3 }
+  id 4 tag []
+
+constraint:
+  env [ 1; 2; 3; 4; 5 ]
+  lhs {v : int | true }
+  rhs {v : int | b2 = Bag_union b4 b5 }
+  id 5 tag []
+

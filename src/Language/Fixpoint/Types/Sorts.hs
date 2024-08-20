@@ -692,7 +692,7 @@ tceMember :: (Eq a, Hashable a) => a -> TCEmb a -> Bool
 tceMember k (TCE m) = M.member k m
 
 -------------------------------------------------------------------------------
--- | Sort coercion for SMT theory encoding
+-- | Sort coercion for Z3 SMT theory encoding
 -------------------------------------------------------------------------------
 
 coerceSetMapToArray :: Sort -> Sort
@@ -703,5 +703,6 @@ coerceSetMapToArray s@(FApp (FApp sf sa) FInt) -- TODO currently only handles ba
   | otherwise = s
 coerceSetMapToArray s@(FApp sf sa)
   | isSet sf = arraySort (coerceSetMapToArray sa) boolSort
+  | isBag sf = arraySort (coerceSetMapToArray sa) intSort
   | otherwise = s
 coerceSetMapToArray s = s

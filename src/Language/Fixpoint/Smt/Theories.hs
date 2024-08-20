@@ -45,7 +45,7 @@ module Language.Fixpoint.Smt.Theories
      , arrConstM, arrStoreM, arrSelectM
 
      , arrConstB, arrStoreB, arrSelectB
-     , arrMapPlusB, arrMapLeB
+     , arrMapPlusB, arrMapLeB, arrMapGtB, arrMapIteB
 
       -- * Query Theories
      , isSmt2App
@@ -174,7 +174,7 @@ bagEmpty, bagSng, bagCount, bagSub, bagCup, bagMax, bagMin :: (IsString a) => a
 bagEmpty = "Bag_empty"
 bagSng   = "Bag_sng"
 bagCount = "Bag_count"
-bagSub   = "Bag_union"
+bagSub   = "Bag_sub"
 bagCup   = "Bag_union"
 bagMax   = "Bag_union_max" -- See [Bag max and min]
 bagMin   = "Bag_inter_min"
@@ -208,9 +208,11 @@ arrConstB  = "arr_const_b"
 arrStoreB  = "arr_store_b"
 arrSelectB = "arr_select_b"
 
-arrMapPlusB, arrMapLeB :: Symbol
+arrMapPlusB, arrMapLeB, arrMapGtB, arrMapIteB :: Symbol
 arrMapPlusB = "arr_map_plus"
 arrMapLeB   = "arr_map_le"
+arrMapGtB   = "arr_map_gt"
+arrMapIteB   = "arr_map_ite"
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
@@ -412,6 +414,7 @@ smt2App :: VarAs -> SymEnv -> Expr -> [Builder] -> Maybe Builder
 smt2App _ env ex@(dropECst -> EVar f) [d]
   | f == arrConstS = Just (key (key "as const" (getTarget ex)) d)
   | f == arrConstB = Just (key (key "as const" (getTarget ex)) d)
+  | f == arrConstM = Just (key (key "as const" (getTarget ex)) d)
   where
     getTarget :: Expr -> Builder
     -- const is a function, but SMT expects only the output sort
@@ -500,6 +503,8 @@ interpSymbols =
 
   , interpSym arrMapPlusB "(_ map (+ (Int Int) Int))"        (FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
   , interpSym arrMapLeB   "(_ map (<= (Int Int) Bool))"      (FFunc bagArrSort $ FFunc bagArrSort setArrSort)
+  , interpSym arrMapGtB   "(_ map (> (Int Int) Bool))"       (FFunc bagArrSort $ FFunc bagArrSort setArrSort)
+  , interpSym arrMapIteB  "(_ map (ite (Bool Int Int) Int))" (FFunc setArrSort $ FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
 
   , interpSym setEmp   setEmp   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty setEmpty (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
