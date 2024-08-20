@@ -698,8 +698,8 @@ tceMember k (TCE m) = M.member k m
 coerceSetMapToArray :: Sort -> Sort
 coerceSetMapToArray   (FFunc sf sa) = FFunc (coerceSetMapToArray sf) (coerceSetMapToArray sa)
 coerceSetMapToArray   (FAbs i sa)   = FAbs i (coerceSetMapToArray sa)
-coerceSetMapToArray s@(FApp (FApp sf sa) FInt) -- TODO currently only handles bags/ints
-  | isMap sf = arraySort (coerceSetMapToArray sa) intSort
+coerceSetMapToArray s@(FApp (FApp sf sa) sb)
+  | isMap sf = arraySort (coerceSetMapToArray sa) (coerceSetMapToArray sb)
   | otherwise = s
 coerceSetMapToArray s@(FApp sf sa)
   | isSet sf = arraySort (coerceSetMapToArray sa) boolSort
