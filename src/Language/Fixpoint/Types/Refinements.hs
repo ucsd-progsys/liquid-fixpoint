@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -116,7 +117,11 @@ import qualified Data.HashMap.Strict       as HashMap
 import           Data.HashSet              (HashSet)
 import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
+#if MIN_VERSION_base(4,20,0)
+import           Data.List                 (partition)
+#else
 import           Data.List                 (foldl', partition)
+#endif
 import qualified Data.Set                  as Set
 import           Data.String
 import           Data.Text                 (Text)

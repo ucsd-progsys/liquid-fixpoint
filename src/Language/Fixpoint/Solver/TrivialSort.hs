@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
@@ -14,7 +15,9 @@ import           Language.Fixpoint.Misc
 import qualified Data.HashSet            as S
 import           Data.Hashable
 import qualified Data.HashMap.Strict     as M
+#if !MIN_VERSION_base(4,20,0)
 import           Data.List (foldl')
+#endif
 import qualified Data.Graph              as G
 import           Data.Maybe
 import           Text.Printf

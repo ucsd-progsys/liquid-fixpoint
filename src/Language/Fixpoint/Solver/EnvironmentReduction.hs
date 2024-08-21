@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -29,7 +30,11 @@ import qualified Data.HashMap.Lazy as HashMap
 import qualified Data.HashMap.Strict as HashMap.Strict
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
+#if MIN_VERSION_base(4,20,0)
+import           Data.List (nub, partition)
+#else
 import           Data.List (foldl', nub, partition)
+#endif
 import           Data.Maybe (fromMaybe)
 import           Data.ShareMap (ShareMap)
 import qualified Data.ShareMap as ShareMap

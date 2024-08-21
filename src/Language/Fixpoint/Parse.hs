@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -118,7 +119,9 @@ import           Control.Monad.Combinators.Expr
 import qualified Data.IntMap.Strict          as IM
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
+#if !MIN_VERSION_base(4,20,0)
 import           Data.List                   (foldl')
+#endif
 import           Data.List.NonEmpty          (NonEmpty(..))
 import qualified Data.Text                   as T
 import qualified Data.Text.IO                as T
