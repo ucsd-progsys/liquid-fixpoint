@@ -2,7 +2,20 @@
 
 ## NEXT
 
+
+## 0.9.6.3.1 (2024-08-21)
+
+- Added support for ghc-9.10.1
+- Use `;` for comments in SMTParse (as done in SMTLIB) [#700](https://github.com/ucsd-progsys/liquid-fixpoint/pull/700).
+- Extend SMTParser to support lits e.g. for bitvec [#698](https://github.com/ucsd-progsys/liquid-fixpoint/pull/698).
+- refactor `Set->Array` elaboration [#696](https://github.com/ucsd-progsys/liquid-fixpoint/pull/696).
 - Fixed the polymorphism-related crash caused by a restrictive Set theory encoding [#688](https://github.com/ucsd-progsys/liquid-fixpoint/pull/688).
+- Do not constant-fold div by zero [#686](https://github.com/ucsd-progsys/liquid-fixpoint/issue/686).
+- Copy over the HOF configuraration options in hornFInfo [#684](https://github.com/ucsd-progsys/liquid-fixpoint/pull/684).
+- Use SMTLIB style serialization/deserialization for Horn queries [#683](https://github.com/ucsd-progsys/liquid-fixpoint/pull/683).
+- Print SMT preamble to the logfile when constructing context [#681](https://github.com/ucsd-progsys/liquid-fixpoint/pull/681).
+- Allow reading/saving horn queries from/to JSON [#680](https://github.com/ucsd-progsys/liquid-fixpoint/pull/680).
+- Extend parser to allow boolean function arguments [#678](https://github.com/ucsd-progsys/liquid-fixpoint/pull/678).
 
 ## 0.9.6.3 (2024-01-29)
 
