@@ -1,0 +1,37 @@
+data PolyBag.Lst 1 = [
+       | PolyBag.Cons {PolyBag.hd : @(0), PolyBag.tl : (PolyBag.Lst @(0))}
+       | PolyBag.Emp {}
+     ]
+
+constant PolyBag.hd : (func(1 , [(PolyBag.Lst @(0)); @(0)]))
+constant PolyBag.tl : (func(1 , [(PolyBag.Lst @(0)); (PolyBag.Lst @(0))]))
+constant is$PolyBag.Cons : (func(1 , [(PolyBag.Lst @(0)); bool]))
+constant is$PolyBag.Emp : (func(1 , [(PolyBag.Lst @(0)); bool]))
+distinct PolyBag.Cons : (func(1 , [@(0);
+                                   (PolyBag.Lst @(0));
+                                   (PolyBag.Lst @(0))]))
+distinct PolyBag.Emp : (func(1 , [(PolyBag.Lst @(0))]))
+
+bind 1 PolyBag.Emp : {VV : func(1 , [(PolyBag.Lst @(0))]) | []}
+bind 2 PolyBag.Cons : {VV : func(1 , [@(0);
+                                       (PolyBag.Lst @(0));
+                                       (PolyBag.Lst @(0))]) | []}
+bind 3 PolyBag.lstHd : {VV : func(1 , [(PolyBag.Lst @(0));
+                                         (Bag_t @(0))]) | []}
+bind 4 p : {VV : (PolyBag.Lst l) | []}
+bind 5 nil : {x : (PolyBag.Lst (PolyBag.Lst l)) | [(is$PolyBag.Emp x);
+                                                   (~ ((is$PolyBag.Cons x)));
+                                                   (x = PolyBag.Emp);
+                                                   ((PolyBag.lstHd x) = (Bag_empty 0))]}
+
+constraint:
+  env [1; 2; 3; 4; 5]
+  lhs {VV : (PolyBag.Lst (PolyBag.Lst l)) | [(is$PolyBag.Cons VV);
+                                             (~ ((is$PolyBag.Emp VV)));
+                                             (VV = (PolyBag.Cons p nil));
+                                             ((PolyBag.hd VV) = p);
+                                             ((PolyBag.tl VV) = nil);
+                                             ((PolyBag.lstHd VV) =
+                                                (Bag_union (Bag_empty 0) (Bag_sng p 1)))]}
+  rhs {VV : (PolyBag.Lst (PolyBag.Lst l)) | [(VV = (PolyBag.Cons p PolyBag.Emp))]}
+  id 6 tag [6]

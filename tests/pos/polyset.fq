@@ -1,12 +1,10 @@
 data PolySet.Lst 1 = [
-       | PolySet.Cons {PolySet.Cons##lqdc##$select##PolySet.Cons##1 : @(0), PolySet.Cons##lqdc##$select##PolySet.Cons##2 : (PolySet.Lst @(0))}
+       | PolySet.Cons {PolySet.hd : @(0), PolySet.tl : (PolySet.Lst @(0))}
        | PolySet.Emp {}
      ]
 
-constant PolySet.Cons##lqdc##$select##PolySet.Cons##1 : (func(1 , [(PolySet.Lst @(0));
-                                                                   @(0)]))
-constant PolySet.Cons##lqdc##$select##PolySet.Cons##2 : (func(1 , [(PolySet.Lst @(0));
-                                                                   (PolySet.Lst @(0))]))
+constant PolySet.hd : (func(1 , [(PolySet.Lst @(0)); @(0)]))
+constant PolySet.tl : (func(1 , [(PolySet.Lst @(0)); (PolySet.Lst @(0))]))
 constant is$PolySet.Cons : (func(1 , [(PolySet.Lst @(0)); bool]))
 constant is$PolySet.Emp : (func(1 , [(PolySet.Lst @(0)); bool]))
 constant PolySet.Cons : (func(1 , [@(0);
@@ -19,19 +17,16 @@ bind 1 PolySet.Emp : {VV : func(1 , [(PolySet.Lst @(0))]) | []}
 bind 2 PolySet.Cons : {VV : func(1 , [@(0);
                                        (PolySet.Lst @(0));
                                        (PolySet.Lst @(0))]) | []}
-bind 3 p : {VV : (PolySet.Lst l##a1Uh) | []}
+bind 3 p : {VV : (PolySet.Lst l) | []}
 
 constraint:
   env [1; 2; 3]
-  lhs {VV : (PolySet.Lst (PolySet.Lst l##a1Uh)) | [(is$PolySet.Cons VV);
-                                                   (~ ((is$PolySet.Emp VV)));
-                                                   (VV = (PolySet.Cons p PolySet.Emp));
-                                                   ((PolySet.Cons##lqdc##$select##PolySet.Cons##1 VV) =
-                                                      p);
-                                                   ((PolySet.Cons##lqdc##$select##PolySet.Cons##2 VV) =
-                                                      PolySet.Emp);
-                                                   ((PolySet.lstHd VV) = (Set_sng p))]}
-  rhs {VV : (PolySet.Lst (PolySet.Lst l##a1Uh)) | [(VV =
-                                                      (PolySet.Cons p PolySet.Emp))]}
+  lhs {VV : (PolySet.Lst (PolySet.Lst l)) | [(is$PolySet.Cons VV);
+                                             (~ ((is$PolySet.Emp VV)));
+                                             (VV = (PolySet.Cons p PolySet.Emp));
+                                             ((PolySet.hd VV) = p);
+                                             ((PolySet.tl VV) = PolySet.Emp);
+                                             ((PolySet.lstHd VV) = (Set_sng p))]}
+  rhs {VV : (PolySet.Lst (PolySet.Lst l)) | [(VV = (PolySet.Cons p PolySet.Emp))]}
   id 4 tag [4]
 
