@@ -122,25 +122,9 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
 instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe REST.SMT.SolverHandle -> SMT.Context -> IO (InstEnv a)
 instEnv cfg info cs restSolver ctx = do
-    refRESTCache <- newIORef mempty
-    refRESTSatCache <- newIORef mempty
-    let
-        restOrd = FC.restOC cfg
-        oc0 = Rewrite.ordConstraints restOrd $ Mb.fromJust restSolver
-        oc :: OC.OCAlgebra Rewrite.OCType RT.RuntimeTerm IO
-        oc = oc0
-             { OC.isSat = cachedIsSat refRESTSatCache oc0
-             , OC.notStrongerThan = cachedNotStrongerThan refRESTCache oc0
-             }
-        et :: ExploredTerms.ExploredTerms RT.RuntimeTerm Rewrite.OCType IO
-        et = ExploredTerms.empty
-               ExploredTerms.EF
-                 { ExploredTerms.union = OC.union oc
-                 , ExploredTerms.subsumes = OC.notStrongerThan oc
-                 , exRefine = OC.refine oc
-                 }
-                 ExploredTerms.ExploreWhenNeeded
-        s0 = EvalEnv
+    let restOrd = FC.restOC cfg
+    (oc, et) <- Rewrite.initREST restOrd restSolver
+    let s0 = EvalEnv
               { evEnv = SMT.ctxSymEnv ctx
               , evPendingUnfoldings = mempty
               , evNewEqualities = mempty
@@ -160,26 +144,6 @@ instEnv cfg info cs restSolver ctx = do
        , ieKnowl = knowledge cfg ctx info
        , ieEvEnv = s0
        }
-  where
-    cachedNotStrongerThan refRESTCache oc a b = do
-      m <- readIORef refRESTCache
-      case M.lookup (a, b) m of
-        Nothing -> do
-          nst <- OC.notStrongerThan oc a b
-          writeIORef refRESTCache (M.insert (a, b) nst m)
-          return nst
-        Just nst ->
-          return nst
-
-    cachedIsSat refRESTSatCache oc a = do
-      m <- readIORef refRESTSatCache
-      case M.lookup a m of
-        Nothing -> do
-          sat <- OC.isSat oc a
-          writeIORef refRESTSatCache (M.insert a sat m)
-          return sat
-        Just sat ->
-          return sat
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments

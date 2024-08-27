@@ -5,7 +5,8 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 module Language.Fixpoint.Solver.Rewrite
-  ( getRewrite
+  ( initREST
+  , getRewrite
   , subExprs
   , unify
   , ordConstraints
@@ -23,7 +24,9 @@ import           Control.Monad (guard)
 import           Control.Monad.Trans.Maybe
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
+import           Data.IORef (newIORef, readIORef, writeIORef)
 import qualified Data.List            as L
+import           Data.Maybe (fromJust)
 import qualified Data.Text as TX
 import           GHC.IO.Handle.Types (Handle)
 import           GHC.Generics
@@ -31,12 +34,13 @@ import           Text.PrettyPrint (text)
 import           Language.Fixpoint.Types.Config (RESTOrdering(..))
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.REST
+import qualified Language.REST.ExploredTerms as ExploredTerms
 import           Language.REST.KBO (kbo)
 import           Language.REST.LPO (lpo)
 import           Language.REST.OCAlgebra as OC
 import           Language.REST.OCToAbstract (lift)
 import           Language.REST.Op
-import           Language.REST.SMT (SMTExpr)
+import           Language.REST.SMT (SMTExpr, SolverHandle)
 import           Language.REST.WQOConstraints.ADT (ConstraintsADT, adtOC)
 import qualified Language.REST.RuntimeTerm as RT
 
@@ -307,3 +311,50 @@ unify freeVars template seenExpr = case (dropECst template, seenExpr) of
     (ECoerc _ _ rw, ECoerc _ _ seen) ->
       unify freeVars rw seen
     _ -> Nothing
+
+
+initREST
+  :: RESTOrdering
+  -> Maybe SolverHandle
+  -> IO ( OC.OCAlgebra OCType RT.RuntimeTerm IO
+        , ExploredTerms.ExploredTerms RT.RuntimeTerm OCType IO
+        )
+initREST restOrd restSolver = do
+    refRESTCache <- newIORef mempty
+    refRESTSatCache <- newIORef mempty
+    let
+        oc0 = ordConstraints restOrd $ fromJust restSolver
+        oc :: OC.OCAlgebra OCType RT.RuntimeTerm IO
+        oc = oc0
+             { OC.isSat = cachedIsSat refRESTSatCache oc0
+             , OC.notStrongerThan = cachedNotStrongerThan refRESTCache oc0
+             }
+        et :: ExploredTerms.ExploredTerms RT.RuntimeTerm OCType IO
+        et = ExploredTerms.empty
+               ExploredTerms.EF
+                 { ExploredTerms.union = OC.union oc
+                 , ExploredTerms.subsumes = OC.notStrongerThan oc
+                 , ExploredTerms.exRefine = OC.refine oc
+                 }
+                 ExploredTerms.ExploreWhenNeeded
+    return (oc, et)
+  where
+    cachedNotStrongerThan refRESTCache oc a b = do
+      m <- readIORef refRESTCache
+      case M.lookup (a, b) m of
+        Nothing -> do
+          nst <- OC.notStrongerThan oc a b
+          writeIORef refRESTCache (M.insert (a, b) nst m)
+          return nst
+        Just nst ->
+          return nst
+
+    cachedIsSat refRESTSatCache oc a = do
+      m <- readIORef refRESTSatCache
+      case M.lookup a m of
+        Nothing -> do
+          sat <- OC.isSat oc a
+          writeIORef refRESTSatCache (M.insert a sat m)
+          return sat
+        Just sat ->
+          return sat
