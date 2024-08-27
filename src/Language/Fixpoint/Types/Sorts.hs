@@ -670,8 +670,8 @@ tceMember k (TCE m) = M.member k m
 -------------------------------------------------------------------------------
 
 coerceSetToArray :: Sort -> Sort
-coerceSetToArray   (FFunc sf sa) = FFunc (coerceSetToArray sf) (coerceSetToArray sa)
-coerceSetToArray   (FAbs i sa)   = FAbs i (coerceSetToArray sa)
+coerceSetToArray (FFunc sf sa) = FFunc (coerceSetToArray sf) (coerceSetToArray sa)
+coerceSetToArray (FAbs i sa)   = FAbs i (coerceSetToArray sa)
 coerceSetToArray (FApp sf sa)
   | isSet sf = arraySort (coerceSetToArray sa) boolSort
   | otherwise = FApp (coerceSetToArray sf) (coerceSetToArray sa)
