@@ -43,12 +43,12 @@ import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Common          (askSMT, toSMT)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Simplify
-import           Language.Fixpoint.Solver.Rewrite as Rewrite
+import qualified Language.Fixpoint.Solver.Rewrite as Rewrite
 
-import Language.REST.OCAlgebra as OC
-import Language.REST.ExploredTerms as ExploredTerms
-import Language.REST.RuntimeTerm as RT
-import Language.REST.SMT (withZ3, SolverHandle)
+import qualified Language.REST.OCAlgebra as OC
+import qualified Language.REST.ExploredTerms as ExploredTerms
+import qualified Language.REST.RuntimeTerm as RT
+import qualified Language.REST.SMT as REST.SMT (withZ3, SolverHandle)
 
 import           Control.Monad (filterM, foldM, forM_, when)
 import           Control.Monad.State
@@ -85,9 +85,9 @@ instantiate cfg fi' subcIds = do
     savePLEEqualities cfg info sEnv res
     return $ resSInfo cfg sEnv info res                                     -- 3. STRENGTHEN SInfo using InstRes
   where
-    withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
+    withRESTSolver :: (Maybe REST.SMT.SolverHandle -> IO a) -> IO a
     withRESTSolver f | all null (M.elems $ aenvAutoRW aEnv) = f Nothing
-    withRESTSolver f = withZ3 (f . Just)
+    withRESTSolver f = REST.SMT.withZ3 (f . Just)
 
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg info
@@ -120,26 +120,26 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
 
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
-instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> IO (InstEnv a)
+instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe REST.SMT.SolverHandle -> SMT.Context -> IO (InstEnv a)
 instEnv cfg info cs restSolver ctx = do
     refRESTCache <- newIORef mempty
     refRESTSatCache <- newIORef mempty
     let
         restOrd = FC.restOC cfg
-        oc0 = ordConstraints restOrd $ Mb.fromJust restSolver
-        oc :: OCAlgebra OCType RuntimeTerm IO
+        oc0 = Rewrite.ordConstraints restOrd $ Mb.fromJust restSolver
+        oc :: OC.OCAlgebra Rewrite.OCType RT.RuntimeTerm IO
         oc = oc0
              { OC.isSat = cachedIsSat refRESTSatCache oc0
              , OC.notStrongerThan = cachedNotStrongerThan refRESTCache oc0
              }
-        et :: ExploredTerms RuntimeTerm OCType IO
+        et :: ExploredTerms.ExploredTerms RT.RuntimeTerm Rewrite.OCType IO
         et = ExploredTerms.empty
-               EF
+               ExploredTerms.EF
                  { ExploredTerms.union = OC.union oc
                  , ExploredTerms.subsumes = OC.notStrongerThan oc
                  , exRefine = OC.refine oc
                  }
-                 ExploreWhenNeeded
+                 ExploredTerms.ExploreWhenNeeded
         s0 = EvalEnv
               { evEnv = SMT.ctxSymEnv ctx
               , evPendingUnfoldings = mempty
@@ -460,10 +460,10 @@ data EvalEnv = EvalEnv
   , evFuel     :: FuelCount
 
   -- REST parameters
-  , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
-  , restSolver :: Maybe SolverHandle
+  , explored   :: Maybe (ExploredTerms.ExploredTerms RT.RuntimeTerm Rewrite.OCType IO)
+  , restSolver :: Maybe REST.SMT.SolverHandle
   , restOCA    :: RESTOrdering
-  , evOCAlgebra :: OCAlgebra OCType RuntimeTerm IO
+  , evOCAlgebra :: OC.OCAlgebra Rewrite.OCType RT.RuntimeTerm IO
   }
 
 data FuelCount = FC
@@ -496,11 +496,13 @@ evalOne γ ctx i e
   | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW e
 evalOne γ ctx _ e = do
     env <- get
-    let oc :: OCAlgebra OCType RuntimeTerm IO
+    let oc :: OC.OCAlgebra Rewrite.OCType RT.RuntimeTerm IO
         oc = evOCAlgebra env
-        rp = RP (contramap Rewrite.convert oc) [(e, PLE)] constraints
+        rp = RP (OC.contramap Rewrite.convert oc) [(e, Rewrite.PLE)] constraints
         constraints = OC.top oc
-        emptyET = ExploredTerms.empty (EF (OC.union oc) (OC.notStrongerThan oc) (OC.refine oc)) ExploreWhenNeeded
+        emptyET = ExploredTerms.empty
+          (ExploredTerms.EF (OC.union oc) (OC.notStrongerThan oc) (OC.refine oc))
+          ExploredTerms.ExploreWhenNeeded
     es <- evalREST γ ctx rp
     modify $ \st -> st { explored = Just emptyET }
     return es
@@ -634,8 +636,8 @@ evalELam γ ctx et (x, s) e = do
     return (elam, fe)
 
 data RESTParams oc = RP
-  { oc   :: OCAlgebra oc Expr IO
-  , path :: [(Expr, TermOrigin)]
+  { oc   :: OC.OCAlgebra oc Expr IO
+  , path :: [(Expr, Rewrite.TermOrigin)]
   , c    :: oc
   }
 
@@ -654,14 +656,14 @@ deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
 -- The main difference with 'eval' is that 'evalREST' takes into account
 -- autorewrites.
 --
-evalREST :: Knowledge -> ICtx -> RESTParams OCType -> EvalST [Expr]
+evalREST :: Knowledge -> ICtx -> RESTParams Rewrite.OCType -> EvalST [Expr]
 evalREST γ ctx rp = do
   env <- get
   cacheRef <- liftIO $ newIORef $ evSMTCache env
   evalRESTWithCache cacheRef γ ctx [] rp
 
 evalRESTWithCache
-  :: IORef (M.HashMap Expr Bool) -> Knowledge -> ICtx -> [Expr] -> RESTParams OCType -> EvalST [Expr]
+  :: IORef (M.HashMap Expr Bool) -> Knowledge -> ICtx -> [Expr] -> RESTParams Rewrite.OCType -> EvalST [Expr]
 evalRESTWithCache cacheRef _ ctx acc rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
@@ -719,10 +721,10 @@ evalRESTWithCache cacheRef γ ctx acc rp =
       return acc
   where
     shouldExploreTerm exploredTerms e | Vis.isConc e =
-      case rwTerminationOpts rwArgs of
-        RWTerminationCheckDisabled ->
+      case Rewrite.rwTerminationOpts rwArgs of
+        Rewrite.RWTerminationCheckDisabled ->
           return $ not $ ExploredTerms.visited (Rewrite.convert e) exploredTerms
-        RWTerminationCheckEnabled  ->
+        Rewrite.RWTerminationCheckEnabled  ->
           ExploredTerms.shouldExplore (Rewrite.convert e) (c rp) exploredTerms
     shouldExploreTerm _ _ = return False
 
@@ -740,21 +742,21 @@ evalRESTWithCache cacheRef γ ctx acc rp =
       let
         c' =
           if any isRW (path rp)
-            then foldr (\(e1, e2) ctrs -> refine (oc rp) ctrs e1 e2) (c rp) (S.toList newEqualities)
+            then foldr (\(e1, e2) ctrs -> OC.refine (oc rp) ctrs e1 e2) (c rp) (S.toList newEqualities)
             else c rp
 
       in
-        rp{path = path rp ++ [(e', PLE)], c = c'}
+        rp{path = path rp ++ [(e', Rewrite.PLE)], c = c'}
 
-    isRW (_, r) = r == RW
+    isRW (_, r) = r == Rewrite.RW
 
-    rpRW (_, e', c') = rp{path = path rp ++ [(e', RW)], c = c' }
+    rpRW (_, e', c') = rp{path = path rp ++ [(e', Rewrite.RW)], c = c' }
 
     pathExprs       = map fst (mytracepp "EVAL2: path" $ path rp)
     exprs           = last pathExprs
     autorws         = getAutoRws γ ctx
 
-    rwArgs = RWArgs (isValid cacheRef γ) $ knRWTerminationOpts γ
+    rwArgs = Rewrite.RWArgs (isValid cacheRef γ) $ knRWTerminationOpts γ
 
     getRWs =
       do
@@ -770,7 +772,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
               let e'         = deANF ctx exprs
               let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
-              concat <$> mapM getRWs' (subExprs e')
+              concat <$> mapM getRWs' (Rewrite.subExprs e')
           else return []
 
     addConst (e,e') = if isConstant (knDCs γ) e'
@@ -970,7 +972,7 @@ data Knowledge = KN
   , knSels              :: !SelectorMap
   , knConsts            :: !ConstDCMap
   , knAutoRWs           :: M.HashMap SubcId [AutoRewrite]
-  , knRWTerminationOpts :: RWTerminationOpts
+  , knRWTerminationOpts :: Rewrite.RWTerminationOpts
   }
 
 -- | A type to express whether SMeasures originate from data definitions.
@@ -1008,8 +1010,8 @@ knowledge cfg ctx si = KN
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
       if rwTerminationCheck cfg
-      then RWTerminationCheckEnabled
-      else RWTerminationCheckDisabled
+      then Rewrite.RWTerminationCheckEnabled
+      else Rewrite.RWTerminationCheckDisabled
   }
   where
     (simDCTests, sims0) =
