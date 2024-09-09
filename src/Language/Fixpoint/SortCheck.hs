@@ -535,13 +535,13 @@ elab f@(_, g) e@(EBin o e1 e2) = do
   return (EBin o (eCst e1' s1) (eCst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
-  (e1', _, e2', s2, s) <- notracepp "ELAB-EAPPXc" <$> elabEApp f e1 e2
+  (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
   let e = eAppC s e1' (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab f (EApp e1 e2) = do
-  (e1', s1, e2', s2, s) <- notracepp "ELAB-EAPPc" <$> elabEApp f e1 e2
+  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
   let e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
@@ -564,9 +564,9 @@ elab _ e@(PKVar _ _) =
 elab f (PGrad k su i e) =
   (, boolSort) . PGrad k su i . fst <$> elab f e
 
-elab (_, f) e@(EVar x) =
-  do cs <- notracepp "ELAB-EVAR" <$> checkSym f x
-     pure (e, cs)
+elab (_, f) e@(EVar x) = do
+  cs <- checkSym f x
+  pure (e, cs)
 
 elab f (ENeg e) = do
   (e', s) <- elab f e
@@ -699,8 +699,8 @@ elabAppAs env@(_, f) t g e = do
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1)     <- notracepp ("elabEApp: e1 = " ++ show e1) <$> elab f e1
-  (e2', s2)     <- notracepp ("elabEApp: e2 = " ++ show e2) <$> elab f e2
+  (e1', s1)     <- {- notracepp ("elabEApp: e1 = " ++ show e1) <$> -} elab f e1
+  (e2', s2)     <- {- notracepp ("elabEApp: e2 = " ++ show e2) <$> -} elab f e2
   (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
   return           (e1'', s1', e2'', s2', s)
 
@@ -708,9 +708,7 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, 
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  let sIn'         = {- coerceSetMapToArray -} sIn
-  let s2'          = {- coerceSetMapToArray -} s2
-  su'             <- unify1 f e su sIn' s2'
+  su'             <- unify1 f e su sIn s2
   return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
 
@@ -735,10 +733,8 @@ makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) =
   ECst (EApp (EApp f e1) e2) s
   where
---    s'                     = coerceSetMapToArray s
---    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s'
-    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
-    t2                     = exprSort "makeAppl" e2
+    f  = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
+    t2 = exprSort "makeAppl" e2
 
 applyAt :: Sort -> Sort -> Expr
 applyAt s t = ECst (EVar applyName) (FFunc s t)

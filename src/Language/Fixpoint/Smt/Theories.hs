@@ -39,10 +39,10 @@ module Language.Fixpoint.Smt.Theories
 
      -- * Z3 theory array encodings
 
+     , arrConstM, arrStoreM, arrSelectM
+
      , arrConstS, arrStoreS, arrSelectS
      , arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS
-
-     , arrConstM, arrStoreM, arrSelectM
 
      , arrConstB, arrStoreB, arrSelectB
      , arrMapPlusB, arrMapLeB, arrMapGtB, arrMapIteB
@@ -75,28 +75,6 @@ import Language.Fixpoint.Utils.Builder
 --------------------------------------------------------------------------------
 -- | Theory Symbols ------------------------------------------------------------
 --------------------------------------------------------------------------------
-
--- TODO drop all of Set and Map symbols when Map is handled through arrays
-
--- "set" is currently \"LSet\" instead of just \"Set\" because Z3 has its own
--- \"Set\" since 4.8.5
-elt, set, map :: Raw
-elt  = "Elt"
-set  = "LSet"
-map  = "Map"
-
---mdef, sel, sto,
---mcup, mToSet, mprj, mmax, mmin, mshift :: Raw
---mdef  = "smt_map_def"
---sel   = "smt_map_sel"
---sto   = "smt_map_sto"
-
---mcup  = "smt_map_cup"
---mToSet = "smt_map_to_set"
---mprj  = "smt_map_prj"
--- mmax  = "smt_map_max"
---mmin  = "smt_map_min"
--- mshift = "smt_map_shift"
 
 ---- Size changes
 bvConcatName, bvExtractName, bvRepeatName, bvZeroExtName, bvSignExtName :: Symbol
@@ -248,73 +226,7 @@ bSort name def = key "define-sort" (fromText name <+> "()" <+> def)
 z3Preamble :: Config -> [Builder]
 z3Preamble u
   = stringPreamble u ++
-    [
-      bSort elt
-        "Int"
-    , bSort set
-        (key2 "Array" (fromText elt) "Bool")
-
-    -- Maps
-    , bSort map
-        (key2 "Array" (fromText elt) (fromText elt))
---    , bFun mdef
---        [("v", fromText elt)]
---        (fromText map)
---        (key (key "as const" (parens (fromText map))) "v")
---    , bFun sel
---        [("m", fromText map), ("k", fromText elt)]
---        (fromText elt)
---        "(select m k)"
---    , bFun sto
---        [("m", fromText map), ("k", fromText elt), ("v", fromText elt)]
---        (fromText map)
---        "(store m k v)"
-
---    , bFun mcup
---        [("m1", fromText map), ("m2", fromText map)]
---        (fromText map)
---        (key2 (key "_ map" (key2 "+" (parens (fromText elt <+> fromText elt)) (fromText elt))) "m1" "m2")
---    , bFun mToSet -- See [Interaction Between Map and Set]
---        [("m", fromText map)]
---        (fromText set)
---        (key2
---          (key "_ map"
---            (key2 ">"
---              (parens (fromText elt <+> fromText elt))
---              "Bool"
---            )
---          )
---          "m"
---          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
---        )
---    , bFun mprj -- See [Interaction Between Map and Set]
---        [("s", fromText set), ("m", fromText map)]
---        (fromText map)
---        (key3
---          (key "_ map"
---            (key2 "ite"
---              (parens ("Bool" <+> fromText elt <+> fromText elt))
---              (fromText elt)
---            )
---          )
---          "s"
---          "m"
---          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
---        )
---    , bFun mmax -- See [Map max and min]
---        [("m1", fromText map),("m2", fromText map)]
---        (fromText map)
---        "(lambda ((i Int)) (ite (> (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
---    , bFun mmin -- See [Map max and min]
---        [("m1", fromText map),("m2", fromText map)]
---        (fromText map)
---        "(lambda ((i Int)) (ite (< (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
---    , bFun mshift -- See [Map key shift]
---        [("n", "Int"),("m", fromText map)]
---        (fromText map)
---        "(lambda ((i Int)) (select m (- i n)))"
-    ,
-      bFun boolToIntName
+    [ bFun boolToIntName
         [("b", "Bool")]
         "Int"
         "(ite b 1 0)"
@@ -334,34 +246,13 @@ uifDef cfg f op
 
 cvc4Preamble :: Config -> [Builder]
 cvc4Preamble z
-  = [        "(set-logic ALL_SUPPORTED)"]
-  ++ commonPreamble z
-  ++ cvc4MapPreamble z
+  = "(set-logic ALL_SUPPORTED)" : commonPreamble z
 
 commonPreamble :: Config -> [Builder]
 commonPreamble _ --TODO use uif flag u (see z3Preamble)
-  = [
-      bSort elt    "Int"
-    , bSort set    "Int"
-    ,
-      bSort string "Int"
+  = [ bSort string "Int"
     , bFun boolToIntName [("b", "Bool")] "Int" "(ite b 1 0)"
     ]
-
-cvc4MapPreamble :: Config -> [Builder]
-cvc4MapPreamble _ =
-    [ bSort map    (key2 "Array" (fromText elt) (fromText elt))
---    , bFun sel [("m", fromText map), ("k", fromText elt)]                (fromText elt) "(select m k)"
---    , bFun sto [("m", fromText map), ("k", fromText elt), ("v", fromText elt)] (fromText map) "(store m k v)"
-    ]
-
-smtlibPreamble :: Config -> [Builder]
-smtlibPreamble z --TODO use uif flag u (see z3Preamble)
-  = commonPreamble z
--- ++ [ -- bSort map "Int"
---    , bFun' sel [fromText map, fromText elt] (fromText elt)
---    , bFun' sto [fromText map, fromText elt, fromText elt] (fromText map)
---    ]
 
 stringPreamble :: Config -> [Builder]
 stringPreamble cfg | stringTheory cfg
@@ -392,10 +283,8 @@ smt2SmtSort SInt         = "Int"
 smt2SmtSort SReal        = "Real"
 smt2SmtSort SBool        = "Bool"
 smt2SmtSort SString      = fromText string
-
-smt2SmtSort SSet         = fromText set
-smt2SmtSort SMap         = fromText map
-
+--smt2SmtSort SSet         = fromText set
+--smt2SmtSort SMap         = fromText map
 smt2SmtSort (SArray a b) = key2 "Array" (smt2SmtSort a) (smt2SmtSort b)
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
 smt2SmtSort (SVar n)     = "T" <> bShow n
@@ -462,7 +351,7 @@ sortAppInfo t = case bkFFunc t of
 preamble :: Config -> SMTSolver -> [Builder]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
-preamble u _    = smtlibPreamble u
+preamble u _    = commonPreamble u
 
 --------------------------------------------------------------------------------
 -- | Theory Symbols : `uninterpSEnv` should be disjoint from see `interpSEnv`
