@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE PatternGuards #-}
 
@@ -14,7 +15,9 @@ import           Language.Fixpoint.Misc          (fst3, mlookup, snd3)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
+#if !MIN_VERSION_base(4,20,0)
 import           Data.Foldable       (foldl')
+#endif
 import           Data.Maybe          (catMaybes, mapMaybe, fromJust, isJust)
 import           Data.Hashable       (Hashable)
 import           GHC.Generics        (Generic)

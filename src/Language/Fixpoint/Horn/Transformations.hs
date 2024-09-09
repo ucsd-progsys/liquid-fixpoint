@@ -23,7 +23,11 @@ import           Language.Fixpoint.Graph      as FG
 import qualified Data.HashMap.Strict          as M
 import           Data.String                  (IsString (..))
 import           Data.Either                  (partitionEithers, rights)
+#if MIN_VERSION_base(4,20,0)
+import           Data.List                    (nub)
+#else
 import           Data.List                    (nub, foldl')
+#endif
 import qualified Data.Set                     as S
 import qualified Data.HashSet                 as HS
 import qualified Data.Graph                   as DG

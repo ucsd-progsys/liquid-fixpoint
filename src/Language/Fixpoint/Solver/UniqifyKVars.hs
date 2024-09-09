@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                    #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 {- | This module creates new bindings for each argument of each kvar.
@@ -38,7 +39,9 @@ module Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify) where
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor (mapKVarSubsts)
 import qualified Data.HashMap.Strict as M
+#if !MIN_VERSION_base(4,20,0)
 import           Data.Foldable       (foldl')
+#endif
 
 --------------------------------------------------------------------------------
 wfcUniqify    :: SInfo a -> SInfo a

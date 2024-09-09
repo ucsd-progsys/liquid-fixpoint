@@ -11,17 +11,116 @@ module Language.Fixpoint.Horn.SMTParse (
   , sortP
 ) where
 
-import qualified Language.Fixpoint.Parse        as FP
+import qualified Language.Fixpoint.Parse        as FP (Parser, addNumTyCon, lexeme', locLexeme', reserved', reservedOp', symbolR, upperIdR, lowerIdR, stringR, naturalR, mkFTycon)
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Horn.Types   as H
 import           Text.Megaparsec                hiding (State)
-import           Text.Megaparsec.Char           (string, char)
+import           Text.Megaparsec.Char           (space1, string, char)
 import qualified Data.HashMap.Strict            as M
+import qualified Data.Text as T
+import qualified Text.Megaparsec.Char.Lexer  as L
+
+type FParser = FP.Parser
+
+fAddNumTyCon :: F.Symbol -> FP.Parser ()
+fAddNumTyCon = FP.addNumTyCon
+
+lexeme :: FParser a -> FParser a
+lexeme = FP.lexeme' spaces
+
+locLexeme :: FP.Parser a -> FP.Parser (F.Located a)
+locLexeme = FP.locLexeme' spaces
+
+-- | Consumes all whitespace, including LH comments.
+--
+-- Should not be used directly, but primarily via 'lexeme'.
+--
+-- The only "valid" use case for spaces is in top-level parsing
+-- function, to consume initial spaces.
+--
+spaces :: FParser ()
+spaces =
+  L.space
+    space1
+    lineComment
+    blockComment
+
+lineComment :: FParser ()
+lineComment = L.skipLineComment ";"
+
+blockComment :: FParser ()
+blockComment = L.skipBlockComment "/* " "*/"
+
+reserved :: String -> FParser ()
+reserved = FP.reserved' spaces
+
+reservedOp :: String -> FParser ()
+reservedOp = FP.reservedOp' spaces
+
+sym :: String -> FParser String
+sym x = lexeme (string x)
+
+parens :: FParser a -> FParser a
+parens = between (sym "(") (sym ")")
+
+stringLiteral :: FParser String
+stringLiteral = lexeme FP.stringR <?> "string literal"
+
+symbolP :: FParser F.Symbol
+symbolP = lexeme FP.symbolR <?> "identifier"
+
+fIntP :: FParser Int
+fIntP = fromInteger <$> natural
+
+natural :: FParser Integer
+natural = lexeme FP.naturalR <?> "nat literal"
+
+double :: FParser Double
+double = lexeme L.float <?> "float literal"
+
+
+locUpperIdP, locSymbolP :: FParser F.LocSymbol
+locUpperIdP = locLexeme FP.upperIdR
+locSymbolP  = locLexeme FP.symbolR
+
+upperIdP :: FP.Parser F.Symbol
+upperIdP = lexeme FP.upperIdR <?> "upperIdP"
+
+lowerIdP :: FP.Parser F.Symbol
+lowerIdP = lexeme FP.lowerIdR <?> "upperIdP"
+
+fTyConP :: FParser F.FTycon
+fTyConP
+  =   (reserved "int"     >> return F.intFTyCon)
+  <|> (reserved "Integer" >> return F.intFTyCon)
+  <|> (reserved "Int"     >> return F.intFTyCon)
+  <|> (reserved "real"    >> return F.realFTyCon)
+  <|> (reserved "bool"    >> return F.boolFTyCon)
+  <|> (reserved "num"     >> return F.numFTyCon)
+  <|> (reserved "Str"     >> return F.strFTyCon)
+  <|> (FP.mkFTycon        =<<  locUpperIdP)
+
+
+fTrueP :: FP.Parser F.Expr
+fTrueP = reserved "true"  >> return F.PTrue
+
+fFalseP :: FP.Parser F.Expr
+fFalseP = reserved "false" >> return F.PFalse
+
+fSymconstP :: FP.Parser F.SymConst
+fSymconstP =  F.SL . T.pack <$> stringLiteral
+
+-- | Parser for literal numeric constants: floats or integers without sign.
+constantP :: FParser F.Constant
+constantP =
+     try (F.R <$> double)   -- float literal
+ <|> F.I <$> natural        -- nat literal
 
 -------------------------------------------------------------------------------
-hornP :: FP.Parser H.TagQuery
+hornP :: FParser H.TagQuery
 -------------------------------------------------------------------------------
 hornP = do
+  spaces
   hThings <- many hThingP
   pure (mkQuery hThings)
 
@@ -57,62 +156,62 @@ data HThing a
   | HNum  F.Symbol
   deriving (Functor)
 
-hThingP :: FP.Parser (HThing H.Tag)
-hThingP  = FP.parens body
+hThingP :: FParser (HThing H.Tag)
+hThingP  = spaces >> parens body
   where
-    body =  HQual <$> (FP.reserved "qualif"     *> hQualifierP)
-        <|> HCstr <$> (FP.reserved "constraint" *> hCstrP)
-        <|> HVar  <$> (FP.reserved "var"        *> hVarP)
-        <|> HOpt  <$> (FP.reserved "fixpoint"   *> FP.stringLiteral)
-        <|> HCon  <$> (FP.reserved "constant"   *> FP.symbolP) <*> sortP
-        <|> HDis  <$> (FP.reserved "distinct"   *> FP.symbolP) <*> sortP
-        <|> HDef  <$> (FP.reserved "define"     *> defineP)
-        <|> HMat  <$> (FP.reserved "match"      *> matchP)
-        <|> HDat  <$> (FP.reserved "datatype"   *> dataDeclP)
-        <|> HNum  <$> (FP.reserved "numeric"    *> numericDeclP)
+    body =  HQual <$> (reserved "qualif"     *> hQualifierP)
+        <|> HCstr <$> (reserved "constraint" *> hCstrP)
+        <|> HVar  <$> (reserved "var"        *> hVarP)
+        <|> HOpt  <$> (reserved "fixpoint"   *> stringLiteral)
+        <|> HCon  <$> (reserved "constant"   *> symbolP) <*> sortP
+        <|> HDis  <$> (reserved "distinct"   *> symbolP) <*> sortP
+        <|> HDef  <$> (reserved "define"     *> defineP)
+        <|> HMat  <$> (reserved "match"      *> matchP)
+        <|> HDat  <$> (reserved "datatype"   *> dataDeclP)
+        <|> HNum  <$> (reserved "numeric"    *> numericDeclP)
 
-numericDeclP :: FP.Parser F.Symbol
+numericDeclP :: FParser F.Symbol
 numericDeclP = do
-  x <- F.val <$> FP.locUpperIdP
-  FP.addNumTyCon x
+  x <- F.val <$> locUpperIdP
+  fAddNumTyCon x
   pure x
 
 -------------------------------------------------------------------------------
-hCstrP :: FP.Parser (H.Cstr H.Tag)
+hCstrP :: FParser (H.Cstr H.Tag)
 -------------------------------------------------------------------------------
-hCstrP =  try (FP.parens body)
+hCstrP =  try (parens body)
       <|> H.Head <$> hPredP                            <*> pure H.NoTag
   where
-    body =  H.CAnd <$> (FP.reserved "and"    *> many hCstrP)
-        <|> H.All  <$> (FP.reserved "forall" *> hBindP)  <*> hCstrP
-        <|> H.Any  <$> (FP.reserved "exists" *> hBindP)  <*> hCstrP
-        <|> H.Head <$> (FP.reserved "tag"    *> hPredP)  <*> (H.Tag <$> FP.stringLiteral)
+    body =  H.CAnd <$> (reserved "and"    *> many hCstrP)
+        <|> H.All  <$> (reserved "forall" *> hBindP)  <*> hCstrP
+        <|> H.Any  <$> (reserved "exists" *> hBindP)  <*> hCstrP
+        <|> H.Head <$> (reserved "tag"    *> hPredP)  <*> (H.Tag <$> stringLiteral)
 
-hBindP :: FP.Parser (H.Bind H.Tag)
-hBindP   = FP.parens $ do
+hBindP :: FParser (H.Bind H.Tag)
+hBindP   = parens $ do
   (x, t) <- symSortP
   H.Bind x t <$> hPredP <*> pure H.NoTag
 
 -------------------------------------------------------------------------------
-hPredP :: FP.Parser H.Pred
+hPredP :: FParser H.Pred
 -------------------------------------------------------------------------------
-hPredP = FP.parens body
+hPredP = parens body
   where
-    body =  H.Var  <$> kvSymP <*> some FP.symbolP
-        <|> H.PAnd <$> (FP.reserved "and" *> some hPredP)
+    body =  H.Var  <$> kvSymP <*> some symbolP
+        <|> H.PAnd <$> (reserved "and" *> some hPredP)
         <|> H.Reft <$> exprP
 
-kvSymP :: FP.Parser F.Symbol
-kvSymP = char '$' *> FP.symbolP
+kvSymP :: FParser F.Symbol
+kvSymP = char '$' *> symbolP
 
 -------------------------------------------------------------------------------
 -- | Qualifiers
 -------------------------------------------------------------------------------
-hQualifierP :: FP.Parser F.Qualifier
+hQualifierP :: FParser F.Qualifier
 hQualifierP = do
   pos    <- getSourcePos
-  n      <- FP.upperIdP
-  params <- FP.parens (some symSortP)
+  n      <- upperIdP
+  params <- parens (some symSortP)
   body   <- exprP
   return  $ F.mkQual n (mkParam <$> params) body pos
 
@@ -123,66 +222,66 @@ mkParam (x, t) = F.QP x F.PatNone t
 -- | Horn Variables
 -------------------------------------------------------------------------------
 
-hVarP :: FP.Parser (H.Var H.Tag)
-hVarP = H.HVar <$> kvSymP <*> FP.parens (some sortP) <*> pure H.NoTag
+hVarP :: FParser (H.Var H.Tag)
+hVarP = H.HVar <$> kvSymP <*> parens (some sortP) <*> pure H.NoTag
 
 -------------------------------------------------------------------------------
 -- | Helpers
 -------------------------------------------------------------------------------
-sPairP :: FP.Parser a -> FP.Parser b -> FP.Parser (a, b)
-sPairP aP bP = FP.parens ((,) <$> aP <*> bP)
+sPairP :: FParser a -> FParser b -> FParser (a, b)
+sPairP aP bP = parens ((,) <$> aP <*> bP)
 
-sMany :: FP.Parser a -> FP.Parser [a]
-sMany p = FP.parens (many p)
+sMany :: FParser a -> FParser [a]
+sMany p = parens (many p)
 
 
-symSortP :: FP.Parser (F.Symbol, F.Sort)
-symSortP = sPairP  FP.symbolP sortP
--- symSortP = FP.parens ((,) <$> FP.symbolP <*> sortP)
+symSortP :: FParser (F.Symbol, F.Sort)
+symSortP = sPairP  symbolP sortP
+-- symSortP = fParens ((,) <$> fSymbolP <*> sortP)
 
-dataDeclP :: FP.Parser F.DataDecl
+dataDeclP :: FParser F.DataDecl
 dataDeclP = do
-  (tc, n) <- sPairP FP.fTyConP FP.intP
+  (tc, n) <- sPairP fTyConP fIntP
   ctors   <- sMany dataCtorP
   pure     $ F.DDecl tc n ctors
 
-dataCtorP :: FP.Parser F.DataCtor
-dataCtorP = FP.parens (F.DCtor <$> FP.locSymbolP <*> sMany dataFieldP)
+dataCtorP :: FParser F.DataCtor
+dataCtorP = parens (F.DCtor <$> locSymbolP <*> sMany dataFieldP)
 
-dataFieldP :: FP.Parser F.DataField
-dataFieldP = uncurry F.DField <$> sPairP FP.locSymbolP sortP
+dataFieldP :: FParser F.DataField
+dataFieldP = uncurry F.DField <$> sPairP locSymbolP sortP
 
-bindsP :: FP.Parser [(F.Symbol, F.Sort)]
+bindsP :: FParser [(F.Symbol, F.Sort)]
 bindsP = sMany bindP
 
-bindP :: FP.Parser (F.Symbol, F.Sort)
-bindP = sPairP FP.symbolP sortP
+bindP :: FParser (F.Symbol, F.Sort)
+bindP = sPairP symbolP sortP
 
-defineP :: FP.Parser F.Equation
+defineP :: FParser F.Equation
 defineP = do
-  name   <- FP.symbolP
+  name   <- symbolP
   xts    <- bindsP
   s      <- sortP
   body   <- exprP
   return  $ F.mkEquation name xts body s
 
-matchP :: FP.Parser F.Rewrite
+matchP :: FParser F.Rewrite
 matchP = do
-  f    <- FP.symbolP
-  d:xs <- FP.parens (some FP.symbolP)
+  f    <- symbolP
+  d:xs <- parens (some symbolP)
   F.SMeasure f d xs <$> exprP
 
-sortP :: FP.Parser F.Sort
-sortP =  (string "@" >> (F.FVar <$> FP.parens FP.intP))
-     <|> (FP.reserved "Int"  >> return F.FInt)
-     <|> (FP.reserved "Real" >> return F.FReal)
-     <|> (FP.reserved "Frac" >> return F.FFrac)
-     <|> (FP.reserved "num" >> return  F.FNum)
-     <|> (F.fAppTC <$> FP.fTyConP <*> pure [])
-     <|> (F.FObj . F.symbol <$> FP.lowerIdP)
-     <|> try (FP.parens (FP.reserved "func" >> (mkFunc <$> FP.intP <*> sMany sortP <*> sortP)))
-     <|> try (FP.parens (FP.reserved "list" >> (mkList <$> sortP)))
-     <|> FP.parens (F.fAppTC <$> FP.fTyConP <*> many sortP)
+sortP :: FParser F.Sort
+sortP =  (string "@" >> (F.FVar <$> parens fIntP))
+     <|> (reserved "Int"  >> return F.FInt)
+     <|> (reserved "Real" >> return F.FReal)
+     <|> (reserved "Frac" >> return F.FFrac)
+     <|> (reserved "num" >> return  F.FNum)
+     <|> (F.fAppTC <$> fTyConP <*> pure [])
+     <|> (F.FObj . F.symbol <$> lowerIdP)
+     <|> try (parens (reserved "func" >> (mkFunc <$> fIntP <*> sMany sortP <*> sortP)))
+     <|> try (parens (reserved "list" >> (mkList <$> sortP)))
+     <|> parens (F.fAppTC <$> fTyConP <*> many sortP)
 
 mkFunc :: Int -> [F.Sort] -> F.Sort -> F.Sort
 mkFunc n ss s = F.mkFFunc n (ss ++ [s])
@@ -190,56 +289,60 @@ mkFunc n ss s = F.mkFFunc n (ss ++ [s])
 mkList :: F.Sort -> F.Sort
 mkList s = F.fAppTC F.listFTyCon [s]
 
-exprP :: FP.Parser F.Expr
+exprP :: FParser F.Expr
 exprP
-  =   FP.trueP
-  <|> FP.falseP
-  <|> (F.ESym <$> FP.symconstP)
-  <|> (F.ECon <$> FP.constantP)
-  <|> (F.EVar <$> FP.symbolP)
-  <|> FP.parens pExprP
+  =   fTrueP
+  <|> fFalseP
+  <|> (F.ESym <$> fSymconstP)
+  <|> (F.ECon <$> constantP)
+  <|> (F.EVar <$> symbolP)
+  <|> parens pExprP
 
-pExprP :: FP.Parser F.Expr
+pExprP :: FParser F.Expr
 pExprP
-  =   (FP.reserved   "if"     >> (F.EIte   <$> exprP <*> exprP <*> exprP))
-  <|> (FP.reserved   "cast"   >> (F.ECst   <$> exprP <*> sortP))
-  <|> (FP.reserved   "not"    >> (F.PNot   <$> exprP))
-  <|> (FP.reservedOp "=>"     >> (F.PImp   <$> exprP <*> exprP))
-  <|> (FP.reservedOp "<=>"    >> (F.PIff   <$> exprP <*> exprP))
-  <|> (FP.reserved   "and"    >> (F.PAnd   <$> many exprP))
-  <|> (FP.reserved   "or"     >> (F.POr    <$> many exprP))
-  <|> (FP.reserved   "forall" >> (F.PAll   <$> bindsP <*> exprP))
-  <|> (FP.reserved   "exists" >> (F.PExist <$> bindsP <*> exprP))
-  <|> (FP.reserved   "lam"    >> (F.ELam   <$> bindP <*> exprP))
-  <|> (FP.reserved   "coerce" >> (F.ECoerc <$> sortP <*> sortP <*> exprP))
-  <|> (FP.reserved   "ETApp"  >> (F.ETApp  <$> exprP <*> sortP))
-  <|> (FP.reserved   "ETAbs"  >> (F.ETAbs  <$> exprP <*> FP.symbolP))
+  =   (reserved   "if"     >> (F.EIte   <$> exprP <*> exprP <*> exprP))
+  <|> (reserved   "lit"    >> (mkLit    <$> stringLiteral <*> sortP))
+  <|> (reserved   "cast"   >> (F.ECst   <$> exprP <*> sortP))
+  <|> (reserved   "not"    >> (F.PNot   <$> exprP))
+  <|> (reservedOp "=>"     >> (F.PImp   <$> exprP <*> exprP))
+  <|> (reservedOp "<=>"    >> (F.PIff   <$> exprP <*> exprP))
+  <|> (reserved   "and"    >> (F.PAnd   <$> many exprP))
+  <|> (reserved   "or"     >> (F.POr    <$> many exprP))
+  <|> (reserved   "forall" >> (F.PAll   <$> bindsP <*> exprP))
+  <|> (reserved   "exists" >> (F.PExist <$> bindsP <*> exprP))
+  <|> (reserved   "lam"    >> (F.ELam   <$> bindP <*> exprP))
+  <|> (reserved   "coerce" >> (F.ECoerc <$> sortP <*> sortP <*> exprP))
+  <|> (reserved   "ETApp"  >> (F.ETApp  <$> exprP <*> sortP))
+  <|> (reserved   "ETAbs"  >> (F.ETAbs  <$> exprP <*> symbolP))
   <|> try (F.EBin  <$> bopP <*> exprP <*> exprP)
   <|> try (F.PAtom <$> brelP <*> exprP <*> exprP)
-  <|> try (FP.sym "-" >> (F.ENeg <$> exprP))
+  <|> try (sym "-" >> (F.ENeg <$> exprP))
   <|> (mkApp <$> some exprP)
+
+mkLit :: String -> F.Sort -> F.Expr
+mkLit l t = F.ECon (F.L (T.pack l) t)
 
 mkApp :: [F.Expr] -> F.Expr
 mkApp (e:es) = F.eApps e es
 mkApp _      = error "impossible"
 
-bopP :: FP.Parser F.Bop
+bopP :: FParser F.Bop
 bopP
-  =  (FP.sym "+" >> return F.Plus)
- <|> (FP.sym "-" >> return F.Minus)
- <|> (FP.sym "*" >> return F.Times)
- <|> (FP.sym "/" >> return F.Div)
- <|> (FP.sym "mod" >> return F.Div)
- <|> (FP.sym "*." >> return F.RTimes)
- <|> (FP.sym "/." >> return F.RDiv)
+  =  (sym "+"   >> return F.Plus)
+ <|> (sym "-"   >> return F.Minus)
+ <|> (sym "*"   >> return F.Times)
+ <|> (sym "/"   >> return F.Div)
+ <|> (sym "mod" >> return F.Mod)
+ <|> (sym "*."  >> return F.RTimes)
+ <|> (sym "/."  >> return F.RDiv)
 
-brelP :: FP.Parser F.Brel
+brelP :: FParser F.Brel
 brelP
-  =  (FP.sym "="  >> return F.Eq)
- <|> (FP.sym "!=" >> return F.Ne)
- <|> (FP.sym "~~" >> return F.Ueq)
- <|> (FP.sym "!~" >> return F.Une)
- <|> (FP.sym ">=" >> return F.Ge)
- <|> (FP.sym ">"  >> return F.Gt)
- <|> (FP.sym "<=" >> return F.Le)
- <|> (FP.sym "<"  >> return F.Lt)
+  =  (sym "="  >> return F.Eq)
+ <|> (sym "!=" >> return F.Ne)
+ <|> (sym "~~" >> return F.Ueq)
+ <|> (sym "!~" >> return F.Une)
+ <|> (sym ">=" >> return F.Ge)
+ <|> (sym ">"  >> return F.Gt)
+ <|> (sym "<=" >> return F.Le)
+ <|> (sym "<"  >> return F.Lt)
