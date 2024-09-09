@@ -91,7 +91,7 @@ import           System.IO.Unsafe (unsafePerformIO)
 
 -- If set to 'True', enable precise logging via CallStacks.
 debugLogs :: Bool
-debugLogs = True
+debugLogs = False
 
 traced :: HasCallStack => (HasCallStack => String) -> String
 traced str =
@@ -164,14 +164,8 @@ instance Elaborate Equation where
       env' = insertsSymEnv env (eqArgs eq)
 
 instance Elaborate Expr where
-  elaborate msg env e = unsafePerformIO $ do -- traceM $ "elaborate: " ++ showpp e
-    putStrLn "-----------------"
-    putStrLn ("before: " ++ show e)
-    let e' = elabFSetMap e
-    putStrLn ("after: " ++ show e')
-
-    return $ elabNumeric $ elabApply env' $ elabExpr msg env' e'
-  --elaborate msg env = elabNumeric . elabApply env . elabExpr msg env . elabFSetBag
+  elaborate msg env =
+    elabNumeric . elabApply env' . elabExpr msg env' . elabFSetMap
       where
         env' = coerceEnv env
 
@@ -535,23 +529,19 @@ addEnv f bs x
 elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
 elab f@(_, g) e@(EBin o e1 e2) = do
-  (e1', s1) <- tracepp "ELAB-EBIN1" <$> elab f e1
+  (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s <- checkOpTy g e s1 s2
   return (EBin o (eCst e1' s1) (eCst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
-  let _ = tracepp "ELAB-EAPPXa" e1
-  let _ = tracepp "ELAB-EAPPXb" e2
-  (e1', _, e2', s2, s) <- tracepp "ELAB-EAPPXc" <$> elabEApp f e1 e2
+  (e1', _, e2', s2, s) <- notracepp "ELAB-EAPPXc" <$> elabEApp f e1 e2
   let e = eAppC s e1' (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
 elab f (EApp e1 e2) = do
-  let _ = tracepp "ELAB-EAPPa" e1
-  let _ = tracepp "ELAB-EAPPb" e2
-  (e1', s1, e2', s2, s) <- tracepp "ELAB-EAPPc" <$> elabEApp f e1 e2
+  (e1', s1, e2', s2, s) <- notracepp "ELAB-EAPPc" <$> elabEApp f e1 e2
   let e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
@@ -575,7 +565,7 @@ elab f (PGrad k su i e) =
   (, boolSort) . PGrad k su i . fst <$> elab f e
 
 elab (_, f) e@(EVar x) =
-  do cs <- tracepp "ELAB-EVAR" <$> checkSym f x
+  do cs <- notracepp "ELAB-EVAR" <$> checkSym f x
      pure (e, cs)
 
 elab f (ENeg e) = do
@@ -624,13 +614,13 @@ elab f (POr ps) = do
   return (POr (fst <$> ps'), boolSort)
 
 elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
-  t1        <- tracepp "ELAB-PATOM1" <$> checkExpr g e1
-  t2        <- tracepp "ELAB-PATOM2" <$> checkExpr g e2
+  t1        <- checkExpr g e1
+  t2        <- checkExpr g e2
   (t1',t2') <- unite g e t1 t2 `withError` errElabExpr e
-  e1'       <- tracepp "ELAB-PATOM3" <$> elabAs f t1' e1
-  e2'       <- tracepp "ELAB-PATOM4" <$> elabAs f t2' e2
-  e1''      <- tracepp "ELAB-PATOM5" <$> eCstAtom f e1' t1'
-  e2''      <- tracepp "ELAB-PATOM6" <$> eCstAtom f e2' t2'
+  e1'       <- elabAs f t1' e1
+  e2'       <- elabAs f t2' e2
+  e1''      <- eCstAtom f e1' t1'
+  e2''      <- eCstAtom f e2' t2'
   return (PAtom eq e1'' e2'' , boolSort)
 
 elab f (PAtom r e1 e2)
@@ -709,17 +699,17 @@ elabAppAs env@(_, f) t g e = do
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1)     <- tracepp ("elabEApp: e1 = " ++ show e1) <$> elab f e1
-  (e2', s2)     <- tracepp ("elabEApp: e2 = " ++ show e2) <$> elab f e2
+  (e1', s1)     <- notracepp ("elabEApp: e1 = " ++ show e1) <$> elab f e1
+  (e2', s2)     <- notracepp ("elabEApp: e2 = " ++ show e2) <$> elab f e2
   (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
   return           (e1'', s1', e2'', s2', s)
 
 elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
-  let e            = tracepp ("elabAppSort s1 = " ++ show s1) <$> Just (EApp e1 e2)
+  let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
-  let sIn'         = tracepp ("elabAppSort sIn = " ++ show sIn) $ coerceSetMapToArray sIn
-  let s2'          = tracepp ("elabAppSort s2 = " ++ show s2) $ coerceSetMapToArray s2
+  let sIn'         = {- coerceSetMapToArray -} sIn
+  let s2'          = {- coerceSetMapToArray -} s2
   su'             <- unify1 f e su sIn' s2'
   return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
@@ -1047,8 +1037,8 @@ checkNeg f e = do
 
 checkOp :: Env -> Expr -> Bop -> Expr -> CheckM Sort
 checkOp f e1 o e2
-  = do t1 <- tracepp "CHECKOP1" <$> checkExpr f e1
-       t2 <- tracepp "CHECKOP2" <$> checkExpr f e2
+  = do t1 <- checkExpr f e1
+       t2 <- checkExpr f e2
        checkOpTy f (EBin o e1 e2) t1 t2
 
 
@@ -1081,7 +1071,7 @@ checkFractional _ s
 
 checkNumeric :: Env -> Sort -> CheckM ()
 checkNumeric f s@(FObj l)
-  = do t <- tracepp "checkNumeric" <$> checkSym f l
+  = do t <- checkSym f l
        unless (t `elem` [FNum, FFrac, intSort, FInt]) (throwErrorAt $ errNonNumeric s)
 checkNumeric _ s
   = unless (isNumeric s) (throwErrorAt $ errNonNumeric s)
@@ -1280,12 +1270,10 @@ unify1 _ _ !θ FInt  FReal = return θ
 unify1 _ _ !θ FReal FInt  = return θ
 
 unify1 f e !θ !t FInt = do
-  let _ = tracepp "unify1FIntL" e
   checkNumeric f t `withError` errUnify e t FInt
   return θ
 
 unify1 f e !θ FInt !t = do
-  let _ = tracepp ("unify1FIntR " ++ show e) t
   checkNumeric f t `withError` errUnify e FInt t
   return θ
 

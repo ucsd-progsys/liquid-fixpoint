@@ -202,7 +202,7 @@ refineC
 refineC bindingsInSmt _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = S.lhsPred bindingsInSmt be s c
+                   let lhs = S.lhsPred bindingsInSmt (F.coerceBindEnv be) s c
                    kqs    <- filterValid (cstrSpan c) lhs rhs
                    return  $ S.update s ks kqs
   where
@@ -311,7 +311,7 @@ isUnsat bindingsInSmt s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
   be    <- getBinds
-  let lp = S.lhsPred bindingsInSmt (F.coerceBindEnv be) s c
+  let lp = {- tracepp "lp" $ -} S.lhsPred bindingsInSmt (F.coerceBindEnv be) s c
   let rp = rhsPred        c
   res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
