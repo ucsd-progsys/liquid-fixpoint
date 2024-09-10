@@ -146,6 +146,8 @@ instEnv cfg info cs restSolver ctx = do
               , evNewEqualities = mempty
               , evSMTCache = mempty
               , evFuel = defFuelCount cfg
+              , unfoldedDefinitions = mempty
+              , extensionalityFlag = extensionality cfg
               , explored = Just et
               , restSolver = restSolver
               , restOCA = restOrd
@@ -458,6 +460,8 @@ data EvalEnv = EvalEnv
                                     -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
+  , unfoldedDefinitions :: S.HashSet Symbol -- ^ Functions that we have already unfolded
+  , extensionalityFlag :: Bool -- ^ True if the extensionality flag is turned on
 
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
@@ -784,9 +788,10 @@ evalApp γ ctx e0 es et
   , Just eq <- Map.lookup f (knAms γ)
   , length (eqArgs eq) <= length es
   = do
+       alreadyUnfolded <- isAlreadyUnfolded f
        env  <- gets (seSort . evEnv)
        okFuel <- checkFuel f
-       if okFuel && et /= FuncNormal
+       if okFuel && et /= FuncNormal && not alreadyUnfolded
          then do
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
@@ -796,6 +801,12 @@ evalApp γ ctx e0 es et
                     undecidedGuards = case e' of
                       EIte{} -> True
                       _ -> False
+
+                ext <- isExtensionalityOn
+                when ext $ do
+                  setUnfolded f
+                  _ <- eval γ ctx et e3'
+                  unsetUnfolded f
 
                 if undecidedGuards
                   then do
@@ -854,6 +865,27 @@ evalApp γ ctx e0 es _et
        modify $ \st ->
          st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs' }
        return (Nothing, noExpand)
+evalApp γ ctx e0 es et
+  | ELam (argName, _) body <- dropECst e0
+  , lambdaArg:remArgs <- es
+  = do
+      isFuelOk <- checkFuel argName
+      ext <- isExtensionalityOn
+      if isFuelOk && ext 
+        then do
+          useFuel argName
+          let argSubst = mkSubst [(argName, lambdaArg)]
+          let body' = subst argSubst body
+          (body'', _) <- evalIte γ ctx et body'
+          let simpBody = simplify γ ctx (eApps body'' remArgs)
+          -- This is still the same thing I'm doing in the application of functions
+          (body''', fe) <- eval γ ctx et simpBody
+          modify $ \st ->
+            st { evNewEqualities = S.insert (eApps e0 es, body''') (evNewEqualities st) }
+          return (Just body'', fe)
+        else do
+          return (Nothing, noExpand)
+
 
 evalApp _ _ _e _es _
   = return (Nothing, noExpand)
@@ -1206,6 +1238,25 @@ useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
   where
     k             = M.lookupDefault 0 f m
     m             = fcMap fc
+
+setUnfolded :: Symbol -> EvalST ()
+setUnfolded sym = modify 
+  (\st -> st { unfoldedDefinitions = S.insert sym (unfoldedDefinitions st)})
+
+isAlreadyUnfolded :: Symbol -> EvalST Bool
+isAlreadyUnfolded sym = do
+    st <- get
+    return $ S.member sym $ unfoldedDefinitions st
+
+isExtensionalityOn :: EvalST Bool
+isExtensionalityOn = do
+    st <- get
+    return $ extensionalityFlag st
+
+
+unsetUnfolded :: Symbol -> EvalST ()
+unsetUnfolded sym = modify 
+  (\st -> st { unfoldedDefinitions = S.delete sym (unfoldedDefinitions st)})
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.
