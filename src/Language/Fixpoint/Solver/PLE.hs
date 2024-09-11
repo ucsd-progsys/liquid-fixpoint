@@ -1230,9 +1230,7 @@ useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
     m             = fcMap fc
 
 isExtensionalityOn :: EvalST Bool
-isExtensionalityOn = do
-    st <- get
-    return $ extensionalityFlag st
+isExtensionalityOn = gets extensionalityFlag
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.
