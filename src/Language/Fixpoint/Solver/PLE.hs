@@ -146,7 +146,6 @@ instEnv cfg info cs restSolver ctx = do
               , evNewEqualities = mempty
               , evSMTCache = mempty
               , evFuel = defFuelCount cfg
-              , unfoldedDefinitions = mempty
               , extensionalityFlag = extensionality cfg
               , explored = Just et
               , restSolver = restSolver
@@ -460,7 +459,6 @@ data EvalEnv = EvalEnv
                                     -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
-  , unfoldedDefinitions :: S.HashSet Symbol -- ^ Functions that we have already unfolded
   , extensionalityFlag :: Bool -- ^ True if the extensionality flag is turned on
 
   -- REST parameters
@@ -788,10 +786,9 @@ evalApp γ ctx e0 es et
   , Just eq <- Map.lookup f (knAms γ)
   , length (eqArgs eq) <= length es
   = do
-       alreadyUnfolded <- isAlreadyUnfolded f
        env  <- gets (seSort . evEnv)
        okFuel <- checkFuel f
-       if okFuel && et /= FuncNormal && not alreadyUnfolded
+       if okFuel && et /= FuncNormal
          then do
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
                     newE = substEq env eq es1
@@ -801,12 +798,6 @@ evalApp γ ctx e0 es et
                     undecidedGuards = case e' of
                       EIte{} -> True
                       _ -> False
-
-                ext <- isExtensionalityOn
-                when ext $ do
-                  setUnfolded f
-                  _ <- eval γ ctx et e3'
-                  unsetUnfolded f
 
                 if undecidedGuards
                   then do
@@ -825,7 +816,7 @@ evalApp γ ctx e0 es et
                         { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
                         , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
                         }
-                    return (Just e2', fe)
+                    return (Just $ eApps e2' es2, fe)
          else return (Nothing, noExpand)
   where
     -- At the time of writing, any function application wrapping an
@@ -1239,24 +1230,10 @@ useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
     k             = M.lookupDefault 0 f m
     m             = fcMap fc
 
-setUnfolded :: Symbol -> EvalST ()
-setUnfolded sym = modify 
-  (\st -> st { unfoldedDefinitions = S.insert sym (unfoldedDefinitions st)})
-
-isAlreadyUnfolded :: Symbol -> EvalST Bool
-isAlreadyUnfolded sym = do
-    st <- get
-    return $ S.member sym $ unfoldedDefinitions st
-
 isExtensionalityOn :: EvalST Bool
 isExtensionalityOn = do
     st <- get
     return $ extensionalityFlag st
-
-
-unsetUnfolded :: Symbol -> EvalST ()
-unsetUnfolded sym = modify 
-  (\st -> st { unfoldedDefinitions = S.delete sym (unfoldedDefinitions st)})
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.
