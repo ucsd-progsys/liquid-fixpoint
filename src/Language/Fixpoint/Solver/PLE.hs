@@ -861,15 +861,14 @@ evalApp γ ctx e0 es et
   , lambdaArg:remArgs <- es
   = do
       isFuelOk <- checkFuel argName
-      ext <- isExtensionalityOn
-      if isFuelOk && ext 
+      isExtensionalityOn <- gets extensionalityFlag
+      if isFuelOk && isExtensionalityOn
         then do
           useFuel argName
           let argSubst = mkSubst [(argName, lambdaArg)]
           let body' = subst argSubst body
           (body'', fe) <- evalIte γ ctx et body'
           let simpBody = simplify γ ctx (eApps body'' remArgs)
-          -- This is still the same thing I'm doing in the application of functions
           modify $ \st ->
             st { evNewEqualities = S.insert (eApps e0 es, simpBody) (evNewEqualities st) }
           return (Just $ eApps body'' remArgs, fe)
@@ -1228,9 +1227,6 @@ useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
   where
     k             = M.lookupDefault 0 f m
     m             = fcMap fc
-
-isExtensionalityOn :: EvalST Bool
-isExtensionalityOn = gets extensionalityFlag
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.
