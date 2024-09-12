@@ -1,0 +1,19 @@
+fixpoint "--rewrite"
+fixpoint "--extensionality"
+
+constant f : (func(0 , [int; int]))
+define f (x : int) : int = {(13)}
+
+constant g : (func(0, [int; int; int]))
+define g (a : int,  b : int) : int = {(f b)}
+
+constant k : (func(0, [int; int; int]))
+define k (u : int,  m : int) : int = {(13)}
+
+expand [1 : True; 2 : True]
+
+constraint:
+  env []
+  lhs {VV1 : Tuple | true }
+  rhs {VV2 : Tuple | (g = k) }
+  id 1 tag []
