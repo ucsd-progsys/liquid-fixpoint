@@ -1,0 +1,14 @@
+fixpoint "--rewrite"
+fixpoint "--extensionality"
+fixpoint "--allowho"
+
+constant f : (func(0 , [int; int]))
+define f (x : int) : int = {(13)}
+
+expand [1 : True]
+
+constraint:
+  env []
+  lhs {VV1 : Tuple | true }
+  rhs {VV2 : Tuple | (f = \y : int -> 13) }
+  id 1 tag []

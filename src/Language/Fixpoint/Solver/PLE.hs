@@ -146,6 +146,7 @@ instEnv cfg info cs restSolver ctx = do
               , evNewEqualities = mempty
               , evSMTCache = mempty
               , evFuel = defFuelCount cfg
+              , extensionalityFlag = extensionality cfg
               , explored = Just et
               , restSolver = restSolver
               , restOCA = restOrd
@@ -458,6 +459,7 @@ data EvalEnv = EvalEnv
                                     -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
+  , extensionalityFlag :: Bool -- ^ True if the extensionality flag is turned on
 
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
@@ -814,7 +816,7 @@ evalApp γ ctx e0 es et
                         { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
                         , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
                         }
-                    return (Just e2', fe)
+                    return (Just $ eApps e2' es2, fe)
          else return (Nothing, noExpand)
   where
     -- At the time of writing, any function application wrapping an
@@ -854,6 +856,25 @@ evalApp γ ctx e0 es _et
        modify $ \st ->
          st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs' }
        return (Nothing, noExpand)
+evalApp γ ctx e0 es et
+  | ELam (argName, _) body <- dropECst e0
+  , lambdaArg:remArgs <- es
+  = do
+      isFuelOk <- checkFuel argName
+      isExtensionalityOn <- gets extensionalityFlag
+      if isFuelOk && isExtensionalityOn
+        then do
+          useFuel argName
+          let argSubst = mkSubst [(argName, lambdaArg)]
+          let body' = subst argSubst body
+          (body'', fe) <- evalIte γ ctx et body'
+          let simpBody = simplify γ ctx (eApps body'' remArgs)
+          modify $ \st ->
+            st { evNewEqualities = S.insert (eApps e0 es, simpBody) (evNewEqualities st) }
+          return (Just $ eApps body'' remArgs, fe)
+        else do
+          return (Nothing, noExpand)
+
 
 evalApp _ _ _e _es _
   = return (Nothing, noExpand)
