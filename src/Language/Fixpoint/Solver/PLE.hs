@@ -50,7 +50,7 @@ import Language.REST.ExploredTerms as ExploredTerms
 import Language.REST.RuntimeTerm as RT
 import Language.REST.SMT (withZ3, SolverHandle)
 
-import           Control.Monad (filterM, foldM, forM_, when)
+import           Control.Monad (filterM, foldM, forM_, when, replicateM)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Bifunctor (second)
@@ -64,6 +64,8 @@ import qualified Data.Map as Map
 import qualified Data.Maybe           as Mb
 import qualified Data.Set as Set
 import           Text.PrettyPrint.HughesPJ.Compat
+
+import Debug.Trace
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -147,6 +149,8 @@ instEnv cfg info cs restSolver ctx = do
               , evSMTCache = mempty
               , evFuel = defFuelCount cfg
               , extensionalityFlag = extensionality cfg
+              , freshEtaNames = 0
+              , hoFlag = FC.allowHO cfg
               , explored = Just et
               , restSolver = restSolver
               , restOCA = restOrd
@@ -460,6 +464,12 @@ data EvalEnv = EvalEnv
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
   , extensionalityFlag :: Bool -- ^ True if the extensionality flag is turned on
+  
+  -- Eta expansion feature
+  , freshEtaNames :: Int -- ^ Keeps track of how many names we generated to perform eta 
+                         --   expansion, we use this to generate always fresh names
+  , hoFlag        :: Bool -- ^ True if the allowho flag is turned on, needed for the eta
+                          -- expansion reasoning as its going to generate ho constraints
 
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
@@ -495,7 +505,7 @@ getAutoRws γ ctx =
 -- way.
 evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
-  | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW e
+  | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW False e
 evalOne γ ctx _ e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
@@ -564,8 +574,8 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 -- Also adds to the monad state all the unfolding equalities that have been
 -- discovered as necessary.
 --
-eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
-eval γ ctx et = go
+eval :: Knowledge -> ICtx -> EvalType -> Bool -> Expr -> EvalST (Expr, FinalExpand)
+eval γ ctx et isLHSApp = go
   where
     go (ELam (x,s) e)   = evalELam γ ctx et (x, s) e
     go e@EIte{}         = evalIte γ ctx et e
@@ -576,24 +586,26 @@ eval γ ctx et = go
           -- Just evaluate the arguments first, to give rewriting a chance to step in
           -- if necessary
           do
-            (es', finalExpand) <- feSeq <$> mapM (eval γ ctx et) es
+            (es', finalExpand) <- feSeq <$> mapM (eval γ ctx et False) es
             if es /= es'
               then return (eApps f es', finalExpand)
               else do
-                (f', fe)  <- eval γ ctx et f
+                (f', fe)  <- eval γ ctx et True f
                 (me', fe') <- evalApp γ ctx f' es et
                 return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
        (f, es) ->
           do
-            (f':es', fe) <- feSeq <$> mapM (eval γ ctx et) (f:es)
+            (f', fe1) <- eval γ ctx et True f
+            (es', fe2) <- feSeq <$> mapM (eval γ ctx et False) es
+            let fe = fe1 <|> fe2
             (me', fe') <- evalApp γ ctx f' es' et
             return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
 
     go (PAtom r e1 e2) = binOp (PAtom r) e1 e2
-    go (ENeg e)         = do (e', fe)  <- eval γ ctx et e
+    go (ENeg e)         = do (e', fe)  <- go e
                              return (ENeg e', fe)
-    go (EBin o e1 e2)   = do (e1', fe1) <- eval γ ctx et e1
-                             (e2', fe2) <- eval γ ctx et e2
+    go (EBin o e1 e2)   = do (e1', fe1) <- go e1
+                             (e2', fe2) <- go e2
                              return (EBin o e1' e2', fe1 <|> fe2)
     go (ETApp e t)      = mapFE (`ETApp` t) <$> go e
     go (ETAbs e s)      = mapFE (`ETAbs` s) <$> go e
@@ -603,9 +615,13 @@ eval γ ctx et = go
     go (PAnd es)        = efAll PAnd (go `traverse` es)
     go (POr es)         = efAll POr (go `traverse` es)
     go e | EVar _ <- dropECst e = do
-      (me', fe) <- evalApp γ ctx e [] et
-      return (Mb.fromMaybe e me', fe)
-    go (ECst e t)       = do (e', fe) <- eval γ ctx et e
+                                    if not isLHSApp then do
+                                    (me', fe) <- evalApp γ ctx e [] et
+                                    return (Mb.fromMaybe e me', fe)
+                                    else do
+                                    return (e, noExpand)
+    go (ECst e t)       = do 
+                             (e', fe) <- go e
                              return (ECst e' t, fe)
     go e                = return (e, noExpand)
 
@@ -625,7 +641,7 @@ evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (E
 evalELam γ ctx et (x, s) e = do
     oldPendingUnfoldings <- gets evPendingUnfoldings
     oldEqs <- gets evNewEqualities
-    (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
+    (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et False e
     let e2' = simplify γ ctx e'
         elam = ELam (x, s) e
     -- Discard the old equalities which miss the lambda binding
@@ -633,7 +649,7 @@ evalELam γ ctx et (x, s) e = do
       { evPendingUnfoldings = oldPendingUnfoldings
       , evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs
       }
-    return (elam, fe)
+    return (ELam (x, s) e2', fe)
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
@@ -688,10 +704,10 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
       -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
       (e', FE fe) <- do
-        r@(ec, _) <- eval γ ctx FuncNormal exprs
+        r@(ec, _) <- eval γ ctx FuncNormal False exprs
         if ec /= exprs
           then return r
-          else eval γ ctx RWNormal exprs
+          else eval γ ctx RWNormal False exprs
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map (\(_, e, _) -> e) rws
@@ -712,7 +728,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
       acc'' <- if evalIsNewExpr
         then if fe && any isRW (path rp)
-          then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW e'
+          then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW False e'
           else evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' (rpEval newEqualities e')
         else return acc'
 
@@ -816,6 +832,7 @@ evalApp γ ctx e0 es et
                         { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
                         , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
                         }
+                      
                     return (Just $ eApps e2' es2, fe)
          else return (Nothing, noExpand)
   where
@@ -830,6 +847,47 @@ evalApp γ ctx e0 es et
       , f == "Language.Haskell.Liquid.ProofCombinators.pleUnfold"
       = arg
       | otherwise = e
+evalApp γ _ctx e0 es _et
+  | EVar f <- dropECst e0
+  , Just eq <- Map.lookup f (knAms γ)
+  = do
+    isHOAllowed <- gets hoFlag
+    if isHOAllowed then do
+    let expectedArgs = eqArgs eq
+    let nProvidedArgs = length es
+    let nArgsMissing = length expectedArgs - nProvidedArgs
+
+    -- Fresh names for the eta expansion
+    etaNames <- makeFreshEtaNames nArgsMissing
+    -- For some reason the application is expected to be already 
+    -- monomorphized, so we can't extract the sorts directly form
+    -- the equation
+    let etaArgsMono = drop nProvidedArgs <$> extractMonoSign e0
+    case etaArgsMono of
+        -- This case is pretty sus as we shouldnt generate funcitons that do not
+        -- have a type annotation
+        Nothing -> do
+            traceShowM ("I'm failing on" :: String, f)
+            pure (Nothing, noExpand)
+        Just etaArgsType -> do
+          let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
+          let fullBody = eApps e0 (es ++ etaVars)
+          let etaExpandedTerm = wrap fullBody (zip etaNames etaArgsType)
+
+          modify $ \st ->
+            st { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
+
+          return (Just etaExpandedTerm, expand)
+    else do
+    pure (Nothing, noExpand)
+  where
+    extractMonoSign :: Expr -> Maybe [Sort]
+    extractMonoSign (ECst _ sort) = Just $ flatten sort
+    extractMonoSign _ = Nothing
+
+    flatten :: Sort -> [Sort]
+    flatten (FFunc t ts) = t : flatten ts
+    flatten t = [t]
 
 evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
@@ -862,8 +920,10 @@ evalApp γ ctx e0 es et
   = do
       isFuelOk <- checkFuel argName
       isExtensionalityOn <- gets extensionalityFlag
-      if isFuelOk && isExtensionalityOn
+      isHOOn <- gets hoFlag
+      if isFuelOk && (isExtensionalityOn || isHOOn)
         then do
+          traceShowM ("App lambda with argname" :: String, argName)
           useFuel argName
           let argSubst = mkSubst [(argName, lambdaArg)]
           let body' = subst argSubst body
@@ -879,11 +939,15 @@ evalApp γ ctx e0 es et
 evalApp _ _ _e _es _
   = return (Nothing, noExpand)
 
+
+wrap :: Expr -> [(Symbol, Sort)] -> Expr
+wrap subject binds = foldr (\bind acc -> ELam bind acc) subject binds
+
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
 evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
 evalIte γ ctx et (EIte i e1 e2) = do
-      (b, _) <- eval γ ctx et i
+      (b, _) <- eval γ ctx et False i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
       case b' of
         Just True -> evalIte γ ctx et e1
@@ -1227,6 +1291,14 @@ useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
   where
     k             = M.lookupDefault 0 f m
     m             = fcMap fc
+
+makeFreshEtaNames :: Int -> EvalST [Symbol]
+makeFreshEtaNames n = replicateM n makeFreshName
+  where 
+    makeFreshName = do
+      ident <- gets freshEtaNames
+      modify $ \st -> st { freshEtaNames = 1 + freshEtaNames st }
+      pure $ symbol ("eta$" ++ show ident)
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.
