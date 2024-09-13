@@ -16,7 +16,7 @@ askSMT :: Config -> Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx xs e
 --   | isContraPred e  = return False
   | isTautoPred  e     = return True
-  | null (kvarsExpr e) = checkValidWithContext ctx [] PTrue e'
+  | null (kvarsExpr e) = checkValidWithContext ctx xs PTrue e'
   | otherwise          = return False
   where
     e' = toSMT "askSMT" cfg ctx xs e
