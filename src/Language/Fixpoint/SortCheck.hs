@@ -165,7 +165,7 @@ instance Elaborate Equation where
 
 instance Elaborate Expr where
   elaborate msg env =
-    elabNumeric . elabApply env' . elabExpr msg env' . elabFSet
+    elabNumeric . elabApply env' . elabExpr msg env' . elabFSetMap
       where
         env' = coerceEnv env
 
@@ -210,44 +210,56 @@ instance (Loc a) => Elaborate (SimpC a) where
     where msg'        = atLoc c (val msg)
 
 
----------------------------------------------------------------------------------
--- | 'elabFSet' replaces all finset theory operations with array-based encodings.
----------------------------------------------------------------------------------
-elabFSet :: Expr -> Expr
-elabFSet (EApp h@(EVar f) e)
-  | f == Thy.setEmpty      = EApp (EVar Thy.arrConst) PFalse
-  | f == Thy.setEmp        = PAtom Eq (EApp (EVar Thy.arrConst) PFalse) (elabFSet e)
-  | f == Thy.setSng        = EApp (EApp (EApp (EVar Thy.arrStore) (EApp (EVar Thy.arrConst) PFalse)) (elabFSet e)) PTrue
-  | f == Thy.setCom        = EApp (EVar Thy.arrMapNot) (elabFSet e)
-  | otherwise              = EApp (elabFSet h) (elabFSet e)
-elabFSet (EApp (EApp h@(EVar f) e1) e2)
-  | f == Thy.setMem        = EApp (EApp (EVar Thy.arrSelect) (elabFSet e2)) (elabFSet e1)
-  | f == Thy.setCup        = EApp (EApp (EVar Thy.arrMapOr) (elabFSet e1)) (elabFSet e2)
-  | f == Thy.setCap        = EApp (EApp (EVar Thy.arrMapAnd) (elabFSet e1)) (elabFSet e2)
-  | f == Thy.setAdd        = EApp (EApp (EApp (EVar Thy.arrStore) (elabFSet e1)) (elabFSet e2)) PTrue
+--------------------------------------------------------------------------------------------------
+-- | 'elabFSetMap' replaces all finset/finmap/finbag theory operations with array-based encodings.
+--------------------------------------------------------------------------------------------------
+elabFSetMap :: Expr -> Expr
+elabFSetMap (EApp h@(EVar f) e)
+  | f == Thy.setEmpty      = EApp (EVar Thy.arrConstS) PFalse
+  | f == Thy.setEmp        = PAtom Eq (EApp (EVar Thy.arrConstS) PFalse) (elabFSetMap e)
+  | f == Thy.setSng        = EApp (EApp (EApp (EVar Thy.arrStoreS) (EApp (EVar Thy.arrConstS) PFalse)) (elabFSetMap e)) PTrue
+  | f == Thy.setCom        = EApp (EVar Thy.arrMapNotS) (elabFSetMap e)
+  | f == Thy.mapDef        = EApp (EVar Thy.arrConstM) (elabFSetMap e)
+  | f == Thy.bagEmpty      = EApp (EVar Thy.arrConstB) (ECon (I 0))
+  | otherwise              = EApp (elabFSetMap h) (elabFSetMap e)
+elabFSetMap (EApp (EApp h@(EVar f) e1) e2)
+  | f == Thy.setMem        = EApp (EApp (EVar Thy.arrSelectS) (elabFSetMap e2)) (elabFSetMap e1)
+  | f == Thy.setCup        = EApp (EApp (EVar Thy.arrMapOrS) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.setCap        = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.setAdd        = EApp (EApp (EApp (EVar Thy.arrStoreS) (elabFSetMap e1)) (elabFSetMap e2)) PTrue
   -- A \ B == A /\ ~B == ~(A => B)
-  | f == Thy.setDif        = EApp (EApp (EVar Thy.arrMapAnd) (elabFSet e1)) (EApp (EVar Thy.arrMapNot) (elabFSet e2))
-  | f == Thy.setSub        = PAtom Eq (EApp (EVar Thy.arrConst) PTrue) (EApp (EApp (EVar Thy.arrMapImp) (elabFSet e1)) (elabFSet e2))
-  | otherwise              = EApp (EApp (elabFSet h) (elabFSet e1)) (elabFSet e2)
-elabFSet (EApp e1 e2)      = EApp (elabFSet e1) (elabFSet e2)
-elabFSet (ENeg e)          = ENeg (elabFSet e)
-elabFSet (EBin b e1 e2)    = EBin b (elabFSet e1) (elabFSet e2)
-elabFSet (EIte e1 e2 e3)   = EIte (elabFSet e1) (elabFSet e2) (elabFSet e3)
-elabFSet (ECst e t)        = ECst (elabFSet e) t
-elabFSet (ELam b e)        = ELam b (elabFSet e)
-elabFSet (ETApp e t)       = ETApp (elabFSet e) t
-elabFSet (ETAbs e t)       = ETAbs (elabFSet e) t
-elabFSet (PAnd es)         = PAnd (elabFSet <$> es)
-elabFSet (POr es)          = POr (elabFSet <$> es)
-elabFSet (PNot e)          = PNot (elabFSet e)
-elabFSet (PImp e1 e2)      = PImp (elabFSet e1) (elabFSet e2)
-elabFSet (PIff e1 e2)      = PIff (elabFSet e1) (elabFSet e2)
-elabFSet (PAtom r e1 e2)   = PAtom r (elabFSet e1) (elabFSet e2)
-elabFSet (PAll   bs e)     = PAll bs (elabFSet e)
-elabFSet (PExist bs e)     = PExist bs (elabFSet e)
-elabFSet (PGrad  k su i e) = PGrad k su i (elabFSet e)
-elabFSet (ECoerc a t e)    = ECoerc a t (elabFSet e)
-elabFSet e                 = e
+  | f == Thy.setDif        = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetMap e1)) (EApp (EVar Thy.arrMapNotS) (elabFSetMap e2))
+  | f == Thy.setSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapImpS) (elabFSetMap e1)) (elabFSetMap e2))
+  | f == Thy.mapSel        = EApp (EApp (EVar Thy.arrSelectM) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.bagCount      = EApp (EApp (EVar Thy.arrSelectB) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.bagSng        = EApp (EApp (EApp (EVar Thy.arrStoreB) (EApp (EVar Thy.arrConstB) (ECon (I 0)))) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.bagCup        = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.bagSub        = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetMap e1)) (elabFSetMap e2))
+  | f == Thy.bagMax        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapGtB) (elabFSetMap e1)) (elabFSetMap e2))) (elabFSetMap e1)) (elabFSetMap e2)
+  | f == Thy.bagMin        = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetMap e1)) (elabFSetMap e2))) (elabFSetMap e1)) (elabFSetMap e2)
+  | otherwise              = EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)
+elabFSetMap (EApp (EApp (EApp h@(EVar f) e1) e2) e3)
+  | f == Thy.mapSto        = EApp (EApp (EApp (EVar Thy.arrStoreM) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)
+  | otherwise              = EApp (EApp (EApp (elabFSetMap h) (elabFSetMap e1)) (elabFSetMap e2)) (elabFSetMap e3)
+elabFSetMap (EApp e1 e2)      = EApp (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (ENeg e)          = ENeg (elabFSetMap e)
+elabFSetMap (EBin b e1 e2)    = EBin b (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (EIte e1 e2 e3)   = EIte (elabFSetMap e1) (elabFSetMap e2) (elabFSetMap e3)
+elabFSetMap (ECst e t)        = ECst (elabFSetMap e) t
+elabFSetMap (ELam b e)        = ELam b (elabFSetMap e)
+elabFSetMap (ETApp e t)       = ETApp (elabFSetMap e) t
+elabFSetMap (ETAbs e t)       = ETAbs (elabFSetMap e) t
+elabFSetMap (PAnd es)         = PAnd (elabFSetMap <$> es)
+elabFSetMap (POr es)          = POr (elabFSetMap <$> es)
+elabFSetMap (PNot e)          = PNot (elabFSetMap e)
+elabFSetMap (PImp e1 e2)      = PImp (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (PIff e1 e2)      = PIff (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (PAtom r e1 e2)   = PAtom r (elabFSetMap e1) (elabFSetMap e2)
+elabFSetMap (PAll   bs e)     = PAll bs (elabFSetMap e)
+elabFSetMap (PExist bs e)     = PExist bs (elabFSetMap e)
+elabFSetMap (PGrad  k su i e) = PGrad k su i (elabFSetMap e)
+elabFSetMap (ECoerc a t e)    = ECoerc a t (elabFSetMap e)
+elabFSetMap e                 = e
 
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
@@ -466,7 +478,7 @@ instance Checkable Expr where
   check γ e = void $ checkExpr f e
    where f = (`lookupSEnvWithDistance` coerceSortEnv γ)
 
-  checkSort γ s e = void $ checkExpr f (ECst e (coerceSetToArray s))
+  checkSort γ s e = void $ checkExpr f (ECst e (coerceSetMapToArray s))
    where f = (`lookupSEnvWithDistance` coerceSortEnv γ)
 
 instance Checkable SortedReft where
@@ -552,8 +564,9 @@ elab _ e@(PKVar _ _) =
 elab f (PGrad k su i e) =
   (, boolSort) . PGrad k su i . fst <$> elab f e
 
-elab (_, f) e@(EVar x) =
-  (e,) <$> checkSym f x
+elab (_, f) e@(EVar x) = do
+  cs <- checkSym f x
+  pure (e, cs)
 
 elab f (ENeg e) = do
   (e', s) <- elab f e
@@ -651,7 +664,7 @@ eCstAtom :: ElabEnv -> Expr -> Sort -> CheckM Expr
 eCstAtom f@(sym,g) (EVar x) t
   | Found s <- g x
   , isUndef s
-  , not (isInt sym t) = (`ECst` t) <$> elabAs f t (EApp (eVar tyCastName) (eVar x))
+  , not (isNum sym t) = (`ECst` t) <$> elabAs f t (EApp (eVar tyCastName) (eVar x))
 eCstAtom _ e t = return (ECst e t)
 
 isUndef :: Sort -> Bool
@@ -686,8 +699,8 @@ elabAppAs env@(_, f) t g e = do
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
-  (e1', s1)     <- {- notracepp ("elabEApp: e1 = " ++ showpp e1) <$> -} elab f e1
-  (e2', s2)     <- elab f e2
+  (e1', s1)     <- {- notracepp ("elabEApp: e1 = " ++ show e1) <$> -} elab f e1
+  (e2', s2)     <- {- notracepp ("elabEApp: e2 = " ++ show e2) <$> -} elab f e2
   (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
   return           (e1'', s1', e2'', s2', s)
 
@@ -720,8 +733,8 @@ makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) =
   ECst (EApp (EApp f e1) e2) s
   where
-    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
-    t2                     = exprSort "makeAppl" e2
+    f  = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
+    t2 = exprSort "makeAppl" e2
 
 applyAt :: Sort -> Sort -> Expr
 applyAt s t = ECst (EVar applyName) (FFunc s t)
@@ -735,11 +748,11 @@ toInt env e s
   | isSmtInt  = e
   | otherwise = ECst (EApp f (ECst e s)) FInt
   where
-    isSmtInt  = isInt env s
+    isSmtInt  = isNum env s
     f         = toIntAt s
 
-isInt :: SymEnv -> Sort -> Bool
-isInt env s = case sortSmtSort False (seData env) s of
+isNum :: SymEnv -> Sort -> Bool
+isNum env s = case sortSmtSort False (seData env) s of
   SInt    -> True
   SString -> True
   SReal   -> True

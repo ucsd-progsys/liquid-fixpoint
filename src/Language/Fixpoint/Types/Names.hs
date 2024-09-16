@@ -100,6 +100,7 @@ module Language.Fixpoint.Types.Names (
   , tupConName
   , setConName
   , mapConName
+  , bagConName
   , arrayConName
   , strConName
   , charConName
@@ -119,7 +120,7 @@ module Language.Fixpoint.Types.Names (
   , divFuncName
 
   -- * Casting function names
-  , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName, toIntName, tyCastName
+  , setToIntName, bitVecToIntName, mapToIntName, bagToIntName, boolToIntName, realToIntName, toIntName, tyCastName
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
   , applyName
   , coerceName
@@ -616,10 +617,11 @@ lamArgSymbol = intSymbol lamArgPrefix
 isLamArgSymbol :: Symbol -> Bool
 isLamArgSymbol = isPrefixOfSym lamArgPrefix
 
-setToIntName, bitVecToIntName, mapToIntName, realToIntName, toIntName, tyCastName :: Symbol
+setToIntName, bitVecToIntName, mapToIntName, bagToIntName, realToIntName, toIntName, tyCastName :: Symbol
 setToIntName    = "set_to_int"
 bitVecToIntName = "bitvec_to_int"
 mapToIntName    = "map_to_int"
+bagToIntName    = "bag_to_int"
 realToIntName   = "real_to_int"
 toIntName       = "cast_as_int"
 tyCastName      = "cast_as"
@@ -649,12 +651,13 @@ boolLConName  = "bool"
 funConName   = "->"
 
 
-listConName, listLConName, tupConName, propConName, _hpropConName, vvName, setConName, mapConName, arrayConName:: Symbol
+listConName, listLConName, tupConName, propConName, _hpropConName, vvName, setConName, mapConName, bagConName, arrayConName:: Symbol
 listConName  = "[]"
 listLConName = "List"
 tupConName   = "Tuple"
 setConName   = "Set_Set"
 mapConName   = "Map_t"
+bagConName   = "Bag_t"
 arrayConName = "Array_t"
 vvName       = "VV"
 propConName  = "Prop"

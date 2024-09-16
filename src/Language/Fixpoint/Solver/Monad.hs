@@ -84,10 +84,10 @@ runSolverM cfg sI act =
     act'     = assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
-    initEnv  = symbolEnv   cfg fi
+    initEnv  = symbolEnv cfg fi
     be       = F.bs fi
     file     = C.srcFile cfg
-    -- only linear arithmentic when: linear flag is on or solver /= Z3
+    -- only linear arithmetic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.cfgHoInfo cfg }
 

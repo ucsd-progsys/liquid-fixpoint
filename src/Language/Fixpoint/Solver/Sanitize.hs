@@ -19,6 +19,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor
 import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirstOrder)
 -- import           Language.Fixpoint.Defunctionalize
+import           Language.Fixpoint.Misc ((==>))
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config)
@@ -486,10 +487,6 @@ dropFuncSortedShadowedBinders fi = dropBinders ok (const True) fi
   where
     ok x t  = M.member x defs ==> (F.allowHO fi || isFirstOrder t)
     defs    = M.fromList $ F.toListSEnv $ F.gLits fi
-
-infixl 9 ==>
-(==>) :: Bool -> Bool -> Bool
-p ==> q = not p || q
 
 --------------------------------------------------------------------------------
 -- | Drop irrelevant binders from WfC Environments
