@@ -1298,7 +1298,7 @@ makeFreshEtaNames n = replicateM n makeFreshName
     makeFreshName = do
       ident <- gets freshEtaNames
       modify $ \st -> st { freshEtaNames = 1 + freshEtaNames st }
-      pure $ symbol ("eta$" ++ show ident)
+      pure $ etaExpSymbol ident
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.

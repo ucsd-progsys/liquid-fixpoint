@@ -126,7 +126,7 @@ module Language.Fixpoint.Types.Names (
 
   , lambdaName
   , lamArgSymbol
-  , isLamArgSymbol
+  , isLamArgSymbol, etaExpSymbol
 
 ) where
 
@@ -609,6 +609,12 @@ lambdaName = "smt_lambda"
 
 lamArgPrefix :: Symbol
 lamArgPrefix = "lam_arg"
+
+etaExpPrefix :: Symbol
+etaExpPrefix = "eta"
+
+etaExpSymbol :: Int -> Symbol
+etaExpSymbol = intSymbol etaExpPrefix
 
 lamArgSymbol :: Int -> Symbol
 lamArgSymbol = intSymbol lamArgPrefix
