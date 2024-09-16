@@ -832,7 +832,6 @@ evalApp γ ctx e0 es et
                         { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
                         , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
                         }
-                      
                     return (Just $ eApps e2' es2, fe)
          else return (Nothing, noExpand)
   where
@@ -867,7 +866,19 @@ evalApp γ _ctx e0 es _et
         -- This case is pretty sus as we shouldnt generate funcitons that do not
         -- have a type annotation
         Nothing -> do
-            traceShowM ("I'm failing on" :: String, f)
+          let etaArgsType = fmap snd $ drop nProvidedArgs $ eqArgs eq
+          -- Hack to recover general mono signature
+          if not $ isAnyTyVar etaArgsType then do
+          let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
+          let fullBody = eApps e0 (es ++ etaVars)
+          let etaExpandedTerm = wrap fullBody (zip etaNames etaArgsType)
+
+          modify $ \st ->
+            st { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
+
+          return (Just etaExpandedTerm, expand)
+          else do
+            traceShowM ("dropping" :: String, f)
             pure (Nothing, noExpand)
         Just etaArgsType -> do
           let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
@@ -881,6 +892,13 @@ evalApp γ _ctx e0 es _et
     else do
     pure (Nothing, noExpand)
   where
+    isAnyTyVar :: [Sort] -> Bool
+    isAnyTyVar = any isTyVar
+    
+    isTyVar :: Sort -> Bool
+    isTyVar (FObj _) = True
+    isTyVar _ = False
+
     extractMonoSign :: Expr -> Maybe [Sort]
     extractMonoSign (ECst _ sort) = Just $ flatten sort
     extractMonoSign _ = Nothing
@@ -923,7 +941,6 @@ evalApp γ ctx e0 es et
       isHOOn <- gets hoFlag
       if isFuelOk && (isExtensionalityOn || isHOOn)
         then do
-          traceShowM ("App lambda with argname" :: String, argName)
           useFuel argName
           let argSubst = mkSubst [(argName, lambdaArg)]
           let body' = subst argSubst body
