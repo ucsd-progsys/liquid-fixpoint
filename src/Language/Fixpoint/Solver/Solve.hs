@@ -202,7 +202,7 @@ refineC
 refineC bindingsInSmt _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = S.lhsPred bindingsInSmt be s c
+                   let lhs = S.lhsPred bindingsInSmt (F.coerceBindEnv be) s c
                    kqs    <- filterValid (cstrSpan c) lhs rhs
                    return  $ S.update s ks kqs
   where

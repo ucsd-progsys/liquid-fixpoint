@@ -43,6 +43,10 @@ import           Control.Concurrent.Async
 import Prelude hiding (undefined)
 import GHC.Stack
 
+infixl 9 ==>
+(==>) :: Bool -> Bool -> Bool
+p ==> q = not p || q
+
 type (|->) a b = M.HashMap a b
 
 firstMaybe :: (a -> Maybe b) -> [a] -> Maybe b

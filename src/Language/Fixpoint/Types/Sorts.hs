@@ -37,7 +37,7 @@ module Language.Fixpoint.Types.Sorts (
   , mapFVar
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   -- , bitVec32Sort, bitVec64Sort
-  , setSort, bitVecSort
+  , setSort, bitVecSort, bagSort
   , arraySort
   , sizedBitVecSort
   , mapSort, charSort
@@ -65,7 +65,7 @@ module Language.Fixpoint.Types.Sorts (
   , sortSymbols
   , substSort
 
-  , isBool, isNumeric, isReal, isString, isSet, isArray, isPolyInst
+  , isBool, isNumeric, isReal, isString, isSet, isMap, isBag, isArray, isPolyInst
 
   -- * User-defined ADTs
   , DataField (..)
@@ -84,7 +84,7 @@ module Language.Fixpoint.Types.Sorts (
   , tceMap
 
   -- * Sort coercion for SMT theory encoding
-  , coerceSetToArray
+  , coerceSetMapToArray
   ) where
 
 import qualified Data.Store as S
@@ -147,7 +147,7 @@ defRealInfo = False
 defStrInfo  = False
 
 charFTyCon, intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon :: FTycon
-strFTyCon, listFTyCon, mapFTyCon, setFTyCon :: FTycon
+strFTyCon, listFTyCon, mapFTyCon, bagFTyCon, setFTyCon :: FTycon
 intFTyCon  = TC (dummyLoc "int"       ) numTcInfo
 boolFTyCon = TC (dummyLoc boolLConName) defTcInfo
 realFTyCon = TC (dummyLoc "real"      ) realTcInfo
@@ -158,6 +158,7 @@ listFTyCon = TC (dummyLoc listConName ) defTcInfo
 charFTyCon = TC (dummyLoc charConName ) defTcInfo
 setFTyCon  = TC (dummyLoc setConName  ) defTcInfo
 mapFTyCon  = TC (dummyLoc mapConName  ) defTcInfo
+bagFTyCon  = TC (dummyLoc bagConName  ) defTcInfo
 
 isListConName :: LocSymbol -> Bool
 isListConName x = c == listConName || c == listLConName --"List"
@@ -174,6 +175,22 @@ isSetConName x = c == setConName
 
 isSetTC :: FTycon -> Bool
 isSetTC (TC z _) = isSetConName z
+
+isMapConName :: LocSymbol -> Bool
+isMapConName x = c == mapConName
+  where
+    c           = val x
+
+isMapTC :: FTycon -> Bool
+isMapTC (TC z _) = isMapConName z
+
+isBagConName :: LocSymbol -> Bool
+isBagConName x = c == bagConName
+  where
+    c           = val x
+
+isBagTC :: FTycon -> Bool
+isBagTC (TC z _) = isBagConName z
 
 isArrayConName :: LocSymbol -> Bool
 isArrayConName x = c == arrayConName
@@ -389,6 +406,14 @@ isSet :: Sort -> Bool
 isSet (FTC c) = isSetTC c
 isSet _       = False
 
+isMap :: Sort -> Bool
+isMap (FTC c) = isMapTC c
+isMap _       = False
+
+isBag :: Sort -> Bool
+isBag (FTC c) = isBagTC c
+isBag _       = False
+
 isArray :: Sort -> Bool
 isArray (FTC c) = isArrayTC c
 isArray _       = False
@@ -533,6 +558,9 @@ bitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FVar i)
 sizedBitVecSort :: Symbol -> Sort
 sizedBitVecSort i = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' i)
 
+bagSort :: Sort -> Sort
+bagSort = FApp (FTC bagFTyCon)
+
 mapSort :: Sort -> Sort -> Sort
 mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))
 
@@ -666,13 +694,17 @@ tceMember :: (Eq a, Hashable a) => a -> TCEmb a -> Bool
 tceMember k (TCE m) = M.member k m
 
 -------------------------------------------------------------------------------
--- | Sort coercion for SMT theory encoding
+-- | Sort coercion for Z3 SMT theory encoding
 -------------------------------------------------------------------------------
 
-coerceSetToArray :: Sort -> Sort
-coerceSetToArray (FFunc sf sa) = FFunc (coerceSetToArray sf) (coerceSetToArray sa)
-coerceSetToArray (FAbs i sa)   = FAbs i (coerceSetToArray sa)
-coerceSetToArray (FApp sf sa)
-  | isSet sf = arraySort (coerceSetToArray sa) boolSort
-  | otherwise = FApp (coerceSetToArray sf) (coerceSetToArray sa)
-coerceSetToArray s = s
+coerceSetMapToArray :: Sort -> Sort
+coerceSetMapToArray (FFunc sf sa) = FFunc (coerceSetMapToArray sf) (coerceSetMapToArray sa)
+coerceSetMapToArray (FAbs i sa)   = FAbs i (coerceSetMapToArray sa)
+coerceSetMapToArray (FApp (FApp sf sa) sb)
+  | isMap sf = arraySort (coerceSetMapToArray sa) (coerceSetMapToArray sb)
+  | otherwise = FApp (FApp (coerceSetMapToArray sf) (coerceSetMapToArray sa)) (coerceSetMapToArray sb)
+coerceSetMapToArray (FApp sf sa)
+  | isSet sf = arraySort (coerceSetMapToArray sa) boolSort
+  | isBag sf = arraySort (coerceSetMapToArray sa) intSort
+  | otherwise = FApp (coerceSetMapToArray sf) (coerceSetMapToArray sa)
+coerceSetMapToArray s = s

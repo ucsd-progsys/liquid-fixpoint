@@ -1,16 +1,29 @@
-bind 1 m1 : {v : Map_t Int Int | v = Map_default 0}
-bind 2 s1 : {v : Set_Set Int | v = (Set_cup (Set_sng 10) (Set_sng 20))}
-bind 3 m2 : {v : Map_t Int Int | v = (Map_store (Map_store m1 10 1) 20 1) } 
-bind 4 m3 : {v : Map_t Int Int | v = (Map_store (Map_store m1 20 1) 10 1) } 
+
+bind 1 m1 : {v : Map_t Str real | v = Map_default 0.0 }
+bind 2 m2 : {v : Map_t Str real | v = (Map_store (Map_store m1 "AA" 2.0) "BB" 3.5) }
+bind 3 m3 : {v : Map_t Str real | v = (Map_store (Map_store m1 "BB" 3.5) "AA" 2.0) }
 
 constraint:
-  env [ 1; 2; 3 ]
-  lhs {v : Set_Set Int | v = Map_to_set m2 }
-  rhs {v : Set_Set Int | v = s1 } 
+  env [ 1 ]
+  lhs {v : real | v = Map_select m1 "CC" }
+  rhs {v : real | v = 0.0 }
   id 1 tag []
 
 constraint:
-  env [ 1; 2; 3; 4 ]
-  lhs {v : Set_Set Int | v = Map_to_set m3 }
-  rhs {v : Set_Set Int | v = s1 } 
+  env [ 1; 2 ]
+  lhs {v : real | v = Map_select m2 "CC" }
+  rhs {v : real | v = 0.0 }
   id 2 tag []
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : real | v = Map_select m2 "AA" }
+  rhs {v : real | v = 2.0 }
+  id 3 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : real | true }
+  rhs {v : real | m2 = m3 }
+  id 4 tag []
+

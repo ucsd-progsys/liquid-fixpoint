@@ -29,14 +29,23 @@ module Language.Fixpoint.Smt.Theories
      , theorySymbols
      , dataDeclSymbols
 
-
        -- * Theories
-     , setEmpty, setEmp, setCap, setSub, setAdd, setMem
-     , setCom, setCup, setDif, setSng
+     , setEmpty, setEmp, setSng, setAdd, setMem
+     , setCom, setCap, setCup, setDif, setSub
 
-     , mapSel, mapCup, mapSto, mapDef
+     , mapDef, mapSel, mapSto
 
-     , arrConst, arrStore, arrSelect, arrMapNot, arrMapOr, arrMapAnd, arrMapImp
+     , bagEmpty, bagSng, bagCount, bagSub, bagCup, bagMax, bagMin
+
+     -- * Z3 theory array encodings
+
+     , arrConstM, arrStoreM, arrSelectM
+
+     , arrConstS, arrStoreS, arrSelectS
+     , arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS
+
+     , arrConstB, arrStoreB, arrSelectB
+     , arrMapPlusB, arrMapLeB, arrMapGtB, arrMapIteB
 
       -- * Query Theories
      , isSmt2App
@@ -66,27 +75,6 @@ import Language.Fixpoint.Utils.Builder
 --------------------------------------------------------------------------------
 -- | Theory Symbols ------------------------------------------------------------
 --------------------------------------------------------------------------------
-
--- TODO drop all of Set and Map symbols when Map is handled through arrays
-
--- "set" is currently \"LSet\" instead of just \"Set\" because Z3 has its own
--- \"Set\" since 4.8.5
-elt, set, map :: Raw
-elt  = "Elt"
-set  = "LSet"
-map  = "Map"
-
-sel, sto, mcup, mdef, mprj :: Raw
-mToSet, mshift, mmax, mmin :: Raw
-sel   = "smt_map_sel"
-sto   = "smt_map_sto"
-mcup  = "smt_map_cup"
-mmax  = "smt_map_max"
-mmin  = "smt_map_min"
-mdef  = "smt_map_def"
-mprj  = "smt_map_prj"
-mshift = "smt_map_shift"
-mToSet = "smt_map_to_set"
 
 ---- Size changes
 bvConcatName, bvExtractName, bvRepeatName, bvZeroExtName, bvSignExtName :: Symbol
@@ -155,61 +143,54 @@ setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
 
---- Array operations
-arrConst, arrStore, arrSelect, arrMapNot, arrMapOr, arrMapAnd, arrMapImp :: Symbol
-arrConst  = "const"
-arrStore  = "store"
-arrSelect = "select"
-arrMapNot = "arr_map_not"
-arrMapOr  = "arr_map_or"
-arrMapAnd = "arr_map_and"
-arrMapImp = "arr_map_imp"
-
-mapSel, mapSto, mapCup, mapDef, mapMax, mapMin, mapShift :: Symbol
+mapDef, mapSel, mapSto :: (IsString a) => a
+mapDef   = "Map_default"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
-mapCup   = "Map_union"
-mapMax   = "Map_union_max"
-mapMin   = "Map_union_min"
-mapDef   = "Map_default"
-mapShift = "Map_shift" -- See [Map key shift]
 
--- [Map key shift]
+bagEmpty, bagSng, bagCount, bagSub, bagCup, bagMax, bagMin :: (IsString a) => a
+bagEmpty = "Bag_empty"
+bagSng   = "Bag_sng"
+bagCount = "Bag_count"
+bagSub   = "Bag_sub"
+bagCup   = "Bag_union"
+bagMax   = "Bag_union_max" -- See [Bag max and min]
+bagMin   = "Bag_inter_min"
+
+-- [Bag max and min]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Function mapShift: Add an integer to all keys in a map. Type signature:
---   mapShift : Int -> Map Int v -> Map Int v
--- Let's call the first argument (the shift amount) N, the second argument K1,
--- and the result K2. For all indices i, we have K2[i] = K1[i - N].
--- This is implemented with Z3's lambda, which lets us construct an array
--- from a function.
---
--- [Map max and min]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Functions mapMax and mapMin: Union two maps, combining the elements by
--- taking either the greatest (mapMax) or the least (mapMin) of them.
---   mapMax, mapMin : Map v Int -> Map v Int -> Map v Int
+-- Functions bagMax and bagMin: Union/intersect two bags, combining the elements by
+-- taking either the greatest (bagMax) or the least (bagMin) of them.
+--   bagMax, bagMin : Map v Int -> Map v Int -> Map v Int
 
-mapToSet, mapPrj :: Symbol
-mapToSet = "Map_to_set"
-mapPrj   = "Map_project"
+--- Array operations for sets
+arrConstS, arrStoreS, arrSelectS, arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS :: Symbol
+arrConstS  = "arr_const_s"
+arrStoreS  = "arr_store_s"
+arrSelectS = "arr_select_s"
 
--- [Interaction between Map and Set]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Function mapToSet: Convert a map to a set. The map's key may be of
--- any type and is preserved as the set's element type. More precisely:
---   mapToSet : Map k Int -> Set k
--- The element type must be Int. All non-positive elements are mapped
--- to False, and all positive elements are mapped to True. In practice,
--- negative elements should not exist because Map is intended to be used
--- as a bag, so the element is a non-negative number representing
--- the occurrences of its corresponding key.
---
--- Function mapPrj: Project a subset of a map. Type signature:
---   mapPrj : Set k -> Map k Int -> Map k Int
--- If the key is present in both the argument set and the argument map,
--- then the key (along with its associated value in the map) are preserved
--- in the output. Keys not present in the set are mapped to zero. Keys not
--- present in the set are mapped to zero.
+arrMapNotS = "arr_map_not"
+arrMapOrS  = "arr_map_or"
+arrMapAndS = "arr_map_and"
+arrMapImpS = "arr_map_imp"
+
+--- Array operations for polymorphic maps
+arrConstM, arrStoreM, arrSelectM :: Symbol
+arrConstM  = "arr_const_m"
+arrStoreM  = "arr_store_m"
+arrSelectM = "arr_select_m"
+
+--- Array operations for bags
+arrConstB, arrStoreB, arrSelectB :: Symbol
+arrConstB  = "arr_const_b"
+arrStoreB  = "arr_store_b"
+arrSelectB = "arr_select_b"
+
+arrMapPlusB, arrMapLeB, arrMapGtB, arrMapIteB :: Symbol
+arrMapPlusB = "arr_map_plus"
+arrMapLeB   = "arr_map_le"
+arrMapGtB   = "arr_map_gt"
+arrMapIteB   = "arr_map_ite"
 
 strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
 strLen    = "strLen"
@@ -245,70 +226,7 @@ bSort name def = key "define-sort" (fromText name <+> "()" <+> def)
 z3Preamble :: Config -> [Builder]
 z3Preamble u
   = stringPreamble u ++
-    [ bSort elt
-        "Int"
-    , bSort set
-        (key2 "Array" (fromText elt) "Bool")
-
-    -- Maps
-    , bSort map
-        (key2 "Array" (fromText elt) (fromText elt))
-    , bFun sel
-        [("m", fromText map), ("k", fromText elt)]
-        (fromText elt)
-        "(select m k)"
-    , bFun sto
-        [("m", fromText map), ("k", fromText elt), ("v", fromText elt)]
-        (fromText map)
-        "(store m k v)"
-    , bFun mcup
-        [("m1", fromText map), ("m2", fromText map)]
-        (fromText map)
-        (key2 (key "_ map" (key2 "+" (parens (fromText elt <+> fromText elt)) (fromText elt))) "m1" "m2")
-    , bFun mprj -- See [Interaction Between Map and Set]
-        [("s", fromText set), ("m", fromText map)]
-        (fromText map)
-        (key3
-          (key "_ map"
-            (key2 "ite"
-              (parens ("Bool" <+> fromText elt <+> fromText elt))
-              (fromText elt)
-            )
-          )
-          "s"
-          "m"
-          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
-        )
-    , bFun mToSet -- See [Interaction Between Map and Set]
-        [("m", fromText map)]
-        (fromText set)
-        (key2
-          (key "_ map"
-            (key2 ">"
-              (parens (fromText elt <+> fromText elt))
-              "Bool"
-            )
-          )
-          "m"
-          (parens (key "as const" (key2 "Array" (fromText elt) (fromText elt)) <+> "0"))
-        )
-    , bFun mmax -- See [Map max and min]
-        [("m1", fromText map),("m2", fromText map)]
-        (fromText map)
-        "(lambda ((i Int)) (ite (> (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
-    , bFun mmin -- See [Map max and min]
-        [("m1", fromText map),("m2", fromText map)]
-        (fromText map)
-        "(lambda ((i Int)) (ite (< (select m1 i) (select m2 i)) (select m1 i) (select m2 i)))"
-    , bFun mshift -- See [Map key shift]
-        [("n", "Int"),("m", fromText map)]
-        (fromText map)
-        "(lambda ((i Int)) (select m (- i n)))"
-    , bFun mdef
-        [("v", fromText elt)]
-        (fromText map)
-        (key (key "as const" (parens (fromText map))) "v")
-    , bFun boolToIntName
+    [ bFun boolToIntName
         [("b", "Bool")]
         "Int"
         "(ite b 1 0)"
@@ -328,31 +246,12 @@ uifDef cfg f op
 
 cvc4Preamble :: Config -> [Builder]
 cvc4Preamble z
-  = [        "(set-logic ALL_SUPPORTED)"]
-  ++ commonPreamble z
-  ++ cvc4MapPreamble z
+  = "(set-logic ALL_SUPPORTED)" : commonPreamble z
 
 commonPreamble :: Config -> [Builder]
 commonPreamble _ --TODO use uif flag u (see z3Preamble)
-  = [ bSort elt    "Int"
-    , bSort set    "Int"
-    , bSort string "Int"
+  = [ bSort string "Int"
     , bFun boolToIntName [("b", "Bool")] "Int" "(ite b 1 0)"
-    ]
-
-cvc4MapPreamble :: Config -> [Builder]
-cvc4MapPreamble _ =
-    [ bSort map    (key2 "Array" (fromText elt) (fromText elt))
-    , bFun sel [("m", fromText map), ("k", fromText elt)]                (fromText elt) "(select m k)"
-    , bFun sto [("m", fromText map), ("k", fromText elt), ("v", fromText elt)] (fromText map) "(store m k v)"
-    ]
-
-smtlibPreamble :: Config -> [Builder]
-smtlibPreamble z --TODO use uif flag u (see z3Preamble)
-  = commonPreamble z
- ++ [ bSort map "Int"
-    , bFun' sel [fromText map, fromText elt] (fromText elt)
-    , bFun' sto [fromText map, fromText elt, fromText elt] (fromText map)
     ]
 
 stringPreamble :: Config -> [Builder]
@@ -384,8 +283,8 @@ smt2SmtSort SInt         = "Int"
 smt2SmtSort SReal        = "Real"
 smt2SmtSort SBool        = "Bool"
 smt2SmtSort SString      = fromText string
-smt2SmtSort SSet         = fromText set
-smt2SmtSort SMap         = fromText map
+--smt2SmtSort SSet         = fromText set
+--smt2SmtSort SMap         = fromText map
 smt2SmtSort (SArray a b) = key2 "Array" (smt2SmtSort a) (smt2SmtSort b)
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
 smt2SmtSort (SVar n)     = "T" <> bShow n
@@ -402,7 +301,9 @@ type VarAs = SymEnv -> Symbol -> Sort -> Builder
 smt2App :: VarAs -> SymEnv -> Expr -> [Builder] -> Maybe Builder
 --------------------------------------------------------------------------------
 smt2App _ env ex@(dropECst -> EVar f) [d]
-  | f == arrConst = Just (key (key "as const" (getTarget ex)) d)
+  | f == arrConstS = Just (key (key "as const" (getTarget ex)) d)
+  | f == arrConstB = Just (key (key "as const" (getTarget ex)) d)
+  | f == arrConstM = Just (key (key "as const" (getTarget ex)) d)
   where
     getTarget :: Expr -> Builder
     -- const is a function, but SMT expects only the output sort
@@ -450,7 +351,7 @@ sortAppInfo t = case bkFFunc t of
 preamble :: Config -> SMTSolver -> [Builder]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
-preamble u _    = smtlibPreamble u
+preamble u _    = commonPreamble u
 
 --------------------------------------------------------------------------------
 -- | Theory Symbols : `uninterpSEnv` should be disjoint from see `interpSEnv`
@@ -472,13 +373,27 @@ interpSymbols :: [(Symbol, TheorySymbol)]
 interpSymbols =
   [
   -- TODO we'll probably need two versions of these - one for sets and one for maps
-    interpSym arrConst  "const"       (FAbs 0 $ FFunc boolSort setArrSort)
-  , interpSym arrStore  "store"       (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) $ FFunc boolSort setArrSort)
-  , interpSym arrSelect "select"      (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) boolSort)
-  , interpSym arrMapNot "(_ map not)" (FFunc setArrSort setArrSort)
-  , interpSym arrMapOr  "(_ map or)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
-  , interpSym arrMapAnd "(_ map and)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
-  , interpSym arrMapImp "(_ map =>)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
+    interpSym arrConstS  "const"  (FAbs 0 $ FFunc boolSort setArrSort)
+  , interpSym arrSelectS "select" (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) boolSort)
+  , interpSym arrStoreS  "store"  (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) $ FFunc boolSort setArrSort)
+
+  , interpSym arrMapNotS "(_ map not)" (FFunc setArrSort setArrSort)
+  , interpSym arrMapOrS  "(_ map or)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
+  , interpSym arrMapAndS "(_ map and)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
+  , interpSym arrMapImpS "(_ map =>)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
+
+  , interpSym arrConstM  "const"  (FAbs 0 $ FFunc (FVar 1) mapArrSort)
+  , interpSym arrSelectM "select" (FAbs 0 $ FFunc mapArrSort $ FFunc (FVar 0) (FVar 1))
+  , interpSym arrStoreM  "store"  (FAbs 0 $ FFunc mapArrSort $ FFunc (FVar 0) $ FFunc (FVar 1) mapArrSort)
+
+  , interpSym arrConstB  "const"  (FAbs 0 $ FFunc intSort bagArrSort)
+  , interpSym arrSelectB "select" (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) intSort)
+  , interpSym arrStoreB  "store"  (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) $ FFunc intSort bagArrSort)
+
+  , interpSym arrMapPlusB "(_ map (+ (Int Int) Int))"        (FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
+  , interpSym arrMapLeB   "(_ map (<= (Int Int) Bool))"      (FFunc bagArrSort $ FFunc bagArrSort setArrSort)
+  , interpSym arrMapGtB   "(_ map (> (Int Int) Bool))"       (FFunc bagArrSort $ FFunc bagArrSort setArrSort)
+  , interpSym arrMapIteB  "(_ map (ite (Bool Int Int) Int))" (FFunc setArrSort $ FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
 
   , interpSym setEmp   setEmp   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty setEmpty (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
@@ -491,15 +406,17 @@ interpSymbols =
   , interpSym setSub   setSub   setCmpSort
   , interpSym setCom   setCom   setCmpSort
 
-  , interpSym mapSel   sel   mapSelSort
-  , interpSym mapSto   sto   mapStoSort
-  , interpSym mapCup   mcup  mapCupSort
-  , interpSym mapMax   mmax  mapMaxSort
-  , interpSym mapMin   mmin  mapMinSort
-  , interpSym mapDef   mdef  mapDefSort
-  , interpSym mapPrj   mprj  mapPrjSort
-  , interpSym mapShift mshift mapShiftSort
-  , interpSym mapToSet mToSet mapToSetSort
+  , interpSym mapDef   mapDef  mapDefSort
+  , interpSym mapSel   mapSel  mapSelSort
+  , interpSym mapSto   mapSto  mapStoSort
+
+  , interpSym bagEmpty bagEmpty (FAbs 0 $ FFunc intSort (bagSort $ FVar 0))
+  , interpSym bagSng   bagSng   (FAbs 0 $ FFunc (FVar 0) $ FFunc intSort (setSort $ FVar 0))
+  , interpSym bagCount bagCount bagCountSort
+  , interpSym bagCup   bagCup   bagBopSort
+  , interpSym bagMax   bagMax   bagBopSort
+  , interpSym bagMin   bagMin   bagBopSort
+  , interpSym bagSub   bagSub   bagSubSort
 
   -- , interpSym bvOrName  "bvor"  bvBopSort
   -- , interpSym bvAndName "bvand" bvBopSort
@@ -563,7 +480,9 @@ interpSymbols =
 
   ]
   where
+    mapArrSort = arraySort (FVar 0) (FVar 1)
     setArrSort = arraySort (FVar 0) boolSort
+    bagArrSort = arraySort (FVar 0) intSort
     -- (sizedBitVecSort "Size1")
     bv32       = sizedBitVecSort "Size32"
     bv64       = sizedBitVecSort "Size64"
@@ -574,31 +493,23 @@ interpSymbols =
     setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
 
-    -- select :: forall i a. Map i a -> i -> a
+    mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
+                                         (mapSort (FVar 0) (FVar 1))
+    -- select :: forall k v. Map k v -> k -> v
     mapSelSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0) (FVar 1)
-    -- cup :: forall i. Map i Int -> Map i Int -> Map i Int
-    mapCupSort = FAbs 0          $ FFunc (mapSort (FVar 0) intSort)
-                                 $ FFunc (mapSort (FVar 0) intSort)
-                                         (mapSort (FVar 0) intSort)
-    mapMaxSort = mapCupSort
-    mapMinSort = mapCupSort
-    mapPrjSort = FAbs 0          $ FFunc (setSort (FVar 0))
-                                 $ FFunc (mapSort (FVar 0) intSort)
-                                         (mapSort (FVar 0) intSort)
-    mapShiftSort = FAbs 0        $ FFunc intSort
-                                 $ FFunc (mapSort intSort (FVar 0))
-                                         (mapSort intSort (FVar 0))
-    mapToSetSort = FAbs 0        $ FFunc (mapSort (FVar 0) intSort) (setSort (FVar 0))
-    -- store :: forall i a. Map i a -> i -> a -> Map i a
+    -- store :: forall k v. Map k v -> k -> v -> Map k v
     mapStoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1))
                                  $ FFunc (FVar 0)
                                  $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
-    mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
-                                         (mapSort (FVar 0) (FVar 1))
 
-
+    bagCountSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (bagSort $ FVar 0) intSort
+    -- cup :: forall i. Map i Int -> Map i Int -> Map i Int
+    bagBopSort = FAbs 0          $ FFunc (bagSort $ FVar 0)
+                                 $ FFunc (bagSort $ FVar 0)
+                                         (bagSort $ FVar 0)
+    bagSubSort = FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort
 interpBvUop :: Symbol -> (Symbol, TheorySymbol)
 interpBvUop name = interpSym' name bvUopSort
 interpBvBop :: Symbol -> (Symbol, TheorySymbol)
