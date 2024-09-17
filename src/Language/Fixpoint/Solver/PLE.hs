@@ -66,8 +66,6 @@ import qualified Data.Maybe           as Mb
 import qualified Data.Set as Set
 import           Text.PrettyPrint.HughesPJ.Compat
 
-import Debug.Trace
-
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
@@ -662,7 +660,7 @@ evalELam γ ctx et (x, s) e = do
       { evPendingUnfoldings = oldPendingUnfoldings
       , evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs
       }
-    return (ELam (x, s) e2', fe)
+    return (ELam (x, s) e', fe)
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
@@ -895,24 +893,26 @@ evalApp γ _ctx e0 es _et
           -- This case is pretty sus as we shouldnt generate funcitons that do not
           -- have a type annotation
           Nothing -> do
+            -- Hack to recover general mono signature, by looking directly
+            -- at the types in the equation
             let etaArgsType = fmap snd $ drop nProvidedArgs $ eqArgs eq
-            -- Hack to recover general mono signature
-            if not $ isAnyTyVar etaArgsType then do
+            if not $ any hasTyVar etaArgsType then do
               performEtaExpansion e0 es etaNames etaArgsType
             else do
-              traceShowM ("dropping" :: String, f)
+              -- There is at least a non monomorphized type variables
+              -- We cant conclude anything
               pure (Nothing, noExpand)
           Just etaArgsType -> do
             performEtaExpansion e0 es etaNames etaArgsType
     else do
       pure (Nothing, noExpand)
   where
-    isAnyTyVar :: [Sort] -> Bool
-    isAnyTyVar = any isTyVar
-    
-    isTyVar :: Sort -> Bool
-    isTyVar (FObj _) = True
-    isTyVar _ = False
+    hasTyVar :: Sort -> Bool
+    hasTyVar (FObj _) = True
+    hasTyVar (FApp l r) = hasTyVar l || hasTyVar r
+    hasTyVar (FFunc l r) = hasTyVar l || hasTyVar r
+    hasTyVar (FAbs _ i) = hasTyVar i
+    hasTyVar _ = False
 
     extractMonoSign :: Expr -> Maybe [Sort]
     extractMonoSign (ECst _ sort) = Just $ flatten sort
