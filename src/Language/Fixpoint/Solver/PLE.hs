@@ -15,6 +15,7 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE DoAndIfThenElse           #-}
 
 module Language.Fixpoint.Solver.PLE
   ( instantiate
@@ -470,6 +471,7 @@ data EvalEnv = EvalEnv
                          --   expansion, we use this to generate always fresh names
   , hoFlag        :: Bool -- ^ True if the allowho flag is turned on, needed for the eta
                           -- expansion reasoning as its going to generate ho constraints
+                          -- [See **ETA** comment above]
 
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
@@ -574,6 +576,10 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 -- Also adds to the monad state all the unfolding equalities that have been
 -- discovered as necessary.
 --
+-- isLHS keeps track if the currext expression is on the left hand side of a function
+-- application, if True then we don't unfold the definition of variables in the case
+-- for variables as they are function beeing applied, this is needed to not perform
+-- the eta-expansion an infinite amout of times
 eval :: Knowledge -> ICtx -> EvalType -> Bool -> Expr -> EvalST (Expr, FinalExpand)
 eval γ ctx et isLHSApp = go
   where
@@ -615,11 +621,18 @@ eval γ ctx et isLHSApp = go
     go (PAnd es)        = efAll PAnd (go `traverse` es)
     go (POr es)         = efAll POr (go `traverse` es)
     go e | EVar _ <- dropECst e = do
+                                    -- If it not on the LHS of a function
+                                    -- application then expand the definition
+                                    -- we need this to not end in an infinite
+                                    -- loop in which we are eta expaning forever
+                                    -- See comment **ETA**, if we are not performing
+                                    -- any eta expansion then the two branches are actually
+                                    -- equivalent
                                     if not isLHSApp then do
-                                    (me', fe) <- evalApp γ ctx e [] et
-                                    return (Mb.fromMaybe e me', fe)
+                                      (me', fe) <- evalApp γ ctx e [] et
+                                      return (Mb.fromMaybe e me', fe)
                                     else do
-                                    return (e, noExpand)
+                                      return (e, noExpand)
     go (ECst e t)       = do 
                              (e', fe) <- go e
                              return (ECst e' t, fe)
@@ -846,51 +859,53 @@ evalApp γ ctx e0 es et
       , f == "Language.Haskell.Liquid.ProofCombinators.pleUnfold"
       = arg
       | otherwise = e
+-- **ETA**: PLE before the patch to perform eta expansion was only able to unfold
+-- fully applied functions, by eta equivalence we mean the property that for all
+-- functions f the terms f and (\x -> f x) have the same semantics, we leverage 
+-- this fact to fully apply functions with extra function arguments so to trigger
+-- the standard PLE espansion, see the following example:
+-- We have a function f:
+-- define f (x : int) : int = {(x)}
+-- And we need to prove some constraint of this shape
+-- { f = something }
+-- The original PLE cannot do anything on f as it's not fully applied, instead
+-- if we perform eta expansion on f we obtain the following constraint
+-- { \y:Int -> f y = something }
+-- And now PLE can perform the unfolding of f as it's now fully saturated
+-- { \y:Int -> y = something }
+-- Clearly we need the higerorder flag active as we are generating lambda in
+-- the constraints.
 evalApp γ _ctx e0 es _et
   | EVar f <- dropECst e0
   , Just eq <- Map.lookup f (knAms γ)
   = do
     isHOAllowed <- gets hoFlag
     if isHOAllowed then do
-    let expectedArgs = eqArgs eq
-    let nProvidedArgs = length es
-    let nArgsMissing = length expectedArgs - nProvidedArgs
+      let expectedArgs = eqArgs eq
+      let nProvidedArgs = length es
+      let nArgsMissing = length expectedArgs - nProvidedArgs
 
-    -- Fresh names for the eta expansion
-    etaNames <- makeFreshEtaNames nArgsMissing
-    -- For some reason the application is expected to be already 
-    -- monomorphized, so we can't extract the sorts directly form
-    -- the equation
-    let etaArgsMono = drop nProvidedArgs <$> extractMonoSign e0
-    case etaArgsMono of
-        -- This case is pretty sus as we shouldnt generate funcitons that do not
-        -- have a type annotation
-        Nothing -> do
-          let etaArgsType = fmap snd $ drop nProvidedArgs $ eqArgs eq
-          -- Hack to recover general mono signature
-          if not $ isAnyTyVar etaArgsType then do
-          let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
-          let fullBody = eApps e0 (es ++ etaVars)
-          let etaExpandedTerm = wrap fullBody (zip etaNames etaArgsType)
-
-          modify $ \st ->
-            st { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
-
-          return (Just etaExpandedTerm, expand)
-          else do
-            traceShowM ("dropping" :: String, f)
-            pure (Nothing, noExpand)
-        Just etaArgsType -> do
-          let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
-          let fullBody = eApps e0 (es ++ etaVars)
-          let etaExpandedTerm = wrap fullBody (zip etaNames etaArgsType)
-
-          modify $ \st ->
-            st { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
-
-          return (Just etaExpandedTerm, expand)
+      -- Fresh names for the eta expansion
+      etaNames <- makeFreshEtaNames nArgsMissing
+      -- For some reason the application is expected to be already 
+      -- monomorphized, so we can't extract the sorts directly form
+      -- the equation
+      let etaArgsMono = drop nProvidedArgs <$> extractMonoSign e0
+      case etaArgsMono of
+          -- This case is pretty sus as we shouldnt generate funcitons that do not
+          -- have a type annotation
+          Nothing -> do
+            let etaArgsType = fmap snd $ drop nProvidedArgs $ eqArgs eq
+            -- Hack to recover general mono signature
+            if not $ isAnyTyVar etaArgsType then do
+              performEtaExpansion e0 es etaNames etaArgsType
+            else do
+              traceShowM ("dropping" :: String, f)
+              pure (Nothing, noExpand)
+          Just etaArgsType -> do
+            performEtaExpansion e0 es etaNames etaArgsType
     else do
-    pure (Nothing, noExpand)
+      pure (Nothing, noExpand)
   where
     isAnyTyVar :: [Sort] -> Bool
     isAnyTyVar = any isTyVar
@@ -906,6 +921,17 @@ evalApp γ _ctx e0 es _et
     flatten :: Sort -> [Sort]
     flatten (FFunc t ts) = t : flatten ts
     flatten t = [t]
+
+    performEtaExpansion :: Expr -> [Expr] -> [Symbol] -> [Sort] -> EvalST (Maybe Expr, FinalExpand)
+    performEtaExpansion fun actualArgs etaNames etaArgsType = do
+      let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
+      let fullBody = eApps fun (actualArgs ++ etaVars)
+      let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
+
+      modify $ \st ->
+        st { evNewEqualities = S.insert (eApps fun es, etaExpandedTerm) (evNewEqualities st) }
+
+      return (Just etaExpandedTerm, expand)
 
 evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
@@ -957,8 +983,8 @@ evalApp _ _ _e _es _
   = return (Nothing, noExpand)
 
 
-wrap :: Expr -> [(Symbol, Sort)] -> Expr
-wrap subject binds = foldr (\bind acc -> ELam bind acc) subject binds
+mkLams :: Expr -> [(Symbol, Sort)] -> Expr
+mkLams subject binds = foldr (\bind acc -> ELam bind acc) subject binds
 
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
