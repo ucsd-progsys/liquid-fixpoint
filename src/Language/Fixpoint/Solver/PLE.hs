@@ -619,18 +619,18 @@ eval γ ctx et isLHSApp = go
     go (PAnd es)        = efAll PAnd (go `traverse` es)
     go (POr es)         = efAll POr (go `traverse` es)
     go e | EVar _ <- dropECst e = do
-                                    -- If it not on the LHS of a function
-                                    -- application then expand the definition
-                                    -- we need this to not end in an infinite
-                                    -- loop in which we are eta expaning forever
-                                    -- See comment **ETA**, if we are not performing
-                                    -- any eta expansion then the two branches are actually
-                                    -- equivalent
-                                    if not isLHSApp then do
-                                      (me', fe) <- evalApp γ ctx e [] et
-                                      return (Mb.fromMaybe e me', fe)
-                                    else do
-                                      return (e, noExpand)
+      -- If it not on the LHS of a function
+      -- application then expand the definition
+      -- we need this to not end in an infinite
+      -- loop in which we are eta expaning forever
+      -- See comment **ETA**, if we are not performing
+      -- any eta expansion then the two branches are actually
+      -- equivalent
+      if not isLHSApp then do
+        (me', fe) <- evalApp γ ctx e [] et
+        return (Mb.fromMaybe e me', fe)
+      else do
+        return (e, noExpand)
     go (ECst e t)       = do 
                              (e', fe) <- go e
                              return (ECst e' t, fe)
@@ -883,27 +883,25 @@ evalApp γ _ctx e0 es _et
       let nProvidedArgs = length es
       let nArgsMissing = length expectedArgs - nProvidedArgs
 
-      -- Fresh names for the eta expansion
-      etaNames <- makeFreshEtaNames nArgsMissing
       -- For some reason the application is expected to be already 
       -- monomorphized, so we can't extract the sorts directly form
       -- the equation
       let etaArgsMono = drop nProvidedArgs <$> extractMonoSign e0
       case etaArgsMono of
-          -- This case is pretty sus as we shouldnt generate funcitons that do not
+          -- This case is pretty suspicious as we shouldnt generate functions that do not
           -- have a type annotation
           Nothing -> do
             -- Hack to recover general mono signature, by looking directly
             -- at the types in the equation
             let etaArgsType = fmap snd $ drop nProvidedArgs $ eqArgs eq
             if not $ any hasTyVar etaArgsType then do
-              performEtaExpansion e0 es etaNames etaArgsType
+              performEtaExpansion e0 es nArgsMissing etaArgsType
             else do
               -- There is at least a non monomorphized type variables
               -- We cant conclude anything
               pure (Nothing, noExpand)
           Just etaArgsType -> do
-            performEtaExpansion e0 es etaNames etaArgsType
+            performEtaExpansion e0 es nArgsMissing etaArgsType
     else do
       pure (Nothing, noExpand)
   where
@@ -922,12 +920,18 @@ evalApp γ _ctx e0 es _et
     flatten (FFunc t ts) = t : flatten ts
     flatten t = [t]
 
-    performEtaExpansion :: Expr -> [Expr] -> [Symbol] -> [Sort] -> EvalST (Maybe Expr, FinalExpand)
-    performEtaExpansion fun actualArgs etaNames etaArgsType = do
+    performEtaExpansion :: Expr -> [Expr] -> Int -> [Sort] -> EvalST (Maybe Expr, FinalExpand)
+    performEtaExpansion fun actualArgs nArgsMissing etaArgsType = do
+      -- Fresh names for the eta expansion
+      etaNames <- makeFreshEtaNames nArgsMissing
+
       let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
       let fullBody = eApps fun (actualArgs ++ etaVars)
       let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
 
+      -- Note: we should always add the equality as etaNames is always non empty because the
+      -- only way for etaNames to be empty is if the function is fully applied, but that case
+      -- is already handled by the previous case of evalApp
       modify $ \st ->
         st { evNewEqualities = S.insert (eApps fun es, etaExpandedTerm) (evNewEqualities st) }
 
