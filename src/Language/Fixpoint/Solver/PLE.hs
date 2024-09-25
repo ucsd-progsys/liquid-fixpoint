@@ -54,7 +54,7 @@ import Language.REST.SMT (withZ3, SolverHandle)
 import           Control.Monad (filterM, foldM, forM_, when, replicateM)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
-import           Data.Bifunctor (second)
+import           Data.Bifunctor (second, bimap)
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashMap.Lazy  as HashMap.Lazy
 import qualified Data.HashSet         as S
@@ -65,6 +65,9 @@ import qualified Data.Map as Map
 import qualified Data.Maybe           as Mb
 import qualified Data.Set as Set
 import           Text.PrettyPrint.HughesPJ.Compat
+import qualified Data.Text as T
+
+import Debug.Trace
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -216,12 +219,13 @@ pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
     diff0        = []
     res0         = M.empty
     ctx0         = ICtx
-      { icAssms  = mempty
-      , icCands  = mempty
-      , icEquals = mempty
-      , icSimpl  = mempty
-      , icSubcId = Nothing
-      , icANFs   = []
+      { icAssms       = mempty
+      , icCands       = mempty
+      , icEquals      = mempty
+      , icSimpl       = mempty
+      , icSubcId      = Nothing
+      , icANFs        = []
+      , icSMTRewrites = mempty
       }
 
 loopT
@@ -269,9 +273,82 @@ withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (InstEnv a -> ICtx -> 
 withAssms env@InstEnv{..} ctx delta cidMb act = do
   let (ctx', env')  = updCtx env ctx delta cidMb
   let assms = icAssms ctx'
-  SMT.smtBracket ieSMT  "PLE.evaluate" $ do
-    forM_ assms (SMT.smtAssert ieSMT)
-    act env' ctx' { icAssms = mempty }
+
+  let smtRewrites = concatMap (\i -> extractRewrites $ lookupBindEnv i ieBEnv) delta
+
+  SMT.smtBracket ieSMT "PLE.evaluate" $ do
+    forM_ assms (SMT.smtAssert ieSMT )
+    act env' ctx' { icAssms = mempty, icSMTRewrites = M.union (M.fromList smtRewrites) (icSMTRewrites ctx) }
+  where
+
+    -- [(is$Something foo);
+    --  (~((is$SomethingElse foo));
+    --  ...
+    --  ((prop foo) = 
+    --    (Something v₁ ... vₙ));
+    --  ((prop foo) =
+    --    (Something m₁ ... mₙ));
+    --  ...]
+
+    -- We some the system v₁ = m₁, v₂ = m₂, ... vₙ = mₙ
+    -- finding equalities between the free variables
+
+    -- Given ((Something v₁ ... vₙ), (Something m₁ ... mₙ))
+    -- obtain the unification
+    obtainEqualities (e1, e2)
+      | fst1 : args1 <- flatten $ dropECst e1
+      , fst2 : args2 <- flatten $ dropECst e2
+      , EVar cons1 <- dropECst fst1
+      , EVar cons2 <- dropECst fst2
+      , cons1 == cons2
+      , Just _ <- M.lookup cons1 (knDataCtors ieKnowl)
+      , Just unified <- unifyArgumets args1 args2
+      = do
+        traceShowM ("e1" :: String, cons1)
+        traceShowM ("e2" :: String, pprint unified)
+        pure unified
+    obtainEqualities _ = Nothing
+
+    flatten (EApp x xs) = flatten x ++ [ xs ]
+    flatten x = [x]
+
+    unifyArgumets [] [] = Just []
+    unifyArgumets (x:xs) (y:ys)
+      | EVar xn <- dropECst x
+      , validVar xn
+      = fmap ((xn, y) :) (unifyArgumets xs ys)
+    unifyArgumets (x:xs) (y:ys)
+      | EVar yn <- dropECst y
+      , validVar yn
+      = fmap ((yn, x) :) (unifyArgumets xs ys)
+    unifyArgumets (x:xs) (y:ys)
+      | dropECst x == dropECst y
+      = unifyArgumets xs ys
+    unifyArgumets _ _ 
+      = Nothing
+
+    extractRewrites (_, sreft, _)
+      | Reft (_, PAnd ra) <- sr_reft sreft
+      = concat
+      $ Mb.mapMaybe obtainEqualities
+      $ Mb.mapMaybe keepTrans 
+      $ map snd 
+      $ Misc.groupList 
+      $ fmap (bimap unApply unApply)
+      $ Mb.mapMaybe keepPropEq ra
+    extractRewrites _ = []
+
+    keepPropEq (PAtom Eq e1 e2) = Just (e1, e2)
+    keepPropEq _ = Nothing
+    
+    keepTrans [a, b] = Just (a, b)
+    keepTrans _ = Nothing
+
+    -- Find a way to make this check more roboust
+    validVar name = (not $ T.elem '.' name')
+                  && (T.elem '#' name' || T.elem '_' name')
+                  && (not $ T.isPrefixOf "lq_anf" name')
+      where name' = symbolText name
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 --
@@ -370,12 +447,13 @@ data InstEnv a = InstEnv
 ----------------------------------------------------------------------------------------------
 
 data ICtx    = ICtx
-  { icAssms    :: S.HashSet Pred            -- ^ Equalities converted to SMT format
-  , icCands    :: S.HashSet Expr            -- ^ "Candidates" for unfolding
-  , icEquals   :: EvEqualities              -- ^ Accumulated equalities
-  , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
-  , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
-  , icANFs     :: [[(Symbol, SortedReft)]]  -- Hopefully contain only ANF things
+  { icAssms       :: S.HashSet Pred           -- ^ Equalities converted to SMT format
+  , icCands       :: S.HashSet Expr           -- ^ "Candidates" for unfolding
+  , icEquals      :: EvEqualities             -- ^ Accumulated equalities
+  , icSimpl       :: !ConstMap                -- ^ Map of expressions to constants
+  , icSubcId      :: Maybe SubcId             -- ^ Current subconstraint ID
+  , icANFs        :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
+  , icSMTRewrites :: M.HashMap Symbol Expr    -- ^ Rewrites that have been generated by SMT
   }
 
 ----------------------------------------------------------------------------------------------
@@ -894,6 +972,7 @@ evalApp γ _ctx e0 es _et
             if not $ any hasTyVar etaArgsType then do
               performEtaExpansion e0 es nArgsMissing etaArgsType
             else do
+              traceShowM ("NO MONO" :: String, pprint f)
               -- There is at least a non monomorphized type variables
               -- We cant conclude anything
               pure (Nothing, noExpand)
@@ -959,6 +1038,7 @@ evalApp γ ctx e0 es _et
        modify $ \st ->
          st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs' }
        return (Nothing, noExpand)
+
 evalApp γ ctx e0 es et
   | ELam (argName, _) body <- dropECst e0
   , lambdaArg:remArgs <- es
@@ -979,13 +1059,32 @@ evalApp γ ctx e0 es et
         else do
           return (Nothing, noExpand)
 
+evalApp _ ctx e0 es _
+  | EVar f <- dropECst e0
+  , Just rewrite <- M.lookup f (icSMTRewrites ctx)
+  = do
+    modify $ \st ->
+      st { evNewEqualities = S.insert (eApps e0 es, eApps rewrite es) (evNewEqualities st) }
+    return (Just $ eApps rewrite es, expand)
 
-evalApp _ _ _e _es _
-  = return (Nothing, noExpand)
-
+evalApp _γ _ctx _e0 _es _
+  -- = pure (Nothing, noExpand)
+  = do 
+    let deANFed = deANF _ctx _e0
+    if dropECst deANFed /= dropECst _e0 then do -- && not (isCoercion deANFed) then do
+      -- traceShowM ("Replacing" :: String, _e0, deANFed)
+      -- modify $ \st ->
+      --   st { evNewEqualities = S.insert (eApps e0 es, eApps deANFed es) (evNewEqualities st) }
+      return (Just $ eApps deANFed _es, expand)
+    else do
+      -- traceShowM ("evalApp: cant expand" :: String, pprint e0)
+      -- traceShowM ("evalApp: with args" :: String, es)
+      -- traceShowM ("sel" :: String, pprint (knSels γ))
+      -- traceShowM ("ctors" :: String, pprint (knDataCtors γ))
+      return (Nothing, noExpand)
 
 mkLams :: Expr -> [(Symbol, Sort)] -> Expr
-mkLams subject binds = foldr (\bind acc -> ELam bind acc) subject binds
+mkLams subject binds = foldr ELam subject binds
 
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
