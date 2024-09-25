@@ -829,13 +829,10 @@ evalApp γ ctx e0 es et
                 if undecidedGuards
                   then do
                     modify $ \st ->
-                      st {
-                        evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
-                      }
-                    -- Don't unfold the expression if there is an if-then-else
-                    -- guarding it, just to preserve the size of further
-                    -- rewrites.
-                    return (Nothing, noExpand)
+                      st { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
+                         , evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
+                         }
+                    return (Just $ eApps e2' es2, fe)
                   else do
                     useFuel f
                     modify $ \st ->
