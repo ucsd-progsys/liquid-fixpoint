@@ -159,7 +159,7 @@ instEnv cfg info cs restSolver ctx = do
     return $ InstEnv
        { ieCfg = cfg
        , ieSMT = ctx
-       , ieBEnv = bs info
+       , ieBEnv = coerceBindEnv $ bs info
        , ieAenv = ae info
        , ieCstrs = cs
        , ieKnowl = knowledge cfg ctx info
@@ -1080,10 +1080,7 @@ evalApp _γ _ctx _e0 _es _
   = do 
     let deANFed = deANF _ctx _e0
     if dropECst deANFed /= dropECst _e0 then do
-      -- We need to elaborate the term on the fly as anf-ed terms arent elaborated
-      -- probably is not needed
-      deANFed' <- elaborateExpr "EvalApp deANFed elaborate" deANFed
-      return (Just $ eApps deANFed' _es, expand)
+      return (Just $ eApps deANFed _es, expand)
     else do
       return (Nothing, noExpand)
 
