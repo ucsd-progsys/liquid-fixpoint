@@ -323,13 +323,12 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
 
     extractRewrites (_, sreft, _)
       | Reft (_, PAnd ra) <- sr_reft sreft
-      = concat
-      $ Mb.mapMaybe obtainEqualities
-      $ Mb.mapMaybe keepTrans 
-      $ map snd 
-      $ Misc.groupList 
-      $ fmap (bimap unApply unApply)
-      $ Mb.mapMaybe keepPropEq ra
+      =  concat
+      $  Mb.mapMaybe obtainEqualities
+      $  Mb.mapMaybe (keepTrans . snd)
+      $  Misc.groupList 
+      $  bimap unApply unApply
+     <$> Mb.mapMaybe keepPropEq ra
     extractRewrites _ = []
 
     keepPropEq (PAtom Eq e1 e2) = Just (e1, e2)
@@ -339,9 +338,9 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
     keepTrans _ = Nothing
 
     -- Find a way to make this check more roboust
-    validVar name = (not $ T.elem '.' name')
+    validVar name =  not (T.elem '.' name')
                   && (T.elem '#' name' || T.elem '_' name')
-                  && (not $ T.isPrefixOf "lq_anf" name')
+                  && not (T.isPrefixOf "lq_anf" name')
       where name' = symbolText name
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
