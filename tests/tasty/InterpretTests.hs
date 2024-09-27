@@ -1,7 +1,7 @@
 module InterpretTests (tests) where
 
 import Arbitrary ()
-import Language.Fixpoint.Types.Refinements (Expr (..))
+import Language.Fixpoint.Types.Refinements (Expr)
 import qualified SimplifyInterpreter
 import Test.Tasty
   ( TestTree,

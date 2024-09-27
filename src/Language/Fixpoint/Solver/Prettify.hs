@@ -38,7 +38,7 @@ import           Language.Fixpoint.Types.Names
   )
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
-  ( Expr(..)
+  ( ExprV(..)
   , pattern PFalse
   , Reft
   , SortedReft(..)

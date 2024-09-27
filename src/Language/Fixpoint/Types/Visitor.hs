@@ -308,7 +308,7 @@ eapps                 = fold eappVis () []
     eapp' _ _            = []
 
 {-# SCC kvarsExpr #-}
-kvarsExpr :: Expr -> [KVar]
+kvarsExpr :: ExprV v -> [KVar]
 kvarsExpr = go []
   where
     go acc e0 = case e0 of

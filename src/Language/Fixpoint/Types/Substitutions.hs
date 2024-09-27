@@ -206,7 +206,7 @@ pprReft (Reft (v, p)) d
   = braces (toFix v <+> colon <+> d <+> text "|" <+> ppRas [p])
 
 -- RJ: this depends on `isTauto` hence, here.
-instance PPrint Reft where
+instance (PPrint v, Fixpoint v, Ord v) => PPrint (ReftV v) where
   pprintTidy k r
     | isTautoReft r        = text "true"
     | otherwise        = pprintReft k r
