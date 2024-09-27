@@ -67,8 +67,6 @@ import qualified Data.Set as Set
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.Text as T
 
-import Debug.Trace
-
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
@@ -302,11 +300,7 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
       , EVar cons2 <- dropECst fst2
       , cons1 == cons2
       , Just _ <- M.lookup cons1 (knDataCtors ieKnowl)
-      , Just unified <- unifyArgumets args1 args2
-      = do
-        traceShowM ("e1" :: String, cons1)
-        traceShowM ("e2" :: String, pprint unified)
-        pure unified
+      = unifyArgumets args1 args2
     obtainEqualities _ = Nothing
 
     flatten (EApp x xs) = flatten x ++ [ xs ]
@@ -584,7 +578,7 @@ getAutoRws γ ctx =
 evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
   | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW False e
-evalOne γ ctx _ e = do
+evalOne γ ctx _ e | isExprRewritable e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
         oc = evOCAlgebra env
@@ -594,6 +588,7 @@ evalOne γ ctx _ e = do
     es <- evalREST γ ctx rp
     modify $ \st -> st { explored = Just emptyET }
     return es
+evalOne _ _ _ _ = return []
 
 -- The FuncNormal and RWNormal evaluation strategies are used for REST
 -- For example, consider the following function:
@@ -730,6 +725,11 @@ evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (E
 evalELam γ ctx et (x, s) e = do
     oldPendingUnfoldings <- gets evPendingUnfoldings
     oldEqs <- gets evNewEqualities
+
+    -- We need to declare the variable in the environment 
+    modify $ \st -> st 
+      { evEnv = declareVar x s $ evEnv st }
+
     (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et False e
     let e2' = simplify γ ctx e'
         elam = ELam (x, s) e
@@ -737,14 +737,41 @@ evalELam γ ctx et (x, s) e = do
     modify $ \st -> st
       { evPendingUnfoldings = oldPendingUnfoldings
       , evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs
+      -- Leaving the scope thus we need to get rid of it
+      , evEnv = deleteVar x $ evEnv st
       }
     return (ELam (x, s) e', fe)
+
+declareVar :: Symbol -> Sort -> SymEnv -> SymEnv
+declareVar x s env = env { seSort = SE $ M.insert x s (seBinds $ seSort env) }
+
+deleteVar :: Symbol -> SymEnv -> SymEnv
+deleteVar x env = env { seSort = SE $ M.delete x (seBinds $ seSort env) }
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
   , path :: [(Expr, TermOrigin)]
   , c    :: oc
   }
+
+-- With the support for lambdas in PLE now lambda expression can interact with the 
+-- rewriting feature. But for the moment we don't support them as we can't convert to
+-- REST terms.
+isExprRewritable :: Expr -> Bool
+isExprRewritable (EIte i t e ) = isExprRewritable i && isExprRewritable t && isExprRewritable e
+isExprRewritable (EApp f e) = isExprRewritable f && isExprRewritable e
+isExprRewritable (EVar _) = True
+isExprRewritable (PNot e) = isExprRewritable e
+isExprRewritable (PAnd es) = all isExprRewritable es
+isExprRewritable (POr es) = all isExprRewritable es
+isExprRewritable (PAtom _ l r) = isExprRewritable l && isExprRewritable r
+isExprRewritable (EBin _ l r) = isExprRewritable l && isExprRewritable r
+isExprRewritable (ECon _) = True
+isExprRewritable (ESym _) = True
+isExprRewritable (ECst _ _) = True
+isExprRewritable (PIff e0 e1) = isExprRewritable (PAtom Eq e0 e1)
+isExprRewritable (PImp e0 e1) = isExprRewritable (POr [PNot e0, e1])
+isExprRewritable _ = False
 
 -- Reverse the ANF transformation
 deANF :: ICtx -> Expr -> Expr
@@ -783,47 +810,54 @@ evalRESTWithCache cacheRef _ ctx acc rp
 
 evalRESTWithCache cacheRef γ ctx acc rp =
   do
-    Just exploredTerms <- gets explored
-    se <- liftIO (shouldExploreTerm exploredTerms exprs)
-    if se then do
-      possibleRWs <- getRWs
-      rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
-      oldEqualities <- gets evNewEqualities
-      modify $ \st -> st { evNewEqualities = mempty }
+    mexploredTerms <- gets explored
+    case mexploredTerms of
+      Nothing -> return acc
+      Just exploredTerms -> do
+        se <- liftIO (shouldExploreTerm exploredTerms exprs)
+        if se then do
+          possibleRWs <- getRWs
+          rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
+          oldEqualities <- gets evNewEqualities
+          modify $ \st -> st { evNewEqualities = mempty }
 
-      -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
-      (e', FE fe) <- do
-        r@(ec, _) <- eval γ ctx FuncNormal False exprs
-        if ec /= exprs
-          then return r
-          else eval γ ctx RWNormal False exprs
+          -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
+          (e', FE fe) <- do
+            r@(ec, _) <- eval γ ctx FuncNormal False exprs
+            if ec /= exprs
+              then return r
+              else eval γ ctx RWNormal False exprs
 
-      let evalIsNewExpr = e' `L.notElem` pathExprs
-      let exprsToAdd    = [e' | evalIsNewExpr]  ++ map (\(_, e, _) -> e) rws
-          acc' = exprsToAdd ++ acc
-          eqnToAdd = [ (e1, simplify γ ctx e2) | ((e1, e2), _, _) <- rws ]
+          let evalIsNewExpr = e' `L.notElem` pathExprs
+          let exprsToAdd    = [e' | evalIsNewExpr]  ++ map (\(_, e, _) -> e) rws
+              acc' = exprsToAdd ++ acc
+              eqnToAdd = [ (e1, simplify γ ctx e2) | ((e1, e2), _, _) <- rws ]
 
-      newEqualities <- gets evNewEqualities
-      smtCache <- liftIO $ readIORef cacheRef
-      modify (\st ->
-             st { evNewEqualities  = foldr S.insert (S.union newEqualities oldEqualities) eqnToAdd
-                , evSMTCache = smtCache
-                , explored = Just $ ExploredTerms.insert
-                  (Rewrite.convert exprs)
-                  (c rp)
-                  (S.insert (Rewrite.convert e') $ S.fromList (map (Rewrite.convert . (\(_, e, _) -> e)) possibleRWs))
-                  (Mb.fromJust $ explored st)
-                })
+          let explored' st = 
+                if isExprRewritable e' && isExprRewritable exprs 
+                  then Just $ ExploredTerms.insert (Rewrite.convert exprs) (c rp) 
+                                                  (S.insert (Rewrite.convert e') 
+                            $ S.fromList (map (Rewrite.convert . (\(_, e, _) -> e)) possibleRWs)) 
+                                        (Mb.fromJust $ explored st)
+                  else Nothing
 
-      acc'' <- if evalIsNewExpr
-        then if fe && any isRW (path rp)
-          then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW False e'
-          else evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' (rpEval newEqualities e')
-        else return acc'
+          newEqualities <- gets evNewEqualities
+          smtCache <- liftIO $ readIORef cacheRef
+          modify $ \st -> st 
+            { evNewEqualities  = foldr S.insert (S.union newEqualities oldEqualities) eqnToAdd
+            , evSMTCache = smtCache
+            , explored = explored' st 
+            }
 
-      foldM (\r rw -> evalRESTWithCache cacheRef γ ctx r (rpRW rw)) acc'' rws
-     else
-      return acc
+          acc'' <- if evalIsNewExpr
+            then if fe && any isRW (path rp)
+              then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW False e'
+              else evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' (rpEval newEqualities e')
+            else return acc'
+
+          foldM (\r rw -> evalRESTWithCache cacheRef γ ctx r (rpRW rw)) acc'' rws
+        else
+          return acc
   where
     shouldExploreTerm exploredTerms e | Vis.isConc e =
       case rwTerminationOpts rwArgs of
@@ -891,35 +925,31 @@ evalApp γ ctx e0 es et
   , Just eq <- Map.lookup f (knAms γ)
   , length (eqArgs eq) <= length es
   = do
-       env  <- gets (seSort . evEnv)
+       env <- gets (seSort . evEnv) 
        okFuel <- checkFuel f
-       if okFuel && et /= FuncNormal
-         then do
-                let (es1,es2) = splitAt (length (eqArgs eq)) es
-                    newE = substEq env eq es1
-                (e', fe) <- evalIte γ ctx et newE -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-                let e2' = stripPLEUnfold e'
-                    e3' = simplify γ ctx (eApps e2' es2) -- reduces a bit the equations
-                    undecidedGuards = case e' of
-                      EIte{} -> True
-                      _ -> False
+       if okFuel && et /= FuncNormal then do
+        let (es1, es2) = splitAt (length (eqArgs eq)) es
+        -- Doing elaboration ahead of time would cause too much
+        -- monomorphization
+        newE <- elaborateExpr "EvalApp unfold full: " $ substEq env eq es1
 
-                if undecidedGuards
-                  then do
-                    modify $ \st ->
-                      st { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
-                         , evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
-                         }
-                    return (Just $ eApps e2' es2, fe)
-                  else do
-                    useFuel f
-                    modify $ \st ->
-                      st
-                        { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
-                        , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
-                        }
-                    return (Just $ eApps e2' es2, fe)
-         else return (Nothing, noExpand)
+        (e', fe) <- evalIte γ ctx et newE         -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+        let e2' = stripPLEUnfold e'
+        let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
+        
+        if isGuardUndecied e' then do
+          modify $ \st -> st 
+            { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
+            }
+          return (Nothing, noExpand)
+        else do
+          useFuel f
+          modify $ \st -> st
+            { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
+            , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
+            }
+          return (Just $ eApps e2' es2, fe)
+       else return (Nothing, noExpand)
   where
     -- At the time of writing, any function application wrapping an
     -- if-statement would have the effect of unfolding the invocation.
@@ -932,6 +962,9 @@ evalApp γ ctx e0 es et
       , f == "Language.Haskell.Liquid.ProofCombinators.pleUnfold"
       = arg
       | otherwise = e
+
+    isGuardUndecied EIte{} = True
+    isGuardUndecied _ = False
 -- **ETA**: PLE before the patch to perform eta expansion was only able to unfold
 -- fully applied functions, by eta equivalence we mean the property that for all
 -- functions f the terms f and (\x -> f x) have the same semantics, we leverage 
@@ -966,52 +999,31 @@ evalApp γ _ctx e0 es _et
           -- This case is pretty suspicious as we shouldnt generate functions that do not
           -- have a type annotation
           Nothing -> do
-            -- Hack to recover general mono signature, by looking directly
-            -- at the types in the equation
-            let etaArgsType = fmap snd $ drop nProvidedArgs $ eqArgs eq
-            if not $ any hasTyVar etaArgsType then do
-              performEtaExpansion e0 es nArgsMissing etaArgsType
-            else do
-              traceShowM ("NO MONO" :: String, pprint f)
-              -- There is at least a non monomorphized type variables
-              -- We cant conclude anything
-              pure (Nothing, noExpand)
+            pure (Nothing, noExpand)
           Just etaArgsType -> do
-            performEtaExpansion e0 es nArgsMissing etaArgsType
+            -- Fresh names for the eta expansion
+            etaNames <- makeFreshEtaNames nArgsMissing
+
+            let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
+            let fullBody = eApps e0 (es ++ etaVars)
+            let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
+
+            -- Note: we should always add the equality as etaNames is always non empty because the
+            -- only way for etaNames to be empty is if the function is fully applied, but that case
+            -- is already handled by the previous case of evalApp
+            modify $ \st -> st 
+              { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
+            return (Just etaExpandedTerm, expand)
     else do
       pure (Nothing, noExpand)
   where
-    hasTyVar :: Sort -> Bool
-    hasTyVar (FObj _) = True
-    hasTyVar (FApp l r) = hasTyVar l || hasTyVar r
-    hasTyVar (FFunc l r) = hasTyVar l || hasTyVar r
-    hasTyVar (FAbs _ i) = hasTyVar i
-    hasTyVar _ = False
-
-    extractMonoSign :: Expr -> Maybe [Sort]
     extractMonoSign (ECst _ sort) = Just $ flatten sort
     extractMonoSign _ = Nothing
 
-    flatten :: Sort -> [Sort]
     flatten (FFunc t ts) = t : flatten ts
     flatten t = [t]
 
-    performEtaExpansion :: Expr -> [Expr] -> Int -> [Sort] -> EvalST (Maybe Expr, FinalExpand)
-    performEtaExpansion fun actualArgs nArgsMissing etaArgsType = do
-      -- Fresh names for the eta expansion
-      etaNames <- makeFreshEtaNames nArgsMissing
-
-      let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
-      let fullBody = eApps fun (actualArgs ++ etaVars)
-      let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
-
-      -- Note: we should always add the equality as etaNames is always non empty because the
-      -- only way for etaNames to be empty is if the function is fully applied, but that case
-      -- is already handled by the previous case of evalApp
-      modify $ \st ->
-        st { evNewEqualities = S.insert (eApps fun es, etaExpandedTerm) (evNewEqualities st) }
-
-      return (Just etaExpandedTerm, expand)
+    mkLams subject binds = foldr ELam subject binds
 
 evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
@@ -1025,10 +1037,8 @@ evalApp γ ctx e0 args@(e:es) _
   = do
     let newE = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es
     when (isUserDataSMeasure == NoUserDataSMeasure) $
-      modify $ \st ->
-        st { evNewEqualities =
-               S.insert (eApps e0 args, simplify γ ctx newE) (evNewEqualities st)
-           }
+      modify $ \st -> st 
+        { evNewEqualities = S.insert (eApps e0 args, simplify γ ctx newE) (evNewEqualities st) }
     return (Just newE, noExpand)
 
 evalApp γ ctx e0 es _et
@@ -1068,23 +1078,15 @@ evalApp _ ctx e0 es _
     return (Just $ eApps rewrite es, expand)
 
 evalApp _γ _ctx _e0 _es _
-  -- = pure (Nothing, noExpand)
   = do 
     let deANFed = deANF _ctx _e0
-    if dropECst deANFed /= dropECst _e0 then do -- && not (isCoercion deANFed) then do
-      -- traceShowM ("Replacing" :: String, _e0, deANFed)
-      -- modify $ \st ->
-      --   st { evNewEqualities = S.insert (eApps e0 es, eApps deANFed es) (evNewEqualities st) }
-      return (Just $ eApps deANFed _es, expand)
+    if dropECst deANFed /= dropECst _e0 then do
+      -- We need to elaborate the term on the fly as anf-ed terms arent elaborated
+      -- probably is not needed
+      deANFed' <- elaborateExpr "EvalApp deANFed elaborate" deANFed
+      return (Just $ eApps deANFed' _es, expand)
     else do
-      -- traceShowM ("evalApp: cant expand" :: String, pprint e0)
-      -- traceShowM ("evalApp: with args" :: String, es)
-      -- traceShowM ("sel" :: String, pprint (knSels γ))
-      -- traceShowM ("ctors" :: String, pprint (knDataCtors γ))
       return (Nothing, noExpand)
-
-mkLams :: Expr -> [(Symbol, Sort)] -> Expr
-mkLams subject binds = foldr ELam subject binds
 
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
@@ -1442,6 +1444,12 @@ makeFreshEtaNames n = replicateM n makeFreshName
       ident <- gets freshEtaNames
       modify $ \st -> st { freshEtaNames = 1 + freshEtaNames st }
       pure $ etaExpSymbol ident
+
+elaborateExpr :: String -> Expr -> EvalST Expr
+elaborateExpr msg e = do
+  let elabSpan = atLoc dummySpan msg
+  symEnv' <- gets evEnv
+  pure $ unApply $ elaborate elabSpan symEnv' e
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.
