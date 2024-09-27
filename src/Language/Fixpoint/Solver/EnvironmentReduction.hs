@@ -11,6 +11,7 @@ module Language.Fixpoint.Solver.EnvironmentReduction
   ( reduceEnvironments
   , simplifyBindings
   , dropLikelyIrrelevantBindings
+  , relatedSymbols
   , inlineInExpr
   , inlineInSortedReft
   , mergeDuplicatedBindings
@@ -744,7 +745,8 @@ dropLikelyIrrelevantBindings
   -> HashMap Symbol SortedReft
 dropLikelyIrrelevantBindings ss env = HashMap.filterWithKey relevant env
   where
-    relatedSyms = relatedSymbols ss env
+    directlyUses = HashMap.map (exprSymbolsSet . reftPred . sr_reft) env
+    relatedSyms = relatedSymbols ss directlyUses
     relevant s _sr =
       (not (capitalizedSym s) || prefixOfSym s /= s) && s `HashSet.member` relatedSyms
     capitalizedSym = Text.all isUpper . Text.take 1 . symbolText
@@ -760,10 +762,10 @@ dropLikelyIrrelevantBindings ss env = HashMap.filterWithKey relevant env
 -- @a@ uses @b@. Because the predicate of @c@ relates @b@ with @d@,
 -- @d@ can also influence the validity of the predicate of @a@, and therefore
 -- we include both @b@, @c@, and @d@ in the set of related symbols.
-relatedSymbols :: HashSet Symbol -> HashMap Symbol SortedReft -> HashSet Symbol
-relatedSymbols ss0 env = go HashSet.empty ss0
+relatedSymbols
+  :: HashSet Symbol -> HashMap Symbol (HashSet Symbol) -> HashSet Symbol
+relatedSymbols ss0 directlyUses = go HashSet.empty ss0
   where
-    directlyUses = HashMap.map (exprSymbolsSet . reftPred . sr_reft) env
     usedBy = HashMap.fromListWith HashSet.union
                [ (x, HashSet.singleton s)
                | (s, xs) <- HashMap.toList directlyUses
