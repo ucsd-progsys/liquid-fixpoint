@@ -25,15 +25,18 @@ module Language.Fixpoint.Types.Refinements (
   , Constant (..)
   , Bop (..)
   , Brel (..)
-  , Expr (..), Pred
+  , ExprV (..), Pred
+  , Expr
   , GradInfo (..)
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , pattern ETimes, pattern ERTimes, pattern EDiv, pattern ERDiv
   , pattern EEq
   , KVar (..)
-  , Subst (..)
+  , Subst
+  , SubstV (..)
   , KVSub (..)
-  , Reft (..)
+  , Reft
+  , ReftV (..)
   , SortedReft (..)
 
   -- * Constructing Terms
@@ -148,7 +151,7 @@ instance NFData Constant
 instance NFData SymConst
 instance NFData Brel
 instance NFData Bop
-instance NFData Expr
+instance NFData v => NFData (ExprV v)
 instance NFData Reft
 instance NFData SortedReft
 
@@ -181,7 +184,7 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
   get = M.fromList <$> B.get
 
 instance B.Binary Subst
-instance B.Binary Expr
+instance B.Binary v => B.Binary (ExprV v)
 instance B.Binary Reft
 
 
@@ -257,14 +260,18 @@ instance Hashable SymConst
 instance Hashable Constant
 instance Hashable GradInfo
 instance Hashable Subst
-instance Hashable Expr
-instance Hashable Reft
+instance Hashable v => Hashable (ExprV v)
+instance Hashable v => Hashable (ReftV v)
 
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
-newtype Subst = Su (M.HashMap Symbol Expr)
-                deriving (Eq, Data, Ord, Typeable, Generic, ToJSON, FromJSON)
+type Subst = SubstV Symbol
+newtype SubstV v = Su (M.HashMap Symbol (ExprV v))
+                deriving (Eq, Data, Ord, Typeable, Generic)
+
+instance ToJSON Subst
+instance FromJSON Subst
 
 instance Show Subst where
   show = showFix
@@ -319,28 +326,31 @@ instance FromJSON Bop       where
 instance FromJSON Expr      where
 
 
-data Expr = ESym !SymConst
+type Expr = ExprV Symbol
+
+data ExprV v
+          = ESym !SymConst
           | ECon !Constant
-          | EVar !Symbol
-          | EApp !Expr !Expr
-          | ENeg !Expr
-          | EBin !Bop !Expr !Expr
-          | EIte !Expr !Expr !Expr
-          | ECst !Expr !Sort
-          | ELam !(Symbol, Sort)   !Expr
-          | ETApp !Expr !Sort
-          | ETAbs !Expr !Symbol
-          | PAnd   ![Expr]
-          | POr    ![Expr]
-          | PNot   !Expr
-          | PImp   !Expr !Expr
-          | PIff   !Expr !Expr
-          | PAtom  !Brel  !Expr !Expr
+          | EVar !v
+          | EApp !(ExprV v) !(ExprV v)
+          | ENeg !(ExprV v)
+          | EBin !Bop !(ExprV v) !(ExprV v)
+          | EIte !(ExprV v) !(ExprV v) !(ExprV v)
+          | ECst !(ExprV v) !Sort
+          | ELam !(Symbol, Sort)   !(ExprV v)
+          | ETApp !(ExprV v) !Sort
+          | ETAbs !(ExprV v) !Symbol
+          | PAnd   ![ExprV v]
+          | POr    ![ExprV v]
+          | PNot   !(ExprV v)
+          | PImp   !(ExprV v) !(ExprV v)
+          | PIff   !(ExprV v) !(ExprV v)
+          | PAtom  !Brel  !(ExprV v) !(ExprV v)
           | PKVar  !KVar !Subst
-          | PAll   ![(Symbol, Sort)] !Expr
-          | PExist ![(Symbol, Sort)] !Expr
-          | PGrad  !KVar !Subst !GradInfo !Expr
-          | ECoerc !Sort !Sort !Expr
+          | PAll   ![(Symbol, Sort)] !(ExprV v)
+          | PExist ![(Symbol, Sort)] !(ExprV v)
+          | PGrad  !KVar !Subst !GradInfo !(ExprV v)
+          | ECoerc !Sort !Sort !(ExprV v)
           deriving (Eq, Show, Ord, Data, Typeable, Generic)
 
 onEverySubexpr :: (Expr -> Expr) -> Expr -> Expr
@@ -511,9 +521,11 @@ debruijnIndex = go
     go (PGrad _ _ _ e) = go e
     go (ECoerc _ _ e)  = go e
 
--- | Parsed refinement of @Symbol@ as @Expr@
---   e.g. in '{v: _ | e }' v is the @Symbol@ and e the @Expr@
-newtype Reft = Reft (Symbol, Expr)
+type Reft = ReftV Symbol
+
+-- | Refinement of @v@ satisfying a predicate
+--   e.g. in '{x: _ | e }' x is the @Symbol@ and e the @ExprV v@
+newtype ReftV v = Reft (Symbol, ExprV v)
                deriving (Eq, Ord, Data, Typeable, Generic)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }

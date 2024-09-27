@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Language.Fixpoint.Types.Templates (
 
   anything, Templates, makeTemplates,

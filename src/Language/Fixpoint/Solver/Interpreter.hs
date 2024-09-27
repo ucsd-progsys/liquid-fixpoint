@@ -12,6 +12,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
