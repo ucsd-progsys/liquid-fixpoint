@@ -1090,6 +1090,9 @@ evalApp _γ _ctx _e0 _es _
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
 evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
+evalIte γ ctx et (ECst e t) = do
+  (e', fe) <- evalIte γ ctx et e
+  return (ECst e' t, fe)
 evalIte γ ctx et (EIte i e1 e2) = do
       (b, _) <- eval γ ctx et False i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
