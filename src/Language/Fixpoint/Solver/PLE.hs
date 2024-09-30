@@ -576,7 +576,7 @@ getAutoRws γ ctx =
 -- way.
 evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
-  | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW False e
+  | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW e
 evalOne γ ctx _ e | isExprRewritable e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
@@ -645,13 +645,8 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 --
 -- Also adds to the monad state all the unfolding equalities that have been
 -- discovered as necessary.
---
--- isLHS keeps track if the currext expression is on the left hand side of a function
--- application, if True then we don't unfold the definition of variables in the case
--- for variables as they are function beeing applied, this is needed to not perform
--- the eta-expansion an infinite amout of times
-eval :: Knowledge -> ICtx -> EvalType -> Bool -> Expr -> EvalST (Expr, FinalExpand)
-eval γ ctx et isLHSApp = go
+eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
+eval γ ctx et = go
   where
     go (ELam (x,s) e)   = evalELam γ ctx et (x, s) e
     go e@EIte{}         = evalIte γ ctx et e
@@ -662,17 +657,21 @@ eval γ ctx et isLHSApp = go
           -- Just evaluate the arguments first, to give rewriting a chance to step in
           -- if necessary
           do
-            (es', finalExpand) <- feSeq <$> mapM (eval γ ctx et False) es
+            (es', finalExpand) <- feSeq <$> mapM (eval γ ctx et) es
             if es /= es'
               then return (eApps f es', finalExpand)
               else do
-                (f', fe)  <- eval γ ctx et True f
+                (f', fe) <- case dropECst f of
+                  EVar _ -> pure (f, noExpand)
+                  _      -> eval γ ctx et f
                 (me', fe') <- evalApp γ ctx f' es et
                 return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
        (f, es) ->
           do
-            (f', fe1) <- eval γ ctx et True f
-            (es', fe2) <- feSeq <$> mapM (eval γ ctx et False) es
+            (f', fe1) <- case dropECst f of
+              EVar _ -> pure (f, noExpand)
+              _      -> eval γ ctx et f
+            (es', fe2) <- feSeq <$> mapM (eval γ ctx et) es
             let fe = fe1 <|> fe2
             (me', fe') <- evalApp γ ctx f' es' et
             return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
@@ -691,18 +690,8 @@ eval γ ctx et isLHSApp = go
     go (PAnd es)        = efAll PAnd (go `traverse` es)
     go (POr es)         = efAll POr (go `traverse` es)
     go e | EVar _ <- dropECst e = do
-      -- If it not on the LHS of a function
-      -- application then expand the definition
-      -- we need this to not end in an infinite
-      -- loop in which we are eta expaning forever
-      -- See comment **ETA**, if we are not performing
-      -- any eta expansion then the two branches are actually
-      -- equivalent
-      if not isLHSApp then do
-        (me', fe) <- evalApp γ ctx e [] et
-        return (Mb.fromMaybe e me', fe)
-      else do
-        return (e, noExpand)
+      (me', fe) <- evalApp γ ctx e [] et
+      return (Mb.fromMaybe e me', fe)
     go (ECst e t)       = do 
                              (e', fe) <- go e
                              return (ECst e' t, fe)
@@ -729,7 +718,7 @@ evalELam γ ctx et (x, s) e = do
     modify $ \st -> st 
       { evEnv = declareVar x s $ evEnv st }
 
-    (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et False e
+    (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
     let e2' = simplify γ ctx e'
         elam = ELam (x, s) e
     -- Discard the old equalities which miss the lambda binding
@@ -822,10 +811,10 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
           -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
           (e', FE fe) <- do
-            r@(ec, _) <- eval γ ctx FuncNormal False exprs
+            r@(ec, _) <- eval γ ctx FuncNormal exprs
             if ec /= exprs
               then return r
-              else eval γ ctx RWNormal False exprs
+              else eval γ ctx RWNormal exprs
 
           let evalIsNewExpr = e' `L.notElem` pathExprs
           let exprsToAdd    = [e' | evalIsNewExpr]  ++ map (\(_, e, _) -> e) rws
@@ -850,7 +839,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
           acc'' <- if evalIsNewExpr
             then if fe && any isRW (path rp)
-              then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW False e'
+              then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW e'
               else evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' (rpEval newEqualities e')
             else return acc'
 
@@ -1091,7 +1080,7 @@ evalIte γ ctx et (ECst e t) = do
   (e', fe) <- evalIte γ ctx et e
   return (ECst e' t, fe)
 evalIte γ ctx et (EIte i e1 e2) = do
-      (b, _) <- eval γ ctx et False i
+      (b, _) <- eval γ ctx et i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
       case b' of
         Just True -> evalIte γ ctx et e1
