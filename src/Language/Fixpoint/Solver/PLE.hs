@@ -301,6 +301,14 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
       , cons1 == cons2
       , Just _ <- M.lookup cons1 (knDataCtors ieKnowl)
       = unifyArgumets args1 args2
+    obtainEqualities (e1, e2)
+      | EVar f <- dropECst e1
+      , validVar f
+      = Just [(f, e2)]
+    obtainEqualities (e1, e2)
+      | EVar f <- dropECst e2
+      , validVar f
+      = Just [(f, e1)]
     obtainEqualities _ = Nothing
 
     flatten (EApp x xs) = flatten x ++ [ xs ]
@@ -953,65 +961,6 @@ evalApp γ ctx e0 es et
 
     isGuardUndecied EIte{} = True
     isGuardUndecied _ = False
--- **ETA**: PLE before the patch to perform eta expansion was only able to unfold
--- fully applied functions, by eta equivalence we mean the property that for all
--- functions f the terms f and (\x -> f x) have the same semantics, we leverage 
--- this fact to fully apply functions with extra function arguments so to trigger
--- the standard PLE espansion, see the following example:
--- We have a function f:
--- define f (x : int) : int = {(x)}
--- And we need to prove some constraint of this shape
--- { f = something }
--- The original PLE cannot do anything on f as it's not fully applied, instead
--- if we perform eta expansion on f we obtain the following constraint
--- { \y:Int -> f y = something }
--- And now PLE can perform the unfolding of f as it's now fully saturated
--- { \y:Int -> y = something }
--- Clearly we need the higerorder flag active as we are generating lambda in
--- the constraints.
-evalApp γ _ctx e0 es _et
-  | EVar f <- dropECst e0
-  , Just eq <- Map.lookup f (knAms γ)
-  = do
-    isHOAllowed <- gets hoFlag
-    if isHOAllowed then do
-      let expectedArgs = eqArgs eq
-      let nProvidedArgs = length es
-      let nArgsMissing = length expectedArgs - nProvidedArgs
-
-      -- For some reason the application is expected to be already 
-      -- monomorphized, so we can't extract the sorts directly form
-      -- the equation
-      let etaArgsMono = drop nProvidedArgs <$> extractMonoSign e0
-      case etaArgsMono of
-          -- This case is pretty suspicious as we shouldnt generate functions that do not
-          -- have a type annotation
-          Nothing -> do
-            pure (Nothing, noExpand)
-          Just etaArgsType -> do
-            -- Fresh names for the eta expansion
-            etaNames <- makeFreshEtaNames nArgsMissing
-
-            let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
-            let fullBody = eApps e0 (es ++ etaVars)
-            let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
-
-            -- Note: we should always add the equality as etaNames is always non empty because the
-            -- only way for etaNames to be empty is if the function is fully applied, but that case
-            -- is already handled by the previous case of evalApp
-            modify $ \st -> st 
-              { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
-            return (Just etaExpandedTerm, expand)
-    else do
-      pure (Nothing, noExpand)
-  where
-    extractMonoSign (ECst _ sort) = Just $ flatten sort
-    extractMonoSign _ = Nothing
-
-    flatten (FFunc t ts) = t : flatten ts
-    flatten t = [t]
-
-    mkLams subject binds = foldr ELam subject binds
 
 evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
@@ -1066,12 +1015,60 @@ evalApp _ ctx e0 es _
     return (Just $ eApps rewrite es, expand)
 
 evalApp _ ctx e0 es _
+  | deANFed <- deANF ctx e0
+  , dropECst deANFed /= dropECst e0
   = do 
-    let deANFed = deANF ctx e0
-    if dropECst deANFed /= dropECst e0 then do
       return (Just $ eApps deANFed es, expand)
+
+-- **ETA**: PLE before the patch to perform eta expansion was only able to unfold
+-- fully applied functions, by eta equivalence we mean the property that for all
+-- functions f the terms f and (\x -> f x) have the same semantics, we leverage 
+-- this fact to fully apply functions with extra function arguments so to trigger
+-- the standard PLE espansion, see the following example:
+-- We have a function f:
+-- define f (x : int) : int = {(x)}
+-- And we need to prove some constraint of this shape
+-- { f = something }
+-- The original PLE cannot do anything on f as it's not fully applied, instead
+-- if we perform eta expansion on f we obtain the following constraint
+-- { \y:Int -> f y = something }
+-- And now PLE can perform the unfolding of f as it's now fully saturated
+-- { \y:Int -> y = something }
+-- Clearly we need the higerorder flag active as we are generating lambda in
+-- the constraints.
+evalApp _γ _ctx e0 es _et
+  | ECst (EVar _) sortAnnotation@FFunc{} <- e0
+  = do
+    isHOAllowed <- gets hoFlag
+    if isHOAllowed then do
+      let expectedArgs = init $ flatten sortAnnotation
+      let nProvidedArgs = length es
+      let nArgsMissing = length expectedArgs - nProvidedArgs
+
+      let etaArgsType = drop nProvidedArgs $ flatten sortAnnotation
+      -- Fresh names for the eta expansion
+      etaNames <- makeFreshEtaNames nArgsMissing
+
+      let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
+      let fullBody = eApps e0 (es ++ etaVars)
+      let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
+
+      -- Note: we should always add the equality as etaNames is always non empty because the
+      -- only way for etaNames to be empty is if the function is fully applied, but that case
+      -- is already handled by the previous case of evalApp
+      modify $ \st -> st 
+        { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
+      return (Just etaExpandedTerm, expand)
     else do
-      return (Nothing, noExpand)
+      pure (Nothing, noExpand)
+  where
+    flatten (FFunc t ts) = t : flatten ts
+    flatten t = [t]
+
+    mkLams subject binds = foldr ELam subject binds
+
+evalApp _ _ctx _e0 _es _ = do
+  return (Nothing, noExpand)
 
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
