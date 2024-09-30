@@ -1065,11 +1065,11 @@ evalApp _ ctx e0 es _
       st { evNewEqualities = S.insert (eApps e0 es, eApps rewrite es) (evNewEqualities st) }
     return (Just $ eApps rewrite es, expand)
 
-evalApp _γ _ctx _e0 _es _
+evalApp _ ctx e0 es _
   = do 
-    let deANFed = deANF _ctx _e0
-    if dropECst deANFed /= dropECst _e0 then do
-      return (Just $ eApps deANFed _es, expand)
+    let deANFed = deANF ctx e0
+    if dropECst deANFed /= dropECst e0 then do
+      return (Just $ eApps deANFed es, expand)
     else do
       return (Nothing, noExpand)
 
