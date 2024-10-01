@@ -685,7 +685,7 @@ eval γ ctx et = go
               else do
                 (f', fe) <- case dropECst f of
                   EVar _ -> pure (f, noExpand)
-                  _      -> eval γ ctx et f
+                  _      -> go f
                 (me', fe') <- evalApp γ ctx f' es et
                 return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
        (f, es) ->
