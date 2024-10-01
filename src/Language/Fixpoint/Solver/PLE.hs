@@ -339,6 +339,8 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
     unifyArgumets _ _ 
       = Nothing
 
+    -- Looks inside a list of qualities for equalities 
+    -- that share the lhs and then perform the unification
     extractRewrites (_, sreft, _)
       | Reft (_, PAnd ra) <- sr_reft sreft
       =  concat
@@ -355,8 +357,8 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
     keepTrans [a, b] = Just (a, b)
     keepTrans _ = Nothing
 
--- Find a way to make this check more roboust
--- Check if a symbol is a local vairable
+-- Find a way to make this check more robust
+-- Check if a symbol is a local variable
 validVar :: Symbol -> Bool
 validVar name =  not (T.elem '.' name')
               && (T.elem '#' name' || T.elem '_' name')
@@ -690,7 +692,7 @@ eval γ ctx et = go
           do
             (f', fe1) <- case dropECst f of
               EVar _ -> pure (f, noExpand)
-              _      -> eval γ ctx et f
+              _      -> go f
             (es', fe2) <- feSeq <$> mapM (eval γ ctx et) es
             let fe = fe1 <|> fe2
             (me', fe') <- evalApp γ ctx f' es' et
@@ -736,7 +738,7 @@ evalELam γ ctx et (x, s) e = do
 
     -- We need to declare the variable in the environment 
     modify $ \st -> st 
-      { evEnv = declareVar x s $ evEnv st }
+      { evEnv = insertSymEnv x s $ evEnv st }
 
     (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
     let e2' = simplify γ ctx e'
@@ -746,15 +748,9 @@ evalELam γ ctx et (x, s) e = do
       { evPendingUnfoldings = oldPendingUnfoldings
       , evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs
       -- Leaving the scope thus we need to get rid of it
-      , evEnv = deleteVar x $ evEnv st
+      , evEnv = deleteSymEnv x $ evEnv st
       }
     return (ELam (x, s) e', fe)
-
-declareVar :: Symbol -> Sort -> SymEnv -> SymEnv
-declareVar x s env = env { seSort = SE $ M.insert x s (seBinds $ seSort env) }
-
-deleteVar :: Symbol -> SymEnv -> SymEnv
-deleteVar x env = env { seSort = SE $ M.delete x (seBinds $ seSort env) }
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
@@ -933,30 +929,30 @@ evalApp γ ctx e0 es et
   , Just eq <- Map.lookup f (knAms γ)
   , length (eqArgs eq) <= length es
   = do
-       env <- gets (seSort . evEnv) 
+       env <- gets (seSort . evEnv)
        okFuel <- checkFuel f
        if okFuel && et /= FuncNormal then do
-        let (es1, es2) = splitAt (length (eqArgs eq)) es
-        -- Doing elaboration ahead of time would cause too much
-        -- monomorphization
-        newE <- elaborateExpr "EvalApp unfold full: " $ substEq env eq es1
+         let (es1, es2) = splitAt (length (eqArgs eq)) es
+         -- Doing elaboration ahead of time would cause too much
+         -- monomorphization
+         newE <- elaborateExpr "EvalApp unfold full: " $ substEq env eq es1
 
-        (e', fe) <- evalIte γ ctx et newE         -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-        let e2' = stripPLEUnfold e'
-        let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
+         (e', fe) <- evalIte γ ctx et newE         -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+         let e2' = stripPLEUnfold e'
+         let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
         
-        if isGuardUndecied e' then do
-          modify $ \st -> st 
-            { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
-            }
-          return (Nothing, noExpand)
-        else do
-          useFuel f
-          modify $ \st -> st
-            { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
-            , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
-            }
-          return (Just $ eApps e2' es2, fe)
+         if hasUndecidedGuard e' then do
+           modify $ \st -> st 
+             { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
+             }
+           return (Nothing, noExpand)
+         else do
+           useFuel f
+           modify $ \st -> st
+             { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
+             , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
+             }
+           return (Just $ eApps e2' es2, fe)
        else return (Nothing, noExpand)
   where
     -- At the time of writing, any function application wrapping an
@@ -971,8 +967,8 @@ evalApp γ ctx e0 es et
       = arg
       | otherwise = e
 
-    isGuardUndecied EIte{} = True
-    isGuardUndecied _ = False
+    hasUndecidedGuard EIte{} = True
+    hasUndecidedGuard _ = False
 
 evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
@@ -1022,13 +1018,13 @@ evalApp _ ctx e0 es _
   | EVar f <- dropECst e0
   , Just rewrite <- M.lookup f (icSMTRewrites ctx)
   = do
-    -- No need to check if the eta beta flag is on since icSMTRewrites is emoty
+    -- No need to check if the eta beta flag is on since icSMTRewrites is empty
     modify $ \st ->
       st { evNewEqualities = S.insert (eApps e0 es, eApps rewrite es) (evNewEqualities st) }
     return (Just $ eApps rewrite es, expand)
 
 evalApp _ ctx e0 es _
-  | deANFed <- deANF ctx e0
+  | let deANFed = deANF ctx e0
   , dropECst deANFed /= dropECst e0
   = do
       isEtaBetaOn <- gets etabetaFlag
@@ -1041,7 +1037,7 @@ evalApp _ ctx e0 es _
 -- fully applied functions, by eta equivalence we mean the property that for all
 -- functions f the terms f and (\x -> f x) have the same semantics, we leverage 
 -- this fact to fully apply functions with extra function arguments so to trigger
--- the standard PLE espansion, see the following example:
+-- the standard PLE expansion, see the following example:
 -- We have a function f:
 -- define f (x : int) : int = {(x)}
 -- And we need to prove some constraint of this shape
@@ -1057,11 +1053,11 @@ evalApp _γ _ctx e0 es _et
   | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
   = do
     isEtaBetaOn <- gets etabetaFlag
-    let expectedArgs = init $ flatten sortAnnotation
+    let expectedArgs = unpackFFuncs sortAnnotation
     let nProvidedArgs = length es
     let nArgsMissing = length expectedArgs - nProvidedArgs
     if isEtaBetaOn && nArgsMissing > 0 then do
-      let etaArgsType = drop nProvidedArgs $ flatten sortAnnotation
+      let etaArgsType = drop nProvidedArgs $ expectedArgs
       -- Fresh names for the eta expansion
       etaNames <- makeFreshEtaNames nArgsMissing
 
@@ -1078,8 +1074,8 @@ evalApp _γ _ctx e0 es _et
     else do
       pure (Nothing, noExpand)
   where
-    flatten (FFunc t ts) = t : flatten ts
-    flatten t = [t]
+    unpackFFuncs (FFunc t ts) = t : unpackFFuncs ts
+    unpackFFuncs _ = []
 
     mkLams subject binds = foldr ELam subject binds
 
