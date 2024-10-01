@@ -1,0 +1,24 @@
+fixpoint "--rewrite"
+fixpoint "--allowho"
+fixpoint "--etabeta"
+
+constant f : (func(0 , [int; int; int]))
+define f (x : int, y: int) : int = {(x + y)}
+
+constant g : (func(0 , [int; int; int]))
+define g (a : int, b: int) : int = {(b + a)}
+
+
+data Ty 0 = [
+    | Cons {mkCons : func(0 , [int; int; int])}
+]
+
+constant Cons : (func(0 , [func(0 , [int; int; int]); Ty]))
+
+expand [1 : True; 2 : True]
+
+constraint:
+  env []
+  lhs {VV1 : Tuple | true }
+  rhs {VV2 : Tuple | (Cons f = Cons g) }
+  id 2 tag []
