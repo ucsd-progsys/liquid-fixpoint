@@ -272,9 +272,10 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
   let (ctx', env')  = updCtx env ctx delta cidMb
   let assms = icAssms ctx'
 
-  let smtRewrites = case etabeta ieCfg of
-                      True -> concatMap (\i -> extractRewrites $ lookupBindEnv i ieBEnv) delta
-                      False -> mempty
+  let smtRewrites = if etabeta ieCfg then
+                      concatMap (\i -> extractRewrites $ lookupBindEnv i ieBEnv) delta
+                    else
+                      mempty
 
   SMT.smtBracket ieSMT "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT )
