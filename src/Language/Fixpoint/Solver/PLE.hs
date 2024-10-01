@@ -768,7 +768,7 @@ isExprRewritable (EVar _) = True
 isExprRewritable (PNot e) = isExprRewritable e
 isExprRewritable (PAnd es) = all isExprRewritable es
 isExprRewritable (POr es) = all isExprRewritable es
-isExprRewritable (PAtom _ l r) = isExprRewritable l && isExprRewritable r
+isExprRewritable (PAtom _ l r) = isExprRewritable l && isExprRewrita/ble r
 isExprRewritable (EBin _ l r) = isExprRewritable l && isExprRewritable r
 isExprRewritable (ECon _) = True
 isExprRewritable (ESym _) = True
@@ -1057,7 +1057,7 @@ evalApp _γ _ctx e0 es _et
     let nProvidedArgs = length es
     let nArgsMissing = length expectedArgs - nProvidedArgs
     if isEtaBetaOn && nArgsMissing > 0 then do
-      let etaArgsType = drop nProvidedArgs $ expectedArgs
+      let etaArgsType = drop nProvidedArgs expectedArgs
       -- Fresh names for the eta expansion
       etaNames <- makeFreshEtaNames nArgsMissing
 
