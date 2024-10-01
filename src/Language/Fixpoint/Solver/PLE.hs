@@ -150,7 +150,7 @@ instEnv cfg info cs restSolver ctx = do
               , evFuel = defFuelCount cfg
               , extensionalityFlag = extensionality cfg
               , freshEtaNames = 0
-              , hoFlag = FC.allowHO cfg
+              , etabetaFlag = FC.etabeta cfg
               , explored = Just et
               , restSolver = restSolver
               , restOCA = restOrd
@@ -272,7 +272,9 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
   let (ctx', env')  = updCtx env ctx delta cidMb
   let assms = icAssms ctx'
 
-  let smtRewrites = concatMap (\i -> extractRewrites $ lookupBindEnv i ieBEnv) delta
+  let smtRewrites = case etabeta ieCfg of
+                      True -> concatMap (\i -> extractRewrites $ lookupBindEnv i ieBEnv) delta
+                      False -> mempty
 
   SMT.smtBracket ieSMT "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT )
@@ -288,10 +290,11 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
     --    (Something m₁ ... mₙ));
     --  ...]
 
-    -- We some the system v₁ = m₁, v₂ = m₂, ... vₙ = mₙ
+    -- We solve the system v₁ = m₁, v₂ = m₂, ... vₙ = mₙ
     -- finding equalities between the free variables
 
     -- Given ((Something v₁ ... vₙ), (Something m₁ ... mₙ))
+    -- or    (v₁,                    (Something m₁ ... mₙ))
     -- obtain the unification
     obtainEqualities (e1, e2)
       | fst1 : args1 <- flatten $ dropECst e1
@@ -554,9 +557,9 @@ data EvalEnv = EvalEnv
   -- Eta expansion feature
   , freshEtaNames :: Int -- ^ Keeps track of how many names we generated to perform eta 
                          --   expansion, we use this to generate always fresh names
-  , hoFlag        :: Bool -- ^ True if the allowho flag is turned on, needed for the eta
-                          -- expansion reasoning as its going to generate ho constraints
-                          -- [See **ETA** comment above]
+  , etabetaFlag        :: Bool -- ^ True if the etabeta flag is turned on, needed for the eta
+                               -- expansion reasoning as its going to generate ho constraints
+                               -- [See **ETA** comment above]
 
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
@@ -1000,8 +1003,8 @@ evalApp γ ctx e0 es et
   = do
       isFuelOk <- checkFuel argName
       isExtensionalityOn <- gets extensionalityFlag
-      isHOOn <- gets hoFlag
-      if isFuelOk && (isExtensionalityOn || isHOOn)
+      isEtaBetaOn <- gets etabetaFlag
+      if isFuelOk && (isExtensionalityOn || isEtaBetaOn)
         then do
           useFuel argName
           let argSubst = mkSubst [(argName, lambdaArg)]
@@ -1018,6 +1021,7 @@ evalApp _ ctx e0 es _
   | EVar f <- dropECst e0
   , Just rewrite <- M.lookup f (icSMTRewrites ctx)
   = do
+    -- No need to check if the eta beta flag is on since icSMTRewrites is emoty
     modify $ \st ->
       st { evNewEqualities = S.insert (eApps e0 es, eApps rewrite es) (evNewEqualities st) }
     return (Just $ eApps rewrite es, expand)
@@ -1025,8 +1029,12 @@ evalApp _ ctx e0 es _
 evalApp _ ctx e0 es _
   | deANFed <- deANF ctx e0
   , dropECst deANFed /= dropECst e0
-  = do 
-      return (Just $ eApps deANFed es, expand)
+  = do
+      isEtaBetaOn <- gets etabetaFlag
+      if isEtaBetaOn then
+        return (Just $ eApps deANFed es, expand)
+      else
+        return (Nothing, noExpand)
 
 -- **ETA**: PLE before the patch to perform eta expansion was only able to unfold
 -- fully applied functions, by eta equivalence we mean the property that for all
@@ -1047,11 +1055,11 @@ evalApp _ ctx e0 es _
 evalApp _γ _ctx e0 es _et
   | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
   = do
-    isHOAllowed <- gets hoFlag
+    isEtaBetaOn <- gets etabetaFlag
     let expectedArgs = init $ flatten sortAnnotation
     let nProvidedArgs = length es
     let nArgsMissing = length expectedArgs - nProvidedArgs
-    if isHOAllowed && nArgsMissing > 0 then do
+    if isEtaBetaOn && nArgsMissing > 0 then do
       let etaArgsType = drop nProvidedArgs $ flatten sortAnnotation
       -- Fresh names for the eta expansion
       etaNames <- makeFreshEtaNames nArgsMissing
