@@ -304,10 +304,16 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
     obtainEqualities (e1, e2)
       | EVar f <- dropECst e1
       , validVar f
+      , fst2 : _ <- flatten $ dropECst e2
+      , (EVar cons) <- dropECst fst2
+      , Just _ <- M.lookup cons $ knDataCtors ieKnowl
       = Just [(f, e2)]
     obtainEqualities (e1, e2)
       | EVar f <- dropECst e2
       , validVar f
+      , fst1 : _ <- flatten $ dropECst e1
+      , (EVar cons) <- dropECst fst1
+      , Just _ <- M.lookup cons $ knDataCtors ieKnowl
       = Just [(f, e1)]
     obtainEqualities _ = Nothing
 
@@ -345,11 +351,13 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
     keepTrans [a, b] = Just (a, b)
     keepTrans _ = Nothing
 
-    -- Find a way to make this check more roboust
-    validVar name =  not (T.elem '.' name')
-                  && (T.elem '#' name' || T.elem '_' name')
-                  && not (T.isPrefixOf "lq_anf" name')
-      where name' = symbolText name
+-- Find a way to make this check more roboust
+-- Check if a symbol is a local vairable
+validVar :: Symbol -> Bool
+validVar name =  not (T.elem '.' name')
+              && (T.elem '#' name' || T.elem '_' name')
+              && not (T.isPrefixOf "lq_anf" name')
+  where name' = symbolText name
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 --
@@ -1037,14 +1045,13 @@ evalApp _ ctx e0 es _
 -- Clearly we need the higerorder flag active as we are generating lambda in
 -- the constraints.
 evalApp _γ _ctx e0 es _et
-  | ECst (EVar _) sortAnnotation@FFunc{} <- e0
+  | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
   = do
     isHOAllowed <- gets hoFlag
-    if isHOAllowed then do
-      let expectedArgs = init $ flatten sortAnnotation
-      let nProvidedArgs = length es
-      let nArgsMissing = length expectedArgs - nProvidedArgs
-
+    let expectedArgs = init $ flatten sortAnnotation
+    let nProvidedArgs = length es
+    let nArgsMissing = length expectedArgs - nProvidedArgs
+    if isHOAllowed && nArgsMissing > 0 then do
       let etaArgsType = drop nProvidedArgs $ flatten sortAnnotation
       -- Fresh names for the eta expansion
       etaNames <- makeFreshEtaNames nArgsMissing
