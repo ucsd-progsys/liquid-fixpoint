@@ -50,7 +50,8 @@ module Language.Fixpoint.Types.Constraints (
   , gwInfo, GWInfo (..)
 
   -- * Qualifiers
-  , Qualifier   (..)
+  , Qualifier
+  , QualifierV  (..)
   , QualParam   (..)
   , QualPattern (..)
   , trueQual
@@ -484,10 +485,11 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 --------------------------------------------------------------------------------
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
-data Qualifier = Q
+type Qualifier = QualifierV Symbol
+data QualifierV v = Q
   { qName   :: !Symbol     -- ^ Name
   , qParams :: [QualParam] -- ^ Parameters
-  , qBody   :: !Expr       -- ^ Predicate
+  , qBody   :: !(ExprV v)  -- ^ Predicate
   , qPos    :: !SourcePos  -- ^ Source Location
   }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
