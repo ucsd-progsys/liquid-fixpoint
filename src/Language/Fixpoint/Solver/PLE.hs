@@ -758,9 +758,8 @@ data RESTParams oc = RP
   , c    :: oc
   }
 
--- With the support for lambdas in PLE now lambda expression can interact with the 
--- rewriting feature. But for the moment we don't support them as we can't convert to
--- REST terms.
+-- An expression is rewritable if it is in the domain of
+-- Language.Fixpoint.Solver.Rewrite.convert
 isExprRewritable :: Expr -> Bool
 isExprRewritable (EIte i t e ) = isExprRewritable i && isExprRewritable t && isExprRewritable e
 isExprRewritable (EApp f e) = isExprRewritable f && isExprRewritable e
