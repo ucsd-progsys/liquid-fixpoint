@@ -79,7 +79,8 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Axioms
   , AxiomEnv (..)
-  , Equation (..)
+  , Equation
+  , EquationV (..)
   , mkEquation
   , Rewrite  (..)
   , AutoRewrite (..)
@@ -956,10 +957,11 @@ instance Monoid AxiomEnv where
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show
 
-data Equation = Equ
-  { eqName :: !Symbol           -- ^ name of reflected function
+type Equation = EquationV Symbol
+data EquationV v = Equ
+  { eqName :: !v                -- ^ name of reflected function
   , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
-  , eqBody :: !Expr             -- ^ definition of body
+  , eqBody :: !(ExprV v)        -- ^ definition of body
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
