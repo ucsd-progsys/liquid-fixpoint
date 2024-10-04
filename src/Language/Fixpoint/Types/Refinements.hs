@@ -366,31 +366,31 @@ everywhereOnA f = go
 
 type Pred = Expr
 
-pattern PTrue :: Expr
+pattern PTrue :: ExprV v
 pattern PTrue = PAnd []
 
-pattern PTop :: Expr
+pattern PTop :: ExprV v
 pattern PTop = PAnd []
 
-pattern PFalse :: Expr
+pattern PFalse :: ExprV v
 pattern PFalse = POr  []
 
-pattern EBot :: Expr
+pattern EBot :: ExprV v
 pattern EBot = POr  []
 
-pattern EEq :: Expr -> Expr -> Expr
+pattern EEq :: ExprV v -> ExprV v -> ExprV v
 pattern EEq e1 e2 = PAtom Eq    e1 e2
 
-pattern ETimes :: Expr -> Expr -> Expr
+pattern ETimes :: ExprV v -> ExprV v -> ExprV v
 pattern ETimes e1 e2 = EBin Times  e1 e2
 
-pattern ERTimes :: Expr -> Expr -> Expr
+pattern ERTimes :: ExprV v -> ExprV v -> ExprV v
 pattern ERTimes e1 e2 = EBin RTimes e1 e2
 
-pattern EDiv :: Expr -> Expr -> Expr
+pattern EDiv :: ExprV v -> ExprV v -> ExprV v
 pattern EDiv e1 e2 = EBin Div    e1 e2
 
-pattern ERDiv :: Expr -> Expr -> Expr
+pattern ERDiv :: ExprV v -> ExprV v -> ExprV v
 pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
 exprSymbolsSet :: Expr -> HashSet Symbol
@@ -466,7 +466,7 @@ mkEApp = eApps . EVar . val
 eApps :: Expr -> [Expr] -> Expr
 eApps f es  = foldl' EApp f es
 
-splitEApp :: Expr -> (Expr, [Expr])
+splitEApp :: ExprV v -> (ExprV v, [ExprV v])
 splitEApp = go []
   where
     go acc (EApp f e) = go (e:acc) f
@@ -588,7 +588,7 @@ instance Fixpoint Bop where
   toFix RDiv   = text "/."
   toFix Mod    = text "mod"
 
-instance Fixpoint Expr where
+instance (Ord v, Fixpoint v) => Fixpoint (ExprV v) where
   toFix (ESym c)       = toFix c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
@@ -623,7 +623,7 @@ instance Fixpoint Expr where
     where
       dedup = Set.toList . Set.fromList
 
-simplifyExpr :: ([Expr] -> [Expr]) -> Expr -> Expr
+simplifyExpr :: Eq v => ([ExprV v] -> [ExprV v]) -> ExprV v -> ExprV v
 simplifyExpr dedup = go
   where
     go (POr  [])     = PFalse
@@ -672,7 +672,7 @@ simplifyExpr dedup = go
       | isTautoPred  p     = PTrue
       | otherwise          = p
 
-isContraPred   :: Expr -> Bool
+isContraPred   :: Eq v => ExprV v -> Bool
 isContraPred z = eqC z || (z `elem` contras)
   where
     contras    = [PFalse]
@@ -687,7 +687,7 @@ isContraPred z = eqC z || (z `elem` contras)
                = x == y
     eqC _      = False
 
-isTautoPred   :: Expr -> Bool
+isTautoPred   :: Eq v => ExprV v -> Bool
 isTautoPred z  = z == PTop || z == PTrue || eqT z
   where
     eqT (PAnd [])
@@ -759,7 +759,7 @@ opPrec RTimes = 7
 opPrec Div    = 7
 opPrec RDiv   = 7
 
-instance PPrint Expr where
+instance (Ord v, Fixpoint v, PPrint v) => PPrint (ExprV v) where
   pprintPrec _ k (ESym c)        = pprintTidy k c
   pprintPrec _ k (ECon c)        = pprintTidy k c
   pprintPrec _ k (EVar s)        = pprintTidy k s
@@ -819,7 +819,9 @@ instance PPrint Expr where
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
   pprintPrec z k (PGrad x _ _ e) = pprintPrec z k e <+> "&&" <+> toFix x -- "??"
 
-pprintQuant :: Tidy -> Doc -> [(Symbol, Sort)] -> Expr -> Doc
+pprintQuant
+  :: (Ord v, Fixpoint v, PPrint v)
+  => Tidy -> Doc -> [(Symbol, Sort)] -> ExprV v -> Doc
 pprintQuant k d xts p = (d <+> toFix xts)
                         $+$
                         ("  ." <+> pprintTidy k p)
@@ -1018,11 +1020,11 @@ vv_ = vv Nothing
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft)
 
-trueReft, falseReft :: Reft
+trueReft, falseReft :: ReftV v
 trueReft  = Reft (vv_, PTrue)
 falseReft = Reft (vv_, PFalse)
 
-flattenRefas :: [Expr] -> [Expr]
+flattenRefas :: [ExprV v] -> [ExprV v]
 flattenRefas        = flatP []
   where
     flatP acc (PAnd ps:xs) = flatP (flatP acc xs) ps
