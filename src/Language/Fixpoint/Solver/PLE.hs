@@ -850,9 +850,11 @@ evalApp γ ctx e0 es et
          -- get a term annoptated with type `fun(0, [a#foo, a#foo])`
          -- instead of `fun(0, [@foo, @foo])` thus when substituting
          -- the body in a term we could encounter type mismatches.
-         newE <- elaborateExpr "EvalApp unfold full: " $ substEq env eq es1
+         let newE = substEq env eq es1
+         isEtaBetaOn <- gets etabetaFlag
+         newE' <- if isEtaBetaOn then elaborateExpr "EvalApp unfold full: " newE else pure newE
 
-         (e', fe) <- evalIte γ ctx et newE         -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+         (e', fe) <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          let e2' = stripPLEUnfold e'
          let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
         
