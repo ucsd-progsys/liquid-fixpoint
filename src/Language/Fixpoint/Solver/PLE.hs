@@ -840,8 +840,16 @@ evalApp γ ctx e0 es et
        okFuel <- checkFuel f
        if okFuel && et /= FuncNormal then do
          let (es1, es2) = splitAt (length (eqArgs eq)) es
-         -- Doing elaboration ahead of time would cause too much
-         -- monomorphization
+         -- We need the function with ECst annotations since they
+         -- are needed for doing eta expansion, doing elaboration
+         -- of the function body ahead of time would cause too much
+         -- monomorphization on the LH side, suppose we have a
+         -- polymorphic function of Haskell type `forall a. (a -> a)`,
+         -- we want the type `forall a. (ECst a a -> ECst a a)`
+         -- if we perform the elaboration ahead of time we would
+         -- get a term annoptated with type `fun(0, [a#foo, a#foo])`
+         -- instead of `fun(0, [@foo, @foo])` thus when substituting
+         -- the body in a term we could encounter type mismatches.
          newE <- elaborateExpr "EvalApp unfold full: " $ substEq env eq es1
 
          (e', fe) <- evalIte γ ctx et newE         -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
@@ -849,6 +857,9 @@ evalApp γ ctx e0 es et
          let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
         
          if hasUndecidedGuard e' then do
+           -- Don't unfold the expression if there is an if-then-else
+           -- guarding it, just to preserve the size of further
+           -- rewrites.
            modify $ \st -> st 
              { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
              }
@@ -938,6 +949,10 @@ evalApp γ ctx e0 es et
 -- Clearly we need the higerorder flag active as we are generating lambda in
 -- the constraints.
 evalApp _γ _ctx e0 es _et
+  -- We chech the annotation instead of the equation in γ for 2 reasons:
+  -- 1. We want to eta expand also functions that aren't reflected
+  -- 2. Also the types saaved in the equation carry the monomorphization 
+  --    issue
   | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
   = do
     isEtaBetaOn <- gets etabetaFlag
