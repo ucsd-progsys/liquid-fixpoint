@@ -828,6 +828,21 @@ evalRESTWithCache cacheRef γ ctx acc rp =
     addConst (e,e') = if isConstant (knDCs γ) e'
                       then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx
 
+-- Note [Elaboration for eta expansion]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- Eta expansion needs to determine the arity and the type of arguments of a
+-- function. For this sake, we make sure that when unfolding introduces new
+-- expressions, these expressions get annotated with their types by calling
+-- @elaborateExpr@.
+--
+-- This elaboration cannot be done ahead of time on equations, because then
+-- type variables are instantiated to rigid constants that cannot be unified.
+-- For instance, @id :: forall a. a -> a@ would be elaborated to
+-- @id :: a#1 -> a#1@, and when used in an expression like @id True@, @a#1@
+-- would not unify with @Bool@.
+
+
 -- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
 -- and equations
 evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Maybe Expr, FinalExpand)
@@ -840,16 +855,7 @@ evalApp γ ctx e0 es et
        okFuel <- checkFuel f
        if okFuel && et /= FuncNormal then do
          let (es1, es2) = splitAt (length (eqArgs eq)) es
-         -- We need the function with ECst annotations since they
-         -- are needed for doing eta expansion, doing elaboration
-         -- of the function body ahead of time would cause too much
-         -- monomorphization on the LH side, suppose we have a
-         -- polymorphic function of Haskell type `forall a. (a -> a)`,
-         -- we want the type `forall a. (ECst a a -> ECst a a)`
-         -- if we perform the elaboration ahead of time we would
-         -- get a term annoptated with type `fun(0, [a#foo, a#foo])`
-         -- instead of `fun(0, [@foo, @foo])` thus when substituting
-         -- the body in a term we could encounter type mismatches.
+         -- See Note [Elaboration for eta expansion].
          let newE = substEq env eq es1
          isEtaBetaOn <- gets etabetaFlag
          newE' <- if isEtaBetaOn then elaborateExpr "EvalApp unfold full: " newE else pure newE
@@ -951,10 +957,18 @@ evalApp γ ctx e0 es et
 -- Clearly we need the higerorder flag active as we are generating lambda in
 -- the constraints.
 evalApp _γ _ctx e0 es _et
-  -- We chech the annotation instead of the equation in γ for 2 reasons:
-  -- 1. We want to eta expand also functions that aren't reflected
-  -- 2. Also the types saaved in the equation carry the monomorphization 
-  --    issue
+  -- We check the annotation instead of the equations in γ for two reasons.
+  --
+  -- First, we want to eta expand functions that might not be reflected. Suppose
+  -- we have an uninterpreted function @f@, and we want to prove that
+  -- @f == \a -> f a@. We can use eta expansion on the left-hand side to prove
+  -- this.
+  --
+  -- Second, we need the type of the new arguments, which for some reason are
+  -- sometimes instantiated in the equations to rigid types that we cannot
+  -- instantiate to the types needed at the call site.
+  -- See Note [Elaboration for eta expansion].
+  --
   | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
   = do
     isEtaBetaOn <- gets etabetaFlag
