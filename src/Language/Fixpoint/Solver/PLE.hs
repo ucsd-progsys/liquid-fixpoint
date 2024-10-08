@@ -470,7 +470,7 @@ data EvalEnv = EvalEnv
                          --   expansion, we use this to generate always fresh names
   , etabetaFlag        :: Bool -- ^ True if the etabeta flag is turned on, needed for the eta
                                -- expansion reasoning as its going to generate ho constraints
-                               -- [See **ETA** comment above]
+                               -- See Note [Eta expansion].
 
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
@@ -828,6 +828,35 @@ evalRESTWithCache cacheRef γ ctx acc rp =
     addConst (e,e') = if isConstant (knDCs γ) e'
                       then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx
 
+-- Note [Eta expansion]
+-- ~~~~~~~~~~~~~~~~~~~~
+--
+-- Without eta expansion PLE could not prove that terms @f@ and @(\x -> f x)@
+-- have the same meaning. But sometimes we want to rewrite @f@ into the
+-- expanded form, in order to unfold @f@.
+--
+-- For instance, suppose we have a function @const@ defined as:
+--
+-- > define f (x : int, y : int) : int = {(x)}
+--
+-- And we need to prove some constraint of this shape
+--
+-- > { const a = \x:Int -> a }
+--
+-- At first, PLE cannot unfold @const@ since it is not fully applied.
+-- But if instead perform eta expansion on the left hand side we obtain the
+-- following equality
+--
+-- > { \y:Int -> const a y = \x:Int -> a}
+--
+-- And now PLE can unfold @const@ as the application is saturated
+--
+-- > { \y:Int -> a = \x:Int -> a}
+--
+-- We need the higerorder flag active as we are generating lambdas in
+-- the equalities.
+
+
 -- Note [Elaboration for eta expansion]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --
@@ -940,22 +969,6 @@ evalApp γ ctx e0 es et
         else do
           return (Nothing, noExpand)
 
--- **ETA**: PLE before the patch to perform eta expansion was only able to unfold
--- fully applied functions, by eta equivalence we mean the property that for all
--- functions f the terms f and (\x -> f x) have the same semantics, we leverage 
--- this fact to fully apply functions with extra function arguments so to trigger
--- the standard PLE expansion, see the following example:
--- We have a function f:
--- define f (x : int) : int = {(x)}
--- And we need to prove some constraint of this shape
--- { f = something }
--- The original PLE cannot do anything on f as it's not fully applied, instead
--- if we perform eta expansion on f we obtain the following constraint
--- { \y:Int -> f y = something }
--- And now PLE can perform the unfolding of f as it's now fully saturated
--- { \y:Int -> y = something }
--- Clearly we need the higerorder flag active as we are generating lambda in
--- the constraints.
 evalApp _γ _ctx e0 es _et
   -- We check the annotation instead of the equations in γ for two reasons.
   --
@@ -968,6 +981,8 @@ evalApp _γ _ctx e0 es _et
   -- sometimes instantiated in the equations to rigid types that we cannot
   -- instantiate to the types needed at the call site.
   -- See Note [Elaboration for eta expansion].
+  --
+  -- See Note [Eta expansion].
   --
   | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
   = do
