@@ -89,6 +89,8 @@ ordConstraints (RESTFuel m) _      = bimapConstraints Fuel asFuel $ fuelOC m
     asFuel _        = undefined
 
 
+-- Note: if you change the domain of this function, you need to change
+-- also Language.Fixpoint.Solver.PLE.isExprRewritable
 convert :: Expr -> RT.RuntimeTerm
 convert (EIte i t e)   = RT.App "$ite" $ map convert [i,t,e]
 convert e@EApp{}       | (f, terms) <- splitEAppThroughECst e, EVar fName <- dropECst f

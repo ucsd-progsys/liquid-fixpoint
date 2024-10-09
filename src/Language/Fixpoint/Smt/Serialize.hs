@@ -183,7 +183,7 @@ smt2VarAs :: SymEnv -> Symbol -> Sort -> Builder
 smt2VarAs env x t = parenSeqs ["as", smt2 env x, smt2SortMono x env t]
 
 smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder
-smt2Lam env (x, xT) (ECst e eT) = parenSeqs [Builder.fromText lambda, x', smt2 env e]
+smt2Lam env (x, xT) full@(ECst _ eT) = parenSeqs [Builder.fromText lambda, x', smt2 env full]
   where
     x'                          = smtLamArg env x xT
     lambda                      = symbolAtName lambdaName env () (FFunc xT eT)

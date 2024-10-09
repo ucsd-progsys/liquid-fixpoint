@@ -29,6 +29,7 @@ module Language.Fixpoint.Types.Theories (
     , symEnvSort
     , symEnvTheory
     , insertSymEnv
+    , deleteSymEnv
     , insertsSymEnv
     , symbolAtName
     , symbolAtSmtName
@@ -150,6 +151,9 @@ symEnvSort   x env = lookupSEnv x (seSort env)
 
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
+
+deleteSymEnv :: Symbol -> SymEnv -> SymEnv
+deleteSymEnv x env = env { seSort = deleteSEnv x (seSort env) }
 
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
 insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)

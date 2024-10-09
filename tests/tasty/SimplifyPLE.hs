@@ -32,10 +32,10 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
     emptyICtx :: PLE.ICtx
     emptyICtx =
       ICtx
-        { icAssms = S.empty, -- S.HashSet Pred
-          icCands = S.empty, -- :: S.HashSet Expr
-          icEquals = S.empty, -- :: EvAccum
-          icSimpl = SM.empty, -- :: !ConstMap
-          icSubcId = Nothing, -- :: Maybe SubcId
-          icANFs = []         -- :: [[(Symbol, SortedReft)]]
+        { icAssms = S.empty,      -- S.HashSet Pred
+          icCands = S.empty,      -- :: S.HashSet Expr
+          icEquals = S.empty,     -- :: EvAccum
+          icSimpl = SM.empty,     -- :: !ConstMap
+          icSubcId = Nothing,     -- :: Maybe SubcId
+          icANFs = []             -- :: [[(Symbol, SortedReft)]]
         }

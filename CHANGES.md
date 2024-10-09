@@ -6,6 +6,7 @@
   messages in LH
   [#2346](https://github.com/ucsd-progsys/liquidhaskell/issues/2346).
 - Support extensionality in PLE [#704](https://github.com/ucsd-progsys/liquid-fixpoint/pull/704)
+- Add a new flag `--etabeta` to reason with lambdas in PLE [#705](https://github.com/ucsd-progsys/liquid-fixpoint/pull/705)
 
 ## 0.9.6.3.1 (2024-08-21)
 
