@@ -1073,7 +1073,6 @@ class (Monoid r, Subable r) => Reftable r where
 
   toReft  :: r -> Reft
   ofReft  :: Reft -> r
-  params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
 
 instance Fixpoint Doc where
   toFix = id

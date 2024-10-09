@@ -226,14 +226,12 @@ instance Reftable () where
   meet _ _  = ()
   toReft _  = mempty
   ofReft _  = mempty
-  params _  = []
 
 instance Reftable Reft where
   isTauto  = all isTautoPred . conjuncts . reftPred
   ppTy     = pprReft
   toReft   = id
   ofReft   = id
-  params _ = []
   bot    _        = falseReft
   top (Reft(v,_)) = Reft (v, mempty)
 
@@ -249,7 +247,6 @@ instance Reftable SortedReft where
   ppTy     = ppTy . toReft
   toReft   = sr_reft
   ofReft   = errorstar "No instance of ofReft for SortedReft"
-  params _ = []
   bot s    = s { sr_reft = falseReft }
   top s    = s { sr_reft = trueReft }
 
