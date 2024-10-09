@@ -51,7 +51,6 @@ module Language.Fixpoint.Types.Refinements (
   , Expression (..)
   , Predicate (..)
   , Subable (..)
-  , Reftable (..)
 
   -- * Constructors
   , reft                    -- "smart
@@ -72,6 +71,7 @@ module Language.Fixpoint.Types.Refinements (
   , isNonTrivial
   , isContraPred
   , isTautoPred
+  , isTautoReft
   , isSingletonExpr
   , isSingletonReft
   , isFalse
@@ -970,8 +970,11 @@ mapPredReft f (Reft (v, p)) = Reft (v, f p)
 isFunctionSortedReft :: SortedReft -> Bool
 isFunctionSortedReft = isJust . functionSort . sr_sort
 
-isNonTrivial :: Reftable r => r -> Bool
-isNonTrivial = not . isTauto
+isNonTrivial :: SortedReft -> Bool
+isNonTrivial = not . isTautoReft . sr_reft
+
+isTautoReft :: Reft -> Bool
+isTautoReft = all isTautoPred . conjuncts . reftPred
 
 reftPred :: Reft -> Expr
 reftPred (Reft (_, p)) = p
@@ -1057,20 +1060,6 @@ instance Subable a => Subable (Located a) where
   substa f (Loc l l' x) = Loc l l' (substa f x)
   substf f (Loc l l' x) = Loc l l' (substf f x)
   subst su (Loc l l' x) = Loc l l' (subst su x)
-
-
-class (Monoid r, Subable r) => Reftable r where
-  isTauto :: r -> Bool
-  ppTy    :: r -> Doc -> Doc
-
-  top     :: r -> r
-  top _   =  mempty
-
-  meet    :: r -> r -> r
-  meet    = mappend
-
-  toReft  :: r -> Reft
-  ofReft  :: Reft -> r
 
 instance Fixpoint Doc where
   toFix = id
