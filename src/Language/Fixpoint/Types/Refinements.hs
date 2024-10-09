@@ -1066,8 +1066,6 @@ class (Monoid r, Subable r) => Reftable r where
   top     :: r -> r
   top _   =  mempty
 
-  bot     :: r -> r
-
   meet    :: r -> r -> r
   meet    = mappend
 

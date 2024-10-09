@@ -222,7 +222,6 @@ instance Reftable () where
   isTauto _ = True
   ppTy _  d = d
   top  _    = ()
-  bot  _    = ()
   meet _ _  = ()
   toReft _  = mempty
   ofReft _  = mempty
@@ -232,7 +231,6 @@ instance Reftable Reft where
   ppTy     = pprReft
   toReft   = id
   ofReft   = id
-  bot    _        = falseReft
   top (Reft(v,_)) = Reft (v, mempty)
 
 pprReft :: Reft -> Doc -> Doc
@@ -247,7 +245,6 @@ instance Reftable SortedReft where
   ppTy     = ppTy . toReft
   toReft   = sr_reft
   ofReft   = errorstar "No instance of ofReft for SortedReft"
-  bot s    = s { sr_reft = falseReft }
   top s    = s { sr_reft = trueReft }
 
 -- RJ: this depends on `isTauto` hence, here.
