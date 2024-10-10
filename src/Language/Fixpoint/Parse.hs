@@ -136,7 +136,7 @@ import qualified Data.Char                   as Char
 import           Language.Fixpoint.Types.Errors
 import qualified Language.Fixpoint.Misc      as Misc
 import           Language.Fixpoint.Smt.Types
-import           Language.Fixpoint.Types hiding    (mapSort, fi, params, GInfo(..))
+import           Language.Fixpoint.Types hiding    (mapSort, fi, GInfo(..))
 import qualified Language.Fixpoint.Types     as Types (GInfo(FI))
 import           Text.PrettyPrint.HughesPJ         (text, vcat, (<+>), Doc)
 
