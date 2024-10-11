@@ -437,7 +437,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
     eRhs      = maybe PTrue crhs subMb
     binds     = [ (x, y) | i <- delta, let (x, y, _) =  lookupBindEnv i ieBEnv]
     subMb     = getCstr ieCstrs <$> cidMb
-    newLRWs   = Mb.mapMaybe (\k -> M.lookup k ieLRWs) delta
+    newLRWs   = Mb.mapMaybe (`M.lookup` ieLRWs) delta
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
