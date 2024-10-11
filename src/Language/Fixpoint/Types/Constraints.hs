@@ -83,6 +83,7 @@ module Language.Fixpoint.Types.Constraints (
   , Rewrite  (..)
   , AutoRewrite (..)
   , dedupAutoRewrites
+  , LRWMap
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
@@ -688,6 +689,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
        , ae       = axe
        , ddecls   = adts
        , ebinds   = ebs
+       , lrws = mempty
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -733,6 +735,7 @@ data GInfo c a = FI
   , hoInfo   :: !HOInfo                    -- ^ Higher Order info
   , asserts  :: ![Triggered Expr]          -- ^ TODO: what is this?
   , ae       :: AxiomEnv                   -- ^ Information about reflected function defs
+  , lrws     :: LRWMap                     -- ^ Local rewrites
   }
   deriving (Eq, Show, Functor, Generic)
 
@@ -761,6 +764,7 @@ instance Semigroup (GInfo c a) where
                 , hoInfo   = hoInfo i1   <> hoInfo i2
                 , asserts  = asserts i1  <> asserts i2
                 , ae       = ae i1       <> ae i2
+                , lrws     = lrws i1     <> lrws i2
                 }
 
 
@@ -778,6 +782,7 @@ instance Monoid (GInfo c a) where
                      , hoInfo   = mempty
                      , asserts  = mempty
                      , ae       = mempty
+                     , lrws     = mempty
                      }
 
 instance PTable (SInfo a) where
@@ -926,6 +931,8 @@ data AxiomEnv = AEnv
   , aenvExpand   :: M.HashMap SubcId Bool
   , aenvAutoRW   :: M.HashMap SubcId [AutoRewrite]
   } deriving (Eq, Show, Generic)
+
+type LRWMap = M.HashMap BindId (M.HashMap Symbol Expr)
 
 instance S.Store AutoRewrite
 instance S.Store AxiomEnv

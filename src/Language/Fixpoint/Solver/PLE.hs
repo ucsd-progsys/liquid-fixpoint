@@ -163,6 +163,7 @@ instEnv cfg info cs restSolver ctx = do
        , ieCstrs = cs
        , ieKnowl = knowledge cfg ctx info
        , ieEvEnv = s0
+       , ieLRWs  = lrws info
        }
   where
     cachedNotStrongerThan refRESTCache oc a b = do
@@ -222,6 +223,7 @@ pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
       , icSimpl       = mempty
       , icSubcId      = Nothing
       , icANFs        = []
+      , icLRWs         = mempty
       }
 
 loopT
@@ -364,6 +366,7 @@ data InstEnv a = InstEnv
   , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
+  , ieLRWs  :: LRWMap
   }
 
 ----------------------------------------------------------------------------------------------
@@ -377,6 +380,7 @@ data ICtx    = ICtx
   , icSimpl       :: !ConstMap                -- ^ Map of expressions to constants
   , icSubcId      :: Maybe SubcId             -- ^ Current subconstraint ID
   , icANFs        :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
+  , icLRWs        :: M.HashMap Symbol Expr    -- ^ Local rewrites
   }
 
 ----------------------------------------------------------------------------------------------
@@ -418,6 +422,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
                     , icSimpl  = icSimpl ctx <> econsts
                     , icSubcId = cidMb
                     , icANFs   = bs : icANFs ctx
+                    , icLRWs   = mconcat $ icLRWs ctx : newLRWs
                     }
               , env
               )
@@ -432,6 +437,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
     eRhs      = maybe PTrue crhs subMb
     binds     = [ (x, y) | i <- delta, let (x, y, _) =  lookupBindEnv i ieBEnv]
     subMb     = getCstr ieCstrs <$> cidMb
+    newLRWs   = Mb.mapMaybe (\k -> M.lookup k ieLRWs) delta
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
@@ -969,6 +975,23 @@ evalApp γ ctx e0 es et
           return (Just $ eApps body'' remArgs, fe)
         else do
           return (Nothing, noExpand)
+
+evalApp _ ctx e0 es _
+  | EVar f <- dropECst e0
+  , Just rw <- M.lookup f $ icLRWs ctx
+  = do
+      -- expandedTerm <- elaborateExpr "EvalApp rewrite local:" $ eApps rw es
+      let expandedTerm = eApps rw es
+      modify $ \st -> st 
+        { evNewEqualities = S.insert (eApps e0 es, expandedTerm) (evNewEqualities st) }
+      return (Just expandedTerm, expand)
+
+evalApp _ ctx e0 es _
+  | deANFed <- deANF ctx e0
+  , dropECst deANFed /= dropECst e0
+  = do
+      return (Just $ eApps deANFed es, expand)
+
 
 evalApp _γ _ctx e0 es _et
   -- We check the annotation instead of the equations in γ for two reasons.
