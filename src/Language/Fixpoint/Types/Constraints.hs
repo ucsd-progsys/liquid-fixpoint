@@ -802,6 +802,7 @@ toFixpoint :: (Fixpoint a, Fixpoint (c a)) => C.Config -> GInfo c a -> Doc
 toFixpoint cfg x' =    cfgDoc   cfg
                   $++$ declsDoc x'
                   $++$ aeDoc    x'
+                  $++$ lrwsDoc  x'
                   $++$ qualsDoc x'
                   $++$ kutsDoc  x'
                 --   $++$ packsDoc x'
@@ -826,6 +827,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
                $++$ toFix    ebs
     qualsDoc      = vcat     . map toFix . L.sort . quals
     aeDoc         = toFix    . ae
+    lrwsDoc       = toFix    . lrws
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = C.metadata cfg
     binfoDoc
@@ -1062,6 +1064,13 @@ instance Fixpoint AxiomEnv where
 
 instance Fixpoint Equation where
   toFix (Equ f xs e s _) = "define" <+> toFix f <+> ppArgs xs <+> ":" <+> toFix s <+> text "=" <+> braces (parens (toFix e))
+
+instance Fixpoint LocalRewritesEnv where
+  toFix (LocalRewritesMap rws) = vcat $ uncurry toFixLocal <$> M.toList rws
+    where
+      toFixLocal bid (LocalRewrites rws) = text "defineLocal" <+> toFix bid 
+        <+> brackets (vcat $ punctuate ";" $ uncurry toFixRewrite <$> M.toList rws)
+      toFixRewrite sym eq = toFix sym <+> text ":=" <+> toFix eq
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)

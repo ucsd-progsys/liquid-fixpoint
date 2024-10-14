@@ -38,5 +38,5 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
           icSimpl = SM.empty,     -- :: !ConstMap
           icSubcId = Nothing,     -- :: Maybe SubcId
           icANFs = [],            -- :: [[(Symbol, SortedReft)]]
-          icLRWs = SM.empty       -- :: M.HashMap Symbol Expr
+          icLRWs = mempty
         }
