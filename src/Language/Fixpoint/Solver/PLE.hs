@@ -224,6 +224,7 @@ pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
       , icLRWs        = mempty
       , etaBetaFlag   = etabeta        $ ieCfg env
       , extFlag       = extensionality $ ieCfg env
+      , lrwsFlag      = localRewrites  $ ieCfg env
       }
 
 loopT
@@ -386,6 +387,7 @@ data ICtx    = ICtx
                                               -- generate ho constraints
                                               -- See Note [Eta expansion].
   , extFlag       :: Bool                     -- ^ True if the extensionality flag is turned on
+  , lrwsFlag      :: Bool                     -- ^ True if the locad rewrites flag is turned on
   }
 
 ----------------------------------------------------------------------------------------------
@@ -977,7 +979,8 @@ evalApp γ ctx e0 es et
           return (Nothing, noExpand)
 
 evalApp _ ctx e0 es _
-  | EVar f <- dropECst e0
+  | lrwsFlag ctx
+  , EVar f <- dropECst e0
   , Just rw <- lookupRewrite f $ icLRWs ctx
   = do
       -- expandedTerm <- elaborateExpr "EvalApp rewrite local:" $ eApps rw es
@@ -987,7 +990,8 @@ evalApp _ ctx e0 es _
       return (Just expandedTerm, expand)
 
 evalApp _ ctx e0 es _
-  | deANFed <- deANF ctx e0
+  | lrwsFlag ctx
+  , deANFed <- deANF ctx e0
   , dropECst deANFed /= dropECst e0
   = do
       return (Just $ eApps deANFed es, expand)
