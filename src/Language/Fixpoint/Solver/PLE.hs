@@ -366,7 +366,7 @@ data InstEnv a = InstEnv
   , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
-  , ieLRWs  :: LRWMap
+  , ieLRWs  :: LocalRewritesEnv
   }
 
 ----------------------------------------------------------------------------------------------
@@ -380,7 +380,7 @@ data ICtx    = ICtx
   , icSimpl       :: !ConstMap                -- ^ Map of expressions to constants
   , icSubcId      :: Maybe SubcId             -- ^ Current subconstraint ID
   , icANFs        :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
-  , icLRWs        :: M.HashMap Symbol Expr    -- ^ Local rewrites
+  , icLRWs        :: LocalRewrites            -- ^ Local rewrites
   }
 
 ----------------------------------------------------------------------------------------------
@@ -437,7 +437,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
     eRhs      = maybe PTrue crhs subMb
     binds     = [ (x, y) | i <- delta, let (x, y, _) =  lookupBindEnv i ieBEnv]
     subMb     = getCstr ieCstrs <$> cidMb
-    newLRWs   = Mb.mapMaybe (`M.lookup` ieLRWs) delta
+    newLRWs   = Mb.mapMaybe (`lookupLocalRewrites` ieLRWs) delta
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
@@ -978,7 +978,7 @@ evalApp γ ctx e0 es et
 
 evalApp _ ctx e0 es _
   | EVar f <- dropECst e0
-  , Just rw <- M.lookup f $ icLRWs ctx
+  , Just rw <- lookupRewrite f $ icLRWs ctx
   = do
       -- expandedTerm <- elaborateExpr "EvalApp rewrite local:" $ eApps rw es
       let expandedTerm = eApps rw es

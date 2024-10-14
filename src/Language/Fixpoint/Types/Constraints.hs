@@ -83,7 +83,11 @@ module Language.Fixpoint.Types.Constraints (
   , Rewrite  (..)
   , AutoRewrite (..)
   , dedupAutoRewrites
-  , LRWMap
+  , LocalRewritesEnv (..)
+  , LocalRewrites (..)
+  , lookupRewrite
+  , lookupLocalRewrites
+  , insertRewrites
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
@@ -735,7 +739,7 @@ data GInfo c a = FI
   , hoInfo   :: !HOInfo                    -- ^ Higher Order info
   , asserts  :: ![Triggered Expr]          -- ^ TODO: what is this?
   , ae       :: AxiomEnv                   -- ^ Information about reflected function defs
-  , lrws     :: LRWMap                     -- ^ Local rewrites
+  , lrws     :: LocalRewritesEnv           -- ^ Local rewrites
   }
   deriving (Eq, Show, Functor, Generic)
 
@@ -932,7 +936,21 @@ data AxiomEnv = AEnv
   , aenvAutoRW   :: M.HashMap SubcId [AutoRewrite]
   } deriving (Eq, Show, Generic)
 
-type LRWMap = M.HashMap BindId (M.HashMap Symbol Expr)
+newtype LocalRewrites = LocalRewrites (M.HashMap Symbol Expr)
+  deriving (Eq, Show, Generic, Semigroup, Monoid, NFData, S.Store)
+
+newtype LocalRewritesEnv = LocalRewritesMap (M.HashMap BindId LocalRewrites)
+  deriving (Eq, Show, Generic, Semigroup, Monoid, NFData, S.Store)
+
+lookupRewrite :: Symbol -> LocalRewrites -> Maybe Expr
+lookupRewrite x (LocalRewrites m) = M.lookup x m
+
+lookupLocalRewrites :: BindId -> LocalRewritesEnv -> Maybe LocalRewrites
+lookupLocalRewrites i (LocalRewritesMap m) = M.lookup i m
+
+insertRewrites :: BindId -> LocalRewrites -> LocalRewritesEnv -> LocalRewritesEnv
+insertRewrites i rws (LocalRewritesMap m) = LocalRewritesMap $ M.insert i rws m
+
 
 instance S.Store AutoRewrite
 instance S.Store AxiomEnv
