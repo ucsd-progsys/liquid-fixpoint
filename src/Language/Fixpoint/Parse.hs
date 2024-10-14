@@ -49,16 +49,17 @@ module Language.Fixpoint.Parse (
   , locInfixSymbolP
 
   -- * Parsing recursive entities
-  , exprP       -- Expressions
-  , predP       -- Refinement Predicates
-  , funAppP     -- Function Applications
-  , qualifierP  -- Qualifiers
-  , refaP       -- Refa
-  , refP        -- (Sorted) Refinements
-  , refDefP     -- (Sorted) Refinements with default binder
-  , refBindP    -- (Sorted) Refinements with configurable sub-parsers
-  , defineP     -- function definition equations (PLE)
-  , matchP      -- measure definition equations (PLE)
+  , exprP        -- Expressions
+  , predP        -- Refinement Predicates
+  , funAppP      -- Function Applications
+  , qualifierP   -- Qualifiers
+  , refaP        -- Refa
+  , refP         -- (Sorted) Refinements
+  , refDefP      -- (Sorted) Refinements with default binder
+  , refBindP     -- (Sorted) Refinements with configurable sub-parsers
+  , defineP      -- function definition equations (PLE)
+  , defineLocalP -- local function definition equations (PLE)
+  , matchP       -- measure definition equations (PLE)
 
   -- * Layout
   , indentedBlock
@@ -491,6 +492,7 @@ reservedNames = S.fromList
   , "class"
   , "data"
   , "define"
+  , "defineLocal"
   , "defined"
   , "embed"
   , "expression"
@@ -1293,6 +1295,19 @@ defineP = do
                )
   return  $ mkEquation name params body sort
 
+defineLocalP :: Parser (Int, [(Symbol, Expr)])
+defineLocalP = do
+  bid <- intP
+  rews <- brackets $ sepBy rewriteP $ reserved ";"
+  pure (bid, rews)
+
+rewriteP :: Parser (Symbol, Expr)
+rewriteP = do
+        x <- symbolP
+        reserved ":="
+        e <- exprP
+        return (x, e)
+
 matchP :: Parser Rewrite
 matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
 
@@ -1316,6 +1331,7 @@ data Def a
   | EBind !Int !Symbol !Sort !a
   | Opt !String
   | Def !Equation
+  | LDef !(Int, [(Symbol, Expr)])
   | Mat !Rewrite
   | Expand ![(Int,Bool)]
   | Adt  !DataDecl
@@ -1345,6 +1361,7 @@ defP =  Srt   <$> (reserved "sort"         >> colon >> sortP)
     <|> IBind <$> (reserved "bind"         >> intP) <*> symbolP <*> (colon >> sortedReftP)  <*> pure ()
     <|> Opt    <$> (reserved "fixpoint"    >> stringLiteral)
     <|> Def    <$> (reserved "define"      >> defineP)
+    <|> LDef   <$> (reserved "defineLocal" >> defineLocalP)
     <|> Mat    <$> (reserved "match"       >> matchP)
     <|> Expand <$> (reserved "expand"      >> pairsP intP boolP)
     <|> Adt    <$> (reserved "data"        >> dataDeclP)
@@ -1410,7 +1427,7 @@ boolP = (reserved "True" >> return True)
     <|> (reserved "False" >> return False)
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae mempty
+defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae lrws
   where
     cm         = Misc.safeFromList
                    "defs-cm"        [(cid c, c)         | Cst c       <- defs]
@@ -1439,6 +1456,7 @@ defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs ebs lts dts kts qs binfo a
                          map'
     cid        = fromJust . sid
     ae         = AEnv eqs rews expand rwMap
+    lrws       = LocalRewritesMap $ M.fromList [ (bid, LocalRewrites $ M.fromList rws) | LDef (bid, rws) <- defs ]
     adts       =                    [d                  | Adt d       <- defs]
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
 
