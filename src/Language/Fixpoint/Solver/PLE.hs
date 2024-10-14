@@ -147,9 +147,7 @@ instEnv cfg info cs restSolver ctx = do
               , evNewEqualities = mempty
               , evSMTCache = mempty
               , evFuel = defFuelCount cfg
-              , extensionalityFlag = extensionality cfg
               , freshEtaNames = 0
-              , etabetaFlag = FC.etabeta cfg
               , explored = Just et
               , restSolver = restSolver
               , restOCA = restOrd
@@ -223,7 +221,9 @@ pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
       , icSimpl       = mempty
       , icSubcId      = Nothing
       , icANFs        = []
-      , icLRWs         = mempty
+      , icLRWs        = mempty
+      , etaBetaFlag   = etabeta        $ ieCfg env
+      , extFlag       = extensionality $ ieCfg env
       }
 
 loopT
@@ -381,6 +381,11 @@ data ICtx    = ICtx
   , icSubcId      :: Maybe SubcId             -- ^ Current subconstraint ID
   , icANFs        :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
   , icLRWs        :: LocalRewrites            -- ^ Local rewrites
+  , etaBetaFlag   :: Bool                     -- ^ True if the etabeta flag is turned on, needed 
+                                              -- for the eta expansion reasoning as its going to 
+                                              -- generate ho constraints
+                                              -- See Note [Eta expansion].
+  , extFlag       :: Bool                     -- ^ True if the extensionality flag is turned on
   }
 
 ----------------------------------------------------------------------------------------------
@@ -469,15 +474,10 @@ data EvalEnv = EvalEnv
                                     -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
-  , extensionalityFlag :: Bool -- ^ True if the extensionality flag is turned on
   
   -- Eta expansion feature
   , freshEtaNames :: Int -- ^ Keeps track of how many names we generated to perform eta 
                          --   expansion, we use this to generate always fresh names
-  , etabetaFlag        :: Bool -- ^ True if the etabeta flag is turned on, needed for the eta
-                               -- expansion reasoning as its going to generate ho constraints
-                               -- See Note [Eta expansion].
-
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
   , restSolver :: Maybe SolverHandle
@@ -893,8 +893,9 @@ evalApp γ ctx e0 es et
          let (es1, es2) = splitAt (length (eqArgs eq)) es
          -- See Note [Elaboration for eta expansion].
          let newE = substEq env eq es1
-         isEtaBetaOn <- gets etabetaFlag
-         newE' <- if isEtaBetaOn then elaborateExpr "EvalApp unfold full: " newE else pure newE
+         newE' <- if etaBetaFlag ctx 
+                    then elaborateExpr "EvalApp unfold full: " newE 
+                    else pure newE
 
          (e', fe) <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          let e2' = stripPLEUnfold e'
@@ -959,11 +960,10 @@ evalApp γ ctx e0 es _et
 evalApp γ ctx e0 es et
   | ELam (argName, _) body <- dropECst e0
   , lambdaArg:remArgs <- es
+  , etaBetaFlag ctx || extFlag ctx
   = do
       isFuelOk <- checkFuel argName
-      isExtensionalityOn <- gets extensionalityFlag
-      isEtaBetaOn <- gets etabetaFlag
-      if isFuelOk && (isExtensionalityOn || isEtaBetaOn)
+      if isFuelOk
         then do
           useFuel argName
           let argSubst = mkSubst [(argName, lambdaArg)]
@@ -993,7 +993,7 @@ evalApp _ ctx e0 es _
       return (Just $ eApps deANFed es, expand)
 
 
-evalApp _γ _ctx e0 es _et
+evalApp _γ ctx e0 es _et
   -- We check the annotation instead of the equations in γ for two reasons.
   --
   -- First, we want to eta expand functions that might not be reflected. Suppose
@@ -1009,28 +1009,26 @@ evalApp _γ _ctx e0 es _et
   -- See Note [Eta expansion].
   --
   | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
+  , etaBetaFlag ctx
+  , let expectedArgs = unpackFFuncs sortAnnotation
+  , let nProvidedArgs = length es
+  , let nArgsMissing = length expectedArgs - nProvidedArgs
+  , nArgsMissing > 0
   = do
-    isEtaBetaOn <- gets etabetaFlag
-    let expectedArgs = unpackFFuncs sortAnnotation
-    let nProvidedArgs = length es
-    let nArgsMissing = length expectedArgs - nProvidedArgs
-    if isEtaBetaOn && nArgsMissing > 0 then do
-      let etaArgsType = drop nProvidedArgs expectedArgs
-      -- Fresh names for the eta expansion
-      etaNames <- makeFreshEtaNames nArgsMissing
+    let etaArgsType = drop nProvidedArgs expectedArgs
+    -- Fresh names for the eta expansion
+    etaNames <- makeFreshEtaNames nArgsMissing
 
-      let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
-      let fullBody = eApps e0 (es ++ etaVars)
-      let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
+    let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
+    let fullBody = eApps e0 (es ++ etaVars)
+    let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
 
-      -- Note: we should always add the equality as etaNames is always non empty because the
-      -- only way for etaNames to be empty is if the function is fully applied, but that case
-      -- is already handled by the previous case of evalApp
-      modify $ \st -> st 
-        { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
-      return (Just etaExpandedTerm, expand)
-    else do
-      pure (Nothing, noExpand)
+    -- Note: we should always add the equality as etaNames is always non empty because the
+    -- only way for etaNames to be empty is if the function is fully applied, but that case
+    -- is already handled by the previous case of evalApp
+    modify $ \st -> st 
+      { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
+    return (Just etaExpandedTerm, expand)
   where
     unpackFFuncs (FFunc t ts) = t : unpackFFuncs ts
     unpackFFuncs _ = []
