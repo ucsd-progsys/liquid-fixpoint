@@ -50,7 +50,8 @@ module Language.Fixpoint.Types.Constraints (
   , gwInfo, GWInfo (..)
 
   -- * Qualifiers
-  , Qualifier   (..)
+  , Qualifier
+  , QualifierV  (..)
   , QualParam   (..)
   , QualPattern (..)
   , trueQual
@@ -78,7 +79,8 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Axioms
   , AxiomEnv (..)
-  , Equation (..)
+  , Equation
+  , EquationV (..)
   , mkEquation
   , Rewrite  (..)
   , AutoRewrite (..)
@@ -484,10 +486,11 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 --------------------------------------------------------------------------------
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
-data Qualifier = Q
+type Qualifier = QualifierV Symbol
+data QualifierV v = Q
   { qName   :: !Symbol     -- ^ Name
   , qParams :: [QualParam] -- ^ Parameters
-  , qBody   :: !Expr       -- ^ Predicate
+  , qBody   :: !(ExprV v)  -- ^ Predicate
   , qPos    :: !SourcePos  -- ^ Source Location
   }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
@@ -954,10 +957,11 @@ instance Monoid AxiomEnv where
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show
 
-data Equation = Equ
-  { eqName :: !Symbol           -- ^ name of reflected function
+type Equation = EquationV Symbol
+data EquationV v = Equ
+  { eqName :: !v                -- ^ name of reflected function
   , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
-  , eqBody :: !Expr             -- ^ definition of body
+  , eqBody :: !(ExprV v)        -- ^ definition of body
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
