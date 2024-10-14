@@ -777,19 +777,26 @@ substPred su (Var k xs) = Var k $ upd <$> xs
   where upd x = M.lookupDefault x x su
 
 ------------------------------------------------------------------------------
--- | elim solves all of the KVars in a Cstr (assuming no cycles...)
--- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test00.smt2"
+-- | elim solves all of the KVars in a Cstr
+-- >>> elim defConfig <$> Language.Fixpoint.Horn.SMTParse.parseFromFile hornP "tests/horn/pos/test00.smt2"
 -- (and (forall ((x int) (x > 0)) (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0))))))
--- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test01.smt2"
+-- >>> elim defConfig <$> parseFromFile Language.Fixpoint.Horn.SMTParse.hornP "tests/horn/pos/test01.smt2"
 -- (and (forall ((x int) (x > 0)) (and (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0)))) (forall ((z int) (z > 100)) (forall ((v int) (v == x + z)) ((v > 100)))))))
--- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
+-- >>> elim defConfig <$> parseFromFile Language.Fixpoint.Horn.SMTParse.hornP "tests/horn/pos/test02.smt2"
 -- (and (forall ((x int) (x > 0)) (and (forall ((y int) (y > x + 100)) (forall ((v int) (v == x + y)) ((true)))) (forall ((y int) (y > x + 100)) (forall ((v int) (v == x + y)) (forall ((z int) (z == v)) (forall ((v int) (v == x + z)) ((v > 100)))))))))
+-- >>> elim defConfig <$> parseFromFile Language.Fixpoint.Horn.SMTParse.hornP "tests/horn/pos/test03.smt2"
+-- (and (and (forall ((x int) (x > 0)) (forall ((v int) (v == x)) (($k0 v)))) (forall ((y int) ($k0 y)) (forall ((v int) (v == y + 1)) (($k0 v)))) (forall ((z int) ($k0 z)) ((z > 0)))))
+-- >>> elim defConfig <$> parseFromFile Language.Fixpoint.Horn.SMTParse.hornP "tests/horn/pos/test04.smt2"
+-- (and (forall ((x int) (x > 0)) (forall ((v int) (v == x)) (($k0 v)))) (forall ((y int) ($k0 y)) (forall ((yyy int) (true)) (forall ((vvv int) (vvv == yyy + 1)) (forall ((v int) (and (v == vvv) (y == yyy))) (($k0 v)))))) (forall ((z int) ($k0 z)) ((z > 0))))
 ------------------------------------------------------------------------------
-elim :: Cstr a -> Cstr a
+elim :: (F.Fixpoint a, F.PPrint a) => F.Config -> Query a -> Cstr a
 ------------------------------------------------------------------------------
-elim c = if S.null $ boundKvars res then res else error "called elim on cyclic constraint"
+elim cfg query = S.foldl' elim1 c acyclicKs
   where
-  res = S.foldl' elim1 c (boundKvars c)
+    c = qCstr query
+    kvars = boundKvars c
+    cuts = calculateCuts cfg query c
+    acyclicKs = kvars `S.difference` cuts
 
 elim1 :: Cstr a -> F.Symbol -> Cstr a
 -- Find a `sol1` solution to a kvar `k`, and then subsitute in the solution for
