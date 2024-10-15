@@ -429,7 +429,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
                     , icSimpl  = icSimpl ctx <> econsts
                     , icSubcId = cidMb
                     , icANFs   = bs : icANFs ctx
-                    , icLRWs   = mconcat $ icLRWs ctx : newLRWs
+                    , icLRWs   = mconcat $ reverse $ icLRWs ctx : newLRWs
                     }
               , env
               )
