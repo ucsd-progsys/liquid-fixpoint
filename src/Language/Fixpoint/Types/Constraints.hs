@@ -951,7 +951,7 @@ lookupLocalRewrites :: BindId -> LocalRewritesEnv -> Maybe LocalRewrites
 lookupLocalRewrites i (LocalRewritesMap m) = M.lookup i m
 
 insertRewrites :: BindId -> LocalRewrites -> LocalRewritesEnv -> LocalRewritesEnv
-insertRewrites i rws (LocalRewritesMap m) = LocalRewritesMap $ M.insert i rws m
+insertRewrites i rws (LocalRewritesMap m) = LocalRewritesMap $ M.insertWith (<>) i rws m
 
 
 instance S.Store AutoRewrite
