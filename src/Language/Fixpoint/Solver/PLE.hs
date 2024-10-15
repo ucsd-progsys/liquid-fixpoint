@@ -688,7 +688,8 @@ isExprRewritable _ = False
 deANF :: ICtx -> Expr -> Expr
 deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
   where
-    bindEnv = HashMap.Lazy.unions $ map HashMap.Lazy.fromList $ icANFs ctx
+    bindEnv = HashMap.Lazy.filterWithKey (\sym _ -> anfPrefix `isPrefixOfSym` sym)
+        $ HashMap.Lazy.unions $ map HashMap.Lazy.fromList $ icANFs ctx
 
 -- |
 -- Adds to the monad state all the subexpressions that have been rewritten
