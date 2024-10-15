@@ -311,8 +311,19 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 -- >       or the environment becomes inconsistent
 --
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalST ICtx
-evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
+evalCandsLoop cfg ictx0 ctx γ = do
+    env <- get
+    go (deANFCands env ictx0) 0
   where
+    deANFCands env ictx =
+      -- We only call 'deANF' if necessary.
+      if not (null (getAutoRws γ ictx))
+         || extensionalityFlag env
+         || etabetaFlag env then
+        ictx { icCands = deANF ictx (icCands ictx) }
+      else
+        ictx
+
     go ictx _ | S.null (icCands ictx) = return ictx
     go ictx i = do
       inconsistentEnv <- testForInconsistentEnvironment
@@ -684,9 +695,42 @@ isExprRewritable (PIff e0 e1) = isExprRewritable (PAtom Eq e0 e1)
 isExprRewritable (PImp e0 e1) = isExprRewritable (POr [PNot e0, e1])
 isExprRewritable _ = False
 
--- Reverse the ANF transformation
-deANF :: ICtx -> Expr -> Expr
-deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
+-- | Reverse the ANF transformation
+--
+-- This is necessary for REST rewrites, beta reduction, and PLE to discover
+-- redexes.
+--
+-- In the case of REST, ANF bindings could hide compositions that are
+-- rewriteable. For instance,
+--
+-- > let anf1 = map g x
+-- >  in map f anf1
+--
+-- could miss a rewrite like @map f (map g x) ~> map (f . g) x@.
+--
+-- Similarly, ANF bindings could miss beta reductions. For instance,
+--
+-- > let anf1 = \a b -> b
+-- >  in anf1 x y
+--
+-- could only be reduced by PLE if @anf1@ is inlined.
+--
+-- Lastly, in the following example PLE cannot unfold @reflectedFun@ unless the
+-- ANF binding is inlined.
+--
+-- > f g = g 0
+-- > reflectedFun x y = if y == 0 then x else y
+-- >
+-- > let anf2 = (\eta1 -> reflectedFun x eta1)
+-- >  in f anf2
+--
+-- unfolding @f@
+--
+-- > let anf2 = (\eta1 -> reflectedFun x eta1)
+-- >  in anf2 0
+--
+deANF :: ICtx -> S.HashSet Expr -> S.HashSet Expr
+deANF ctx = S.map $ inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
   where
     bindEnv = HashMap.Lazy.filterWithKey (\sym _ -> anfPrefix `isPrefixOfSym` sym)
         $ HashMap.Lazy.unions $ map HashMap.Lazy.fromList $ icANFs ctx
@@ -820,10 +864,9 @@ evalRESTWithCache cacheRef γ ctx acc rp =
         if ok
           then
             do
-              let e'         = deANF ctx exprs
               let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
-              concat <$> mapM getRWs' (subExprs e')
+              concat <$> mapM getRWs' (subExprs exprs)
           else return []
 
     addConst (e,e') = if isConstant (knDCs γ) e'
