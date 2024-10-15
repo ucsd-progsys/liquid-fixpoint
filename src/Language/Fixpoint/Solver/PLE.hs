@@ -215,16 +215,16 @@ pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
     diff0        = []
     res0         = M.empty
     ctx0         = ICtx
-      { icAssms       = mempty
-      , icCands       = mempty
-      , icEquals      = mempty
-      , icSimpl       = mempty
-      , icSubcId      = Nothing
-      , icANFs        = []
-      , icLRWs        = mempty
-      , etaBetaFlag   = etabeta        $ ieCfg env
-      , extFlag       = extensionality $ ieCfg env
-      , lrwsFlag      = localRewrites  $ ieCfg env
+      { icAssms              = mempty
+      , icCands              = mempty
+      , icEquals             = mempty
+      , icSimpl              = mempty
+      , icSubcId             = Nothing
+      , icANFs               = []
+      , icLRWs               = mempty
+      , icEtaBetaFlag        = etabeta        $ ieCfg env
+      , icExtensionalityFlag = extensionality $ ieCfg env
+      , icLocalRewritesFlag  = localRewrites  $ ieCfg env
       }
 
 loopT
@@ -375,19 +375,19 @@ data InstEnv a = InstEnv
 ----------------------------------------------------------------------------------------------
 
 data ICtx    = ICtx
-  { icAssms       :: S.HashSet Pred           -- ^ Equalities converted to SMT format
-  , icCands       :: S.HashSet Expr           -- ^ "Candidates" for unfolding
-  , icEquals      :: EvEqualities             -- ^ Accumulated equalities
-  , icSimpl       :: !ConstMap                -- ^ Map of expressions to constants
-  , icSubcId      :: Maybe SubcId             -- ^ Current subconstraint ID
-  , icANFs        :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
-  , icLRWs        :: LocalRewrites            -- ^ Local rewrites
-  , etaBetaFlag   :: Bool                     -- ^ True if the etabeta flag is turned on, needed 
-                                              -- for the eta expansion reasoning as its going to 
-                                              -- generate ho constraints
-                                              -- See Note [Eta expansion].
-  , extFlag       :: Bool                     -- ^ True if the extensionality flag is turned on
-  , lrwsFlag      :: Bool                     -- ^ True if the locad rewrites flag is turned on
+  { icAssms              :: S.HashSet Pred           -- ^ Equalities converted to SMT format
+  , icCands              :: S.HashSet Expr           -- ^ "Candidates" for unfolding
+  , icEquals             :: EvEqualities             -- ^ Accumulated equalities
+  , icSimpl              :: !ConstMap                -- ^ Map of expressions to constants
+  , icSubcId             :: Maybe SubcId             -- ^ Current subconstraint ID
+  , icANFs               :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
+  , icLRWs               :: LocalRewrites            -- ^ Local rewrites
+  , icEtaBetaFlag        :: Bool                     -- ^ True if the etabeta flag is turned on, needed 
+                                                     -- for the eta expansion reasoning as its going to 
+                                                     -- generate ho constraints
+                                                     -- See Note [Eta expansion].
+  , icExtensionalityFlag :: Bool                     -- ^ True if the extensionality flag is turned on
+  , icLocalRewritesFlag  :: Bool                     -- ^ True if the local rewrites flag is turned on
   }
 
 ----------------------------------------------------------------------------------------------
@@ -895,7 +895,7 @@ evalApp γ ctx e0 es et
          let (es1, es2) = splitAt (length (eqArgs eq)) es
          -- See Note [Elaboration for eta expansion].
          let newE = substEq env eq es1
-         newE' <- if etaBetaFlag ctx 
+         newE' <- if icEtaBetaFlag ctx 
                     then elaborateExpr "EvalApp unfold full: " newE 
                     else pure newE
 
@@ -962,7 +962,7 @@ evalApp γ ctx e0 es _et
 evalApp γ ctx e0 es et
   | ELam (argName, _) body <- dropECst e0
   , lambdaArg:remArgs <- es
-  , etaBetaFlag ctx || extFlag ctx
+  , icEtaBetaFlag ctx || icExtensionalityFlag ctx
   = do
       isFuelOk <- checkFuel argName
       if isFuelOk
@@ -979,7 +979,7 @@ evalApp γ ctx e0 es et
           return (Nothing, noExpand)
 
 evalApp _ ctx e0 es _
-  | lrwsFlag ctx
+  | icLocalRewritesFlag ctx
   , EVar f <- dropECst e0
   , Just rw <- lookupRewrite f $ icLRWs ctx
   = do
@@ -990,7 +990,7 @@ evalApp _ ctx e0 es _
       return (Just expandedTerm, expand)
 
 evalApp _ ctx e0 es _
-  | lrwsFlag ctx
+  | icLocalRewritesFlag ctx
   , deANFed <- deANF ctx e0
   , dropECst deANFed /= dropECst e0
   = do
@@ -1013,7 +1013,7 @@ evalApp _γ ctx e0 es _et
   -- See Note [Eta expansion].
   --
   | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
-  , etaBetaFlag ctx
+  , icEtaBetaFlag ctx
   , let expectedArgs = unpackFFuncs sortAnnotation
   , let nProvidedArgs = length es
   , let nArgsMissing = length expectedArgs - nProvidedArgs

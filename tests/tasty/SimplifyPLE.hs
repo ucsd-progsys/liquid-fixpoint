@@ -39,7 +39,7 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
           icSubcId = Nothing,     -- :: Maybe SubcId
           icANFs = [],            -- :: [[(Symbol, SortedReft)]]
           icLRWs = mempty,
-          etaBetaFlag = False,
-          extFlag = False,
-          lrwsFlag = False
+          icEtaBetaFlag        = False,
+          icExtensionalityFlag = False,
+          icLocalRewritesFlag  = False
         }
