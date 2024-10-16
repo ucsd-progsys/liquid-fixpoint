@@ -736,9 +736,10 @@ isExprRewritable _ = False
 -- >  in anf2 0
 --
 deANF :: ICtx -> S.HashSet Expr -> S.HashSet Expr
-deANF ctx = S.map $ inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
+deANF ctx = S.map $ inlineInExpr (`HashMap.Lazy.lookup` bindEnv)
   where
-    bindEnv = HashMap.Lazy.filterWithKey (\sym _ -> anfPrefix `isPrefixOfSym` sym)
+    bindEnv = undoANF id
+        $ HashMap.Lazy.filterWithKey (\sym _ -> anfPrefix `isPrefixOfSym` sym)
         $ HashMap.Lazy.unions $ map HashMap.Lazy.fromList $ icANFs ctx
 
 -- |
