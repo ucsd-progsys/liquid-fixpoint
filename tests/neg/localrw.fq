@@ -1,0 +1,16 @@
+fixpoint "--localrewrites"
+fixpoint "--rewrite"
+fixpoint "--allowho"
+
+bind 1 g : { V : Int | true }
+bind 2 g : { V : Int | true }
+
+defineLocal 1 [g := (40 + 1)]
+
+expand [1 : True]
+
+constraint:
+    env [2]
+    lhs { V : Tuple | true }
+    rhs { V : Tuple | (g = 41) }
+    id 1 tag []

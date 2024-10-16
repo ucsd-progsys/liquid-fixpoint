@@ -100,6 +100,7 @@ data Config = Config
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
   , pleWithUndecidedGuards :: Bool     -- ^ Unfold invocations with undecided guards in PLE
   , etabeta          :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
+  , localRewrites    :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
   , interpreter      :: Bool           -- ^ Do not use the interpreter to assist PLE
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
@@ -261,6 +262,7 @@ defConfig = Config {
         &= help "Use the interpreter to assist PLE"
   , oldPLE                   = False &= help "Use old version of PLE"
   , etabeta                  = False &= help "Use eta expansion and beta reduction to aid PLE"
+  , localRewrites            = False &= name "local-rewrites" &= help "Perform local rewrites inside PLE"
   , noIncrPle                = False &= help "Don't use incremental PLE"
   , noEnvironmentReduction   =
       False

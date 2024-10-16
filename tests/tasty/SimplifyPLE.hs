@@ -37,5 +37,9 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
           icEquals = S.empty,     -- :: EvAccum
           icSimpl = SM.empty,     -- :: !ConstMap
           icSubcId = Nothing,     -- :: Maybe SubcId
-          icANFs = []             -- :: [[(Symbol, SortedReft)]]
+          icANFs = [],            -- :: [[(Symbol, SortedReft)]]
+          icLRWs = mempty,
+          icEtaBetaFlag        = False,
+          icExtensionalityFlag = False,
+          icLocalRewritesFlag  = False
         }

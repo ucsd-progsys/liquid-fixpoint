@@ -147,9 +147,7 @@ instEnv cfg info cs restSolver ctx = do
               , evNewEqualities = mempty
               , evSMTCache = mempty
               , evFuel = defFuelCount cfg
-              , extensionalityFlag = extensionality cfg
               , freshEtaNames = 0
-              , etabetaFlag = FC.etabeta cfg
               , explored = Just et
               , restSolver = restSolver
               , restOCA = restOrd
@@ -163,6 +161,7 @@ instEnv cfg info cs restSolver ctx = do
        , ieCstrs = cs
        , ieKnowl = knowledge cfg ctx info
        , ieEvEnv = s0
+       , ieLRWs  = lrws info
        }
   where
     cachedNotStrongerThan refRESTCache oc a b = do
@@ -216,12 +215,16 @@ pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
     diff0        = []
     res0         = M.empty
     ctx0         = ICtx
-      { icAssms       = mempty
-      , icCands       = mempty
-      , icEquals      = mempty
-      , icSimpl       = mempty
-      , icSubcId      = Nothing
-      , icANFs        = []
+      { icAssms              = mempty
+      , icCands              = mempty
+      , icEquals             = mempty
+      , icSimpl              = mempty
+      , icSubcId             = Nothing
+      , icANFs               = []
+      , icLRWs               = mempty
+      , icEtaBetaFlag        = etabeta        $ ieCfg env
+      , icExtensionalityFlag = extensionality $ ieCfg env
+      , icLocalRewritesFlag  = localRewrites  $ ieCfg env
       }
 
 loopT
@@ -364,6 +367,7 @@ data InstEnv a = InstEnv
   , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
+  , ieLRWs  :: LocalRewritesEnv
   }
 
 ----------------------------------------------------------------------------------------------
@@ -371,12 +375,19 @@ data InstEnv a = InstEnv
 ----------------------------------------------------------------------------------------------
 
 data ICtx    = ICtx
-  { icAssms       :: S.HashSet Pred           -- ^ Equalities converted to SMT format
-  , icCands       :: S.HashSet Expr           -- ^ "Candidates" for unfolding
-  , icEquals      :: EvEqualities             -- ^ Accumulated equalities
-  , icSimpl       :: !ConstMap                -- ^ Map of expressions to constants
-  , icSubcId      :: Maybe SubcId             -- ^ Current subconstraint ID
-  , icANFs        :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
+  { icAssms              :: S.HashSet Pred           -- ^ Equalities converted to SMT format
+  , icCands              :: S.HashSet Expr           -- ^ "Candidates" for unfolding
+  , icEquals             :: EvEqualities             -- ^ Accumulated equalities
+  , icSimpl              :: !ConstMap                -- ^ Map of expressions to constants
+  , icSubcId             :: Maybe SubcId             -- ^ Current subconstraint ID
+  , icANFs               :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
+  , icLRWs               :: LocalRewrites            -- ^ Local rewrites
+  , icEtaBetaFlag        :: Bool                     -- ^ True if the etabeta flag is turned on, needed 
+                                                     -- for the eta expansion reasoning as its going to 
+                                                     -- generate ho constraints
+                                                     -- See Note [Eta expansion].
+  , icExtensionalityFlag :: Bool                     -- ^ True if the extensionality flag is turned on
+  , icLocalRewritesFlag  :: Bool                     -- ^ True if the local rewrites flag is turned on
   }
 
 ----------------------------------------------------------------------------------------------
@@ -414,15 +425,17 @@ updRes res  Nothing _ = res
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx, InstEnv a)
 updCtx env@InstEnv{..} ctx delta cidMb
             = ( ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
-                    , icCands  = S.fromList cands           <> icCands  ctx
+                    , icCands  = S.fromList deANFedCands <> icCands  ctx
                     , icSimpl  = icSimpl ctx <> econsts
                     , icSubcId = cidMb
-                    , icANFs   = bs : icANFs ctx
+                    , icANFs   = anfBinds
+                    , icLRWs   = mconcat $ icLRWs ctx : newLRWs
                     }
               , env
               )
   where
     cands     = rhs:es
+    anfBinds  = bs : icANFs ctx
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
                   [ c | xr <- bs, c <- conjuncts (expr xr), null (Vis.kvarsExpr c) ]
@@ -432,6 +445,16 @@ updCtx env@InstEnv{..} ctx delta cidMb
     eRhs      = maybe PTrue crhs subMb
     binds     = [ (x, y) | i <- delta, let (x, y, _) =  lookupBindEnv i ieBEnv]
     subMb     = getCstr ieCstrs <$> cidMb
+    newLRWs   = Mb.mapMaybe (`lookupLocalRewrites` ieLRWs) delta
+
+    deANFedCands =
+      -- We only call 'deANF' if necessary.
+      if not (null (getAutoRws ieKnowl cidMb))
+         || icExtensionalityFlag ctx
+         || icEtaBetaFlag ctx then
+        deANF anfBinds cands
+      else
+        cands
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
@@ -463,15 +486,10 @@ data EvalEnv = EvalEnv
                                     -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
-  , extensionalityFlag :: Bool -- ^ True if the extensionality flag is turned on
   
   -- Eta expansion feature
   , freshEtaNames :: Int -- ^ Keeps track of how many names we generated to perform eta 
                          --   expansion, we use this to generate always fresh names
-  , etabetaFlag        :: Bool -- ^ True if the etabeta flag is turned on, needed for the eta
-                               -- expansion reasoning as its going to generate ho constraints
-                               -- See Note [Eta expansion].
-
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
   , restSolver :: Maybe SolverHandle
@@ -491,10 +509,10 @@ defFuelCount cfg = FC mempty (fuel cfg)
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
-getAutoRws :: Knowledge -> ICtx -> [AutoRewrite]
-getAutoRws γ ctx =
+getAutoRws :: Knowledge -> Maybe SubcId -> [AutoRewrite]
+getAutoRws γ mSubcId =
   Mb.fromMaybe [] $ do
-    cid <- icSubcId ctx
+    cid <- mSubcId
     M.lookup cid $ knAutoRWs γ
 
 -- | Discover the equalities in an expression.
@@ -506,7 +524,7 @@ getAutoRws γ ctx =
 -- way.
 evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
-  | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW e
+  | i > 0 || null (getAutoRws γ (icSubcId ctx)) = (:[]) . fst <$> eval γ ctx NoRW e
 evalOne γ ctx _ e | isExprRewritable e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
@@ -684,12 +702,46 @@ isExprRewritable (PIff e0 e1) = isExprRewritable (PAtom Eq e0 e1)
 isExprRewritable (PImp e0 e1) = isExprRewritable (POr [PNot e0, e1])
 isExprRewritable _ = False
 
--- Reverse the ANF transformation
-deANF :: ICtx -> Expr -> Expr
-deANF ctx = inlineInExpr (`HashMap.Lazy.lookup` undoANF id bindEnv)
+-- | Reverse the ANF transformation
+--
+-- This is necessary for REST rewrites, beta reduction, and PLE to discover
+-- redexes.
+--
+-- In the case of REST, ANF bindings could hide compositions that are
+-- rewriteable. For instance,
+--
+-- > let anf1 = map g x
+-- >  in map f anf1
+--
+-- could miss a rewrite like @map f (map g x) ~> map (f . g) x@.
+--
+-- Similarly, ANF bindings could miss beta reductions. For instance,
+--
+-- > let anf1 = \a b -> b
+-- >  in anf1 x y
+--
+-- could only be reduced by PLE if @anf1@ is inlined.
+--
+-- Lastly, in the following example PLE cannot unfold @reflectedFun@ unless the
+-- ANF binding is inlined.
+--
+-- > f g = g 0
+-- > reflectedFun x y = if y == 0 then x else y
+-- >
+-- > let anf2 = (\eta1 -> reflectedFun x eta1)
+-- >  in f anf2
+--
+-- unfolding @f@
+--
+-- > let anf2 = (\eta1 -> reflectedFun x eta1)
+-- >  in anf2 0
+--
+deANF :: [[(Symbol, SortedReft)]] -> [Expr] -> [Expr]
+deANF binds = map $ inlineInExpr (`HashMap.Lazy.lookup` bindEnv)
   where
-    bindEnv = HashMap.Lazy.filterWithKey (\sym _ -> anfPrefix `isPrefixOfSym` sym)
-        $ HashMap.Lazy.unions $ map HashMap.Lazy.fromList $ icANFs ctx
+    bindEnv = undoANF id
+        $ HashMap.Lazy.filterWithKey (\sym _ -> anfPrefix `isPrefixOfSym` sym)
+        $ HashMap.Lazy.unions $ map HashMap.Lazy.fromList binds
 
 -- |
 -- Adds to the monad state all the subexpressions that have been rewritten
@@ -805,7 +857,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
     pathExprs       = map fst (mytracepp "EVAL2: path" $ path rp)
     exprs           = last pathExprs
-    autorws         = getAutoRws γ ctx
+    autorws         = getAutoRws γ (icSubcId ctx)
 
     rwArgs = RWArgs (isValid cacheRef γ) $ knRWTerminationOpts γ
 
@@ -820,10 +872,9 @@ evalRESTWithCache cacheRef γ ctx acc rp =
         if ok
           then
             do
-              let e'         = deANF ctx exprs
               let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
-              concat <$> mapM getRWs' (subExprs e')
+              concat <$> mapM getRWs' (subExprs exprs)
           else return []
 
     addConst (e,e') = if isConstant (knDCs γ) e'
@@ -887,8 +938,9 @@ evalApp γ ctx e0 es et
          let (es1, es2) = splitAt (length (eqArgs eq)) es
          -- See Note [Elaboration for eta expansion].
          let newE = substEq env eq es1
-         isEtaBetaOn <- gets etabetaFlag
-         newE' <- if isEtaBetaOn then elaborateExpr "EvalApp unfold full: " newE else pure newE
+         newE' <- if icEtaBetaFlag ctx 
+                    then elaborateExpr "EvalApp unfold full: " newE 
+                    else pure newE
 
          (e', fe) <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          let e2' = stripPLEUnfold e'
@@ -953,11 +1005,10 @@ evalApp γ ctx e0 es _et
 evalApp γ ctx e0 es et
   | ELam (argName, _) body <- dropECst e0
   , lambdaArg:remArgs <- es
+  , icEtaBetaFlag ctx || icExtensionalityFlag ctx
   = do
       isFuelOk <- checkFuel argName
-      isExtensionalityOn <- gets extensionalityFlag
-      isEtaBetaOn <- gets etabetaFlag
-      if isFuelOk && (isExtensionalityOn || isEtaBetaOn)
+      if isFuelOk
         then do
           useFuel argName
           let argSubst = mkSubst [(argName, lambdaArg)]
@@ -970,7 +1021,18 @@ evalApp γ ctx e0 es et
         else do
           return (Nothing, noExpand)
 
-evalApp _γ _ctx e0 es _et
+evalApp _ ctx e0 es _
+  | icLocalRewritesFlag ctx
+  , EVar f <- dropECst e0
+  , Just rw <- lookupRewrite f $ icLRWs ctx
+  = do
+      -- expandedTerm <- elaborateExpr "EvalApp rewrite local:" $ eApps rw es
+      let expandedTerm = eApps rw es
+      modify $ \st -> st 
+        { evNewEqualities = S.insert (eApps e0 es, expandedTerm) (evNewEqualities st) }
+      return (Just expandedTerm, expand)
+
+evalApp _γ ctx e0 es _et
   -- We check the annotation instead of the equations in γ for two reasons.
   --
   -- First, we want to eta expand functions that might not be reflected. Suppose
@@ -986,28 +1048,26 @@ evalApp _γ _ctx e0 es _et
   -- See Note [Eta expansion].
   --
   | ECst (EVar _f) sortAnnotation@FFunc{} <- e0
+  , icEtaBetaFlag ctx
+  , let expectedArgs = unpackFFuncs sortAnnotation
+  , let nProvidedArgs = length es
+  , let nArgsMissing = length expectedArgs - nProvidedArgs
+  , nArgsMissing > 0
   = do
-    isEtaBetaOn <- gets etabetaFlag
-    let expectedArgs = unpackFFuncs sortAnnotation
-    let nProvidedArgs = length es
-    let nArgsMissing = length expectedArgs - nProvidedArgs
-    if isEtaBetaOn && nArgsMissing > 0 then do
-      let etaArgsType = drop nProvidedArgs expectedArgs
-      -- Fresh names for the eta expansion
-      etaNames <- makeFreshEtaNames nArgsMissing
+    let etaArgsType = drop nProvidedArgs expectedArgs
+    -- Fresh names for the eta expansion
+    etaNames <- makeFreshEtaNames nArgsMissing
 
-      let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
-      let fullBody = eApps e0 (es ++ etaVars)
-      let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
+    let etaVars = zipWith (\name ty -> ECst (EVar name) ty) etaNames etaArgsType
+    let fullBody = eApps e0 (es ++ etaVars)
+    let etaExpandedTerm = mkLams fullBody (zip etaNames etaArgsType)
 
-      -- Note: we should always add the equality as etaNames is always non empty because the
-      -- only way for etaNames to be empty is if the function is fully applied, but that case
-      -- is already handled by the previous case of evalApp
-      modify $ \st -> st 
-        { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
-      return (Just etaExpandedTerm, expand)
-    else do
-      pure (Nothing, noExpand)
+    -- Note: we should always add the equality as etaNames is always non empty because the
+    -- only way for etaNames to be empty is if the function is fully applied, but that case
+    -- is already handled by the previous case of evalApp
+    modify $ \st -> st 
+      { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
+    return (Just etaExpandedTerm, expand)
   where
     unpackFFuncs (FFunc t ts) = t : unpackFFuncs ts
     unpackFFuncs _ = []

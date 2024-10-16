@@ -83,6 +83,11 @@ module Language.Fixpoint.Types.Constraints (
   , Rewrite  (..)
   , AutoRewrite (..)
   , dedupAutoRewrites
+  , LocalRewritesEnv (..)
+  , LocalRewrites (..)
+  , lookupRewrite
+  , lookupLocalRewrites
+  , insertRewrites
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
@@ -688,6 +693,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
        , ae       = axe
        , ddecls   = adts
        , ebinds   = ebs
+       , lrws = mempty
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -733,6 +739,7 @@ data GInfo c a = FI
   , hoInfo   :: !HOInfo                    -- ^ Higher Order info
   , asserts  :: ![Triggered Expr]          -- ^ TODO: what is this?
   , ae       :: AxiomEnv                   -- ^ Information about reflected function defs
+  , lrws     :: LocalRewritesEnv           -- ^ Local rewrites
   }
   deriving (Eq, Show, Functor, Generic)
 
@@ -761,6 +768,7 @@ instance Semigroup (GInfo c a) where
                 , hoInfo   = hoInfo i1   <> hoInfo i2
                 , asserts  = asserts i1  <> asserts i2
                 , ae       = ae i1       <> ae i2
+                , lrws     = lrws i1     <> lrws i2
                 }
 
 
@@ -778,6 +786,7 @@ instance Monoid (GInfo c a) where
                      , hoInfo   = mempty
                      , asserts  = mempty
                      , ae       = mempty
+                     , lrws     = mempty
                      }
 
 instance PTable (SInfo a) where
@@ -793,6 +802,7 @@ toFixpoint :: (Fixpoint a, Fixpoint (c a)) => C.Config -> GInfo c a -> Doc
 toFixpoint cfg x' =    cfgDoc   cfg
                   $++$ declsDoc x'
                   $++$ aeDoc    x'
+                  $++$ lrwsDoc  x'
                   $++$ qualsDoc x'
                   $++$ kutsDoc  x'
                 --   $++$ packsDoc x'
@@ -817,6 +827,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
                $++$ toFix    ebs
     qualsDoc      = vcat     . map toFix . L.sort . quals
     aeDoc         = toFix    . ae
+    lrwsDoc       = toFix    . lrws
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = C.metadata cfg
     binfoDoc
@@ -926,6 +937,22 @@ data AxiomEnv = AEnv
   , aenvExpand   :: M.HashMap SubcId Bool
   , aenvAutoRW   :: M.HashMap SubcId [AutoRewrite]
   } deriving (Eq, Show, Generic)
+
+newtype LocalRewrites = LocalRewrites (M.HashMap Symbol Expr)
+  deriving (Eq, Show, Generic, Semigroup, Monoid, NFData, S.Store)
+
+newtype LocalRewritesEnv = LocalRewritesMap (M.HashMap BindId LocalRewrites)
+  deriving (Eq, Show, Generic, Semigroup, Monoid, NFData, S.Store)
+
+lookupRewrite :: Symbol -> LocalRewrites -> Maybe Expr
+lookupRewrite x (LocalRewrites m) = M.lookup x m
+
+lookupLocalRewrites :: BindId -> LocalRewritesEnv -> Maybe LocalRewrites
+lookupLocalRewrites i (LocalRewritesMap m) = M.lookup i m
+
+insertRewrites :: BindId -> LocalRewrites -> LocalRewritesEnv -> LocalRewritesEnv
+insertRewrites i rws (LocalRewritesMap m) = LocalRewritesMap $ M.insertWith (<>) i rws m
+
 
 instance S.Store AutoRewrite
 instance S.Store AxiomEnv
@@ -1037,6 +1064,13 @@ instance Fixpoint AxiomEnv where
 
 instance Fixpoint Equation where
   toFix (Equ f xs e s _) = "define" <+> toFix f <+> ppArgs xs <+> ":" <+> toFix s <+> text "=" <+> braces (parens (toFix e))
+
+instance Fixpoint LocalRewritesEnv where
+  toFix (LocalRewritesMap rws) = vcat $ uncurry toFixLocal <$> M.toList rws
+    where
+      toFixLocal bid (LocalRewrites rws) = text "defineLocal" <+> toFix bid 
+        <+> brackets (vcat $ punctuate ";" $ uncurry toFixRewrite <$> M.toList rws)
+      toFixRewrite sym eq = toFix sym <+> text ":=" <+> toFix eq
 
 instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
