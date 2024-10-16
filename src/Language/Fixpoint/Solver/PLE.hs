@@ -314,17 +314,8 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 -- >       or the environment becomes inconsistent
 --
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalST ICtx
-evalCandsLoop cfg ictx0 ctx γ = go (deANFCands ictx0) 0
+evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
   where
-    deANFCands ictx =
-      -- We only call 'deANF' if necessary.
-      if not (null (getAutoRws γ ictx))
-         || icExtensionalityFlag ictx
-         || icEtaBetaFlag ictx then
-        ictx { icCands = deANF ictx (icCands ictx) }
-      else
-        ictx
-
     go ictx _ | S.null (icCands ictx) = return ictx
     go ictx i = do
       inconsistentEnv <- testForInconsistentEnvironment
@@ -434,16 +425,17 @@ updRes res  Nothing _ = res
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx, InstEnv a)
 updCtx env@InstEnv{..} ctx delta cidMb
             = ( ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
-                    , icCands  = S.fromList cands           <> icCands  ctx
+                    , icCands  = S.fromList deANFedCands <> icCands  ctx
                     , icSimpl  = icSimpl ctx <> econsts
                     , icSubcId = cidMb
-                    , icANFs   = bs : icANFs ctx
+                    , icANFs   = anfBinds
                     , icLRWs   = mconcat $ icLRWs ctx : newLRWs
                     }
               , env
               )
   where
     cands     = rhs:es
+    anfBinds  = bs : icANFs ctx
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
                   [ c | xr <- bs, c <- conjuncts (expr xr), null (Vis.kvarsExpr c) ]
@@ -454,6 +446,15 @@ updCtx env@InstEnv{..} ctx delta cidMb
     binds     = [ (x, y) | i <- delta, let (x, y, _) =  lookupBindEnv i ieBEnv]
     subMb     = getCstr ieCstrs <$> cidMb
     newLRWs   = Mb.mapMaybe (`lookupLocalRewrites` ieLRWs) delta
+
+    deANFedCands =
+      -- We only call 'deANF' if necessary.
+      if not (null (getAutoRws ieKnowl cidMb))
+         || icExtensionalityFlag ctx
+         || icEtaBetaFlag ctx then
+        deANF anfBinds cands
+      else
+        cands
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
@@ -508,10 +509,10 @@ defFuelCount cfg = FC mempty (fuel cfg)
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
-getAutoRws :: Knowledge -> ICtx -> [AutoRewrite]
-getAutoRws γ ctx =
+getAutoRws :: Knowledge -> Maybe SubcId -> [AutoRewrite]
+getAutoRws γ mSubcId =
   Mb.fromMaybe [] $ do
-    cid <- icSubcId ctx
+    cid <- mSubcId
     M.lookup cid $ knAutoRWs γ
 
 -- | Discover the equalities in an expression.
@@ -523,7 +524,7 @@ getAutoRws γ ctx =
 -- way.
 evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
-  | i > 0 || null (getAutoRws γ ctx) = (:[]) . fst <$> eval γ ctx NoRW e
+  | i > 0 || null (getAutoRws γ (icSubcId ctx)) = (:[]) . fst <$> eval γ ctx NoRW e
 evalOne γ ctx _ e | isExprRewritable e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
@@ -735,12 +736,12 @@ isExprRewritable _ = False
 -- > let anf2 = (\eta1 -> reflectedFun x eta1)
 -- >  in anf2 0
 --
-deANF :: ICtx -> S.HashSet Expr -> S.HashSet Expr
-deANF ctx = S.map $ inlineInExpr (`HashMap.Lazy.lookup` bindEnv)
+deANF :: [[(Symbol, SortedReft)]] -> [Expr] -> [Expr]
+deANF binds = map $ inlineInExpr (`HashMap.Lazy.lookup` bindEnv)
   where
     bindEnv = undoANF id
         $ HashMap.Lazy.filterWithKey (\sym _ -> anfPrefix `isPrefixOfSym` sym)
-        $ HashMap.Lazy.unions $ map HashMap.Lazy.fromList $ icANFs ctx
+        $ HashMap.Lazy.unions $ map HashMap.Lazy.fromList binds
 
 -- |
 -- Adds to the monad state all the subexpressions that have been rewritten
@@ -856,7 +857,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
     pathExprs       = map fst (mytracepp "EVAL2: path" $ path rp)
     exprs           = last pathExprs
-    autorws         = getAutoRws γ ctx
+    autorws         = getAutoRws γ (icSubcId ctx)
 
     rwArgs = RWArgs (isValid cacheRef γ) $ knRWTerminationOpts γ
 
