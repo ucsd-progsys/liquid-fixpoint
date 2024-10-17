@@ -60,11 +60,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config ( SMTSolver (..)
-                                                , Config
-                                                , solver
-                                                , smtTimeout
-                                                , gradual
-                                                , stringTheory)
+                                                , Config (solver, smtTimeout, gradual, stringTheory, save))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -240,12 +236,18 @@ negativeP
 makeContext :: Config -> FilePath -> IO Context
 --------------------------------------------------------------------------
 makeContext cfg f
-  = do createDirectoryIfMissing True $ takeDirectory smtFile
-       hLog <- openFile smtFile WriteMode
-       hSetBuffering hLog $ BlockBuffering $ Just $ 1024 * 1024 * 64
-       me   <- makeContext' cfg $ Just hLog
+  = do mb_hLog <- if not (save cfg) then pure Nothing else do
+           createDirectoryIfMissing True $ takeDirectory smtFile
+           hLog <- openFile smtFile WriteMode
+           hSetBuffering hLog $ BlockBuffering $ Just $ 1024 * 1024 * 64
+           return $ Just hLog
+       me   <- makeContext' cfg mb_hLog
        pre  <- smtPreamble cfg (solver cfg) me
-       mapM_ (\l -> SMTLIB.Backends.command_ (ctxSolver me) l >> BS.hPutBuilder hLog l >> LBS.hPutStr hLog "\n") pre
+       forM_ pre $ \line -> do
+           SMTLIB.Backends.command_ (ctxSolver me) line
+           forM_ mb_hLog $ \hLog -> do
+               BS.hPutBuilder hLog line
+               LBS.hPutStr hLog "\n"
        return me
     where
        smtFile = extFileName Smt2 f
