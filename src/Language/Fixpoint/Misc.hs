@@ -396,14 +396,6 @@ allCombinations xs = assert (all ((length xs == ) . length)) $ go xs
 powerset :: [a] -> [[a]]
 powerset xs = filterM (const [False, True]) xs
 
-infixl 9 =>>
-(=>>) :: Monad m => m b -> (b -> m a) -> m b
-(=>>) m f = m >>= (\x -> f x >> return x)
-
-infixl 9 <<=
-(<<=) :: Monad m => (b -> m a) -> m b -> m b
-(<<=) = flip (=>>)
-
 -- Null if first is a subset of second
 nubDiff :: (Eq a, Hashable a) => [a] -> [a] -> S.HashSet a
 nubDiff a b = a' `S.difference` b'
