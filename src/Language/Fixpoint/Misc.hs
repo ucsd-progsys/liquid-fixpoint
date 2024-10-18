@@ -326,18 +326,6 @@ ifM c t e = do
   b <- c
   if b then t else e
 
-mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
-mapEither _ []     = ([], [])
-mapEither f (x:xs) = case f x of
-                       Left y  -> (y:ys, zs)
-                       Right z -> (ys, z:zs)
-                     where
-                       (ys, zs) = mapEither f xs
-
-isRight :: Either a b -> Bool
-isRight (Right _) = True
-isRight _         = False
-
 dbgFalse :: Bool
 dbgFalse = 1 > (2 :: Int)
 
@@ -393,21 +381,6 @@ coalesceEdges vss = [ (u, u, vs) | (u, vs) <- groupList (uvs ++ vus) ]
   where
     vus           = swap <$> uvs
     uvs           = [ (u, v) | (u : vs) <- vss, v <- vs ]
-
-{-
-exitColorStrLn :: Moods -> String -> IO ()
-exitColorStrLn c s = do
-  writeIORef pbRef Nothing --(Just pr)
-  putStrLn "\n"
-  colorStrLn c s
--}
-
-mapFst :: (a -> c) -> (a, b) -> (c, b)
-mapFst f (x, y) = (f x, y)
-
-mapSnd :: (b -> c) -> (a, b) -> (a, c)
-mapSnd f (x, y) = (x, f y)
-
 
 {-@ allCombinations :: xss:[[a]] -> [{v:[a]| len v == len xss}] @-}
 allCombinations :: [[a]] -> [[a]]

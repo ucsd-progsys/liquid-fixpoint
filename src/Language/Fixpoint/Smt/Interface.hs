@@ -472,7 +472,7 @@ declare me = do
     ess        = distinctLiterals  lts
     axs        = Thy.axiomLiterals lts
     thyXTs     =                    filter (isKind 1) xts
-    qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
+    qryXTs     = fmap tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
     xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env)
     tx         = elaborate    "declare" env

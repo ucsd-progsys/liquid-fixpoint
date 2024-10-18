@@ -35,7 +35,7 @@ import qualified Language.Fixpoint.Solver.Common as Common (toSMT)
 import           Language.Fixpoint.Solver.Common          (askSMT)
 import           Control.Monad ((>=>), foldM, forM, forM_, join)
 import           Control.Monad.State
-import           Data.Bifunctor (second)
+import           Data.Bifunctor (first, second)
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
@@ -728,8 +728,8 @@ getDCEquality sEnv e1 e2
   | otherwise
   = Nothing
   where
-    (f1, es1) = Misc.mapFst (getDC sEnv) (splitEApp e1)
-    (f2, es2) = Misc.mapFst (getDC sEnv) (splitEApp e2)
+    (f1, es1) = first (getDC sEnv) (splitEApp e1)
+    (f2, es2) = first (getDC sEnv) (splitEApp e2)
 
 -- TODO: Stringy hacks
 getDC :: SymEnv -> Expr -> Maybe Symbol

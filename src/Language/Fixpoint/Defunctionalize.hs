@@ -26,7 +26,7 @@ import qualified Data.HashMap.Strict as M
 import           Data.Hashable
 import           Control.Monad ((>=>))
 import           Control.Monad.State
-import           Language.Fixpoint.Misc            (fM, secondM, mapSnd)
+import           Language.Fixpoint.Misc            (fM, secondM)
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import           Language.Fixpoint.Types        hiding (GInfo(..), allowHO, fi)
 import qualified Language.Fixpoint.Types           as Types (GInfo(..))
@@ -80,8 +80,8 @@ normalizeLamsFromTo i   = go
     go (EApp e1 e2)     = let (i1, e1') = go e1
                               (i2, e2') = go e2
                           in (max i1 i2, EApp e1' e2')
-    go (ECst e s)       = mapSnd (`ECst` s) (go e)
-    go (PAll bs e)      = mapSnd (PAll bs) (go e)
+    go (ECst e s)       = fmap (`ECst` s) (go e)
+    go (PAll bs e)      = fmap (PAll bs) (go e)
     go e                = (i, e)
 
 

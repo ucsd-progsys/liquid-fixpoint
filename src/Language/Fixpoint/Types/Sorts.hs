@@ -92,6 +92,7 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 import           Data.Aeson
+import           Data.Bifunctor (first)
 
 import           Data.Hashable
 import           Data.HashSet (HashSet)
@@ -682,7 +683,7 @@ instance (Eq a, Hashable a) => Monoid (TCEmb a) where
 
 
 tceMap :: (Eq b, Hashable b) => (a -> b) -> TCEmb a -> TCEmb b
-tceMap f = tceFromList . fmap (mapFst f) . tceToList
+tceMap f = tceFromList . fmap (first f) . tceToList
 
 tceFromList :: (Eq a, Hashable a) => [(a, (Sort, TCArgs))] -> TCEmb a
 tceFromList = TCE . M.fromList
