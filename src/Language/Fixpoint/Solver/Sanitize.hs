@@ -27,6 +27,7 @@ import qualified Language.Fixpoint.Types.Config as Cfg
 import qualified Language.Fixpoint.Types.Errors                    as E
 import qualified Language.Fixpoint.Smt.Theories                    as Thy
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
+import qualified Data.Bifunctor as Bifunctor (first)
 import qualified Data.HashMap.Strict                               as M
 import qualified Data.HashSet                                      as S
 import qualified Data.List                                         as L
@@ -341,7 +342,7 @@ cNoFreeVars fi knownSym c = if S.null fv then Nothing else Just (S.toList fv)
     fv   = (`Misc.nubDiff` cDom) . filter (not . knownSym) $ cRng
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
-badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
+badCs = E.catErrors . map (E.errFreeVarInConstraint . Bifunctor.first F.subcId)
 
 --------------------------------------------------------------------------------
 -- | check that every DataDecl is regular

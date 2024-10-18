@@ -70,6 +70,7 @@ import           Control.Exception (Exception, catch, try, throwIO)
 import           Control.Monad
 import           Control.Monad.Reader
 
+import           Data.Bifunctor (first)
 import qualified Data.HashMap.Strict       as M
 import           Data.IORef
 import qualified Data.List                 as L
@@ -295,7 +296,7 @@ elabApply env = go
   where
     go e                  = case splitArgs e of
                              (e', []) -> step e'
-                             (f , es) -> defuncEApp env (go f) (mapFst go <$> es)
+                             (f , es) -> defuncEApp env (go f) (first go <$> es)
     step (PAnd [])        = PTrue
     step (POr [])         = PFalse
     step (ENeg e)         = ENeg (go  e)
