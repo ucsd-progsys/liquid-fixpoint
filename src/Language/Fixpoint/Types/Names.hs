@@ -97,7 +97,6 @@ module Language.Fixpoint.Types.Names (
   , funConName
   , listConName
   , listLConName
-  , tupConName
   , setConName
   , mapConName
   , bagConName
@@ -657,10 +656,9 @@ boolLConName  = "bool"
 funConName   = "->"
 
 
-listConName, listLConName, tupConName, propConName, _hpropConName, vvName, setConName, mapConName, bagConName, arrayConName:: Symbol
+listConName, listLConName, propConName, _hpropConName, vvName, setConName, mapConName, bagConName, arrayConName:: Symbol
 listConName  = "[]"
 listLConName = "List"
-tupConName   = "Tuple"
 setConName   = "Set_Set"
 mapConName   = "Map_t"
 bagConName   = "Bag_t"
