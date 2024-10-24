@@ -202,7 +202,11 @@ initST :: SymEnv -> [DataDecl]  -> ExSt ann
 initST env dd = ExSt 0 (d:dd) env mempty mempty mempty
   where
     -- NV: hardcore Haskell pairs because they do not appear in DataDecl (why?)
-    d = mytracepp "Tuple DataDecl" $ DDecl (symbolFTycon (dummyLoc tupConName)) 2 [ct]
+#if MIN_TOOL_VERSION_ghc(9,10,1)
+    d = mytracepp "Tuple DataDecl" $ DDecl (symbolFTycon (dummyLoc $ symbol "Tuple2")) 2 [ct]
+#else
+    d = mytracepp "Tuple DataDecl" $ DDecl (symbolFTycon (dummyLoc $ symbol "Tuple")) 2 [ct]
+#endif
 #if MIN_TOOL_VERSION_ghc(9,6,0) && !MIN_TOOL_VERSION_ghc(9,10,0)
     ct = DCtor (dummyLoc (symbol "GHC.Tuple.Prim.(,)")) [
             DField (dummyLoc (symbol "lqdc$select$GHC.Tuple.Prim.(,)$1")) (FVar 0)

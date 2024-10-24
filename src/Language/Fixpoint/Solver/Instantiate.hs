@@ -41,7 +41,7 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
-import           Data.Char            (isUpper)
+import           Data.Char            (isDigit, isUpper)
 -- import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
@@ -749,9 +749,16 @@ dropModuleNames = mungeNames (symbol . last) "."
   where
     mungeNames _ _ ""  = ""
     mungeNames f d s'@(symbolText -> s)
-      | s' == tupConName = tupConName
+      | isTupleSymbol s' = s'
       | otherwise        = f $ T.splitOn d $ stripParens s
     stripParens t = Mb.fromMaybe t ((T.stripPrefix "(" >=> T.stripSuffix ")") t)
+
+    -- TODO: Remove this code which is LH specific
+    isTupleSymbol :: Symbol -> Bool
+    isTupleSymbol s =
+      let t = symbolText s
+       in T.isPrefixOf "Tuple" t &&
+          T.all isDigit (T.drop 5 t)
 
 --------------------------------------------------------------------------------
 -- | Creating Measure Info
