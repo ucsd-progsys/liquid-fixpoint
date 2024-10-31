@@ -1,0 +1,23 @@
+// minimal reproduction for #716. Before such fix PLE would be unable
+// to unfold add1 which appears after unfolding add2 in the guard of
+// sel
+fixpoint "--rewrite"
+
+expand [1: True]
+
+constant add1 : (func(0 , [int; int]))
+constant add2 : (func(0 , [int; int]))
+constant sel : (func(0 , [int; int]))
+
+define add1 (x : int) : int = { x + 1 }
+define add2 (x : int) : int = { add1 (add1 x) }
+define sel (x : int) : int = { if ((add2 x) = (x + 2)) then 0 else 1 }
+
+bind 0 t : {v: int | true  }
+bind 1 t2 : {v: int | true }
+
+constraint:
+  env [0;1]
+  lhs {v : int | true }
+  rhs {v : int | sel 1 = 0 }
+  id 1 tag []
