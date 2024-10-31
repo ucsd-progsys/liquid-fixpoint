@@ -35,22 +35,42 @@ import Test.Tasty.Runners.AntXML
 
 main :: IO ()
 main    = do
-  run =<< group "Tests" [unitTests]
+  lfDir <- findLiquidFixpointDir
+  run lfDir =<< group "Tests" [unitTests lfDir]
   where
-    run = defaultMainWithIngredients
-              [ testRunner
+    run lfDir = defaultMainWithIngredients
+              [ testRunner lfDir
               , includingOptions [ Option (Proxy :: Proxy FixpointOpts) ]
               ]
 
-testRunner :: Ingredient
-testRunner = rerunningTests
+-- | Searches for the directory of liquid-fixpoint.cabal and changes to it
+findLiquidFixpointDir :: IO FilePath
+findLiquidFixpointDir = do
+    dir0 <- getCurrentDirectory
+    let candidates = [dir0, dir0 </> "liquid-fixpoint"]
+        findCabalDir :: [FilePath] -> IO (Maybe FilePath)
+        findCabalDir [] = return Nothing
+        findCabalDir (d:xs) = do
+          let cabalFile = d </> "liquid-fixpoint.cabal"
+          exists <- doesFileExist cabalFile
+          if exists then
+            return (Just d)
+           else
+            findCabalDir xs
+    mDir <- findCabalDir candidates
+    case mDir of
+      Just d  -> return d
+      Nothing -> error "Could not find liquid-fixpoint.cabal"
+
+testRunner :: FilePath -> Ingredient
+testRunner lfDir = rerunningTests
                [ listingTests
-               , combineReporters myConsoleReporter antXMLRunner
-               , myConsoleReporter
+               , combineReporters (myConsoleReporter lfDir) antXMLRunner
+               , myConsoleReporter lfDir
                ]
 
-myConsoleReporter :: Ingredient
-myConsoleReporter = combineReporters consoleTestReporter loggingTestReporter
+myConsoleReporter :: FilePath -> Ingredient
+myConsoleReporter lfDir = combineReporters consoleTestReporter (loggingTestReporter lfDir)
 
 -- | Combine two @TestReporter@s into one.
 --
@@ -64,8 +84,8 @@ combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
       return $ \smap -> f1 smap >> f2 smap
 combineReporters _ _ = error "combineReporters needs TestReporters"
 
-unitTests :: IO TestTree
-unitTests
+unitTests :: FilePath -> IO TestTree
+unitTests lfDir
   = group "Unit" [
       testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
     , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"    ["float.fq"]   (ExitFailure 1)
@@ -89,6 +109,13 @@ unitTests
     dirTests     = dirTests' isTest
     dirJsonTests = dirTests' ("horn.json" `isSuffixOf`)
     dirHornTests = dirTests' ("horn.smt2" `isSuffixOf`)
+
+    dirTests' :: (FilePath -> Bool) -> TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
+    dirTests' isT testCmd root ignored code = do
+      let absRoot = lfDir </> root
+      files    <- walkDirectory absRoot
+      let tests = [ rel | f <- files, isT f, let rel = makeRelative absRoot f, rel `notElem` ignored ]
+      return    $ mkTest testCmd code absRoot <$> tests
 
 isTest   :: FilePath -> Bool
 isTest f = takeExtension f `elem` [".fq", ".smt2"]
@@ -117,16 +144,6 @@ instance IsOption FixpointOpts where
       (  long (untag (optionName :: Tagged FixpointOpts String))
       <> help (untag (optionHelp :: Tagged FixpointOpts String))
       )
-
----------------------------------------------------------------------------
-dirTests' :: (FilePath -> Bool) -> TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
----------------------------------------------------------------------------
-dirTests' isT testCmd root ignored code = do
-  files    <- walkDirectory root
-  let tests = [ rel | f <- files, isT f, let rel = makeRelative root f, rel `notElem` ignored ]
-  return    $ mkTest testCmd code root <$> tests
-
-
 
 ---------------------------------------------------------------------------
 mkTest :: TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree
@@ -206,8 +223,8 @@ concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
 
 -- this is largely based on ocharles' test runner at
 -- https://github.com/ocharles/tasty-ant-xml/blob/master/Test/Tasty/Runners/AntXML.hs#L65
-loggingTestReporter :: Ingredient
-loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
+loggingTestReporter :: FilePath -> Ingredient
+loggingTestReporter lfDir = TestReporter [] $ \opts tree -> Just $ \smap -> do
   let
     runTest _ testName _ = Traversal $ Functor.Compose $ do
         i <- State.get
@@ -270,7 +287,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
                        "test, time(s), result"]
 
 
-    let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
+    let smry = lfDir </> "tests" </> "logs" </> "cur" </> "summary.csv"
     writeFile smry $ unlines
                    $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
