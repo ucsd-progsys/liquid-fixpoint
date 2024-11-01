@@ -942,17 +942,15 @@ evalApp γ ctx e0 es et
                     then elaborateExpr "EvalApp unfold full: " newE 
                     else pure newE
 
-         (newEqs1, (e', fe)) <- collectNewEqualities $ evalIte γ ctx et newE' -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
-
+         (e', fe) <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          let e2' = stripPLEUnfold e'
          let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
-             noNewEqualities = S.null newEqs1
 
-         if hasUndecidedGuard e' && noNewEqualities then do
+         if hasUndecidedGuard e' && guardOf e' == guardOf newE' then do
            -- Don't unfold the expression if there is an if-then-else guarding
            -- it, just to preserve the size of further rewrites.
-           -- If there are new equalities after evalIte, however, we do
-           -- unfold in order to allow analysis of the resulting expression.
+           -- If evalIte does any modifications, though, we do unfold in order
+           -- to allow analysis of the resulting expression
            modify $ \st -> st
              { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
              }
@@ -981,13 +979,8 @@ evalApp γ ctx e0 es et
     hasUndecidedGuard EIte{} = True
     hasUndecidedGuard _ = False
 
-    collectNewEqualities :: EvalST a -> EvalST (EvEqualities, a)
-    collectNewEqualities m = do
-      newEqs0 <- state $ \st -> (evNewEqualities st, st { evNewEqualities = S.empty })
-      r <- m
-      newEqs1 <- state $ \st ->
-        (evNewEqualities st, st { evNewEqualities = S.union (evNewEqualities st) newEqs0 })
-      return (newEqs1, r)
+    guardOf (EIte g _ _) = Just g
+    guardOf _ = Nothing
 
 evalApp γ ctx e0 args@(e:es) _
   | EVar f <- dropECst e0
