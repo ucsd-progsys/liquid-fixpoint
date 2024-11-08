@@ -623,17 +623,6 @@ instance NFData DataCtor
 instance NFData DataDecl
 instance NFData Sub
 
-instance Semigroup Sort where
-  t1 <> t2
-    | t1 == mempty  = t2
-    | t2 == mempty  = t1
-    | t1 == t2      = t1
-    | otherwise     = errorstar $ "mappend-sort: conflicting sorts t1 =" ++ show t1 ++ " t2 = " ++ show t2
-
-instance Monoid Sort where
-  mempty  = FObj "any"
-  mappend = (<>)
-
 -------------------------------------------------------------------------------
 -- | Embedding stuff as Sorts
 -------------------------------------------------------------------------------
