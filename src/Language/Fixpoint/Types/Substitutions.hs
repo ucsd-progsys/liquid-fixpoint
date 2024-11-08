@@ -185,13 +185,6 @@ meetReft (Reft (v, ra)) (Reft (v', ra'))
   | v == dummySymbol = Reft (v', pAnd [ra', ra `subst1`  (v , EVar v')])
   | otherwise        = Reft (v , pAnd [ra, ra' `subst1` (v', EVar v )])
 
-instance Semigroup SortedReft where
-  t1 <> t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (meetReft (sr_reft t1) (sr_reft t2))
-
-instance Monoid SortedReft where
-  mempty  = RR mempty trueReft
-  mappend = (<>)
-
 instance Subable Reft where
   syms (Reft (v, ras))      = v : syms ras
   substa f (Reft (v, ras))  = Reft (f v, substa f ras)
