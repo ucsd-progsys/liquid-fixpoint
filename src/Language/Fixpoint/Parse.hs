@@ -1099,7 +1099,7 @@ pred0P =  trueP -- constant "true"
 makeUniquePGrad :: Parser Expr
 makeUniquePGrad
   = do uniquePos <- getSourcePos
-       return $ PGrad (KV $ symbol $ show uniquePos) mempty (srcGradInfo uniquePos) mempty
+       return $ PGrad (KV $ symbol $ show uniquePos) mempty (srcGradInfo uniquePos) PTrue
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
