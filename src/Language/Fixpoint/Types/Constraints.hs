@@ -524,7 +524,7 @@ instance FromJSON Rewrite     where
 
 
 trueQual :: Qualifier
-trueQual = Q (symbol ("QTrue" :: String)) [] mempty (dummyPos "trueQual")
+trueQual = Q (symbol ("QTrue" :: String)) [] PTrue (dummyPos "trueQual")
 
 instance Loc Qualifier where
   srcSpan q = SS l l
