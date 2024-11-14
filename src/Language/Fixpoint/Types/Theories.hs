@@ -113,7 +113,7 @@ wiredInEnv = M.fromList
   ]
 
 
--- | 'smtSorts' attempts to compute a list of all the input-output sorts
+-- | 'funcSorts' attempts to compute a list of all the input-output sorts
 --   at which applications occur. This is a gross hack; as during unfolding
 --   we may create _new_ terms with weird new sorts. Ideally, we MUST allow
 --   for EXTENDING the apply-sorts with those newly created terms.
@@ -142,17 +142,18 @@ funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
     smts = Misc.sortNub $ concat [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
     tx   = inlineArr False dEnv
 
--- Related to the above, after merging #688, we can now allow types other than
+-- Related to the above, after merging #688, we now allow types other than
 -- Int to which Sets/Bags/Maps (or Arrays in the case of Z3) can be applied.
--- However, the `sortSmtSort` function previously used in `funcSorts` only
--- generates Ints. This causes the solver to crash when PLE generates apply
--- queries for such polymorphic sets
--- (see https://github.com/ucsd-progsys/liquidhaskell/issues/2438). The
--- following two functions are a temporary fix to generate array sorts of
--- "polymorphic depth 1" (i.e. they can generate `Array (Foo Int) Int` but
--- not `Array (Foo (Foo Int)) Int`, to keep the applys table from blowing up
--- exponentially). Ultimately, another solution should be implemented to
--- generate applys on the fly, as described above.
+-- However, the `sortSmtSort` function below, previously used in `funcSorts`,
+-- only instantiates type variables at Ints. This causes the solver to crash
+-- when PLE generates apply queries for polymorphic sets (see
+-- https://github.com/ucsd-progsys/liquidhaskell/issues/2438). The following
+-- pair of functions is a temporary fix for this - it generates additional
+-- array sorts instantiated at all user types for a "polymorphic depth 1"
+-- (i.e., `Array (Foo Int) Int` but not `Array (Foo (Foo Int)) Int`, to keep
+-- the applys table from blowing up exponentially). Ultimately, a general
+-- solution should be implemented for generating ad-hoc sets of applys on the
+-- fly, as described above.
 
 inlineArr :: Bool -> SEnv DataDecl -> Sort -> [SmtSort]
 inlineArr isArr env t  = go . unAbs $ t
