@@ -142,6 +142,18 @@ funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
     smts = Misc.sortNub $ concat [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
     tx   = inlineArr False dEnv
 
+-- Related to the above, after merging #688, we can now allow types other than
+-- Int to which Sets/Bags/Maps (or Arrays in the case of Z3) can be applied.
+-- However, the `sortSmtSort` function previously used in `funcSorts` only
+-- generates Ints. This causes the solver to crash when PLE generates apply
+-- queries for such polymorphic sets
+-- (see https://github.com/ucsd-progsys/liquidhaskell/issues/2438). The
+-- following two functions are a temporary fix to generate array sorts of
+-- "polymorphic depth 1" (i.e. they can generate `Array (Foo Int) Int` but
+-- not `Array (Foo (Foo Int)) Int`, to keep the applys table from blowing up
+-- exponentially). Ultimately, another solution should be implemented to
+-- generate applys on the fly, as described above.
+
 inlineArr :: Bool -> SEnv DataDecl -> Sort -> [SmtSort]
 inlineArr isArr env t  = go . unAbs $ t
   where
