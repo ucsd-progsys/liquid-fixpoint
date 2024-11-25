@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -50,7 +50,8 @@ module Language.Fixpoint.Types.Constraints (
   , gwInfo, GWInfo (..)
 
   -- * Qualifiers
-  , Qualifier   (..)
+  , Qualifier
+  , QualifierV  (..)
   , QualParam   (..)
   , QualPattern (..)
   , trueQual
@@ -78,7 +79,8 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Axioms
   , AxiomEnv (..)
-  , Equation (..)
+  , Equation
+  , EquationV (..)
   , mkEquation
   , Rewrite  (..)
   , AutoRewrite (..)
@@ -410,7 +412,7 @@ instance (S.Store (c a), S.Store a) => S.Store (GInfo c a)
 
 instance NFData QualPattern
 instance NFData QualParam
-instance NFData Qualifier
+instance NFData v => NFData (QualifierV v)
 instance NFData Kuts
 instance NFData HOInfo
 instance NFData GFixSolution
@@ -422,14 +424,15 @@ instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
 instance (NFData a) => NFData (Result a)
 
-instance Hashable Qualifier
+instance Hashable v => Hashable (QualifierV v)
 instance Hashable QualPattern
 instance Hashable QualParam
-instance Hashable Equation
+instance Hashable v => Hashable (EquationV v)
 
 instance B.Binary QualPattern
 instance B.Binary QualParam
-instance B.Binary Qualifier
+instance B.Binary v => B.Binary (QualifierV v)
+instance B.Binary v => B.Binary (EquationV v)
 
 ---------------------------------------------------------------------------
 -- | "Smart Constructors" for Constraints ---------------------------------
@@ -489,13 +492,14 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 --------------------------------------------------------------------------------
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
-data Qualifier = Q
+type Qualifier = QualifierV Symbol
+data QualifierV v = Q
   { qName   :: !Symbol     -- ^ Name
   , qParams :: [QualParam] -- ^ Parameters
-  , qBody   :: !Expr       -- ^ Predicate
+  , qBody   :: !(ExprV v)  -- ^ Predicate
   , qPos    :: !SourcePos  -- ^ Source Location
   }
-  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic, Functor, Foldable, Traversable)
 
 data QualParam = QP
   { qpSym  :: !Symbol
@@ -560,7 +564,7 @@ instance PPrint QualPattern where
 instance Fixpoint Qualifier where
   toFix = pprQual
 
-instance PPrint Qualifier where
+instance PPrint (QualifierV v) where
   pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
 
 pprQual :: Qualifier -> Doc
@@ -596,7 +600,7 @@ remakeQual :: Qualifier -> Qualifier
 remakeQual q = mkQual (qName q) (qParams q) (qBody q) (qPos q)
 
 -- | constructing qualifiers
-mkQual :: Symbol -> [QualParam] -> Expr -> SourcePos -> Qualifier
+mkQual :: Symbol -> [QualParam] -> ExprV v -> SourcePos -> QualifierV v
 mkQual n qps p = Q n qps' p
   where
     qps'       = zipWith (\qp t' -> qp { qpSort = t'}) qps ts'
@@ -981,14 +985,15 @@ instance Monoid AxiomEnv where
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show
 
-data Equation = Equ
+type Equation = EquationV Symbol
+data EquationV v = Equ
   { eqName :: !Symbol           -- ^ name of reflected function
   , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
-  , eqBody :: !Expr             -- ^ definition of body
+  , eqBody :: !(ExprV v)        -- ^ definition of body
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
-  deriving (Data, Eq, Ord, Show, Generic)
+  deriving (Data, Eq, Ord, Show, Generic, Functor)
 
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
 mkEquation f xts e out = Equ f xts e out (f `elem` syms e)

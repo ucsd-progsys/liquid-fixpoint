@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -25,15 +26,18 @@ module Language.Fixpoint.Types.Refinements (
   , Constant (..)
   , Bop (..)
   , Brel (..)
-  , Expr (..), Pred
+  , ExprV (..), Pred
+  , Expr
   , GradInfo (..)
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , pattern ETimes, pattern ERTimes, pattern EDiv, pattern ERDiv
   , pattern EEq
   , KVar (..)
-  , Subst (..)
+  , Subst
+  , SubstV (..)
   , KVSub (..)
-  , Reft (..)
+  , Reft
+  , ReftV (..)
   , SortedReft (..)
 
   -- * Constructing Terms
@@ -142,14 +146,14 @@ import           Data.Aeson
 
 
 instance NFData KVar
-instance NFData Subst
+instance NFData v => NFData (SubstV v)
 instance NFData GradInfo
 instance NFData Constant
 instance NFData SymConst
 instance NFData Brel
 instance NFData Bop
-instance NFData Expr
-instance NFData Reft
+instance NFData v => NFData (ExprV v)
+instance NFData v => NFData (ReftV v)
 instance NFData SortedReft
 
 -- instance (Hashable k, Eq k, S.Store k, S.Store v) => S.Store (M.HashMap k v) where
@@ -180,9 +184,9 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
   put = B.put . M.toList
   get = M.fromList <$> B.get
 
-instance B.Binary Subst
-instance B.Binary Expr
-instance B.Binary Reft
+instance B.Binary v => B.Binary (SubstV v)
+instance B.Binary v => B.Binary (ExprV v)
+instance B.Binary v => B.Binary (ReftV v)
 
 
 reftConjuncts :: Reft -> [Reft]
@@ -256,25 +260,29 @@ instance Hashable Bop
 instance Hashable SymConst
 instance Hashable Constant
 instance Hashable GradInfo
-instance Hashable Subst
-instance Hashable Expr
-instance Hashable Reft
+instance Hashable v => Hashable (SubstV v)
+instance Hashable v => Hashable (ExprV v)
+instance Hashable v => Hashable (ReftV v)
 
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
-newtype Subst = Su (M.HashMap Symbol Expr)
-                deriving (Eq, Data, Ord, Typeable, Generic, ToJSON, FromJSON)
+type Subst = SubstV Symbol
+newtype SubstV v = Su (M.HashMap Symbol (ExprV v))
+                deriving (Eq, Data, Ord, Typeable, Generic, Functor, Foldable, Traversable)
 
-instance Show Subst where
+instance ToJSON Subst
+instance FromJSON Subst
+
+instance (Fixpoint v, Ord v, Show v) => Show (SubstV v) where
   show = showFix
 
-instance Fixpoint Subst where
+instance (Ord v, Fixpoint v) => Fixpoint (SubstV v) where
   toFix (Su m) = case hashMapToAscList m of
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ toFix x <-> text ":=" <-> toFix y) xys
 
-instance PPrint Subst where
+instance (Ord v, Fixpoint v) => PPrint (SubstV v) where
   pprintTidy _ = toFix
 
 data KVSub = KVS
@@ -319,29 +327,32 @@ instance FromJSON Bop       where
 instance FromJSON Expr      where
 
 
-data Expr = ESym !SymConst
+type Expr = ExprV Symbol
+
+data ExprV v
+          = ESym !SymConst
           | ECon !Constant
-          | EVar !Symbol
-          | EApp !Expr !Expr
-          | ENeg !Expr
-          | EBin !Bop !Expr !Expr
-          | EIte !Expr !Expr !Expr
-          | ECst !Expr !Sort
-          | ELam !(Symbol, Sort)   !Expr
-          | ETApp !Expr !Sort
-          | ETAbs !Expr !Symbol
-          | PAnd   ![Expr]
-          | POr    ![Expr]
-          | PNot   !Expr
-          | PImp   !Expr !Expr
-          | PIff   !Expr !Expr
-          | PAtom  !Brel  !Expr !Expr
-          | PKVar  !KVar !Subst
-          | PAll   ![(Symbol, Sort)] !Expr
-          | PExist ![(Symbol, Sort)] !Expr
-          | PGrad  !KVar !Subst !GradInfo !Expr
-          | ECoerc !Sort !Sort !Expr
-          deriving (Eq, Show, Ord, Data, Typeable, Generic)
+          | EVar !v
+          | EApp !(ExprV v) !(ExprV v)
+          | ENeg !(ExprV v)
+          | EBin !Bop !(ExprV v) !(ExprV v)
+          | EIte !(ExprV v) !(ExprV v) !(ExprV v)
+          | ECst !(ExprV v) !Sort
+          | ELam !(Symbol, Sort)   !(ExprV v)
+          | ETApp !(ExprV v) !Sort
+          | ETAbs !(ExprV v) !Symbol
+          | PAnd   ![ExprV v]
+          | POr    ![ExprV v]
+          | PNot   !(ExprV v)
+          | PImp   !(ExprV v) !(ExprV v)
+          | PIff   !(ExprV v) !(ExprV v)
+          | PAtom  !Brel  !(ExprV v) !(ExprV v)
+          | PKVar  !KVar !(SubstV v)
+          | PAll   ![(Symbol, Sort)] !(ExprV v)
+          | PExist ![(Symbol, Sort)] !(ExprV v)
+          | PGrad  !KVar !(SubstV v) !GradInfo !(ExprV v)
+          | ECoerc !Sort !Sort !(ExprV v)
+          deriving (Eq, Show, Ord, Data, Typeable, Generic, Functor, Foldable, Traversable)
 
 onEverySubexpr :: (Expr -> Expr) -> Expr -> Expr
 onEverySubexpr = everywhereOnA
@@ -356,31 +367,31 @@ everywhereOnA f = go
 
 type Pred = Expr
 
-pattern PTrue :: Expr
+pattern PTrue :: ExprV v
 pattern PTrue = PAnd []
 
-pattern PTop :: Expr
+pattern PTop :: ExprV v
 pattern PTop = PAnd []
 
-pattern PFalse :: Expr
+pattern PFalse :: ExprV v
 pattern PFalse = POr  []
 
-pattern EBot :: Expr
+pattern EBot :: ExprV v
 pattern EBot = POr  []
 
-pattern EEq :: Expr -> Expr -> Expr
+pattern EEq :: ExprV v -> ExprV v -> ExprV v
 pattern EEq e1 e2 = PAtom Eq    e1 e2
 
-pattern ETimes :: Expr -> Expr -> Expr
+pattern ETimes :: ExprV v -> ExprV v -> ExprV v
 pattern ETimes e1 e2 = EBin Times  e1 e2
 
-pattern ERTimes :: Expr -> Expr -> Expr
+pattern ERTimes :: ExprV v -> ExprV v -> ExprV v
 pattern ERTimes e1 e2 = EBin RTimes e1 e2
 
-pattern EDiv :: Expr -> Expr -> Expr
+pattern EDiv :: ExprV v -> ExprV v -> ExprV v
 pattern EDiv e1 e2 = EBin Div    e1 e2
 
-pattern ERDiv :: Expr -> Expr -> Expr
+pattern ERDiv :: ExprV v -> ExprV v -> ExprV v
 pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
 exprSymbolsSet :: Expr -> HashSet Symbol
@@ -453,10 +464,10 @@ srcGradInfo src = GradInfo (SS src src) Nothing
 mkEApp :: LocSymbol -> [Expr] -> Expr
 mkEApp = eApps . EVar . val
 
-eApps :: Expr -> [Expr] -> Expr
+eApps :: ExprV v -> [ExprV v] -> ExprV v
 eApps f es  = foldl' EApp f es
 
-splitEApp :: Expr -> (Expr, [Expr])
+splitEApp :: ExprV v -> (ExprV v, [ExprV v])
 splitEApp = go []
   where
     go acc (EApp f e) = go (e:acc) f
@@ -511,10 +522,12 @@ debruijnIndex = go
     go (PGrad _ _ _ e) = go e
     go (ECoerc _ _ e)  = go e
 
--- | Parsed refinement of @Symbol@ as @Expr@
---   e.g. in '{v: _ | e }' v is the @Symbol@ and e the @Expr@
-newtype Reft = Reft (Symbol, Expr)
-               deriving (Eq, Ord, Data, Typeable, Generic)
+type Reft = ReftV Symbol
+
+-- | Refinement of @v@ satisfying a predicate
+--   e.g. in '{x: _ | e }' x is the @Symbol@ and e the @ExprV v@
+newtype ReftV v = Reft (Symbol, ExprV v)
+    deriving (Eq, Ord, Data, Typeable, Generic, Functor, Foldable, Traversable)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Ord, Data, Typeable, Generic)
@@ -576,7 +589,7 @@ instance Fixpoint Bop where
   toFix RDiv   = text "/."
   toFix Mod    = text "mod"
 
-instance Fixpoint Expr where
+instance (Ord v, Fixpoint v) => Fixpoint (ExprV v) where
   toFix (ESym c)       = toFix c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
@@ -611,7 +624,7 @@ instance Fixpoint Expr where
     where
       dedup = Set.toList . Set.fromList
 
-simplifyExpr :: ([Expr] -> [Expr]) -> Expr -> Expr
+simplifyExpr :: Eq v => ([ExprV v] -> [ExprV v]) -> ExprV v -> ExprV v
 simplifyExpr dedup = go
   where
     go (POr  [])     = PFalse
@@ -660,7 +673,7 @@ simplifyExpr dedup = go
       | isTautoPred  p     = PTrue
       | otherwise          = p
 
-isContraPred   :: Expr -> Bool
+isContraPred   :: Eq v => ExprV v -> Bool
 isContraPred z = eqC z || (z `elem` contras)
   where
     contras    = [PFalse]
@@ -675,7 +688,7 @@ isContraPred z = eqC z || (z `elem` contras)
                = x == y
     eqC _      = False
 
-isTautoPred   :: Expr -> Bool
+isTautoPred   :: Eq v => ExprV v -> Bool
 isTautoPred z  = z == PTop || z == PTrue || eqT z
   where
     eqT (PAnd [])
@@ -747,7 +760,7 @@ opPrec RTimes = 7
 opPrec Div    = 7
 opPrec RDiv   = 7
 
-instance PPrint Expr where
+instance (Ord v, Fixpoint v, PPrint v) => PPrint (ExprV v) where
   pprintPrec _ k (ESym c)        = pprintTidy k c
   pprintPrec _ k (ECon c)        = pprintTidy k c
   pprintPrec _ k (EVar s)        = pprintTidy k s
@@ -807,7 +820,9 @@ instance PPrint Expr where
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
   pprintPrec z k (PGrad x _ _ e) = pprintPrec z k e <+> "&&" <+> toFix x -- "??"
 
-pprintQuant :: Tidy -> Doc -> [(Symbol, Sort)] -> Expr -> Doc
+pprintQuant
+  :: (Ord v, Fixpoint v, PPrint v)
+  => Tidy -> Doc -> [(Symbol, Sort)] -> ExprV v -> Doc
 pprintQuant k d xts p = (d <+> toFix xts)
                         $+$
                         ("  ." <+> pprintTidy k p)
@@ -827,7 +842,7 @@ vIntersperse _ []     = empty
 vIntersperse _ [d]    = d
 vIntersperse s (d:ds) = vcat (d : ((s <+>) <$> ds))
 
-pprintReft :: Tidy -> Reft -> Doc
+pprintReft :: (PPrint v, Ord v, Fixpoint v) => Tidy -> ReftV v -> Doc
 pprintReft k (Reft (_,ra)) = pprintBin z k trueD andD flat
   where
     flat = flattenRefas [ra]
@@ -910,7 +925,7 @@ conj ps  = PAnd ps
 --   so they SHOULD NOT be used inside the solver loop. Instead, use 'conj' which ensures
 --   some basic things but is faster.
 
-pAnd, pOr     :: ListNE Pred -> Pred
+pAnd, pOr     :: (Fixpoint v, Ord v) => ListNE (ExprV v) -> ExprV v
 pAnd          = simplify . PAnd
 
 pAndNoDedup :: ListNE Pred -> Pred
@@ -926,10 +941,10 @@ infixl 9 |.|
 (|.|) :: Pred -> Pred -> Pred
 (|.|) p q = pOr [p, q]
 
-pIte :: Pred -> Expr -> Expr -> Expr
+pIte :: (Fixpoint v, Ord v) => ExprV v -> ExprV v -> ExprV v -> ExprV v
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, PNot p1 `PImp` p3]
 
-pExist :: [(Symbol, Sort)] -> Pred -> Pred
+pExist :: [(Symbol, Sort)] -> ExprV v -> ExprV v
 pExist []  p = p
 pExist xts p = PExist xts p
 
@@ -957,7 +972,7 @@ propReft p    = Reft (vv_, PIff (eProp vv_) (prop p))
 predReft      :: (Predicate a) => a -> Reft
 predReft p    = Reft (vv_, prop p)
 
-reft :: Symbol -> Expr -> Reft
+reft :: Symbol -> ExprV v -> ReftV v
 reft v p = Reft (v, p)
 
 mapPredReft :: (Expr -> Expr) -> Reft -> Reft
@@ -973,22 +988,22 @@ isFunctionSortedReft = isJust . functionSort . sr_sort
 isNonTrivial :: SortedReft -> Bool
 isNonTrivial = not . isTautoReft . sr_reft
 
-isTautoReft :: Reft -> Bool
+isTautoReft :: Eq v => ReftV v -> Bool
 isTautoReft = all isTautoPred . conjuncts . reftPred
 
-reftPred :: Reft -> Expr
+reftPred :: ReftV v -> ExprV v
 reftPred (Reft (_, p)) = p
 
-reftBind :: Reft -> Symbol
+reftBind :: ReftV v -> Symbol
 reftBind (Reft (x, _)) = x
 
 ------------------------------------------------------------
 -- | Gradual Type Manipulation  ----------------------------
 ------------------------------------------------------------
-pGAnds :: [Expr] -> Expr
+pGAnds :: (Fixpoint v, Ord v) => [ExprV v] -> ExprV v
 pGAnds = foldl' pGAnd PTrue
 
-pGAnd :: Expr -> Expr -> Expr
+pGAnd :: (Fixpoint v, Ord v) => ExprV v -> ExprV v -> ExprV v
 pGAnd (PGrad k su i p) q = PGrad k su i (pAnd [p, q])
 pGAnd p (PGrad k su i q) = PGrad k su i (pAnd [p, q])
 pGAnd p q              = pAnd [p,q]
@@ -1009,18 +1024,18 @@ vv_ = vv Nothing
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft)
 
-trueReft, falseReft :: Reft
+trueReft, falseReft :: ReftV v
 trueReft  = Reft (vv_, PTrue)
 falseReft = Reft (vv_, PFalse)
 
-flattenRefas :: [Expr] -> [Expr]
+flattenRefas :: [ExprV v] -> [ExprV v]
 flattenRefas        = flatP []
   where
     flatP acc (PAnd ps:xs) = flatP (flatP acc xs) ps
     flatP acc (p:xs)       = p : flatP acc xs
     flatP acc []           = acc
 
-conjuncts :: Expr -> [Expr]
+conjuncts :: Eq v => ExprV v -> [ExprV v]
 conjuncts (PAnd ps) = concatMap conjuncts ps
 conjuncts p
   | isTautoPred p   = []

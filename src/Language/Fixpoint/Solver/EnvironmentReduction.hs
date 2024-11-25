@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -71,10 +72,12 @@ import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
   ( Brel(..)
-  , Expr(..)
+  , ExprV(..)
+  , Expr
   , KVar(..)
   , SortedReft(..)
-  , Subst(..)
+  , Subst
+  , SubstV(..)
   , pattern PTrue
   , pattern PFalse
   , dropECst
