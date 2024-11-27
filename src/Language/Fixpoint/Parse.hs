@@ -771,7 +771,7 @@ symconstP = SL . T.pack <$> stringLiteral
 class (Fixpoint v, Ord v) => ParseableV v where
   parseV :: ParserV v v
   mkSu :: [(Symbol, ExprV v)] -> SubstV v
-  vFromString :: String -> v
+  vFromString :: Located String -> v
 
 instance ParseableV Symbol where
   parseV = symbolP
@@ -875,9 +875,9 @@ exprP =
 data Assoc = AssocNone | AssocLeft | AssocRight
 
 data Fixity v
-  = FInfix   {fpred :: Maybe Int, fname :: String, fop2 :: Maybe (ExprV v -> ExprV v -> ExprV v), fassoc :: Assoc}
-  | FPrefix  {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (ExprV v -> ExprV v)}
-  | FPostfix {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (ExprV v -> ExprV v)}
+  = FInfix   {fpred :: Maybe Int, fname :: String, fop2 :: Maybe (Located String -> ExprV v -> ExprV v -> ExprV v), fassoc :: Assoc}
+  | FPrefix  {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Located String -> ExprV v -> ExprV v)}
+  | FPostfix {fpred :: Maybe Int, fname :: String, fop1 :: Maybe (Located String -> ExprV v -> ExprV v)}
 
 
 -- | An OpTable stores operators by their fixity.
@@ -927,14 +927,17 @@ mkInfix AssocLeft  = InfixL
 mkInfix AssocRight = InfixR
 mkInfix AssocNone  = InfixN
 
+locReservedOp :: String -> ParserV v (Located String)
+locReservedOp s = (s <$) <$> located (reservedOp s)
+
 -- | Add the given operator to the operator table.
 addOperator :: ParseableV v => Fixity v -> OpTable v -> OpTable v
 addOperator (FInfix p x f assoc) ops
- = insertOperator (makePrec p) (mkInfix assoc (reservedOp x >> return (makeInfixFun x f))) ops
+ = insertOperator (makePrec p) (mkInfix assoc (makeInfixFun f <$> locReservedOp x)) ops
 addOperator (FPrefix p x f) ops
- = insertOperator (makePrec p) (Prefix (reservedOp x >> return (makePrefixFun x f))) ops
+ = insertOperator (makePrec p) (Prefix (makePrefixFun f <$> locReservedOp x)) ops
 addOperator (FPostfix p x f) ops
- = insertOperator (makePrec p) (Postfix (reservedOp x >> return (makePrefixFun x f))) ops
+ = insertOperator (makePrec p) (Postfix (makePrefixFun f <$> locReservedOp x)) ops
 
 -- | Helper function for computing the priority of an operator.
 --
@@ -943,11 +946,11 @@ addOperator (FPostfix p x f) ops
 makePrec :: Maybe Int -> Int
 makePrec = fromMaybe 9
 
-makeInfixFun :: ParseableV v => String -> Maybe (ExprV v -> ExprV v -> ExprV v) -> ExprV v -> ExprV v -> ExprV v
-makeInfixFun x = fromMaybe (\e1 e2 -> EApp (EApp (EVar $ vFromString x) e1) e2)
+makeInfixFun :: ParseableV v => Maybe (Located String -> ExprV v -> ExprV v -> ExprV v) -> Located String -> ExprV v -> ExprV v -> ExprV v
+makeInfixFun = fromMaybe (\lx e1 e2 -> EApp (EApp (EVar $ vFromString lx) e1) e2)
 
-makePrefixFun :: ParseableV v => String -> Maybe (ExprV v -> ExprV v) -> ExprV v -> ExprV v
-makePrefixFun x = fromMaybe (EApp (EVar $ vFromString x))
+makePrefixFun :: ParseableV v => Maybe (Located String -> ExprV v -> ExprV v) -> Located String -> ExprV v -> ExprV v
+makePrefixFun = fromMaybe (EApp . EVar . vFromString)
 
 -- | Add an operator at the given priority to the operator table.
 insertOperator :: Int -> Operator (ParserV v) (ExprV v) -> OpTable v -> OpTable v
@@ -958,17 +961,17 @@ initOpTable :: OpTable v
 initOpTable = IM.empty
 
 -- | Built-in operator table, parameterised over the composition function.
-bops :: forall v. ParseableV v => Maybe (ExprV v) -> OpTable v
+bops :: forall v. ParseableV v => Maybe (Located String -> ExprV v) -> OpTable v
 bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
   where
     -- Built-in Haskell operators, see https://www.haskell.org/onlinereport/decls.html#fixity
     builtinOps :: [Fixity v]
-    builtinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
-                 , FInfix  (Just 7) "*"   (Just $ EBin Times) AssocLeft
-                 , FInfix  (Just 7) "/"   (Just $ EBin Div)   AssocLeft
-                 , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
-                 , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
-                 , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
+    builtinOps = [ FPrefix (Just 9) "-"   (Just $ const ENeg)
+                 , FInfix  (Just 7) "*"   (Just $ const $ EBin Times) AssocLeft
+                 , FInfix  (Just 7) "/"   (Just $ const $ EBin Div)   AssocLeft
+                 , FInfix  (Just 6) "-"   (Just $ const $ EBin Minus) AssocLeft
+                 , FInfix  (Just 6) "+"   (Just $ const $ EBin Plus)  AssocLeft
+                 , FInfix  (Just 5) "mod" (Just $ const $ EBin Mod)   AssocLeft -- Haskell gives mod 7
                  , FInfix  (Just 9) "."   applyCompose        AssocRight
                 --  --
                 --  , FInfix  (Just 4) "<"   (Just $ PAtom Lt)  AssocNone
@@ -983,8 +986,8 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
                 --  , FInfix  (Just 4) ">"   (Just $ PAtom Gt)  AssocNone
                 --  , FInfix  (Just 4) ">="  (Just $ PAtom Ge)  AssocNone
                  ]
-    applyCompose :: Maybe (ExprV v -> ExprV v -> ExprV v)
-    applyCompose = (\f x y -> f `eApps` [x,y]) <$> cmpFun
+    applyCompose :: Maybe (Located String -> ExprV v -> ExprV v -> ExprV v)
+    applyCompose = (\f lop x y -> f lop `eApps` [x,y]) <$> cmpFun
 
 -- | Parser for function applications.
 --
@@ -1005,8 +1008,9 @@ funAppP      =  litP <|> exprFunP <|> simpleAppP
 -- | Parser for tuple expressions (two or more components).
 tupleP :: ParseableV v => ParserV v (ExprV v)
 tupleP = do
-  (first, rest) <- parens ((,) <$> exprP <* comma <*> sepBy1 exprP comma) -- at least two components necessary
-  let cons = vFromString $ "(" ++ replicate (length rest) ',' ++ ")" -- stored in prefix form
+  lp <- located $ parens ((,) <$> exprP <* comma <*> sepBy1 exprP comma) -- at least two components necessary
+  let (first, rest) = val lp
+      cons = vFromString $ ("(" ++ replicate (length rest) ',' ++ ")") <$ lp -- stored in prefix form
   return $ eApps (EVar cons) (first : rest)
 
 
@@ -1523,7 +1527,7 @@ remainderP p
        return (res, str, pos)
 
 -- | Initial parser state.
-initPState :: ParseableV v => Maybe (ExprV v) -> PStateV v
+initPState :: ParseableV v => Maybe (Located String -> ExprV v) -> PStateV v
 initPState cmpFun = PState { fixityTable = bops cmpFun
                            , empList     = Nothing
                            , singList    = Nothing
