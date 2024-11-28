@@ -220,8 +220,14 @@ type ParserV v = StateT (PStateV v) (Parsec Void String)
 --
 data PStateV v = PState { fixityTable :: OpTable v
                      , fixityOps   :: [Fixity v]
-                     , empList     :: Maybe (ExprV v)
-                     , singList    :: Maybe (ExprV v -> ExprV v)
+                      -- | An expression to use whenever an empty list is parsed (@[]@)
+                      --
+                      -- Receives the location of the empty list
+                     , empList     :: Maybe (Located () -> ExprV v)
+                      -- | An expression to use whenever a singleton list is parsed (@[e]@)
+                      --
+                      -- Receives the location of the singleton list and the inner expression
+                     , singList    :: Maybe (Located () -> ExprV v -> ExprV v)
                      , supply      :: !Integer
                      , layoutStack :: LayoutStack
                      , numTyCons   :: !(S.HashSet Symbol)
@@ -797,8 +803,8 @@ expr0P
  <|> try (parens exprP) -- parenthesised expression, starts with "("
  <|> try (parens exprCastP) -- explicit type annotation, starts with "(", TODO: should be an operator rather than require parentheses?
  <|> EVar <$> parseV  -- identifier, starts with any letter or underscore
- <|> try (brackets (pure ()) >> emptyListP) -- empty list, start with "["
- <|> try (brackets exprP >>= singletonListP) -- singleton list, starts with "["
+ <|> try (located (brackets (pure ())) >>= emptyListP) -- empty list, start with "["
+ <|> try (located (brackets exprP) >>= singletonListP) -- singleton list, starts with "["
  --
  -- Note:
  --
@@ -806,19 +812,19 @@ expr0P
  -- are prefixed with "try". This is because expr0P itself is chained with
  -- additional parsers in funAppP ...
 
-emptyListP :: ParserV v (ExprV v)
-emptyListP = do
+emptyListP :: Located () -> ParserV v (ExprV v)
+emptyListP lx = do
   e <- gets empList
   case e of
     Nothing -> fail "No parsing support for empty lists"
-    Just s  -> return s
+    Just s  -> return $ s lx
 
-singletonListP :: ExprV v -> ParserV v (ExprV v)
+singletonListP :: Located (ExprV v) -> ParserV v (ExprV v)
 singletonListP e = do
   f <- gets singList
   case f of
     Nothing -> fail "No parsing support for singleton lists"
-    Just s  -> return $ s e
+    Just s  -> return $ s (void e) (val e)
 
 -- | Parser for an explicitly type-annotated expression.
 exprCastP :: ParseableV v => ParserV v (ExprV v)
@@ -1527,7 +1533,13 @@ remainderP p
        return (res, str, pos)
 
 -- | Initial parser state.
-initPState :: ParseableV v => Maybe (Located String -> ExprV v) -> PStateV v
+initPState
+  :: ParseableV v
+  -- The expression to produce when the composition operator is parsed (@f . g@)
+  --
+  -- Receives the location of the composition operator.
+  => Maybe (Located String -> ExprV v)
+  -> PStateV v
 initPState cmpFun = PState { fixityTable = bops cmpFun
                            , empList     = Nothing
                            , singList    = Nothing
