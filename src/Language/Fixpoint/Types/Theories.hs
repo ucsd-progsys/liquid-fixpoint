@@ -98,13 +98,13 @@ instance Monoid SymEnv where
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
 symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
   where
-    xEnv'                 = unionSEnv xEnv wiredInEnv
-    dEnv                  = fromListSEnv [(symbol d, d) | d <- ds]
-    sortMap               = M.fromList (zip smts [0..])
-    smts                  = funcSorts dEnv ts
+    xEnv'   = unionSEnv xEnv wiredInEnv
+    dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
+    sortMap = M.fromList (zip smts [0..])
+    smts    = funcSorts dEnv ts
 
 -- | These are "BUILT-in" polymorphic functions which are
---   UNININTERPRETED but POLYMORPHIC, hence need to go through
+--   UNINTERPRETED but POLYMORPHIC, hence need to go through
 --   the apply-defunc stuff.
 wiredInEnv :: M.HashMap Symbol Sort
 wiredInEnv = M.fromList
@@ -113,9 +113,9 @@ wiredInEnv = M.fromList
   ]
 
 
--- | 'smtSorts' attempts to compute a list of all the input-output sorts
+-- | 'funcSorts' attempts to compute a list of all the input-output sorts
 --   at which applications occur. This is a gross hack; as during unfolding
---   we may create _new_ terms with wierd new sorts. Ideally, we MUST allow
+--   we may create _new_ terms with weird new sorts. Ideally, we MUST allow
 --   for EXTENDING the apply-sorts with those newly created terms.
 --   the solution is perhaps to *preface* each VC query of the form
 --
@@ -139,8 +139,55 @@ wiredInEnv = M.fromList
 funcSorts :: SEnv DataDecl -> [Sort] -> [FuncSort]
 funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
   where
-    smts         = Misc.sortNub $ concat [ [tx t1, tx t2] | FFunc t1 t2 <- ts]
-    tx           = applySmtSort dEnv
+    smts = Misc.sortNub $ concat [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
+    tx   = inlineArr False dEnv
+
+-- Related to the above, after merging #688, we now allow types other than
+-- Int to which Sets/Bags/Maps (or Arrays in the case of Z3) can be applied.
+-- However, the `sortSmtSort` function below, previously used in `funcSorts`,
+-- only instantiates type variables at Ints. This causes the solver to crash
+-- when PLE generates apply queries for polymorphic sets (see
+-- https://github.com/ucsd-progsys/liquidhaskell/issues/2438). The following
+-- pair of functions is a temporary fix for this - it generates additional
+-- array sorts instantiated at all user types for a "polymorphic depth 1"
+-- (i.e., `Array (Foo Int) Int` but not `Array (Foo (Foo Int)) Int`, to keep
+-- the applys table from blowing up exponentially). Ultimately, a general
+-- solution should be implemented for generating ad-hoc sets of applys on the
+-- fly, as described above.
+
+inlineArr :: Bool -> SEnv DataDecl -> Sort -> [SmtSort]
+inlineArr isArr env t  = go . unAbs $ t
+  where
+    m = sortAbs t
+    go (FFunc _ _)    = [SInt]
+    go FInt           = [SInt]
+    go FReal          = [SReal]
+    go t
+      | t == boolSort = [SBool]
+      | isString t    = [SString]
+    go (FVar _)
+      | isArr     = SInt : map (\q -> let dd = snd q in
+                                      SData (ddTyCon dd) (replicate (ddVars dd) SInt))
+                               (M.toList $ seBinds env)
+      | otherwise = [SInt]
+    go t
+      | (ct:ts) <- unFApp t = inlineArrFApp m env ct ts
+      | otherwise = error "Unexpected empty 'unFApp t'"
+
+inlineArrFApp :: Int -> SEnv DataDecl -> Sort -> [Sort] -> [SmtSort]
+inlineArrFApp m env = go
+  where
+    go (FTC c) [a, b]
+      | arrayConName == symbol c = SArray <$> inlineArr True env a <*> inlineArr True env b
+    go (FTC bv) [FTC s]
+      | bitVecName == symbol bv
+      , Just n <- sizeBv s      = [SBitVec n]
+    go s []
+      | isString s              = [SString]
+    go (FTC c) ts
+      | Just n <- tyArgs c env
+      , let i = n - length ts   = [SData c ((inlineArr False env . FAbs m =<< ts) ++ replicate i SInt)]
+    go _ _                      = [SInt]
 
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
@@ -163,15 +210,15 @@ symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
 {-# SCC symbolAtName #-}
 
 symbolAtSmtName :: (PPrint a) => Symbol -> SymEnv -> a -> FuncSort -> Text
-symbolAtSmtName mkSym env e s =
+symbolAtSmtName mkSym env e =
   -- formerly: intSymbol mkSym . funcSortIndex env e
-  appendSymbolText mkSym $ Text.pack (show (funcSortIndex env e s))
+  appendSymbolText mkSym . Text.pack . show . funcSortIndex env e
 {-# SCC symbolAtSmtName #-}
 
 funcSortIndex :: (PPrint a) => SymEnv -> a -> FuncSort -> Int
-funcSortIndex env e z = M.lookupDefault err z (seAppls env)
+funcSortIndex env e fs = M.lookupDefault err fs (seAppls env)
   where
-    err               = panic ("Unknown func-sort: " ++ showpp z ++ " for " ++ showpp e)
+    err = panic ("Unknown func-sort: " ++ show fs ++ " for " ++ showpp e)
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = {- tracepp ("ffuncSort " ++ showpp (t1,t2)) -} (tx t1, tx t2)
@@ -255,7 +302,7 @@ instance S.Store SmtSort
 --   'smtSort True  msg t' serializes a sort 't' using type variables,
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
-sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) else id) $ -}  go . unAbs $ t
+sortSmtSort poly env t = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unAbs $ t
   where
     m = sortAbs t
     go (FFunc _ _)    = SInt

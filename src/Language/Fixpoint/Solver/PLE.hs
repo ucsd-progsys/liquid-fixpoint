@@ -90,10 +90,10 @@ instantiate cfg fi' subcIds = do
     withRESTSolver f | all null (M.elems $ aenvAutoRW aEnv) = f Nothing
     withRESTSolver f = withZ3 (f . Just)
 
-    file   = srcFile cfg ++ ".evals"
-    sEnv   = symbolEnv cfg info
-    aEnv   = ae info
-    info   = normalize fi'
+    file = srcFile cfg ++ ".evals"
+    sEnv = symbolEnv cfg info
+    aEnv = ae info
+    info = normalize fi'
 
 savePLEEqualities :: Config -> SInfo a -> SymEnv -> InstRes -> IO ()
 savePLEEqualities cfg info sEnv res = when (save cfg) $ do
@@ -209,9 +209,8 @@ mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
 ----------------------------------------------------------------------------------------------
 -- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
 pleTrie :: CTrie -> InstEnv a -> IO InstRes
-pleTrie t env = loopT env' ctx0 diff0 Nothing res0 t
+pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where
-    env'         = env
     diff0        = []
     res0         = M.empty
     ctx0         = ICtx
@@ -239,8 +238,8 @@ loopT
 loopT env ctx delta i res t = case t of
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
-  T.Node bs  -> withAssms env ctx delta Nothing $ \env' ctx' -> do
-                  (ctx'', env'', res') <- ple1 env' ctx' i res
+  T.Node bs  -> withAssms env ctx delta Nothing $ \ctx' -> do
+                  (ctx'', env'', res') <- ple1 env ctx' i res
                   foldM (loopB env'' ctx'' [] i) res' bs
 
 loopB
@@ -254,9 +253,9 @@ loopB
   -> IO InstRes
 loopB env ctx delta iMb res b = case b of
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
-  T.Val cid  -> withAssms env ctx delta (Just cid) $ \env' ctx' -> do
+  T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do
                   progressTick
-                  (\(_, _, r) -> r) <$> ple1 env' ctx' iMb res
+                  (\(_, _, r) -> r) <$> ple1 env ctx' iMb res
 
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
@@ -268,14 +267,14 @@ loopB env ctx delta iMb res b = case b of
 -- Pushes assumptions from the modified context to the SMT solver, runs @act@,
 -- and then pops the assumptions.
 --
-withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (InstEnv a -> ICtx -> IO b) -> IO b
+withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b
 withAssms env@InstEnv{..} ctx delta cidMb act = do
-  let (ctx', env')  = updCtx env ctx delta cidMb
+  let ctx' = updCtx env ctx delta cidMb
   let assms = icAssms ctx'
 
   SMT.smtBracket ieSMT "PLE.evaluate" $ do
-    forM_ assms (SMT.smtAssert ieSMT )
-    act env' ctx' { icAssms = mempty }
+    forM_ assms (SMT.smtAssert ieSMT)
+    act ctx' { icAssms = mempty }
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 --
@@ -283,7 +282,7 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
 -- in @ctx@ for which definitions are known. The function definitions are in
 -- @ieKnowl@.
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
-ple1 ie@InstEnv {..} ctx i res = do
+ple1 ie@InstEnv{..} ctx i res = do
   (ctx', env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
   let pendings = collectPendingUnfoldings env (icSubcId ctx)
       newEqs = pendings ++ S.toList (S.difference (icEquals ctx') (icEquals ctx))
@@ -321,21 +320,20 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
         then return ictx
-        else do
-                  liftIO $ SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
-                  let ictx' = ictx { icAssms = mempty }
-                      cands = S.toList $ icCands ictx
-                  candss <- mapM (evalOne γ ictx' i) cands
-                  us <- gets evNewEqualities
-                  modify $ \st -> st { evNewEqualities = mempty }
-                  let noCandidateChanged = and (zipWith eqCand candss cands)
-                      unknownEqs = us `S.difference` icEquals ictx
-                  if S.null unknownEqs && noCandidateChanged
-                        then return ictx
-                        else do  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
-                                 let ictx''   = ictx' { icEquals = icEquals ictx <> unknownEqs
-                                                      , icAssms  = S.filter (not . isTautoPred) eqsSMT }
-                                 go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
+        else do liftIO $ SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
+                let ictx' = ictx { icAssms = mempty }
+                    cands = S.toList $ icCands ictx
+                candss <- mapM (evalOne γ ictx' i) cands
+                us <- gets evNewEqualities
+                modify $ \st -> st { evNewEqualities = mempty }
+                let noCandidateChanged = and (zipWith eqCand candss cands)
+                    unknownEqs = us `S.difference` icEquals ictx
+                if S.null unknownEqs && noCandidateChanged
+                      then return ictx
+                      else do let eqsSMT = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
+                              let ictx'' = ictx' { icEquals = icEquals ictx <> unknownEqs
+                                                 , icAssms  = S.filter (not . isTautoPred) eqsSMT }
+                              go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
 
     testForInconsistentEnvironment =
       liftIO $ knPreds γ (knContext γ) (knLams γ) PFalse
@@ -382,8 +380,8 @@ data ICtx    = ICtx
   , icSubcId             :: Maybe SubcId             -- ^ Current subconstraint ID
   , icANFs               :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
   , icLRWs               :: LocalRewrites            -- ^ Local rewrites
-  , icEtaBetaFlag        :: Bool                     -- ^ True if the etabeta flag is turned on, needed 
-                                                     -- for the eta expansion reasoning as its going to 
+  , icEtaBetaFlag        :: Bool                     -- ^ True if the etabeta flag is turned on, needed
+                                                     -- for the eta expansion reasoning as its going to
                                                      -- generate ho constraints
                                                      -- See Note [Eta expansion].
   , icExtensionalityFlag :: Bool                     -- ^ True if the extensionality flag is turned on
@@ -422,17 +420,15 @@ updRes res  Nothing _ = res
 --   to the context.
 ----------------------------------------------------------------------------------------------
 
-updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx, InstEnv a)
-updCtx env@InstEnv{..} ctx delta cidMb
-            = ( ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
-                    , icCands  = S.fromList deANFedCands <> icCands  ctx
-                    , icSimpl  = icSimpl ctx <> econsts
-                    , icSubcId = cidMb
-                    , icANFs   = anfBinds
-                    , icLRWs   = mconcat $ icLRWs ctx : newLRWs
-                    }
-              , env
-              )
+updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx
+updCtx InstEnv{..} ctx delta cidMb
+            = ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
+                  , icCands  = S.fromList deANFedCands <> icCands  ctx
+                  , icSimpl  = icSimpl ctx <> econsts
+                  , icSubcId = cidMb
+                  , icANFs   = anfBinds
+                  , icLRWs   = mconcat $ icLRWs ctx : newLRWs
+                  }
   where
     cands     = rhs:es
     anfBinds  = bs : icANFs ctx
@@ -443,7 +439,7 @@ updCtx env@InstEnv{..} ctx delta cidMb
     rhs       = unApply eRhs
     es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
-    binds     = [ (x, y) | i <- delta, let (x, y, _) =  lookupBindEnv i ieBEnv]
+    binds     = [ (x, y) | i <- delta, let (x, y, _) = lookupBindEnv i ieBEnv]
     subMb     = getCstr ieCstrs <$> cidMb
     newLRWs   = Mb.mapMaybe (`lookupLocalRewrites` ieLRWs) delta
 
@@ -486,9 +482,9 @@ data EvalEnv = EvalEnv
                                     -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
   , evFuel     :: FuelCount
-  
+
   -- Eta expansion feature
-  , freshEtaNames :: Int -- ^ Keeps track of how many names we generated to perform eta 
+  , freshEtaNames :: Int -- ^ Keeps track of how many names we generated to perform eta
                          --   expansion, we use this to generate always fresh names
   -- REST parameters
   , explored   :: Maybe (ExploredTerms RuntimeTerm OCType IO)
@@ -640,8 +636,7 @@ eval γ ctx et = go
     go e | EVar _ <- dropECst e = do
       (me', fe) <- evalApp γ ctx e [] et
       return (Mb.fromMaybe e me', fe)
-    go (ECst e t)       = do 
-                             (e', fe) <- go e
+    go (ECst e t)       = do (e', fe) <- go e
                              return (ECst e' t, fe)
     go e                = return (e, noExpand)
 
@@ -662,8 +657,8 @@ evalELam γ ctx et (x, s) e = do
     oldPendingUnfoldings <- gets evPendingUnfoldings
     oldEqs <- gets evNewEqualities
 
-    -- We need to declare the variable in the environment 
-    modify $ \st -> st 
+    -- We need to declare the variable in the environment
+    modify $ \st -> st
       { evEnv = insertSymEnv x s $ evEnv st }
 
     (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
@@ -797,20 +792,20 @@ evalRESTWithCache cacheRef γ ctx acc rp =
               acc' = exprsToAdd ++ acc
               eqnToAdd = [ (e1, simplify γ ctx e2) | ((e1, e2), _, _) <- rws ]
 
-          let explored' st = 
-                if isExprRewritable e' && isExprRewritable exprs 
-                  then Just $ ExploredTerms.insert (Rewrite.convert exprs) (c rp) 
-                                                  (S.insert (Rewrite.convert e') 
-                            $ S.fromList (map (Rewrite.convert . (\(_, e, _) -> e)) possibleRWs)) 
+          let explored' st =
+                if isExprRewritable e' && isExprRewritable exprs
+                  then Just $ ExploredTerms.insert (Rewrite.convert exprs) (c rp)
+                                                  (S.insert (Rewrite.convert e')
+                            $ S.fromList (map (Rewrite.convert . (\(_, e, _) -> e)) possibleRWs))
                                         (Mb.fromJust $ explored st)
                   else Nothing
 
           newEqualities <- gets evNewEqualities
           smtCache <- liftIO $ readIORef cacheRef
-          modify $ \st -> st 
+          modify $ \st -> st
             { evNewEqualities  = foldr S.insert (S.union newEqualities oldEqualities) eqnToAdd
             , evSMTCache = smtCache
-            , explored = explored' st 
+            , explored = explored' st
             }
 
           acc'' <- if evalIsNewExpr
@@ -938,8 +933,8 @@ evalApp γ ctx e0 es et
          let (es1, es2) = splitAt (length (eqArgs eq)) es
          -- See Note [Elaboration for eta expansion].
          let newE = substEq env eq es1
-         newE' <- if icEtaBetaFlag ctx 
-                    then elaborateExpr "EvalApp unfold full: " newE 
+         newE' <- if icEtaBetaFlag ctx
+                    then elaborateExpr "EvalApp unfold full: " newE
                     else pure newE
 
          (e', fe) <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
@@ -994,7 +989,7 @@ evalApp γ ctx e0 args@(e:es) _
   = do
     let newE = eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es
     when (isUserDataSMeasure == NoUserDataSMeasure) $
-      modify $ \st -> st 
+      modify $ \st -> st
         { evNewEqualities = S.insert (eApps e0 args, simplify γ ctx newE) (evNewEqualities st) }
     return (Just newE, noExpand)
 
@@ -1032,7 +1027,7 @@ evalApp _ ctx e0 es _
   = do
       -- expandedTerm <- elaborateExpr "EvalApp rewrite local:" $ eApps rw es
       let expandedTerm = eApps rw es
-      modify $ \st -> st 
+      modify $ \st -> st
         { evNewEqualities = S.insert (eApps e0 es, expandedTerm) (evNewEqualities st) }
       return (Just expandedTerm, expand)
 
@@ -1069,7 +1064,7 @@ evalApp _γ ctx e0 es _et
     -- Note: we should always add the equality as etaNames is always non empty because the
     -- only way for etaNames to be empty is if the function is fully applied, but that case
     -- is already handled by the previous case of evalApp
-    modify $ \st -> st 
+    modify $ \st -> st
       { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
     return (Just etaExpandedTerm, expand)
   where
@@ -1435,7 +1430,7 @@ useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
 
 makeFreshEtaNames :: Int -> EvalST [Symbol]
 makeFreshEtaNames n = replicateM n makeFreshName
-  where 
+  where
     makeFreshName = do
       ident <- gets freshEtaNames
       modify $ \st -> st { freshEtaNames = 1 + freshEtaNames st }

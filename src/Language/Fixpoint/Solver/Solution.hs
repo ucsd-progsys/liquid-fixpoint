@@ -465,7 +465,7 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
 substElim :: F.SymEnv -> F.SEnv F.Sort -> CombinedEnv a -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
 substElim syEnv sEnv g _ (F.Su m) = (xts, p)
   where
-    p      = F.pAnd [ mkSubst sp syEnv x (substSort sEnv frees x t) e t | (x, e, t) <- xets  ]
+    p      = F.pAnd [ mkSubst sp syEnv x (substSort sEnv frees x t) e t | (x, e, t) <- xets ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
     xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t)]
     xes    = M.toList m
@@ -477,16 +477,17 @@ substElim syEnv sEnv g _ (F.Su m) = (xts, p)
 substSort :: F.SEnv F.Sort -> S.HashSet F.Symbol -> F.Symbol -> F.Sort -> F.Sort
 substSort sEnv _frees sym _t = fromMaybe (err sym) $ F.lookupSEnv sym sEnv
   where
-    err x            = error $ "Solution.mkSubst: unknown binder " ++ F.showpp x
+    err x = error $ "Solution.substSort: unknown binder " ++ F.showpp x
 
 
 -- LH #1091
 mkSubst :: F.SrcSpan -> F.SymEnv -> F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
 mkSubst sp env x tx ey ty
   | tx == ty    = F.EEq ex ey
-  | otherwise   = {- F.tracepp _msg -} F.EEq ex' ey'
+  | otherwise   = {- F.tracepp _msg $ -} F.EEq ex' ey'
   where
-    _msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
+    -- _msg        = "mkSubst-DIFF: tx = " ++ F.showpp tx ++ " ty = " ++ F.showpp ty
+    --                                     ++ " ex' = " ++ F.showpp ex' ++ " ey' = " ++ F.showpp ey'
     ex          = F.expr x
     ex'         = elabToInt sp env ex tx
     ey'         = elabToInt sp env ey ty
