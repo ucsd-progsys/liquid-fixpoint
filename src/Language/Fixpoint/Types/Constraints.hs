@@ -987,7 +987,7 @@ instance PPrint AxiomEnv where
 
 type Equation = EquationV Symbol
 data EquationV v = Equ
-  { eqName :: !v                -- ^ name of reflected function
+  { eqName :: !Symbol           -- ^ name of reflected function
   , eqArgs :: [(Symbol, Sort)]  -- ^ names of parameters
   , eqBody :: !(ExprV v)        -- ^ definition of body
   , eqSort :: !Sort             -- ^ sort of body
