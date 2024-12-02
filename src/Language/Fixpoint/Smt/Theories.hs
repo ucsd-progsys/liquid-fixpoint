@@ -411,7 +411,7 @@ interpSymbols =
   , interpSym mapSto   mapSto  mapStoSort
 
   , interpSym bagEmpty bagEmpty (FAbs 0 $ FFunc intSort (bagSort $ FVar 0))
-  , interpSym bagSng   bagSng   (FAbs 0 $ FFunc (FVar 0) $ FFunc intSort (setSort $ FVar 0))
+  , interpSym bagSng   bagSng   (FAbs 0 $ FFunc (FVar 0) $ FFunc intSort (bagSort $ FVar 0))
   , interpSym bagCount bagCount bagCountSort
   , interpSym bagCup   bagCup   bagBopSort
   , interpSym bagMax   bagMax   bagBopSort
@@ -504,7 +504,7 @@ interpSymbols =
                                  $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
 
-    bagCountSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (bagSort $ FVar 0) intSort
+    bagCountSort = FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (FVar 0) intSort
     -- cup :: forall i. Map i Int -> Map i Int -> Map i Int
     bagBopSort = FAbs 0          $ FFunc (bagSort $ FVar 0)
                                  $ FFunc (bagSort $ FVar 0)
