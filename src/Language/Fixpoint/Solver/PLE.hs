@@ -653,6 +653,26 @@ eval γ ctx et = go
 -- | 'evalELamb' produces equations that preserve the context of a rewrite
 -- so equations include any necessary lambda bindings.
 evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (Expr, FinalExpand)
+evalELam γ ctx et (x, s) e
+  | not $ isEtaSymbol x = do
+    -- We need to refresh it as for some reason lamdba variables
+    -- as reflected lambdas variables for some reason are declared
+    -- two times, maybe we should define a new type of identifier
+    -- and not reuse the etabeta ones
+    [ xFresh ] <- makeFreshEtaNames 1
+    let newBody = subst (mkSubst [(x, EVar xFresh)]) e
+
+    modify $ \st -> st
+      { evNewEqualities 
+        = S.insert (ELam (x, s) e, ELam (xFresh, s) newBody)
+                   (evNewEqualities st) 
+      }
+
+    evalELam γ ctx et (xFresh, s) newBody
+  where 
+    isEtaSymbol :: Symbol -> Bool
+    isEtaSymbol = isPrefixOfSym "eta"
+
 evalELam γ ctx et (x, s) e = do
     oldPendingUnfoldings <- gets evPendingUnfoldings
     oldEqs <- gets evNewEqualities
@@ -1113,7 +1133,7 @@ substEq env eq es = subst su (substEqCoerce env eq es)
   where su = mkSubst $ zip (eqArgNames eq) es
 
 substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr
-substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
+substEqCoerce env eq es = Vis.applyCoSubV coSub $ eqBody eq
   where
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
@@ -1125,18 +1145,20 @@ substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
 --
 -- The variables in the domain of the substitution are those that appear
 -- as @FObj symbol@ in @xTs@.
-mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
+mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSubV
 mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ]
   where
     unite ts    = Mb.fromMaybe (uError ts) (unifyTo1 symToSearch ts)
     symToSearch = mkSearchEnv env
     uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts)
+    xys :: [(Sort, Sort)]
     xys         = Misc.sortNub $ concat $ zipWith matchSorts xTs eTs
 
-matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
+matchSorts :: Sort -> Sort -> [(Sort, Sort)]
 matchSorts = go
   where
-    go (FObj x)      {-FObj-} y    = [(x, y)]
+    go x@(FObj _)    {-FObj-} y    = [(x, y)]
+    go x@(FVar _)    {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
     go (FFunc s1 t1) (FFunc s2 t2) = go s1 s2 ++ go t1 t2
     go (FApp s1 t1)  (FApp s2 t2)  = go s1 s2 ++ go t1 t2

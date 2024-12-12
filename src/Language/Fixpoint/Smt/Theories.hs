@@ -590,7 +590,7 @@ interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
 
 maxLamArg :: Int
-maxLamArg = 7
+maxLamArg = 20
 
 axiomLiterals :: [(Symbol, Sort)] -> [Expr]
 axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]

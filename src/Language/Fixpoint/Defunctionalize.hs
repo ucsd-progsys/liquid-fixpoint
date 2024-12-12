@@ -24,6 +24,7 @@ module Language.Fixpoint.Defunctionalize
 
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
+import           Data.Bifunctor (bimap)
 import           Control.Monad ((>=>))
 import           Control.Monad.State
 import           Language.Fixpoint.Misc            (fM, secondM)
@@ -32,6 +33,8 @@ import           Language.Fixpoint.Types        hiding (GInfo(..), allowHO, fi)
 import qualified Language.Fixpoint.Types           as Types (GInfo(..))
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Visitor   (mapMExpr)
+
+
 -- import Debug.Trace (trace)
 
 defunctionalize :: (Fixpoint a) => Config -> SInfo a -> SInfo a
@@ -68,11 +71,12 @@ shiftLam i x t e = ELam (x_i, t) (e `subst1` (x, x_i_t))
 -- is surrounded with a cast.
 
 normalizeLams :: Expr -> Expr
-normalizeLams e = snd $ normalizeLamsFromTo 1 e
+normalizeLams = snd . normalizeLamsFromTo 1
 
 normalizeLamsFromTo :: Int -> Expr -> (Int, Expr)
 normalizeLamsFromTo i   = go
   where
+    go :: Expr -> (Int, Expr)
     go (ELam (y, sy) e) = (i' + 1, shiftLam i' y sy e') where (i', e') = go e
                           -- let (i', e') = go e
                           --    y'       = lamArgSymbol i'  -- SHIFTLAM
@@ -81,7 +85,33 @@ normalizeLamsFromTo i   = go
                               (i2, e2') = go e2
                           in (max i1 i2, EApp e1' e2')
     go (ECst e s)       = fmap (`ECst` s) (go e)
+    go (EIte e1 e2 e3)  = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                              (i3, e3') = go e3
+                          in (maximum [i1, i2, i3], EIte e1' e2' e3')
+    go (ENeg e)         = fmap ENeg (go e)
+    go (EBin op e1 e2)  = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                          in (max i1 i2, EBin op e1' e2')
+    go (ETApp e s)      = fmap (flip ETApp s) (go e)
+    go (ETAbs e s)      = fmap (flip ETAbs s) (go e)
+    go (PAnd [])        = (i, PAnd [])
+    go (POr [])         = (i, POr  [])
+    go (PAnd es)        = bimap maximum PAnd $ unzip $ fmap go es
+    go (POr es)         = bimap maximum POr  $ unzip $ fmap go es
+    go (PNot e)         = fmap PNot (go e)
+    go (PImp e1 e2)     = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                          in (max i1 i2, PImp e1' e2')
+    go (PIff e1 e2)     = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                          in (max i1 i2, PIff e1' e2')
+    go (PAtom r e1 e2)  = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                          in (max i1 i2, PAtom r e1' e2')
     go (PAll bs e)      = fmap (PAll bs) (go e)
+    go (PExist bs e)    = fmap (PExist bs) (go e)
+    go (ECoerc s1 s2 e) = fmap (ECoerc s1 s2) (go e)
     go e                = (i, e)
 
 
@@ -179,7 +209,7 @@ data DFST = DFST
   , dfLams  :: ![Expr]      -- ^ lambda expressions appearing in the expressions
   , dfRedex :: ![Expr]      -- ^ redexes appearing in the expressions
   , dfBinds :: !(SEnv Sort) -- ^ sorts of new lambda-binders
-  }
+  } deriving Show
 
 makeDFState :: Config -> SymEnv -> IBindEnv -> DFST
 makeDFState cfg env ibind = DFST
