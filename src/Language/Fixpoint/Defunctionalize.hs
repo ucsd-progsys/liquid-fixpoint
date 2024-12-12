@@ -93,8 +93,8 @@ normalizeLamsFromTo i   = go
     go (EBin op e1 e2)  = let (i1, e1') = go e1
                               (i2, e2') = go e2
                           in (max i1 i2, EBin op e1' e2')
-    go (ETApp e s)      = fmap (flip ETApp s) (go e)
-    go (ETAbs e s)      = fmap (flip ETAbs s) (go e)
+    go (ETApp e s)      = fmap (`ETApp` s) (go e)
+    go (ETAbs e s)      = fmap (`ETAbs` s) (go e)
     go (PAnd [])        = (i, PAnd [])
     go (POr [])         = (i, POr  [])
     go (PAnd es)        = bimap maximum PAnd $ unzip $ fmap go es
