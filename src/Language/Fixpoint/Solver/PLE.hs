@@ -655,10 +655,10 @@ eval γ ctx et = go
 evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (Expr, FinalExpand)
 evalELam γ ctx et (x, s) e
   | not $ isEtaSymbol x = do
-    -- We need to refresh it as for some reason lamdba variables
-    -- as reflected lambdas variables for some reason are declared
-    -- two times, maybe we should define a new type of identifier
-    -- and not reuse the etabeta ones
+    -- We need to refresh it as for some reason names bound by lambdas
+    -- present in the source code are getting declared twice.
+    -- Maybe we should define a new type of identifier for this kind of fresh
+    -- variables and not reuse the etabeta ones.
     [ xFresh ] <- makeFreshEtaNames 1
     let newBody = subst (mkSubst [(x, EVar xFresh)]) e
 
