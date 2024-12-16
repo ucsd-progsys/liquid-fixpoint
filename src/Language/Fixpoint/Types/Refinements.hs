@@ -95,6 +95,7 @@ module Language.Fixpoint.Types.Refinements (
   , reftConjuncts
   , sortedReftSymbols
   , substSortInExpr
+  , sortSubstInExpr
 
   -- * Transforming
   , mapPredReft
@@ -426,6 +427,18 @@ substSortInExpr f = onEverySubexpr go
       PExist xts e -> PExist (second (substSort f) <$> xts) e
       ECst e t -> ECst e (substSort f t)
       ECoerc t0 t1 e -> ECoerc (substSort f t0) (substSort f t1) e
+      e -> e
+
+
+sortSubstInExpr :: SortSubst -> Expr -> Expr
+sortSubstInExpr f = onEverySubexpr go
+  where
+    go = \case
+      ELam (x, t) e -> ELam (x, sortSubst f t) e
+      PAll xts e -> PAll (second (sortSubst f) <$> xts) e
+      PExist xts e -> PExist (second (sortSubst f) <$> xts) e
+      ECst e t -> ECst e (sortSubst f t)
+      ECoerc t0 t1 e -> ECoerc (sortSubst f t0) (sortSubst f t1) e
       e -> e
 
 exprKVars :: Expr -> HashMap KVar [Subst]

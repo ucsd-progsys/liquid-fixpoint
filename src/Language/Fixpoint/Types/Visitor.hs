@@ -37,6 +37,8 @@ module Language.Fixpoint.Types.Visitor (
   -- * Coercion Substitutions
   , CoSub
   , applyCoSub
+  , CoSubV
+  , applyCoSubV
 
   -- * Predicates on Constraints
   , isConcC , isConc, isKvarC
@@ -394,6 +396,21 @@ applyCoSub coSub = mapExprOnExpr fE
     fS (FObj a)       = {- FObj -} txV a
     fS t              = t
     txV a             = M.lookupDefault (FObj a) a coSub
+
+
+type CoSubV = M.HashMap Sort Sort
+
+applyCoSubV :: CoSubV -> Expr -> Expr
+applyCoSubV coSub = mapExprOnExpr fE
+  where
+    fE (ECoerc s t e) = ECoerc  (txS s) (txS t) e
+    fE (ELam (x,t) e) = ELam (x, txS t)         e
+    fE (ECst e t)     = ECst e (txS t)
+    fE e              = e
+
+    txS               = mapSortOnlyOnce fS
+
+    fS t              = M.lookupDefault t t coSub
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

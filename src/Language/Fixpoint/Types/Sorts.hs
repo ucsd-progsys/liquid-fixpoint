@@ -57,6 +57,7 @@ module Language.Fixpoint.Types.Sorts (
 
   , mkSortSubst
   , sortSubst
+  , SortSubst
   , functionSort
   , mkFFunc
   , bkFFunc

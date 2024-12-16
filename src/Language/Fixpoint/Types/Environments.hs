@@ -178,6 +178,7 @@ lookupSEnvWithDistance x (SE env)
 
 
 data SESearch a = Found a | Alts [Symbol]
+  deriving Show
 
 -- | Functions for Indexed Bind Environment
 
