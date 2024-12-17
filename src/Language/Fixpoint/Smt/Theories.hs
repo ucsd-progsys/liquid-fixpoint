@@ -248,6 +248,10 @@ cvc4Preamble :: Config -> [Builder]
 cvc4Preamble z
   = "(set-logic ALL_SUPPORTED)" : commonPreamble z
 
+cvc5Preamble :: Config -> [Builder]
+cvc5Preamble z
+  = "(set-logic ALL)" : commonPreamble z
+
 commonPreamble :: Config -> [Builder]
 commonPreamble _ --TODO use uif flag u (see z3Preamble)
   = [ bSort string "Int"
@@ -351,6 +355,7 @@ sortAppInfo t = case bkFFunc t of
 preamble :: Config -> SMTSolver -> [Builder]
 preamble u Z3   = z3Preamble u
 preamble u Cvc4 = cvc4Preamble u
+preamble u Cvc5 = cvc5Preamble u
 preamble u _    = commonPreamble u
 
 --------------------------------------------------------------------------------
