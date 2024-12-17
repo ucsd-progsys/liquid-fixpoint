@@ -144,7 +144,7 @@ instance Read RESTOrdering where
 
 ---------------------------------------------------------------------------------------
 
-data SMTSolver = Z3 | Z3mem | Cvc4 | Mathsat
+data SMTSolver = Z3 | Z3mem | Cvc4 | Cvc5 | Mathsat 
                  deriving (Eq, Data, Typeable, Generic)
 
 instance Default SMTSolver where
@@ -154,6 +154,7 @@ instance Show SMTSolver where
   show Z3      = "z3"
   show Z3mem   = "z3 API"
   show Cvc4    = "cvc4"
+  show Cvc5    = "cvc5"
   show Mathsat = "mathsat"
 
 instance S.Store SMTSolver

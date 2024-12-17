@@ -300,6 +300,10 @@ makeContext' cfg ctxLog
                       Process.defaultConfig
                              { Process.exe = "cvc4"
                              , Process.args = ["--incremental", "-L", "smtlib2"] }
+         Cvc5    -> makeProcess ctxLog $
+                      Process.defaultConfig
+                             { Process.exe = "cvc5"
+                             , Process.args = ["--incremental", "-L", "smtlib2"] }
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver  = solver
