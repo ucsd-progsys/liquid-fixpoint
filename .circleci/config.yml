@@ -25,8 +25,10 @@ jobs:
             wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
             unzip cvc5-Linux-x86_64-static.zip
             rm -f cvc5-Linux-x86_64-static.zip
-            sudo cp z3-4.8.7-x64-ubuntu-16.04/bin/z3 /usr/local/bin
-            
+            sudo cp cvc5-Linux-x86_64-static/bin/cvc5 /usr/local/bin
+            sudo cp cvc5-Linux-x86_64-static/lib/*    /usr/local/lib
+            rm -f cvc5-Linux-x86_64-static
+            cvc5 --version
       - checkout
       - restore_cache:
           keys:
@@ -45,7 +47,7 @@ jobs:
             - ./.stack-work
       - run:
           name: Compile
-          command : |
+          command: |
             stack --no-terminal build -j2 liquid-fixpoint --flag liquid-fixpoint:devel --test --no-run-tests
       - run:
           name: Test
