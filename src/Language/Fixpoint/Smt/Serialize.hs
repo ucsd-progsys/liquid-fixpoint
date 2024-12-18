@@ -56,18 +56,19 @@ smt2dataname env (DDecl tc as _) = parenSeqs [name, n]
 smt2datactors :: SymEnv -> DataDecl -> Builder
 smt2datactors env (DDecl _ as cs)
   | as > 0       = parenSeqs ["par", parens tvars, parens ds]
-  | otherwise    = parenSeqs [                     parens ds]
+  | otherwise    =                                 parens ds
   where
     tvars        = smt2many (smt2TV <$> [0..(as-1)])
     smt2TV       = smt2 env . SVar
     ds           = smt2many (smt2ctor env as <$> cs)
 
 smt2ctor :: SymEnv -> Int -> DataCtor -> Builder
-smt2ctor env _  (DCtor c [])  = smt2 env c
-smt2ctor env as (DCtor c fs)  = parenSeqs [smt2 env c, fields]
 
-  where
-    fields                 = smt2many (smt2field env as <$> fs)
+smt2ctor env as (DCtor c fs)  = parenSeqs (smt2 env c : (smt2field env as <$> fs))
+-- smt2ctor env _  (DCtor c [])  = parens (smt2 env c)
+-- smt2ctor env as (DCtor c fs)  = parenSeqs [smt2 env c, fields]
+  -- where
+  --   fields                 = smt2many (smt2field env as <$> fs)
 
 smt2field :: SymEnv -> Int -> DataField -> Builder
 smt2field env as d@(DField x t) = parenSeqs [smt2 env x, smt2SortPoly d env $ mkPoly as t]
