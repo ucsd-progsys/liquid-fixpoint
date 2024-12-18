@@ -7,6 +7,7 @@
 {-# LANGUAGE ViewPatterns              #-}
 
 {-# OPTIONS_GHC -Wno-orphans           #-}
+{-# LANGUAGE TupleSections #-}
 
 module Language.Fixpoint.Smt.Theories
      (
@@ -64,6 +65,7 @@ import           Data.Maybe (catMaybes)
 -- import           Data.Text.Format
 import qualified Data.Text
 import           Data.String                 (IsString(..))
+import Text.Printf (printf)
 import Language.Fixpoint.Utils.Builder
 
 {- | [NOTE:Adding-Theories] To add new (SMTLIB supported) theories to
@@ -197,10 +199,10 @@ strLen    = "strLen"
 strSubstr = "subString"
 strConcat = "concatString"
 
-z3strlen, z3strsubstr, z3strconcat :: Raw
-z3strlen    = "str.len"
-z3strsubstr = "str.substr"
-z3strconcat = "str.++"
+smtlibStrLen, smtlibStrSubstr, smtlibStrConcat :: Raw
+smtlibStrLen    = "str.len"
+smtlibStrSubstr = "str.substr"
+smtlibStrConcat = "str.++"
 
 strLenSort, substrSort, concatstrSort :: Sort
 strLenSort    = FFunc strSort intSort
@@ -223,54 +225,65 @@ bFun' name ts out = key "declare-fun" (seqs [fromText name, args, out])
 bSort :: Raw -> Builder -> Builder
 bSort name def = key "define-sort" (fromText name <+> "()" <+> def)
 
-z3Preamble :: Config -> [Builder]
-z3Preamble u
-  = stringPreamble u ++
-    [ bFun boolToIntName
-        [("b", "Bool")]
-        "Int"
-        "(ite b 1 0)"
 
-    , uifDef u (symbolText mulFuncName) "*"
-    , uifDef u (symbolText divFuncName) "div"
-    ]
 
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
 -- (2) have very different semantics. TODO: proper overloading, post genEApp
 uifDef :: Config -> Data.Text.Text -> Data.Text.Text -> Builder
 uifDef cfg f op
-  | linear cfg || Z3 /= solver cfg
+  | onlyLinearArith cfg -- linear cfg || Z3 /= solver cfg
   = bFun' f ["Int", "Int"] "Int"
   | otherwise
   = bFun f [("x", "Int"), ("y", "Int")] "Int" (key2 (fromText op) "x" "y")
 
-cvc4Preamble :: Config -> [Builder]
-cvc4Preamble z
-  = "(set-logic ALL_SUPPORTED)" : commonPreamble z
+onlyLinearArith :: Config -> Bool
+onlyLinearArith cfg = linear cfg || solver cfg `notElem` [Z3, Cvc5]
 
-cvc5Preamble :: Config -> [Builder]
-cvc5Preamble z
-  = "(set-logic ALL)" : commonPreamble z
+preamble :: Config -> SMTSolver -> [Builder]
+preamble cfg s = snd <$> filter (matchesCondition s . fst) (solverPreamble cfg)
 
-commonPreamble :: Config -> [Builder]
-commonPreamble _ --TODO use uif flag u (see z3Preamble)
-  = [ bSort string "Int"
-    , bFun boolToIntName [("b", "Bool")] "Int" "(ite b 1 0)"
-    ]
 
-stringPreamble :: Config -> [Builder]
+matchesCondition :: SMTSolver -> PreambleCondition -> Bool
+matchesCondition _ SAll       = True
+matchesCondition s (SOnly ss) = s `elem` ss
+
+solverPreamble :: Config -> [Preamble]
+solverPreamble cfg
+  =  [(SOnly [Cvc4], "(set-logic ALL_SUPPORTED)")]
+  ++ [(SOnly [Cvc5], "(set-logic ALL)")]
+  ++ boolPreamble cfg
+  ++ arithPreamble cfg
+  ++ stringPreamble cfg
+
+type Preamble = (PreambleCondition, Builder)
+
+data PreambleCondition = SAll | SOnly [SMTSolver]
+  deriving (Eq, Show)
+
+
+boolPreamble :: Config -> [Preamble]
+boolPreamble _
+  = [ (SAll, bFun boolToIntName [("b", "Bool")] "Int" "(ite b 1 0)") ]
+
+arithPreamble :: Config -> [Preamble]
+arithPreamble cfg = (SAll,) <$>
+ [ uifDef cfg (symbolText mulFuncName) "*"
+ , uifDef cfg (symbolText divFuncName) "div"
+ ]
+
+stringPreamble :: Config -> [Preamble]
 stringPreamble cfg | stringTheory cfg
-  = [ bSort string "String"
-    , bFun strLen [("s", fromText string)] "Int" (key (fromText z3strlen) "s")
-    , bFun strSubstr [("s", fromText string), ("i", "Int"), ("j", "Int")] (fromText string) (key (fromText z3strsubstr) "s i j")
-    , bFun strConcat [("x", fromText string), ("y", fromText string)] (fromText string) (key (fromText z3strconcat) "x y")
+  = [ (SAll, bSort string "String")
+    , (SAll, bFun strLen [("s", fromText string)] "Int" (key (fromText smtlibStrLen) "s"))
+    , (SAll, bFun strSubstr [("s", fromText string), ("i", "Int"), ("j", "Int")] (fromText string) (key (fromText smtlibStrSubstr) "s i j"))
+    , (SAll, bFun strConcat [("x", fromText string), ("y", fromText string)] (fromText string) (key (fromText smtlibStrConcat) "x y"))
     ]
 
 stringPreamble _
-  = [ bSort string "Int"
-    , bFun' strLen [fromText string] "Int"
-    , bFun' strSubstr [fromText string, "Int", "Int"] (fromText string)
-    , bFun' strConcat [fromText string, fromText string] (fromText string)
+  = [ (SAll, bSort string "Int")
+    , (SAll, bFun' strLen [fromText string] "Int")
+    , (SAll, bFun' strSubstr [fromText string, "Int", "Int"] (fromText string))
+    , (SAll, bFun' strConcat [fromText string, fromText string] (fromText string))
     ]
 
 --------------------------------------------------------------------------------
@@ -352,11 +365,7 @@ sortAppInfo t = case bkFFunc t of
   Just (_, ts) -> Just (length ts - 1)
   Nothing      -> Nothing
 
-preamble :: Config -> SMTSolver -> [Builder]
-preamble u Z3   = z3Preamble u
-preamble u Cvc4 = cvc4Preamble u
-preamble u Cvc5 = cvc5Preamble u
-preamble u _    = commonPreamble u
+
 
 --------------------------------------------------------------------------------
 -- | Theory Symbols : `uninterpSEnv` should be disjoint from see `interpSEnv`
@@ -366,16 +375,16 @@ preamble u _    = commonPreamble u
 
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
-theorySymbols :: [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
-theorySymbols ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
-                                  interpSymbols
+theorySymbols :: Config -> [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
+theorySymbols cfg ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
+                                  interpSymbols cfg
                                ++ concatMap dataDeclSymbols ds
 
 
 --------------------------------------------------------------------------------
-interpSymbols :: [(Symbol, TheorySymbol)]
+interpSymbols :: Config -> [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
-interpSymbols =
+interpSymbols cfg =
   [
   -- TODO we'll probably need two versions of these - one for sets and one for maps
     interpSym arrConstS  "const"  (FAbs 0 $ FFunc boolSort setArrSort)
@@ -477,14 +486,15 @@ interpSymbols =
   , interpBvCmp bvSLeName
   , interpBvCmp bvSGtName
   , interpBvCmp bvSGeName
-
-  , interpSym intbv32Name "(_ int2bv 32)"   (FFunc intSort bv32)
-  , interpSym intbv64Name "(_ int2bv 64)"   (FFunc intSort bv64)
-  , interpSym bv32intName  "(_ bv2int 32)"  (FFunc bv32    intSort)
-  , interpSym bv64intName   "(_ bv2int 64)" (FFunc bv64    intSort)
-
+  , interpSym intbv32Name   "(_ int2bv 32)" (FFunc intSort bv32)
+  , interpSym intbv64Name   "(_ int2bv 64)" (FFunc intSort bv64)
+  , interpSym bv32intName   (bv2i cfg 32) (FFunc bv32    intSort)
+  , interpSym bv64intName   (bv2i cfg 64) (FFunc bv64    intSort)
+  -- , interpSym bv32intName   "(_ bv2int 32)" (FFunc bv32    intSort)
+  -- , interpSym bv64intName   "(_ bv2int 64)" (FFunc bv64    intSort)
   ]
   where
+
     mapArrSort = arraySort (FVar 0) (FVar 1)
     setArrSort = arraySort (FVar 0) boolSort
     bagArrSort = arraySort (FVar 0) intSort
@@ -515,6 +525,13 @@ interpSymbols =
                                  $ FFunc (bagSort $ FVar 0)
                                          (bagSort $ FVar 0)
     bagSubSort = FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort
+
+bv2i :: Config -> Int -> Raw
+bv2i cfg size = case solver cfg of
+  Cvc4 -> "bv2nat"
+  Cvc5 -> "bv2nat"
+  _    -> Data.Text.pack $ printf "(_ bv2int %d)" size
+
 interpBvUop :: Symbol -> (Symbol, TheorySymbol)
 interpBvUop name = interpSym' name bvUopSort
 interpBvBop :: Symbol -> (Symbol, TheorySymbol)

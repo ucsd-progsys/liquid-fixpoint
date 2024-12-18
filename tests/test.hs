@@ -97,7 +97,9 @@ unitTests lfDir
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
     , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
     , testGroup "horn-pos-el"      <$> dirTests elimSaveCmd   "tests/horn/pos"  []          ExitSuccess
+    , testGroup "horn-pos-cvc5"    <$> dirTests cvc5Cmd       "tests/horn/pos"  []          ExitSuccess
     , testGroup "horn-neg-el"      <$> dirTests elimSaveCmd   "tests/horn/neg"  []          (ExitFailure 1)
+    , testGroup "horn-neg-cvc5"    <$> dirTests cvc5Cmd       "tests/horn/neg"  []          (ExitFailure 1)
     , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd   "tests/horn/pos/.liquid"  []  ExitSuccess
     , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd   "tests/horn/neg/.liquid"  []  (ExitFailure 1)
     , testGroup "horn-smt2-pos-el" <$> dirHornTests elimCmd  "tests/horn/pos/.liquid"  []  ExitSuccess
@@ -187,6 +189,9 @@ elimSaveCmd :: TestCmd
 elimSaveCmd (LO opts) bin dir file =
   printf "cd %s && %s --save --eliminate=some %s %s" dir bin opts file
 
+cvc5Cmd :: TestCmd
+cvc5Cmd (LO opts) bin dir file =
+  printf "cd %s && %s --solver=cvc5 %s %s" dir bin opts file
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers

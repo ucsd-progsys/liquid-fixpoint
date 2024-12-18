@@ -1,9 +1,8 @@
 # TODO
 
-## HORN-SMTLIB
+## CVC5
 
-Liquid-Fixpoint Copyright 2013-21 Regents of the University of California.
-All Rights Reserved.
-
-
-(if (<= n 0) 0 (+ n (sum (- n 1))))
+- [x] bitv.smt2
+- [x] str00.smt2
+- [x] scrape01.smt2
+- [] horn-pos-cvc5.ple_list01_adt.smt2

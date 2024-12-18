@@ -125,7 +125,7 @@ solveEbs cfg query@(Query {}) = do
   whenLoud $ printPiSols piSols
 
   whenLoud $ putStrLn "solved pis:"
-  let solvedPiCstrs = solPis (S.fromList $ M.keys cons ++ M.keys dist) piSols
+  let solvedPiCstrs = solPis cfg (S.fromList $ M.keys cons ++ M.keys dist) piSols
   whenLoud $ putStrLn $ F.showpp solvedPiCstrs
 
   whenLoud $ putStrLn "solved horn:"
@@ -164,18 +164,18 @@ map3 :: (c -> d) -> (a, b, c) -> (a, b, d)
 map3 f (x, y, z) = (x, y, f z)
 
 -- | Solve out the given pivars
-solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
-solPis measures piSolsMap = go (M.toList piSolsMap) piSolsMap
+solPis :: F.Config -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
+solPis cfg measures piSolsMap = go (M.toList piSolsMap) piSolsMap
   where
     go ((pi', ((n, xs), c)):pis) piSols = M.insert pi' solved $ go pis piSols
-      where solved = solPi measures pi' n (S.fromList xs) piSols c
+      where solved = solPi cfg measures pi' n (S.fromList xs) piSols c
     go [] _ = mempty
 
 -- TODO: rewrite to use CC
-solPi :: S.Set F.Symbol -> F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
-solPi measures basePi n args piSols cstr = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp (sols n) <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp cstr <> "\n\n") $ PAnd rewritten
+solPi :: F.Config -> S.Set F.Symbol -> F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
+solPi cfg measures basePi n args piSols cstr = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp (sols n) <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp cstr <> "\n\n") $ PAnd rewritten
   where
-    rewritten = rewriteWithEqualities measures n args equalities
+    rewritten = rewriteWithEqualities cfg measures n args equalities
     equalities = (nub . fst) $ go (S.singleton basePi) cstr
     edges = eqEdges args mempty equalities
     (eGraph, vf, lookupVertex) = DG.graphFromEdges edges
@@ -630,8 +630,8 @@ instance V.Visitable (Cstr a) where
 --     equalities = collectEqualities c
 --     ps = rewriteWithEqualities n args equalities
 
-rewriteWithEqualities :: S.Set F.Symbol -> F.Symbol -> S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [Pred]
-rewriteWithEqualities measures n args equalities = preds
+rewriteWithEqualities :: F.Config -> S.Set F.Symbol -> F.Symbol -> S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [Pred]
+rewriteWithEqualities cfg measures n args equalities = preds
   where
     (eGraph, vf, lookupVertex) = DG.graphFromEdges $ eqEdges args mempty equalities
 
@@ -647,7 +647,7 @@ rewriteWithEqualities measures n args equalities = preds
       Nothing -> []
       Just vertex -> nub $ filter (/= F.EVar x) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph vertex]
 
-    argsAndPrims = args `S.union` S.fromList (map fst $ F.toListSEnv $ F.theorySymbols []) `S.union`measures
+    argsAndPrims = args `S.union` S.fromList (map fst $ F.toListSEnv $ F.theorySymbols cfg []) `S.union`measures
 
     isWellFormed :: F.Expr -> Bool
     isWellFormed e = S.fromList (F.syms e) `S.isSubsetOf` argsAndPrims
