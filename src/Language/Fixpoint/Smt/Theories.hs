@@ -375,14 +375,14 @@ sortAppInfo t = case bkFFunc t of
 
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
-theorySymbols :: Config -> [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
+theorySymbols :: SMTSolver -> [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
 theorySymbols cfg ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
                                   interpSymbols cfg
                                ++ concatMap dataDeclSymbols ds
 
 
 --------------------------------------------------------------------------------
-interpSymbols :: Config -> [(Symbol, TheorySymbol)]
+interpSymbols :: SMTSolver -> [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
 interpSymbols cfg =
   [
@@ -526,11 +526,10 @@ interpSymbols cfg =
                                          (bagSort $ FVar 0)
     bagSubSort = FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort
 
-bv2i :: Config -> Int -> Raw
-bv2i cfg size = case solver cfg of
-  Cvc4 -> "bv2nat"
-  Cvc5 -> "bv2nat"
-  _    -> Data.Text.pack $ printf "(_ bv2int %d)" size
+bv2i :: SMTSolver -> Int -> Raw
+bv2i Cvc4 _ = "bv2nat"
+bv2i Cvc5 _ = "bv2nat"
+bv2i _    n = Data.Text.pack $ printf "(_ bv2int %d)" n
 
 interpBvUop :: Symbol -> (Symbol, TheorySymbol)
 interpBvUop name = interpSym' name bvUopSort

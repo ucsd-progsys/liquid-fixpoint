@@ -164,7 +164,7 @@ eliminateEta cfg si
       splitApp (fvar, arg:args)
     fapp' e = pure (e, [])
 
-    theorySymbols = F.notracepp "theorySymbols" $ Thy.theorySymbols cfg $ F.ddecls si
+    theorySymbols = F.notracepp "theorySymbols" $ Thy.theorySymbols (Cfg.solver cfg) $ F.ddecls si
 
     splitApp (e, es)
       | isNothing $ F.notracepp ("isSmt2App? " ++ showpp e) $ Thy.isSmt2App theorySymbols $ stripCasts e
@@ -329,7 +329,7 @@ known :: Config -> F.SInfo a -> F.Symbol -> Bool
 known cfg fi  = \x -> F.memberSEnv x lits || F.memberSEnv x prims
   where
     lits  = F.gLits fi
-    prims = Thy.theorySymbols cfg . F.ddecls $ fi
+    prims = Thy.theorySymbols (Cfg.solver cfg) . F.ddecls $ fi
 
 cNoFreeVars :: F.SInfo a -> (F.Symbol -> Bool) -> F.SimpC a -> Maybe [F.Symbol]
 cNoFreeVars fi knownSym c = if S.null fv then Nothing else Just (S.toList fv)
@@ -404,7 +404,7 @@ symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
     ts'          = applySorts ae'
     ae'          = elaborate (F.atLoc E.dummySpan "symbolEnv") env0 (F.ae si)
     env0         = F.symEnv sEnv tEnv ds lits ts
-    tEnv         = Thy.theorySymbols cfg ds
+    tEnv         = Thy.theorySymbols (Cfg.solver cfg) ds
     ds           = F.ddecls si
     ts           = Misc.setNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
     sEnv         = F.coerceSortEnv $ (F.tsSort <$> tEnv) `mappend` F.fromListSEnv xts
