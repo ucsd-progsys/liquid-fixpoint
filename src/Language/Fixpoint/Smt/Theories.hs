@@ -529,7 +529,7 @@ interpSymbols cfg =
 bv2i :: SMTSolver -> Int -> Raw
 bv2i Cvc4 _ = "bv2nat"
 bv2i Cvc5 _ = "bv2nat"
-bv2i _    n = Data.Text.pack $ printf "(_ bv2int %d)" n
+bv2i _    n = Data.Text.pack $ printf "(_ bv2nat %d)" n
 
 interpBvUop :: Symbol -> (Symbol, TheorySymbol)
 interpBvUop name = interpSym' name bvUopSort
