@@ -162,25 +162,6 @@ filterRequired :: F.Cand a -> F.Expr -> SolveM ann [a]
 --------------------------------------------------------------------------------
 filterRequired = error "TBD:filterRequired"
 
-{-
-(set-option :produce-unsat-cores true)
-(declare-fun x () Int)
-(declare-fun y () Int)
-(declare-fun z () Int)
-
-; Z3 will only track assertions that are named.
-
-(assert (< 0 x))
-(assert (! (< 0 y)       :named b2))
-(assert (! (< x 10)      :named b3))
-(assert (! (< y 10)      :named b4))
-(assert (! (< (+ x y) 0) :named bR))
-(check-sat)
-(get-unsat-core)
-
-> unsat (b2 bR)
--}
-
 --------------------------------------------------------------------------------
 -- | `filterValid p [(q1, x1),...,(qn, xn)]` returns the list `[ xi | p => qi]`
 --------------------------------------------------------------------------------

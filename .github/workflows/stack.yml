@@ -18,9 +18,9 @@ jobs:
       matrix:
         cabal: ["3.10.3.0"]
         vers:
-          - {ghc: "9.8.2", stackage: "nightly-2024-05-25"}
-          - {ghc: "9.6.5", stackage: "lts-22.23"}
-          - {ghc: "9.4.8", stackage: "lts-21.25"}
+          - { ghc: "9.8.2", stackage: "nightly-2024-05-25" }
+          - { ghc: "9.6.5", stackage: "lts-22.23" }
+          - { ghc: "9.4.8", stackage: "lts-21.25" }
         ghc-default:
           - "9.8.2"
         z3:
@@ -34,6 +34,16 @@ jobs:
         with:
           version: ${{ matrix.z3 }}
 
+      - run:
+          name: Install cvc5
+          command: |
+            wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
+            unzip cvc5-Linux-x86_64-static.zip
+            rm -f cvc5-Linux-x86_64-static.zip
+            sudo cp cvc5-Linux-x86_64-static/bin/cvc5 /usr/local/bin
+            rm -rf cvc5-Linux-x86_64-static
+            cvc5 --version
+
       - name: Workaround runner image issue
         # https://github.com/actions/runner-images/issues/7061
         run: sudo chown -R $USER /usr/local/.ghcup
@@ -45,7 +55,7 @@ jobs:
           ghc-version: ${{ matrix.vers.ghc }}
           cabal-version: ${{ matrix.cabal }}
           enable-stack: true
-          stack-version: '2.15.7'
+          stack-version: "2.15.7"
 
       - name: Configure stack
         run: |

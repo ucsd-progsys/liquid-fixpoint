@@ -702,8 +702,8 @@ bitVecName    = "BitVec"
 
 
 mulFuncName, divFuncName :: Symbol
-mulFuncName  = "Z3_OP_MUL"
-divFuncName  = "Z3_OP_DIV"
+mulFuncName  = "SMTLIB_OP_MUL"
+divFuncName  = "SMTLIB_OP_DIV"
 
 isPrim :: Symbol -> Bool
 isPrim x = S.member x prims
