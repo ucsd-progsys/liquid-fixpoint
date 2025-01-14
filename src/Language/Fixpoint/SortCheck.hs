@@ -72,6 +72,7 @@ import           Control.Monad.Reader
 
 import           Data.Bifunctor (first)
 import qualified Data.HashMap.Strict       as M
+import qualified Data.HashSet              as S
 import           Data.IORef
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
@@ -960,8 +961,25 @@ throwErrorAt ~err' = do -- Lazy pattern needed because we use LANGUAGE Strict in
 -- | Helper for checking symbol occurrences
 checkSym :: Env -> Symbol -> CheckM Sort
 checkSym f x = case f x of
-  Found s -> instantiate s
+  Found s -> refreshNegativeTyVars s >>= instantiate
   Alts xs -> throwErrorAt (errUnboundAlts x xs)
+
+-- Negative type variables are implictly universally quantified type variables
+refreshNegativeTyVars :: Sort -> CheckM Sort
+refreshNegativeTyVars s = do
+    let negativeSorts = negSort s
+    freshVars <- mapM pair $ S.toList negativeSorts
+    pure $ foldr (uncurry subst) s freshVars
+  where 
+    pair i = do
+      f <- fresh
+      pure (i, FVar f)
+
+    negSort (FVar i) | i < 0 = S.singleton i
+    negSort (FAbs _ s')      = negSort s'
+    negSort (FFunc s1 s2)    = negSort s1 `S.union` negSort s2
+    negSort (FApp s1 s2)     = negSort s1 `S.union` negSort s2
+    negSort _                = S.empty
 
 -- | Helper for checking if-then-else expressions
 checkIte :: Env -> Expr -> Expr -> Expr -> CheckM Sort
