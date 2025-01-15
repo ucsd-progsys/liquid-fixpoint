@@ -530,136 +530,141 @@ addEnv f bs x
 {-# SCC elab #-}
 elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
-elab f@(_, g) e@(EBin o e1 e2) = do
-  (e1', s1) <- elab f e1
-  (e2', s2) <- elab f e2
-  s <- checkOpTy g e s1 s2
-  return (EBin o (eCst e1' s1) (eCst e2' s2), s)
+elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
+  (!e1', !s1) <- elab f e1
+  (!e2', !s2) <- elab f e2
+  !s <- checkOpTy g e s1 s2
+  let !result = EBin o (eCst e1' s1) (eCst e2' s2)
+  return (result, s)
 
-elab f (EApp e1@(EApp _ _) e2) = do
-  (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
-  let e = eAppC s e1' (eCst e2' s2)
-  let θ = unifyExpr (snd f) e
+
+elab !f (EApp e1@(EApp !_ !_) !e2) = do
+  (!e1', !_, !e2', !s2, !s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
+  let !e = eAppC s e1' (eCst e2' s2)
+  let !θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
-elab f (EApp e1 e2) = do
-  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  let e = eAppC s (eCst e1' s1) (eCst e2' s2)
-  let θ = unifyExpr (snd f) e
+elab !f (EApp !e1 !e2) = do
+  (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
+  let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
+  let !θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
-elab _ e@(ESym _) =
+
+elab !_ e@(ESym _) =
   return (e, strSort)
 
-elab _ e@(ECon (I _)) =
+elab !_ e@(ECon (I _)) =
   return (e, FInt)
 
-elab _ e@(ECon (R _)) =
+elab !_ e@(ECon (R _)) =
   return (e, FReal)
 
-elab _ e@(ECon (L _ s)) =
+elab !_ e@(ECon (L _ !s)) =
   return (e, s)
 
-elab _ e@(PKVar _ _) =
+elab !_ e@(PKVar _ _) =
   return (e, boolSort)
 
-elab f (PGrad k su i e) =
-  (, boolSort) . PGrad k su i . fst <$> elab f e
 
-elab (_, f) e@(EVar x) = do
-  cs <- checkSym f x
-  pure (e, cs)
+elab !f (PGrad !k !su !i !e) = do
+  (!e', !_) <- elab f e
+  return (PGrad k su i e', boolSort)
 
-elab f (ENeg e) = do
-  (e', s) <- elab f e
+elab (!_, !f) e@(EVar !x) = do
+  !cs <- checkSym f x
+  return (e, cs)
+
+elab !f (ENeg !e) = do
+  (!e', !s) <- elab f e
   return (ENeg e', s)
 
-elab f@(_,g) (ECst (EIte p e1 e2) t) = do
-  (p', _)   <- elab f p
-  (e1', s1) <- elab f (eCst e1 t)
-  (e2', s2) <- elab f (eCst e2 t)
-  s         <- checkIteTy g p e1' e2' s1 s2
+elab f@(!_,!g) (ECst (EIte !p !e1 !e2) !t) = do
+  (!p', !_)   <- elab f p
+  (!e1', !s1) <- elab f (eCst e1 t)
+  (!e2', !s2) <- elab f (eCst e2 t)
+  !s          <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (eCst e1' s) (eCst e2' s), t)
 
-elab f@(_,g) (EIte p e1 e2) = do
-  t <- getIte g e1 e2
-  (p', _)   <- elab f p
-  (e1', s1) <- elab f (eCst e1 t)
-  (e2', s2) <- elab f (eCst e2 t)
-  s         <- checkIteTy g p e1' e2' s1 s2
+elab f@(!_,!g) (EIte !p !e1 !e2) = do
+  !t <- getIte g e1 e2
+  (!p', !_)   <- elab f p
+  (!e1', !s1) <- elab f (eCst e1 t)
+  (!e2', !s2) <- elab f (eCst e2 t)
+  !s          <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (eCst e1' s) (eCst e2' s), s)
 
-elab f (ECst e t) = do
-  (e', _) <- elab f e
+
+elab !f (ECst !e !t) = do
+  (!e', !_) <- elab f e
   return (eCst e' t, t)
 
-elab f (PNot p) = do
-  (e', _) <- elab f p
+elab !f (PNot !p) = do
+  (!e', !_) <- elab f p
   return (PNot e', boolSort)
 
-elab f (PImp p1 p2) = do
-  (p1', _) <- elab f p1
-  (p2', _) <- elab f p2
+elab !f (PImp !p1 !p2) = do
+  (!p1', !_) <- elab f p1
+  (!p2', !_) <- elab f p2
   return (PImp p1' p2', boolSort)
 
-elab f (PIff p1 p2) = do
-  (p1', _) <- elab f p1
-  (p2', _) <- elab f p2
+elab !f (PIff !p1 !p2) = do
+  (!p1', !_) <- elab f p1
+  (!p2', !_) <- elab f p2
   return (PIff p1' p2', boolSort)
 
-elab f (PAnd ps) = do
-  ps' <- mapM (elab f) ps
+elab !f (PAnd !ps) = do
+  !ps' <- mapM (elab f) ps
   return (PAnd (fst <$> ps'), boolSort)
 
-elab f (POr ps) = do
-  ps' <- mapM (elab f) ps
+elab !f (POr !ps) = do
+  !ps' <- mapM (elab f) ps
   return (POr (fst <$> ps'), boolSort)
 
-elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
-  t1        <- checkExpr g e1
-  t2        <- checkExpr g e2
-  (t1',t2') <- unite g e t1 t2 `withError` errElabExpr e
-  e1'       <- elabAs f t1' e1
-  e2'       <- elabAs f t2' e2
-  e1''      <- eCstAtom f e1' t1'
-  e2''      <- eCstAtom f e2' t2'
-  return (PAtom eq e1'' e2'' , boolSort)
+elab f@(!_,!g) e@(PAtom !eq !e1 !e2) | eq == Eq || eq == Ne = do
+  !t1        <- checkExpr g e1
+  !t2        <- checkExpr g e2
+  (!t1',!t2') <- unite g e t1 t2 `withError` errElabExpr e
+  !e1'       <- elabAs f t1' e1
+  !e2'       <- elabAs f t2' e2
+  !e1''      <- eCstAtom f e1' t1'
+  !e2''      <- eCstAtom f e2' t2'
+  return (PAtom eq e1'' e2'', boolSort)
 
-elab f (PAtom r e1 e2)
+elab !f (PAtom !r !e1 !e2)
   | r == Ueq || r == Une = do
-  (e1', _) <- elab f e1
-  (e2', _) <- elab f e2
+  (!e1', !_) <- elab f e1
+  (!e2', !_) <- elab f e2
   return (PAtom r e1' e2', boolSort)
 
-elab f@(env,_) (PAtom r e1 e2) = do
-  e1' <- uncurry (toInt env) <$> elab f e1
-  e2' <- uncurry (toInt env) <$> elab f e2
+elab f@(!env,!_) (PAtom !r !e1 !e2) = do
+  !e1' <- uncurry (toInt env) <$> elab f e1
+  !e2' <- uncurry (toInt env) <$> elab f e2
   return (PAtom r e1' e2', boolSort)
 
-elab f (PExist bs e) = do
-  (e', s) <- elab (elabAddEnv f bs) e
-  let bs' = elaborate "PExist Args" mempty bs
+elab !f (PExist !bs !e) = do
+  (!e', !s) <- elab (elabAddEnv f bs) e
+  let !bs' = elaborate "PExist Args" mempty bs
   return (PExist bs' e', s)
 
-elab f (PAll bs e) = do
-  (e', s) <- elab (elabAddEnv f bs) e
-  let bs' = elaborate "PAll Args" mempty bs
+elab !f (PAll !bs !e) = do
+  (!e', !s) <- elab (elabAddEnv f bs) e
+  let !bs' = elaborate "PAll Args" mempty bs
   return (PAll bs' e', s)
 
-elab f (ELam (x,t) e) = do
-  (e', s) <- elab (elabAddEnv f [(x, t)]) e
-  let t' = elaborate "ELam Arg" mempty t
+elab !f (ELam (!x,!t) !e) = do
+  (!e', !s) <- elab (elabAddEnv f [(x, t)]) e
+  let !t' = elaborate "ELam Arg" mempty t
   return (ELam (x, t') (eCst e' s), FFunc t s)
 
-elab f (ECoerc s t e) = do
-  (e', _) <- elab f e
-  return     (ECoerc s t e', t)
+elab !f (ECoerc !s !t !e) = do
+  (!e', !_) <- elab f e
+  return (ECoerc s t e', t)
 
-elab _ (ETApp _ _) =
+elab !_ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
-elab _ (ETAbs _ _) =
+elab !_ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
-
 
 -- | 'eCstAtom' is to support tests like `tests/pos/undef00.fq`
 eCstAtom :: ElabEnv -> Expr -> Sort -> CheckM Expr
@@ -970,7 +975,7 @@ refreshNegativeTyVars s = do
     let negativeSorts = negSort s
     freshVars <- mapM pair $ S.toList negativeSorts
     pure $ foldr (uncurry subst) s freshVars
-  where 
+  where
     pair i = do
       f <- fresh
       pure (i, FVar f)
