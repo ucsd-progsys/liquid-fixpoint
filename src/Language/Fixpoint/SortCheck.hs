@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-}
@@ -278,7 +279,8 @@ elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
   case runCM0 (srcSpan msg) $ do
     (!e', _) <- elab (env, envLookup) e
-    finalTheta <- asks chTVSubst -- Direct access without IORef
+    finalThetaRef <- asks chTVSubst -- Direct access without IORef
+    finalTheta <- liftIO $ readIORef finalThetaRef
     return (applyExpr finalTheta e') of
     Left (ChError f') ->
       let e' = f' ()
@@ -387,7 +389,7 @@ instance Show ChError where
 
 instance Exception ChError
 
-data ChState = ChS {chCount :: IORef Int, chSpan :: SrcSpan, chTVSubst :: Maybe TVSubst}
+data ChState = ChS {chCount :: IORef Int, chSpan :: SrcSpan, chTVSubst :: IORef (Maybe TVSubst)}
 
 type Env = Symbol -> SESearch Sort
 
@@ -423,7 +425,8 @@ varCounterRef = unsafePerformIO $ newIORef 42
 -- value of counter.
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = unsafePerformIO $ do
-  try (runReaderT act (ChS varCounterRef sp Nothing))
+  ref <- newIORef Nothing
+  try (runReaderT act (ChS varCounterRef sp ref))
 
 fresh :: CheckM Int
 fresh = do
@@ -551,19 +554,28 @@ addEnv f bs x =
 -- | Update global type variable substitution
 
 --------------------------------------------------------------------------------
-updateTVSubst :: Maybe TVSubst -> CheckM ()
+updateTVSubst :: TVSubst -> CheckM ()
 updateTVSubst theta = do
-  local (\s -> s {chTVSubst = theta}) (return ())
+  refTheta <- asks chTVSubst
+  liftIO $ atomicModifyIORef' refTheta $ const (Just theta, ())
 
-mergeTVSubst :: TVSubst -> TVSubst -> TVSubst
-mergeTVSubst (Th m1) (Th m2) =
-  Th (M.unionWith (\_ s2 -> s2) m1 m2)
+-- local (\s -> s {chTVSubst = theta}) (return ())
 
-composeTVSubst :: Maybe TVSubst -> Maybe TVSubst -> Maybe TVSubst
-composeTVSubst Nothing theta2 = theta2
-composeTVSubst theta1 Nothing = theta1
-composeTVSubst (Just theta1) (Just theta2) =
-  Just $ mergeTVSubst theta1 theta2
+mergeTVSubst :: TVSubst -> Maybe TVSubst -> TVSubst
+mergeTVSubst (Th m1) Nothing = Th m1
+mergeTVSubst (Th m1) (Just (Th m2)) = Th m1 <> Th m2
+
+composeTVSubst :: Maybe TVSubst -> CheckM ()
+composeTVSubst Nothing = return ()
+composeTVSubst (Just theta1) = do
+  refTheta <- asks chTVSubst
+  theta <- liftIO $ readIORef refTheta
+  updateTVSubst (mergeTVSubst theta1 theta)
+
+-- liftIO $ atomicModifyIORef' refTheta $ \theta2 -> (mergeTVSubst theta1 theta2, ())
+
+-- composeTVSubst (Just theta1) (Just theta2) =
+--   Just $ mergeTVSubst theta1 theta2
 
 --------------------------------------------------------------------------------
 
@@ -579,24 +591,11 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
   !s <- checkOpTy g e s1 s2
   let !result = EBin o (eCst e1' s1) (eCst e2' s2)
   return (result, s)
--- elab !f (EApp e1@(EApp !_ !_) !e2) = do
--- (!e1', !_, !e2', !s2, !s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
--- let !e = eAppC s e1' (eCst e2' s2)
--- let !θ = unifyExpr (snd f) e
--- return (applyExpr θ e, maybe s (`apply` s) θ)
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
   let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let !θ = unifyExpr (snd f) e
-  currentTheta <- asks chTVSubst
-  let !combinedTheta = composeTVSubst currentTheta θ
-  updateTVSubst combinedTheta
-  -- note here: need to do the following:
-  -- 1. Infer the type of e1 - call it T1
-  -- 2. Generate a fresh variable for the output type of e2 - call it T2
-  -- 3. Unify T1 T2
-  -- 4. return T2 - no subst (usually you would
-  -- apply the result of the unification on T2)
+  composeTVSubst θ
   return (e, maybe s (`apply` s) θ)
 elab !_ e@(ESym _) =
   return (e, strSort)
@@ -706,7 +705,7 @@ elabAddEnv :: (Eq a) => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
 
 elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
-elabAs f t e = notracepp _msg <$> go e
+elabAs !f !t !e = notracepp _msg <$> go e
   where
     _msg = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
     go (EApp e1 e2) = elabAppAs f t e1 e2
@@ -714,35 +713,31 @@ elabAs f t e = notracepp _msg <$> go e
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
-elabAppAs env@(_, f) t g e = do
-  gT <- checkExpr f g
-  eT <- checkExpr f e
-  (iT, oT, isu) <- checkFunSort gT
-  let ge = Just (EApp g e)
-  su <- unifyMany f ge isu [oT, iT] [t, eT]
-  let tg = apply su gT
-  g' <- elabAs env tg g
-  let te = apply su eT
-  e' <- elabAs env te e
+elabAppAs env@(_, !f) !t !g !e = do
+  !gT <- checkExpr f g
+  !eT <- checkExpr f e
+  (!iT, !oT, !isu) <- checkFunSort gT
+  let !ge = Just (EApp g e)
+  !su <- unifyMany f ge isu [oT, iT] [t, eT]
+  let !tg = apply su gT
+  !g' <- elabAs env tg g
+  let !te = apply su eT
+  !e' <- elabAs env te e
   pure $ EApp (ECst g' tg) (ECst e' te)
 
 elabEApp :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
-elabEApp f@(_, g) e1 e2 = do
-  (e1', s1 {- notracepp ("elabEApp: e1 = " ++ show e1) <$> -}) <- elab f e1
-  (e2', s2 {- notracepp ("elabEApp: e2 = " ++ show e2) <$> -}) <- elab f e2
-  (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
+elabEApp f@(_, !g) !e1 !e2 = do
+  (!e1', !s1 {- notracepp ("elabEApp: e1 = " ++ show e1) <$> -}) <- elab f e1
+  (!e2', !s2 {- notracepp ("elabEApp: e2 = " ++ show e2) <$> -}) <- elab f e2
+  (!e1'', !e2'', !s1', !s2', !s) <- elabAppSort g e1' e2' s1 s2
   return (e1'', s1', e2'', s2', s)
 
 elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, Sort, Sort)
-elabAppSort f e1 e2 s1 s2 = do
+elabAppSort !f !e1 !e2 !s1 !s2 = do
   let e = Just (EApp e1 e2)
-  (sIn, sOut, su) <- checkFunSort s1
-  -- su' is the unification of the input type for e1 and
-  -- the type for e2
-  su' <- unify1 f e su sIn s2
-  currentTheta <- asks chTVSubst
-  let !combinedTheta = composeTVSubst (composeTVSubst currentTheta (Just su)) (Just su')
-  updateTVSubst combinedTheta
+  (!sIn, !sOut, !su) <- checkFunSort s1
+  !su' <- unify1 f e su sIn s2
+  composeTVSubst (Just su')
   return (e1, e2, apply su' s1, apply su' s2, apply su' sOut)
 
 --------------------------------------------------------------------------------
@@ -1432,7 +1427,7 @@ checkFunSort t = throwErrorAt (errNonFunction 1 t)
 
 --------------------------------------------------------------------------------
 
-newtype TVSubst = Th (M.HashMap Int Sort) deriving (Show)
+newtype TVSubst = Th (M.HashMap Int Sort) deriving (Show, PPrint)
 
 instance Semigroup TVSubst where
   (Th s1) <> (Th s2) = Th (s1 <> s2)
