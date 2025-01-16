@@ -591,10 +591,12 @@ elab !f (EApp !e1 !e2) = do
   currentTheta <- asks chTVSubst
   let !combinedTheta = composeTVSubst currentTheta θ
   updateTVSubst combinedTheta
-  -- note here: need to do the following
-  --- s = freshVar
-  --- s' unify s2 s
-  -- (e, s')
+  -- note here: need to do the following:
+  -- 1. Infer the type of e1 - call it T1
+  -- 2. Generate a fresh variable for the output type of e2 - call it T2
+  -- 3. Unify T1 T2
+  -- 4. return T2 - no subst (usually you would
+  -- apply the result of the unification on T2)
   return (e, maybe s (`apply` s) θ)
 elab !_ e@(ESym _) =
   return (e, strSort)
@@ -735,6 +737,8 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, 
 elabAppSort f e1 e2 s1 s2 = do
   let e = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
+  -- su' is the unification of the input type for e1 and
+  -- the type for e2
   su' <- unify1 f e su sIn s2
   currentTheta <- asks chTVSubst
   let !combinedTheta = composeTVSubst (composeTVSubst currentTheta (Just su)) (Just su')
