@@ -286,34 +286,6 @@ mapExprOnExpr f = go
       e@ESym{} -> e
       e@ECon{} -> e
 
--- mapExprOnExpr :: (Expr -> Expr) -> Expr -> Expr
--- mapExprOnExpr f = go
---   where
---     go !e0 = f $! case e0 of
---       EApp f e -> EApp !(go f) !(go e)
---       ENeg e -> ENeg (go e)
---       EBin o e1 e2 ->  EBin o (go e1) (go e2)
---       EIte p e1 e2 -> EIte (go p) (go e1) (go e2)
---       ECst e t -> ECst (go e) t
---       PAnd ps -> PAnd (map go ps)
---       POr ps -> POr (map go ps)
---       PNot p -> PNot (go p)
---       PImp p1 p2 -> PImp (go p1) (go p2)
---       PIff p1 p2 -> PIff (go p1) (go p2)
---       PAtom r e1 e2 -> PAtom r (go e1) (go e2)
---       PAll xts p -> PAll xts (go p)
---       ELam (x,t) e -> ELam (x,t) (go e)
---       ECoerc a t e -> ECoerc a t (go e)
---       PExist xts p -> PExist xts (go p)
---       ETApp e s -> ETApp (go e) s
---       ETAbs e s -> ETAbs (go e) s
---       PGrad k su i e -> PGrad k su i (go e)
---       e@PKVar{} -> e
---       e@EVar{} -> e
---       e@ESym{} -> e
---       e@ECon{} -> e
-
-
 mapMExpr :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
 mapMExpr f = go
   where
