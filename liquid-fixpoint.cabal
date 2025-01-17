@@ -176,6 +176,8 @@ library
     ghc-options: -Wno-unused-imports
   if impl(ghc>9.8)
     ghc-options: -Wno-x-partial
+  if impl(ghc>9.10)
+    ghc-options: -Wno-deriving-typeable
   if flag(devel)
     ghc-options: -Werror
   if !os(windows)
