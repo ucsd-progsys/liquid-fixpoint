@@ -273,11 +273,15 @@ elabExpr msg env e = case elabExprE msg env e of
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
-  case runCM0 (srcSpan msg) (elab (env, envLookup) e) of
+  case runCM0 (srcSpan msg) $ do
+    (!e', _) <- elab (env, envLookup) e
+    finalThetaRef <- asks chTVSubst 
+    finalTheta <- liftIO $ readIORef finalThetaRef
+    return (applyExpr finalTheta e') of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
-    Right s  -> Right (fst s)
+    Right s  -> Right s
   where
     sEnv = seSort env
     envLookup = (`lookupSEnvWithDistance` sEnv)
@@ -371,7 +375,7 @@ instance Show ChError where
   show (ChError f) = show (f ())
 instance Exception ChError where
 
-data ChState = ChS { chCount :: IORef Int, chSpan :: SrcSpan }
+data ChState = ChS {chCount :: IORef Int, chSpan :: SrcSpan, chTVSubst :: IORef (Maybe TVSubst)}
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
@@ -406,7 +410,8 @@ varCounterRef = unsafePerformIO $ newIORef 42
 -- value of counter.
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = unsafePerformIO $ do
-  try (runReaderT act (ChS varCounterRef sp))
+  ref <- newIORef Nothing
+  try (runReaderT act (ChS varCounterRef sp ref))
 
 fresh :: CheckM Int
 fresh = do
@@ -538,17 +543,12 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
   return (result, s)
 
 
-elab !f (EApp e1@(EApp !_ !_) !e2) = do
-  (!e1', !_, !e2', !s2, !s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
-  let !e = eAppC s e1' (eCst e2' s2)
-  let !θ = unifyExpr (snd f) e
-  return (applyExpr θ e, maybe s (`apply` s) θ)
-
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
   let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let !θ = unifyExpr (snd f) e
-  return (applyExpr θ e, maybe s (`apply` s) θ)
+  composeTVSubst θ
+  return (e, maybe s (`apply` s) θ)
 
 
 elab !_ e@(ESym _) =
@@ -716,7 +716,9 @@ elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
   su'             <- unify1 f e su sIn s2
-  return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
+  composeTVSubst (Just su)
+  composeTVSubst (Just su')
+  return (e1 , e2, apply su' s1, apply su' s2, apply su' sOut)
 
 
 --------------------------------------------------------------------------------
@@ -1359,6 +1361,29 @@ unifyVar f e θ !i !t
       Just (FVar !j) -> return $ updateVar i t $ updateVar j t θ
       Just !t'       -> if t == t' then return θ else unify1 f e θ t t'
       Nothing        -> return (updateVar i t θ)
+
+
+--------------------------------------------------------------------------------
+-- | Update global subst to be applied to expressions
+--------------------------------------------------------------------------------
+
+updateTVSubst :: TVSubst -> CheckM ()
+updateTVSubst theta = do
+  refTheta <- asks chTVSubst
+  liftIO $ atomicModifyIORef' refTheta $ const (Just theta, ())
+
+-- local (\s -> s {chTVSubst = theta}) (return ())
+
+mergeTVSubst :: TVSubst -> Maybe TVSubst -> TVSubst
+mergeTVSubst (Th m1) Nothing = Th m1
+mergeTVSubst (Th m1) (Just (Th m2)) = Th m1 <> Th m2
+
+composeTVSubst :: Maybe TVSubst -> CheckM ()
+composeTVSubst Nothing = return ()
+composeTVSubst (Just theta1) = do
+  refTheta <- asks chTVSubst
+  theta <- liftIO $ readIORef refTheta
+  updateTVSubst (mergeTVSubst theta1 theta)
 
 --------------------------------------------------------------------------------
 -- | Applying a Type Substitution ----------------------------------------------
