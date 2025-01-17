@@ -1390,17 +1390,17 @@ composeTVSubst (Just theta1) = do
 --------------------------------------------------------------------------------
 apply :: TVSubst -> Sort -> Sort
 --------------------------------------------------------------------------------
-apply θ          = Vis.mapSort f
+apply !θ          = Vis.mapSort f
   where
-    f t@(FVar i) = fromMaybe t (lookupVar i θ)
-    f t          = t
+    f t@(FVar !i) = fromMaybe t (lookupVar i θ)
+    f !t          = t
 
 applyExpr :: Maybe TVSubst -> Expr -> Expr
 applyExpr Nothing e  = e
 applyExpr (Just θ) e = Vis.mapExprOnExpr f e
   where
-    f (ECst e' s) = ECst e' (apply θ s)
-    f e'          = e'
+    f (ECst !e' !s) = ECst e' (apply θ s)
+    f !e'          = e'
 
 --------------------------------------------------------------------------------
 _applyCoercion :: Symbol -> Sort -> Sort -> Sort
