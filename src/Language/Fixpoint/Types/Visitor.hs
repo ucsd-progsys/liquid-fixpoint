@@ -57,6 +57,9 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import           Language.Fixpoint.Types hiding (mapSort)
 import qualified Language.Fixpoint.Misc as Misc
+import Control.Monad.Reader
+import GHC.IO (unsafePerformIO)
+import Data.IORef (newIORef, readIORef, IORef, modifyIORef')
 
 
 
@@ -89,16 +92,19 @@ fold v c a t = snd $ execVisitM v c a visit t
 trans        :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> t
 trans !v !c !_ !z = fst $ execVisitM v c mempty visit z
 
-execVisitM :: Visitor a ctx -> ctx -> a -> (Visitor a ctx -> ctx -> t -> State a t) -> t -> (t, a)
-execVisitM !v !c !a !f !x = runState (f v c x) a
+execVisitM :: Visitor a ctx -> ctx -> a -> (Visitor a ctx -> ctx -> t -> VisitM a t) -> t -> (t, a)
+execVisitM !v !c !a !f !x = unsafePerformIO $ do
+  rn <- newIORef a
+  result <- runReaderT (f v c x) rn
+  finalAcc <- readIORef rn
+  return (result, finalAcc) 
 
-type VisitM acc = State acc
+type VisitM acc = ReaderT (IORef acc) IO
 
 accum :: (Monoid a) => a -> VisitM a ()
-accum !z = modify (mappend z)
-  -- do
-  -- !cur <- get
-  -- put ((mappend $!! z) $!! cur)
+accum !z = do 
+  ref <- ask
+  liftIO $ modifyIORef' ref (mappend z)
 
 class Visitable t where
   visit :: (Monoid a) => Visitor a c -> c -> t -> VisitM a t
