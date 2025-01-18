@@ -6,6 +6,7 @@
 {-# LANGUAGE BangPatterns  #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Language.Fixpoint.Types.Visitor (
   -- * Visitor
@@ -89,8 +90,88 @@ defaultVisitor = Visitor
 fold         :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> a
 fold v c a t = snd $ execVisitM v c a visit t
 
-trans        :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> t
-trans !v !c !_ !z = fst $ execVisitM v c mempty visit z
+-- trans is always passed () () for a and t so we don't need to use the visitor pattern
+-- trans        :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> t
+-- trans !v !c !_ !z = fst $ execVisitM v c mempty visit z
+
+class VisitableSpecialized t where
+  visitSpecialized :: (Expr -> Expr) -> t -> t
+
+trans :: VisitableSpecialized t => (Expr -> Expr) -> t -> t
+trans f t = visitSpecialized f t
+
+instance VisitableSpecialized Expr where
+  visitSpecialized f = vE
+    where
+      vE e = step e
+      step e@(ESym _)       = f e
+      step e@(ECon _)       = f e
+      step e@(EVar _)       = f e
+      step (EApp f e)       = EApp (vE f) (vE e)
+      step (ENeg e)         = ENeg (vE e)
+      step (EBin o e1 e2)   = EBin o (vE e1) (vE e2)
+      step (EIte p e1 e2)   = EIte (vE p) (vE e1) (vE e2)
+      step (ECst e t)       = ECst (vE e) t
+      step (PAnd ps)        = PAnd (map vE ps)
+      step (POr ps)         = POr (map vE ps)
+      step (PNot p)         = PNot (vE p)
+      step (PImp p1 p2)     = PImp (vE p1) (vE p2)
+      step (PIff p1 p2)     = PIff (vE p1) (vE p2)
+      step (PAtom r e1 e2)  = PAtom r (vE e1) (vE e2)
+      step (PAll xts p)     = PAll xts (vE p)
+      step (ELam (x,t) e)   = ELam (x,t) (vE e)
+      step (ECoerc a t e)   = ECoerc a t (vE e)
+      step (PExist xts p)   = PExist xts (vE p)
+      step (ETApp e s)      = ETApp (vE e) s
+      step (ETAbs e s)      = ETAbs (vE e) s
+      step p@(PKVar _ _)    = p
+      step (PGrad k su i e) = PGrad k su i (vE e)
+
+instance VisitableSpecialized Reft where
+  visitSpecialized v (Reft (x, ra)) = Reft (x, visitSpecialized v ra)
+
+instance VisitableSpecialized SortedReft where
+  visitSpecialized v (RR t r) = RR t (visitSpecialized v r)
+
+instance VisitableSpecialized (Symbol, SortedReft, a) where
+  visitSpecialized f (sym, sr, a) = (sym, visitSpecialized f sr, a)
+
+instance VisitableSpecialized (BindEnv a) where
+  visitSpecialized v be = be { beBinds = M.map (visitSpecialized v) (beBinds be) }
+
+instance (VisitableSpecialized (c a)) => VisitableSpecialized (GInfo c a) where
+  visitSpecialized f x = x { 
+    cm = visitSpecialized f <$> cm x
+    , bs = visitSpecialized f (bs x)
+    , ae = visitSpecialized f (ae x)
+    }
+
+instance VisitableSpecialized (SimpC a) where
+  visitSpecialized v x = x {
+    _crhs = visitSpecialized v (_crhs x)
+  }
+
+instance VisitableSpecialized (SubC a) where
+  visitSpecialized v x = x {
+    slhs = visitSpecialized v (slhs x),
+    srhs = visitSpecialized v (srhs x)
+  }
+
+instance VisitableSpecialized AxiomEnv where
+  visitSpecialized v x = x {
+    aenvEqs = visitSpecialized v <$> aenvEqs x,
+    aenvSimpl = visitSpecialized v <$> aenvSimpl x
+  }
+    
+instance VisitableSpecialized Equation where
+  visitSpecialized v eq = eq {
+    eqBody = visitSpecialized v (eqBody eq)
+  }
+
+instance VisitableSpecialized Rewrite where
+  visitSpecialized v rw = rw {
+    smBody = visitSpecialized v (smBody rw)
+  }
 
 execVisitM :: Visitor a ctx -> ctx -> a -> (Visitor a ctx -> ctx -> t -> VisitM a t) -> t -> (t, a)
 execVisitM !v !c !a !f !x = unsafePerformIO $ do
@@ -193,33 +274,31 @@ visitExpr !v    = vE
     step _  p@(PKVar _ _)   = return p
     step !c (PGrad k su i e) = PGrad k su i <$> vE c e
 
-mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
+mapKVars :: VisitableSpecialized t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
   where
     f' (kv', _) = f kv'
 
-mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
-mapKVars' f            = trans kvVis () ()
+mapKVars' :: VisitableSpecialized t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapKVars' f = trans txK
   where
-    kvVis              = defaultVisitor { txExpr = txK }
-    txK _ (PKVar k su)
+    txK (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
-    txK _ (PGrad k su _ _)
+    txK (PGrad k su _ _)
       | Just p' <- f (k, su) = subst su p'
-    txK _ p            = p
+    txK p = p
 
 
 
-mapGVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
-mapGVars' f            = trans kvVis () ()
+mapGVars' :: VisitableSpecialized t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapGVars' f            = trans txK
   where
-    kvVis              = defaultVisitor { txExpr = txK }
-    txK _ (PGrad k su _ _)
+    txK (PGrad k su _ _)
       | Just p' <- f (k, su) = subst su p'
-    txK _ p            = p
+    txK p            = p
 
-mapExpr :: Visitable t => (Expr -> Expr) -> t -> t
-mapExpr f = trans (defaultVisitor {txExpr = const f}) () ()
+mapExpr :: VisitableSpecialized t => (Expr -> Expr) -> t -> t
+mapExpr f = trans f
 
 -- | Specialized and faster version of mapExpr for expressions
 mapExprOnExpr :: (Expr -> Expr) -> Expr -> Expr
@@ -346,13 +425,12 @@ mapMExpr f = go
     go (PAnd ps)       = f . PAnd =<< (go `traverse` ps)
     go (POr ps)        = f . POr =<< (go `traverse` ps)
 
-mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
-mapKVarSubsts f          = trans kvVis () ()
+mapKVarSubsts :: VisitableSpecialized t => (KVar -> Subst -> Subst) -> t -> t
+mapKVarSubsts f          = trans txK
   where
-    kvVis                = defaultVisitor { txExpr = txK }
-    txK _ (PKVar k su)   = PKVar k (f k su)
-    txK _ (PGrad k su i e) = PGrad k (f k su) i e
-    txK _ p              = p
+    txK (PKVar k su)   = PKVar k (f k su)
+    txK (PGrad k su i e) = PGrad k (f k su) i e
+    txK p              = p
 
 newtype MInt = MInt Integer -- deriving (Eq, NFData)
 
@@ -361,6 +439,7 @@ instance Semigroup MInt where
 
 instance Monoid MInt where
   mempty  = MInt 0
+  mappend :: MInt -> MInt -> MInt
   mappend = (<>)
 
 size :: Visitable t => t -> Integer
