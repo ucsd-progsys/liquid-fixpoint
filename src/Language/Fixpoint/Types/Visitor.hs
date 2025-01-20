@@ -94,20 +94,20 @@ fold v c a t = snd $ execVisitM v c a visit t
 -- trans        :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> t
 -- trans !v !c !_ !z = fst $ execVisitM v c mempty visit z
 
-class VisitableSpecialized t where
-  visitSpecialized :: (Expr -> Expr) -> t -> t
+class Translatable t where
+  transE :: (Expr -> Expr) -> t -> t
 
-trans :: VisitableSpecialized t => (Expr -> Expr) -> t -> t
-trans f t = visitSpecialized f t
+trans :: Translatable t => (Expr -> Expr) -> t -> t
+trans f t = transE f t
 
-instance VisitableSpecialized Expr where
-  visitSpecialized f = vE
+instance Translatable Expr where
+  transE f = vE
     where
-      vE e = step e
-      step e@(ESym _)       = f e
-      step e@(ECon _)       = f e
-      step e@(EVar _)       = f e
-      step (EApp f e)       = EApp (vE f) (vE e)
+      vE e = step e' where e' = f e
+      step e@(ESym _)       = e
+      step e@(ECon _)       = e
+      step e@(EVar _)       = e
+      step (EApp e1 e2)       = EApp (vE e1) (vE e2)
       step (ENeg e)         = ENeg (vE e)
       step (EBin o e1 e2)   = EBin o (vE e1) (vE e2)
       step (EIte p e1 e2)   = EIte (vE p) (vE e1) (vE e2)
@@ -127,50 +127,50 @@ instance VisitableSpecialized Expr where
       step p@(PKVar _ _)    = p
       step (PGrad k su i e) = PGrad k su i (vE e)
 
-instance VisitableSpecialized Reft where
-  visitSpecialized v (Reft (x, ra)) = Reft (x, visitSpecialized v ra)
+instance Translatable Reft where
+  transE v (Reft (x, ra)) = Reft (x, transE v ra)
 
-instance VisitableSpecialized SortedReft where
-  visitSpecialized v (RR t r) = RR t (visitSpecialized v r)
+instance Translatable SortedReft where
+  transE v (RR t r) = RR t (transE v r)
 
-instance VisitableSpecialized (Symbol, SortedReft, a) where
-  visitSpecialized f (sym, sr, a) = (sym, visitSpecialized f sr, a)
+instance Translatable (Symbol, SortedReft, a) where
+  transE f (sym, sr, a) = (sym, transE f sr, a)
 
-instance VisitableSpecialized (BindEnv a) where
-  visitSpecialized v be = be { beBinds = M.map (visitSpecialized v) (beBinds be) }
+instance Translatable (BindEnv a) where
+  transE v be = be { beBinds = M.map (transE v) (beBinds be) }
 
-instance (VisitableSpecialized (c a)) => VisitableSpecialized (GInfo c a) where
-  visitSpecialized f x = x { 
-    cm = visitSpecialized f <$> cm x
-    , bs = visitSpecialized f (bs x)
-    , ae = visitSpecialized f (ae x)
+instance (Translatable (c a)) => Translatable (GInfo c a) where
+  transE f x = x {
+    cm = transE f <$> cm x
+    , bs = transE f (bs x)
+    , ae = transE f (ae x)
     }
 
-instance VisitableSpecialized (SimpC a) where
-  visitSpecialized v x = x {
-    _crhs = visitSpecialized v (_crhs x)
+instance Translatable (SimpC a) where
+  transE v x = x {
+    _crhs = transE v (_crhs x)
   }
 
-instance VisitableSpecialized (SubC a) where
-  visitSpecialized v x = x {
-    slhs = visitSpecialized v (slhs x),
-    srhs = visitSpecialized v (srhs x)
+instance Translatable (SubC a) where
+  transE v x = x {
+    slhs = transE v (slhs x),
+    srhs = transE v (srhs x)
   }
 
-instance VisitableSpecialized AxiomEnv where
-  visitSpecialized v x = x {
-    aenvEqs = visitSpecialized v <$> aenvEqs x,
-    aenvSimpl = visitSpecialized v <$> aenvSimpl x
+instance Translatable AxiomEnv where
+  transE v x = x {
+    aenvEqs = transE v <$> aenvEqs x,
+    aenvSimpl = transE v <$> aenvSimpl x
   }
     
-instance VisitableSpecialized Equation where
-  visitSpecialized v eq = eq {
-    eqBody = visitSpecialized v (eqBody eq)
+instance Translatable Equation where
+  transE v eq = eq {
+    eqBody = transE v (eqBody eq)
   }
 
-instance VisitableSpecialized Rewrite where
-  visitSpecialized v rw = rw {
-    smBody = visitSpecialized v (smBody rw)
+instance Translatable Rewrite where
+  transE v rw = rw {
+    smBody = transE v (smBody rw)
   }
 
 execVisitM :: Visitor a ctx -> ctx -> a -> (Visitor a ctx -> ctx -> t -> VisitM a t) -> t -> (t, a)
@@ -274,12 +274,12 @@ visitExpr !v    = vE
     step _  p@(PKVar _ _)   = return p
     step !c (PGrad k su i e) = PGrad k su i <$> vE c e
 
-mapKVars :: VisitableSpecialized t => (KVar -> Maybe Expr) -> t -> t
+mapKVars :: Translatable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
   where
     f' (kv', _) = f kv'
 
-mapKVars' :: VisitableSpecialized t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapKVars' :: Translatable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
 mapKVars' f = trans txK
   where
     txK (PKVar k su)
@@ -290,14 +290,14 @@ mapKVars' f = trans txK
 
 
 
-mapGVars' :: VisitableSpecialized t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapGVars' :: Translatable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
 mapGVars' f            = trans txK
   where
     txK (PGrad k su _ _)
       | Just p' <- f (k, su) = subst su p'
     txK p            = p
 
-mapExpr :: VisitableSpecialized t => (Expr -> Expr) -> t -> t
+mapExpr :: Translatable t => (Expr -> Expr) -> t -> t
 mapExpr f = trans f
 
 -- | Specialized and faster version of mapExpr for expressions
@@ -425,7 +425,7 @@ mapMExpr f = go
     go (PAnd ps)       = f . PAnd =<< (go `traverse` ps)
     go (POr ps)        = f . POr =<< (go `traverse` ps)
 
-mapKVarSubsts :: VisitableSpecialized t => (KVar -> Subst -> Subst) -> t -> t
+mapKVarSubsts :: Translatable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f          = trans txK
   where
     txK (PKVar k su)   = PKVar k (f k su)
