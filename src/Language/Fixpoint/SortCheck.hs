@@ -913,12 +913,12 @@ which, I imagine is what happens _somewhere_ inside GHC too?
 -}
 
 --------------------------------------------------------------------------------
-applySorts :: Vis.Visitable t => t -> [Sort]
+applySorts :: Vis.Foldable t => t -> [Sort]
 --------------------------------------------------------------------------------
 applySorts = {- notracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
   where
     defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
-    vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
+    vis    = (Vis.defaultFolder :: Vis.Folder [KVar] t) { Vis.accExpr = go }
     go _ (EApp (ECst (EVar f) t) _)   -- get types needed for [NOTE:apply-monomorphism]
            | f == applyName
            = [t]

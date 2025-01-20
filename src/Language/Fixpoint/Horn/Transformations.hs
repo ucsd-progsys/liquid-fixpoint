@@ -543,7 +543,7 @@ elimKs' (k:ks) (noside, side) = elimKs' (trace ("solved kvar " <> F.showpp k <> 
 -- exists in the positive positions (which will stay exists when we go to
 -- prenex) may give us a lot of trouble during _quantifier elimination_
 -- tx :: F.Symbol -> [[Bind]] -> Pred -> Pred
--- tx k bss = trans (defaultVisitor { txExpr = existentialPackage, ctxExpr = ctxKV }) M.empty ()
+-- tx k bss = trans (defaultFolder { txExpr = existentialPackage, ctxExpr = ctxKV }) M.empty ()
 --   where
 --   splitBinds xs = unzip $ (\(Bind x t p) -> ((x,t),p)) <$> xs
 --   cubeSol su (Bind _ _ (Reft eqs):xs)
@@ -564,16 +564,16 @@ elimKs' (k:ks) (noside, side) = elimKs' (trace ("solved kvar " <> F.showpp k <> 
 --   ctxKV m _ = m
 
 -- Visitor only visit Exprs in Pred!
-instance V.Visitable Pred where
-  visit v c (PAnd ps) = PAnd <$> mapM (visit v c) ps
-  visit v c (Reft e) = Reft <$> visit v c e
-  visit _ _ var      = pure var
+instance V.Foldable Pred where
+  foldE v c (PAnd ps) = PAnd <$> mapM (foldE v c) ps
+  foldE v c (Reft e) = Reft <$> foldE v c e
+  foldE _ _ var      = pure var
 
-instance V.Visitable (Cstr a) where
-  visit v c (CAnd cs) = CAnd <$> mapM (visit v c) cs
-  visit v c (Head p a) = Head <$> visit v c p <*> pure a
-  visit v ctx (All (Bind x t p l) c) = All <$> (Bind x t <$> visit v ctx p <*> pure l) <*> visit v ctx c
-  visit v ctx (Any (Bind x t p l) c) = All <$> (Bind x t <$> visit v ctx p <*> pure l) <*> visit v ctx c
+instance V.Foldable (Cstr a) where
+  foldE v c (CAnd cs) = CAnd <$> mapM (foldE v c) cs
+  foldE v c (Head p a) = Head <$> foldE v c p <*> pure a
+  foldE v ctx (All (Bind x t p l) c) = All <$> (Bind x t <$> foldE v ctx p <*> pure l) <*> foldE v ctx c
+  foldE v ctx (Any (Bind x t p l) c) = All <$> (Bind x t <$> foldE v ctx p <*> pure l) <*> foldE v ctx c
 
 ------------------------------------------------------------------------------
 -- | Quantifier elimination for use with implicit solver

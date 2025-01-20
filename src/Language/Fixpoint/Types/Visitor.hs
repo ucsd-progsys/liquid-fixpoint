@@ -10,14 +10,14 @@
 
 module Language.Fixpoint.Types.Visitor (
   -- * Visitor
-     Visitor (..)
-  ,  Visitable (..)
+     Folder (..)
+  ,  Foldable (..)
 
   -- * Extracting Symbolic Constants (String Literals)
   ,  SymConsts (..)
 
   -- * Default Visitor
-  , defaultVisitor
+  , defaultFolder
 
   -- * Transformers
   , trans
@@ -61,11 +61,12 @@ import qualified Language.Fixpoint.Misc as Misc
 import Control.Monad.Reader
 import GHC.IO (unsafePerformIO)
 import Data.IORef (newIORef, readIORef, IORef, modifyIORef')
+import Prelude hiding (Foldable)
 
 
 
 
-data Visitor acc ctx = Visitor {
+data Folder acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
     ctxExpr :: ctx -> Expr -> ctx
 
@@ -77,9 +78,9 @@ data Visitor acc ctx = Visitor {
   }
 
 ---------------------------------------------------------------------------------
-defaultVisitor :: (Monoid acc) => Visitor acc ctx
+defaultFolder :: (Monoid acc) => Folder acc ctx
 ---------------------------------------------------------------------------------
-defaultVisitor = Visitor
+defaultFolder = Visitor
   { ctxExpr    = const
   , txExpr     = \_ x -> x
   , accExpr    = \_ _ -> mempty
@@ -87,20 +88,20 @@ defaultVisitor = Visitor
 
 ------------------------------------------------------------------------
 
-fold         :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> a
-fold v c a t = snd $ execVisitM v c a visit t
+fold         :: (Foldable t, Monoid a) => Folder a ctx -> ctx -> a -> t -> a
+fold v c a t = snd $ execVisitM v c a foldE t
 
 -- trans is always passed () () for a and t so we don't need to use the visitor pattern
 -- trans        :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> t
 -- trans !v !c !_ !z = fst $ execVisitM v c mempty visit z
 
-class Translatable t where
+class Visitable t where
   transE :: (Expr -> Expr) -> t -> t
 
-trans :: Translatable t => (Expr -> Expr) -> t -> t
+trans :: Visitable t => (Expr -> Expr) -> t -> t
 trans f t = transE f t
 
-instance Translatable Expr where
+instance Visitable Expr where
   transE f = vE
     where
       vE e = step e' where e' = f e
@@ -127,124 +128,124 @@ instance Translatable Expr where
       step p@(PKVar _ _)    = p
       step (PGrad k su i e) = PGrad k su i (vE e)
 
-instance Translatable Reft where
+instance Visitable Reft where
   transE v (Reft (x, ra)) = Reft (x, transE v ra)
 
-instance Translatable SortedReft where
+instance Visitable SortedReft where
   transE v (RR t r) = RR t (transE v r)
 
-instance Translatable (Symbol, SortedReft, a) where
+instance Visitable (Symbol, SortedReft, a) where
   transE f (sym, sr, a) = (sym, transE f sr, a)
 
-instance Translatable (BindEnv a) where
+instance Visitable (BindEnv a) where
   transE v be = be { beBinds = M.map (transE v) (beBinds be) }
 
-instance (Translatable (c a)) => Translatable (GInfo c a) where
+instance (Visitable (c a)) => Visitable (GInfo c a) where
   transE f x = x {
     cm = transE f <$> cm x
     , bs = transE f (bs x)
     , ae = transE f (ae x)
     }
 
-instance Translatable (SimpC a) where
+instance Visitable (SimpC a) where
   transE v x = x {
     _crhs = transE v (_crhs x)
   }
 
-instance Translatable (SubC a) where
+instance Visitable (SubC a) where
   transE v x = x {
     slhs = transE v (slhs x),
     srhs = transE v (srhs x)
   }
 
-instance Translatable AxiomEnv where
+instance Visitable AxiomEnv where
   transE v x = x {
     aenvEqs = transE v <$> aenvEqs x,
     aenvSimpl = transE v <$> aenvSimpl x
   }
     
-instance Translatable Equation where
+instance Visitable Equation where
   transE v eq = eq {
     eqBody = transE v (eqBody eq)
   }
 
-instance Translatable Rewrite where
+instance Visitable Rewrite where
   transE v rw = rw {
     smBody = transE v (smBody rw)
   }
 
-execVisitM :: Visitor a ctx -> ctx -> a -> (Visitor a ctx -> ctx -> t -> VisitM a t) -> t -> (t, a)
+execVisitM :: Folder a ctx -> ctx -> a -> (Folder a ctx -> ctx -> t -> FoldM a t) -> t -> (t, a)
 execVisitM !v !c !a !f !x = unsafePerformIO $ do
   rn <- newIORef a
   result <- runReaderT (f v c x) rn
   finalAcc <- readIORef rn
   return (result, finalAcc) 
 
-type VisitM acc = ReaderT (IORef acc) IO
+type FoldM acc = ReaderT (IORef acc) IO
 
-accum :: (Monoid a) => a -> VisitM a ()
+accum :: (Monoid a) => a -> FoldM a ()
 accum !z = do 
   ref <- ask
   liftIO $ modifyIORef' ref (mappend z)
 
-class Visitable t where
-  visit :: (Monoid a) => Visitor a c -> c -> t -> VisitM a t
+class Foldable t where
+  foldE :: (Monoid a) => Folder a c -> c -> t -> FoldM a t
 
-instance Visitable Expr where
-  visit = visitExpr
+instance Foldable Expr where
+  foldE = foldExpr
 
-instance Visitable Reft where
-  visit v c (Reft (x, ra)) = Reft . (x, ) <$> visit v c ra
+instance Foldable Reft where
+  foldE v c (Reft (x, ra)) = Reft . (x, ) <$> foldE v c ra
 
-instance Visitable SortedReft where
-  visit v c (RR t r) = RR t <$> visit v c r
+instance Foldable SortedReft where
+  foldE v c (RR t r) = RR t <$> foldE v c r
 
-instance Visitable (Symbol, SortedReft, a) where
-  visit v c (sym, sr, a) = (sym, ,a) <$> visit v c sr
+instance Foldable (Symbol, SortedReft, a) where
+  foldE v c (sym, sr, a) = (sym, ,a) <$> foldE v c sr
 
-instance Visitable (BindEnv a) where
-  visit v c = mapM (visit v c)
+instance Foldable (BindEnv a) where
+  foldE v c = mapM (foldE v c)
 
 ---------------------------------------------------------------------------------
 -- WARNING: these instances were written for mapKVars over GInfos only;
 -- check that they behave as expected before using with other clients.
-instance Visitable (SimpC a) where
-  visit v c x = do
-    rhs' <- visit v c (_crhs x)
+instance Foldable (SimpC a) where
+  foldE v c x = do
+    rhs' <- foldE v c (_crhs x)
     return x { _crhs = rhs' }
 
-instance Visitable (SubC a) where
-  visit v c x = do
-    lhs' <- visit v c (slhs x)
-    rhs' <- visit v c (srhs x)
+instance Foldable (SubC a) where
+  foldE v c x = do
+    lhs' <- foldE v c (slhs x)
+    rhs' <- foldE v c (srhs x)
     return x { slhs = lhs', srhs = rhs' }
 
-instance (Visitable (c a)) => Visitable (GInfo c a) where
-  visit v c x = do
-    cm' <- mapM (visit v c) (cm x)
-    bs' <- visit v c (bs x)
-    ae' <- visit v c (ae x)
+instance (Foldable (c a)) => Foldable (GInfo c a) where
+  foldE v c x = do
+    cm' <- mapM (foldE v c) (cm x)
+    bs' <- foldE v c (bs x)
+    ae' <- foldE v c (ae x)
     return x { cm = cm', bs = bs', ae = ae' }
 
-instance Visitable AxiomEnv where
-  visit v c x = do
-    eqs'    <- mapM (visit v c) (aenvEqs   x)
-    simpls' <- mapM (visit v c) (aenvSimpl x)
+instance Foldable AxiomEnv where
+  foldE v c x = do
+    eqs'    <- mapM (foldE v c) (aenvEqs   x)
+    simpls' <- mapM (foldE v c) (aenvSimpl x)
     return x { aenvEqs = eqs' , aenvSimpl = simpls'}
 
-instance Visitable Equation where
-  visit v c eq = do
-    body' <- visit v c (eqBody eq)
+instance Foldable Equation where
+  foldE v c eq = do
+    body' <- foldE v c (eqBody eq)
     return eq { eqBody = body' }
 
-instance Visitable Rewrite where
-  visit v c rw = do
-    body' <- visit v c (smBody rw)
+instance Foldable Rewrite where
+  foldE v c rw = do
+    body' <- foldE v c (smBody rw)
     return rw { smBody = body' }
 
 ---------------------------------------------------------------------------------
-visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
-visitExpr !v    = vE
+foldExpr :: (Monoid a) => Folder a ctx -> ctx -> Expr -> FoldM a Expr
+foldExpr !v    = vE
   where
     vE !c !e    = do {- SCC "visitExpr.vE.accum" -} accum acc
                      {- SCC "visitExpr.vE.step" -}  step c' e'
@@ -274,12 +275,12 @@ visitExpr !v    = vE
     step _  p@(PKVar _ _)   = return p
     step !c (PGrad k su i e) = PGrad k su i <$> vE c e
 
-mapKVars :: Translatable t => (KVar -> Maybe Expr) -> t -> t
+mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
   where
     f' (kv', _) = f kv'
 
-mapKVars' :: Translatable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
 mapKVars' f = trans txK
   where
     txK (PKVar k su)
@@ -290,14 +291,14 @@ mapKVars' f = trans txK
 
 
 
-mapGVars' :: Translatable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapGVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
 mapGVars' f            = trans txK
   where
     txK (PGrad k su _ _)
       | Just p' <- f (k, su) = subst su p'
     txK p            = p
 
-mapExpr :: Translatable t => (Expr -> Expr) -> t -> t
+mapExpr :: Visitable t => (Expr -> Expr) -> t -> t
 mapExpr f = trans f
 
 -- | Specialized and faster version of mapExpr for expressions
@@ -425,7 +426,7 @@ mapMExpr f = go
     go (PAnd ps)       = f . PAnd =<< (go `traverse` ps)
     go (POr ps)        = f . POr =<< (go `traverse` ps)
 
-mapKVarSubsts :: Translatable t => (KVar -> Subst -> Subst) -> t -> t
+mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f          = trans txK
   where
     txK (PKVar k su)   = PKVar k (f k su)
@@ -442,25 +443,25 @@ instance Monoid MInt where
   mappend :: MInt -> MInt -> MInt
   mappend = (<>)
 
-size :: Visitable t => t -> Integer
+size :: Foldable t => t -> Integer
 size t    = n
   where
     MInt n = fold szV () mempty t
-    szV    = (defaultVisitor :: Visitor MInt t) { accExpr = \ _ _ -> MInt 1 }
+    szV    = (defaultFolder :: Folder MInt t) { accExpr = \ _ _ -> MInt 1 }
 
 
-lamSize :: Visitable t => t -> Integer
+lamSize :: Foldable t => t -> Integer
 lamSize t    = n
   where
     MInt n = fold szV () mempty t
-    szV    = (defaultVisitor :: Visitor MInt t) { accExpr = accum }
+    szV    = (defaultFolder :: Folder MInt t) { accExpr = accum }
     accum _ (ELam _ _) = MInt 1
     accum _ _          = MInt 0
 
-eapps :: Visitable t => t -> [Expr]
+eapps :: Foldable t => t -> [Expr]
 eapps                 = fold eappVis () []
   where
-    eappVis              = (defaultVisitor :: Visitor [KVar] t) { accExpr = eapp' }
+    eappVis              = (defaultFolder :: Folder [KVar] t) { accExpr = eapp' }
     eapp' _ e@(EApp _ _) = [e]
     eapp' _ _            = []
 
@@ -666,9 +667,9 @@ instance SymConsts Reft where
 instance SymConsts Expr where
   symConsts = getSymConsts
 
-getSymConsts :: Visitable t => t -> [SymConst]
+getSymConsts :: Foldable t => t -> [SymConst]
 getSymConsts         = fold scVis () []
   where
-    scVis            = (defaultVisitor :: Visitor [SymConst] t)  { accExpr = sc }
+    scVis            = (defaultFolder :: Folder [SymConst] t)  { accExpr = sc }
     sc _ (ESym c)    = [c]
     sc _ _           = []
