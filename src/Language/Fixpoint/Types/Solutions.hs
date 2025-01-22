@@ -85,6 +85,7 @@ import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Config  as Cfg
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
@@ -306,11 +307,11 @@ fromList env kGs kXs kYs z ebs xbs
     ebm = M.fromList ebs
 
 --------------------------------------------------------------------------------
-qbPreds :: String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
+qbPreds :: Cfg.SMTSolver -> String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
-qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
+qbPreds slv msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
-    elabPred eq           = elaborate (atLoc eq $ "qbPreds:" ++ msg) env
+    elabPred eq           = elaborate slv (atLoc eq $ "qbPreds:" ++ msg) env
                           . subst su
                           . eqPred
                           $ eq

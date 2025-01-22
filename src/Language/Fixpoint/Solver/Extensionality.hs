@@ -26,40 +26,40 @@ mytracepp = notracepp
 expand :: Config -> SInfo a -> SInfo a
 expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si)
   where
-    ext ::SInfo a -> Ex a (SInfo a)
-    ext = extend
+    ext :: SInfo a -> Ex a (SInfo a)
+    ext a = extend a (solver cfg)
 
 
 class Extend ann a where
-  extend :: a -> Ex ann a
+  extend :: a -> SMTSolver -> Ex ann a
 
 
 instance Extend a (SInfo a) where
-  extend si = do
+  extend si slv = do
     setBEnv (bs si)
-    cm'      <- extend (cm si)
+    cm'      <- extend (cm si) slv
     bs'      <- gets exbenv
     return $ si{ cm = cm' , bs = bs' }
 
 instance (Extend ann a) => Extend ann (M.HashMap SubcId a) where
-  extend h = M.fromList <$> mapM extend (M.toList h)
+  extend h slv  = M.fromList <$> mapM (`extend` slv) (M.toList h)
 
 instance (Extend ann a, Extend ann b) => Extend ann (a,b) where
-  extend (a,b) = (,) <$> extend a <*> extend b
+  extend (a,b) slv = (,) <$> extend a slv <*> extend b slv
 
 instance Extend ann SubcId where
-  extend i = return i
+  extend i _ = return i
 
 instance Extend a (SimpC a) where
-  extend c = do
+  extend c slv = do
     setExBinds (_cenv c)
-    rhs <- extendExpr (sinfo c) Pos (_crhs c)
+    rhs <- extendExpr (sinfo c) slv Pos (_crhs c)
     is  <- gets exbinds
     return $ c{_crhs = rhs, _cenv = is }
 
 
-extendExpr :: a -> Pos -> Expr -> Ex a Expr
-extendExpr ann p expr'
+extendExpr :: a -> SMTSolver -> Pos -> Expr -> Ex a Expr
+extendExpr ann slv p expr'
   | p == Pos
   = mapMPosExpr Pos goP e' >>= mapMPosExpr Pos goN
   | otherwise
@@ -69,12 +69,12 @@ extendExpr ann p expr'
       goP Pos (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = mytracepp ("extending POS = " ++ showpp expr') <$> (extendRHS ann b e1 e2 s >>= goP Pos)
+       = mytracepp ("extending POS = " ++ showpp expr') <$> (extendRHS ann slv b e1 e2 s >>= goP Pos)
       goP _ e = return e
       goN Neg (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = mytracepp ("extending NEG = " ++ showpp expr') <$> (extendLHS ann b e1 e2 s >>= goN Neg)
+       = mytracepp ("extending NEG = " ++ showpp expr') <$> (extendLHS ann slv b e1 e2 s >>= goN Neg)
       goN _ e = return e
 
 getArg :: Sort -> Maybe Sort
@@ -82,16 +82,16 @@ getArg s = case bkFFunc s of
              Just (_, a:_:_) -> Just a
              _                -> Nothing
 
-extendRHS, extendLHS :: a -> Brel -> Expr -> Expr -> Sort -> Ex a Expr
-extendRHS ann b e1 e2 s =
+extendRHS, extendLHS :: a -> SMTSolver -> Brel -> Expr -> Expr -> Sort -> Ex a Expr
+extendRHS ann slv b e1 e2 s =
   do es <- generateArguments ann s
-     mytracepp "extendRHS = " . pAnd <$> mapM (makeEq b e1 e2) es
+     mytracepp "extendRHS = " . pAnd <$> mapM (makeEq slv b e1 e2) es
 
-extendLHS ann b e1 e2 s =
+extendLHS ann slv b e1 e2 s =
   do es  <- generateArguments ann s
      dds <- gets exddecl
      is  <- instantiate ann dds s
-     mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq b e1 e2) (es ++ is)
+     mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:) <$> mapM (makeEq slv b e1 e2) (es ++ is)
 
 generateArguments :: a -> Sort -> Ex a [Expr]
 generateArguments ann srt = do
@@ -100,10 +100,10 @@ generateArguments ann srt = do
     Left dds -> mapM (freshArgDD ann) dds
     Right s  -> (\x -> [EVar x]) <$> freshArgOne ann s
 
-makeEq :: Brel-> Expr -> Expr -> Expr -> Ex ann Expr
-makeEq b e1 e2 e = do
+makeEq :: SMTSolver -> Brel -> Expr -> Expr -> Expr -> Ex ann Expr
+makeEq slv b e1 e2 e = do
   env <- gets exenv
-  let elab = elaborate (dummyLoc "extensionality") env
+  let elab = elaborate slv (dummyLoc "extensionality") env
   return $ PAtom b (elab $ EApp (unElab e1) e)  (elab $ EApp (unElab e2) e)
 
 instantiate :: a -> [DataDecl]  -> Sort -> Ex a [Expr]

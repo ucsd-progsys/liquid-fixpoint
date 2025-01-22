@@ -156,7 +156,7 @@ checkValids cfg f xts ps
 {-# SCC command #-}
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------------
-command Ctx {..} !cmd       = do
+command Ctx{..} !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
   --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
   forM_ ctxLog $ \h -> do
@@ -173,7 +173,9 @@ command Ctx {..} !cmd       = do
             TE.decodeUtf8With (const $ const $ Just ' ') $
             LBS.toStrict resp
       parse respTxt
-    cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
+    cmdBS = {-# SCC "Command-runSmt2" #-}
+      {-let cmd' = tracepp "command" cmd in-}
+      runSmt2 ctxSymEnv cmd -- '
     parse resp      = do
       case A.parseOnly responseP resp of
         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
@@ -256,7 +258,7 @@ makeContextWithSEnv :: Config -> FilePath -> SymEnv -> IO Context
 makeContextWithSEnv cfg f env = do
   ctx     <- makeContext cfg f
   let ctx' = ctx {ctxSymEnv = env}
-  declare ctx'
+  declare (solver cfg) ctx'
   return ctx'
   -- where msg = "makeContextWithSEnv" ++ show env
 
@@ -400,7 +402,9 @@ smtCheckSat me p
    ans _   = False
 
 smtAssert :: Context -> Expr -> IO ()
-smtAssert me p  = interact' me (Assert Nothing p)
+smtAssert me p =
+  {- let p' = tracepp "smtAssert" p in -}
+  interact' me (Assert Nothing p {-p'-})
 
 smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
 smtDefineFunc me name symList rsort e =
@@ -462,9 +466,9 @@ z3_options
 
 
 --------------------------------------------------------------------------------
-declare :: Context -> IO ()
+declare :: SMTSolver -> Context -> IO ()
 --------------------------------------------------------------------------------
-declare me = do
+declare slv me = do
   forM_ dss    $           smtDataDecl me
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
@@ -481,7 +485,7 @@ declare me = do
     qryXTs     = fmap tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
     xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env)
-    tx         = elaborate    "declare" env
+    tx         = elaborate slv "declare" env
     ats        = funcSortVars env
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]
@@ -500,7 +504,7 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where
     var n         = F.symbolAtSmtName n env ()
-    ts            = M.keys (F.seAppls env)
+    ts            = {- tracepp "funcSortVars" $ -} M.keys (F.seAppls env)
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)
     argSort (s,_) = ([]    , s)

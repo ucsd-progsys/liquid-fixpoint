@@ -147,7 +147,7 @@ instance SMTLIB2 Expr where
   smt2 env (PAnd ps)        = parenSeqs ["and", smt2s env ps]
   smt2 _   (POr [])         = "false"
   smt2 env (POr ps)         = parenSeqs ["or", smt2s env ps]
-  smt2 env (PNot p)         = parenSeqs ["not", smt2  env p]
+  smt2 env (PNot p)         = parenSeqs ["not", smt2 env p]
   smt2 env (PImp p q)       = parenSeqs ["=>", smt2 env p, smt2 env q]
   smt2 env (PIff p q)       = parenSeqs ["=", smt2 env p, smt2 env q]
   smt2 env (PExist [] p)    = smt2 env p
@@ -155,7 +155,7 @@ instance SMTLIB2 Expr where
   smt2 env (PAll   [] p)    = smt2 env p
   smt2 env (PAll   xs p)    = parenSeqs ["forall", parens (smt2s env xs), smt2 env p]
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
-  smt2 env (ELam b e)       = smt2Lam   env b e
+  smt2 env (ELam b e)       = smt2Lam env b e
   smt2 env (ECoerc t1 t2 e) = smt2Coerc env t1 t2 e
   smt2 _   e                = panic ("smtlib2 Pred  " ++ show e)
 
@@ -176,7 +176,9 @@ smt2Var env x t
   | otherwise                   = smt2 env x
 
 smtLamArg :: SymEnv -> Symbol -> Sort -> Builder
-smtLamArg env x t = Builder.fromText $ symbolAtName x env () (FFunc t FInt)
+smtLamArg env x t =
+  {-let t' = tracepp "smtLamArg" t in-}
+  Builder.fromText $ symbolAtName x env () (FFunc t {-t'-} FInt)
 
 smt2VarAs :: SymEnv -> Symbol -> Sort -> Builder
 smt2VarAs env x t = parenSeqs ["as", smt2 env x, smt2SortMono x env t]
@@ -184,8 +186,10 @@ smt2VarAs env x t = parenSeqs ["as", smt2 env x, smt2SortMono x env t]
 smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder
 smt2Lam env (x, xT) full@(ECst _ eT) = parenSeqs [Builder.fromText lambda, x', smt2 env full]
   where
-    x'                          = smtLamArg env x xT
-    lambda                      = symbolAtName lambdaName env () (FFunc xT eT)
+    x'     = smtLamArg env x xT
+    lambda =
+      {- let eT' = tracepp "smt2Lam" eT in -}
+      symbolAtName lambdaName env () (FFunc xT eT {-eT'-})
 
 smt2Lam _ _ e
   = panic ("smtlib2: Cannot serialize unsorted lambda: " ++ showpp e)
@@ -193,7 +197,8 @@ smt2Lam _ _ e
 smt2App :: SymEnv -> Expr -> Builder
 smt2App env e@(EApp (EApp f e1) e2)
   | Just t <- unApplyAt f
-  = parenSeqs [Builder.fromText (symbolAtName applyName env e t), smt2s env [e1, e2]]
+  = {- let t' = tracepp "smt2App" t in -}
+    parenSeqs [Builder.fromText (symbolAtName applyName env e t {-t'-}), smt2s env [e1, e2]]
 smt2App env e
   | Just b <- Thy.smt2App smt2VarAs env f (smt2 env <$> es)
   = b
@@ -207,7 +212,9 @@ smt2Coerc env t1 t2 e
   | t1 == t2  = smt2 env e
   | otherwise = parenSeqs [Builder.fromText coerceFn , smt2 env e]
   where
-    coerceFn  = symbolAtName coerceName env (ECoerc t1 t2 e) t
+    coerceFn  =
+      {- let t' = tracepp "smt2Coerc" t in -}
+      symbolAtName coerceName env (ECoerc t1 t2 e) t {-t'-}
     t         = FFunc t1 t2
 
 splitEApp' :: Expr -> (Expr, [Expr])

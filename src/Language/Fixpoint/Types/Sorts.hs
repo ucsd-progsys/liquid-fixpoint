@@ -85,7 +85,8 @@ module Language.Fixpoint.Types.Sorts (
   , tceMap
 
   -- * Sort coercion for SMT theory encoding
-  , coerceSetMapToArray
+  , coerceMapToArray
+  , coerceSetBagToArray
   ) where
 
 import qualified Data.Store as S
@@ -685,17 +686,23 @@ tceMember :: (Eq a, Hashable a) => a -> TCEmb a -> Bool
 tceMember k (TCE m) = M.member k m
 
 -------------------------------------------------------------------------------
--- | Sort coercion for Z3 SMT theory encoding
+-- | Sort coercion for SMT theory encoding
 -------------------------------------------------------------------------------
 
-coerceSetMapToArray :: Sort -> Sort
-coerceSetMapToArray (FFunc sf sa) = FFunc (coerceSetMapToArray sf) (coerceSetMapToArray sa)
-coerceSetMapToArray (FAbs i sa)   = FAbs i (coerceSetMapToArray sa)
-coerceSetMapToArray (FApp (FApp sf sa) sb)
-  | isMap sf = arraySort (coerceSetMapToArray sa) (coerceSetMapToArray sb)
-  | otherwise = FApp (FApp (coerceSetMapToArray sf) (coerceSetMapToArray sa)) (coerceSetMapToArray sb)
-coerceSetMapToArray (FApp sf sa)
-  | isSet sf = arraySort (coerceSetMapToArray sa) boolSort
-  | isBag sf = arraySort (coerceSetMapToArray sa) intSort
-  | otherwise = FApp (coerceSetMapToArray sf) (coerceSetMapToArray sa)
-coerceSetMapToArray s = s
+coerceMapToArray :: Sort -> Sort
+coerceMapToArray (FFunc sf sa) = FFunc (coerceMapToArray sf) (coerceMapToArray sa)
+coerceMapToArray (FAbs i sa)   = FAbs i (coerceMapToArray sa)
+coerceMapToArray (FApp (FApp sf sa) sb)
+  | isMap sf = arraySort (coerceMapToArray sa) (coerceMapToArray sb)
+  | otherwise = FApp (FApp (coerceMapToArray sf) (coerceMapToArray sa)) (coerceMapToArray sb)
+coerceMapToArray (FApp sf sa) = FApp (coerceMapToArray sf) (coerceMapToArray sa)
+coerceMapToArray s = s
+
+coerceSetBagToArray :: Sort -> Sort
+coerceSetBagToArray (FFunc sf sa) = FFunc (coerceSetBagToArray sf) (coerceSetBagToArray sa)
+coerceSetBagToArray (FAbs i sa)   = FAbs i (coerceSetBagToArray sa)
+coerceSetBagToArray (FApp sf sa)
+  | isSet sf = arraySort (coerceSetBagToArray sa) boolSort
+  | isBag sf = arraySort (coerceSetBagToArray sa) intSort
+  | otherwise = FApp (coerceSetBagToArray sf) (coerceSetBagToArray sa)
+coerceSetBagToArray s = s

@@ -45,6 +45,7 @@ import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
 import           Control.DeepSeq
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
@@ -140,7 +141,7 @@ funcSorts :: SEnv DataDecl -> [Sort] -> [FuncSort]
 funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
   where
     smts = Misc.sortNub $ concat [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
-    tx   = inlineArr False dEnv
+    tx   = inlineArrSetBag False dEnv
 
 -- Related to the above, after merging #688, we now allow types other than
 -- Int to which Sets/Bags/Maps (or Arrays in the case of Z3) can be applied.
@@ -155,8 +156,8 @@ funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
 -- solution should be implemented for generating ad-hoc sets of applys on the
 -- fly, as described above.
 
-inlineArr :: Bool -> SEnv DataDecl -> Sort -> [SmtSort]
-inlineArr isArr env t  = go . unAbs $ t
+inlineArrSetBag :: Bool -> SEnv DataDecl -> Sort -> [SmtSort]
+inlineArrSetBag isASB env t  = go . unAbs $ t
   where
     m = sortAbs t
     go (FFunc _ _)    = [SInt]
@@ -166,19 +167,23 @@ inlineArr isArr env t  = go . unAbs $ t
       | t == boolSort = [SBool]
       | isString t    = [SString]
     go (FVar _)
-      | isArr     = SInt : map (\q -> let dd = snd q in
+      | isASB     = SInt : map (\q -> let dd = snd q in
                                       SData (ddTyCon dd) (replicate (ddVars dd) SInt))
                                (M.toList $ seBinds env)
       | otherwise = [SInt]
     go t
-      | (ct:ts) <- unFApp t = inlineArrFApp m env ct ts
+      | (ct:ts) <- unFApp t = inlineArrSetBagFApp m env ct ts
       | otherwise = error "Unexpected empty 'unFApp t'"
 
-inlineArrFApp :: Int -> SEnv DataDecl -> Sort -> [Sort] -> [SmtSort]
-inlineArrFApp m env = go
+inlineArrSetBagFApp :: Int -> SEnv DataDecl -> Sort -> [Sort] -> [SmtSort]
+inlineArrSetBagFApp m env = go
   where
+    go (FTC c) [a]
+      | setConName == symbol c   = SSet <$> inlineArrSetBag True env a
+    go (FTC c) [a]
+      | bagConName == symbol c   = SBag <$> inlineArrSetBag True env a
     go (FTC c) [a, b]
-      | arrayConName == symbol c = SArray <$> inlineArr True env a <*> inlineArr True env b
+      | arrayConName == symbol c = SArray <$> inlineArrSetBag True env a <*> inlineArrSetBag True env b
     go (FTC bv) [FTC s]
       | bitVecName == symbol bv
       , Just n <- sizeBv s      = [SBitVec n]
@@ -186,7 +191,7 @@ inlineArrFApp m env = go
       | isString s              = [SString]
     go (FTC c) ts
       | Just n <- tyArgs c env
-      , let i = n - length ts   = [SData c ((inlineArr False env . FAbs m =<< ts) ++ replicate i SInt)]
+      , let i = n - length ts   = [SData c ((inlineArrSetBag False env . FAbs m =<< ts) ++ replicate i SInt)]
     go _ _                      = [SInt]
 
 
@@ -281,9 +286,8 @@ data SmtSort
   | SBool
   | SReal
   | SString
-  -- TODO bring these back when adding CVC5 support
-  -- | SSet
-  -- | SMap
+  | SSet !SmtSort
+  | SBag !SmtSort
   | SArray !SmtSort !SmtSort
   | SBitVec !Int
   | SVar    !Int
@@ -323,10 +327,10 @@ fappSmtSort poly m env = go
   where
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
 
-    --go (FTC c) _
-    --  | setConName == symbol c  = SSet
-    --go (FTC c) _
-    --  | mapConName == symbol c  = SMap
+    go (FTC c) [a]
+      | setConName == symbol c  = SSet (sortSmtSort poly env a)
+    go (FTC c) [a]
+      | bagConName == symbol c  = SBag (sortSmtSort poly env a)
     go (FTC c) [a, b]
       | arrayConName == symbol c = SArray (sortSmtSort poly env a) (sortSmtSort poly env b)
     go (FTC bv) [FTC s]
@@ -350,8 +354,8 @@ instance PPrint SmtSort where
   pprintTidy _ SBool        = text "Bool"
   pprintTidy _ SReal        = text "Real"
   pprintTidy _ SString      = text "Str"
-  --pprintTidy _ SSet         = text "Set"
-  --pprintTidy _ SMap         = text "Map"
+  pprintTidy k (SSet a)     = ppParens k (text "Set") [a]
+  pprintTidy k (SBag a)     = ppParens k (text "Bag") [a]
   pprintTidy k (SArray a b) = ppParens k (text "Array") [a, b]
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
   pprintTidy _ (SVar i)     = text "@" <-> int i
@@ -365,13 +369,13 @@ ppParens k d ds = parens $ Misc.intersperse (text "") (d : (pprintTidy k <$> ds)
 -- | Coercing sorts inside environments for SMT theory encoding
 --------------------------------------------------------------------------------
 
-coerceSortEnv :: SEnv Sort -> SEnv Sort
-coerceSortEnv ss = coerceSetMapToArray <$> ss
+coerceSortEnv :: SMTSolver -> SEnv Sort -> SEnv Sort
+coerceSortEnv slv ss = (if isZ3 slv then coerceSetBagToArray else id) . coerceMapToArray <$> ss
 
-coerceEnv :: SymEnv -> SymEnv
-coerceEnv env = SymEnv { seSort   = coerceSortEnv (seSort env)
-                       , seTheory = seTheory env
-                       , seData   = seData   env
-                       , seLits   = seLits   env
-                       , seAppls  = seAppls  env
-                       }
+coerceEnv :: SMTSolver -> SymEnv -> SymEnv
+coerceEnv slv env = SymEnv { seSort   = coerceSortEnv slv (seSort env)
+                           , seTheory = seTheory env
+                           , seData   = seData   env
+                           , seLits   = seLits   env
+                           , seAppls  = seAppls  env
+                           }

@@ -73,6 +73,7 @@ import           Data.Function             (on)
 import           Text.PrettyPrint.HughesPJ.Compat
 import           Control.DeepSeq
 
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
@@ -368,5 +369,8 @@ makePack kvss = Packs (M.fromList kIs)
     kIs       = [ (k, i) | (i, ks) <- kPacks, k <- ks ]
     kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss
 
-coerceBindEnv :: BindEnv a -> BindEnv a
-coerceBindEnv be = be { beBinds = M.map (\(s, sr, a) -> (s, sr { sr_sort = coerceSetMapToArray (sr_sort sr) } , a)) (beBinds be) }
+coerceBindEnv :: SMTSolver -> BindEnv a -> BindEnv a
+coerceBindEnv slv be = be { beBinds = M.map (\(s, sr, a) ->
+                                                let srs = coerceMapToArray (sr_sort sr) in
+                                                (s, sr { sr_sort = if isZ3 slv then coerceSetBagToArray srs else srs } , a))
+                                            (beBinds be) }

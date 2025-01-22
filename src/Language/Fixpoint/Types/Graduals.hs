@@ -230,30 +230,30 @@ expandWF km ws
 -------------------------------------------------------------------------------
 
 class Gradual a where
-  gsubst :: GSol -> a -> a
+  gsubst :: SMTSolver -> GSol -> a -> a
 
 instance Gradual Expr where
-  gsubst (GSol env m) e   = mapGVars' (\(k, _) -> Just (fromMaybe (err k) (mknew k))) e
+  gsubst slv (GSol env m) e   = mapGVars' (\(k, _) -> Just (fromMaybe (err k) (mknew k))) e
     where
-      mknew k = So.elaborate "initBGind.mkPred" env $ fst <$> M.lookup k m
+      mknew k = So.elaborate slv "initBGind.mkPred" env $ fst <$> M.lookup k m
       err   k = errorstar ("gradual substitution: Cannot find " ++ showpp k)
 
 instance Gradual Reft where
-  gsubst su (Reft (x, e)) = Reft (x, gsubst su e)
+  gsubst slv su (Reft (x, e)) = Reft (x, gsubst slv su e)
 
 instance Gradual SortedReft where
-  gsubst su r = r {sr_reft = gsubst su (sr_reft r)}
+  gsubst slv su r = r {sr_reft = gsubst slv su (sr_reft r)}
 
 instance Gradual (SimpC a) where
-  gsubst su c = c {_crhs = gsubst su (_crhs c)}
+  gsubst slv su c = c {_crhs = gsubst slv su (_crhs c)}
 
 instance Gradual (BindEnv a) where
-  gsubst su = mapBindEnv (\_ (x, r, l) -> (x, gsubst su r, l))
+  gsubst slv su = mapBindEnv (\_ (x, r, l) -> (x, gsubst slv su r, l))
 
 instance Gradual v => Gradual (M.HashMap k v) where
-  gsubst su = M.map (gsubst su)
+  gsubst slv su = M.map (gsubst slv su)
 
 instance Gradual (SInfo a) where
-  gsubst su fi = fi { bs = gsubst su (bs fi)
-                    , cm = gsubst su (cm fi)
-                    }
+  gsubst slv su fi = fi { bs = gsubst slv su (bs fi)
+                        , cm = gsubst slv su (cm fi)
+                        }

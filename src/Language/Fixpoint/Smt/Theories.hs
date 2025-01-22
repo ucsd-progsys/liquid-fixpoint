@@ -133,7 +133,12 @@ bvSLeName  = "bvsle"
 bvSGtName  = "bvsgt"
 bvSGeName  = "bvsge"
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a -- Symbol
+mapDef, mapSel, mapSto :: (IsString a) => a
+mapDef   = "Map_default"
+mapSel   = "Map_select"
+mapSto   = "Map_store"
+
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -144,11 +149,6 @@ setCom   = "Set_com"
 setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
-
-mapDef, mapSel, mapSto :: (IsString a) => a
-mapDef   = "Map_default"
-mapSel   = "Map_select"
-mapSto   = "Map_store"
 
 bagEmpty, bagSng, bagCount, bagSub, bagCup, bagMax, bagMin :: (IsString a) => a
 bagEmpty = "Bag_empty"
@@ -165,7 +165,13 @@ bagMin   = "Bag_inter_min"
 -- taking either the greatest (bagMax) or the least (bagMin) of them.
 --   bagMax, bagMin : Map v Int -> Map v Int -> Map v Int
 
---- Array operations for sets
+--- Array operations for polymorphic maps
+arrConstM, arrStoreM, arrSelectM :: Symbol
+arrConstM  = "arr_const_m"
+arrStoreM  = "arr_store_m"
+arrSelectM = "arr_select_m"
+
+--- Array operations for sets (Z3)
 arrConstS, arrStoreS, arrSelectS, arrMapNotS, arrMapOrS, arrMapAndS, arrMapImpS :: Symbol
 arrConstS  = "arr_const_s"
 arrStoreS  = "arr_store_s"
@@ -176,13 +182,7 @@ arrMapOrS  = "arr_map_or"
 arrMapAndS = "arr_map_and"
 arrMapImpS = "arr_map_imp"
 
---- Array operations for polymorphic maps
-arrConstM, arrStoreM, arrSelectM :: Symbol
-arrConstM  = "arr_const_m"
-arrStoreM  = "arr_store_m"
-arrSelectM = "arr_select_m"
-
---- Array operations for bags
+--- Array operations for bags (Z3)
 arrConstB, arrStoreB, arrSelectB :: Symbol
 arrConstB  = "arr_const_b"
 arrStoreB  = "arr_store_b"
@@ -300,8 +300,8 @@ smt2SmtSort SInt         = "Int"
 smt2SmtSort SReal        = "Real"
 smt2SmtSort SBool        = "Bool"
 smt2SmtSort SString      = fromText string
---smt2SmtSort SSet         = fromText set
---smt2SmtSort SMap         = fromText map
+smt2SmtSort (SSet a)     = key "Set" (smt2SmtSort a)
+smt2SmtSort (SBag a)     = key "Bag" (smt2SmtSort a)
 smt2SmtSort (SArray a b) = key2 "Array" (smt2SmtSort a) (smt2SmtSort b)
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
 smt2SmtSort (SVar n)     = "T" <> bShow n
@@ -321,6 +321,8 @@ smt2App _ env ex@(dropECst -> EVar f) [d]
   | f == arrConstS = Just (key (key "as const" (getTarget ex)) d)
   | f == arrConstB = Just (key (key "as const" (getTarget ex)) d)
   | f == arrConstM = Just (key (key "as const" (getTarget ex)) d)
+  | f == setEmpty  = Just (key "as set.empty" (getTarget ex))
+  | f == bagEmpty  = Just (key "as bag.empty" (getTarget ex))
   where
     getTarget :: Expr -> Builder
     -- const is a function, but SMT expects only the output sort
@@ -386,8 +388,15 @@ interpSymbols :: SMTSolver -> [(Symbol, TheorySymbol)]
 --------------------------------------------------------------------------------
 interpSymbols cfg =
   [
-  -- TODO we'll probably need two versions of these - one for sets and one for maps
-    interpSym arrConstS  "const"  (FAbs 0 $ FFunc boolSort setArrSort)
+    -- maps
+
+    interpSym arrConstM  "const"  (FAbs 0 $ FFunc (FVar 1) mapArrSort)
+  , interpSym arrSelectM "select" (FAbs 0 $ FFunc mapArrSort $ FFunc (FVar 0) (FVar 1))
+  , interpSym arrStoreM  "store"  (FAbs 0 $ FFunc mapArrSort $ FFunc (FVar 0) $ FFunc (FVar 1) mapArrSort)
+
+    -- Z3 sets (arrays of bools)
+
+  , interpSym arrConstS  "const"  (FAbs 0 $ FFunc boolSort setArrSort)
   , interpSym arrSelectS "select" (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) boolSort)
   , interpSym arrStoreS  "store"  (FAbs 0 $ FFunc setArrSort $ FFunc (FVar 0) $ FFunc boolSort setArrSort)
 
@@ -396,9 +405,7 @@ interpSymbols cfg =
   , interpSym arrMapAndS "(_ map and)" (FFunc setArrSort $ FFunc setArrSort setArrSort)
   , interpSym arrMapImpS "(_ map =>)"  (FFunc setArrSort $ FFunc setArrSort setArrSort)
 
-  , interpSym arrConstM  "const"  (FAbs 0 $ FFunc (FVar 1) mapArrSort)
-  , interpSym arrSelectM "select" (FAbs 0 $ FFunc mapArrSort $ FFunc (FVar 0) (FVar 1))
-  , interpSym arrStoreM  "store"  (FAbs 0 $ FFunc mapArrSort $ FFunc (FVar 0) $ FFunc (FVar 1) mapArrSort)
+    -- Z3 bags (arrays of ints)
 
   , interpSym arrConstB  "const"  (FAbs 0 $ FFunc intSort bagArrSort)
   , interpSym arrSelectB "select" (FAbs 0 $ FFunc bagArrSort $ FFunc (FVar 0) intSort)
@@ -409,28 +416,32 @@ interpSymbols cfg =
   , interpSym arrMapGtB   "(_ map (> (Int Int) Bool))"       (FFunc bagArrSort $ FFunc bagArrSort setArrSort)
   , interpSym arrMapIteB  "(_ map (ite (Bool Int Int) Int))" (FFunc setArrSort $ FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
 
-  , interpSym setEmp   setEmp   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
-  , interpSym setEmpty setEmpty (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
-  , interpSym setSng   setSng   (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
-  , interpSym setAdd   setAdd   setAddSort
-  , interpSym setCup   setCup   setBopSort
-  , interpSym setCap   setCap   setBopSort
-  , interpSym setMem   setMem   setMemSort
-  , interpSym setDif   setDif   setBopSort
-  , interpSym setSub   setSub   setCmpSort
-  , interpSym setCom   setCom   setCmpSort
-
   , interpSym mapDef   mapDef  mapDefSort
   , interpSym mapSel   mapSel  mapSelSort
   , interpSym mapSto   mapSto  mapStoSort
 
-  , interpSym bagEmpty bagEmpty (FAbs 0 $ FFunc intSort (bagSort $ FVar 0))
-  , interpSym bagSng   bagSng   (FAbs 0 $ FFunc (FVar 0) $ FFunc intSort (bagSort $ FVar 0))
-  , interpSym bagCount bagCount bagCountSort
-  , interpSym bagCup   bagCup   bagBopSort
-  , interpSym bagMax   bagMax   bagBopSort
-  , interpSym bagMin   bagMin   bagBopSort
-  , interpSym bagSub   bagSub   bagSubSort
+  -- CVC5 sets
+
+  , interpSym setEmp   "set.is_empty"   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
+  , interpSym setEmpty "set.empty"      (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
+  , interpSym setSng   "set.singleton"  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
+  , interpSym setAdd   "set.insert"     setAddSort  -- TODO broken! the order is flipped
+  , interpSym setCup   "set.union"      setBopSort
+  , interpSym setCap   "set.inter"      setBopSort
+  , interpSym setMem   "set.member"     setMemSort
+  , interpSym setDif   "set.minus"      setBopSort
+  , interpSym setSub   "set.subset"     setCmpSort
+  , interpSym setCom   "set.complement" (FAbs 0 $ FFunc (setSort $ FVar 0) (setSort $ FVar 0))
+
+  -- CVC5 bags
+
+  , interpSym bagEmpty "bag.empty"          (FAbs 0 $ FFunc intSort (bagSort $ FVar 0))
+  , interpSym bagSng   "bag"                (FAbs 0 $ FFunc (FVar 0) $ FFunc intSort (bagSort $ FVar 0))
+  , interpSym bagCount "bag.count"          bagCountSort -- TODO broken! the order is flipped
+  , interpSym bagCup   "bag.union_disjoint" bagBopSort
+  , interpSym bagMax   "bag.union_max"      bagBopSort
+  , interpSym bagMin   "bag.inter_min"      bagBopSort
+  , interpSym bagSub   "bag.subbag"         bagSubSort
 
   -- , interpSym bvOrName  "bvor"  bvBopSort
   -- , interpSym bvAndName "bvand" bvBopSort
