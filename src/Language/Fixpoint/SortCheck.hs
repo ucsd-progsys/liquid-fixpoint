@@ -75,7 +75,7 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.IORef
 import qualified Data.List                 as L
-import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
+import           Data.Maybe                (mapMaybe, fromMaybe, isJust)
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
@@ -88,6 +88,7 @@ import           Text.Printf
 import           GHC.Stack
 import qualified Language.Fixpoint.Types as F
 import           System.IO.Unsafe (unsafePerformIO)
+import qualified Language.Fixpoint.Union as Union
 
 --import Debug.Trace as Debug
 
@@ -375,7 +376,7 @@ instance Show ChError where
   show (ChError f) = show (f ())
 instance Exception ChError where
 
-data ChState = ChS {chCount :: IORef Int, chSpan :: SrcSpan, chTVSubst :: IORef (Maybe TVSubst)}
+data ChState = ChS {chCount :: IORef Int, chSpan :: SrcSpan, ufM :: IORef Union.UF, chTVSubst :: IORef (Maybe TVSubst)}
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
@@ -410,8 +411,9 @@ varCounterRef = unsafePerformIO $ newIORef 42
 -- value of counter.
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = unsafePerformIO $ do
-  ref <- newIORef Nothing
-  try (runReaderT act (ChS varCounterRef sp ref))
+  suR <- newIORef Nothing
+  ufR <- newIORef Union.new
+  try (runReaderT act (ChS varCounterRef sp ufR suR))
 
 fresh :: CheckM Int
 fresh = do
@@ -546,9 +548,9 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
   let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
-  let !θ = unifyExpr (snd f) e
-  composeTVSubst θ
-  return (e, maybe s (`apply` s) θ)
+  -- let !θ = unifyExpr (snd f) e
+  -- composeTVSubst θ
+  return (e, s)
 
 
 elab !_ e@(ESym _) =
@@ -693,14 +695,14 @@ elabAs f t e = notracepp _msg <$> go e
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
 elabAppAs env@(_, f) t g e = do
-  gT       <- checkExpr f g
-  eT       <- checkExpr f e
-  (iT, oT, isu) <- checkFunSort gT
+  tg       <- checkExpr f g
+  te       <- checkExpr f e
+  (iT, oT) <- checkFunSort tg
   let ge    = Just (EApp g e)
-  su       <- unifyMany f ge isu [oT, iT] [t, eT]
-  let tg    = apply su gT
+  _       <- unifyMany f ge emptySubst [oT, iT] [t, te]
+  -- let tg    = apply su tg
   g'       <- elabAs env tg g
-  let te    = apply su eT
+  -- let te    = apply su te
   e'       <- elabAs env te e
   pure     $ EApp (ECst g' tg) (ECst e' te)
 
@@ -714,11 +716,11 @@ elabEApp f@(_, g) e1 e2 = do
 elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
-  (sIn, sOut, su) <- checkFunSort s1
-  su'             <- unify1 f e su sIn s2
-  composeTVSubst (Just su)
-  composeTVSubst (Just su')
-  return (e1 , e2, apply su' s1, apply su' s2, apply su' sOut)
+  (sIn, sOut) <- checkFunSort s1
+  _             <- unify1 f e emptySubst sIn s2
+  -- composeTVSubst (Just su)
+  -- composeTVSubst (Just su')
+  return (e1 , e2, s1, s2, sOut)
 
 
 --------------------------------------------------------------------------------
@@ -1039,16 +1041,16 @@ checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g e = do
   gt       <- checkExpr f g
   et       <- checkExpr f e
-  (it, ot, isu) <- checkFunSort gt
+  (it, ot) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  su        <- unifyMany f ge isu [it] [et]
-  let t     = apply su ot
+  su        <- unifyMany f ge emptySubst [it] [et]
+  -- let t     = apply su ot
   case to of
-    Nothing    -> return (su, t)
-    Just t'    -> do θ' <- unifyMany f ge su [t] [t']
-                     let ti = apply θ' et
-                     _ <- checkExprAs f ti e
-                     return (θ', apply θ' t)
+    Nothing    -> return (su, ot)
+    Just t'    -> do θ' <- unifyMany f ge su [ot] [t']
+                    --  let ti = apply θ' et
+                     _ <- checkExprAs f et e
+                     return (θ', ot)
 
 
 -- | Helper for checking binary (numeric) operations
@@ -1162,26 +1164,26 @@ checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
 -- | Sort Unification on Expressions
 --------------------------------------------------------------------------------
 
-{-# SCC unifyExpr #-}
-unifyExpr :: Env -> Expr -> Maybe TVSubst
-unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
-  where
-   θ1 = unifyExpr f e1
-   θ2 = unifyExpr f e2
-   θ  = unifyExprApp f e1 e2
-unifyExpr f (ECst e _)
-  = unifyExpr f e
-unifyExpr _ _
-  = Nothing
+-- {-# SCC unifyExpr #-}
+-- unifyExpr :: Env -> Expr -> Maybe TVSubst
+-- unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
+--   where
+--    θ1 = unifyExpr f e1
+--    θ2 = unifyExpr f e2
+--    θ  = unifyExprApp f e1 e2
+-- unifyExpr f (ECst e _)
+--   = unifyExpr f e
+-- unifyExpr _ _
+--   = Nothing
 
-unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
-unifyExprApp f e1 e2 = do
-  t1 <- getArg $ exprSortMaybe e1
-  t2 <- exprSortMaybe e2
-  unify f (Just $ EApp e1 e2) t1 t2
-  where
-    getArg (Just (FFunc t1 _)) = Just t1
-    getArg _                   = Nothing
+-- unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
+-- unifyExprApp f e1 e2 = do
+--   t1 <- getArg $ exprSortMaybe e1
+--   t2 <- exprSortMaybe e2
+--   unify f (Just $ EApp e1 e2) t1 t2
+--   where
+--     getArg (Just (FFunc t1 _)) = Just t1
+--     getArg _                   = Nothing
 
 
 --------------------------------------------------------------------------------
@@ -1367,23 +1369,23 @@ unifyVar f e θ !i !t
 -- | Update global subst to be applied to expressions
 --------------------------------------------------------------------------------
 
-updateTVSubst :: TVSubst -> CheckM ()
-updateTVSubst theta = do
-  refTheta <- asks chTVSubst
-  liftIO $ atomicModifyIORef' refTheta $ const (Just theta, ())
+-- updateTVSubst :: TVSubst -> CheckM ()
+-- updateTVSubst theta = do
+--   refTheta <- asks chTVSubst
+--   liftIO $ atomicModifyIORef' refTheta $ const (Just theta, ())
 
--- local (\s -> s {chTVSubst = theta}) (return ())
+-- -- local (\s -> s {chTVSubst = theta}) (return ())
 
-mergeTVSubst :: TVSubst -> Maybe TVSubst -> TVSubst
-mergeTVSubst (Th m1) Nothing = Th m1
-mergeTVSubst (Th m1) (Just (Th m2)) = Th m1 <> Th m2
+-- mergeTVSubst :: TVSubst -> Maybe TVSubst -> TVSubst
+-- mergeTVSubst (Th m1) Nothing = Th m1
+-- mergeTVSubst (Th m1) (Just (Th m2)) = Th m1 <> Th m2
 
-composeTVSubst :: Maybe TVSubst -> CheckM ()
-composeTVSubst Nothing = return ()
-composeTVSubst (Just theta1) = do
-  refTheta <- asks chTVSubst
-  theta <- liftIO $ readIORef refTheta
-  updateTVSubst (mergeTVSubst theta1 theta)
+-- composeTVSubst :: Maybe TVSubst -> CheckM ()
+-- composeTVSubst Nothing = return ()
+-- composeTVSubst (Just theta1) = do
+--   refTheta <- asks chTVSubst
+--   theta <- liftIO $ readIORef refTheta
+--   updateTVSubst (mergeTVSubst theta1 theta)
 
 --------------------------------------------------------------------------------
 -- | Applying a Type Substitution ----------------------------------------------
@@ -1415,12 +1417,15 @@ _applyCoercion a t = Vis.mapSort f
 --------------------------------------------------------------------------------
 -- | Deconstruct a function-sort -----------------------------------------------
 --------------------------------------------------------------------------------
-checkFunSort :: Sort -> CheckM (Sort, Sort, TVSubst)
+checkFunSort :: Sort -> CheckM (Sort, Sort)
 checkFunSort (FAbs _ t)    = checkFunSort t
-checkFunSort (FFunc t1 t2) = return (t1, t2, emptySubst)
-checkFunSort (FVar i)      = do j <- fresh
-                                k <- fresh
-                                return (FVar j, FVar k, updateVar i (FFunc (FVar j) (FVar k)) emptySubst)
+checkFunSort (FFunc t1 t2) = return (t1, t2)
+checkFunSort (FVar i)      = do 
+    k <- fresh 
+    j <- fresh
+    ufRef <- asks ufM
+    _ <- liftIO $ atomicModifyIORef' ufRef $ \uf -> (Union.union uf i (FFunc (FVar j) (FVar k)), ())
+    return (FVar j, FVar k) 
 checkFunSort t             = throwErrorAt (errNonFunction 1 t)
 
 --------------------------------------------------------------------------------
