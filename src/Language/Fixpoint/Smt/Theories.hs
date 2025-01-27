@@ -425,7 +425,7 @@ interpSymbols cfg =
   , interpSym setEmp   "set.is_empty"   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty "set.empty"      (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
   , interpSym setSng   "set.singleton"  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
-  , interpSym setAdd   "set.insert"     setAddSort  -- TODO broken! the order is flipped
+  , interpSym setAdd   "set.insert"     setAddSort
   , interpSym setCup   "set.union"      setBopSort
   , interpSym setCap   "set.inter"      setBopSort
   , interpSym setMem   "set.member"     setMemSort
@@ -437,7 +437,7 @@ interpSymbols cfg =
 
   , interpSym bagEmpty "bag.empty"          (FAbs 0 $ FFunc intSort (bagSort $ FVar 0))
   , interpSym bagSng   "bag"                (FAbs 0 $ FFunc (FVar 0) $ FFunc intSort (bagSort $ FVar 0))
-  , interpSym bagCount "bag.count"          bagCountSort -- TODO broken! the order is flipped
+  , interpSym bagCount "bag.count"          bagCountSort
   , interpSym bagCup   "bag.union_disjoint" bagBopSort
   , interpSym bagMax   "bag.union_max"      bagBopSort
   , interpSym bagMin   "bag.inter_min"      bagBopSort
@@ -514,7 +514,7 @@ interpSymbols cfg =
     bv64       = sizedBitVecSort "Size64"
     boolInt    = boolToIntName
 
-    setAddSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (FVar 0)           (setSort $ FVar 0)
+    setAddSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
     setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
@@ -530,7 +530,7 @@ interpSymbols cfg =
                                  $ FFunc (FVar 1)
                                          (mapSort (FVar 0) (FVar 1))
 
-    bagCountSort = FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (FVar 0) intSort
+    bagCountSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (bagSort $ FVar 0) intSort
     -- cup :: forall i. Map i Int -> Map i Int -> Map i Int
     bagBopSort = FAbs 0          $ FFunc (bagSort $ FVar 0)
                                  $ FFunc (bagSort $ FVar 0)

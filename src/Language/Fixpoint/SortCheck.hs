@@ -217,6 +217,8 @@ instance (Loc a) => Elaborate (SimpC a) where
 -- | Replace all finset/finmap/finbag theory operations with array-based encodings.
 -----------------------------------------------------------------------------------
 
+-- TODO abstract into a visitor for EApp?
+
 -- TODO there's no actual elaboration happening here, just symbol renaming
 elabFMap :: Expr -> Expr
 elabFMap (EApp h@(EVar f) e)
@@ -260,11 +262,11 @@ elabFSetBagZ3 (EApp (EApp h@(EVar f) e1) e2)
   | f == Thy.setMem           = EApp (EApp (EVar Thy.arrSelectS) (elabFSetBagZ3 e2)) (elabFSetBagZ3 e1)
   | f == Thy.setCup           = EApp (EApp (EVar Thy.arrMapOrS) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
   | f == Thy.setCap           = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
-  | f == Thy.setAdd           = EApp (EApp (EApp (EVar Thy.arrStoreS) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)) PTrue
+  | f == Thy.setAdd           = EApp (EApp (EApp (EVar Thy.arrStoreS) (elabFSetBagZ3 e2)) (elabFSetBagZ3 e1)) PTrue
   -- A \ B == A /\ ~B == ~(A => B)
   | f == Thy.setDif           = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetBagZ3 e1)) (EApp (EVar Thy.arrMapNotS) (elabFSetBagZ3 e2))
   | f == Thy.setSub           = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapImpS) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2))
-  | f == Thy.bagCount         = EApp (EApp (EVar Thy.arrSelectB) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
+  | f == Thy.bagCount         = EApp (EApp (EVar Thy.arrSelectB) (elabFSetBagZ3 e2)) (elabFSetBagZ3 e1)
   | f == Thy.bagSng           = EApp (EApp (EApp (EVar Thy.arrStoreB) (EApp (EVar Thy.arrConstB) (ECon (I 0)))) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
   | f == Thy.bagCup           = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
   | f == Thy.bagSub           = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2))
