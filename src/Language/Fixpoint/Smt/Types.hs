@@ -29,6 +29,7 @@ module Language.Fixpoint.Smt.Types (
 
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types.Config (SMTSolver)
 import qualified Data.Text                as T
 import           Text.PrettyPrint.HughesPJ
 import qualified SMTLIB.Backends
@@ -95,6 +96,7 @@ data Context = Ctx
   {
   -- | The high-level interface for interacting with the SMT solver backend.
     ctxSolver  :: SMTLIB.Backends.Solver
+  , ctxSolverTag :: SMTSolver
   -- | The close operation of the SMT solver backend.
   , ctxClose   :: IO ()
   , ctxLog     :: !(Maybe Handle)

@@ -69,11 +69,11 @@ type Raw = Text
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'
 --------------------------------------------------------------------------------
 data SymEnv = SymEnv
-  { seSort    :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
-  , seTheory  :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
-  , seData    :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
-  , seLits    :: !(SEnv Sort)              -- ^ Distinct Constant symbols
-  , seAppls   :: !(M.HashMap FuncSort Int) -- ^ Types at which `apply` was used;
+  { seSort   :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
+  , seTheory :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
+  , seData   :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
+  , seLits   :: !(SEnv Sort)              -- ^ Distinct Constant symbols
+  , seAppls  :: !(M.HashMap FuncSort Int) -- ^ Types at which `apply` was used;
                                            --   see [NOTE:apply-monomorphization]
   }
   deriving (Eq, Show, Data, Typeable, Generic)
@@ -373,9 +373,10 @@ coerceSortEnv :: SMTSolver -> SEnv Sort -> SEnv Sort
 coerceSortEnv slv ss = (if isZ3 slv then coerceSetBagToArray else id) . coerceMapToArray <$> ss
 
 coerceEnv :: SMTSolver -> SymEnv -> SymEnv
-coerceEnv slv env = SymEnv { seSort   = coerceSortEnv slv (seSort env)
-                           , seTheory = seTheory env
-                           , seData   = seData   env
-                           , seLits   = seLits   env
-                           , seAppls  = seAppls  env
-                           }
+coerceEnv slv env =
+  SymEnv { seSort   = coerceSortEnv slv (seSort env)
+         , seTheory = seTheory env
+         , seData   = seData   env
+         , seLits   = seLits   env
+         , seAppls  = seAppls  env
+         }

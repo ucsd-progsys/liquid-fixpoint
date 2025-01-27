@@ -173,9 +173,7 @@ command Ctx{..} !cmd       = do
             TE.decodeUtf8With (const $ const $ Just ' ') $
             LBS.toStrict resp
       parse respTxt
-    cmdBS = {-# SCC "Command-runSmt2" #-}
-      {-let cmd' = tracepp "command" cmd in-}
-      runSmt2 ctxSymEnv cmd -- '
+    cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
     parse resp      = do
       case A.parseOnly responseP resp of
         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
@@ -258,7 +256,7 @@ makeContextWithSEnv :: Config -> FilePath -> SymEnv -> IO Context
 makeContextWithSEnv cfg f env = do
   ctx     <- makeContext cfg f
   let ctx' = ctx {ctxSymEnv = env}
-  declare (solver cfg) ctx'
+  declare ctx'
   return ctx'
   -- where msg = "makeContextWithSEnv" ++ show env
 
@@ -288,7 +286,8 @@ makeProcess ctxLog cfg
 
 makeContext' :: Config -> Maybe Handle -> IO Context
 makeContext' cfg ctxLog
-  = do (backend, closeIO) <- case solver cfg of
+  = do let slv = solver cfg
+       (backend, closeIO) <- case slv of
          Z3      ->
            {- "z3 -smt2 -in"                   -}
            {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
@@ -310,11 +309,12 @@ makeContext' cfg ctxLog
                              , Process.args = ["--incremental", "-L", "smtlib2"] }
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
-       return Ctx { ctxSolver  = solver
-                  , ctxClose   = closeIO
-                  , ctxLog     = ctxLog
-                  , ctxVerbose = loud
-                  , ctxSymEnv  = mempty
+       return Ctx { ctxSolver    = solver
+                  , ctxSolverTag = slv
+                  , ctxClose     = closeIO
+                  , ctxLog       = ctxLog
+                  , ctxVerbose   = loud
+                  , ctxSymEnv    = mempty
                   }
 
 -- | Close file handles and release the solver backend's resources.
@@ -402,9 +402,7 @@ smtCheckSat me p
    ans _   = False
 
 smtAssert :: Context -> Expr -> IO ()
-smtAssert me p =
-  {- let p' = tracepp "smtAssert" p in -}
-  interact' me (Assert Nothing p {-p'-})
+smtAssert me p = interact' me (Assert Nothing p)
 
 smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
 smtDefineFunc me name symList rsort e =
@@ -466,9 +464,9 @@ z3_options
 
 
 --------------------------------------------------------------------------------
-declare :: SMTSolver -> Context -> IO ()
+declare :: Context -> IO ()
 --------------------------------------------------------------------------------
-declare slv me = do
+declare me = do
   forM_ dss    $           smtDataDecl me
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
@@ -485,7 +483,7 @@ declare slv me = do
     qryXTs     = fmap tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
     xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env)
-    tx         = elaborate slv "declare" env
+    tx         = elaborate (ctxSolverTag me) "declare" env
     ats        = funcSortVars env
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]
@@ -504,7 +502,7 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where
     var n         = F.symbolAtSmtName n env ()
-    ts            = {- tracepp "funcSortVars" $ -} M.keys (F.seAppls env)
+    ts            = M.keys (F.seAppls env)
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)
     argSort (s,_) = ([]    , s)

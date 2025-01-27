@@ -36,8 +36,6 @@ import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
 
--- import Debug.Trace
-
 type SanitizeM a = Either E.Error a
 
 --------------------------------------------------------------------------------
