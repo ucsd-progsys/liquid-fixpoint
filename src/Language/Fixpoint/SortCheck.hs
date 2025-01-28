@@ -62,7 +62,7 @@ module Language.Fixpoint.SortCheck  (
   , isFirstOrder
   , isMono
 
-  , runCM0
+--  , runCM0
   ) where
 
 --  import           Control.DeepSeq
@@ -303,7 +303,7 @@ elabExpr slv msg env e = case elabExprE slv msg env e of
 
 elabExprE :: Cfg.SMTSolver -> Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE slv msg env e =
-  case runCM0 (srcSpan msg) (elab slv (env, envLookup) e) of
+  case runCM0 (srcSpan msg) slv (elab (env, envLookup) e) of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
@@ -357,7 +357,7 @@ elabApply env = go
 -- | Sort Inference ------------------------------------------------------------
 --------------------------------------------------------------------------------
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
-sortExpr l γ e = case runCM0 l (checkExpr f e) of
+sortExpr l γ e = case runCM0 l Cfg.Cvc5 (checkExpr f e) of
     Left (ChError f') -> die $ err l (d (val (f' ())))
     Right s -> s
   where
@@ -371,7 +371,7 @@ sortExpr l γ e = case runCM0 l (checkExpr f e) of
                ]
 
 checkSortExpr :: SrcSpan -> SEnv Sort -> Expr -> Maybe Sort
-checkSortExpr sp γ e = case runCM0 sp (checkExpr f e) of
+checkSortExpr sp γ e = case runCM0 sp Cfg.Cvc5 (checkExpr f e) of
     Left _   -> Nothing
     Right s  -> Just s
   where
@@ -401,7 +401,10 @@ instance Show ChError where
   show (ChError f) = show (f ())
 instance Exception ChError where
 
-data ChState = ChS { chCount :: IORef Int, chSpan :: SrcSpan }
+data ChState = ChS { chCount  :: IORef Int
+                   , chSpan   :: SrcSpan
+                   , chSolver :: Cfg.SMTSolver
+                   }
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
@@ -434,9 +437,9 @@ varCounterRef = unsafePerformIO $ newIORef 42
 -- function is not referentially transparent.
 -- Each evaluation of the function starts with a different
 -- value of counter.
-runCM0 :: SrcSpan -> CheckM a -> Either ChError a
-runCM0 sp act = unsafePerformIO $ do
-  try (runReaderT act (ChS varCounterRef sp))
+runCM0 :: SrcSpan -> Cfg.SMTSolver -> CheckM a -> Either ChError a
+runCM0 sp slv act = unsafePerformIO $ do
+  try (runReaderT act (ChS varCounterRef sp slv))
 
 fresh :: CheckM Int
 fresh = do
@@ -455,7 +458,7 @@ checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
 
 checkSortedReftFull :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv SortedReft -> a -> Maybe Doc
 checkSortedReftFull slv sp γ t =
-  case runCM0 sp (check slv γ' t) of
+  case runCM0 sp slv (check γ' t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
@@ -463,7 +466,7 @@ checkSortedReftFull slv sp γ t =
 
 checkSortFull :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv SortedReft -> Sort -> a -> Maybe Doc
 checkSortFull slv sp γ s t =
-  case runCM0 sp (checkSort slv γ' s t) of
+  case runCM0 sp slv (checkSort γ' s t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
@@ -471,7 +474,7 @@ checkSortFull slv sp γ s t =
 
 checkSorted :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv Sort -> a -> Maybe Doc
 checkSorted slv sp γ t =
-  case runCM0 sp (check slv γ t) of
+  case runCM0 sp slv (check γ t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _  -> Nothing
 
@@ -496,27 +499,32 @@ pruneUnsortedReft γ t (RR s (Reft (v, p)))
 checkPred' :: Env -> Expr -> Maybe Expr
 checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
-    res        = case runCM0 dummySpan (checkPred f p) of
+    res        = case runCM0 dummySpan Cfg.Cvc5 (checkPred f p) of
                    Left _err -> notracepp ("Removing" ++ showpp p) Nothing
                    Right _   -> Just p
 
 class Checkable a where
-  check     :: Cfg.SMTSolver -> SEnv Sort -> a -> CheckM ()
-  checkSort :: Cfg.SMTSolver -> SEnv Sort -> Sort -> a -> CheckM ()
+  check     :: SEnv Sort -> a -> CheckM ()
+  checkSort :: SEnv Sort -> Sort -> a -> CheckM ()
 
-  checkSort slv γ _ = check slv γ
+  checkSort γ _ = check γ
 
 instance Checkable Expr where
-  check slv γ e = void $ checkExpr f e
-   where f = (`lookupSEnvWithDistance` coerceSortEnv slv γ)
+  check γ e =
+    do slv <- asks chSolver
+       _ <- checkExpr (`lookupSEnvWithDistance` coerceSortEnv slv γ) e
+       pure ()
 
-  checkSort slv γ s e = void $ checkExpr f (ECst e (if Cfg.isZ3 slv then coerceSetBagToArray s' else s'))
+  checkSort γ s e =
+    do slv <- asks chSolver
+       _ <- checkExpr (`lookupSEnvWithDistance` coerceSortEnv slv γ)
+                      (ECst e (if Cfg.isZ3 slv then coerceSetBagToArray s' else s'))
+       pure ()
    where
       s' = coerceMapToArray s
-      f = (`lookupSEnvWithDistance` coerceSortEnv slv γ)
 
 instance Checkable SortedReft where
-  check slv γ (RR s (Reft (v, ra))) = check slv γ' ra
+  check γ (RR s (Reft (v, ra))) = check γ' ra
    where
      γ' = insertSEnv v s γ
 
@@ -560,146 +568,149 @@ addEnv f bs x
 -- | Elaborate expressions with types to make polymorphic instantiation explicit.
 --------------------------------------------------------------------------------
 {-# SCC elab #-}
-elab :: Cfg.SMTSolver -> ElabEnv -> Expr -> CheckM (Expr, Sort)
+elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
-elab slv f@(_, g) e@(EBin o e1 e2) = do
-  (e1', s1) <- elab slv f e1
-  (e2', s2) <- elab slv f e2
+elab f@(_, g) e@(EBin o e1 e2) = do
+  (e1', s1) <- elab f e1
+  (e2', s2) <- elab f e2
   s <- checkOpTy g e s1 s2
   return (EBin o (eCst e1' s1) (eCst e2' s2), s)
 
-elab slv f (EApp e1@(EApp _ _) e2) = do
-  (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp slv f e1 e2
+elab f (EApp e1@(EApp _ _) e2) = do
+  (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
   let e = eAppC s e1' (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
-elab slv f (EApp e1 e2) = do
-  (e1', s1, e2', s2, s) <- elabEApp slv f e1 e2
+elab f (EApp e1 e2) = do
+  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
   let e = eAppC s (eCst e1' s1) (eCst e2' s2)
   let θ = unifyExpr (snd f) e
   return (applyExpr θ e, maybe s (`apply` s) θ)
 
-elab _ _ e@(ESym _) =
+elab _ e@(ESym _) =
   return (e, strSort)
 
-elab _ _ e@(ECon (I _)) =
+elab _ e@(ECon (I _)) =
   return (e, FInt)
 
-elab _ _ e@(ECon (R _)) =
+elab _ e@(ECon (R _)) =
   return (e, FReal)
 
-elab _ _ e@(ECon (L _ s)) =
+elab _ e@(ECon (L _ s)) =
   return (e, s)
 
-elab _ _ e@(PKVar _ _) =
+elab _ e@(PKVar _ _) =
   return (e, boolSort)
 
-elab slv f (PGrad k su i e) =
-  (, boolSort) . PGrad k su i . fst <$> elab slv f e
+elab f (PGrad k su i e) =
+  (, boolSort) . PGrad k su i . fst <$> elab f e
 
-elab _ (_, f) e@(EVar x) = do
+elab (_, f) e@(EVar x) = do
   cs <- checkSym f x
   pure (e, cs)
 
-elab slv f (ENeg e) = do
-  (e', s) <- elab slv f e
+elab f (ENeg e) = do
+  (e', s) <- elab f e
   return (ENeg e', s)
 
-elab slv f@(_,g) (ECst (EIte p e1 e2) t) = do
-  (p', _)   <- elab slv f p
-  (e1', s1) <- elab slv f (eCst e1 t)
-  (e2', s2) <- elab slv f (eCst e2 t)
+elab f@(_,g) (ECst (EIte p e1 e2) t) = do
+  (p', _)   <- elab f p
+  (e1', s1) <- elab f (eCst e1 t)
+  (e2', s2) <- elab f (eCst e2 t)
   s         <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (eCst e1' s) (eCst e2' s), t)
 
-elab slv f@(_,g) (EIte p e1 e2) = do
+elab f@(_,g) (EIte p e1 e2) = do
   t <- getIte g e1 e2
-  (p', _)   <- elab slv f p
-  (e1', s1) <- elab slv f (eCst e1 t)
-  (e2', s2) <- elab slv f (eCst e2 t)
+  (p', _)   <- elab f p
+  (e1', s1) <- elab f (eCst e1 t)
+  (e2', s2) <- elab f (eCst e2 t)
   s         <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (eCst e1' s) (eCst e2' s), s)
 
-elab slv f (ECst e t) = do
-  (e', _) <- elab slv f e
+elab f (ECst e t) = do
+  (e', _) <- elab f e
   return (eCst e' t, t)
 
-elab slv f (PNot p) = do
-  (e', _) <- elab slv f p
+elab f (PNot p) = do
+  (e', _) <- elab f p
   return (PNot e', boolSort)
 
-elab slv f (PImp p1 p2) = do
-  (p1', _) <- elab slv f p1
-  (p2', _) <- elab slv f p2
+elab f (PImp p1 p2) = do
+  (p1', _) <- elab f p1
+  (p2', _) <- elab f p2
   return (PImp p1' p2', boolSort)
 
-elab slv f (PIff p1 p2) = do
-  (p1', _) <- elab slv f p1
-  (p2', _) <- elab slv f p2
+elab f (PIff p1 p2) = do
+  (p1', _) <- elab f p1
+  (p2', _) <- elab f p2
   return (PIff p1' p2', boolSort)
 
-elab slv f (PAnd ps) = do
-  ps' <- mapM (elab slv f) ps
+elab f (PAnd ps) = do
+  ps' <- mapM (elab f) ps
   return (PAnd (fst <$> ps'), boolSort)
 
-elab slv f (POr ps) = do
-  ps' <- mapM (elab slv f) ps
+elab f (POr ps) = do
+  ps' <- mapM (elab f) ps
   return (POr (fst <$> ps'), boolSort)
 
-elab slv f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
+elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
   t1        <- checkExpr g e1
   t2        <- checkExpr g e2
   (t1',t2') <- unite g e t1 t2 `withError` errElabExpr e
-  e1'       <- elabAs slv f t1' e1
-  e2'       <- elabAs slv f t2' e2
-  e1''      <- eCstAtom slv f e1' t1'
-  e2''      <- eCstAtom slv f e2' t2'
+  e1'       <- elabAs f t1' e1
+  e2'       <- elabAs f t2' e2
+  e1''      <- eCstAtom f e1' t1'
+  e2''      <- eCstAtom f e2' t2'
   return (PAtom eq e1'' e2'' , boolSort)
 
-elab slv f (PAtom r e1 e2)
+elab f (PAtom r e1 e2)
   | r == Ueq || r == Une = do
-  (e1', _) <- elab slv f e1
-  (e2', _) <- elab slv f e2
+  (e1', _) <- elab f e1
+  (e2', _) <- elab f e2
   return (PAtom r e1' e2', boolSort)
 
-elab slv f@(env,_) (PAtom r e1 e2) = do
-  e1' <- uncurry (toInt env) <$> elab slv f e1
-  e2' <- uncurry (toInt env) <$> elab slv f e2
+elab f@(env,_) (PAtom r e1 e2) = do
+  e1' <- uncurry (toInt env) <$> elab f e1
+  e2' <- uncurry (toInt env) <$> elab f e2
   return (PAtom r e1' e2', boolSort)
 
-elab slv f (PExist bs e) = do
-  (e', s) <- elab slv (elabAddEnv f bs) e
+elab f (PExist bs e) = do
+  (e', s) <- elab (elabAddEnv f bs) e
+  slv <- asks chSolver
   let bs' = elaborate slv "PExist Args" mempty bs
   return (PExist bs' e', s)
 
-elab slv f (PAll bs e) = do
-  (e', s) <- elab slv (elabAddEnv f bs) e
+elab f (PAll bs e) = do
+  (e', s) <- elab (elabAddEnv f bs) e
+  slv <- asks chSolver
   let bs' = elaborate slv "PAll Args" mempty bs
   return (PAll bs' e', s)
 
-elab slv f (ELam (x,t) e) = do
-  (e', s) <- elab slv (elabAddEnv f [(x, t)]) e
+elab f (ELam (x,t) e) = do
+  (e', s) <- elab (elabAddEnv f [(x, t)]) e
+  slv <- asks chSolver
   let t' = elaborate slv "ELam Arg" mempty t
   return (ELam (x, t') (eCst e' s), FFunc t s)
 
-elab slv f (ECoerc s t e) = do
-  (e', _) <- elab slv f e
+elab f (ECoerc s t e) = do
+  (e', _) <- elab f e
   return     (ECoerc s t e', t)
 
-elab _ _ (ETApp _ _) =
+elab _ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
-elab _ _ (ETAbs _ _) =
+elab _ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
 
 
 -- | 'eCstAtom' is to support tests like `tests/pos/undef00.fq`
-eCstAtom :: Cfg.SMTSolver -> ElabEnv -> Expr -> Sort -> CheckM Expr
-eCstAtom slv f@(sym,g) (EVar x) t
+eCstAtom :: ElabEnv -> Expr -> Sort -> CheckM Expr
+eCstAtom f@(sym,g) (EVar x) t
   | Found s <- g x
   , isUndef s
-  , not (isNum sym t) = (`ECst` t) <$> elabAs slv f t (EApp (eVar tyCastName) (eVar x))
-eCstAtom _ _ e t = return (ECst e t)
+  , not (isNum sym t) = (`ECst` t) <$> elabAs f t (EApp (eVar tyCastName) (eVar x))
+eCstAtom _ e t = return (ECst e t)
 
 isUndef :: Sort -> Bool
 isUndef s = case bkAbs s of
@@ -710,31 +721,31 @@ isUndef s = case bkAbs s of
 elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
 
-elabAs :: Cfg.SMTSolver -> ElabEnv -> Sort -> Expr -> CheckM Expr
-elabAs slv f t e = notracepp _msg <$> go e
+elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
+elabAs f t e = notracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
-    go (EApp e1 e2) = elabAppAs slv f t e1 e2
-    go e'           = fst <$> elab slv f e'
+    go (EApp e1 e2) = elabAppAs f t e1 e2
+    go e'           = fst <$> elab f e'
 
 -- DUPLICATION with `checkApp'`
-elabAppAs :: Cfg.SMTSolver -> ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
-elabAppAs slv env@(_, f) t g e = do
+elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
+elabAppAs env@(_, f) t g e = do
   gT       <- checkExpr f g
   eT       <- checkExpr f e
   (iT, oT, isu) <- checkFunSort gT
   let ge    = Just (EApp g e)
   su       <- unifyMany f ge isu [oT, iT] [t, eT]
   let tg    = apply su gT
-  g'       <- elabAs slv env tg g
+  g'       <- elabAs env tg g
   let te    = apply su eT
-  e'       <- elabAs slv env te e
+  e'       <- elabAs env te e
   pure     $ EApp (ECst g' tg) (ECst e' te)
 
-elabEApp  :: Cfg.SMTSolver -> ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
-elabEApp slv f@(_, g) e1 e2 = do
-  (e1', s1)     <- {- notracepp ("elabEApp: e1 = " ++ show e1) <$> -} elab slv f e1
-  (e2', s2)     <- {- notracepp ("elabEApp: e2 = " ++ show e2) <$> -} elab slv f e2
+elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
+elabEApp f@(_, g) e1 e2 = do
+  (e1', s1)     <- {- notracepp ("elabEApp: e1 = " ++ show e1) <$> -} elab f e1
+  (e2', s2)     <- {- notracepp ("elabEApp: e2 = " ++ show e2) <$> -} elab f e2
   (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
   return           (e1'', s1', e2'', s2', s)
 
@@ -1102,12 +1113,10 @@ checkOpTy _ _ FInt  FReal
 checkOpTy _ _ FReal FInt
   = return FReal
 
-checkOpTy f e t t'
-  | Just s <- unify f (Just e) t t'
-  = checkNumeric f (apply s t) >> return (apply s t)
-
-checkOpTy _ e t t'
-  = throwErrorAt (errOp e t t')
+checkOpTy f e t t' =
+  case unify f (Just e) t t' of
+    Just s -> checkNumeric f (apply s t) >> return (apply s t)
+    Nothing -> throwErrorAt (errOp e t t')
 
 checkFractional :: Env -> Sort -> CheckM ()
 checkFractional f s@(FObj l)
@@ -1135,7 +1144,7 @@ checkEqConstr f e θ a t =
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
 --------------------------------------------------------------------------------
-checkPred                  :: Env -> Expr -> CheckM ()
+checkPred :: Env -> Expr -> CheckM ()
 checkPred f e = checkExpr f e >>= checkBoolSort e
 
 checkBoolSort :: Expr -> Sort -> CheckM ()
@@ -1216,7 +1225,7 @@ unifyExprApp f e1 e2 = do
 unify :: Env -> Maybe Expr -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unify f e t1 t2
-  = case runCM0 dummySpan (unify1 f e emptySubst t1 t2) of
+  = case runCM0 dummySpan Cfg.Cvc5 (unify1 f e emptySubst t1 t2) of
       Left _   -> Nothing
       Right su -> Just su
 
@@ -1224,7 +1233,7 @@ unify f e t1 t2
 unifyTo1 :: Env -> [Sort] -> Maybe Sort
 --------------------------------------------------------------------------------
 unifyTo1 f ts
-  = case runCM0 dummySpan (unifyTo1M f ts) of
+  = case runCM0 dummySpan Cfg.Cvc5 (unifyTo1M f ts) of
       Left _  -> Nothing
       Right t -> Just t
 
@@ -1244,7 +1253,7 @@ unifyTo1M f (t0:ts) = snd <$> foldM step (emptySubst, t0) ts
 --------------------------------------------------------------------------------
 unifySorts :: Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
-unifySorts   = unifyFast False emptyEnv
+unifySorts = unifyFast False emptyEnv
   where
     emptyEnv x = die $ err dummySpan $ "SortCheck: lookup in Empty Env: " <> pprint x
 
@@ -1256,8 +1265,8 @@ unifyFast :: Bool -> Env -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unifyFast False f t1 t2 = unify f Nothing t1 t2
 unifyFast True  _ t1 t2
-  | t1 == t2        = Just emptySubst
-  | otherwise           = Nothing
+  | t1 == t2  = Just emptySubst
+  | otherwise = Nothing
 
 {-
 eqFast :: Sort -> Sort -> Bool
@@ -1369,9 +1378,9 @@ instantiate :: Sort -> CheckM Sort
 instantiate !t = go t
   where
     go (FAbs !i !t') = do
-      !t''    <- instantiate t'
+      !t''   <- instantiate t'
       !v     <- fresh
-      return  $ subst i (FVar v) t''
+      return $ subst i (FVar v) t''
     go !t' =
       return t'
 
