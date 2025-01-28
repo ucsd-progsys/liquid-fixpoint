@@ -17,7 +17,7 @@ module Language.Fixpoint.Solver.Sanitize
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor
-import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirstOrder)
+import           Language.Fixpoint.SortCheck     (ElabParam(..), elaborate, applySorts, isFirstOrder)
 -- import           Language.Fixpoint.Defunctionalize
 import           Language.Fixpoint.Misc ((==>))
 import qualified Language.Fixpoint.Misc                            as Misc
@@ -402,7 +402,7 @@ symbolEnv :: Config -> F.SInfo a -> F.SymEnv
 symbolEnv cfg si = F.symEnv sEnv' tEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae'
-    ae'          = elaborate slv (F.atLoc E.dummySpan "symbolEnv") env0 (F.ae si)
+    ae'          = elaborate (ElabParam slv (F.atLoc E.dummySpan "symbolEnv") env0) (F.ae si)
     env0         = F.symEnv sEnv' tEnv ds lits ts
     tEnv         = Thy.theorySymbols slv ds
     ds           = F.ddecls si

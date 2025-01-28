@@ -7,7 +7,7 @@ import Language.Fixpoint.Smt.Interface (Context(..), checkValidWithContext)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Types.Visitor (kvarsExpr)
 import Language.Fixpoint.Defunctionalize (defuncAny)
-import Language.Fixpoint.SortCheck (elaborate)
+import Language.Fixpoint.SortCheck (ElabParam(..), elaborate)
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -24,7 +24,7 @@ askSMT cfg ctx xs e
 toSMT :: String -> Config -> Context -> [(Symbol, Sort)] -> Expr -> Pred
 toSMT msg cfg ctx xs e =
     defuncAny cfg symenv .
-        elaborate (solver cfg) (dummyLoc msg) (elabEnv xs) .
+        elaborate (ElabParam (solver cfg) (dummyLoc msg) (elabEnv xs)) .
             mytracepp ("toSMT from " ++ msg ++ showpp e) $
                 e
   where

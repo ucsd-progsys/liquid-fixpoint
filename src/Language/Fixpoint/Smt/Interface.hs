@@ -483,7 +483,7 @@ declare me = do
     qryXTs     = fmap tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
     xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env)
-    tx         = elaborate (ctxSolverTag me) "declare" env
+    tx         = elaborate (ElabParam (ctxSolverTag me) "declare" env)
     ats        = funcSortVars env
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]

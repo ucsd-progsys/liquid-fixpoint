@@ -114,7 +114,7 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
             map (toFix . unElab) $ Set.toList $ Set.fromList $
             -- call elabExpr to try to bring equations that are missing
             -- some casts into a fully annotated form for comparison
-            map (elabExpr (solver cfg) "savePLEEqualities" sEnv) $
+            map (elabExpr (ElabParam (solver cfg) "savePLEEqualities" sEnv)) $
             concatMap conjuncts eqs
            )
       $+$ ""
@@ -350,7 +350,7 @@ resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
-    ps''     = zipWith (\i -> elaborate (solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps'
+    ps''     = zipWith (\i -> elaborate (ElabParam (solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 
@@ -950,6 +950,7 @@ evalApp γ ctx e0 es et
   , length (eqArgs eq) <= length es
   = do
        env <- gets (seSort . evEnv)
+       -- slv <- gets evSolver
        okFuel <- checkFuel f
        if okFuel && et /= FuncNormal then do
          let (es1, es2) = splitAt (length (eqArgs eq)) es
@@ -1465,7 +1466,7 @@ elaborateExpr msg e = do
   let elabSpan = atLoc dummySpan msg
   symEnv' <- gets evEnv
   slv <- gets evSolver
-  pure $ unApply $ elaborate slv elabSpan symEnv' e
+  pure $ unApply $ elaborate (ElabParam slv elabSpan symEnv') e
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.

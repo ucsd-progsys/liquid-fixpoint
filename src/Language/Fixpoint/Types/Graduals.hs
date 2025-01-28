@@ -235,7 +235,7 @@ class Gradual a where
 instance Gradual Expr where
   gsubst slv (GSol env m) e   = mapGVars' (\(k, _) -> Just (fromMaybe (err k) (mknew k))) e
     where
-      mknew k = So.elaborate slv "initBGind.mkPred" env $ fst <$> M.lookup k m
+      mknew k = So.elaborate (So.ElabParam slv "initBGind.mkPred" env) $ fst <$> M.lookup k m
       err   k = errorstar ("gradual substitution: Cannot find " ++ showpp k)
 
 instance Gradual Reft where

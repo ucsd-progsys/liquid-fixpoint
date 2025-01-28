@@ -41,7 +41,7 @@ import           Language.Fixpoint.Solver.EnvironmentReduction
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
-import           Language.Fixpoint.SortCheck            (Elaborate (..), unElab)
+import           Language.Fixpoint.SortCheck            (ElabParam (..), Elaborate (..), unElab)
 import           Language.Fixpoint.Solver.Extensionality (expand)
 import           Language.Fixpoint.Solver.Prettify (savePrettifiedQuery)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
@@ -250,7 +250,7 @@ simplifyFInfo !cfg !fi0 = do
   -- writeLoud $ "fq file after defunc: \n" ++ render (toFixpoint cfg si4)
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
-  let si5  = {- SCC "elaborate" -} elaborate (solver cfg) (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
+  let si5  = {- SCC "elaborate" -} elaborate (ElabParam (solver cfg) (atLoc dummySpan "solver") (symbolEnv cfg si4)) si4
   -- writeLoud $ "fq file after elaborate: \n" ++ render (toFixpoint cfg si5)
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5

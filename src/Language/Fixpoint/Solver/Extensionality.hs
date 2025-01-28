@@ -104,7 +104,7 @@ makeEq :: Brel -> Expr -> Expr -> Expr -> Ex ann Expr
 makeEq b e1 e2 e = do
   env <- gets exenv
   slv <- gets smtslv
-  let elab = elaborate slv (dummyLoc "extensionality") env
+  let elab = elaborate (ElabParam slv (dummyLoc "extensionality") env)
   return $ PAtom b (elab $ EApp (unElab e1) e) (elab $ EApp (unElab e2) e)
 
 instantiate :: a -> [DataDecl]  -> Sort -> Ex a [Expr]

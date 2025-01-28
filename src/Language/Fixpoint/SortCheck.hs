@@ -46,6 +46,7 @@ module Language.Fixpoint.SortCheck  (
   , strSort
 
   -- * Sort-Directed Transformations
+  , ElabParam (..)
   , Elaborate (..)
   , applySorts
   , elabApply
@@ -121,26 +122,33 @@ isMono             = null . Vis.foldSort fv []
 --   KVars. THIS IS NOW MANDATORY as sort-variables can be
 --   instantiated to `int` and `bool`.
 --------------------------------------------------------------------------------
+
+data ElabParam = ElabParam
+  { epSolver :: Cfg.SMTSolver
+  , epMsg    :: Located String
+  , epEnv    :: SymEnv
+  }
+
 class Elaborate a where
-  elaborate :: Cfg.SMTSolver -> Located String -> SymEnv -> a -> a
+  elaborate :: ElabParam -> a -> a
 
 
 instance (Loc a) => Elaborate (SInfo a) where
-  elaborate slv msg senv si = si
-    { F.cm      = elaborate slv msg senv <$> F.cm      si
-    , F.bs      = elaborate slv msg senv  $  F.bs      si
-    , F.asserts = elaborate slv msg senv <$> F.asserts si
+  elaborate ep si = si
+    { F.cm      = elaborate ep <$> F.cm      si
+    , F.bs      = elaborate ep  $  F.bs      si
+    , F.asserts = elaborate ep <$> F.asserts si
     }
 
 
 instance (Elaborate e) => (Elaborate (Triggered e)) where
-  elaborate slv msg env t = fmap (elaborate slv msg env) t
+  elaborate ep t = elaborate ep <$> t
 
 instance (Elaborate a) => (Elaborate (Maybe a)) where
-  elaborate slv msg env t = fmap (elaborate slv msg env) t
+  elaborate ep t = elaborate ep <$> t
 
 instance Elaborate Sort where
-  elaborate _ _ _ = go
+  elaborate _ = go
    where
       go s | isString s = strSort
       go (FAbs i s)    = FAbs i  (go s)
@@ -151,37 +159,37 @@ instance Elaborate Sort where
       funSort = FApp . FApp funcSort
 
 instance Elaborate AxiomEnv where
-  elaborate slv msg env ae = ae
-    { aenvEqs   = elaborate slv msg env (aenvEqs ae)
+  elaborate ep ae = ae
+    { aenvEqs   = elaborate ep (aenvEqs ae)
     -- MISSING SORTS OOPS, aenvSimpl = elaborate msg env (aenvSimpl ae)
     }
 
 instance Elaborate Rewrite where
-  elaborate slv msg env rw = rw { smBody = skipElabExpr slv msg env' (smBody rw) }
+  elaborate ep rw = rw { smBody = skipElabExpr ep' (smBody rw) }
     where
-      env' = insertsSymEnv env undefined
+      ep' = ep { epEnv = insertsSymEnv (epEnv ep) undefined }
 
 instance Elaborate Equation where
-  elaborate slv msg env eq = eq { eqBody = skipElabExpr slv msg env' (eqBody eq) }
+  elaborate ep eq = eq { eqBody = skipElabExpr ep' (eqBody eq) }
     where
-      env' = insertsSymEnv env (eqArgs eq)
+      ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
 
 instance Elaborate Expr where
-  elaborate slv msg env =
-    elabNumeric . elabApply env' . elabExpr slv msg env' . elabFMap . (if Cfg.isZ3 slv then elabFSetBagZ3 else id)
+  elaborate (ElabParam slv msg env) =
+    elabNumeric . elabApply env' . elabExpr (ElabParam slv msg env') . elabFMap . (if Cfg.isZ3 slv then elabFSetBagZ3 else id)
       where
         env' = coerceEnv slv env
 
-skipElabExpr :: Cfg.SMTSolver -> Located String -> SymEnv -> Expr -> Expr
-skipElabExpr slv msg env e = case elabExprE slv msg env e of
+skipElabExpr :: ElabParam -> Expr -> Expr
+skipElabExpr ep e = case elabExprE ep e of
   Left _   -> e
-  Right e' -> elabNumeric . elabApply env $ e'
+  Right e' -> elabNumeric . elabApply (epEnv ep) $ e'
 
 instance Elaborate (Symbol, Sort) where
-  elaborate slv msg env (x, s) = (x, elaborate slv msg env s)
+  elaborate ep (x, s) = (x, elaborate ep s)
 
 instance Elaborate a => Elaborate [a]  where
-  elaborate slv msg env xs = elaborate slv msg env <$> xs
+  elaborate ep xs = elaborate ep <$> xs
 
 elabNumeric :: Expr -> Expr
 elabNumeric = Vis.mapExprOnExpr go
@@ -198,20 +206,20 @@ elabNumeric = Vis.mapExprOnExpr go
       = e
 
 instance Elaborate SortedReft where
-  elaborate slv msg env (RR s (Reft (v, e))) = RR s (Reft (v, e'))
+  elaborate ep (RR s (Reft (v, e))) = RR s (Reft (v, e'))
     where
-      e'   = elaborate slv msg env' e
-      env' = insertSymEnv v s env
+      e'   = elaborate ep' e
+      ep' = ep { epEnv = insertSymEnv v s (epEnv ep) }
 
 instance (Loc a) => Elaborate (BindEnv a) where
-  elaborate slv msg env = mapBindEnv (\i (x, sr, l) -> (x, elaborate slv (msg' l i x sr) env sr, l))
+  elaborate ep = mapBindEnv (\i (x, sr, l) -> (x, elaborate (ep { epMsg = msg' l i x sr }) sr, l))
     where
-      msg' l i x sr = atLoc l (val msg ++ unwords [" elabBE", show i, show x, show sr])
+      msg' l i x sr = atLoc l (val (epMsg ep) ++ unwords [" elabBE", show i, show x, show sr])
 
 instance (Loc a) => Elaborate (SimpC a) where
-  elaborate slv msg env c = c {_crhs = elaborate slv msg' env (_crhs c) }
-    where msg'        = atLoc c (val msg)
-
+  elaborate ep c = c {_crhs = elaborate ep' (_crhs c) }
+    where
+      ep' = ep { epMsg = atLoc c (val $ epMsg ep) }
 
 -----------------------------------------------------------------------------------
 -- | Replace all finset/finmap/finbag theory operations with array-based encodings.
@@ -296,13 +304,13 @@ elabFSetBagZ3 e                 = e
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
-elabExpr :: Cfg.SMTSolver -> Located String -> SymEnv -> Expr -> Expr
-elabExpr slv msg env e = case elabExprE slv msg env e of
+elabExpr :: ElabParam -> Expr -> Expr
+elabExpr ep e = case elabExprE ep e of
   Left ex  -> die ex
   Right e' -> F.notracepp ("elabExp " ++ showpp e) e'
 
-elabExprE :: Cfg.SMTSolver -> Located String -> SymEnv -> Expr -> Either Error Expr
-elabExprE slv msg env e =
+elabExprE :: ElabParam -> Expr -> Either Error Expr
+elabExprE (ElabParam slv msg env) e =
   case runCM0 (srcSpan msg) slv (elab (env, envLookup) e) of
     Left (ChError f') ->
       let e' = f' ()
@@ -679,19 +687,19 @@ elab f@(env,_) (PAtom r e1 e2) = do
 elab f (PExist bs e) = do
   (e', s) <- elab (elabAddEnv f bs) e
   slv <- asks chSolver
-  let bs' = elaborate slv "PExist Args" mempty bs
+  let bs' = elaborate (ElabParam slv "PExist Args" mempty) bs
   return (PExist bs' e', s)
 
 elab f (PAll bs e) = do
   (e', s) <- elab (elabAddEnv f bs) e
   slv <- asks chSolver
-  let bs' = elaborate slv "PAll Args" mempty bs
+  let bs' = elaborate (ElabParam slv "PAll Args" mempty) bs
   return (PAll bs' e', s)
 
 elab f (ELam (x,t) e) = do
   (e', s) <- elab (elabAddEnv f [(x, t)]) e
   slv <- asks chSolver
-  let t' = elaborate slv "ELam Arg" mempty t
+  let t' = elaborate (ElabParam slv "ELam Arg" mempty) t
   return (ELam (x, t') (eCst e' s), FFunc t s)
 
 elab f (ECoerc s t e) = do

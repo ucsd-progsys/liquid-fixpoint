@@ -144,7 +144,7 @@ funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
     tx   = inlineArrSetBag False dEnv
 
 -- Related to the above, after merging #688, we now allow types other than
--- Int to which Sets/Bags/Maps (or Arrays in the case of Z3) can be applied.
+-- Int to which Arrays/Sets/Bags can be applied.
 -- However, the `sortSmtSort` function below, previously used in `funcSorts`,
 -- only instantiates type variables at Ints. This causes the solver to crash
 -- when PLE generates apply queries for polymorphic sets (see
@@ -157,7 +157,7 @@ funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
 -- fly, as described above.
 
 inlineArrSetBag :: Bool -> SEnv DataDecl -> Sort -> [SmtSort]
-inlineArrSetBag isASB env t  = go . unAbs $ t
+inlineArrSetBag isASB env t = go . unAbs $ t
   where
     m = sortAbs t
     go (FFunc _ _)    = [SInt]
@@ -269,7 +269,7 @@ instance PPrint TheorySymbol where
 
 data Sem
   = Uninterp      -- ^ for UDF: `len`, `height`, `append`
-  | Ctor         -- ^ for ADT constructor and tests: `cons`, `nil`
+  | Ctor          -- ^ for ADT constructor and tests: `cons`, `nil`
   | Test          -- ^ for ADT tests : `is$cons`
   | Field         -- ^ for ADT field: `hd`, `tl`
   | Theory        -- ^ for theory ops: mem, cup, select

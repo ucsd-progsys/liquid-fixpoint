@@ -94,7 +94,7 @@ import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Substitutions
-import           Language.Fixpoint.SortCheck (elaborate)
+import           Language.Fixpoint.SortCheck (ElabParam(..), elaborate)
 import           Text.PrettyPrint.HughesPJ.Compat
 
 --------------------------------------------------------------------------------
@@ -311,7 +311,7 @@ qbPreds :: Cfg.SMTSolver -> String -> Sol a QBind -> Subst -> QBind -> [(Pred, E
 --------------------------------------------------------------------------------
 qbPreds slv msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
-    elabPred eq           = elaborate slv (atLoc eq $ "qbPreds:" ++ msg) env
+    elabPred eq           = elaborate (ElabParam slv (atLoc eq $ "qbPreds:" ++ msg) env)
                           . subst su
                           . eqPred
                           $ eq

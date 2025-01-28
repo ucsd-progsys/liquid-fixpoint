@@ -401,7 +401,7 @@ elabExist :: SMTSolver -> F.SrcSpan -> Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort
 elabExist slv sp s xts p = F.pExist xts' p
   where
     xts'        = [ (x, elab t) | (x, t) <- xts]
-    elab        = So.elaborate slv (F.atLoc sp "elabExist") env
+    elab        = So.elaborate (So.ElabParam slv (F.atLoc sp "elabExist") env)
     env         = Sol.sEnv s
 
 cubePred :: SMTSolver -> CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
@@ -494,7 +494,7 @@ mkSubst slv sp env x tx ey ty
     ey'         = elabToInt slv sp env ey ty
 
 elabToInt :: SMTSolver -> F.SrcSpan -> F.SymEnv -> F.Expr -> F.Sort -> F.Expr
-elabToInt slv sp env e s = So.elaborate slv (F.atLoc sp "elabToInt") env (So.toInt env e s)
+elabToInt slv sp env e s = So.elaborate (So.ElabParam slv (F.atLoc sp "elabToInt") env) (So.toInt env e s)
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True
