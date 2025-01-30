@@ -89,6 +89,7 @@ import           GHC.Stack
 import qualified Language.Fixpoint.Types as F
 import           System.IO.Unsafe (unsafePerformIO)
 import qualified Language.Fixpoint.Union as Union
+import Language.Fixpoint.Union (UF)
 
 --import Debug.Trace as Debug
 
@@ -276,7 +277,7 @@ elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
   case runCM0 (srcSpan msg) $ do
     (!e', _) <- elab (env, envLookup) e
-    finalThetaRef <- asks chTVSubst 
+    finalThetaRef <- asks chTVSubst
     finalTheta <- liftIO $ readIORef finalThetaRef
     return (applyExpr finalTheta e') of
     Left (ChError f') ->
@@ -540,9 +541,13 @@ elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
   (!e1', !s1) <- elab f e1
   (!e2', !s2) <- elab f e2
-  !s <- checkOpTy g e s1 s2
+  -- !s <- checkOpTy g e s1 s2
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf' <- unifyUF g uf (Just e) s1 s2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   let !result = EBin o (eCst e1' s1) (eCst e2' s2)
-  return (result, s)
+  return (result, s2)
 
 
 elab !f (EApp !e1 !e2) = do
@@ -1163,27 +1168,84 @@ checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
 --------------------------------------------------------------------------------
 -- | Sort Unification on Expressions
 --------------------------------------------------------------------------------
+unifyUF :: Env -> UF -> Maybe Expr -> Sort -> Sort -> CheckM UF
+--------------------------------------------------------------------------------
+unifyUF f uf e t1 t2
+  = unify1UF f e uf t1 t2
 
--- {-# SCC unifyExpr #-}
--- unifyExpr :: Env -> Expr -> Maybe TVSubst
--- unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
---   where
---    θ1 = unifyExpr f e1
---    θ2 = unifyExpr f e2
---    θ  = unifyExprApp f e1 e2
--- unifyExpr f (ECst e _)
---   = unifyExpr f e
--- unifyExpr _ _
---   = Nothing
+--------------------------------------------------------------------------------
+unifyTo1UF :: Env -> UF -> [Sort] -> CheckM UF
+--------------------------------------------------------------------------------
+unifyTo1UF f uf ts
+  = unifyTo1MUF f uf ts
 
--- unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
--- unifyExprApp f e1 e2 = do
---   t1 <- getArg $ exprSortMaybe e1
---   t2 <- exprSortMaybe e2
---   unify f (Just $ EApp e1 e2) t1 t2
---   where
---     getArg (Just (FFunc t1 _)) = Just t1
---     getArg _                   = Nothing
+
+--------------------------------------------------------------------------------
+unifyTo1MUF :: Env -> UF -> [Sort] -> CheckM UF
+--------------------------------------------------------------------------------
+unifyTo1MUF _ _ []     = panic "unifyTo1: empty list"
+unifyTo1MUF f uf (t0:ts) = fst <$> foldM step (uf, t0) ts
+  where
+    step :: (UF, Sort) -> Sort -> CheckM (UF, Sort)
+    step (ufm, t) t' = do
+      ufm' <- unify1UF f Nothing ufm t t'
+      return (ufm', t)
+
+--------------------------------------------------------------------------------
+unifysUF :: HasCallStack => Env -> Maybe Expr -> UF -> [Sort] -> [Sort] -> CheckM UF
+--------------------------------------------------------------------------------
+unifysUF f e uf = unifyManyUF f e uf
+
+unifyManyUF :: HasCallStack => Env -> Maybe Expr -> UF -> [Sort] -> [Sort] -> CheckM UF
+unifyManyUF f e uf ts ts'
+  | length ts == length ts' = foldM (uncurry . unify1UF f e) uf $ zip ts ts'
+  | otherwise               = throwErrorAt (errUnifyMany ts ts')
+
+unify1UF :: Env -> Maybe Expr -> UF -> Sort -> Sort -> CheckM UF
+unify1UF f e !uf (FVar !i) !t
+  = unifyVarUF f e uf i t
+unify1UF f e !uf !t (FVar !i)
+  = unifyVarUF f e uf i t
+unify1UF f e !uf (FApp !t1 !t2) (FApp !t1' !t2')
+  = unifyManyUF f e uf [t1, t2] [t1', t2']
+unify1UF _ _ !θ (FTC !l1) (FTC !l2)
+  | isListTC l1 && isListTC l2
+  = return θ
+unify1UF f e !uf t1@(FAbs _ _) !t2 = do
+  !t1' <- instantiate t1
+  unifyManyUF f e uf [t1'] [t2]
+unify1UF f e !uf !t1 t2@(FAbs _ _) = do
+  !t2' <- instantiate t2
+  unifyManyUF f e uf [t1] [t2']
+unify1UF _ _ !uf !s1 !s2
+  | isString s1, isString s2
+  = return uf
+unify1UF _ _ !uf FInt  FReal = return uf
+
+unify1UF _ _ !uf FReal FInt  = return uf
+
+unify1UF f e !uf !t FInt = do
+  checkNumeric f t `withError` errUnify e t FInt
+  return uf
+
+unify1UF f e !uf FInt !t = do
+  checkNumeric f t `withError` errUnify e FInt t
+  return uf
+
+unify1UF f e !uf (FFunc !t1 !t2) (FFunc !t1' !t2') =
+  unifyManyUF f e uf [t1, t2] [t1', t2']
+
+unify1UF f e uf (FObj a) !t =
+  checkEqConstr f e uf a t
+
+unify1UF f e uf !t (FObj a) =
+  checkEqConstr f e uf a t
+
+unify1UF _ e uf !t1 !t2
+  | t1 == t2
+  = return uf
+  | otherwise
+  = throwErrorAt (errUnify e t1 t2)
 
 
 --------------------------------------------------------------------------------
@@ -1364,6 +1426,12 @@ unifyVar f e θ !i !t
       Just !t'       -> if t == t' then return θ else unify1 f e θ t t'
       Nothing        -> return (updateVar i t θ)
 
+unifyVarUF :: Env -> Maybe Expr -> UF -> Int -> Sort -> CheckM UF
+unifyVarUF _ _ uf !_ t@(FVar !j)
+  = return (Union.union uf j t)
+
+unifyVarUF _ _ uf !i !t
+  = return (Union.union uf i t)
 
 --------------------------------------------------------------------------------
 -- | Update global subst to be applied to expressions
@@ -1420,12 +1488,12 @@ _applyCoercion a t = Vis.mapSort f
 checkFunSort :: Sort -> CheckM (Sort, Sort)
 checkFunSort (FAbs _ t)    = checkFunSort t
 checkFunSort (FFunc t1 t2) = return (t1, t2)
-checkFunSort (FVar i)      = do 
-    k <- fresh 
+checkFunSort (FVar i)      = do
+    k <- fresh
     j <- fresh
     ufRef <- asks ufM
     _ <- liftIO $ atomicModifyIORef' ufRef $ \uf -> (Union.union uf i (FFunc (FVar j) (FVar k)), ())
-    return (FVar j, FVar k) 
+    return (FVar j, FVar k)
 checkFunSort t             = throwErrorAt (errNonFunction 1 t)
 
 --------------------------------------------------------------------------------
@@ -1514,3 +1582,4 @@ errNonFractional  l  = printf "The sort %s is not fractional" (showpp l)
 
 errBoolSort :: Expr -> Sort -> String
 errBoolSort     e s  = printf "Expressions %s should have bool sort, but has %s" (showpp e) (showpp s)
+
