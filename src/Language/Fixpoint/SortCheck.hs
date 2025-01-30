@@ -311,7 +311,7 @@ elabExpr ep e = case elabExprE ep e of
 
 elabExprE :: ElabParam -> Expr -> Either Error Expr
 elabExprE (ElabParam slv msg env) e =
-  case runCM0 (srcSpan msg) slv (elab (env, envLookup) e) of
+  case runCM0 (srcSpan msg) (Just slv) (elab (env, envLookup) e) of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
@@ -365,7 +365,7 @@ elabApply env = go
 -- | Sort Inference ------------------------------------------------------------
 --------------------------------------------------------------------------------
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
-sortExpr l γ e = case runCM0 l Cfg.Cvc5 (checkExpr f e) of
+sortExpr l γ e = case runCM0 l Nothing (checkExpr f e) of
     Left (ChError f') -> die $ err l (d (val (f' ())))
     Right s -> s
   where
@@ -379,7 +379,7 @@ sortExpr l γ e = case runCM0 l Cfg.Cvc5 (checkExpr f e) of
                ]
 
 checkSortExpr :: SrcSpan -> SEnv Sort -> Expr -> Maybe Sort
-checkSortExpr sp γ e = case runCM0 sp Cfg.Cvc5 (checkExpr f e) of
+checkSortExpr sp γ e = case runCM0 sp Nothing (checkExpr f e) of
     Left _   -> Nothing
     Right s  -> Just s
   where
@@ -445,9 +445,9 @@ varCounterRef = unsafePerformIO $ newIORef 42
 -- function is not referentially transparent.
 -- Each evaluation of the function starts with a different
 -- value of counter.
-runCM0 :: SrcSpan -> Cfg.SMTSolver -> CheckM a -> Either ChError a
+runCM0 :: SrcSpan -> Maybe Cfg.SMTSolver -> CheckM a -> Either ChError a
 runCM0 sp slv act = unsafePerformIO $ do
-  try (runReaderT act (ChS varCounterRef sp slv))
+  try (runReaderT act (ChS varCounterRef sp (fromMaybe Cfg.Cvc5 slv)))
 
 fresh :: CheckM Int
 fresh = do
@@ -466,7 +466,7 @@ checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
 
 checkSortedReftFull :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv SortedReft -> a -> Maybe Doc
 checkSortedReftFull slv sp γ t =
-  case runCM0 sp slv (check γ' t) of
+  case runCM0 sp (Just slv) (check γ' t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
@@ -474,7 +474,7 @@ checkSortedReftFull slv sp γ t =
 
 checkSortFull :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv SortedReft -> Sort -> a -> Maybe Doc
 checkSortFull slv sp γ s t =
-  case runCM0 sp slv (checkSort γ' s t) of
+  case runCM0 sp (Just slv) (checkSort γ' s t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
@@ -482,7 +482,7 @@ checkSortFull slv sp γ s t =
 
 checkSorted :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv Sort -> a -> Maybe Doc
 checkSorted slv sp γ t =
-  case runCM0 sp slv (check γ t) of
+  case runCM0 sp (Just slv) (check γ t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _  -> Nothing
 
@@ -507,7 +507,7 @@ pruneUnsortedReft γ t (RR s (Reft (v, p)))
 checkPred' :: Env -> Expr -> Maybe Expr
 checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
-    res        = case runCM0 dummySpan Cfg.Cvc5 (checkPred f p) of
+    res        = case runCM0 dummySpan Nothing (checkPred f p) of
                    Left _err -> notracepp ("Removing" ++ showpp p) Nothing
                    Right _   -> Just p
 
@@ -1233,7 +1233,7 @@ unifyExprApp f e1 e2 = do
 unify :: Env -> Maybe Expr -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unify f e t1 t2
-  = case runCM0 dummySpan Cfg.Cvc5 (unify1 f e emptySubst t1 t2) of
+  = case runCM0 dummySpan Nothing (unify1 f e emptySubst t1 t2) of
       Left _   -> Nothing
       Right su -> Just su
 
@@ -1241,7 +1241,7 @@ unify f e t1 t2
 unifyTo1 :: Env -> [Sort] -> Maybe Sort
 --------------------------------------------------------------------------------
 unifyTo1 f ts
-  = case runCM0 dummySpan Cfg.Cvc5 (unifyTo1M f ts) of
+  = case runCM0 dummySpan Nothing (unifyTo1M f ts) of
       Left _  -> Nothing
       Right t -> Just t
 
