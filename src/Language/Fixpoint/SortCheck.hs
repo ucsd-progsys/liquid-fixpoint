@@ -277,9 +277,9 @@ elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
   case runCM0 (srcSpan msg) $ do
     (!e', _) <- elab (env, envLookup) e
-    finalThetaRef <- asks chTVSubst
-    finalTheta <- liftIO $ readIORef finalThetaRef
-    return (applyExpr finalTheta e') of
+    fufRef <- asks ufM
+    finalUF <- liftIO $ readIORef fufRef
+    return (applyExprUF finalUF e') of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
@@ -377,7 +377,7 @@ instance Show ChError where
   show (ChError f) = show (f ())
 instance Exception ChError where
 
-data ChState = ChS {chCount :: IORef Int, chSpan :: SrcSpan, ufM :: IORef Union.UF, chTVSubst :: IORef (Maybe TVSubst)}
+data ChState = ChS {chCount :: IORef Int, chSpan :: SrcSpan, ufM :: IORef Union.UF}
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
@@ -412,9 +412,8 @@ varCounterRef = unsafePerformIO $ newIORef 42
 -- value of counter.
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = unsafePerformIO $ do
-  suR <- newIORef Nothing
   ufR <- newIORef Union.new
-  try (runReaderT act (ChS varCounterRef sp ufR suR))
+  try (runReaderT act (ChS varCounterRef sp ufR))
 
 fresh :: CheckM Int
 fresh = do
@@ -533,6 +532,7 @@ addEnv f bs x
       Nothing -> f x
 
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Elaborate expressions with types to make polymorphic instantiation explicit.
 --------------------------------------------------------------------------------
 {-# SCC elab #-}
@@ -590,16 +590,22 @@ elab f@(!_,!g) (ECst (EIte !p !e1 !e2) !t) = do
   (!p', !_)   <- elab f p
   (!e1', !s1) <- elab f (eCst e1 t)
   (!e2', !s2) <- elab f (eCst e2 t)
-  !s          <- checkIteTy g p e1' e2' s1 s2
-  return (EIte p' (eCst e1' s) (eCst e2' s), t)
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  !uf'          <- checkIteTyUF g uf p e1' e2' s1 s2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  return (EIte p' (eCst e1' s1) (eCst e2' s2), t)
 
 elab f@(!_,!g) (EIte !p !e1 !e2) = do
   !t <- getIte g e1 e2
   (!p', !_)   <- elab f p
   (!e1', !s1) <- elab f (eCst e1 t)
   (!e2', !s2) <- elab f (eCst e2 t)
-  !s          <- checkIteTy g p e1' e2' s1 s2
-  return (EIte p' (eCst e1' s) (eCst e2' s), s)
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  !uf'          <- checkIteTyUF g uf p e1' e2' s1 s2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  return (EIte p' (eCst e1' s1) (eCst e2' s2), s2)
 
 
 elab !f (ECst !e !t) = do
@@ -704,10 +710,11 @@ elabAppAs env@(_, f) t g e = do
   te       <- checkExpr f e
   (iT, oT) <- checkFunSort tg
   let ge    = Just (EApp g e)
-  _       <- unifyMany f ge emptySubst [oT, iT] [t, te]
-  -- let tg    = apply su tg
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf' <- unifyManyUF f ge uf [oT, iT] [t, te]
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   g'       <- elabAs env tg g
-  -- let te    = apply su te
   e'       <- elabAs env te e
   pure     $ EApp (ECst g' tg) (ECst e' te)
 
@@ -722,9 +729,10 @@ elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, 
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut) <- checkFunSort s1
-  _             <- unify1 f e emptySubst sIn s2
-  -- composeTVSubst (Just su)
-  -- composeTVSubst (Just su')
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf' <- unify1UF f e uf sIn s2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   return (e1 , e2, s1, s2, sOut)
 
 
@@ -1015,6 +1023,12 @@ checkIteTy f p e1 e2 t1 t2 =
   where
     e' = Just (EIte p e1 e2)
 
+checkIteTyUF :: Env -> UF -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM UF
+checkIteTyUF f uf p e1 e2 t1 t2 = 
+  unifysUF f e' uf [t1] [t2] `withError` errIte e1 e2 t1 t2
+  where 
+    e' = Just (EIte p e1 e2)
+
 -- | Helper for checking cast expressions
 checkCst :: Env -> Sort -> Expr -> CheckM Sort
 checkCst f t (EApp g e)
@@ -1114,6 +1128,14 @@ checkEqConstr f e θ a t =
     Found tA -> unify1 f e θ tA t
     _        -> throwErrorAt $ errUnifyMsg (Just "ceq2") e (FObj a) t
 
+checkEqConstrUF :: Env -> Maybe Expr -> UF -> Symbol -> Sort -> CheckM UF
+checkEqConstrUF _ _  uf a (FObj b)
+  | a == b
+  = return uf
+checkEqConstrUF f e uf a t =
+  case f a of
+    Found tA -> unify1UF f e uf tA t
+    _        -> throwErrorAt $ errUnifyMsg (Just "ceq2") e (FObj a) t
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -1173,23 +1195,23 @@ unifyUF :: Env -> UF -> Maybe Expr -> Sort -> Sort -> CheckM UF
 unifyUF f uf e t1 t2
   = unify1UF f e uf t1 t2
 
---------------------------------------------------------------------------------
-unifyTo1UF :: Env -> UF -> [Sort] -> CheckM UF
---------------------------------------------------------------------------------
-unifyTo1UF f uf ts
-  = unifyTo1MUF f uf ts
+-- --------------------------------------------------------------------------------
+-- unifyTo1UF :: Env -> UF -> [Sort] -> CheckM UF
+-- --------------------------------------------------------------------------------
+-- unifyTo1UF f uf ts
+--   = unifyTo1MUF f uf ts
 
 
---------------------------------------------------------------------------------
-unifyTo1MUF :: Env -> UF -> [Sort] -> CheckM UF
---------------------------------------------------------------------------------
-unifyTo1MUF _ _ []     = panic "unifyTo1: empty list"
-unifyTo1MUF f uf (t0:ts) = fst <$> foldM step (uf, t0) ts
-  where
-    step :: (UF, Sort) -> Sort -> CheckM (UF, Sort)
-    step (ufm, t) t' = do
-      ufm' <- unify1UF f Nothing ufm t t'
-      return (ufm', t)
+-- --------------------------------------------------------------------------------
+-- unifyTo1MUF :: Env -> UF -> [Sort] -> CheckM UF
+-- --------------------------------------------------------------------------------
+-- unifyTo1MUF _ _ []     = panic "unifyTo1: empty list"
+-- unifyTo1MUF f uf (t0:ts) = fst <$> foldM step (uf, t0) ts
+--   where
+--     step :: (UF, Sort) -> Sort -> CheckM (UF, Sort)
+--     step (ufm, t) t' = do
+--       ufm' <- unify1UF f Nothing ufm t t'
+--       return (ufm', t)
 
 --------------------------------------------------------------------------------
 unifysUF :: HasCallStack => Env -> Maybe Expr -> UF -> [Sort] -> [Sort] -> CheckM UF
@@ -1236,10 +1258,10 @@ unify1UF f e !uf (FFunc !t1 !t2) (FFunc !t1' !t2') =
   unifyManyUF f e uf [t1, t2] [t1', t2']
 
 unify1UF f e uf (FObj a) !t =
-  checkEqConstr f e uf a t
+  checkEqConstrUF f e uf a t
 
 unify1UF f e uf !t (FObj a) =
-  checkEqConstr f e uf a t
+  checkEqConstrUF f e uf a t
 
 unify1UF _ e uf !t1 !t2
   | t1 == t2
@@ -1465,11 +1487,27 @@ apply !θ          = Vis.mapSort f
     f t@(FVar !i) = fromMaybe t (lookupVar i θ)
     f !t          = t
 
-applyExpr :: Maybe TVSubst -> Expr -> Expr
-applyExpr Nothing e  = e
-applyExpr (Just θ) e = Vis.mapExprOnExpr f e
+-- applyExpr :: Maybe TVSubst -> Expr -> Expr
+-- applyExpr Nothing e  = e
+-- applyExpr (Just θ) e = Vis.mapExprOnExpr f e
+--   where
+--     f (ECst !e' !s) = ECst e' (apply θ s)
+--     f !e'          = e'
+
+--------------------------------------------------------------------------------
+-- | Applying the result of union find
+--------------------------------------------------------------------------------
+applyUF :: UF -> Sort -> Sort
+applyUF uf          = Vis.mapSort f
   where
-    f (ECst !e' !s) = ECst e' (apply θ s)
+    f t@(FVar !i) = fromMaybe t (Union.find uf i)
+    f !t          = t
+
+{-# SCC applyExprUF #-}
+applyExprUF :: UF -> Expr -> Expr
+applyExprUF uf e = Vis.mapExprOnExpr f e
+  where
+    f (ECst !e' !s) = ECst e' (applyUF uf s)
     f !e'          = e'
 
 --------------------------------------------------------------------------------
