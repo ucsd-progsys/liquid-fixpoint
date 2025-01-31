@@ -25,8 +25,8 @@ unionVals uf _ s1 s2
 
 unionVals uf _ (FObj x) (FObj y)
     | x == y = uf
-unionVals uf _ (FVar i) s = union uf i s
-unionVals uf _ s (FVar i) = union uf i s
+unionVals (MkUF uf) _ (FVar i) s = MkUF (insert i s uf)
+unionVals (MkUF uf) _ s (FVar i) = MkUF (insert i s uf)
 unionVals uf i (FFunc s1 s2) (FFunc s1' s2') = 
     let uf' = unionSub uf i s1 s1' in 
         unionSub uf' i s2 s2'
