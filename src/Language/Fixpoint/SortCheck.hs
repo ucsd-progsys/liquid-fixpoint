@@ -1449,8 +1449,8 @@ unifyVar f e θ !i !t
       Nothing        -> return (updateVar i t θ)
 
 unifyVarUF :: Env -> Maybe Expr -> UF -> Int -> Sort -> CheckM UF
-unifyVarUF _ _ uf !i (FVar !j)
-  = return (Union.union uf j (FVar i))
+unifyVarUF _ _ uf !i (FVar !j) = 
+  if i == j then return uf else return (Union.union uf j (FVar i))
 
 unifyVarUF _ _ uf !i !t
   = return (Union.union uf i t)
