@@ -3,8 +3,8 @@ import Data.HashMap.Strict (lookup, insert, HashMap, empty)
 import Prelude hiding (lookup)
 import Language.Fixpoint.Types.Sorts (Sort(..))
 
-unionMany :: UF -> Int -> Sort -> Sort -> UF
-unionMany uf i s1 s2 = case (s1, s2) of 
+unionSub :: UF -> Int -> Sort -> Sort -> UF
+unionSub uf i s1 s2 = case (s1, s2) of 
     (FVar i1, _) -> union uf i1 s2
     (_, FVar i2) -> union uf i2 s1
     (_, _) -> unionVals uf i s1 s2
@@ -23,17 +23,19 @@ unionVals uf _ s1 s2
     isNumericSort FInt = True
     isNumericSort _     = False
 
-unionVals uf _ (FObj _) (FObj _) = uf
+unionVals uf _ (FObj x) (FObj y)
+    | x == y = uf
 unionVals uf _ (FVar i) s = union uf i s
 unionVals uf _ s (FVar i) = union uf i s
 unionVals uf i (FFunc s1 s2) (FFunc s1' s2') = 
-    let uf' = unionMany uf i s1 s1' in 
-        unionMany uf' i s2 s2'
+    let uf' = unionSub uf i s1 s1' in 
+        unionSub uf' i s2 s2'
 unionVals uf i (FApp s1 s2) (FApp s1' s2') = 
-    let uf' = unionMany uf i s1 s1' in 
-        unionMany uf' i s2 s2'
-unionVals uf i (FAbs _ s) (FAbs _ s') = unionMany uf i s s'
-unionVals uf _ (FTC _) (FTC _) = uf
+    let uf' = unionSub uf i s1 s1' in 
+        unionSub uf' i s2 s2'
+unionVals uf i (FAbs _ s) (FAbs _ s') = unionSub uf i s s'
+unionVals uf _ (FTC s1) (FTC s2)
+    | s1 == s2 = uf
 unionVals _ _ s1 s2 = error ("Cannot unify " ++ show s1 ++ " and " ++ show s2)
     
 
