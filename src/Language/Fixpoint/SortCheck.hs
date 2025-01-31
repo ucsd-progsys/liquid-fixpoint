@@ -1187,7 +1187,7 @@ checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
     b1            = s1 == boolSort
     b2            = s2 == boolSort
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------
 -- | Sort Unification on Expressions
 --------------------------------------------------------------------------------
 unifyUF :: Env -> UF -> Maybe Expr -> Sort -> Sort -> CheckM UF
@@ -1449,8 +1449,8 @@ unifyVar f e θ !i !t
       Nothing        -> return (updateVar i t θ)
 
 unifyVarUF :: Env -> Maybe Expr -> UF -> Int -> Sort -> CheckM UF
-unifyVarUF _ _ uf !_ t@(FVar !j)
-  = return (Union.union uf j t)
+unifyVarUF _ _ uf !i (FVar !j)
+  = return (Union.union uf j (FVar i))
 
 unifyVarUF _ _ uf !i !t
   = return (Union.union uf i t)
