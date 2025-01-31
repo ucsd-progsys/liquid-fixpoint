@@ -3,19 +3,6 @@ import Data.HashMap.Strict (lookup, insert, HashMap, empty)
 import Prelude hiding (lookup)
 import Language.Fixpoint.Types.Sorts (Sort(..))
 
--- unionVals :: UF Sort -> Int -> Sort -> Sort -> UF Sort
---     unionVals ufM _ SInt SInt = ufM
---     unionVals ufM _ SFloat SFloat = ufM
---     unionVals ufM _ (SFVar j) s = Union.union ufM j s
---     unionVals ufM _ s (SFVar j) = Union.union ufM j s
---     unionVals u i (SFunc s1 s2) (SFunc s1' s2') = 
---         let u' = unionFuncArgs u i s1 s1' in 
---             unionFuncArgs u' i s2 s2'
---     unionVals _ _ s1 s2 = error ("Cannot unify " ++ show s1 ++ " " ++ show s2)
---     next s = case s of
---         SFVar i -> Just i
---         _ -> Nothing
-
 unionMany :: UF -> Int -> Sort -> Sort -> UF
 unionMany uf i s1 s2 = case (s1, s2) of 
     (FVar i1, _) -> union uf i1 s2
@@ -33,6 +20,7 @@ unionVals uf _ s1 s2
     isNumericSort FReal = True
     isNumericSort FNum  = True
     isNumericSort FFrac = True
+    isNumericSort FInt = True
     isNumericSort _     = False
 
 unionVals uf _ (FObj _) (FObj _) = uf
@@ -46,7 +34,7 @@ unionVals uf i (FApp s1 s2) (FApp s1' s2') =
         unionMany uf' i s2 s2'
 unionVals uf i (FAbs _ s) (FAbs _ s') = unionMany uf i s s'
 unionVals uf _ (FTC _) (FTC _) = uf
-unionVals _ _ _ _ = error "Cannot unify"
+unionVals _ _ s1 s2 = error ("Cannot unify " ++ show s1 ++ " and " ++ show s2)
     
 
 newtype UF = MkUF (HashMap Int Sort) deriving (Show)
