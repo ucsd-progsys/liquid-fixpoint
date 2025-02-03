@@ -541,7 +541,6 @@ elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
   (!e1', !s1) <- elab f e1
   (!e2', !s2) <- elab f e2
-  -- !s <- checkOpTy g e s1 s2
   ufRef <- asks ufM
   uf <- liftIO $ readIORef ufRef
   uf' <- unifyUF g uf (Just e) s1 s2
@@ -965,8 +964,11 @@ genSort t          = t
 
 unite :: Env -> Expr -> Sort -> Sort -> CheckM (Sort, Sort)
 unite f e t1 t2 = do
-  su <- unifys f (Just e) [t1] [t2]
-  return (apply su t1, apply su t2)
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf' <- unifysUF f (Just e) uf [t1] [t2]
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  return (t1, t2)
 
 throwErrorAt :: String -> CheckM a
 throwErrorAt ~err' = do -- Lazy pattern needed because we use LANGUAGE Strict in this module
@@ -1083,7 +1085,6 @@ checkOp f e1 o e2
   = do t1 <- checkExpr f e1
        t2 <- checkExpr f e2
        checkOpTy f (EBin o e1 e2) t1 t2
-
 
 checkOpTy :: Env -> Expr -> Sort -> Sort -> CheckM Sort
 checkOpTy _ _ FInt FInt
