@@ -275,6 +275,7 @@ elabExpr msg env e = case elabExprE msg env e of
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
+  let !_ = unsafePerformIO $ print ("elab " ++ show e) in
   case runCM0 (srcSpan msg) $ do
     (!e', _) <- elab (env, envLookup) e
     fufRef <- asks ufM
@@ -600,14 +601,16 @@ elab f@(!_,!g) (ECst (EIte !p !e1 !e2) !t) = do
   return (EIte p' (eCst e1' s1) (eCst e2' s2), t)
 
 elab f@(!_,!g) (EIte !p !e1 !e2) = do
-  !t <- getIte g e1 e2
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  (!t, uf') <- getIteUF g uf e1 e2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   (!p', !_)   <- elab f p
   (!e1', !s1) <- elab f (eCst e1 t)
   (!e2', !s2) <- elab f (eCst e2 t)
-  ufRef <- asks ufM
-  uf <- liftIO $ readIORef ufRef
-  !uf'          <- checkIteTyUF g uf p e1' e2' s1 s2
-  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  uf'' <- liftIO $ readIORef ufRef
+  !uf'''          <- checkIteTyUF g uf'' p e1' e2' s1 s2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf''', ())
   return (EIte p' (eCst e1' s1) (eCst e2' s2), s2)
 
 
@@ -959,7 +962,8 @@ exprSortMaybe = go
     go (ELam (_, sx) e) = FFunc sx <$> go e
     go (EApp e ex)
       | Just (FFunc sx s) <- genSort <$> go e
-      = maybe s (`apply` s) . (`unifySorts` sx) <$> go ex
+      = 
+        maybe s (`apply` s) . (`unifySorts` sx) <$> go ex
     go _ = Nothing
 
 genSort :: Sort -> Sort
@@ -1017,17 +1021,24 @@ checkIte f p e1 e2 = do
   t2 <- checkExpr f e2
   checkIteTy f p e1 e2 t1 t2
 
-getIte :: Env -> Expr -> Expr -> CheckM Sort
-getIte f e1 e2 = do
-  t1 <- checkExpr f e1
-  t2 <- checkExpr f e2
-  (`apply` t1) <$> unifys f Nothing [t1] [t2]
+-- getIte :: Env -> Expr -> Expr -> CheckM Sort
+-- getIte f e1 e2 = do
+--   t1 <- checkExpr f e1
+--   t2 <- checkExpr f e2
+--   (`apply` t1) <$> unifys f Nothing [t1] [t2]
 
 checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
 checkIteTy f p e1 e2 t1 t2 =
   ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` errIte e1 e2 t1 t2
   where
     e' = Just (EIte p e1 e2)
+
+getIteUF :: Env -> UF -> Expr -> Expr -> CheckM (Sort, UF)
+getIteUF f uf e1 e2 = do
+  t1 <- checkExpr f e1
+  t2 <- checkExpr f e2
+  uf' <- unifysUF f Nothing uf [t1] [t2]
+  return (t1, uf')
 
 checkIteTyUF :: Env -> UF -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM UF
 checkIteTyUF f uf p e1 e2 t1 t2 = 
@@ -1046,15 +1057,19 @@ checkCst f t e
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
-  = snd <$> checkApp' f to g es
+  = checkApp' f to g es
 
 checkExprAs :: Env -> Sort -> Expr -> CheckM Sort
 checkExprAs f t (EApp g e)
   = checkApp f (Just t) g e
 checkExprAs f t e
-  = do t' <- checkExpr f e
-       θ  <- unifys f (Just e) [t'] [t]
-       pure $ apply θ t
+  = do 
+      t' <- checkExpr f e
+      ufRef <- asks ufM
+      uf <- liftIO $ readIORef ufRef
+      uf' <- unifysUF f (Just e) uf [t'] [t]
+      liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+      return t
 
 -- | Helper for checking uninterpreted function applications
 -- | Checking function application should be curried, e.g.
@@ -1062,20 +1077,24 @@ checkExprAs f t e
 --   RJ: The above comment makes no sense to me :(
 
 -- DUPLICATION with 'elabAppAs'
-checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
+checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp' f to g e = do
   gt       <- checkExpr f g
   et       <- checkExpr f e
   (it, ot) <- checkFunSort gt
   let ge    = Just (EApp g e)
-  su        <- unifyMany f ge emptySubst [it] [et]
-  -- let t     = apply su ot
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf'        <- unifyManyUF f ge uf [it] [et]
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   case to of
-    Nothing    -> return (su, ot)
-    Just t'    -> do θ' <- unifyMany f ge su [ot] [t']
-                    --  let ti = apply θ' et
-                     _ <- checkExprAs f et e
-                     return (θ', ot)
+    Nothing    -> return ot
+    Just t'    -> do 
+                    uf'' <- liftIO $ readIORef ufRef
+                    uf''' <- unifyManyUF f ge uf'' [ot] [t']
+                    liftIO $ atomicModifyIORef' ufRef $ const (uf''', ())
+                    _ <- checkExprAs f et e
+                    return ot
 
 
 -- | Helper for checking binary (numeric) operations
