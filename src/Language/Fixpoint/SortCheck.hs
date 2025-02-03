@@ -275,17 +275,17 @@ elabExpr msg env e = case elabExprE msg env e of
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
-  let !_ = unsafePerformIO $ print ("elab " ++ show e) in
   case runCM0 (srcSpan msg) $ do
     (!e', _) <- elab (env, envLookup) e
     fufRef <- asks ufM
     finalUF <- liftIO $ readIORef fufRef
+    let !_ = unsafePerformIO $ print ("Final UF " ++ show finalUF)
     return (applyExprUF finalUF e') of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
     Right s  -> 
-      let !_ = unsafePerformIO $ print ("Got " ++ show s) in
+      let !_ = unsafePerformIO $ print ("Result " ++ show s) in
       Right s
   where
     sEnv = seSort env
@@ -648,6 +648,7 @@ elab f@(!_,!g) e@(PAtom !eq !e1 !e2) | eq == Eq || eq == Ne = do
   !e2'       <- elabAs f t2' e2
   !e1''      <- eCstAtom f e1' t1'
   !e2''      <- eCstAtom f e2' t2'
+  let !_ = unsafePerformIO $ print ("Right side is " ++ show e2'')
   return (PAtom eq e1'' e2'', boolSort)
 
 elab !f (PAtom !r !e1 !e2)
@@ -963,6 +964,7 @@ exprSortMaybe = go
     go (EApp e ex)
       | Just (FFunc sx s) <- genSort <$> go e
       = 
+        let !_ = unsafePerformIO $ print ("About to apply " ++ show sx) in
         maybe s (`apply` s) . (`unifySorts` sx) <$> go ex
     go _ = Nothing
 
@@ -1029,7 +1031,10 @@ getIteUF :: Env -> UF -> Expr -> Expr -> CheckM (Sort, UF)
 getIteUF f uf e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  uf' <- unifysUF f Nothing uf [t1] [t2]
+  let !_ = unsafePerformIO $ print ("T1 is " ++ show t1)
+  let !_ = unsafePerformIO $ print ("T2 is " ++ show t1)
+  uf' <- unifyUF f uf Nothing t1 t2
+  let !_ = unsafePerformIO $ print ("Unifying gives " ++ show uf')
   return (t1, uf')
 
 checkIteTyUF :: Env -> UF -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM (Sort, UF)
@@ -1083,13 +1088,17 @@ checkApp' f to g e = do
   ufRef <- asks ufM
   uf <- liftIO $ readIORef ufRef
   uf'        <- unifyManyUF f ge uf [it] [et]
+  let !_ = unsafePerformIO $ print ("Unified " ++ show it ++ " and " ++ show et)
+  let !_ = unsafePerformIO $ print ("Which gave " ++ show uf')
   liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   case to of
     Nothing    -> return ot
     Just t'    -> do 
-                    uf'' <- liftIO $ readIORef ufRef
+                    ufRef' <- asks ufM
+                    uf'' <- liftIO $ readIORef ufRef'
                     uf''' <- unifyManyUF f ge uf'' [ot] [t']
-                    liftIO $ atomicModifyIORef' ufRef $ const (uf''', ())
+                    let !_ = unsafePerformIO $ print ("Unified " ++ show ot ++ " and " ++ show t')
+                    liftIO $ atomicModifyIORef' ufRef' $ const (uf''', ())
                     _ <- checkExprAs f et e
                     return ot
 
@@ -1223,19 +1232,12 @@ checkRelTy f _ _ FInt  s2    = checkNumeric    f s2 `withError` errNonNumeric s2
 checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` errNonNumeric s1
 checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` errNonFractional s2
 checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` errNonFractional s1
-checkRelTy f e Eq t1 t2      = do 
+checkRelTy f e _  t1 t2      = do
   ufRef <- asks ufM
-  uf <- liftIO $ readIORef ufRef
-  uf' <- unifysUF f (Just e) uf [t1] [t2] `withError` errRel e t1 t2
-  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
-  return ()
-checkRelTy f e Ne t1 t2      = do
-  ufRef <- asks ufM
-  uf <- liftIO $ readIORef ufRef
+  uf <- liftIO $ readIORef ufRef 
   uf' <-  unifysUF f (Just e) uf [t1] [t2] `withError` errRel e t1 t2
   liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   return ()
-checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwErrorAt $ errRel e t1 t2)
 
 checkURel :: Expr -> Sort -> Sort -> CheckM ()
 checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
@@ -1286,9 +1288,9 @@ unify1UF f e !uf !t (FVar !i)
   = unifyVarUF f e uf i t
 unify1UF f e !uf (FApp !t1 !t2) (FApp !t1' !t2')
   = unifyManyUF f e uf [t1, t2] [t1', t2']
-unify1UF _ _ !θ (FTC !l1) (FTC !l2)
+unify1UF _ _ !uf (FTC !l1) (FTC !l2)
   | isListTC l1 && isListTC l2
-  = return θ
+  = return uf
 unify1UF f e !uf t1@(FAbs _ _) !t2 = do
   !t1' <- instantiate t1
   unifyManyUF f e uf [t1'] [t2]
