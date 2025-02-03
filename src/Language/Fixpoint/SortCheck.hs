@@ -596,7 +596,7 @@ elab f@(!_,!g) (ECst (EIte !p !e1 !e2) !t) = do
   (!e2', !s2) <- elab f (eCst e2 t)
   ufRef <- asks ufM
   uf <- liftIO $ readIORef ufRef
-  !uf'          <- checkIteTyUF g uf p e1' e2' s1 s2
+  (!_, !uf')          <- checkIteTyUF g uf p e1' e2' s1 s2
   liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   return (EIte p' (eCst e1' s1) (eCst e2' s2), t)
 
@@ -609,7 +609,7 @@ elab f@(!_,!g) (EIte !p !e1 !e2) = do
   (!e1', !s1) <- elab f (eCst e1 t)
   (!e2', !s2) <- elab f (eCst e2 t)
   uf'' <- liftIO $ readIORef ufRef
-  !uf'''          <- checkIteTyUF g uf'' p e1' e2' s1 s2
+  (_, uf''')          <- checkIteTyUF g uf'' p e1' e2' s1 s2
   liftIO $ atomicModifyIORef' ufRef $ const (uf''', ())
   return (EIte p' (eCst e1' s1) (eCst e2' s2), s2)
 
@@ -1019,19 +1019,11 @@ checkIte f p e1 e2 = do
   checkPred f p
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  checkIteTy f p e1 e2 t1 t2
-
--- getIte :: Env -> Expr -> Expr -> CheckM Sort
--- getIte f e1 e2 = do
---   t1 <- checkExpr f e1
---   t2 <- checkExpr f e2
---   (`apply` t1) <$> unifys f Nothing [t1] [t2]
-
-checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
-checkIteTy f p e1 e2 t1 t2 =
-  ((`apply` t1) <$> unifys f e' [t1] [t2]) `withError` errIte e1 e2 t1 t2
-  where
-    e' = Just (EIte p e1 e2)
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  (s, uf') <- checkIteTyUF f uf p e1 e2 t1 t2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  return s
 
 getIteUF :: Env -> UF -> Expr -> Expr -> CheckM (Sort, UF)
 getIteUF f uf e1 e2 = do
@@ -1040,9 +1032,10 @@ getIteUF f uf e1 e2 = do
   uf' <- unifysUF f Nothing uf [t1] [t2]
   return (t1, uf')
 
-checkIteTyUF :: Env -> UF -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM UF
-checkIteTyUF f uf p e1 e2 t1 t2 = 
-  unifysUF f e' uf [t1] [t2] `withError` errIte e1 e2 t1 t2
+checkIteTyUF :: Env -> UF -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM (Sort, UF)
+checkIteTyUF f uf p e1 e2 t1 t2 = do
+  uf' <- unifysUF f e' uf [t1] [t2] `withError` errIte e1 e2 t1 t2
+  return (t1, uf')
   where 
     e' = Just (EIte p e1 e2)
 
@@ -1051,9 +1044,13 @@ checkCst :: Env -> Sort -> Expr -> CheckM Sort
 checkCst f t (EApp g e)
   = checkApp f (Just t) g e
 checkCst f t e
-  = do t' <- checkExpr f e
-       su <- unifys f (Just e) [t] [t'] `withError` errCast e t' t
-       pure (apply su t)
+  = do 
+       t' <- checkExpr f e
+       ufRef <- asks ufM
+       uf <- liftIO $ readIORef ufRef
+       uf' <- unifysUF f (Just e) uf [t] [t'] `withError` errCast e t' t
+       liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+       pure t
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
@@ -1122,12 +1119,12 @@ checkOpTy _ _ FInt  FReal
 checkOpTy _ _ FReal FInt
   = return FReal
 
-checkOpTy f e t t'
-  | Just s <- unify f (Just e) t t'
-  = checkNumeric f (apply s t) >> return (apply s t)
-
-checkOpTy _ e t t'
-  = throwErrorAt (errOp e t t')
+checkOpTy f e t t' = do
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf' <- unifyUF f uf (Just e) t t' 
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  checkNumeric f t >> return t
 
 checkFractional :: Env -> Sort -> CheckM ()
 checkFractional f s@(FObj l)
@@ -1198,9 +1195,12 @@ checkRel :: HasCallStack => Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  su <- unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2
-  _  <- checkExprAs f (apply su t1) e1
-  _  <- checkExprAs f (apply su t2) e2
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf' <- unifysUF f (Just e) uf [t1] [t2] `withError` errRel e t1 t2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  _  <- checkExprAs f t1 e1
+  _  <- checkExprAs f t2 e2
   checkRelTy f e Eq t1 t2
   where
     e = PAtom Eq e1 e2
@@ -1223,8 +1223,18 @@ checkRelTy f _ _ FInt  s2    = checkNumeric    f s2 `withError` errNonNumeric s2
 checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` errNonNumeric s1
 checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` errNonFractional s2
 checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` errNonFractional s1
-checkRelTy f e Eq t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2)
-checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2)
+checkRelTy f e Eq t1 t2      = do 
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf' <- unifysUF f (Just e) uf [t1] [t2] `withError` errRel e t1 t2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  return ()
+checkRelTy f e Ne t1 t2      = do
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  uf' <-  unifysUF f (Just e) uf [t1] [t2] `withError` errRel e t1 t2
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  return ()
 checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwErrorAt $ errRel e t1 t2)
 
 checkURel :: Expr -> Sort -> Sort -> CheckM ()
@@ -1633,12 +1643,12 @@ errRel e t1 t2       =
   traced $ printf "Invalid Relation %s with operand types %s and %s"
                          (showpp e) (showpp t1) (showpp t2)
 
-errOp :: Expr -> Sort -> Sort -> String
-errOp e t t'
-  | t == t'          = printf "Operands have non-numeric types %s in %s"
-                         (showpp t) (showpp e)
-  | otherwise        = printf "Operands have different types %s and %s in %s"
-                         (showpp t) (showpp t') (showpp e)
+-- errOp :: Expr -> Sort -> Sort -> String
+-- errOp e t t'
+--   | t == t'          = printf "Operands have non-numeric types %s in %s"
+--                          (showpp t) (showpp e)
+--   | otherwise        = printf "Operands have different types %s and %s in %s"
+--                          (showpp t) (showpp t') (showpp e)
 
 errIte :: Expr -> Expr -> Sort -> Sort -> String
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
