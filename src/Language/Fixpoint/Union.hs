@@ -1,9 +1,7 @@
-{-# LANGUAGE BangPatterns #-}
 module Language.Fixpoint.Union where 
 import Data.HashMap.Strict (lookup, insert, HashMap, empty)
 import Prelude hiding (lookup)
 import Language.Fixpoint.Types.Sorts (Sort(..))
-import GHC.IO (unsafePerformIO)
 
 unionSub :: UF -> Int -> Sort -> Sort -> UF
 unionSub uf i s1 s2 = case (s1, s2) of 
@@ -57,9 +55,7 @@ unionSafe u@(MkUF ufM) tyv s =
             Nothing -> MkUF (insert tyv s ufM)
             -- otherwise, unify the current sort with 
             -- the new one and insert that
-            Just (i, s') ->
-                let !_ = unsafePerformIO $ print ("Here with " ++ show s' ++ " and " ++ show s) in
-                    unionVals u i s s'
+            Just (i, s') -> unionVals u i s s'
 
 
 union :: UF -> Int -> Sort -> UF
