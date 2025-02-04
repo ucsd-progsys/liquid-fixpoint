@@ -702,7 +702,7 @@ elabAs f t e = notracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
     go (EApp e1 e2) = elabAppAs f t e1 e2
-    go e'           = let !_ = unsafePerformIO $ print ("Down the elab path " ++ show e') in fst <$> elab f e'
+    go e'           = fst <$> elab f e'
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
