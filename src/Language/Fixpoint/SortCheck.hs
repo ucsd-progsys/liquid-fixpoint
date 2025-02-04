@@ -1122,6 +1122,7 @@ checkOpTy f e t t' = do
   uf <- liftIO $ readIORef ufRef
   uf' <- unifyUF f uf (Just e) t t' 
   liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  -- probably need to unify this with a numeric sort for this to work properly
   checkNumeric f t >> return t
 
 checkFractional :: Env -> Sort -> CheckM ()
