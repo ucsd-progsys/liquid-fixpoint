@@ -1186,6 +1186,13 @@ checkPred                  :: Env -> Expr -> CheckM ()
 checkPred f e = checkExpr f e >>= checkBoolSort e
 
 checkBoolSort :: Expr -> Sort -> CheckM ()
+
+checkBoolSort e s@(FVar i) = do
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  case Union.find uf i of 
+    Nothing -> throwErrorAt (errBoolSort e s)
+    Just s' -> if s' == boolSort then return () else throwErrorAt (errBoolSort e s)
 checkBoolSort e s
   | s == boolSort = return ()
   | otherwise     = throwErrorAt (errBoolSort e s)
