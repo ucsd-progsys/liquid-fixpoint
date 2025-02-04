@@ -1123,7 +1123,8 @@ checkOpTy f e t t' = do
   uf' <- unifyUF f uf (Just e) t t' 
   liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   -- probably need to unify this with a numeric sort for this to work properly
-  checkNumeric f t >> return t
+  return t
+  -- checkNumeric f t >> return t
 
 checkFractional :: Env -> Sort -> CheckM ()
 checkFractional f s@(FObj l)
@@ -1218,9 +1219,33 @@ checkRelTy f _ _ s1@(FObj l) s2@(FObj l') | l /= l'
 checkRelTy _ _ _ FReal FReal = return ()
 checkRelTy _ _ _ FInt  FReal = return ()
 checkRelTy _ _ _ FReal FInt  = return ()
-checkRelTy f _ _ FInt  s2    = checkNumeric    f s2 `withError` errNonNumeric s2
+checkRelTy f e _ s1@FInt s2@(FVar _) = do
+                ufRef <- asks ufM 
+                uf <- liftIO $ readIORef ufRef
+                uf' <- unifyUF f uf (Just e) s1 s2 `withError` errUnify (Just e) s1 s2
+                liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+                return ()
+checkRelTy f _ _ FInt  s2    = checkNumeric f s2 `withError` errNonNumeric s2
+checkRelTy f e _ s1@(FVar _) s2@FInt = do
+                ufRef <- asks ufM 
+                uf <- liftIO $ readIORef ufRef
+                uf' <- unifyUF f uf (Just e) s1 s2 `withError` errUnify (Just e) s1 s2
+                liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+                return ()
 checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` errNonNumeric s1
+checkRelTy f e _ s1@FReal s2@(FVar _) = do
+                ufRef <- asks ufM 
+                uf <- liftIO $ readIORef ufRef
+                uf' <- unifyUF f uf (Just e) s1 s2 `withError` errUnify (Just e) s1 s2
+                liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+                return ()
 checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` errNonFractional s2
+checkRelTy f e _ s1@(FVar _) s2@FReal = do
+                ufRef <- asks ufM 
+                uf <- liftIO $ readIORef ufRef
+                uf' <- unifyUF f uf (Just e) s1 s2 `withError` errUnify (Just e) s1 s2
+                liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+                return ()
 checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` errNonFractional s1
 checkRelTy f e _  t1 t2      = do
   ufRef <- asks ufM
