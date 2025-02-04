@@ -1,9 +1,7 @@
-{-# LANGUAGE BangPatterns #-}
 module Language.Fixpoint.Union where 
 import Data.HashMap.Strict (lookup, insert, HashMap, empty)
 import Prelude hiding (lookup)
 import Language.Fixpoint.Types.Sorts (Sort(..))
-import GHC.IO (unsafePerformIO)
 
 unionSub :: UF -> Int -> Sort -> Sort -> UF
 unionSub uf i s1 s2 = case (s1, s2) of 
@@ -48,7 +46,6 @@ new :: UF
 new = MkUF empty
 union :: UF -> Int -> Sort -> UF
 union u@(MkUF ufM) tyv s =
-    let !_ = unsafePerformIO $ print ("union " ++ show tyv ++ " with " ++ show s ++ " with curr " ++ show ufM) in
     -- find the root for tyv 
     let tyv_root = findWithIndex (MkUF ufM) tyv in
     case tyv_root of
