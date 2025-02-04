@@ -1,7 +1,9 @@
+{-# LANGUAGE BangPatterns #-}
 module Language.Fixpoint.Union where 
 import Data.HashMap.Strict (lookup, insert, HashMap, empty)
 import Prelude hiding (lookup)
 import Language.Fixpoint.Types.Sorts (Sort(..))
+import GHC.IO (unsafePerformIO)
 
 unionSub :: UF -> Int -> Sort -> Sort -> UF
 unionSub uf i s1 s2 = case (s1, s2) of 
@@ -44,8 +46,10 @@ unionVals _ _ s1 s2 = error ("Cannot unify " ++ show s1 ++ " and " ++ show s2)
 newtype UF = MkUF (HashMap Int Sort) deriving (Show)
 new :: UF
 new = MkUF empty
-union :: UF -> Int -> Sort -> UF
-union u@(MkUF ufM) tyv s =
+
+
+unionSafe :: UF -> Int -> Sort -> UF
+unionSafe u@(MkUF ufM) tyv s = 
     -- find the root for tyv 
     let tyv_root = findWithIndex (MkUF ufM) tyv in
     case tyv_root of
@@ -53,7 +57,18 @@ union u@(MkUF ufM) tyv s =
             Nothing -> MkUF (insert tyv s ufM)
             -- otherwise, unify the current sort with 
             -- the new one and insert that
-            Just (i, s') -> unionVals u i s s'
+            Just (i, s') ->
+                let !_ = unsafePerformIO $ print ("Here with " ++ show s' ++ " and " ++ show s) in
+                    unionVals u i s s'
+
+
+union :: UF -> Int -> Sort -> UF
+union u tyv s =
+    case s of 
+        FVar i -> case find u i of 
+                Just (FVar j) -> if tyv == j then u else unionSafe u tyv s
+                _ -> unionSafe u tyv s
+        _ -> unionSafe u tyv s
 
 findWithIndex :: UF -> Int -> Maybe (Int, Sort)
 findWithIndex u@(MkUF ufM) k = do 
@@ -68,5 +83,7 @@ find (MkUF ufM) = f
     f k = do 
         s <- lookup k ufM 
         case s of 
-            FVar i -> f i
+            FVar i -> case f i of
+                Nothing -> Just (FVar i)
+                Just s' -> Just s'
             s' -> Just s'
