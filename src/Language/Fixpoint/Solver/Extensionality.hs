@@ -24,10 +24,10 @@ mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
 expand :: Config -> SInfo a -> SInfo a
-expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si) (solver cfg)
+expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si) (solverFlags $ solver cfg)
   where
     ext :: SInfo a -> Ex a (SInfo a)
-    ext a = extend a
+    ext = extend
 
 
 class Extend ann a where
@@ -103,7 +103,7 @@ generateArguments ann srt = do
 makeEq :: Brel -> Expr -> Expr -> Expr -> Ex ann Expr
 makeEq b e1 e2 e = do
   env <- gets exenv
-  slv <- gets smtslv
+  slv <- gets elabf
   let elab = elaborate (ElabParam slv (dummyLoc "extensionality") env)
   return $ PAtom b (elab $ EApp (unElab e1) e) (elab $ EApp (unElab e2) e)
 
@@ -197,11 +197,11 @@ data ExSt a = ExSt
   , exbenv  :: BindEnv a
   , exbinds :: IBindEnv
   , excbs   :: [(Symbol, Sort)]
-  , smtslv  :: SMTSolver
+  , elabf   :: ElabFlags
   }
 
-initST :: SymEnv -> [DataDecl] -> SMTSolver -> ExSt ann
-initST env dd slv = ExSt 0 (d:dd) env mempty mempty mempty slv
+initST :: SymEnv -> [DataDecl] -> ElabFlags -> ExSt ann
+initST env dd ef = ExSt 0 (d:dd) env mempty mempty mempty ef
   where
     -- NV: hardcore Haskell pairs because they do not appear in DataDecl (why?)
 #if MIN_TOOL_VERSION_ghc(9,10,1)

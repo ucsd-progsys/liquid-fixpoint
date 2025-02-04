@@ -59,7 +59,7 @@ module Language.Fixpoint.Smt.Interface (
 
     ) where
 
-import           Language.Fixpoint.Types.Config ( SMTSolver (..)
+import           Language.Fixpoint.Types.Config ( SMTSolver (..), solverFlags
                                                 , Config (solver, smtTimeout, gradual, stringTheory, save))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
@@ -310,7 +310,7 @@ makeContext' cfg ctxLog
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver    = solver
-                  , ctxSolverTag = slv
+                  , ctxElabF     = solverFlags slv
                   , ctxClose     = closeIO
                   , ctxLog       = ctxLog
                   , ctxVerbose   = loud
@@ -483,7 +483,7 @@ declare me = do
     qryXTs     = fmap tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
     xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env)
-    tx         = elaborate (ElabParam (ctxSolverTag me) "declare" env)
+    tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
     ats        = funcSortVars env
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]

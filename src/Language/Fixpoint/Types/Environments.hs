@@ -369,8 +369,8 @@ makePack kvss = Packs (M.fromList kIs)
     kIs       = [ (k, i) | (i, ks) <- kPacks, k <- ks ]
     kPacks    = zip [0..] . coalesce . fmap S.toList $ kvss
 
-coerceBindEnv :: SMTSolver -> BindEnv a -> BindEnv a
-coerceBindEnv slv be = be { beBinds = M.map (\(s, sr, a) ->
+coerceBindEnv :: ElabFlags -> BindEnv a -> BindEnv a
+coerceBindEnv ef be = be { beBinds = M.map (\(s, sr, a) ->
                                                 let srs = coerceMapToArray (sr_sort sr) in
-                                                (s, sr { sr_sort = if isZ3 slv then coerceSetBagToArray srs else srs } , a))
+                                                (s, sr { sr_sort = if elabSetBag ef then coerceSetBagToArray srs else srs } , a))
                                             (beBinds be) }

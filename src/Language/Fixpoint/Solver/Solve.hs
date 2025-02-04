@@ -201,12 +201,12 @@ refineC
   -> SolveM a (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
 refineC bindingsInSmt _i s c =
-  do slv <- T.ctxSolverTag <$> getContext
-     let (ks, rhs) = rhsCands slv s c
+  do ef <- T.ctxElabF <$> getContext
+     let (ks, rhs) = rhsCands ef s c
      if null rhs
         then return (False, s)
         else do be     <- getBinds
-                let lhs = S.lhsPred bindingsInSmt slv (F.coerceBindEnv slv be) s c
+                let lhs = S.lhsPred bindingsInSmt ef (F.coerceBindEnv ef be) s c
                 kqs    <- filterValid (cstrSpan c) lhs rhs
                 return  $ S.update s ks kqs
   where
@@ -216,12 +216,12 @@ refineC bindingsInSmt _i s c =
     _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
                      _i (show _ci) (showpp ks) (length xs) (length ys)
 
-rhsCands :: SMTSolver -> Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
-rhsCands slv s c    = (fst <$> ks, kqs)
+rhsCands :: ElabFlags -> Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+rhsCands ef s c    = (fst <$> ks, kqs)
   where
     kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q) <- cnd k su ]
     ks          = predKs . F.crhs $ c
-    cnd k su    = Sol.qbPreds slv msg s su (Sol.lookupQBind s k)
+    cnd k su    = Sol.qbPreds ef msg s su (Sol.lookupQBind s k)
     msg         = "rhsCands: " ++ show (F.sid c)
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
@@ -257,8 +257,8 @@ solResult cfg = minimizeResult cfg . Sol.result
 solNonCutsResult :: Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solNonCutsResult s = do
   be <- getBinds
-  slv <- T.ctxSolverTag <$> getContext
-  return $ S.nonCutsResult slv be s
+  ef <- T.ctxElabF <$> getContext
+  return $ S.nonCutsResult ef be s
 
 result_
   :: (F.Loc a, NFData a)
@@ -315,8 +315,8 @@ isUnsat bindingsInSmt s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
   be    <- getBinds
-  slv <- T.ctxSolverTag <$> getContext
-  let lp = S.lhsPred bindingsInSmt slv (F.coerceBindEnv slv be) s c
+  ef <- T.ctxElabF <$> getContext
+  let lp = S.lhsPred bindingsInSmt ef (F.coerceBindEnv ef be) s c
   let rp = rhsPred        c
   res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp

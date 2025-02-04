@@ -26,7 +26,7 @@ import Language.Fixpoint.SortCheck
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> [(F.KVar, (F.GWInfo, [F.Expr]))]
 --------------------------------------------------------------------------------
-init cfg si = map (elab . refineG slv si qs genv) gs `using` parList rdeepseq
+init cfg si = map (elab . refineG ef si qs genv) gs `using` parList rdeepseq
   where
     qs         = F.quals si
     gs         = snd <$> gs0
@@ -34,21 +34,21 @@ init cfg si = map (elab . refineG slv si qs genv) gs `using` parList rdeepseq
 
     gs0        = L.filter (Cons.isGWfc . snd) $ M.toList (F.ws si)
 
-    elab (k, (x,es)) = (k, (x, elaborate (ElabParam slv (F.atLoc F.dummySpan "init") (sEnv (Cons.gsym x) (Cons.gsort x))) <$> es))
+    elab (k, (x,es)) = (k, (x, elaborate (ElabParam ef (F.atLoc F.dummySpan "init") (sEnv (Cons.gsym x) (Cons.gsort x))) <$> es))
 
     sEnv x s    = isEnv {F.seSort = F.insertSEnv x s (F.seSort isEnv)}
     isEnv       = symbolEnv cfg si
-    slv         = solver cfg
+    ef          = solverFlags $ solver cfg
 
 
 --------------------------------------------------------------------------------
-refineG :: SMTSolver -> F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, (F.GWInfo, [F.Expr]))
-refineG slv fi qs genv w = (k, (F.gwInfo w, Sol.qbExprs qb))
+refineG :: ElabFlags -> F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, (F.GWInfo, [F.Expr]))
+refineG ef fi qs genv w = (k, (F.gwInfo w, Sol.qbExprs qb))
   where
-    (k, qb) = refine slv fi qs genv w
+    (k, qb) = refine ef fi qs genv w
 
-refine :: SMTSolver -> F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
-refine slv fi qs genv w = refineK slv (Cons.allowHOquals fi) env qs $ F.wrft w
+refine :: ElabFlags -> F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
+refine ef fi qs genv w = refineK ef (Cons.allowHOquals fi) env qs $ F.wrft w
   where
     env             = wenv <> genv
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
@@ -59,11 +59,11 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
     notLit    = not . F.isLitSymbol . fst
 
 
-refineK :: SMTSolver -> Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
-refineK slv ho env qs (v, t, k) = (k, eqs')
+refineK :: ElabFlags -> Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
+refineK ef ho env qs (v, t, k) = (k, eqs')
    where
     eqs                     = instK ho env v t qs
-    eqs'                    = Sol.qbFilter (okInst slv env v t) eqs
+    eqs'                    = Sol.qbFilter (okInst ef env v t) eqs
 
 --------------------------------------------------------------------------------
 instK :: Bool
@@ -119,12 +119,12 @@ candidates env tyss tx =
     mono = So.isMono tx
 
 --------------------------------------------------------------------------------
-okInst :: SMTSolver -> F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool
+okInst :: ElabFlags -> F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool
 --------------------------------------------------------------------------------
-okInst slv env v t eq = isNothing tc
+okInst ef env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-    tc            = So.checkSorted slv F.dummySpan env sr
+    tc            = So.checkSorted ef F.dummySpan env sr
 
 

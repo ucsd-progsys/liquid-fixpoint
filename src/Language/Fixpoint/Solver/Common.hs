@@ -2,7 +2,7 @@
 
 module Language.Fixpoint.Solver.Common (askSMT, toSMT) where
 
-import Language.Fixpoint.Types.Config (Config, solver)
+import Language.Fixpoint.Types.Config (Config, solver, solverFlags)
 import Language.Fixpoint.Smt.Interface (Context(..), checkValidWithContext)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Types.Visitor (kvarsExpr)
@@ -24,7 +24,7 @@ askSMT cfg ctx xs e
 toSMT :: String -> Config -> Context -> [(Symbol, Sort)] -> Expr -> Pred
 toSMT msg cfg ctx xs e =
     defuncAny cfg symenv .
-        elaborate (ElabParam (solver cfg) (dummyLoc msg) (elabEnv xs)) .
+        elaborate (ElabParam (solverFlags $ solver cfg) (dummyLoc msg) (elabEnv xs)) .
             mytracepp ("toSMT from " ++ msg ++ showpp e) $
                 e
   where

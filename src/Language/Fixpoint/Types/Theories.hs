@@ -369,10 +369,10 @@ ppParens k d ds = parens $ Misc.intersperse (text "") (d : (pprintTidy k <$> ds)
 -- | Coercing sorts inside environments for SMT theory encoding
 --------------------------------------------------------------------------------
 
-coerceSortEnv :: SMTSolver -> SEnv Sort -> SEnv Sort
-coerceSortEnv slv ss = (if isZ3 slv then coerceSetBagToArray else id) . coerceMapToArray <$> ss
+coerceSortEnv :: ElabFlags -> SEnv Sort -> SEnv Sort
+coerceSortEnv ef ss = (if elabSetBag ef then coerceSetBagToArray else id) . coerceMapToArray <$> ss
 
-coerceEnv :: SMTSolver -> SymEnv -> SymEnv
+coerceEnv :: ElabFlags -> SymEnv -> SymEnv
 coerceEnv slv env =
   SymEnv { seSort   = coerceSortEnv slv (seSort env)
          , seTheory = seTheory env

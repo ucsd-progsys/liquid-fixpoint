@@ -307,11 +307,11 @@ fromList env kGs kXs kYs z ebs xbs
     ebm = M.fromList ebs
 
 --------------------------------------------------------------------------------
-qbPreds :: Cfg.SMTSolver -> String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
+qbPreds :: Cfg.ElabFlags -> String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
-qbPreds slv msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
+qbPreds ef msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
-    elabPred eq           = elaborate (ElabParam slv (atLoc eq $ "qbPreds:" ++ msg) env)
+    elabPred eq           = elaborate (ElabParam ef (atLoc eq $ "qbPreds:" ++ msg) env)
                           . subst su
                           . eqPred
                           $ eq

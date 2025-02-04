@@ -181,7 +181,7 @@ resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ mytracepp  "ELAB-INST:  " $ zip is ps''
-    ps''     = zipWith (\i -> elaborate (ElabParam (solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
+    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 
@@ -311,7 +311,7 @@ sInfo cfg env info ips = strengthenHyp info (mytracepp  "ELAB-INST:  " $ zip (fs
   where
     (is, ps)         = unzip ips
     ps'              = defuncAny cfg env ps
-    ps''             = zipWith (\(i, sp) -> elaborate (ElabParam (solver cfg) (atLoc sp ("PLE1 " ++ show i)) env)) is ps'
+    ps''             = zipWith (\(i, sp) -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc sp ("PLE1 " ++ show i)) env)) is ps'
 
 instSimpC :: Config -> SMT.Context -> BindEnv a -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv subId sub
@@ -518,7 +518,6 @@ evalAppAc γ stk _ (EVar f, es)
   , f `notElem` syms bd               -- non-recursive equations << HACK! misses MUTUALLY RECURSIVE definitions!
   , recurCS stk f
   = do env   <- gets (seSort . evEnv)
-       -- slv   <- gets (solver . _evCfg)
        let ee = substEq env PopIf eq es bd
        assertSelectors γ ee
        eval γ (pushCS stk f) ee
@@ -529,7 +528,6 @@ evalAppAc γ stk _e (EVar f, es)
   , length (eqArgs eq) == length es   -- recursive equations
   , recurCS stk f
   = do env      <- gets (seSort . evEnv)
-       -- slv   <- gets (solver . _evCfg)
        mytracepp ("EVAL-REC-APP" ++ showpp (stk, _e))
          <$> evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
 

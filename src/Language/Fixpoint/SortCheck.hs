@@ -124,7 +124,7 @@ isMono             = null . Vis.foldSort fv []
 --------------------------------------------------------------------------------
 
 data ElabParam = ElabParam
-  { epSolver :: Cfg.SMTSolver
+  { epSolver :: Cfg.ElabFlags
   , epMsg    :: Located String
   , epEnv    :: SymEnv
   }
@@ -175,10 +175,10 @@ instance Elaborate Equation where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
 
 instance Elaborate Expr where
-  elaborate (ElabParam slv msg env) =
-    elabNumeric . elabApply env' . elabExpr (ElabParam slv msg env') . elabFMap . (if Cfg.isZ3 slv then elabFSetBagZ3 else id)
+  elaborate (ElabParam ef msg env) =
+    elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id)
       where
-        env' = coerceEnv slv env
+        env' = coerceEnv ef env
 
 skipElabExpr :: ElabParam -> Expr -> Expr
 skipElabExpr ep e = case elabExprE ep e of
@@ -310,8 +310,8 @@ elabExpr ep e = case elabExprE ep e of
   Right e' -> F.notracepp ("elabExp " ++ showpp e) e'
 
 elabExprE :: ElabParam -> Expr -> Either Error Expr
-elabExprE (ElabParam slv msg env) e =
-  case runCM0 (srcSpan msg) (Just slv) (elab (env, envLookup) e) of
+elabExprE (ElabParam ef msg env) e =
+  case runCM0 (srcSpan msg) (Just ef) (elab (env, envLookup) e) of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
@@ -409,9 +409,9 @@ instance Show ChError where
   show (ChError f) = show (f ())
 instance Exception ChError where
 
-data ChState = ChS { chCount  :: IORef Int
-                   , chSpan   :: SrcSpan
-                   , chSolver :: Cfg.SMTSolver
+data ChState = ChS { chCount :: IORef Int
+                   , chSpan  :: SrcSpan
+                   , chElabF :: Cfg.ElabFlags
                    }
 
 type Env      = Symbol -> SESearch Sort
@@ -445,9 +445,9 @@ varCounterRef = unsafePerformIO $ newIORef 42
 -- function is not referentially transparent.
 -- Each evaluation of the function starts with a different
 -- value of counter.
-runCM0 :: SrcSpan -> Maybe Cfg.SMTSolver -> CheckM a -> Either ChError a
-runCM0 sp slv act = unsafePerformIO $ do
-  try (runReaderT act (ChS varCounterRef sp (fromMaybe Cfg.Cvc5 slv)))
+runCM0 :: SrcSpan -> Maybe Cfg.ElabFlags -> CheckM a -> Either ChError a
+runCM0 sp mef act = unsafePerformIO $ do
+  try (runReaderT act (ChS varCounterRef sp (fromMaybe (Cfg.ElabFlags False) mef)))
 
 fresh :: CheckM Int
 fresh = do
@@ -464,25 +464,25 @@ checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
     unknowns              = [ x | x <- syms sr, x `notElem` v : xs, not (x `memberSEnv` env)]
     Reft (v,_)            = sr_reft sr
 
-checkSortedReftFull :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv SortedReft -> a -> Maybe Doc
-checkSortedReftFull slv sp γ t =
-  case runCM0 sp (Just slv) (check γ' t) of
+checkSortedReftFull :: Checkable a => Cfg.ElabFlags -> SrcSpan -> SEnv SortedReft -> a -> Maybe Doc
+checkSortedReftFull ef sp γ t =
+  case runCM0 sp (Just ef) (check γ' t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
     γ' = sr_sort <$> γ
 
-checkSortFull :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv SortedReft -> Sort -> a -> Maybe Doc
-checkSortFull slv sp γ s t =
-  case runCM0 sp (Just slv) (checkSort γ' s t) of
+checkSortFull :: Checkable a => Cfg.ElabFlags -> SrcSpan -> SEnv SortedReft -> Sort -> a -> Maybe Doc
+checkSortFull ef sp γ s t =
+  case runCM0 sp (Just ef) (checkSort γ' s t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _ -> Nothing
   where
       γ' = sr_sort <$> γ
 
-checkSorted :: Checkable a => Cfg.SMTSolver -> SrcSpan -> SEnv Sort -> a -> Maybe Doc
-checkSorted slv sp γ t =
-  case runCM0 sp (Just slv) (check γ t) of
+checkSorted :: Checkable a => Cfg.ElabFlags -> SrcSpan -> SEnv Sort -> a -> Maybe Doc
+checkSorted ef sp γ t =
+  case runCM0 sp (Just ef) (check γ t) of
     Left (ChError f)  -> Just (text (val (f ())))
     Right _  -> Nothing
 
@@ -519,14 +519,14 @@ class Checkable a where
 
 instance Checkable Expr where
   check γ e =
-    do slv <- asks chSolver
-       _ <- checkExpr (`lookupSEnvWithDistance` coerceSortEnv slv γ) e
+    do ef <- asks chElabF
+       _ <- checkExpr (`lookupSEnvWithDistance` coerceSortEnv ef γ) e
        pure ()
 
   checkSort γ s e =
-    do slv <- asks chSolver
-       _ <- checkExpr (`lookupSEnvWithDistance` coerceSortEnv slv γ)
-                      (ECst e (if Cfg.isZ3 slv then coerceSetBagToArray s' else s'))
+    do ef <- asks chElabF
+       _ <- checkExpr (`lookupSEnvWithDistance` coerceSortEnv ef γ)
+                      (ECst e (if Cfg.elabSetBag ef then coerceSetBagToArray s' else s'))
        pure ()
    where
       s' = coerceMapToArray s
@@ -686,20 +686,20 @@ elab f@(env,_) (PAtom r e1 e2) = do
 
 elab f (PExist bs e) = do
   (e', s) <- elab (elabAddEnv f bs) e
-  slv <- asks chSolver
-  let bs' = elaborate (ElabParam slv "PExist Args" mempty) bs
+  ef <- asks chElabF
+  let bs' = elaborate (ElabParam ef "PExist Args" mempty) bs
   return (PExist bs' e', s)
 
 elab f (PAll bs e) = do
   (e', s) <- elab (elabAddEnv f bs) e
-  slv <- asks chSolver
-  let bs' = elaborate (ElabParam slv "PAll Args" mempty) bs
+  ef <- asks chElabF
+  let bs' = elaborate (ElabParam ef "PAll Args" mempty) bs
   return (PAll bs' e', s)
 
 elab f (ELam (x,t) e) = do
   (e', s) <- elab (elabAddEnv f [(x, t)]) e
-  slv <- asks chSolver
-  let t' = elaborate (ElabParam slv "ELam Arg" mempty) t
+  ef <- asks chElabF
+  let t' = elaborate (ElabParam ef "ELam Arg" mempty) t
   return (ELam (x, t') (eCst e' s), FFunc t s)
 
 elab f (ECoerc s t e) = do

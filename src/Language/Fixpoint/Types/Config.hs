@@ -13,7 +13,8 @@ module Language.Fixpoint.Types.Config (
 
   -- * SMT Solver options
   , SMTSolver (..)
-  , isZ3
+  , solverFlags
+  , ElabFlags (..)
 
   -- REST Options
   , RESTOrdering (..)
@@ -150,10 +151,12 @@ instance Read RESTOrdering where
 data SMTSolver = Z3 | Z3mem | Cvc4 | Cvc5 | Mathsat
                  deriving (Eq, Data, Typeable, Generic)
 
-isZ3 :: SMTSolver -> Bool
-isZ3 Z3    = True
-isZ3 Z3mem = True
-isZ3 _     = False
+newtype ElabFlags = ElabFlags { elabSetBag :: Bool }
+
+solverFlags :: SMTSolver -> ElabFlags
+solverFlags Z3    = ElabFlags True
+solverFlags Z3mem = ElabFlags True
+solverFlags _     = ElabFlags False
 
 instance Default SMTSolver where
   def = if Conditional.Z3.builtWithZ3AsALibrary then Z3mem else Z3

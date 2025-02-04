@@ -22,7 +22,7 @@ import           Language.Fixpoint.SortCheck     (ElabParam(..), elaborate, appl
 import           Language.Fixpoint.Misc ((==>))
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
-import           Language.Fixpoint.Types.Config (Config)
+import           Language.Fixpoint.Types.Config (Config, solverFlags)
 import qualified Language.Fixpoint.Types.Config as Cfg
 import qualified Language.Fixpoint.Types.Errors                    as E
 import qualified Language.Fixpoint.Smt.Theories                    as Thy
@@ -402,13 +402,14 @@ symbolEnv :: Config -> F.SInfo a -> F.SymEnv
 symbolEnv cfg si = F.symEnv sEnv' tEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae'
-    ae'          = elaborate (ElabParam slv (F.atLoc E.dummySpan "symbolEnv") env0) (F.ae si)
+    ae'          = elaborate (ElabParam ef (F.atLoc E.dummySpan "symbolEnv") env0) (F.ae si)
     env0         = F.symEnv sEnv' tEnv ds lits ts
     tEnv         = Thy.theorySymbols slv ds
     ds           = F.ddecls si
     ts           = Misc.setNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv'])
-    sEnv'        = F.coerceSortEnv slv sEnv
+    sEnv'        = F.coerceSortEnv ef sEnv
     slv          = Cfg.solver cfg
+    ef           = solverFlags slv
     sEnv         = (F.tsSort <$> tEnv) `mappend` F.fromListSEnv xts
     xts          = symbolSorts cfg si ++ alits
     lits         = F.dLits si `F.unionSEnv'` F.fromListSEnv alits

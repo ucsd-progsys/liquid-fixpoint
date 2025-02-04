@@ -114,7 +114,7 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
             map (toFix . unElab) $ Set.toList $ Set.fromList $
             -- call elabExpr to try to bring equations that are missing
             -- some casts into a fully annotated form for comparison
-            map (elabExpr (ElabParam (solver cfg) "savePLEEqualities" sEnv)) $
+            map (elabExpr (ElabParam (solverFlags $ solver cfg) "savePLEEqualities" sEnv)) $
             concatMap conjuncts eqs
            )
       $+$ ""
@@ -143,7 +143,7 @@ instEnv cfg info cs restSolver ctx = do
                  ExploreWhenNeeded
         s0 = EvalEnv
               { evEnv = SMT.ctxSymEnv ctx
-              , evSolver = solver cfg
+              , evElabF = ef
               , evPendingUnfoldings = mempty
               , evNewEqualities = mempty
               , evSMTCache = mempty
@@ -157,7 +157,7 @@ instEnv cfg info cs restSolver ctx = do
     return $ InstEnv
        { ieCfg = cfg
        , ieSMT = ctx
-       , ieBEnv = coerceBindEnv (FC.solver cfg) (bs info)
+       , ieBEnv = coerceBindEnv ef (bs info)
        , ieAenv = ae info
        , ieCstrs = cs
        , ieKnowl = knowledge cfg ctx info
@@ -165,6 +165,8 @@ instEnv cfg info cs restSolver ctx = do
        , ieLRWs  = lrws info
        }
   where
+    ef = solverFlags $ solver cfg
+
     cachedNotStrongerThan refRESTCache oc a b = do
       m <- readIORef refRESTCache
       case M.lookup (a, b) m of
@@ -350,7 +352,7 @@ resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
-    ps''     = zipWith (\i -> elaborate (ElabParam (solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
+    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 
@@ -477,7 +479,7 @@ type EvEqualities = S.HashSet (Expr, Expr)
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
-  , evSolver   :: SMTSolver
+  , evElabF    :: ElabFlags
     -- | Equalities where we couldn't evaluate the guards
   , evPendingUnfoldings :: M.HashMap Expr Expr
   , evNewEqualities :: EvEqualities -- ^ Equalities discovered during a traversal of
@@ -1465,8 +1467,8 @@ elaborateExpr :: String -> Expr -> EvalST Expr
 elaborateExpr msg e = do
   let elabSpan = atLoc dummySpan msg
   symEnv' <- gets evEnv
-  slv <- gets evSolver
-  pure $ unApply $ elaborate (ElabParam slv elabSpan symEnv') e
+  ef <- gets evElabF
+  pure $ unApply $ elaborate (ElabParam ef elabSpan symEnv') e
 
 -- | Returns False if there is a fuel count in the evaluation environment and
 -- the fuel count exceeds the maximum. Returns True otherwise.
