@@ -1,10 +1,13 @@
+{-# LANGUAGE BangPatterns #-}
 module Language.Fixpoint.Union where 
 import Data.HashMap.Strict (lookup, insert, HashMap, empty)
 import Prelude hiding (lookup)
 import Language.Fixpoint.Types.Sorts (Sort(..))
+import GHC.IO (unsafePerformIO)
 
 unionSub :: UF -> Int -> Sort -> Sort -> UF
 unionSub uf i s1 s2 = case (s1, s2) of 
+    (FVar i1, FVar i2) -> if i1 == i2 then uf else union uf i1 s2
     (FVar i1, _) -> union uf i1 s2
     (_, FVar i2) -> union uf i2 s1
     (_, _) -> unionVals uf i s1 s2
@@ -25,6 +28,7 @@ unionVals uf _ s1 s2
 
 unionVals uf _ (FObj x) (FObj y)
     | x == y = uf
+unionVals (MkUF uf) _ (FVar i) (FVar j) = if i == j then MkUF uf else MkUF (insert i (FVar j) uf)
 unionVals (MkUF uf) _ (FVar i) s = MkUF (insert i s uf)
 unionVals (MkUF uf) _ s (FVar i) = MkUF (insert i s uf)
 unionVals uf i (FFunc s1 s2) (FFunc s1' s2') = 
@@ -44,6 +48,7 @@ new :: UF
 new = MkUF empty
 union :: UF -> Int -> Sort -> UF
 union u@(MkUF ufM) tyv s =
+    let !_ = unsafePerformIO $ print ("union " ++ show tyv ++ " with " ++ show s ++ " with curr " ++ show ufM) in
     -- find the root for tyv 
     let tyv_root = findWithIndex (MkUF ufM) tyv in
     case tyv_root of
