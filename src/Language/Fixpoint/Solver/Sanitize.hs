@@ -399,18 +399,17 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
-symbolEnv cfg si = F.symEnv sEnv' tEnv ds lits (ts ++ ts')
+symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae'
     ae'          = elaborate (ElabParam ef (F.atLoc E.dummySpan "symbolEnv") env0) (F.ae si)
-    env0         = F.symEnv sEnv' tEnv ds lits ts
+    env0         = F.symEnv sEnv tEnv ds lits ts
     tEnv         = Thy.theorySymbols slv ds
     ds           = F.ddecls si
-    ts           = Misc.setNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv'])
-    sEnv'        = F.coerceSortEnv ef sEnv
+    ts           = Misc.setNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
+    sEnv         = F.coerceSortEnv ef $ (F.tsSort <$> tEnv) `mappend` F.fromListSEnv xts
     slv          = Cfg.solver cfg
     ef           = solverFlags slv
-    sEnv         = (F.tsSort <$> tEnv) `mappend` F.fromListSEnv xts
     xts          = symbolSorts cfg si ++ alits
     lits         = F.dLits si `F.unionSEnv'` F.fromListSEnv alits
     alits        = litsAEnv $ F.ae si

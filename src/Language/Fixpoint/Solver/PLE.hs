@@ -952,7 +952,6 @@ evalApp γ ctx e0 es et
   , length (eqArgs eq) <= length es
   = do
        env <- gets (seSort . evEnv)
-       -- slv <- gets evSolver
        okFuel <- checkFuel f
        if okFuel && et /= FuncNormal then do
          let (es1, es2) = splitAt (length (eqArgs eq)) es

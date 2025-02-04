@@ -1121,10 +1121,12 @@ checkOpTy _ _ FInt  FReal
 checkOpTy _ _ FReal FInt
   = return FReal
 
-checkOpTy f e t t' =
-  case unify f (Just e) t t' of
-    Just s -> checkNumeric f (apply s t) >> return (apply s t)
-    Nothing -> throwErrorAt (errOp e t t')
+checkOpTy f e t t'
+  | Just s <- unify f (Just e) t t'
+  = checkNumeric f (apply s t) >> return (apply s t)
+
+checkOpTy _ e t t'
+  = throwErrorAt (errOp e t t')
 
 checkFractional :: Env -> Sort -> CheckM ()
 checkFractional f s@(FObj l)
