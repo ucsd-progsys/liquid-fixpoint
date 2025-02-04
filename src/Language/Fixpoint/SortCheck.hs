@@ -279,14 +279,11 @@ elabExprE msg env e =
     (!e', _) <- elab (env, envLookup) e
     fufRef <- asks ufM
     finalUF <- liftIO $ readIORef fufRef
-    let !_ = unsafePerformIO $ print ("Final UF " ++ show finalUF)
     return (applyExprUF finalUF e') of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
-    Right s  -> 
-      let !_ = unsafePerformIO $ print ("Result " ++ show s) in
-      Right s
+    Right s  -> Right s
   where
     sEnv = seSort env
     envLookup = (`lookupSEnvWithDistance` sEnv)
@@ -591,25 +588,23 @@ elab !f (ENeg !e) = do
   return (ENeg e', s)
 
 elab f@(!_,!g) (ECst (EIte !p !e1 !e2) !t) = do
+  ufRef <- asks ufM
   (!p', !_)   <- elab f p
   (!e1', !s1) <- elab f (eCst e1 t)
   (!e2', !s2) <- elab f (eCst e2 t)
-  ufRef <- asks ufM
   uf <- liftIO $ readIORef ufRef
   (!_, !uf')          <- checkIteTyUF g uf p e1' e2' s1 s2
   liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   return (EIte p' (eCst e1' s1) (eCst e2' s2), t)
 
 elab f@(!_,!g) (EIte !p !e1 !e2) = do
-  ufRef <- asks ufM
-  uf <- liftIO $ readIORef ufRef
-  (!t, uf') <- getIteUF g uf e1 e2
-  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  !t <- getIteUF g e1 e2
   (!p', !_)   <- elab f p
   (!e1', !s1) <- elab f (eCst e1 t)
   (!e2', !s2) <- elab f (eCst e2 t)
-  uf'' <- liftIO $ readIORef ufRef
-  (_, uf''')          <- checkIteTyUF g uf'' p e1' e2' s1 s2
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
+  (_, uf''')          <- checkIteTyUF g uf p e1' e2' s1 s2
   liftIO $ atomicModifyIORef' ufRef $ const (uf''', ())
   return (EIte p' (eCst e1' s1) (eCst e2' s2), s2)
 
@@ -648,7 +643,6 @@ elab f@(!_,!g) e@(PAtom !eq !e1 !e2) | eq == Eq || eq == Ne = do
   !e2'       <- elabAs f t2' e2
   !e1''      <- eCstAtom f e1' t1'
   !e2''      <- eCstAtom f e2' t2'
-  let !_ = unsafePerformIO $ print ("Right side is " ++ show e2'')
   return (PAtom eq e1'' e2'', boolSort)
 
 elab !f (PAtom !r !e1 !e2)
@@ -708,7 +702,7 @@ elabAs f t e = notracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
     go (EApp e1 e2) = elabAppAs f t e1 e2
-    go e'           = fst <$> elab f e'
+    go e'           = let !_ = unsafePerformIO $ print ("Down the elab path " ++ show e') in fst <$> elab f e'
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
@@ -1027,15 +1021,15 @@ checkIte f p e1 e2 = do
   liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   return s
 
-getIteUF :: Env -> UF -> Expr -> Expr -> CheckM (Sort, UF)
-getIteUF f uf e1 e2 = do
+getIteUF :: Env -> Expr -> Expr -> CheckM Sort
+getIteUF f e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
-  let !_ = unsafePerformIO $ print ("T1 is " ++ show t1)
-  let !_ = unsafePerformIO $ print ("T2 is " ++ show t1)
+  ufRef <- asks ufM
+  uf <- liftIO $ readIORef ufRef
   uf' <- unifyUF f uf Nothing t1 t2
-  let !_ = unsafePerformIO $ print ("Unifying gives " ++ show uf')
-  return (t1, uf')
+  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  return t1 
 
 checkIteTyUF :: Env -> UF -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM (Sort, UF)
 checkIteTyUF f uf p e1 e2 t1 t2 = do
@@ -1088,17 +1082,12 @@ checkApp' f to g e = do
   ufRef <- asks ufM
   uf <- liftIO $ readIORef ufRef
   uf'        <- unifyManyUF f ge uf [it] [et]
-  let !_ = unsafePerformIO $ print ("Unified " ++ show it ++ " and " ++ show et)
-  let !_ = unsafePerformIO $ print ("Which gave " ++ show uf')
   liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   case to of
     Nothing    -> return ot
     Just t'    -> do 
-                    ufRef' <- asks ufM
-                    uf'' <- liftIO $ readIORef ufRef'
-                    uf''' <- unifyManyUF f ge uf'' [ot] [t']
-                    let !_ = unsafePerformIO $ print ("Unified " ++ show ot ++ " and " ++ show t')
-                    liftIO $ atomicModifyIORef' ufRef' $ const (uf''', ())
+                    uf'' <- unifyManyUF f ge uf' [ot] [t']
+                    liftIO $ atomicModifyIORef' ufRef $ const (uf'', ())
                     _ <- checkExprAs f et e
                     return ot
 
