@@ -1137,6 +1137,11 @@ checkNumeric :: Env -> Sort -> CheckM ()
 checkNumeric f s@(FObj l)
   = do t <- checkSym f l
        unless (t `elem` [FNum, FFrac, intSort, FInt]) (throwErrorAt $ errNonNumeric s)
+checkNumeric _ s@(FVar i) = do 
+  ufRef <- asks ufM 
+  uf <- liftIO $ readIORef ufRef
+  unless (isNumeric (Union.find uf i)) (throwErrorAt $ errNonNumeric s)
+  
 checkNumeric _ s
   = unless (isNumeric s) (throwErrorAt $ errNonNumeric s)
 
