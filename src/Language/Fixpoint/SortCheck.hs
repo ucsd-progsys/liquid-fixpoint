@@ -71,7 +71,7 @@ import           Control.Monad
 import           Control.Monad.Reader
 
 import           Data.Bifunctor (first)
-import qualified Data.HashMap.Strict       as M
+import qualified Data.IntMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.IORef
 import qualified Data.List                 as L
@@ -1400,7 +1400,7 @@ checkFunSort t             = throwErrorAt (errNonFunction 1 t)
 -- | API for manipulating Sort Substitutions -----------------------------------
 --------------------------------------------------------------------------------
 
-newtype TVSubst = Th (M.HashMap Int Sort) deriving (Show)
+newtype TVSubst = Th (M.IntMap Sort) deriving (Show)
 
 instance Semigroup TVSubst where
   (Th s1) <> (Th s2) = Th (s1 <> s2)
