@@ -552,10 +552,10 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
   let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
-  ufRef <- asks ufM
-  uf <- liftIO $ readIORef ufRef
-  uf' <- unifyExprUF (snd f) uf e
-  liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
+  -- ufRef <- asks ufM
+  -- uf <- liftIO $ readIORef ufRef
+  -- uf' <- unifyExprUF (snd f) uf e
+  -- liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   return (e, s)
 
 
@@ -1158,26 +1158,26 @@ checkEqConstrUF f e uf a t =
     Found tA -> unify1UF f e uf tA t
     _        -> throwErrorAt $ errUnifyMsg (Just "ceq2") e (FObj a) t
 
-{-# SCC unifyExprUF #-}
-unifyExprUF :: Env -> UF -> Expr -> CheckM UF
-unifyExprUF f uf (EApp e1 e2) = do
-  uf1 <- unifyExprUF f uf e1
-  uf2 <- unifyExprUF f uf1 e2
-  unifyExprAppUF f uf2 e1 e2
+-- {-# SCC unifyExprUF #-}
+-- unifyExprUF :: Env -> UF -> Expr -> CheckM UF
+-- unifyExprUF f uf (EApp e1 e2) = do
+--   uf1 <- unifyExprUF f uf e1
+--   uf2 <- unifyExprUF f uf1 e2
+--   unifyExprAppUF f uf2 e1 e2
 
-unifyExprUF f uf (ECst e _)
-  = unifyExprUF f uf e
-unifyExprUF _ uf _
-  = return uf
+-- unifyExprUF f uf (ECst e _)
+--   = unifyExprUF f uf e
+-- unifyExprUF _ uf _
+--   = return uf
 
-unifyExprAppUF :: Env -> UF -> Expr -> Expr -> CheckM UF
-unifyExprAppUF f uf e1 e2 = do
-  case (getArg $ exprSortMaybe e1, exprSortMaybe e2) of 
-    (Just s1, Just s2) -> unifyUF f uf (Just $ EApp e1 e2) s1 s2
-    _ -> return uf
-  where
-    getArg (Just (FFunc t1 _)) = Just t1
-    getArg _                   = Nothing
+-- unifyExprAppUF :: Env -> UF -> Expr -> Expr -> CheckM UF
+-- unifyExprAppUF f uf e1 e2 = do
+--   case (getArg $ exprSortMaybe e1, exprSortMaybe e2) of 
+--     (Just s1, Just s2) -> unifyUF f uf (Just $ EApp e1 e2) s1 s2
+--     _ -> return uf
+--   where
+--     getArg (Just (FFunc t1 _)) = Just t1
+--     getArg _                   = Nothing
 
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
