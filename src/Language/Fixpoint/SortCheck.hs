@@ -75,7 +75,7 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.IORef
 import qualified Data.List                 as L
-import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
+import           Data.Maybe                (mapMaybe, fromMaybe, isJust)
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
@@ -546,9 +546,7 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
   let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
-  let !θ = unifyExpr (snd f) e
-  composeTVSubst θ
-  return (e, maybe s (`apply` s) θ)
+  return (e, s)
 
 
 elab !_ e@(ESym _) =
@@ -1157,31 +1155,6 @@ checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
   where
     b1            = s1 == boolSort
     b2            = s2 == boolSort
-
---------------------------------------------------------------------------------
--- | Sort Unification on Expressions
---------------------------------------------------------------------------------
-
-{-# SCC unifyExpr #-}
-unifyExpr :: Env -> Expr -> Maybe TVSubst
-unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
-  where
-   θ1 = unifyExpr f e1
-   θ2 = unifyExpr f e2
-   θ  = unifyExprApp f e1 e2
-unifyExpr f (ECst e _)
-  = unifyExpr f e
-unifyExpr _ _
-  = Nothing
-
-unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
-unifyExprApp f e1 e2 = do
-  t1 <- getArg $ exprSortMaybe e1
-  t2 <- exprSortMaybe e2
-  unify f (Just $ EApp e1 e2) t1 t2
-  where
-    getArg (Just (FFunc t1 _)) = Just t1
-    getArg _                   = Nothing
 
 
 --------------------------------------------------------------------------------
