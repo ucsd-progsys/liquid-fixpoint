@@ -60,8 +60,9 @@ module Language.Fixpoint.Types.Solutions (
   , qb
   , qbPreds
   , qbFilter
-
+  , qbFilterM
   , gbFilterM
+
 
   -- * Conversion for client
   , result, resultGradual
@@ -171,6 +172,9 @@ qbSize = length . qbEQuals
 
 qbFilter :: (EQual -> Bool) -> QBind -> QBind
 qbFilter f (QB eqs) = QB (filter f eqs)
+
+qbFilterM :: Monad m => (EQual -> m Bool) -> QBind -> m QBind
+qbFilterM f (QB eqs) = QB <$> filterM f eqs
 
 instance NFData QBind
 instance NFData GBind

@@ -12,7 +12,8 @@
 module Language.Fixpoint.Solver.Solve (solve, solverInfo) where
 
 import           Control.Monad (when, filterM)
-import           Control.Monad.State.Strict (liftIO, modify, lift)
+import           Control.Monad.Reader
+import           Control.Monad.State.Strict (modify)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Misc            as Misc
 import qualified Language.Fixpoint.Types           as F
@@ -206,7 +207,7 @@ refineC bindingsInSmt _i s c =
      if null rhs
         then return (False, s)
         else do be     <- getBinds
-                let lhs = S.lhsPred bindingsInSmt ef (F.coerceBindEnv ef be) s c
+                let lhs = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
                 kqs    <- filterValid (cstrSpan c) lhs rhs
                 return  $ S.update s ks kqs
   where
@@ -258,7 +259,7 @@ solNonCutsResult :: Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solNonCutsResult s = do
   be <- getBinds
   ef <- T.ctxElabF <$> getContext
-  return $ S.nonCutsResult ef be s
+  pure $ runReader (S.nonCutsResult be s) ef
 
 result_
   :: (F.Loc a, NFData a)
@@ -316,7 +317,7 @@ isUnsat bindingsInSmt s c = do
   _     <- tickIter True -- newScc
   be    <- getBinds
   ef <- T.ctxElabF <$> getContext
-  let lp = S.lhsPred bindingsInSmt ef (F.coerceBindEnv ef be) s c
+  let lp = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
   let rp = rhsPred        c
   res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
