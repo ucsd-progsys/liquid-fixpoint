@@ -77,6 +77,7 @@ module Language.Fixpoint.Types.Solutions (
 import           Prelude hiding (lookup)
 import           GHC.Generics
 import           Control.DeepSeq
+import           Control.Monad.Reader
 import           Data.Hashable
 import qualified Data.Maybe                 as Mb
 import qualified Data.HashMap.Strict        as M
@@ -86,7 +87,7 @@ import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Config  as Cfg
+-- import           Language.Fixpoint.Types.Config  as Cfg
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
@@ -95,7 +96,7 @@ import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Substitutions
-import           Language.Fixpoint.SortCheck (ElabParam(..), elaborate)
+import           Language.Fixpoint.SortCheck (ElabM, ElabParam(..), elaborate)
 import           Text.PrettyPrint.HughesPJ.Compat
 
 --------------------------------------------------------------------------------
@@ -311,15 +312,17 @@ fromList env kGs kXs kYs z ebs xbs
     ebm = M.fromList ebs
 
 --------------------------------------------------------------------------------
-qbPreds :: Cfg.ElabFlags -> String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
+qbPreds :: String -> Sol a QBind -> Subst -> QBind -> ElabM [(Pred, EQual)]
 --------------------------------------------------------------------------------
-qbPreds ef msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
+qbPreds msg s su (QB eqs) =
+  do ef <- ask
+     pure [ (elabPred ef eq, eq) | eq <- eqs ]
   where
-    elabPred eq           = elaborate (ElabParam ef (atLoc eq $ "qbPreds:" ++ msg) env)
-                          . subst su
-                          . eqPred
-                          $ eq
-    env                   = sEnv s
+    elabPred ef eq = elaborate (ElabParam ef (atLoc eq $ "qbPreds:" ++ msg) env)
+                   . subst su
+                   . eqPred
+                   $ eq
+    env            = sEnv s
 
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------

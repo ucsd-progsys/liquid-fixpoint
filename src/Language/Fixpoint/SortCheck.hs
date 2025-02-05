@@ -46,6 +46,7 @@ module Language.Fixpoint.SortCheck  (
   , strSort
 
   -- * Sort-Directed Transformations
+  , ElabM
   , ElabParam (..)
   , Elaborate (..)
   , applySorts
@@ -123,10 +124,12 @@ isMono             = null . Vis.foldSort fv []
 --   instantiated to `int` and `bool`.
 --------------------------------------------------------------------------------
 
+type ElabM = Reader Cfg.ElabFlags
+
 data ElabParam = ElabParam
-  { epSolver :: Cfg.ElabFlags
-  , epMsg    :: Located String
-  , epEnv    :: SymEnv
+  { epFlags :: Cfg.ElabFlags
+  , epMsg   :: Located String
+  , epEnv   :: SymEnv
   }
 
 class Elaborate a where
@@ -464,27 +467,30 @@ checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
     unknowns              = [ x | x <- syms sr, x `notElem` v : xs, not (x `memberSEnv` env)]
     Reft (v,_)            = sr_reft sr
 
-checkSortedReftFull :: Checkable a => Cfg.ElabFlags -> SrcSpan -> SEnv SortedReft -> a -> Maybe Doc
-checkSortedReftFull ef sp γ t =
-  case runCM0 sp (Just ef) (check γ' t) of
-    Left (ChError f)  -> Just (text (val (f ())))
-    Right _ -> Nothing
+checkSortedReftFull :: Checkable a => SrcSpan -> SEnv SortedReft -> a -> ElabM (Maybe Doc)
+checkSortedReftFull sp γ t =
+  do ef <- ask
+     pure $ case runCM0 sp (Just ef) (check γ' t) of
+              Left (ChError f)  -> Just (text (val (f ())))
+              Right _ -> Nothing
   where
     γ' = sr_sort <$> γ
 
-checkSortFull :: Checkable a => Cfg.ElabFlags -> SrcSpan -> SEnv SortedReft -> Sort -> a -> Maybe Doc
-checkSortFull ef sp γ s t =
-  case runCM0 sp (Just ef) (checkSort γ' s t) of
-    Left (ChError f)  -> Just (text (val (f ())))
-    Right _ -> Nothing
+checkSortFull :: Checkable a => SrcSpan -> SEnv SortedReft -> Sort -> a -> ElabM (Maybe Doc)
+checkSortFull sp γ s t =
+  do ef <- ask
+     pure $ case runCM0 sp (Just ef) (checkSort γ' s t) of
+              Left (ChError f)  -> Just (text (val (f ())))
+              Right _ -> Nothing
   where
       γ' = sr_sort <$> γ
 
-checkSorted :: Checkable a => Cfg.ElabFlags -> SrcSpan -> SEnv Sort -> a -> Maybe Doc
-checkSorted ef sp γ t =
-  case runCM0 sp (Just ef) (check γ t) of
-    Left (ChError f)  -> Just (text (val (f ())))
-    Right _  -> Nothing
+checkSorted :: Checkable a => SrcSpan -> SEnv Sort -> a -> ElabM (Maybe Doc)
+checkSorted sp γ t =
+  do ef <- ask
+     pure $ case runCM0 sp (Just ef) (check γ t) of
+              Left (ChError f) -> Just (text (val (f ())))
+              Right _  -> Nothing
 
 pruneUnsortedReft :: SEnv Sort -> Templates -> SortedReft -> SortedReft
 pruneUnsortedReft _ t r

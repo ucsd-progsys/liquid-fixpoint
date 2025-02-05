@@ -20,6 +20,7 @@ import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
+import           Language.Fixpoint.SortCheck          (ElabM)
 import qualified Language.Fixpoint.Solver.Solution  as S
 import qualified Language.Fixpoint.Smt.Types as T
 import qualified Language.Fixpoint.Solver.Worklist  as W
@@ -203,7 +204,7 @@ refineC
 ---------------------------------------------------------------------------
 refineC bindingsInSmt _i s c =
   do ef <- T.ctxElabF <$> getContext
-     let (ks, rhs) = rhsCands ef s c
+     let (ks, rhs) = runReader (rhsCands s c) ef
      if null rhs
         then return (False, s)
         else do be     <- getBinds
@@ -217,12 +218,15 @@ refineC bindingsInSmt _i s c =
     _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
                      _i (show _ci) (showpp ks) (length xs) (length ys)
 
-rhsCands :: ElabFlags -> Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
-rhsCands ef s c    = (fst <$> ks, kqs)
+rhsCands :: Sol.Solution -> F.SimpC a -> ElabM ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+rhsCands s c    =
+  do pq <- traverse cnd ks
+     pure (fst <$> ks, concat pq)
   where
-    kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q) <- cnd k su ]
+    cnd :: (F.KVar, F.Subst) -> ElabM [(F.Pred, (F.KVar, Sol.EQual))]
+    cnd (k, su) = map (\(p , q) -> (p , (k , q))) <$> Sol.qbPreds msg s su (Sol.lookupQBind s k)
     ks          = predKs . F.crhs $ c
-    cnd k su    = Sol.qbPreds ef msg s su (Sol.lookupQBind s k)
+
     msg         = "rhsCands: " ++ show (F.sid c)
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]

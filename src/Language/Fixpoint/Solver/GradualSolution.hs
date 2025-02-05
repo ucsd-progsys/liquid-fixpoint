@@ -7,6 +7,7 @@ module Language.Fixpoint.Solver.GradualSolution
   ) where
 
 import           Control.Parallel.Strategies
+import           Control.Monad.Reader
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
@@ -26,7 +27,7 @@ import Language.Fixpoint.SortCheck
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> [(F.KVar, (F.GWInfo, [F.Expr]))]
 --------------------------------------------------------------------------------
-init cfg si = map (elab . refineG ef si qs genv) gs `using` parList rdeepseq
+init cfg si = map elab (runReader (traverse (refineG si qs genv) gs) ef) `using` parList rdeepseq
   where
     qs         = F.quals si
     gs         = snd <$> gs0
@@ -42,13 +43,13 @@ init cfg si = map (elab . refineG ef si qs genv) gs `using` parList rdeepseq
 
 
 --------------------------------------------------------------------------------
-refineG :: ElabFlags -> F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, (F.GWInfo, [F.Expr]))
-refineG ef fi qs genv w = (k, (F.gwInfo w, Sol.qbExprs qb))
-  where
-    (k, qb) = refine ef fi qs genv w
+refineG :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> ElabM (F.KVar, (F.GWInfo, [F.Expr]))
+refineG fi qs genv w =
+  do (k, qb) <- refine fi qs genv w
+     pure (k, (F.gwInfo w, Sol.qbExprs qb))
 
-refine :: ElabFlags -> F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
-refine ef fi qs genv w = refineK ef (Cons.allowHOquals fi) env qs $ F.wrft w
+refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> ElabM (F.KVar, Sol.QBind)
+refine fi qs genv w = refineK (Cons.allowHOquals fi) env qs $ F.wrft w
   where
     env             = wenv <> genv
     wenv            = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
@@ -59,11 +60,13 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
     notLit    = not . F.isLitSymbol . fst
 
 
-refineK :: ElabFlags -> Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, Sol.QBind)
-refineK ef ho env qs (v, t, k) = (k, eqs')
+refineK :: Bool -> F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> ElabM (F.KVar, Sol.QBind)
+refineK ho env qs (v, t, k) =
+  do eqs' <- Sol.qbFilterM (okInst env v t) eqs
+     pure (k, eqs')
    where
     eqs                     = instK ho env v t qs
-    eqs'                    = Sol.qbFilter (okInst ef env v t) eqs
+
 
 --------------------------------------------------------------------------------
 instK :: Bool
@@ -119,12 +122,14 @@ candidates env tyss tx =
     mono = So.isMono tx
 
 --------------------------------------------------------------------------------
-okInst :: ElabFlags -> F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool
+okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> ElabM Bool
 --------------------------------------------------------------------------------
-okInst ef env v t eq = isNothing tc
+okInst env v t eq =
+  do tc <- So.checkSorted F.dummySpan env sr
+     pure $ isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-    tc            = So.checkSorted ef F.dummySpan env sr
+
 
 
