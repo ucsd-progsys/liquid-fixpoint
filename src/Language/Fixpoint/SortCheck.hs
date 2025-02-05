@@ -552,10 +552,6 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
   let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
-  -- ufRef <- asks ufM
-  -- uf <- liftIO $ readIORef ufRef
-  -- uf' <- unifyExprUF (snd f) uf e
-  -- liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
   return (e, s)
 
 
@@ -1163,27 +1159,6 @@ checkEqConstrUF f e uf a t =
     Found tA -> unify1UF f e uf tA t
     _        -> throwErrorAt $ errUnifyMsg (Just "ceq2") e (FObj a) t
 
--- {-# SCC unifyExprUF #-}
--- unifyExprUF :: Env -> UF -> Expr -> CheckM UF
--- unifyExprUF f uf (EApp e1 e2) = do
---   uf1 <- unifyExprUF f uf e1
---   uf2 <- unifyExprUF f uf1 e2
---   unifyExprAppUF f uf2 e1 e2
-
--- unifyExprUF f uf (ECst e _)
---   = unifyExprUF f uf e
--- unifyExprUF _ uf _
---   = return uf
-
--- unifyExprAppUF :: Env -> UF -> Expr -> Expr -> CheckM UF
--- unifyExprAppUF f uf e1 e2 = do
---   case (getArg $ exprSortMaybe e1, exprSortMaybe e2) of 
---     (Just s1, Just s2) -> unifyUF f uf (Just $ EApp e1 e2) s1 s2
---     _ -> return uf
---   where
---     getArg (Just (FFunc t1 _)) = Just t1
---     getArg _                   = Nothing
-
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -1196,11 +1171,7 @@ checkBoolSort e (FVar i) = do
   ufRef <- asks ufM
   uf <- liftIO $ readIORef ufRef
   let s = Union.find uf i
-  if s == boolSort then return () else throwErrorAt (errBoolSort e s)
-    
-  -- case Union.find uf i of 
-  --   Nothing -> throwErrorAt (errBoolSort e s)
-  --   Just s' -> if s' == boolSort then return () else throwErrorAt (errBoolSort e s)
+  if s == boolSort then return () else throwErrorAt (errBoolSort e s)    
 checkBoolSort e s
   | s == boolSort = return ()
   | otherwise     = throwErrorAt (errBoolSort e s)
@@ -1234,33 +1205,9 @@ checkRelTy f _ _ s1@(FObj l) s2@(FObj l') | l /= l'
 checkRelTy _ _ _ FReal FReal = return ()
 checkRelTy _ _ _ FInt  FReal = return ()
 checkRelTy _ _ _ FReal FInt  = return ()
-checkRelTy f e _ s1@FInt s2@(FVar _) = do
-                ufRef <- asks ufM 
-                uf <- liftIO $ readIORef ufRef
-                uf' <- unifyUF f uf (Just e) s1 s2 `withError` errUnify (Just e) s1 s2
-                liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
-                return ()
 checkRelTy f _ _ FInt  s2    = checkNumeric f s2 `withError` errNonNumeric s2
-checkRelTy f e _ s1@(FVar _) s2@FInt = do
-                ufRef <- asks ufM 
-                uf <- liftIO $ readIORef ufRef
-                uf' <- unifyUF f uf (Just e) s1 s2 `withError` errUnify (Just e) s1 s2
-                liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
-                return ()
 checkRelTy f _ _ s1    FInt  = checkNumeric    f s1 `withError` errNonNumeric s1
-checkRelTy f e _ s1@FReal s2@(FVar _) = do
-                ufRef <- asks ufM 
-                uf <- liftIO $ readIORef ufRef
-                uf' <- unifyUF f uf (Just e) s1 s2 `withError` errUnify (Just e) s1 s2
-                liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
-                return ()
 checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` errNonFractional s2
-checkRelTy f e _ s1@(FVar _) s2@FReal = do
-                ufRef <- asks ufM 
-                uf <- liftIO $ readIORef ufRef
-                uf' <- unifyUF f uf (Just e) s1 s2 `withError` errUnify (Just e) s1 s2
-                liftIO $ atomicModifyIORef' ufRef $ const (uf', ())
-                return ()
 checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` errNonFractional s1
 checkRelTy f e _  t1 t2      = do
   ufRef <- asks ufM
