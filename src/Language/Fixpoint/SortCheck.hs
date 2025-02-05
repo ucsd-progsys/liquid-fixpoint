@@ -1187,12 +1187,15 @@ checkPred f e = checkExpr f e >>= checkBoolSort e
 
 checkBoolSort :: Expr -> Sort -> CheckM ()
 
-checkBoolSort e s@(FVar i) = do
+checkBoolSort e (FVar i) = do
   ufRef <- asks ufM
   uf <- liftIO $ readIORef ufRef
-  case Union.find uf i of 
-    Nothing -> throwErrorAt (errBoolSort e s)
-    Just s' -> if s' == boolSort then return () else throwErrorAt (errBoolSort e s)
+  let s = Union.find uf i
+  if s == boolSort then return () else throwErrorAt (errBoolSort e s)
+    
+  -- case Union.find uf i of 
+  --   Nothing -> throwErrorAt (errBoolSort e s)
+  --   Just s' -> if s' == boolSort then return () else throwErrorAt (errBoolSort e s)
 checkBoolSort e s
   | s == boolSort = return ()
   | otherwise     = throwErrorAt (errBoolSort e s)
@@ -1580,7 +1583,7 @@ apply !θ          = Vis.mapSort f
 applyUF :: UF -> Sort -> Sort
 applyUF uf          = Vis.mapSort f
   where
-    f t@(FVar !i) = fromMaybe t (Union.find uf i)
+    f (FVar !i) = Union.find uf i
     f !t          = t
 
 {-# SCC applyExprUF #-}
