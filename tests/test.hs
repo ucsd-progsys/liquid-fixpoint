@@ -94,7 +94,7 @@ unitTests lfDir
     , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
     , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
-    , testGroup "cvc5-pos"   <$> dirTests cvc5SaveCmd   "tests/pos"    skipNativePos  ExitSuccess
+    , testGroup "cvc5-pos"   <$> dirTests cvc5Cmd   "tests/pos"    skipNativePos  ExitSuccess
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
     , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
     , testGroup "horn-pos-el"      <$> dirTests elimSaveCmd   "tests/horn/pos"  []          ExitSuccess

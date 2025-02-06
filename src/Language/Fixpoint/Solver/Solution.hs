@@ -583,14 +583,6 @@ extendKInfo :: KInfo -> F.Tag -> KInfo
 extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
                       , kiDepth = 1  +            kiDepth ki }
 
-{-
--- mrExprInfos :: (a -> ExprInfo) -> ([F.Expr] -> F.Expr) -> ([KInfo] -> KInfo) -> [a] -> ExprInfo
-mrExprInfos :: (a -> (b, c)) -> ([b] -> b1) -> ([c] -> c1) -> [a] -> (b1, c1)
-mrExprInfos mF erF irF xs = (erF es, irF is)
-  where
-    (es, is)              = unzip $ map mF xs
--}
-
 mrExprInfosM :: Monad m => (a -> m (b, c)) -> ([b] -> b1) -> ([c] -> c1) -> [a] -> m (b1, c1)
 mrExprInfosM mF erF irF xs =
   do bcs <- traverse mF xs
