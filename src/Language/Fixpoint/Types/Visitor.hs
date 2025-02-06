@@ -12,6 +12,7 @@ module Language.Fixpoint.Types.Visitor (
   -- * Visitor
      Folder (..)
   ,  Foldable (..)
+  ,  Visitable (..)
 
   -- * Extracting Symbolic Constants (String Literals)
   ,  SymConsts (..)
