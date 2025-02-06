@@ -51,8 +51,6 @@ sanitize cfg =       banIrregularData
          >=>         banConstraintFreeVars cfg
          >=> Misc.fM addLiterals
          >=> Misc.fM (eliminateEta cfg)
-         >=> Misc.fM cancelCoercion
-
 
 --------------------------------------------------------------------------------
 -- | 'dropAdtMeasures' removes all the measure definitions that correspond to
@@ -82,16 +80,6 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
                     }
   where
     lits'      = M.fromList [ (F.symbol x, F.strSort) | x <- symConsts si ]
-
-
-
-cancelCoercion :: F.SInfo a -> F.SInfo a
-cancelCoercion = mapExpr (trans (defaultVisitor { txExpr = go }) () ())
-  where
-    go _ (F.ECoerc t1 t2 (F.ECoerc t2' t1' e))
-      | t1 == t1' && t2 == t2'
-      = e
-    go _ e = e
 
 --------------------------------------------------------------------------------
 -- | `eliminateEta` converts equations of the form f x = g x into f = g
