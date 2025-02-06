@@ -71,11 +71,11 @@ import           Control.Monad
 import           Control.Monad.Reader
 
 import           Data.Bifunctor (first)
-import qualified Data.HashMap.Strict       as M
+import qualified Data.IntMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.IORef
 import qualified Data.List                 as L
-import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
+import           Data.Maybe                (mapMaybe, fromMaybe, isJust)
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
@@ -273,11 +273,15 @@ elabExpr msg env e = case elabExprE msg env e of
 
 elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
 elabExprE msg env e =
-  case runCM0 (srcSpan msg) (elab (env, envLookup) e) of
+  case runCM0 (srcSpan msg) $ do
+    (!e', _) <- elab (env, envLookup) e
+    finalThetaRef <- asks chTVSubst 
+    finalTheta <- liftIO $ readIORef finalThetaRef
+    return (applyExpr finalTheta e') of
     Left (ChError f') ->
       let e' = f' ()
        in Left $ err (srcSpan e') (d (val e'))
-    Right s  -> Right (fst s)
+    Right s  -> Right s
   where
     sEnv = seSort env
     envLookup = (`lookupSEnvWithDistance` sEnv)
@@ -371,7 +375,7 @@ instance Show ChError where
   show (ChError f) = show (f ())
 instance Exception ChError where
 
-data ChState = ChS { chCount :: IORef Int, chSpan :: SrcSpan }
+data ChState = ChS {chCount :: IORef Int, chSpan :: SrcSpan, chTVSubst :: IORef (Maybe TVSubst)}
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
@@ -406,7 +410,8 @@ varCounterRef = unsafePerformIO $ newIORef 42
 -- value of counter.
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = unsafePerformIO $ do
-  try (runReaderT act (ChS varCounterRef sp))
+  ref <- newIORef Nothing
+  try (runReaderT act (ChS varCounterRef sp ref))
 
 fresh :: CheckM Int
 fresh = do
@@ -530,136 +535,134 @@ addEnv f bs x
 {-# SCC elab #-}
 elab :: ElabEnv -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
-elab f@(_, g) e@(EBin o e1 e2) = do
-  (e1', s1) <- elab f e1
-  (e2', s2) <- elab f e2
-  s <- checkOpTy g e s1 s2
-  return (EBin o (eCst e1' s1) (eCst e2' s2), s)
+elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
+  (!e1', !s1) <- elab f e1
+  (!e2', !s2) <- elab f e2
+  !s <- checkOpTy g e s1 s2
+  let !result = EBin o (eCst e1' s1) (eCst e2' s2)
+  return (result, s)
 
-elab f (EApp e1@(EApp _ _) e2) = do
-  (e1', _, e2', s2, s) <- notracepp "ELAB-EAPP" <$> elabEApp f e1 e2
-  let e = eAppC s e1' (eCst e2' s2)
-  let θ = unifyExpr (snd f) e
-  return (applyExpr θ e, maybe s (`apply` s) θ)
 
-elab f (EApp e1 e2) = do
-  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
-  let e = eAppC s (eCst e1' s1) (eCst e2' s2)
-  let θ = unifyExpr (snd f) e
-  return (applyExpr θ e, maybe s (`apply` s) θ)
-
-elab _ e@(ESym _) =
-  return (e, strSort)
-
-elab _ e@(ECon (I _)) =
-  return (e, FInt)
-
-elab _ e@(ECon (R _)) =
-  return (e, FReal)
-
-elab _ e@(ECon (L _ s)) =
+elab !f (EApp !e1 !e2) = do
+  (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
+  let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
   return (e, s)
 
-elab _ e@(PKVar _ _) =
+
+elab !_ e@(ESym _) =
+  return (e, strSort)
+
+elab !_ e@(ECon (I _)) =
+  return (e, FInt)
+
+elab !_ e@(ECon (R _)) =
+  return (e, FReal)
+
+elab !_ e@(ECon (L _ !s)) =
+  return (e, s)
+
+elab !_ e@(PKVar _ _) =
   return (e, boolSort)
 
-elab f (PGrad k su i e) =
-  (, boolSort) . PGrad k su i . fst <$> elab f e
 
-elab (_, f) e@(EVar x) = do
-  cs <- checkSym f x
-  pure (e, cs)
+elab !f (PGrad !k !su !i !e) = do
+  (!e', !_) <- elab f e
+  return (PGrad k su i e', boolSort)
 
-elab f (ENeg e) = do
-  (e', s) <- elab f e
+elab (!_, !f) e@(EVar !x) = do
+  !cs <- checkSym f x
+  return (e, cs)
+
+elab !f (ENeg !e) = do
+  (!e', !s) <- elab f e
   return (ENeg e', s)
 
-elab f@(_,g) (ECst (EIte p e1 e2) t) = do
-  (p', _)   <- elab f p
-  (e1', s1) <- elab f (eCst e1 t)
-  (e2', s2) <- elab f (eCst e2 t)
-  s         <- checkIteTy g p e1' e2' s1 s2
+elab f@(!_,!g) (ECst (EIte !p !e1 !e2) !t) = do
+  (!p', !_)   <- elab f p
+  (!e1', !s1) <- elab f (eCst e1 t)
+  (!e2', !s2) <- elab f (eCst e2 t)
+  !s          <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (eCst e1' s) (eCst e2' s), t)
 
-elab f@(_,g) (EIte p e1 e2) = do
-  t <- getIte g e1 e2
-  (p', _)   <- elab f p
-  (e1', s1) <- elab f (eCst e1 t)
-  (e2', s2) <- elab f (eCst e2 t)
-  s         <- checkIteTy g p e1' e2' s1 s2
+elab f@(!_,!g) (EIte !p !e1 !e2) = do
+  !t <- getIte g e1 e2
+  (!p', !_)   <- elab f p
+  (!e1', !s1) <- elab f (eCst e1 t)
+  (!e2', !s2) <- elab f (eCst e2 t)
+  !s          <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (eCst e1' s) (eCst e2' s), s)
 
-elab f (ECst e t) = do
-  (e', _) <- elab f e
+
+elab !f (ECst !e !t) = do
+  (!e', !_) <- elab f e
   return (eCst e' t, t)
 
-elab f (PNot p) = do
-  (e', _) <- elab f p
+elab !f (PNot !p) = do
+  (!e', !_) <- elab f p
   return (PNot e', boolSort)
 
-elab f (PImp p1 p2) = do
-  (p1', _) <- elab f p1
-  (p2', _) <- elab f p2
+elab !f (PImp !p1 !p2) = do
+  (!p1', !_) <- elab f p1
+  (!p2', !_) <- elab f p2
   return (PImp p1' p2', boolSort)
 
-elab f (PIff p1 p2) = do
-  (p1', _) <- elab f p1
-  (p2', _) <- elab f p2
+elab !f (PIff !p1 !p2) = do
+  (!p1', !_) <- elab f p1
+  (!p2', !_) <- elab f p2
   return (PIff p1' p2', boolSort)
 
-elab f (PAnd ps) = do
-  ps' <- mapM (elab f) ps
+elab !f (PAnd !ps) = do
+  !ps' <- mapM (elab f) ps
   return (PAnd (fst <$> ps'), boolSort)
 
-elab f (POr ps) = do
-  ps' <- mapM (elab f) ps
+elab !f (POr !ps) = do
+  !ps' <- mapM (elab f) ps
   return (POr (fst <$> ps'), boolSort)
 
-elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
-  t1        <- checkExpr g e1
-  t2        <- checkExpr g e2
-  (t1',t2') <- unite g e t1 t2 `withError` errElabExpr e
-  e1'       <- elabAs f t1' e1
-  e2'       <- elabAs f t2' e2
-  e1''      <- eCstAtom f e1' t1'
-  e2''      <- eCstAtom f e2' t2'
-  return (PAtom eq e1'' e2'' , boolSort)
+elab f@(!_,!g) e@(PAtom !eq !e1 !e2) | eq == Eq || eq == Ne = do
+  !t1        <- checkExpr g e1
+  !t2        <- checkExpr g e2
+  (!t1',!t2') <- unite g e t1 t2 `withError` errElabExpr e
+  !e1'       <- elabAs f t1' e1
+  !e2'       <- elabAs f t2' e2
+  !e1''      <- eCstAtom f e1' t1'
+  !e2''      <- eCstAtom f e2' t2'
+  return (PAtom eq e1'' e2'', boolSort)
 
-elab f (PAtom r e1 e2)
+elab !f (PAtom !r !e1 !e2)
   | r == Ueq || r == Une = do
-  (e1', _) <- elab f e1
-  (e2', _) <- elab f e2
+  (!e1', !_) <- elab f e1
+  (!e2', !_) <- elab f e2
   return (PAtom r e1' e2', boolSort)
 
-elab f@(env,_) (PAtom r e1 e2) = do
-  e1' <- uncurry (toInt env) <$> elab f e1
-  e2' <- uncurry (toInt env) <$> elab f e2
+elab f@(!env,!_) (PAtom !r !e1 !e2) = do
+  !e1' <- uncurry (toInt env) <$> elab f e1
+  !e2' <- uncurry (toInt env) <$> elab f e2
   return (PAtom r e1' e2', boolSort)
 
-elab f (PExist bs e) = do
-  (e', s) <- elab (elabAddEnv f bs) e
-  let bs' = elaborate "PExist Args" mempty bs
+elab !f (PExist !bs !e) = do
+  (!e', !s) <- elab (elabAddEnv f bs) e
+  let !bs' = elaborate "PExist Args" mempty bs
   return (PExist bs' e', s)
 
-elab f (PAll bs e) = do
-  (e', s) <- elab (elabAddEnv f bs) e
-  let bs' = elaborate "PAll Args" mempty bs
+elab !f (PAll !bs !e) = do
+  (!e', !s) <- elab (elabAddEnv f bs) e
+  let !bs' = elaborate "PAll Args" mempty bs
   return (PAll bs' e', s)
 
-elab f (ELam (x,t) e) = do
-  (e', s) <- elab (elabAddEnv f [(x, t)]) e
-  let t' = elaborate "ELam Arg" mempty t
+elab !f (ELam (!x,!t) !e) = do
+  (!e', !s) <- elab (elabAddEnv f [(x, t)]) e
+  let !t' = elaborate "ELam Arg" mempty t
   return (ELam (x, t') (eCst e' s), FFunc t s)
 
-elab f (ECoerc s t e) = do
-  (e', _) <- elab f e
-  return     (ECoerc s t e', t)
+elab !f (ECoerc !s !t !e) = do
+  (!e', !_) <- elab f e
+  return (ECoerc s t e', t)
 
-elab _ (ETApp _ _) =
+elab !_ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"
-elab _ (ETAbs _ _) =
+elab !_ (ETAbs _ _) =
   error "SortCheck.elab: TODO: implement ETAbs"
-
 
 -- | 'eCstAtom' is to support tests like `tests/pos/undef00.fq`
 eCstAtom :: ElabEnv -> Expr -> Sort -> CheckM Expr
@@ -711,7 +714,9 @@ elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
   su'             <- unify1 f e su sIn s2
-  return (applyExpr (Just su') e1 , applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
+  composeTVSubst (Just su)
+  composeTVSubst (Just su')
+  return (e1 , e2, apply su' s1, apply su' s2, apply su' sOut)
 
 
 --------------------------------------------------------------------------------
@@ -906,12 +911,12 @@ which, I imagine is what happens _somewhere_ inside GHC too?
 -}
 
 --------------------------------------------------------------------------------
-applySorts :: Vis.Visitable t => t -> [Sort]
+applySorts :: Vis.Foldable t => t -> [Sort]
 --------------------------------------------------------------------------------
 applySorts = {- notracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
   where
     defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
-    vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
+    vis    = (Vis.defaultFolder :: Vis.Folder [KVar] t) { Vis.accExpr = go }
     go _ (EApp (ECst (EVar f) t) _)   -- get types needed for [NOTE:apply-monomorphism]
            | f == applyName
            = [t]
@@ -970,7 +975,7 @@ refreshNegativeTyVars s = do
     let negativeSorts = negSort s
     freshVars <- mapM pair $ S.toList negativeSorts
     pure $ foldr (uncurry subst) s freshVars
-  where 
+  where
     pair i = do
       f <- fresh
       pure (i, FVar f)
@@ -1151,31 +1156,6 @@ checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
     b1            = s1 == boolSort
     b2            = s2 == boolSort
 
---------------------------------------------------------------------------------
--- | Sort Unification on Expressions
---------------------------------------------------------------------------------
-
-{-# SCC unifyExpr #-}
-unifyExpr :: Env -> Expr -> Maybe TVSubst
-unifyExpr f (EApp e1 e2) = Just $ mconcat $ catMaybes [θ1, θ2, θ]
-  where
-   θ1 = unifyExpr f e1
-   θ2 = unifyExpr f e2
-   θ  = unifyExprApp f e1 e2
-unifyExpr f (ECst e _)
-  = unifyExpr f e
-unifyExpr _ _
-  = Nothing
-
-unifyExprApp :: Env -> Expr -> Expr -> Maybe TVSubst
-unifyExprApp f e1 e2 = do
-  t1 <- getArg $ exprSortMaybe e1
-  t2 <- exprSortMaybe e2
-  unify f (Just $ EApp e1 e2) t1 t2
-  where
-    getArg (Just (FFunc t1 _)) = Just t1
-    getArg _                   = Nothing
-
 
 --------------------------------------------------------------------------------
 -- | Sort Unification
@@ -1355,22 +1335,45 @@ unifyVar f e θ !i !t
       Just !t'       -> if t == t' then return θ else unify1 f e θ t t'
       Nothing        -> return (updateVar i t θ)
 
+
+--------------------------------------------------------------------------------
+-- | Update global subst to be applied to expressions
+--------------------------------------------------------------------------------
+
+updateTVSubst :: TVSubst -> CheckM ()
+updateTVSubst theta = do
+  refTheta <- asks chTVSubst
+  liftIO $ atomicModifyIORef' refTheta $ const (Just theta, ())
+
+-- local (\s -> s {chTVSubst = theta}) (return ())
+
+mergeTVSubst :: TVSubst -> Maybe TVSubst -> TVSubst
+mergeTVSubst (Th m1) Nothing = Th m1
+mergeTVSubst (Th m1) (Just (Th m2)) = Th m1 <> Th m2
+
+composeTVSubst :: Maybe TVSubst -> CheckM ()
+composeTVSubst Nothing = return ()
+composeTVSubst (Just theta1) = do
+  refTheta <- asks chTVSubst
+  theta <- liftIO $ readIORef refTheta
+  updateTVSubst (mergeTVSubst theta1 theta)
+
 --------------------------------------------------------------------------------
 -- | Applying a Type Substitution ----------------------------------------------
 --------------------------------------------------------------------------------
 apply :: TVSubst -> Sort -> Sort
 --------------------------------------------------------------------------------
-apply θ          = Vis.mapSort f
+apply !θ          = Vis.mapSort f
   where
-    f t@(FVar i) = fromMaybe t (lookupVar i θ)
-    f t          = t
+    f t@(FVar !i) = fromMaybe t (lookupVar i θ)
+    f !t          = t
 
 applyExpr :: Maybe TVSubst -> Expr -> Expr
 applyExpr Nothing e  = e
 applyExpr (Just θ) e = Vis.mapExprOnExpr f e
   where
-    f (ECst e' s) = ECst e' (apply θ s)
-    f e'          = e'
+    f (ECst !e' !s) = ECst e' (apply θ s)
+    f !e'          = e'
 
 --------------------------------------------------------------------------------
 _applyCoercion :: Symbol -> Sort -> Sort -> Sort
@@ -1397,7 +1400,7 @@ checkFunSort t             = throwErrorAt (errNonFunction 1 t)
 -- | API for manipulating Sort Substitutions -----------------------------------
 --------------------------------------------------------------------------------
 
-newtype TVSubst = Th (M.HashMap Int Sort) deriving (Show)
+newtype TVSubst = Th (M.IntMap Sort) deriving (Show)
 
 instance Semigroup TVSubst where
   (Th s1) <> (Th s2) = Th (s1 <> s2)
