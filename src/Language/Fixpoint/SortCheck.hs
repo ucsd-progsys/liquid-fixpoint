@@ -693,19 +693,19 @@ elab f@(!env,!_) (PAtom !r !e1 !e2) = do
 
 elab !f (PExist !bs !e) = do
   (!e', !s) <- elab (elabAddEnv f bs) e
-  ef <- asks chElabF
+  !ef <- asks chElabF
   let !bs' = elaborate (ElabParam ef "PExist Args" mempty) bs
   return (PExist bs' e', s)
 
 elab !f (PAll !bs !e) = do
   (!e', !s) <- elab (elabAddEnv f bs) e
-  ef <- asks chElabF
+  !ef <- asks chElabF
   let !bs' = elaborate (ElabParam ef "PAll Args" mempty) bs
   return (PAll bs' e', s)
 
 elab !f (ELam (!x,!t) !e) = do
   (!e', !s) <- elab (elabAddEnv f [(x, t)]) e
-  ef <- asks chElabF
+  !ef <- asks chElabF
   let !t' = elaborate (ElabParam ef "ELam Arg" mempty) t
   return (ELam (x, t') (eCst e' s), FFunc t s)
 
