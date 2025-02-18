@@ -96,13 +96,13 @@ instance Monoid SymEnv where
   mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty
   mappend       = (<>)
 
-symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
+symEnv :: ElabFlags -> SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
+symEnv ef xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
   where
     xEnv'   = unionSEnv xEnv wiredInEnv
     dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
     sortMap = M.fromList (zip smts [0..])
-    smts    = funcSorts dEnv ts
+    smts    = funcSorts ef dEnv ts
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNINTERPRETED but POLYMORPHIC, hence need to go through
@@ -137,11 +137,12 @@ wiredInEnv = M.fromList
 --   such a strategy would NUKE the entire apply-sort machinery from the CODE base.
 --   [TODO]: dynamic-apply-declaration
 
-funcSorts :: SEnv DataDecl -> [Sort] -> [FuncSort]
-funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
+funcSorts :: ElabFlags -> SEnv DataDecl -> [Sort] -> [FuncSort]
+funcSorts ef dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
   where
-    smts = Misc.sortNub $ concat [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
+    smts = Misc.sortNub $ concat $ tx polyset : [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
     tx   = inlineArrSetBag False dEnv
+    polyset = if elabSetBag ef then arraySort (FVar 0) boolSort else setSort (FVar 0)
 
 -- Related to the above, after merging #688, we now allow types other than
 -- Int to which Arrays/Sets/Bags can be applied.
@@ -150,7 +151,7 @@ funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
 -- when PLE generates apply queries for polymorphic sets (see
 -- https://github.com/ucsd-progsys/liquidhaskell/issues/2438). The following
 -- pair of functions is a temporary fix for this - it generates additional
--- array sorts instantiated at all user types for a "polymorphic depth 1"
+-- array/set/bag sorts instantiated at all user types for a "polymorphic depth 1"
 -- (i.e., `Array (Foo Int) Int` but not `Array (Foo (Foo Int)) Int`, to keep
 -- the applys table from blowing up exponentially). Ultimately, a general
 -- solution should be implemented for generating ad-hoc sets of applys on the
