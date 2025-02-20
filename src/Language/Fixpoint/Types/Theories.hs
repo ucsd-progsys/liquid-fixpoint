@@ -96,13 +96,13 @@ instance Monoid SymEnv where
   mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty
   mappend       = (<>)
 
-symEnv :: ElabFlags -> SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv ef xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
+symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
+symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
   where
     xEnv'   = unionSEnv xEnv wiredInEnv
     dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
     sortMap = M.fromList (zip smts [0..])
-    smts    = funcSorts ef dEnv ts
+    smts    = funcSorts dEnv ts
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNINTERPRETED but POLYMORPHIC, hence need to go through
@@ -137,14 +137,11 @@ wiredInEnv = M.fromList
 --   such a strategy would NUKE the entire apply-sort machinery from the CODE base.
 --   [TODO]: dynamic-apply-declaration
 
-funcSorts :: ElabFlags -> SEnv DataDecl -> [Sort] -> [FuncSort]
-funcSorts ef dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
+funcSorts :: SEnv DataDecl -> [Sort] -> [FuncSort]
+funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
   where
-    smts = Misc.sortNub $ concat $ map tx [polyarr, polyset, polybag] ++ [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
+    smts = Misc.sortNub $ concat $ [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
     tx   = inlineArrSetBag False dEnv
-    polyarr = arraySort (FVar 0) (FVar 0)
-    polyset = if elabSetBag ef then arraySort (FVar 0) boolSort else setSort (FVar 0)
-    polybag = if elabSetBag ef then arraySort (FVar 0) intSort else bagSort (FVar 0)
 
 -- Related to the above, after merging #688, we now allow types other than
 -- Int to which Arrays/Sets/Bags can be applied.
