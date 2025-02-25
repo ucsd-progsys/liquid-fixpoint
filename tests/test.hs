@@ -94,6 +94,7 @@ unitTests lfDir
     , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
     , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
+    , testGroup "cvc5-pos"   <$> dirTests cvc5Cmd   "tests/pos"    skipNativePos  ExitSuccess
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
     , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
     , testGroup "horn-pos-el"      <$> dirTests elimSaveCmd   "tests/horn/pos"  []          ExitSuccess
@@ -192,6 +193,10 @@ elimSaveCmd (LO opts) bin dir file =
 cvc5Cmd :: TestCmd
 cvc5Cmd (LO opts) bin dir file =
   printf "cd %s && %s --solver=cvc5 %s %s" dir bin opts file
+
+cvc5SaveCmd :: TestCmd
+cvc5SaveCmd (LO opts) bin dir file =
+  printf "cd %s && %s --save --solver=cvc5 %s %s" dir bin opts file
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers

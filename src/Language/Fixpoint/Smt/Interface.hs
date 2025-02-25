@@ -59,7 +59,7 @@ module Language.Fixpoint.Smt.Interface (
 
     ) where
 
-import           Language.Fixpoint.Types.Config ( SMTSolver (..)
+import           Language.Fixpoint.Types.Config ( SMTSolver (..), solverFlags
                                                 , Config (solver, smtTimeout, gradual, stringTheory, save))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
@@ -156,7 +156,7 @@ checkValids cfg f xts ps
 {-# SCC command #-}
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------------
-command Ctx {..} !cmd       = do
+command Ctx{..} !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
   --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
   forM_ ctxLog $ \h -> do
@@ -286,7 +286,8 @@ makeProcess ctxLog cfg
 
 makeContext' :: Config -> Maybe Handle -> IO Context
 makeContext' cfg ctxLog
-  = do (backend, closeIO) <- case solver cfg of
+  = do let slv = solver cfg
+       (backend, closeIO) <- case slv of
          Z3      ->
            {- "z3 -smt2 -in"                   -}
            {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
@@ -308,11 +309,12 @@ makeContext' cfg ctxLog
                              , Process.args = ["--incremental", "-L", "smtlib2"] }
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
-       return Ctx { ctxSolver  = solver
-                  , ctxClose   = closeIO
-                  , ctxLog     = ctxLog
-                  , ctxVerbose = loud
-                  , ctxSymEnv  = mempty
+       return Ctx { ctxSolver    = solver
+                  , ctxElabF     = solverFlags slv
+                  , ctxClose     = closeIO
+                  , ctxLog       = ctxLog
+                  , ctxVerbose   = loud
+                  , ctxSymEnv    = mempty
                   }
 
 -- | Close file handles and release the solver backend's resources.
@@ -400,7 +402,7 @@ smtCheckSat me p
    ans _   = False
 
 smtAssert :: Context -> Expr -> IO ()
-smtAssert me p  = interact' me (Assert Nothing p)
+smtAssert me p = interact' me (Assert Nothing p)
 
 smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
 smtDefineFunc me name symList rsort e =
@@ -481,7 +483,7 @@ declare me = do
     qryXTs     = fmap tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
     xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env)
-    tx         = elaborate    "declare" env
+    tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
     ats        = funcSortVars env
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]

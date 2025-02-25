@@ -12,14 +12,17 @@
 module Language.Fixpoint.Solver.Solve (solve, solverInfo) where
 
 import           Control.Monad (when, filterM)
-import           Control.Monad.State.Strict (liftIO, modify, lift)
+import           Control.Monad.Reader
+import           Control.Monad.State.Strict (modify)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Misc            as Misc
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
+import           Language.Fixpoint.SortCheck          (ElabM)
 import qualified Language.Fixpoint.Solver.Solution  as S
+import qualified Language.Fixpoint.Smt.Types as T
 import qualified Language.Fixpoint.Solver.Worklist  as W
 import qualified Language.Fixpoint.Solver.Eliminate as E
 import           Language.Fixpoint.Solver.Monad
@@ -199,26 +202,31 @@ refineC
   -> F.SimpC a
   -> SolveM a (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
-refineC bindingsInSmt _i s c
-  | null rhs  = return (False, s)
-  | otherwise = do be     <- getBinds
-                   let lhs = S.lhsPred bindingsInSmt (F.coerceBindEnv be) s c
-                   kqs    <- filterValid (cstrSpan c) lhs rhs
-                   return  $ S.update s ks kqs
+refineC bindingsInSmt _i s c =
+  do ef <- T.ctxElabF <$> getContext
+     let (ks, rhs) = runReader (rhsCands s c) ef
+     if null rhs
+        then return (False, s)
+        else do be     <- getBinds
+                let lhs = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
+                kqs    <- filterValid (cstrSpan c) lhs rhs
+                return  $ S.update s ks kqs
   where
     _ci       = F.subcId c
-    (ks, rhs) = rhsCands s c
     -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
     --               _i (show (F.sid c)) (showpp s)
     _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
                      _i (show _ci) (showpp ks) (length xs) (length ys)
 
-rhsCands :: Sol.Solution -> F.SimpC a -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
-rhsCands s c    = (fst <$> ks, kqs)
+rhsCands :: Sol.Solution -> F.SimpC a -> ElabM ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+rhsCands s c    =
+  do pq <- traverse cnd ks
+     pure (fst <$> ks, concat pq)
   where
-    kqs         = [ (p, (k, q)) | (k, su) <- ks, (p, q)  <- cnd k su ]
+    cnd :: (F.KVar, F.Subst) -> ElabM [(F.Pred, (F.KVar, Sol.EQual))]
+    cnd (k, su) = map (\(p , q) -> (p , (k , q))) <$> Sol.qbPreds msg s su (Sol.lookupQBind s k)
     ks          = predKs . F.crhs $ c
-    cnd k su    = Sol.qbPreds msg s su (Sol.lookupQBind s k)
+
     msg         = "rhsCands: " ++ show (F.sid c)
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
@@ -254,7 +262,8 @@ solResult cfg = minimizeResult cfg . Sol.result
 solNonCutsResult :: Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solNonCutsResult s = do
   be <- getBinds
-  return $ S.nonCutsResult be s
+  ef <- T.ctxElabF <$> getContext
+  pure $ runReader (S.nonCutsResult be s) ef
 
 result_
   :: (F.Loc a, NFData a)
@@ -311,7 +320,8 @@ isUnsat bindingsInSmt s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
   be    <- getBinds
-  let lp = S.lhsPred bindingsInSmt (F.coerceBindEnv be) s c
+  ef <- T.ctxElabF <$> getContext
+  let lp = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
   let rp = rhsPred        c
   res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp

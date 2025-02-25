@@ -181,7 +181,7 @@ resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ mytracepp  "ELAB-INST:  " $ zip is ps''
-    ps''     = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps'
+    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 
@@ -311,7 +311,7 @@ sInfo cfg env info ips = strengthenHyp info (mytracepp  "ELAB-INST:  " $ zip (fs
   where
     (is, ps)         = unzip ips
     ps'              = defuncAny cfg env ps
-    ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps'
+    ps''             = zipWith (\(i, sp) -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc sp ("PLE1 " ++ show i)) env)) is ps'
 
 instSimpC :: Config -> SMT.Context -> BindEnv a -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv subId sub
@@ -558,7 +558,7 @@ substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
     eTs   = sortExpr sp env <$> es
-    coSub = mytracepp  ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub env eTs ts
+    coSub = mytracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub env eTs ts
 
 mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ]

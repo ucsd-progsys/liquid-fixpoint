@@ -182,7 +182,7 @@ resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
-    ps''     = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps'
+    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 
@@ -473,7 +473,7 @@ interpret cmap know ictx ssenv e@(EApp _ _)     = case splitEApp e of
         , length (eqArgs eq) <= length es
         = let (es1,es2) = splitAt (length (eqArgs eq)) es
               ges       = substEq env eq es1
-              exp1       = unfoldExpr ie γ ctx env ges
+              exp1      = unfoldExpr ie γ ctx env ges
               exp2      = eApps exp1 es2 in  --exp' -- TODO undo
             if eApps (EVar f) es == exp2 then exp2 else interpret' ie γ ctx env exp2
 

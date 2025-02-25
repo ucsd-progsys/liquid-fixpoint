@@ -11,6 +11,7 @@ module Language.Fixpoint.Solver.Monad
 
          -- * Get Binds
        , getBinds
+       , getContext
 
          -- * SMT Query
        , filterRequired

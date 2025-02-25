@@ -147,7 +147,7 @@ instance SMTLIB2 Expr where
   smt2 env (PAnd ps)        = parenSeqs ["and", smt2s env ps]
   smt2 _   (POr [])         = "false"
   smt2 env (POr ps)         = parenSeqs ["or", smt2s env ps]
-  smt2 env (PNot p)         = parenSeqs ["not", smt2  env p]
+  smt2 env (PNot p)         = parenSeqs ["not", smt2 env p]
   smt2 env (PImp p q)       = parenSeqs ["=>", smt2 env p, smt2 env q]
   smt2 env (PIff p q)       = parenSeqs ["=", smt2 env p, smt2 env q]
   smt2 env (PExist [] p)    = smt2 env p
@@ -155,7 +155,7 @@ instance SMTLIB2 Expr where
   smt2 env (PAll   [] p)    = smt2 env p
   smt2 env (PAll   xs p)    = parenSeqs ["forall", parens (smt2s env xs), smt2 env p]
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
-  smt2 env (ELam b e)       = smt2Lam   env b e
+  smt2 env (ELam b e)       = smt2Lam env b e
   smt2 env (ECoerc t1 t2 e) = smt2Coerc env t1 t2 e
   smt2 _   e                = panic ("smtlib2 Pred  " ++ show e)
 
@@ -184,8 +184,8 @@ smt2VarAs env x t = parenSeqs ["as", smt2 env x, smt2SortMono x env t]
 smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder
 smt2Lam env (x, xT) full@(ECst _ eT) = parenSeqs [Builder.fromText lambda, x', smt2 env full]
   where
-    x'                          = smtLamArg env x xT
-    lambda                      = symbolAtName lambdaName env () (FFunc xT eT)
+    x'     = smtLamArg env x xT
+    lambda = symbolAtName lambdaName env () (FFunc xT eT)
 
 smt2Lam _ _ e
   = panic ("smtlib2: Cannot serialize unsorted lambda: " ++ showpp e)

@@ -24,9 +24,9 @@ mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
 expand :: Config -> SInfo a -> SInfo a
-expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si)
+expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si) (solverFlags $ solver cfg)
   where
-    ext ::SInfo a -> Ex a (SInfo a)
+    ext :: SInfo a -> Ex a (SInfo a)
     ext = extend
 
 
@@ -42,7 +42,7 @@ instance Extend a (SInfo a) where
     return $ si{ cm = cm' , bs = bs' }
 
 instance (Extend ann a) => Extend ann (M.HashMap SubcId a) where
-  extend h = M.fromList <$> mapM extend (M.toList h)
+  extend h  = M.fromList <$> mapM extend (M.toList h)
 
 instance (Extend ann a, Extend ann b) => Extend ann (a,b) where
   extend (a,b) = (,) <$> extend a <*> extend b
@@ -100,11 +100,12 @@ generateArguments ann srt = do
     Left dds -> mapM (freshArgDD ann) dds
     Right s  -> (\x -> [EVar x]) <$> freshArgOne ann s
 
-makeEq :: Brel-> Expr -> Expr -> Expr -> Ex ann Expr
+makeEq :: Brel -> Expr -> Expr -> Expr -> Ex ann Expr
 makeEq b e1 e2 e = do
   env <- gets exenv
-  let elab = elaborate (dummyLoc "extensionality") env
-  return $ PAtom b (elab $ EApp (unElab e1) e)  (elab $ EApp (unElab e2) e)
+  slv <- gets elabf
+  let elab = elaborate (ElabParam slv (dummyLoc "extensionality") env)
+  return $ PAtom b (elab $ EApp (unElab e1) e) (elab $ EApp (unElab e2) e)
 
 instantiate :: a -> [DataDecl]  -> Sort -> Ex a [Expr]
 instantiate ann ds s = instantiateOne ann (breakSort ds s)
@@ -196,10 +197,11 @@ data ExSt a = ExSt
   , exbenv  :: BindEnv a
   , exbinds :: IBindEnv
   , excbs   :: [(Symbol, Sort)]
+  , elabf   :: ElabFlags
   }
 
-initST :: SymEnv -> [DataDecl]  -> ExSt ann
-initST env dd = ExSt 0 (d:dd) env mempty mempty mempty
+initST :: SymEnv -> [DataDecl] -> ElabFlags -> ExSt ann
+initST env dd ef = ExSt 0 (d:dd) env mempty mempty mempty ef
   where
     -- NV: hardcore Haskell pairs because they do not appear in DataDecl (why?)
 #if MIN_TOOL_VERSION_ghc(9,10,1)
