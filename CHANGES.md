@@ -2,11 +2,20 @@
 
 ## NEXT
 
+## 0.9.6.3.2 (2025-03-06)
+
 - Expose relatedSymbols from EnvironmentReduction. Needed for improving error
   messages in LH
   [#2346](https://github.com/ucsd-progsys/liquidhaskell/issues/2346).
 - Support extensionality in PLE [#704](https://github.com/ucsd-progsys/liquid-fixpoint/pull/704)
 - Add a new flag `--etabeta` to reason with lambdas in PLE [#705](https://github.com/ucsd-progsys/liquid-fixpoint/pull/705)
+- Add support for reflected lambdas in PLE [#725](https://github.com/ucsd-progsys/liquid-fixpoint/pull/725)
+- Implement Bags and Maps reasoning with Arrays [#703](https://github.com/ucsd-progsys/liquid-fixpoint/pull/703)
+- Support conditional elaboration of theories for cvc5 [#734](https://github.com/ucsd-progsys/liquid-fixpoint/pull/734)
+- Generate smt2 files only when using `--save` [#712](https://github.com/ucsd-progsys/liquid-fixpoint/pull/712)
+- Parameterize Expr and Reft by the variable type [#708](https://github.com/ucsd-progsys/liquid-fixpoint/pull/721)
+- Preserve location of operators in the parser [#721](https://github.com/ucsd-progsys/liquid-fixpoint/pull/721)
+- Optimize elaboration [#736](https://github.com/ucsd-progsys/liquid-fixpoint/pull/736)
 
 ## 0.9.6.3.1 (2024-08-21)
 
