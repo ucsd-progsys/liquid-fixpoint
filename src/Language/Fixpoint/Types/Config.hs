@@ -148,7 +148,7 @@ instance Read RESTOrdering where
 
 ---------------------------------------------------------------------------------------
 
-data SMTSolver = Z3 | Z3mem | Cvc4 | Cvc5 | Mathsat
+data SMTSolver = Z3 | Z3mem | Cvc4 | Cvc5 | Mathsat | Bitwuzla
                  deriving (Eq, Data, Typeable, Generic)
 
 newtype ElabFlags = ElabFlags { elabSetBag :: Bool }
@@ -167,6 +167,7 @@ instance Show SMTSolver where
   show Cvc4    = "cvc4"
   show Cvc5    = "cvc5"
   show Mathsat = "mathsat"
+  show Bitwuzla = "bitwuzla"
 
 instance S.Store SMTSolver
 
