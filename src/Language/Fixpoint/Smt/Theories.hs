@@ -250,7 +250,7 @@ matchesCondition s (SOnly ss) = s `elem` ss
 solverPreamble :: Config -> [Preamble]
 solverPreamble cfg
   =  [(SOnly [Cvc4], "(set-logic ALL_SUPPORTED)")]
-  ++ [(SOnly [Cvc5], "(set-logic ALL)")]
+  ++ [(SOnly [Cvc5, Bitwuzla], "(set-logic ALL)")]
   ++ boolPreamble cfg
   ++ arithPreamble cfg
   ++ stringPreamble cfg

@@ -463,8 +463,7 @@ makeMbqi cfg
 z3_options :: [Builder]
 z3_options
   = [ "(set-option :auto-config false)"
-    , "(set-option :model true)"
-    , "(set-option :sat.smt true)" ]
+    , "(set-option :model true)" ]
 
 
 
