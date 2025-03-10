@@ -271,7 +271,8 @@ reduceFInfo cfg fi = do
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
-  res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
+  res0 <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
+  let res = simplifyResult res0
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   -- saveSolution cfg res
@@ -303,7 +304,7 @@ saveSolution cfg res = when (save cfg) $ do
   writeFile f $ unlines $
     [ ""
     , "Solution:"
-    , showpp (HashMap.map simplifyKVar $ resSolution  res)
+    , showpp (resSolution  res)
     ] ++
     ( if gradual cfg then
         ["", "", showpp $ gresSolution res]
@@ -314,8 +315,15 @@ saveSolution cfg res = when (save cfg) $ do
     , ""
     , "Non-cut kvars:"
     , ""
-    , showpp (HashMap.map (simplifyKVar . unElab) $ resNonCutsSolution res)
+    , showpp (HashMap.map unElab $ resNonCutsSolution res)
     ]
+
+simplifyResult :: Result a -> Result a
+simplifyResult res =
+    res
+      { resSolution = HashMap.map simplifyKVar (resSolution res)
+      , resNonCutsSolution = HashMap.map simplifyKVar (resNonCutsSolution res)
+      }
 
 -- | Simplifies existential expressions with unused or inconsequential bindings.
 --
@@ -354,12 +362,13 @@ simplifyKVar (PExist bs e@(PAnd es)) =
     -- Yields @(Just v, e)@ if @v@ doesn't occur elsewhere, and @e@ has
     -- the form @v == e'@.
     isUniqueEq :: [[Symbol]] -> Expr -> (Maybe Symbol, Expr)
-    isUniqueEq fvs er@(PAtom brel e0 e1)
-      | isEqRel brel =
-         let m = isVarToDrop fvs e0 `mplus` isVarToDrop fvs e1
-          in (m, er)
-    isUniqueEq _fvs e0 =
-      (Nothing, e0)
+    isUniqueEq fvs er = case unElab er of
+      PAtom brel e0 e1
+        | isEqRel brel ->
+          let m = isVarToDrop fvs e0 `mplus` isVarToDrop fvs e1
+           in (m, er)
+      _ ->
+        (Nothing, er)
 
     -- | Tells if the binary relation is an equality.
     isEqRel Eq = True
