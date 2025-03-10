@@ -237,7 +237,7 @@ uifDef cfg f op
   = bFun f [("x", "Int"), ("y", "Int")] "Int" (key2 (fromText op) "x" "y")
 
 onlyLinearArith :: Config -> Bool
-onlyLinearArith cfg = linear cfg || solver cfg `notElem` [Z3, Cvc5]
+onlyLinearArith cfg = linear cfg || solver cfg `notElem` [Z3, Z3mem, Cvc5]
 
 preamble :: Config -> SMTSolver -> [Builder]
 preamble cfg s = snd <$> filter (matchesCondition s . fst) (solverPreamble cfg)
@@ -249,8 +249,12 @@ matchesCondition s (SOnly ss) = s `elem` ss
 
 solverPreamble :: Config -> [Preamble]
 solverPreamble cfg
-  =  [(SOnly [Cvc4], "(set-logic ALL_SUPPORTED)")]
-  ++ [(SOnly [Cvc5], "(set-logic ALL)")]
+  =  [ (SOnly [Z3, Z3mem],  "(set-option :auto-config false)")
+     , (SOnly [Z3, Z3mem],  "(set-option :model true)")
+     , (SOnly [Cvc4],       "(set-logic ALL_SUPPORTED)")
+     , (SOnly [Cvc5],       "(set-logic ALL)")
+     , (SOnly [Cvc4, Cvc5], "(set-option :incremental true)")
+     ]
   ++ boolPreamble cfg
   ++ arithPreamble cfg
   ++ stringPreamble cfg

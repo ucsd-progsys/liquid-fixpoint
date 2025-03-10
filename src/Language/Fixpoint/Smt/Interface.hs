@@ -331,7 +331,7 @@ smtPreamble cfg s me
   | s == Z3 || s == Z3mem
     = do v <- getZ3Version me
          checkValidStringFlag Z3 v cfg
-         return $ z3_options ++ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
+         return $ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
   | otherwise
     = checkValidStringFlag s [] cfg >> return (Thy.preamble cfg s)
 
@@ -455,12 +455,6 @@ makeMbqi :: Config -> [Builder]
 makeMbqi cfg
   | gradual cfg = [""]
   | otherwise   = ["\n(set-option :smt.mbqi false)"]
-
-z3_options :: [Builder]
-z3_options
-  = [ "(set-option :auto-config false)"
-    , "(set-option :model true)" ]
-
 
 
 --------------------------------------------------------------------------------
