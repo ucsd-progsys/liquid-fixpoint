@@ -34,7 +34,7 @@ import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
-import           Control.Monad                      (when)
+import           Control.Monad                      (mplus, when)
 import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.EnvironmentReduction
   (reduceEnvironments, simplifyBindings)
@@ -59,7 +59,7 @@ import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, mapMaybe)
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -271,7 +271,8 @@ reduceFInfo cfg fi = do
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
-  res <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
+  res0 <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
+  let res = simplifyResult res0
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   -- saveSolution cfg res
@@ -305,8 +306,10 @@ saveSolution cfg res = when (save cfg) $ do
     , "Solution:"
     , showpp (resSolution  res)
     ] ++
-    ( if gradual cfg then ["", "", showpp (gresSolution res)]
-      else []
+    ( if gradual cfg then
+        ["", "", showpp $ gresSolution res]
+      else
+        []
     ) ++
     [ ""
     , ""
@@ -314,3 +317,106 @@ saveSolution cfg res = when (save cfg) $ do
     , ""
     , showpp (HashMap.map unElab $ resNonCutsSolution res)
     ]
+
+simplifyResult :: Result a -> Result a
+simplifyResult res =
+    res
+      { resSolution = HashMap.map simplifyKVar (resSolution res)
+      , resNonCutsSolution = HashMap.map simplifyKVar (resNonCutsSolution res)
+      }
+
+-- | Simplifies existential expressions with unused or inconsequential bindings.
+--
+-- For instance, in the following example, "x" is not used at all.
+--
+-- > simplifyKVar "exists x y. y == z && y == C" == "exists y. y == z && y == C"
+--
+-- And in the following example, @x@ is used but in a way that doesn't
+-- contribute any useful knowledge.
+--
+-- > simplifyKVar "exists x y. x == C && y == z && y == C"
+-- >   ==
+-- > "exists y. y == z && y == C"
+--
+-- We require that relevant variables occur more than once, or that
+-- they occur in some other place than as an argument to @==@.
+--
+simplifyKVar :: Expr -> Expr
+simplifyKVar (POr es) = POr $ map simplifyKVar es
+simplifyKVar (PExist bs e@(PAnd es)) =
+    let fvs = L.group $ L.sort $ collectFreeVarOccurrences e
+        esv = map (isUniqueEq fvs) es
+        removed = mapMaybe fst esv
+        needed = map head fvs L.\\ removed
+        bs' = filter ((`elem` needed) . fst) bs
+     in
+        PExist bs' $ PAnd $ [ei | (Nothing, ei) <- esv]
+  where
+    -- | Determine if the expression is an equality that sets the value of
+    -- a variable that doesn't occur elsewhere.
+    --
+    -- In @isUniqueEq fvs e@, @fvs@ contains the occurrences of the free
+    -- variables, so we can infer if there is more than one occurrence
+    -- of a given free variable, and @e@ is the equality to analyze.
+    --
+    -- Yields @(Just v, e)@ if @v@ doesn't occur elsewhere, and @e@ has
+    -- the form @v == e'@.
+    isUniqueEq :: [[Symbol]] -> Expr -> (Maybe Symbol, Expr)
+    isUniqueEq fvs er = case unElab er of
+      PAtom brel e0 e1
+        | isEqRel brel ->
+          let m = isVarToDrop fvs e0 `mplus` isVarToDrop fvs e1
+           in (m, er)
+      _ ->
+        (Nothing, er)
+
+    -- | Tells if the binary relation is an equality.
+    isEqRel Eq = True
+    isEqRel Ueq = True
+    isEqRel _ = False
+
+    -- | @isVarToDrop fvs s@ yields @Just s@ if the variable @s@ doesn't occur
+    -- elsewhere according to @fvs@.
+    --
+    -- > isVarToDrop fvs (cast_as_int s) == isVarToDrop fvs s
+    --
+    isVarToDrop fvs (EApp (EVar "cast_as_int") ei) = isVarToDrop fvs ei
+    isVarToDrop fvs (EVar s)
+      | elem [s] fvs = Just s
+    isVarToDrop _fvs _ = Nothing
+
+simplifyKVar e = e
+
+-- | Produces the free variables of an expressions as many times as they occur.
+--
+-- There are no guarantees on the order in which the variables are produced. For
+-- instance,
+--
+-- > collectFreeVarOccurrences "z (y x) (y x)" == ["z", "y", "x", "y", "x"]
+--
+collectFreeVarOccurrences :: Expr -> [Symbol]
+collectFreeVarOccurrences = go []
+  where
+    go acc e0 = case e0 of
+      ESym _ -> acc
+      ECon _ -> acc
+      EVar v -> v : acc
+      PKVar _ (Su m) -> foldr (flip go) acc $ HashMap.elems m
+      PGrad _ (Su m) _ e -> foldr (flip go) acc $ e : HashMap.elems m
+      ENeg e -> go acc e
+      PNot p -> go acc p
+      ECst e _t -> go acc e
+      PAll _xts p -> go acc p
+      ELam (b, _) e -> go acc e L.\\ [b]
+      ECoerc _a _t e -> go acc e
+      PExist _xts p -> go acc p
+      ETApp e _s -> go acc e
+      ETAbs e _s -> go acc e
+      EApp g e -> go (go acc e) g
+      EBin _o e1 e2 -> go (go acc e2) e1
+      PImp p1 p2 -> go (go acc p2) p1
+      PIff p1 p2 -> go (go acc p2) p1
+      PAtom _r e1 e2 -> go (go acc e2) e1
+      EIte p e1 e2 -> go (go (go acc e2) e1) p
+      PAnd ps -> foldr (flip go) acc ps
+      POr ps -> foldr (flip go) acc ps
