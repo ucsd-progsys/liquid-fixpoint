@@ -3,4 +3,4 @@
 (constraint
  (forall ((x (Data int int)) (true))
    (forall ((y (Map_t int int)) ((= y (acc x))))
-     ((> 2 2)))))
+     ((> 2 1)))))
