@@ -34,9 +34,9 @@ solveHorn baseCfg = do
   q <- parseQuery baseCfg
 
   -- If you want to set --eliminate=none, you better make it a pragma
-  cfgElim <- if F.eliminate baseCfg == F.None
-           then pure (baseCfg { F.eliminate =  F.Some })
-           else pure baseCfg
+  let cfgElim = if F.eliminate baseCfg == F.None
+                  then baseCfg { F.eliminate =  F.Some }
+                  else baseCfg
 
   cfgPragmas <- F.withPragmas cfgElim (H.qOpts q)
 
