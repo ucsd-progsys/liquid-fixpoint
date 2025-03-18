@@ -107,6 +107,7 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
   where
     equalitiesPerConstraint (cid, c) =
       (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i res] ])
+    elabParam = ElabParam (solverFlags $ solver cfg) "savePLEEqualities" sEnv
     renderConstraintRewrite (cid, eqs) =
       "constraint id" <+> text (show cid ++ ":")
       $+$ nest 2
@@ -114,7 +115,7 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
             map (toFix . unElab) $ Set.toList $ Set.fromList $
             -- call elabExpr to try to bring equations that are missing
             -- some casts into a fully annotated form for comparison
-            map (elabExpr (ElabParam (solverFlags $ solver cfg) "savePLEEqualities" sEnv)) $
+            map (elabExpr elabParam (Just boolSort)) $
             concatMap conjuncts eqs
            )
       $+$ ""
