@@ -214,7 +214,7 @@ elabNumeric = Vis.mapExprOnExpr go
 instance Elaborate SortedReft where
   elaborate ep (RR s (Reft (v, e))) = RR s (Reft (v, e'))
     where
-      e'   = elaborateExpr ep' e (Just boolSort) -- TODO: check that e is Bool
+      e'   = elaborateExpr ep' e (Just boolSort) -- check that a SortedReft is in fact a bool
       ep' = ep { epEnv = insertSymEnv v s (epEnv ep) }
 
 instance (Loc a) => Elaborate (BindEnv a) where
