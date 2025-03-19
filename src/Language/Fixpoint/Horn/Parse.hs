@@ -36,6 +36,7 @@ mkQuery things = H.Query
   , H.qData  =            [ dd    | HDat dd <- things ]
   , H.qOpts  =            [ o     | HOpt o  <- things ]
   , H.qNums  =            [ n     | HNum n  <- things ]
+  , H.qDefs  =            []
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order

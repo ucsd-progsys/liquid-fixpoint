@@ -8,6 +8,7 @@
 
 {-# OPTIONS_GHC -Wno-orphans           #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Language.Fixpoint.Smt.Theories
      (
@@ -377,11 +378,27 @@ sortAppInfo t = case bkFFunc t of
 
 -- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
 --   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
-theorySymbols :: SMTSolver -> [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
-theorySymbols cfg ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols
-                                  interpSymbols cfg
-                               ++ concatMap dataDeclSymbols ds
+-- theorySymbols :: SMTSolver -> [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
+-- theorySymbols cfg ds =
+--   fromListSEnv $ interpSymbols cfg
+--               ++ concatMap dataDeclSymbols ds
 
+instance TheorySymbols SMTSolver where
+  theorySymbols :: SMTSolver -> SEnv TheorySymbol
+  theorySymbols = fromListSEnv . interpSymbols
+
+instance TheorySymbols [DataDecl] where
+  theorySymbols :: [DataDecl] -> SEnv TheorySymbol
+  theorySymbols = fromListSEnv . concatMap dataDeclSymbols
+
+instance TheorySymbols [Equation] where
+  theorySymbols = fromListSEnv . fmap equationSymbol
+
+equationSymbol :: Equation -> (Symbol, TheorySymbol)
+equationSymbol eq = (sym, Thy sym (symbolRaw sym) sort Defined)
+  where
+    sym  = eqName eq
+    sort = mkFFunc 0 ((snd <$> eqArgs eq) <> [eqSort eq])
 
 --------------------------------------------------------------------------------
 interpSymbols :: SMTSolver -> [(Symbol, TheorySymbol)]

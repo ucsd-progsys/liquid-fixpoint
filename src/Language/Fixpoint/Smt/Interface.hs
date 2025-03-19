@@ -7,6 +7,8 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE DoAndIfThenElse           #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use isNothing" #-}
 
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
@@ -258,14 +260,13 @@ makeContextWithSEnv cfg f env = do
   let ctx' = ctx {ctxSymEnv = env}
   declare ctx'
   return ctx'
-  -- where msg = "makeContextWithSEnv" ++ show env
 
 makeContextNoLog :: Config -> IO Context
-makeContextNoLog cfg
-  = do me  <- makeContext' cfg Nothing
-       pre <- smtPreamble cfg (solver cfg) me
-       mapM_ (SMTLIB.Backends.command_ (ctxSolver me)) pre
-       return me
+makeContextNoLog cfg = do
+  me  <- makeContext' cfg Nothing
+  pre <- smtPreamble cfg (solver cfg) me
+  mapM_ (SMTLIB.Backends.command_ (ctxSolver me)) pre
+  return me
 
 makeProcess
   :: Maybe Handle
@@ -407,7 +408,7 @@ smtAssert me p = interact' me (Assert Nothing p)
 smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
 smtDefineFunc me name symList rsort e =
   let env = seData (ctxSymEnv me)
-   in interact' me $
+  in interact' me $
         DefineFunc
           name
           (map (sortSmtSort False env <$>) symList)
@@ -471,6 +472,7 @@ declare me = do
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
   forM_ ats    $ uncurry $ smtFuncDecl me
+  -- forM_ defns  $           smtDefineEqn me
   forM_ ess    $           smtDistinct me
   forM_ axs    $           smtAssert   me
   where
@@ -479,12 +481,15 @@ declare me = do
     lts        = F.toListSEnv . F.seLits $ env
     ess        = distinctLiterals  lts
     axs        = Thy.axiomLiterals lts
-    thyXTs     =                    filter (isKind 1) xts
-    qryXTs     = fmap tx <$> filter (isKind 2) xts
-    isKind n   = (n ==)  . symKind env . fst
-    xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env)
+    thyXTs     =             [ (x, t) | (x, t) <- xts, symKind env x == Just F.Uninterp ] -- filter (isKind 1) xts
+    qryXTs     = fmap tx <$> [ (x, t) | (x, t) <- xts, symKind env x == Nothing ] -- filter (isKind 2) xts
+    -- isKind n   = (n ==)  . symKind env . fst
+    xts        = symbolSorts (F.seSort env)
     tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
     ats        = funcSortVars env
+
+-- smtDefineEqn :: Context -> F.Equation -> IO ()
+-- smtDefineEqn me eqn = _fixme
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]
 symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
@@ -512,16 +517,18 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
 --   1 = Theory-Declaration,
 --   2 = Query-Binder
 
-symKind :: F.SymEnv -> F.Symbol -> Int
-symKind env x = case F.tsInterp <$> F.symEnvTheory x env of
-                  Just F.Theory   -> 0
-                  Just F.Ctor     -> 0
-                  Just F.Test     -> 0
-                  Just F.Field    -> 0
-                  Just F.Uninterp -> 1
-                  Nothing         -> 2
-              -- Just t  -> if tsInterp t then 0 else 1
+-- symKind :: F.SymEnv -> F.Symbol -> Int
+-- symKind env x = case F.tsInterp <$> F.symEnvTheory x env of
+--                   Just F.Theory   -> 0
+--                   Just F.Ctor     -> 0
+--                   Just F.Test     -> 0
+--                   Just F.Field    -> 0
+--                   Just F.Defined  -> 0
+--                   Just F.Uninterp -> 1
+--                   Nothing         -> 2
 
+symKind :: F.SymEnv -> F.Symbol -> Maybe Sem
+symKind env x = F.tsInterp <$> F.symEnvTheory x env
 
 -- assumes :: [F.Expr] -> SolveM ()
 -- assumes es = withContext $ \me -> forM_  es $ smtAssert me

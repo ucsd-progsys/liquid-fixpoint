@@ -196,9 +196,10 @@ data Query a = Query
   { qQuals :: ![F.Qualifier]             -- ^ qualifiers over which to solve cstrs
   , qVars  :: ![Var a]                   -- ^ kvars, with parameter-sorts
   , qCstr  :: !(Cstr a)                  -- ^ list of constraints
-  , qCon   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (uninterpreted functions)
+  , qCon   :: M.HashMap F.Symbol F.Sort  -- ^ list of constants (un/interpreted functions)
   , qDis   :: M.HashMap F.Symbol F.Sort  -- ^ list of *distinct* constants (uninterpreted functions)
   , qEqns  :: ![F.Equation]              -- ^ list of equations
+  , qDefs  :: ![F.Equation]              -- ^ list of equations to be sent to SMT as define-fun
   , qMats  :: ![F.Rewrite]               -- ^ list of match-es
   , qData  :: ![F.DataDecl]              -- ^ list of data-declarations
   , qOpts  :: ![String]                  -- ^ list of fixpoint options
@@ -340,7 +341,8 @@ instance ToHornSMT (Query a) where
     , P.vcat   (toHornSMT <$> qQuals q)
     , P.vcat   (toHornSMT <$> qVars q)
     , P.vcat   [toHornCon x t | (x, t) <- M.toList (qCon q)]
-    , P.vcat   (toHornSMT <$> qEqns q)
+    , P.vcat   (eqnToHornSMT "define"     <$> qEqns q)
+    , P.vcat   (eqnToHornSMT "define_fun" <$> qDefs q)
     , P.vcat   (toHornSMT <$> qData q)
     , P.vcat   (toHornSMT <$> qMats q)
     , P.parens (P.vcat ["constraint", P.nest 1 (toHornSMT (qCstr q))])
@@ -371,8 +373,12 @@ toHornMany = P.parens . P.sep -- Misc.intersperse " "
 toHornAnd :: (a -> P.Doc) -> [a] -> P.Doc
 toHornAnd f xs = P.parens (P.vcat ("and" : (P.nest 1 . f <$> xs)))
 
-instance ToHornSMT F.Equation where
-  toHornSMT (F.Equ f xs e s _) = P.parens ("define" P.<+> F.pprint f P.<+> toHornSMT xs P.<+> toHornSMT s P.<+> toHornSMT e)
+-- instance ToHornSMT F.Equation where
+--   toHornSMT = eqnToHornSmt "define"
+
+eqnToHornSMT :: P.Doc -> F.Equation -> P.Doc
+eqnToHornSMT keyword (F.Equ f xs e s _) = P.parens (keyword P.<+> F.pprint f P.<+> toHornSMT xs P.<+> toHornSMT s P.<+> toHornSMT e)
+
 
 instance ToHornSMT F.DataDecl where
   toHornSMT (F.DDecl tc n ctors) =

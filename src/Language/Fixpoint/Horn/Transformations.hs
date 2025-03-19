@@ -647,7 +647,8 @@ rewriteWithEqualities cfg measures n args equalities = preds
       Nothing -> []
       Just vertex -> nub $ filter (/= F.EVar x) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph vertex]
 
-    argsAndPrims = args `S.union` S.fromList (map fst $ F.toListSEnv $ F.theorySymbols (F.solver cfg) []) `S.union`measures
+    argsAndPrims = args `S.union` S.fromList (fst <$> F.toListSEnv thySyms) `S.union`measures
+    thySyms = F.theorySymbols (F.solver cfg)
 
     isWellFormed :: F.Expr -> Bool
     isWellFormed e = S.fromList (F.syms e) `S.isSubsetOf` argsAndPrims

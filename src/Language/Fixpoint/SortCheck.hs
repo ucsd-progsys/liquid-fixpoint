@@ -739,7 +739,6 @@ isUndef s = case bkAbs s of
   (is, FVar j) -> j `elem` is
   _            -> False
 
-
 elabAddEnv :: Eq a => (t, a -> SESearch b) -> [(a, b)] -> (t, a -> SESearch b)
 elabAddEnv (g, f) bs = (g, addEnv f bs)
 
