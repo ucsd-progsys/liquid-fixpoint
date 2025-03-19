@@ -254,10 +254,10 @@ makeContext cfg f
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Config -> FilePath -> SymEnv -> IO Context
-makeContextWithSEnv cfg f env = do
+makeContextWithSEnv :: Config -> FilePath -> SymEnv -> [Equation] -> IO Context
+makeContextWithSEnv cfg f env defns = do
   ctx     <- makeContext cfg f
-  let ctx' = ctx {ctxSymEnv = env}
+  let ctx' = ctx {ctxSymEnv = env, ctxDefines = defns}
   declare ctx'
   return ctx'
 
@@ -316,6 +316,7 @@ makeContext' cfg ctxLog
                   , ctxLog       = ctxLog
                   , ctxVerbose   = loud
                   , ctxSymEnv    = mempty
+                  , ctxDefines   = mempty
                   }
 
 -- | Close file handles and release the solver backend's resources.
@@ -405,6 +406,9 @@ smtCheckSat me p
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p = interact' me (Assert Nothing p)
 
+smtDefineEqn :: Context -> Equation -> IO ()
+smtDefineEqn me Equ {..} = smtDefineFunc me eqName eqArgs eqSort eqBody
+
 smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
 smtDefineFunc me name symList rsort e =
   let env = seData (ctxSymEnv me)
@@ -472,7 +476,7 @@ declare me = do
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
   forM_ ats    $ uncurry $ smtFuncDecl me
-  -- forM_ defns  $           smtDefineEqn me
+  forM_ defs   $           smtDefineEqn me
   forM_ ess    $           smtDistinct me
   forM_ axs    $           smtAssert   me
   where
@@ -487,6 +491,7 @@ declare me = do
     xts        = symbolSorts (F.seSort env)
     tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
     ats        = funcSortVars env
+    defs       = ctxDefines me
 
 -- smtDefineEqn :: Context -> F.Equation -> IO ()
 -- smtDefineEqn me eqn = _fixme
