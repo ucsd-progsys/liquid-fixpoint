@@ -9,4 +9,4 @@
   (and
     (forall ((x Int) ((= x 5)))
       (forall ((y Int) ((= y 6)))
-        ((= ((mmmax x) y) 6))))))
+        ((= ((mmmax x) y) 62))))))
