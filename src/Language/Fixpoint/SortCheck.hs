@@ -178,13 +178,16 @@ instance Elaborate Equation where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
 
 instance Elaborate Expr where
-  elaborate (ElabParam ef msg env) =
-    elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id)
+  elaborate p e = elaborateExpr p e Nothing
+
+elaborateExpr :: ElabParam -> Expr -> Maybe Sort -> Expr
+elaborateExpr (ElabParam ef msg env) e t =
+    elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') t . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id) $ e
       where
         env' = coerceEnv ef env
 
 skipElabExpr :: ElabParam -> Expr -> Expr
-skipElabExpr ep e = case elabExprE ep e of
+skipElabExpr ep e = case elabExprE ep Nothing e of
   Left _   -> e
   Right e' -> elabNumeric . elabApply (epEnv ep) $ e'
 
@@ -211,7 +214,7 @@ elabNumeric = Vis.mapExprOnExpr go
 instance Elaborate SortedReft where
   elaborate ep (RR s (Reft (v, e))) = RR s (Reft (v, e'))
     where
-      e'   = elaborate ep' e
+      e'   = elaborateExpr ep' e (Just boolSort) -- check that a SortedReft is in fact a bool
       ep' = ep { epEnv = insertSymEnv v s (epEnv ep) }
 
 instance (Loc a) => Elaborate (BindEnv a) where
@@ -307,21 +310,28 @@ elabFSetBagZ3 e                 = e
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
-elabExpr :: ElabParam -> Expr -> Expr
-elabExpr ep e = case elabExprE ep e of
+elabExpr :: ElabParam -> Maybe Sort -> Expr ->  Expr
+elabExpr ep t e = case elabExprE ep t e of
   Left ex  -> die ex
   Right e' -> F.notracepp ("elabExp " ++ showpp e) e'
 
-elabExprE :: ElabParam -> Expr -> Either Error Expr
-elabExprE (ElabParam ef msg env) e =
+validateSort :: Sort -> Maybe Sort -> CheckM ()
+validateSort t (Just t')
+  | t == t'            = return ()
+  | otherwise          = throwErrorAt $ printf "unexpected sort: got `%s` but expected `%s`" (showpp t) (showpp t')
+validateSort _ Nothing = return ()
+
+elabExprE :: ElabParam -> Maybe Sort -> Expr -> Either Error Expr
+elabExprE (ElabParam ef msg env) t e =
   case runCM0 (srcSpan msg) (Just ef) $ do
-    (!e', _) <- elab (env, envLookup) e
+    (!e', eSort) <- elab (env, envLookup) e
+    validateSort eSort t
     finalThetaRef <- asks chTVSubst
     finalTheta <- liftIO $ readIORef finalThetaRef
     return (applyExpr finalTheta e') of
     Left (ChError f') ->
       let e' = f' ()
-       in Left $ err (srcSpan e') (d (val e'))
+      in Left $ err (srcSpan e') (d (val e'))
     Right s  -> Right s
   where
     sEnv = seSort env
@@ -333,6 +343,7 @@ elabExprE (ElabParam ef msg env) e =
                 , "in environment"
                 , nest 4 (pprint $ subEnv sEnv e)
                 ]
+
 
 --------------------------------------------------------------------------------
 -- | 'elabApply' replaces all direct function calls indirect calls via `apply`
@@ -430,9 +441,6 @@ type ElabEnv  = (SymEnv, Env)
 mkSearchEnv :: SEnv a -> Symbol -> SESearch a
 --------------------------------------------------------------------------------
 mkSearchEnv env x = lookupSEnvWithDistance x env
-
--- withError :: CheckM a -> ChError -> CheckM a
--- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
 
 withError :: HasCallStack => CheckM a -> String -> CheckM a
 act `withError` msg = do
