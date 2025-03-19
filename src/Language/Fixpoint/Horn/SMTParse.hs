@@ -130,7 +130,6 @@ mkQuery things = H.Query
   , H.qVars  =              [ k     | HVar  k  <- things ]
   , H.qCstr  = H.CAnd       [ c     | HCstr c  <- things ]
   , H.qCon   = M.fromList   [ (x,t) | HCon x t <- things ]
-                         -- ++ [ eqCon e | HDfn e <- things ]
   , H.qDis   = M.fromList   [ (x,t) | HDis x t <- things ]
   , H.qEqns  =              [ e     | HDef e   <- things ]
   , H.qDefs  =              [ e     | HDfn e   <- things ]
@@ -139,12 +138,6 @@ mkQuery things = H.Query
   , H.qOpts  =              [ o     | HOpt o   <- things ]
   , H.qNums  =              [ s     | HNum s   <- things ]
   }
-
--- eqCon :: F.Equation -> (F.Symbol, F.Sort)
--- eqCon eq = (F.eqName eq, mkFunc 0 tIns tOut)
---   where
---     tIns = snd <$> F.eqArgs eq
---     tOut = F.eqSort eq
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
 --   in a .smt2 query file.

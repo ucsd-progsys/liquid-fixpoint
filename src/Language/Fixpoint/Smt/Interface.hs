@@ -485,16 +485,13 @@ declare me = do
     lts        = F.toListSEnv . F.seLits $ env
     ess        = distinctLiterals  lts
     axs        = Thy.axiomLiterals lts
-    thyXTs     =             [ (x, t) | (x, t) <- xts, symKind env x == Just F.Uninterp ] -- filter (isKind 1) xts
-    qryXTs     = fmap tx <$> [ (x, t) | (x, t) <- xts, symKind env x == Nothing ] -- filter (isKind 2) xts
+    thyXTs     =             [ (x, t) | (x, t) <- xts, symKind env x == Just F.Uninterp ]
+    qryXTs     = fmap tx <$> [ (x, t) | (x, t) <- xts, symKind env x == Nothing ]
     -- isKind n   = (n ==)  . symKind env . fst
     xts        = symbolSorts (F.seSort env)
     tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
     ats        = funcSortVars env
     defs       = ctxDefines me
-
--- smtDefineEqn :: Context -> F.Equation -> IO ()
--- smtDefineEqn me eqn = _fixme
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]
 symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
@@ -517,26 +514,8 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
     lamSort (s,t) = ([s, t], F.SInt)
     argSort (s,_) = ([]    , s)
 
--- | 'symKind' returns {0, 1, 2} where:
---   0 = Theory-Definition,
---   1 = Theory-Declaration,
---   2 = Query-Binder
-
--- symKind :: F.SymEnv -> F.Symbol -> Int
--- symKind env x = case F.tsInterp <$> F.symEnvTheory x env of
---                   Just F.Theory   -> 0
---                   Just F.Ctor     -> 0
---                   Just F.Test     -> 0
---                   Just F.Field    -> 0
---                   Just F.Defined  -> 0
---                   Just F.Uninterp -> 1
---                   Nothing         -> 2
-
 symKind :: F.SymEnv -> F.Symbol -> Maybe Sem
 symKind env x = F.tsInterp <$> F.symEnvTheory x env
-
--- assumes :: [F.Expr] -> SolveM ()
--- assumes es = withContext $ \me -> forM_  es $ smtAssert me
 
 -- | `distinctLiterals` is used solely to determine the set of literals
 --   (of each sort) that are *disequal* to each other, e.g. EQ, LT, GT,

@@ -373,9 +373,6 @@ toHornMany = P.parens . P.sep -- Misc.intersperse " "
 toHornAnd :: (a -> P.Doc) -> [a] -> P.Doc
 toHornAnd f xs = P.parens (P.vcat ("and" : (P.nest 1 . f <$> xs)))
 
--- instance ToHornSMT F.Equation where
---   toHornSMT = eqnToHornSmt "define"
-
 eqnToHornSMT :: P.Doc -> F.Equation -> P.Doc
 eqnToHornSMT keyword (F.Equ f xs e s _) = P.parens (keyword P.<+> F.pprint f P.<+> toHornSMT xs P.<+> toHornSMT s P.<+> toHornSMT e)
 

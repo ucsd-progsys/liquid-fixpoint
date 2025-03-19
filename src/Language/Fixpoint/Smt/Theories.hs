@@ -376,13 +376,6 @@ sortAppInfo t = case bkFFunc t of
 --   symbols, and `interpSEnv` is for interpreted symbols.
 --------------------------------------------------------------------------------
 
--- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
---   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
--- theorySymbols :: SMTSolver -> [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
--- theorySymbols cfg ds =
---   fromListSEnv $ interpSymbols cfg
---               ++ concatMap dataDeclSymbols ds
-
 instance TheorySymbols SMTSolver where
   theorySymbols :: SMTSolver -> SEnv TheorySymbol
   theorySymbols = fromListSEnv . interpSymbols
