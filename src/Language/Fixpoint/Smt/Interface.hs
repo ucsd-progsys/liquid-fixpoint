@@ -308,6 +308,10 @@ makeContext' cfg ctxLog
                       Process.defaultConfig
                              { Process.exe = "cvc5"
                              , Process.args = ["--incremental", "-L", "smtlib2"] }
+         Bitwuzla    -> makeProcess ctxLog $
+                      Process.defaultConfig
+                             { Process.exe = "bitwuzla"
+                             , Process.args = ["--lang", "smt2"] }
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver    = solver
