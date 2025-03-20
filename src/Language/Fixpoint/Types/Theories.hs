@@ -37,6 +37,7 @@ module Language.Fixpoint.Types.Theories (
     -- * Coercing sorts in environments
     , coerceEnv
     , coerceSortEnv
+    , TheorySymbols(..)
     ) where
 
 
@@ -250,6 +251,10 @@ data TheorySymbol  = Thy
   }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+
+class TheorySymbols a where
+  theorySymbols :: a ->  SEnv TheorySymbol
+
 instance NFData Sem
 instance NFData TheorySymbol
 instance S.Store TheorySymbol
@@ -273,6 +278,7 @@ data Sem
   | Test          -- ^ for ADT tests : `is$cons`
   | Field         -- ^ for ADT field: `hd`, `tl`
   | Theory        -- ^ for theory ops: mem, cup, select
+  | Defined       -- ^ for user-defined `define-fun`
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance S.Store Sem

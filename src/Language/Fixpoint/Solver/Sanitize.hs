@@ -34,12 +34,12 @@ import qualified Data.List                                         as L
 import qualified Data.Text                                         as T
 import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ hiding ((<>))
 
 type SanitizeM a = Either E.Error a
 
 --------------------------------------------------------------------------------
-sanitize :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
+sanitize :: (Show a) => Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 sanitize cfg =       banIrregularData
          >=> Misc.fM dropFuncSortedShadowedBinders
@@ -152,13 +152,19 @@ eliminateEta cfg si
       splitApp (fvar, arg:args)
     fapp' e = pure (e, [])
 
-    theorySymbols = F.notracepp "theorySymbols" $ Thy.theorySymbols (Cfg.solver cfg) $ F.ddecls si
+    thySyms = theoryEnv cfg si
 
     splitApp (e, es)
-      | isNothing $ F.notracepp ("isSmt2App? " ++ showpp e) $ Thy.isSmt2App theorySymbols $ stripCasts e
+      | isNothing $ F.notracepp ("isSmt2App? " ++ showpp e) $ Thy.isSmt2App thySyms (stripCasts e)
       = pure (e,es)
       | otherwise
       = Nothing
+
+theoryEnv :: Config -> F.GInfo c a -> F.SEnv F.TheorySymbol
+theoryEnv cfg si
+  =  Thy.theorySymbols (Cfg.solver cfg)
+  <> Thy.theorySymbols (F.defns si)
+  <> Thy.theorySymbols (F.ddecls si)
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
@@ -317,7 +323,8 @@ known :: Config -> F.SInfo a -> F.Symbol -> Bool
 known cfg fi  = \x -> F.memberSEnv x lits || F.memberSEnv x prims
   where
     lits  = F.gLits fi
-    prims = Thy.theorySymbols (Cfg.solver cfg) . F.ddecls $ fi
+    prims = theoryEnv cfg fi
+
 
 cNoFreeVars :: F.SInfo a -> (F.Symbol -> Bool) -> F.SimpC a -> Maybe [F.Symbol]
 cNoFreeVars fi knownSym c = if S.null fv then Nothing else Just (S.toList fv)
@@ -387,15 +394,15 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
-symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
+symbolEnv cfg si = F.symEnv sEnv thyEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae'
     ae'          = elaborate (ElabParam ef (F.atLoc E.dummySpan "symbolEnv") env0) (F.ae si)
-    env0         = F.symEnv sEnv tEnv ds lits ts
-    tEnv         = Thy.theorySymbols slv ds
+    env0         = F.symEnv sEnv thyEnv ds lits ts
+    thyEnv       = theoryEnv cfg si
     ds           = F.ddecls si
     ts           = Misc.setNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
-    sEnv         = F.coerceSortEnv ef $ (F.tsSort <$> tEnv) `mappend` F.fromListSEnv xts
+    sEnv         = F.coerceSortEnv ef $ (F.tsSort <$> thyEnv) `mappend` F.fromListSEnv xts
     slv          = Cfg.solver cfg
     ef           = solverFlags slv
     xts          = symbolSorts cfg si ++ alits
@@ -488,7 +495,6 @@ sanitizeWfC si = si { F.ws = ws' }
     ws'        = deleteWfCBinds drops <$> F.ws si
     (_,drops)  = filterBindEnv keepF   $  F.bs si
     keepF      = conjKF [nonConstantF si, nonFunctionF si, _nonDerivedLH]
-    -- drops   = F.tracepp "sanitizeWfC: dropping" $ L.sort drops'
 
 conjKF :: [KeepBindF] -> KeepBindF
 conjKF fs x t = and [f x t | f <- fs]

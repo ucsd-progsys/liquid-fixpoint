@@ -80,7 +80,7 @@ instantiate cfg fi' subcIds = do
                (cm info)
     let t  = mkCTrie (M.toList cs)                                          -- 1. BUILD the Trie
     res   <- withRESTSolver $ \solver -> withProgress (1 + M.size cs) $
-               withCtx cfg file sEnv $ \ctx -> do
+               withCtx cfg file sEnv (defns fi') $ \ctx -> do
                   env <- instEnv cfg info cs solver ctx
                   pleTrie t env                                             -- 2. TRAVERSE Trie to compute InstRes
     savePLEEqualities cfg info sEnv res
@@ -1335,9 +1335,9 @@ partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
-withCtx cfg file env k = do
-  ctx <- SMT.makeContextWithSEnv cfg file env
+withCtx :: Config -> FilePath -> SymEnv -> [Equation] -> (SMT.Context -> IO a) -> IO a
+withCtx cfg file env defns k = do
+  ctx <- SMT.makeContextWithSEnv cfg file env defns
   _   <- SMT.smtPush ctx
   res <- k ctx
   SMT.cleanupContext ctx

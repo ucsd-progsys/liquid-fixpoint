@@ -697,7 +697,8 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
        , ae       = axe
        , ddecls   = adts
        , ebinds   = ebs
-       , lrws = mempty
+       , lrws     = mempty
+       , defns    = mempty
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -744,6 +745,7 @@ data GInfo c a = FI
   , asserts  :: ![Triggered Expr]          -- ^ TODO: what is this?
   , ae       :: AxiomEnv                   -- ^ Information about reflected function defs
   , lrws     :: LocalRewritesEnv           -- ^ Local rewrites
+  , defns    :: ![Equation]                -- ^ `define_fun` definitions to be passed to SMT
   }
   deriving (Eq, Show, Functor, Generic)
 
@@ -773,6 +775,7 @@ instance Semigroup (GInfo c a) where
                 , asserts  = asserts i1  <> asserts i2
                 , ae       = ae i1       <> ae i2
                 , lrws     = lrws i1     <> lrws i2
+                , defns    = defns i1    <> defns i2
                 }
 
 
@@ -791,6 +794,7 @@ instance Monoid (GInfo c a) where
                      , asserts  = mempty
                      , ae       = mempty
                      , lrws     = mempty
+                     , defns    = mempty
                      }
 
 instance PTable (SInfo a) where
@@ -1073,7 +1077,7 @@ instance Fixpoint Equation where
 instance Fixpoint LocalRewritesEnv where
   toFix (LocalRewritesMap rws) = vcat $ uncurry toFixLocal <$> M.toList rws
     where
-      toFixLocal bid (LocalRewrites rws) = text "defineLocal" <+> toFix bid 
+      toFixLocal bid (LocalRewrites rws) = text "defineLocal" <+> toFix bid
         <+> brackets (vcat $ punctuate ";" $ uncurry toFixRewrite <$> M.toList rws)
       toFixRewrite sym eq = toFix sym <+> text ":=" <+> toFix eq
 

@@ -82,7 +82,7 @@ incrInstantiate' cfg info subcIds = do
                       ,  maybe True (i `L.elem`) subcIds ]
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $
-               withCtx cfg file sEnv (pleTrie t . instEnv cfg info cs)  -- 2. TRAVERSE Trie to compute InstRes
+               withCtx cfg file sEnv (defns info) (pleTrie t . instEnv cfg info cs)  -- 2. TRAVERSE Trie to compute InstRes
     return $ resSInfo cfg sEnv info res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
     file   = srcFile cfg ++ ".evals"
@@ -296,7 +296,7 @@ getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 -- | "Old" GLOBAL PLE
 --------------------------------------------------------------------------------
 instantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
-instantiate' cfg info subcIds = sInfo cfg env info <$> withCtx cfg file env act
+instantiate' cfg info subcIds = sInfo cfg env info <$> withCtx cfg file env (defns info) act
   where
     act ctx         = forM cstrs $ \(i, c) ->
                         ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs info) aenv i c
@@ -800,9 +800,9 @@ assertSelectors γ expr' = do
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
-withCtx cfg file env k = do
-  ctx <- SMT.makeContextWithSEnv cfg file env
+withCtx :: Config -> FilePath -> SymEnv -> [Equation] -> (SMT.Context -> IO a) -> IO a
+withCtx cfg file env defns k = do
+  ctx <- SMT.makeContextWithSEnv cfg file env defns
   _   <- SMT.smtPush ctx
   res <- k ctx
   SMT.cleanupContext ctx

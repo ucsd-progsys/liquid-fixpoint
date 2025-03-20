@@ -1,21 +1,18 @@
 (fixpoint "--rewrite")
 (fixpoint "--save")
- 
- 
- 
- 
+
 (constant len (func 1 ((Vec @(0))) Int))
- 
+
 (define len ((l (Vec a))) Int (if
                                (is$VNil l)
                                0
                                (+ 1 (len (tail l)))))
- 
+
 (datatype (Vec 1)
  ((VNil ())
   (VCons ((head @(0)) (tail (Vec @(0)))))))
- 
- 
+
+
 (constraint
   (and
     (forall ((x Int) (true))
