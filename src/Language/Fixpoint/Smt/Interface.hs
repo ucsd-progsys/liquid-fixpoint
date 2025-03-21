@@ -303,11 +303,11 @@ makeContext' cfg ctxLog
          Cvc4    -> makeProcess ctxLog $
                       Process.defaultConfig
                              { Process.exe = "cvc4"
-                             , Process.args = ["--incremental", "-L", "smtlib2"] }
+                             , Process.args = ["-L", "smtlib2"] }
          Cvc5    -> makeProcess ctxLog $
                       Process.defaultConfig
                              { Process.exe = "cvc5"
-                             , Process.args = ["--incremental", "-L", "smtlib2"] }
+                             , Process.args = ["-L", "smtlib2"] }
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver    = solver
@@ -333,7 +333,7 @@ smtPreamble cfg s me
   | s == Z3 || s == Z3mem
     = do v <- getZ3Version me
          checkValidStringFlag Z3 v cfg
-         return $ z3_options ++ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
+         return $ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
   | otherwise
     = checkValidStringFlag s [] cfg >> return (Thy.preamble cfg s)
 
@@ -460,12 +460,6 @@ makeMbqi :: Config -> [Builder]
 makeMbqi cfg
   | gradual cfg = [""]
   | otherwise   = ["\n(set-option :smt.mbqi false)"]
-
-z3_options :: [Builder]
-z3_options
-  = [ "(set-option :auto-config false)"
-    , "(set-option :model true)" ]
-
 
 
 --------------------------------------------------------------------------------

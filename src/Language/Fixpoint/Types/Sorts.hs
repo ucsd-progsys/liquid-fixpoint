@@ -87,6 +87,7 @@ module Language.Fixpoint.Types.Sorts (
   -- * Sort coercion for SMT theory encoding
   , coerceMapToArray
   , coerceSetBagToArray
+  , coerceDataDecl
   ) where
 
 import qualified Data.Store as S
@@ -104,6 +105,7 @@ import           Data.List                 (foldl')
 #endif
 import           Control.DeepSeq
 import           Data.Maybe                (fromMaybe)
+import           Language.Fixpoint.Types.Config (ElabFlags, elabSetBag)
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
@@ -706,3 +708,12 @@ coerceSetBagToArray (FApp sf sa)
   | isBag sf = arraySort (coerceSetBagToArray sa) intSort
   | otherwise = FApp (coerceSetBagToArray sf) (coerceSetBagToArray sa)
 coerceSetBagToArray s = s
+
+coerceDataField :: ElabFlags -> DataField -> DataField
+coerceDataField ef (DField x t)  = DField x (((if elabSetBag ef then coerceSetBagToArray else id) . coerceMapToArray) t)
+
+coerceDataCtor :: ElabFlags -> DataCtor -> DataCtor
+coerceDataCtor ef (DCtor x flds) = DCtor x (coerceDataField ef <$> flds)
+
+coerceDataDecl :: ElabFlags -> DataDecl -> DataDecl
+coerceDataDecl ef (DDecl tc n ctors) = DDecl tc n (coerceDataCtor ef <$> ctors)
