@@ -36,9 +36,8 @@ jobs:
         # https://github.com/actions/runner-images/issues/7061
         run: sudo chown -R $USER /usr/local/.ghcup
 
-      - run:
-        name: Install cvc5
-        command: |
+      - name: Install cvc5
+        run: |
           wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
           unzip cvc5-Linux-x86_64-static.zip
           rm -f cvc5-Linux-x86_64-static.zip
