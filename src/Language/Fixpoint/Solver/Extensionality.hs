@@ -214,6 +214,11 @@ initST env dd ef = ExSt 0 (d:dd) env mempty mempty mempty ef
             DField (dummyLoc (symbol "lqdc$select$GHC.Tuple.Prim.(,)$1")) (FVar 0)
           , DField (dummyLoc (symbol "lqdc$select$GHC.Tuple.Prim.(,)$2")) (FVar 1)
           ]
+#elif MIN_TOOL_VERSION_ghc(9,13,0)
+    ct = DCtor (dummyLoc (symbol "GHC.Internal.Tuple.(,)")) [
+            DField (dummyLoc (symbol "lqdc$select$GHC.Internal.Tuple.(,)$1")) (FVar 0)
+          , DField (dummyLoc (symbol "lqdc$select$GHC.Internal.Tuple.(,)$2")) (FVar 1)
+          ]
 #else
     ct = DCtor (dummyLoc (symbol "GHC.Tuple.(,)")) [
             DField (dummyLoc (symbol "lqdc$select$GHC.Tuple.(,)$1")) (FVar 0)

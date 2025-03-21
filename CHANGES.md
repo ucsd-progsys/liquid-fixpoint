@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Add support for GHC HEAD (9.13)
+
 ## 0.9.6.3.2 (2025-03-06)
 
 - Expose relatedSymbols from EnvironmentReduction. Needed for improving error
