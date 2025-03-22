@@ -2,7 +2,13 @@
 
 ## NEXT
 
-- Add support for GHC HEAD (9.13)
+## 0.9.6.3.3 (2025-03-22)
+
+- Add support for GHC HEAD (9.13) [#745](https://github.com/ucsd-progsys/liquid-fixpoint/pull/745).
+- Expose SMTLIB define-fun to users of liquid-fixpoint [#744](https://github.com/ucsd-progsys/liquid-fixpoint/pull/744).
+- Check that expressions in refinements are Bool-sorted [#743](https://github.com/ucsd-progsys/liquid-fixpoint/pull/743).
+- Fix crashes when a datatype is declared with a `Map_t` field [#738](https://github.com/ucsd-progsys/liquid-fixpoint/issues/738).
+- Simplify expressions in fqout files [#741](https://github.com/ucsd-progsys/liquid-fixpoint/pull/741).
 
 ## 0.9.6.3.2 (2025-03-06)
 
