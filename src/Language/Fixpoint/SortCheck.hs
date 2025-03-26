@@ -1212,6 +1212,19 @@ checkRelTy f e Eq t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` err
 checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` errRel e t1 t2)
 checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwErrorAt $ errRel e t1 t2)
 
+-- | @a ~~ b@ is translated to @(= a b)@ when producing SMTLIB.
+-- But this is only valid if @a@ and @b@ have the same sort in SMTLIB.
+-- It turns out that most types are represented with sort Int, so comparing
+-- values of different types is not rejected in general by SMT solvers.
+--
+-- There are at least two exceptions though. The first of them is the type
+-- Bool, which is represented with the sort Bool. Therefore, @a ~~ b@ is fine
+-- if both arguments have Bool sort, or if neither of them has.
+--
+-- The other exception is functions, which have a function sort in SMTLIB.
+-- But at the moment no @~~@ equalities are produced with function sorts, so
+-- that case isn't considered in this function.
+--
 checkURel :: Expr -> Sort -> Sort -> CheckM ()
 checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
   where
