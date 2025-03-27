@@ -141,6 +141,7 @@ instance (Loc a) => Elaborate (SInfo a) where
     { F.cm      = elaborate ep <$> F.cm      si
     , F.bs      = elaborate ep  $  F.bs      si
     , F.asserts = elaborate ep <$> F.asserts si
+    , F.defns   = elaborate ep <$> F.defns   si
     , F.ddecls  = coerceDataDecl (epFlags ep) <$> F.ddecls si
     }
 
@@ -174,7 +175,7 @@ instance Elaborate Rewrite where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) undefined }
 
 instance Elaborate Equation where
-  elaborate ep eq = eq { eqBody = skipElabExpr ep' (eqBody eq) }
+  elaborate ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) Nothing }
     where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
 
