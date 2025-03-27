@@ -182,7 +182,7 @@ instance Elaborate Equation where
   elaborate ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) Nothing}
     where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
-      t'  = coerceSort (epFlags ep) (eqSort eq)
+      _t'  = coerceSort (epFlags ep) (eqSort eq)
 
 instance Elaborate Expr where
   elaborate p e = elaborateExpr p e Nothing
