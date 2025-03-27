@@ -148,6 +148,8 @@ mapMPosExpr pos f = go pos
     go p (PImp p1 p2)    = f p =<< (PImp        <$>  go (negatePos p) p1 <*> go p p2)
     go p (PAnd ps)       = f p . PAnd =<< (go p `traverse` ps)
 
+    go p (ELet x e1 e2)  = f p =<< ELet x <$> go p e1 <*> go p e2
+
     -- The below cannot appear due to normalization
     go p (PNot e)        = f p . PNot =<< go p e
     go p (PIff p1 p2)    = f p =<< (PIff        <$>  go p p1 <*> go p p2            )

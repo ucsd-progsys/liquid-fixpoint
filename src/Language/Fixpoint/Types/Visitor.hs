@@ -112,6 +112,7 @@ instance Visitable Expr where
       step (EApp e1 e2)       = EApp (vE e1) (vE e2)
       step (ENeg e)         = ENeg (vE e)
       step (EBin o e1 e2)   = EBin o (vE e1) (vE e2)
+      step (ELet x e1 e2)   = ELet x (vE e1) (vE e2)
       step (EIte p e1 e2)   = EIte (vE p) (vE e1) (vE e2)
       step (ECst e t)       = ECst (vE e) t
       step (PAnd ps)        = PAnd (map vE ps)
@@ -164,7 +165,7 @@ instance Visitable AxiomEnv where
     aenvEqs = transE v <$> aenvEqs x,
     aenvSimpl = transE v <$> aenvSimpl x
   }
-    
+
 instance Visitable Equation where
   transE v eq = eq {
     eqBody = transE v (eqBody eq)
@@ -180,12 +181,12 @@ execVisitM !v !c !a !f !x = unsafePerformIO $ do
   rn <- newIORef a
   result <- runReaderT (f v c x) rn
   finalAcc <- readIORef rn
-  return (result, finalAcc) 
+  return (result, finalAcc)
 
 type FoldM acc = ReaderT (IORef acc) IO
 
 accum :: (Monoid a) => a -> FoldM a ()
-accum !z = do 
+accum !z = do
   ref <- ask
   liftIO $ modifyIORef' ref (mappend z)
 
@@ -259,6 +260,7 @@ foldExpr !v    = vE
     step !c (EApp f e)      = EApp        <$> vE c f  <*> vE c e
     step !c (ENeg e)        = ENeg        <$> vE c e
     step !c (EBin o e1 e2)  = EBin o      <$> vE c e1 <*> vE c e2
+    step !c (ELet x e1 e2)  = ELet x      <$> vE c e1 <*> vE c e2
     step !c (EIte p e1 e2)  = EIte        <$> vE c p  <*> vE c e1 <*> vE c e2
     step !c (ECst e t)      = (`ECst` t)  <$> vE c e
     step !c (PAnd  ps)      = PAnd        <$> (vE c `traverse` ps)
@@ -318,6 +320,10 @@ mapExprOnExpr f = go
         let !e1' = go e1
             !e2' = go e2
         in EBin o e1' e2'
+      ELet x e1 e2 ->
+        let !e1' = go e1
+            !e2' = go e2
+        in ELet x e1' e2'
       EIte p e1 e2 ->
         let !p' = go p
             !e1' = go e1
@@ -423,6 +429,7 @@ mapMExpr f = go
     go (PImp p1 p2)    = f =<< (PImp        <$>  go p1 <*> go p2          )
     go (PIff p1 p2)    = f =<< (PIff        <$>  go p1 <*> go p2          )
     go (PAtom r e1 e2) = f =<< (PAtom r     <$>  go e1 <*> go e2          )
+    go (ELet x e1 e2)  = f =<< (ELet x      <$>  go e1 <*> go e2          )
     go (EIte p e1 e2)  = f =<< (EIte        <$>  go p  <*> go e1 <*> go e2)
     go (PAnd ps)       = f . PAnd =<< (go `traverse` ps)
     go (POr ps)        = f . POr =<< (go `traverse` ps)
@@ -490,6 +497,7 @@ kvarsExpr = go []
       PImp p1 p2 -> go (go acc p2) p1
       PIff p1 p2 -> go (go acc p2) p1
       PAtom _r e1 e2 -> go (go acc e2) e1
+      ELet _ e1 e2 -> go (go acc e2) e1
       EIte p e1 e2 -> go (go (go acc e2) e1) p
       PAnd ps -> foldr (flip go) acc ps
       POr ps -> foldr (flip go) acc ps

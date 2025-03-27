@@ -444,6 +444,7 @@ toHornExpr (F.EVar s)        = toHornSMT s
 toHornExpr (F.ENeg e)        = P.parens ("-" P.<+> toHornExpr e)
 toHornExpr (F.EApp e1 e2)    = toHornSMT [e1, e2]
 toHornExpr (F.EBin o e1 e2)  = toHornOp   (F.toFix o) [e1, e2]
+toHornExpr (F.ELet x e1 e2)  = toHornMany ["let", toHornSMT [(x, e1)], toHornSMT e2]
 toHornExpr (F.EIte e1 e2 e3) = toHornOp "if"  [e1, e2, e3]
 toHornExpr (F.ECst e t)      = toHornMany ["cast", toHornSMT e, toHornSMT t]
 toHornExpr (F.PNot p)        = toHornOp "not"  [p]

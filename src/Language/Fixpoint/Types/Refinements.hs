@@ -337,6 +337,7 @@ data ExprV v
           | EApp !(ExprV v) !(ExprV v)
           | ENeg !(ExprV v)
           | EBin !Bop !(ExprV v) !(ExprV v)
+          | ELet !Symbol !(ExprV v) !(ExprV v)
           | EIte !(ExprV v) !(ExprV v) !(ExprV v)
           | ECst !(ExprV v) !Sort
           | ELam !(Symbol, Sort)   !(ExprV v)
@@ -405,6 +406,7 @@ exprSymbolsSet = go
     go (ECoerc _ _ e)     = go e
     go (ENeg e)           = go e
     go (EBin _ e1 e2)     = gos [e1, e2]
+    go (ELet x e1 e2)     = HashSet.union (go e1) (HashSet.delete x $ go e2)
     go (EIte p e1 e2)     = gos [p, e1, e2]
     go (ECst e _)         = go e
     go (PAnd ps)          = gos ps
@@ -451,6 +453,7 @@ exprKVars = go
     go (ECoerc _ _ e)     = go e
     go (ENeg e)           = go e
     go (EBin _ e1 e2)     = gos [e1, e2]
+    go (ELet _ e1 e2)     = gos [e1, e2]
     go (EIte p e1 e2)     = gos [p, e1, e2]
     go (ECst e _)         = go e
     go (PAnd ps)          = gos ps
@@ -520,6 +523,7 @@ debruijnIndex = go
     go (EVar _)        = 1
     go (ENeg e)        = go e
     go (EBin _ e1 e2)  = go e1 + go e2
+    go (ELet _ e1 e2)  = 1 + go e1 + go e2
     go (EIte e e1 e2)  = go e + go e1 + go e2
     go (ETAbs e _)     = go e
     go (ETApp e _)     = go e
@@ -609,6 +613,7 @@ instance (Ord v, Fixpoint v) => Fixpoint (ExprV v) where
   toFix e@(EApp _ _)   = parens $ hcat $ punctuate " " $ toFix <$> (f:es) where (f, es) = splitEApp e
   toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
   toFix (EBin o e1 e2) = parens $ sep [toFix e1  <+> toFix o, nest 2 (toFix e2)]
+  toFix (ELet x e1 e2) = parens $ sep [text "let" <+> toFix x <+> text "=" <+> toFix e1 <+> text "in", nest 2 (toFix e2)]
   toFix (EIte p e1 e2) = parens $ sep [text "if" <+> toFix p <+> text "then", nest 2 (toFix e1), text "else", nest 2 (toFix e2)]
   -- toFix (ECst e _so)   = toFix e
   toFix (ECst e so)    = parens $ toFix e   <+> text " : " <+> toFix so
@@ -789,6 +794,10 @@ instance (Ord v, Fixpoint v, PPrint v) => PPrint (ExprV v) where
                                    pprintTidy k o         <+>
                                    pprintPrec (zo+1) k e2
     where zo = opPrec o
+  pprintPrec _ k (ELet x e1 e2)  = parens
+                                   "let"  <+> toFix x <+> "=" <+> pprintTidy  k e1  <+>
+                                   "in"   <+> pprintTidy k e2
+
   pprintPrec z k (EIte p e1 e2)  = parensIf (z > zi) $
                                    "if"   <+> pprintPrec (zi+1) k p  <+>
                                    "then" <+> pprintPrec (zi+1) k e1 <+>

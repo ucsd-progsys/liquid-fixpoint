@@ -78,6 +78,7 @@ subexprs (PAll _ e)      = [e]
 subexprs (PExist _ e)    = [e]
 subexprs (PGrad _ _ _ e) = [e]
 subexprs (ECoerc _ _ e)  = [e]
+subexprs (ELet _ e1 e2)  = [e1, e2]
 
 -- TODO: Adjust frequencies
 -- | To ensure this reliably terminates we require that `zeroExprGen` generates
@@ -107,6 +108,7 @@ arbitraryFiniteExpr zeroExprGen n = frequency
   , (1, PExist <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, PGrad <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitraryExpr')
   , (1, ECoerc <$> arbitrary <*> arbitrary <*> arbitraryExpr')
+  , (1, ELet <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
   ]
   where
     arbitraryExpr' = arbitraryFiniteExpr zeroExprGen (n `div` 2)
