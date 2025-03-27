@@ -325,10 +325,6 @@ elabExpr ep t e = case elabExprE ep t e of
 validateSort :: Env -> Sort -> Maybe Sort -> CheckM ()
 validateSort f t (Just t') = unifys f Nothing [t] [t'] >> return ()
 validateSort _ _ Nothing   = return ()
--- | t == t'            = return ()
--- | otherwise          = throwErrorAt $ printf "unexpected sort: got `%s` but expected `%s`" (showpp t) (showpp t')
--- validateSort _ _ Nothing =
---   return ()
 
 elabExprE :: ElabParam -> Maybe Sort -> Expr -> Either Error Expr
 elabExprE (ElabParam ef msg env) t e =
