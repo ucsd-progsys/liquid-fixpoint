@@ -323,7 +323,8 @@ elabExpr ep t e = case elabExprE ep t e of
   Right e' -> F.notracepp ("elabExp " ++ showpp e) e'
 
 validateSort :: Env -> Sort -> Maybe Sort -> CheckM ()
-validateSort f t (Just t') = void (unifys f (tracepp ("validateSort" ++ show (t, t')) Nothing) [t] [t'])
+-- validateSort f t (Just t') = void (unifys f (tracepp ("validateSort" ++ show (t, t')) Nothing) [t] [t'])
+validateSort f t (Just t') = void (unifys f Nothing [t] [t'])
 validateSort _ _ Nothing   = return ()
 
 elabExprE :: ElabParam -> Maybe Sort -> Expr -> Either Error Expr
