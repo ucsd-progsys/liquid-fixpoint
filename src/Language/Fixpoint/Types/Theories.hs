@@ -35,6 +35,7 @@ module Language.Fixpoint.Types.Theories (
     , symbolAtSmtName
 
     -- * Coercing sorts in environments
+    , coerceSort
     , coerceEnv
     , coerceSortEnv
     , TheorySymbols(..)
@@ -376,7 +377,10 @@ ppParens k d ds = parens $ Misc.intersperse (text "") (d : (pprintTidy k <$> ds)
 --------------------------------------------------------------------------------
 
 coerceSortEnv :: ElabFlags -> SEnv Sort -> SEnv Sort
-coerceSortEnv ef ss = (if elabSetBag ef then coerceSetBagToArray else id) . coerceMapToArray <$> ss
+coerceSortEnv ef ss = coerceSort ef <$> ss
+
+coerceSort :: ElabFlags -> Sort -> Sort
+coerceSort ef = (if elabSetBag ef then coerceSetBagToArray else id) . coerceMapToArray
 
 coerceEnv :: ElabFlags -> SymEnv -> SymEnv
 coerceEnv slv env =
