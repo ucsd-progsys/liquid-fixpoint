@@ -142,7 +142,7 @@ instance (Loc a) => Elaborate (SInfo a) where
     { F.cm      = elaborate ep <$> F.cm      si
     , F.bs      = elaborate ep  $  F.bs      si
     , F.asserts = elaborate ep <$> F.asserts si
-    , F.defns   = elaborate ep <$> F.defns   si
+    , F.defns   = elaborate ep  $ F.defns   si
     , F.ddecls  = coerceDataDecl (epFlags ep) <$> F.ddecls si
     }
 
@@ -175,11 +175,18 @@ instance Elaborate Rewrite where
     where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) undefined }
 
--- TODO: instead of using `Nothing` we should use `Just (eqSort eq)` to check that the
--- body actually has the promised sort, but currently this breaks because we need to elaborate
--- the Set/Map sort
+
 instance Elaborate Equation where
-  elaborate ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) (Just t')}
+  elaborate ep eq = eq { eqBody = skipElabExpr ep' (eqBody eq) }
+    where
+      ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
+
+
+instance Elaborate DefinedFuns where
+  elaborate ep (MkDefinedFuns eqs) = MkDefinedFuns (elabDefinedEqn ep <$> eqs)
+
+elabDefinedEqn :: ElabParam -> Equation -> Equation
+elabDefinedEqn ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) (Just t')}
     where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
       t'  = coerceSort (epFlags ep) (eqSort eq)
@@ -323,7 +330,7 @@ elabExpr ep t e = case elabExprE ep t e of
   Right e' -> F.notracepp ("elabExp " ++ showpp e) e'
 
 validateSort :: Env -> Sort -> Maybe Sort -> CheckM ()
-validateSort f t (Just t') = void (unifys f Nothing [t] [t'])
+validateSort f t (Just t') = void (unifys f (tracepp ("validateSort" ++ show (t, t')) Nothing) [t] [t'])
 validateSort _ _ Nothing   = return ()
 
 elabExprE :: ElabParam -> Maybe Sort -> Expr -> Either Error Expr

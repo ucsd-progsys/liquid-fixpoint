@@ -254,7 +254,7 @@ makeContext cfg f
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Config -> FilePath -> SymEnv -> [Equation] -> IO Context
+makeContextWithSEnv :: Config -> FilePath -> SymEnv -> DefinedFuns -> IO Context
 makeContextWithSEnv cfg f env defns = do
   ctx     <- makeContext cfg f
   let ctx' = ctx {ctxSymEnv = env, ctxDefines = defns}
@@ -485,7 +485,7 @@ declare me = do
     xts        = symbolSorts (F.seSort env)
     tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
     ats        = funcSortVars env
-    defs       = ctxDefines me
+    MkDefinedFuns defs = ctxDefines me
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]
 symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]

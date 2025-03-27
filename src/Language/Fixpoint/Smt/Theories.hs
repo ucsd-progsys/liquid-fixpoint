@@ -388,8 +388,12 @@ instance TheorySymbols [DataDecl] where
   theorySymbols :: [DataDecl] -> SEnv TheorySymbol
   theorySymbols = fromListSEnv . concatMap dataDeclSymbols
 
+
 instance TheorySymbols [Equation] where
   theorySymbols = fromListSEnv . fmap equationSymbol
+
+instance TheorySymbols DefinedFuns where
+  theorySymbols (MkDefinedFuns eqns) = theorySymbols eqns
 
 equationSymbol :: Equation -> (Symbol, TheorySymbol)
 equationSymbol eq = (sym, Thy sym (symbolRaw sym) sort Defined)
