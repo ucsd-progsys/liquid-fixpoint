@@ -179,7 +179,7 @@ instance Elaborate Rewrite where
 -- body actually has the promised sort, but currently this breaks because we need to elaborate
 -- the Set/Map sort
 instance Elaborate Equation where
-  elaborate ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) (Just t')}
+  elaborate ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) Nothing}
     where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
       t'  = coerceSort (epFlags ep) (eqSort eq)
