@@ -452,6 +452,7 @@ eval γ stk = go
     go (PIff e1 e2)     = PIff         <$> go e1 <*> go e2
     go (PAnd es)        = PAnd         <$> (go `traverse` es)
     go (POr es)         = POr          <$> (go `traverse` es)
+    go (ELet x e1 e2)   = ELet x       <$> go e1 <*> go e2
     go e                = return e
 
 -- | `evalArgs` also evaluates all the partial applications for hacky reasons,

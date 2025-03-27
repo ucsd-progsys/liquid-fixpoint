@@ -183,6 +183,7 @@ normalize expr' = mytracepp ("normalize: " ++ showpp expr') $ go expr'
     go (EIte e e1 e2)    = go $ PAnd [PImp e e1, PImp (PNot e) e2]
     go (PAnd ps)         = pAnd (go <$> ps)
     go (POr  ps)         = foldl' (\x y -> PImp (PImp (go x) PFalse) y) PFalse ps
+    go e@ELet{}          = e
     go e@(PAll _ _)      = e -- Cannot appear
     go e@(ELam _ _)      = e -- Cannot appear
     go e@(PExist _ _)    = e -- Cannot appear

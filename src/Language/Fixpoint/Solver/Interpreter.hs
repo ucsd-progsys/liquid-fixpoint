@@ -358,6 +358,7 @@ notGuardedApps = flip go []
       EIte b _ _ -> go b $ e0 : acc
       ECoerc _ _ e -> go e acc
       ECst e _ -> go e acc
+      ELet{} -> acc
       ESym _ -> acc
       ECon _ -> acc
       EVar _ -> acc
@@ -388,6 +389,7 @@ largestApps = flip go []
       ESym _ -> acc
       ECon _ -> acc
       EVar _ -> e0 : acc
+      ELet{} -> acc
       ELam _ _ -> acc
       ETApp _ _ -> acc
       ETAbs _ _ -> acc
@@ -557,6 +559,9 @@ interpret ie γ ctx env e@(PExist xss e1) = case xss of
 interpret _  _ _   _   e@PGrad{}         = e
 interpret ie γ ctx env (ECoerc s t e)    = let e' = interpret' ie γ ctx env e in
                                              if s == t then e' else ECoerc s t e'
+interpret ie γ ctx env (ELet x e1 e2)    = let e1' = interpret' ie γ ctx env e1
+                                               e2' = interpret' ie γ ctx env e2 in
+                                             ELet x e1' e2'
 
 
 --------------------------------------------------------------------------------

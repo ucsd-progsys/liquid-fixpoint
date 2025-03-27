@@ -225,6 +225,15 @@ subExprs' (PAnd es) = [ (e, PAnd . f) | (e, f) <- subs es ]
 
 subExprs' (POr es) = [ (e, POr . f) | (e, f) <- subs es ]
 
+subExprs' (ELet x e1 e2) = e1'' ++ e2''
+  where
+    e1' = subExprs e1
+    e2' = subExprs e2
+    e1'' :: [SubExpr]
+    e1'' = map (\(e, f) -> (e, \e' -> ELet x (f e') e2)) e1'
+    e2'' :: [SubExpr]
+    e2'' = map (\(e, f) -> (e, \e' -> ELet x e1 (f e'))) e2'
+
 subExprs' _ = []
 
 -- | Computes the subexpressions of a list of expressions.
@@ -308,4 +317,6 @@ unify freeVars template seenExpr = case (dropECst template, seenExpr) of
       unify freeVars rw seen
     (ECoerc _ _ rw, ECoerc _ _ seen) ->
       unify freeVars rw seen
+    (ELet _ rw1 rw2, ELet _ seen1 seen2) ->
+      unifyAll freeVars [rw1, rw2] [seen1, seen2]
     _ -> Nothing
