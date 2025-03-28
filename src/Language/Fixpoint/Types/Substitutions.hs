@@ -120,17 +120,18 @@ subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
 subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showFix b) (showFix a))
 
-substfLam :: (Symbol -> Expr) -> (Symbol, Sort) -> Expr -> Expr
-substfLam f s@(x, _) e =  ELam s (substf (\y -> if y == x then EVar x else f y) e)
+captureAvoiding :: Symbol -> (Symbol -> Expr) -> Symbol -> Expr
+captureAvoiding x f y = if y == x then EVar x else f y
 
 instance Subable Expr where
   syms                     = exprSymbols
   substa f                 = substf (EVar . f)
   substf f (EApp s e)      = EApp (substf f s) (substf f e)
-  substf f (ELam x e)      = substfLam f x e
+  substf f (ELam (x,t) e)  = ELam (x, t) (substf (captureAvoiding x f) e)
   substf f (ECoerc a t e)  = ECoerc a t (substf f e)
   substf f (ENeg e)        = ENeg (substf f e)
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
+  substf f (ELet x e1 e2)  = ELet x (substf f e1) (substf (captureAvoiding x f) e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
   substf f (ECst e so)     = ECst (substf f e) so
   substf f (EVar x)        = f x
@@ -141,7 +142,7 @@ instance Subable Expr where
   substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
   substf f (PKVar k (Su su)) = PKVar k (Su $ M.map (substf f) su)
-  substf _  (PAll _ _)     = errorstar "substf: FORALL"
+  substf _ (PAll _ _)      = errorstar "substf: FORALL"
   substf f (PGrad k su i e)= PGrad k su i (substf f e)
   substf _  p              = p
 

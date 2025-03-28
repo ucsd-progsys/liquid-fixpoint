@@ -417,6 +417,7 @@ collectFreeVarOccurrences = go []
       PImp p1 p2 -> go (go acc p2) p1
       PIff p1 p2 -> go (go acc p2) p1
       PAtom _r e1 e2 -> go (go acc e2) e1
+      ELet x e1 e2 -> go (go acc e2 L.\\ [x]) e1
       EIte p e1 e2 -> go (go (go acc e2) e1) p
       PAnd ps -> foldr (flip go) acc ps
       POr ps -> foldr (flip go) acc ps

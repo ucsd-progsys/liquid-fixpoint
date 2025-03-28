@@ -260,6 +260,16 @@ bindsP = sMany bindP
 bindP :: FParser (F.Symbol, F.Sort)
 bindP = sPairP symbolP sortP
 
+-- | We only support lets with a single binder, but we parse this as a "singleton list"
+-- to be forward compatible with multiple binders. Note that the semantics of multiple
+-- binders in smtlib is *simulatenous substitution*, so they cannot be desugared to nested
+-- lets.
+exprBindsP :: FParser (F.Symbol, F.Expr)
+exprBindsP = parens exprBindP
+
+exprBindP :: FParser (F.Symbol, F.Expr)
+exprBindP = sPairP symbolP exprP
+
 defineP :: FParser F.Equation
 defineP = do
   name   <- symbolP
@@ -304,6 +314,7 @@ exprP
 pExprP :: FParser F.Expr
 pExprP
   =   (reserved   "if"     >> (F.EIte   <$> exprP <*> exprP <*> exprP))
+  <|> (reserved   "let"    >> (uncurry F.ELet   <$> exprBindsP <*> exprP))
   <|> (reserved   "lit"    >> (mkLit    <$> stringLiteral <*> sortP))
   <|> (reserved   "cast"   >> (F.ECst   <$> exprP <*> sortP))
   <|> (reserved   "not"    >> (F.PNot   <$> exprP))

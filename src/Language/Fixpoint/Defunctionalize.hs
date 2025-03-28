@@ -85,6 +85,9 @@ normalizeLamsFromTo i   = go
                               (i2, e2') = go e2
                           in (max i1 i2, EApp e1' e2')
     go (ECst e s)       = fmap (`ECst` s) (go e)
+    go (ELet x e1 e2)   = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                          in (max i1 i2, ELet x e1' e2')
     go (EIte e1 e2 e3)  = let (i1, e1') = go e1
                               (i2, e2') = go e2
                               (i3, e3') = go e3

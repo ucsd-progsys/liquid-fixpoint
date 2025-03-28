@@ -30,6 +30,9 @@ instance SMTLIB2 (Symbol, Sort) where
   smt2 env c@(sym, t) = -- build "({} {})" (smt2 env sym, smt2SortMono c env t)
                         parenSeqs [smt2 env sym, smt2SortMono c env t]
 
+instance SMTLIB2 (Symbol, Expr) where
+  smt2 env (sym, e) =  parenSeqs [smt2 env sym, smt2 env e]
+
 smt2SortMono, smt2SortPoly :: (PPrint a) => a -> SymEnv -> Sort -> Builder
 smt2SortMono = smt2Sort False
 smt2SortPoly = smt2Sort True
@@ -139,6 +142,7 @@ instance SMTLIB2 Expr where
   smt2 env e@(EApp _ _)     = smt2App env e
   smt2 env (ENeg e)         = parenSeqs ["-", smt2 env e]
   smt2 env (EBin o e1 e2)   = parenSeqs [smt2 env o, smt2 env e1, smt2 env e2]
+  smt2 env (ELet x e1 e2)   = parenSeqs ["let", parens (smt2 env (x, e1)), smt2 env e2]
   smt2 env (EIte e1 e2 e3)  = parenSeqs ["ite", smt2 env e1, smt2 env e2, smt2 env e3]
   smt2 env (ECst e t)       = smt2Cast env e t
   smt2 _   PTrue            = "true"

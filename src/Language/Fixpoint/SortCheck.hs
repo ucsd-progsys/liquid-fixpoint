@@ -261,6 +261,7 @@ elabFMap (EApp (EApp (EApp h@(EVar f) e1) e2) e3)
 elabFMap (EApp e1 e2)      = EApp (elabFMap e1) (elabFMap e2)
 elabFMap (ENeg e)          = ENeg (elabFMap e)
 elabFMap (EBin b e1 e2)    = EBin b (elabFMap e1) (elabFMap e2)
+elabFMap (ELet x e1 e2)    = ELet x (elabFMap e1) (elabFMap e2)
 elabFMap (EIte e1 e2 e3)   = EIte (elabFMap e1) (elabFMap e2) (elabFMap e3)
 elabFMap (ECst e t)        = ECst (elabFMap e) t
 elabFMap (ELam b e)        = ELam b (elabFMap e)
@@ -304,6 +305,7 @@ elabFSetBagZ3 (EApp (EApp h@(EVar f) e1) e2)
 elabFSetBagZ3 (EApp e1 e2)      = EApp (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
 elabFSetBagZ3 (ENeg e)          = ENeg (elabFSetBagZ3 e)
 elabFSetBagZ3 (EBin b e1 e2)    = EBin b (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
+elabFSetBagZ3 (ELet x e1 e2)    = ELet x (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
 elabFSetBagZ3 (EIte e1 e2 e3)   = EIte (elabFSetBagZ3 e1) (elabFSetBagZ3 e2) (elabFSetBagZ3 e3)
 elabFSetBagZ3 (ECst e t)        = ECst (elabFSetBagZ3 e) t
 elabFSetBagZ3 (ELam b e)        = ELam b (elabFSetBagZ3 e)
@@ -371,6 +373,7 @@ elabApply env = go
     step (POr [])         = PFalse
     step (ENeg e)         = ENeg (go  e)
     step (EBin o e1 e2)   = EBin o (go e1) (go e2)
+    step (ELet x e1 e2)   = ELet x (go e1) (go e2)
     step (EIte e1 e2 e3)  = EIte (go e1) (go e2) (go e3)
     step (ECst e t)       = ECst (go e) t
     step (PAnd ps)        = PAnd (go <$> ps)
@@ -580,6 +583,7 @@ checkExpr _ (ECon (L _ s))  = return s
 checkExpr f (EVar x)        = checkSym f x
 checkExpr f (ENeg e)        = checkNeg f e
 checkExpr f (EBin o e1 e2)  = checkOp f e1 o e2
+checkExpr f (ELet x e1 e2)  = checkLet f x e1 e2
 checkExpr f (EIte p e1 e2)  = checkIte f p e1 e2
 checkExpr f (ECst e t)      = checkCst f t e
 checkExpr f (EApp g e)      = checkApp f Nothing g e
@@ -664,6 +668,11 @@ elab f@(!_,!g) (EIte !p !e1 !e2) = do
   (!e2', !s2) <- elab f (eCst e2 t)
   !s          <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (eCst e1' s) (eCst e2' s), s)
+
+elab f (ELet !x !e1 !e2) = do
+  (!e1', !t1) <- elab f e1
+  (!e2', !t2) <- elab (elabAddEnv f [(x, t1)]) e2
+  return (ELet x e1' e2', t2)
 
 elab !f (ECst !e !t) = do
   (!e', !_) <- elab f e
@@ -1059,6 +1068,12 @@ refreshNegativeTyVars s = do
     negSort (FFunc s1 s2)    = negSort s1 `S.union` negSort s2
     negSort (FApp s1 s2)     = negSort s1 `S.union` negSort s2
     negSort _                = S.empty
+
+-- | Helper for checking let expressions
+checkLet :: Env -> Symbol -> Expr -> Expr -> CheckM Sort
+checkLet f x e1 e2 = do
+  t <- checkExpr f e1
+  checkExpr (addEnv f [(x, t)]) e2
 
 -- | Helper for checking if-then-else expressions
 checkIte :: Env -> Expr -> Expr -> Expr -> CheckM Sort

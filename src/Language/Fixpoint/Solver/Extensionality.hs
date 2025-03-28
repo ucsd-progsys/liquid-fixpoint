@@ -148,6 +148,8 @@ mapMPosExpr pos f = go pos
     go p (PImp p1 p2)    = f p =<< (PImp        <$>  go (negatePos p) p1 <*> go p p2)
     go p (PAnd ps)       = f p . PAnd =<< (go p `traverse` ps)
 
+    go p (ELet x e1 e2)  = f p =<< ELet x <$> go p e1 <*> go p e2
+
     -- The below cannot appear due to normalization
     go p (PNot e)        = f p . PNot =<< go p e
     go p (PIff p1 p2)    = f p =<< (PIff        <$>  go p p1 <*> go p p2            )
@@ -181,6 +183,7 @@ normalize expr' = mytracepp ("normalize: " ++ showpp expr') $ go expr'
     go (EIte e e1 e2)    = go $ PAnd [PImp e e1, PImp (PNot e) e2]
     go (PAnd ps)         = pAnd (go <$> ps)
     go (POr  ps)         = foldl' (\x y -> PImp (PImp (go x) PFalse) y) PFalse ps
+    go e@ELet{}          = e
     go e@(PAll _ _)      = e -- Cannot appear
     go e@(ELam _ _)      = e -- Cannot appear
     go e@(PExist _ _)    = e -- Cannot appear

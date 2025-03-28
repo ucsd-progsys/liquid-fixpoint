@@ -643,6 +643,10 @@ eval γ ctx et = go
       return (Mb.fromMaybe e me', fe)
     go (ECst e t)       = do (e', fe) <- go e
                              return (ECst e' t, fe)
+    go (ELet x e1 e2)   = do (e1', fe1) <- go e1
+                             (e2', fe2) <- go e2
+                             return (ELet x e1' e2', fe1 <|> fe2)
+
     go e                = return (e, noExpand)
 
     binOp f e1 e2 = do

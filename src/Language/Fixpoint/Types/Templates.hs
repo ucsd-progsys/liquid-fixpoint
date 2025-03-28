@@ -46,6 +46,8 @@ matchesTemplate (xs, ENeg t) (ENeg e)
   = matchesTemplate (xs, t) e
 matchesTemplate (xs, EBin b t1 t2) (EBin b' e1 e2)
   = b == b' && matchesTemplate (xs, t1) e1 && matchesTemplate (xs, t2) e2
+matchesTemplate (xs, ELet x t1 t2) (ELet x' e1 e2)
+  = x == x' && matchesTemplate (xs, t1) e1 && matchesTemplate (xs, t2) e2
 matchesTemplate (xs, EIte t1 t2 t3) (EIte e1 e2 e3)
   = matchesTemplate (xs, t1) e1 && matchesTemplate (xs, t2) e2 && matchesTemplate (xs, t3) e3
 matchesTemplate (xs, ECst t s) (ECst e s')
