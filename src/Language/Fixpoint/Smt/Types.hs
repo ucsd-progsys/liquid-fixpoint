@@ -102,7 +102,7 @@ data Context = Ctx
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
   , ctxSymEnv  :: !SymEnv
-  , ctxDefines :: ![Equation]
+  , ctxDefines :: DefinedFuns
   }
 
 --------------------------------------------------------------------------------

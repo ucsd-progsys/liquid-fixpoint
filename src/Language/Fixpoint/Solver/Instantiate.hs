@@ -801,7 +801,7 @@ assertSelectors γ expr' = do
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-withCtx :: Config -> FilePath -> SymEnv -> [Equation] -> (SMT.Context -> IO a) -> IO a
+withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> (SMT.Context -> IO a) -> IO a
 withCtx cfg file env defns k = do
   ctx <- SMT.makeContextWithSEnv cfg file env defns
   _   <- SMT.smtPush ctx

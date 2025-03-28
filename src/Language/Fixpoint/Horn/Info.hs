@@ -30,7 +30,7 @@ hornFInfo cfg q = mempty
   , F.ae        = axEnv cfg q cs
   , F.ddecls    = H.qData q
   , F.hoInfo    = F.cfgHoInfo cfg
-  , F.defns     = H.qDefs q
+  , F.defns     = F.MkDefinedFuns (H.qDefs q)
   }
   where
     be0         = F.emptyBindEnv

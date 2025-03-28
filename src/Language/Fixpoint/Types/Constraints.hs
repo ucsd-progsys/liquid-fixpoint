@@ -80,6 +80,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Axioms
   , AxiomEnv (..)
   , Equation
+  , DefinedFuns (..)
   , EquationV (..)
   , mkEquation
   , Rewrite  (..)
@@ -745,7 +746,7 @@ data GInfo c a = FI
   , asserts  :: ![Triggered Expr]          -- ^ TODO: what is this?
   , ae       :: AxiomEnv                   -- ^ Information about reflected function defs
   , lrws     :: LocalRewritesEnv           -- ^ Local rewrites
-  , defns    :: ![Equation]                -- ^ `define_fun` definitions to be passed to SMT
+  , defns    :: DefinedFuns                -- ^ `define_fun` definitions to be passed to SMT
   }
   deriving (Eq, Show, Functor, Generic)
 
@@ -966,10 +967,12 @@ instance S.Store AutoRewrite
 instance S.Store AxiomEnv
 instance S.Store Rewrite
 instance S.Store Equation
+instance S.Store DefinedFuns
 instance NFData AutoRewrite
 instance NFData AxiomEnv
 instance NFData Rewrite
 instance NFData Equation
+instance NFData DefinedFuns
 
 dedupAutoRewrites :: M.HashMap SubcId [AutoRewrite] -> [AutoRewrite]
 dedupAutoRewrites = Set.toList . Set.unions . map Set.fromList . M.elems
@@ -988,6 +991,16 @@ instance Monoid AxiomEnv where
 
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show
+
+
+newtype DefinedFuns = MkDefinedFuns [Equation]
+  deriving (Data, Eq, Ord, Show, Generic)
+
+instance Semigroup DefinedFuns where
+  MkDefinedFuns eq1 <> MkDefinedFuns eq2 = MkDefinedFuns (eq1 <> eq2)
+
+instance Monoid DefinedFuns where
+  mempty = MkDefinedFuns []
 
 type Equation = EquationV Symbol
 data EquationV v = Equ
