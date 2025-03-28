@@ -8,6 +8,7 @@
 {-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE InstanceSigs #-}
 
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
@@ -141,6 +142,7 @@ instance (Loc a) => Elaborate (SInfo a) where
     { F.cm      = elaborate ep <$> F.cm      si
     , F.bs      = elaborate ep  $  F.bs      si
     , F.asserts = elaborate ep <$> F.asserts si
+    , F.defns   = elaborate ep  $ F.defns   si
     , F.ddecls  = coerceDataDecl (epFlags ep) <$> F.ddecls si
     }
 
@@ -173,19 +175,30 @@ instance Elaborate Rewrite where
     where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) undefined }
 
+
 instance Elaborate Equation where
   elaborate ep eq = eq { eqBody = skipElabExpr ep' (eqBody eq) }
     where
       ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
+
+
+instance Elaborate DefinedFuns where
+  elaborate ep (MkDefinedFuns eqs) = MkDefinedFuns (elabDefinedEqn ep <$> eqs)
+
+elabDefinedEqn :: ElabParam -> Equation -> Equation
+elabDefinedEqn ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) (Just t')}
+    where
+      ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
+      t'  = coerceSort (epFlags ep) (eqSort eq)
 
 instance Elaborate Expr where
   elaborate p e = elaborateExpr p e Nothing
 
 elaborateExpr :: ElabParam -> Expr -> Maybe Sort -> Expr
 elaborateExpr (ElabParam ef msg env) e t =
-    elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') t . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id) $ e
-      where
-        env' = coerceEnv ef env
+  elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') t . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id) $ e
+    where
+      env' = coerceEnv ef env
 
 skipElabExpr :: ElabParam -> Expr -> Expr
 skipElabExpr ep e = case elabExprE ep Nothing e of
@@ -311,29 +324,28 @@ elabFSetBagZ3 e                 = e
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
-elabExpr :: ElabParam -> Maybe Sort -> Expr ->  Expr
+elabExpr :: ElabParam -> Maybe Sort -> Expr -> Expr
 elabExpr ep t e = case elabExprE ep t e of
   Left ex  -> die ex
   Right e' -> F.notracepp ("elabExp " ++ showpp e) e'
 
-validateSort :: Sort -> Maybe Sort -> CheckM ()
-validateSort t (Just t')
-  | t == t'            = return ()
-  | otherwise          = throwErrorAt $ printf "unexpected sort: got `%s` but expected `%s`" (showpp t) (showpp t')
-validateSort _ Nothing = return ()
+validateSort :: Env -> Sort -> Maybe Sort -> CheckM ()
+-- validateSort f t (Just t') = void (unifys f (tracepp ("validateSort" ++ show (t, t')) Nothing) [t] [t'])
+validateSort f t (Just t') = void (unifys f Nothing [t] [t'])
+validateSort _ _ Nothing   = return ()
 
 elabExprE :: ElabParam -> Maybe Sort -> Expr -> Either Error Expr
 elabExprE (ElabParam ef msg env) t e =
   case runCM0 (srcSpan msg) (Just ef) $ do
     (!e', eSort) <- elab (env, envLookup) e
-    validateSort eSort t
+    validateSort envLookup eSort t
     finalThetaRef <- asks chTVSubst
     finalTheta <- liftIO $ readIORef finalThetaRef
     return (applyExpr finalTheta e') of
     Left (ChError f') ->
       let e' = f' ()
       in Left $ err (srcSpan e') (d (val e'))
-    Right s  -> Right s
+    Right elab_e -> Right elab_e
   where
     sEnv = seSort env
     envLookup = (`lookupSEnvWithDistance` sEnv)
