@@ -142,7 +142,7 @@ instance (Loc a) => Elaborate (SInfo a) where
     { F.cm      = elaborate ep <$> F.cm      si
     , F.bs      = elaborate ep  $  F.bs      si
     , F.asserts = elaborate ep <$> F.asserts si
-    , F.defns   = elaborate ep  $ F.defns   si
+    , F.defns   = elaborate ep  $ F.defns    si
     , F.ddecls  = coerceDataDecl (epFlags ep) <$> F.ddecls si
     }
 
@@ -186,10 +186,14 @@ instance Elaborate DefinedFuns where
   elaborate ep (MkDefinedFuns eqs) = MkDefinedFuns (elabDefinedEqn ep <$> eqs)
 
 elabDefinedEqn :: ElabParam -> Equation -> Equation
-elabDefinedEqn ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) (Just t')}
-    where
-      ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
-      t'  = coerceSort (epFlags ep) (eqSort eq)
+elabDefinedEqn ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) (Just t')
+                          , eqArgs = [(x, tx t) | (x, t) <- eqArgs eq ]
+                          , eqSort = t'
+                          }
+  where
+    ep' = ep { epEnv = insertsSymEnv (epEnv ep) (eqArgs eq) }
+    tx  = coerceSort (epFlags ep)
+    t'  = tx (eqSort eq)
 
 instance Elaborate Expr where
   elaborate p e = elaborateExpr p e Nothing
