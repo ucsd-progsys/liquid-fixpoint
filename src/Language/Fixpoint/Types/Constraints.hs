@@ -1002,6 +1002,9 @@ instance Semigroup DefinedFuns where
 instance Monoid DefinedFuns where
   mempty = MkDefinedFuns []
 
+instance PPrint DefinedFuns where
+  pprintTidy k (MkDefinedFuns eqs) = pprintTidy k eqs
+
 type Equation = EquationV Symbol
 data EquationV v = Equ
   { eqName :: !Symbol           -- ^ name of reflected function
