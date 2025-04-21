@@ -346,7 +346,7 @@ bopP
  <|> (sym "-"   >> return F.Minus)
  <|> (sym "*"   >> return F.Times)
  <|> (sym "/"   >> return F.Div)
- <|> (sym "mod" >> return F.Mod)
+ <|> (reserved "mod" >> return F.Mod)
  <|> (sym "*."  >> return F.RTimes)
  <|> (sym "/."  >> return F.RDiv)
 
