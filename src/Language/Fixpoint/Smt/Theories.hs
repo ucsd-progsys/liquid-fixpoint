@@ -323,25 +323,27 @@ type VarAs = Symbol -> Sort -> State SymEnv Builder
 --------------------------------------------------------------------------------
 smt2App :: VarAs -> Expr -> [Builder] -> State SymEnv (Maybe Builder)
 --------------------------------------------------------------------------------
-smt2App _ ex@(dropECst -> EVar f) [d] = gets (smt2AppVar ex f d)
+smt2App _ ex@(dropECst -> EVar f) [d]
+  | f == arrConstS = do env <- get
+                        pure $ Just $ key (key "as const" (getTarget env ex)) d
+  | f == arrConstB = do env <- get
+                        pure $ Just $ key (key "as const" (getTarget env ex)) d
+  | f == arrConstM = do env <- get
+                        pure $ Just $ key (key "as const" (getTarget env ex)) d
+  | f == setEmpty  = do env <- get
+                        pure $ Just $ key "as set.empty" (getTarget env ex)
+  | f == bagEmpty  = do env <- get
+                        pure $ Just $ key "as bag.empty" (getTarget env ex)
+  where
+    getTarget :: SymEnv -> Expr -> Builder
+    -- const is a function, but SMT expects only the output sort
+    getTarget env (ECst _ t) = smt2SmtSort $ sortSmtSort True (seData env) (ffuncOut t)
+    getTarget _ e = bShow e
+
 smt2App k ex (builder:builders) =
   do a <- smt2AppArg k ex
      pure $ (\fb -> key fb (builder <> mconcat [ " " <> d | d <- builders])) <$> a
 smt2App _ _ [] = pure Nothing
-
-smt2AppVar :: Expr -> Symbol -> Builder -> SymEnv -> Maybe Builder
-smt2AppVar ex f d env
-  | f == arrConstS = Just $ key (key "as const" (getTarget ex)) d
-  | f == arrConstB = Just $ key (key "as const" (getTarget ex)) d
-  | f == arrConstM = Just $ key (key "as const" (getTarget ex)) d
-  | f == setEmpty  = Just $ key "as set.empty" (getTarget ex)
-  | f == bagEmpty  = Just $ key "as bag.empty" (getTarget ex)
-  | otherwise = Nothing
-  where
-    getTarget :: Expr -> Builder
-    -- const is a function, but SMT expects only the output sort
-    getTarget (ECst _ t) = smt2SmtSort $ sortSmtSort True (seData env) (ffuncOut t)
-    getTarget e = bShow e
 
 smt2AppArg :: VarAs -> Expr -> State SymEnv (Maybe Builder)
 smt2AppArg k (ECst (dropECst -> EVar f) t)
@@ -351,12 +353,6 @@ smt2AppArg k (ECst (dropECst -> EVar f) t)
                            then Just <$> k f (ffuncOut t)
                            else pure $ Just $ fromText (tsRaw fThy)
          Nothing   -> pure Nothing
-         {-
-  | Just fThy <- symEnvTheory f env
-  = Just $ if isPolyCtor fThy t
-            then k env f (ffuncOut t)
-            else fromText (tsRaw fThy)
--}
 smt2AppArg _ _
   = pure Nothing
 

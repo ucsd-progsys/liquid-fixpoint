@@ -27,7 +27,7 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Misc (sortNub, errorstar)
 import           Language.Fixpoint.Utils.Builder as Builder
 -- import System.Process (CreateProcess())
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
 
 instance SMTLIB2 (Symbol, Sort) where
   smt2 c@(sym, t) =
@@ -295,8 +295,7 @@ instance SMTLIB2 Command where
                                           pure $ parenSeqs [s0 , s1]) paramxs
        r <- smt2 rsort
        e' <- smt2 e
-       let e'' = trace ("definefunc: " ++ show e) e'
-       pure $ parenSeqs ["define-fun", n, parenSeqs bParams, r, e'']
+       pure $ parenSeqs ["define-fun", n, parenSeqs bParams, r, e']
 
 
 {-
