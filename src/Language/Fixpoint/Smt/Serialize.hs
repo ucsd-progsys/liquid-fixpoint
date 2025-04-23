@@ -169,6 +169,9 @@ instance SMTLIB2 Expr where
                              s1 <- smt2 e1
                              s2 <- smt2 e2
                              pure $ parenSeqs [so, s1, s2]
+  smt2 (ELet x e1 e2)   = do s1 <- smt2 (x, e1)
+                             s2 <- smt2 e2
+                             pure $ parenSeqs ["let", parens s1, s2]
   smt2 (EIte e1 e2 e3)  = do s1 <- smt2 e1
                              s2 <- smt2 e2
                              s3 <- smt2 e3
