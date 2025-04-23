@@ -73,6 +73,7 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
 import           Control.Applicative      ((<|>))
 import           Control.Monad
+import           Control.Monad.State
 import           Control.Exception
 import           Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as BS
@@ -175,7 +176,7 @@ command Ctx{..} !cmd       = do
             TE.decodeUtf8With (const $ const $ Just ' ') $
             LBS.toStrict resp
       parse respTxt
-    cmdBS = {-# SCC "Command-runSmt2" #-} runSmt2 ctxSymEnv cmd
+    cmdBS = {-# SCC "Command-runSmt2" #-} evalState (runSmt2 cmd) ctxSymEnv
     parse resp      = do
       case A.parseOnly responseP resp of
         Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
@@ -502,7 +503,7 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
                  ++ [(var lambdaName t       , lamSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where
-    var n         = F.symbolAtSmtName n env ()
+    var n t       = evalState (F.symbolAtSmtName n () t) env
     ts            = M.keys (F.seAppls env)
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)

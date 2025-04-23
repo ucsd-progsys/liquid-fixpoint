@@ -46,6 +46,7 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
+import           Control.Monad.State
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
@@ -77,6 +78,7 @@ data SymEnv = SymEnv
   , seLits   :: !(SEnv Sort)              -- ^ Distinct Constant symbols
   , seAppls  :: !(M.HashMap FuncSort Int) -- ^ Types at which `apply` was used;
                                            --   see [NOTE:apply-monomorphization]
+  , seIx     :: !Int                      -- ^ Largest unused index for sorts
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -92,18 +94,19 @@ instance Semigroup SymEnv where
                     , seData   = seData   e1 <> seData   e2
                     , seLits   = seLits   e1 <> seLits   e2
                     , seAppls  = seAppls  e1 <> seAppls  e2
+                    , seIx     = seIx     e1 `max` seIx  e2
                     }
 
 instance Monoid SymEnv where
-  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty
+  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty 0
   mappend       = (<>)
 
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
+symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls applsMap {- mempty -} 0
   where
     xEnv'   = unionSEnv xEnv wiredInEnv
     dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
-    sortMap = M.fromList (zip smts [0..])
+    applsMap = M.fromList (zip smts [0..])
     smts    = funcSorts dEnv ts
 
 -- | These are "BUILT-in" polymorphic functions which are
@@ -212,18 +215,32 @@ deleteSymEnv x env = env { seSort = deleteSEnv x (seSort env) }
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
 insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
-symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Text
-symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
+symbolAtName :: (PPrint a) => Symbol -> a -> Sort -> State SymEnv Text
+symbolAtName mkSym e s =
+  do env <- get
+     symbolAtSmtName mkSym e (ffuncSort env s)
 {-# SCC symbolAtName #-}
 
-symbolAtSmtName :: (PPrint a) => Symbol -> SymEnv -> a -> FuncSort -> Text
-symbolAtSmtName mkSym env e =
+symbolAtSmtName :: (PPrint a) => Symbol -> a -> FuncSort -> State SymEnv Text
+symbolAtSmtName mkSym e fs =
   -- formerly: intSymbol mkSym . funcSortIndex env e
-  appendSymbolText mkSym . Text.pack . show . funcSortIndex env e
+  appendSymbolText mkSym . Text.pack . show <$> funcSortIndex e fs
 {-# SCC symbolAtSmtName #-}
 
-funcSortIndex :: (PPrint a) => SymEnv -> a -> FuncSort -> Int
-funcSortIndex env e fs = M.lookupDefault err fs (seAppls env)
+funcSortIndex :: (PPrint a) => a -> FuncSort -> State SymEnv Int
+funcSortIndex e fs =
+  do env <- get
+     let aps = seAppls env
+     pure $ M.lookupDefault err fs aps
+     {-
+     case M.lookup fs aps of
+      Just i  -> pure i
+      Nothing ->
+        do let i = seIx env
+           modify (\env -> env { seAppls = M.insert fs i aps , seIx = 1 + i })
+           pure i
+     -}
+
   where
     err = panic ("Unknown func-sort: " ++ show fs ++ " for " ++ showpp e)
 
@@ -335,9 +352,9 @@ fappSmtSort poly m env = go
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
 
     go (FTC c) [a]
-      | setConName == symbol c  = SSet (sortSmtSort poly env a)
+      | setConName == symbol c   = SSet (sortSmtSort poly env a)
     go (FTC c) [a]
-      | bagConName == symbol c  = SBag (sortSmtSort poly env a)
+      | bagConName == symbol c   = SBag (sortSmtSort poly env a)
     go (FTC c) [a, b]
       | arrayConName == symbol c = SArray (sortSmtSort poly env a) (sortSmtSort poly env b)
     go (FTC bv) [FTC s]
@@ -389,4 +406,5 @@ coerceEnv slv env =
          , seData   = seData   env
          , seLits   = seLits   env
          , seAppls  = seAppls  env
+         , seIx     = seIx     env
          }

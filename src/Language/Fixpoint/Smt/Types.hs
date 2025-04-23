@@ -12,8 +12,11 @@ module Language.Fixpoint.Smt.Types (
     -- * Serialized Representation
     --    symbolBuilder
 
+    -- * SMT monad
+      SmtST
+
     -- * Commands
-      Command  (..)
+    , Command  (..)
 
     -- * Responses
     , Response (..)
@@ -27,6 +30,7 @@ module Language.Fixpoint.Smt.Types (
 
     ) where
 
+import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config (ElabFlags)
@@ -43,6 +47,9 @@ import           System.IO                (Handle)
 
 -- symbolBuilder :: Symbol -> LT.Builder
 -- symbolBuilder = LT.fromText . symbolSafeText
+
+-- | SMT monad
+type SmtST a = StateT SymEnv IO a
 
 -- | Commands issued to SMT engine
 data Command      = Push
@@ -110,7 +117,7 @@ data Context = Ctx
 --------------------------------------------------------------------------------
 
 class SMTLIB2 a where
-  smt2 :: SymEnv -> a -> Builder
+  smt2 :: a -> State SymEnv Builder
 
-runSmt2 :: (SMTLIB2 a) => SymEnv -> a -> Builder
+runSmt2 :: (SMTLIB2 a) => a -> State SymEnv Builder
 runSmt2 = smt2

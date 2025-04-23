@@ -659,7 +659,7 @@ eval γ ctx et = go
       let (xs', fe) = feSeq xs
       return (f xs', fe)
 
--- | 'evalELamb' produces equations that preserve the context of a rewrite
+-- | 'evalELam' produces equations that preserve the context of a rewrite
 -- so equations include any necessary lambda bindings.
 evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (Expr, FinalExpand)
 evalELam γ ctx et (x, s) e
