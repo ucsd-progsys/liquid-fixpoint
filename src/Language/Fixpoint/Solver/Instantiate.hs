@@ -142,7 +142,7 @@ withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> SmtM b) -> Sm
 withAssms env ctx delta cidMb act = do
   let ctx'  = updCtx env ctx delta cidMb
   let assms = mytracepp  ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
-  SMT.smtBracket "PLE.evaluate" $ do
+  SMT.smtBracket "Instantiate.withAssms" $ do
     forM_ assms SMT.smtAssert
     act ctx'
 
@@ -167,7 +167,7 @@ evalCandsLoop cfg γ s0 = go []
   where
     go acc []    = return acc
     go acc cands = do ctx <- get
-                      eqss <- SMT.smtBracket "PLE.evaluate" $ do
+                      eqss <- SMT.smtBracket "Instantiate.evalCandsLoop" $ do
                                 SMT.smtAssert (unfoldPred cfg ctx acc)
                                 mapM (liftIO . evalOne γ s0) cands
                       let us  = zip (Just <$> cands) eqss
@@ -365,7 +365,7 @@ _evalLoop cfg γ s0 ctxEqs = loop 0 []
     loop _ acc []    = return acc
     loop i acc cands = do ctx <- get
                           let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
-                          eqss <- SMT.smtBracket "PLE.evaluate" $ do
+                          eqss <- SMT.smtBracket "Instantiate._evalLoop" $ do
                                     forM_ (eqp : ctxEqs) SMT.smtAssert
                                     mapM (liftIO . evalOne γ s0) cands
                           case concat eqss of

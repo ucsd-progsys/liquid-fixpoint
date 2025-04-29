@@ -54,7 +54,7 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
-import           Language.Fixpoint.Types.Errors
+-- import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ.Compat
@@ -64,6 +64,8 @@ import qualified Data.Text                as Text
 import qualified Data.Store              as S
 import qualified Data.HashMap.Strict      as M
 import qualified Language.Fixpoint.Misc   as Misc
+
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values
@@ -80,6 +82,7 @@ data SymEnv = SymEnv
   , seLits   :: !(SEnv Sort)              -- ^ Distinct Constant symbols
   , seAppls  :: !(M.HashMap FuncSort Int) -- ^ Types at which `apply` was used;
                                            --   see [NOTE:apply-monomorphization]
+  , seApplsNew :: !(M.HashMap FuncSort Int)
   , seIx     :: !Int                      -- ^ Largest unused index for sorts
   }
   deriving (Eq, Show, Data, Typeable, Generic)
@@ -98,20 +101,21 @@ instance Semigroup SymEnv where
                     , seData   = seData   e1 <> seData   e2
                     , seLits   = seLits   e1 <> seLits   e2
                     , seAppls  = seAppls  e1 <> seAppls  e2
+                    , seApplsNew  = seApplsNew  e1 <> seApplsNew e2
                     , seIx     = seIx     e1 `max` seIx  e2
                     }
 
 instance Monoid SymEnv where
-  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty 0
+  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty mempty 0
   mappend       = (<>)
 
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls applsMap {- mempty -} 0
+symEnv xEnv fEnv ds ls _ {-ts-} = SymEnv xEnv' fEnv dEnv ls {-applsMap-} mempty mempty 0
   where
     xEnv'   = unionSEnv xEnv wiredInEnv
     dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
-    applsMap = M.fromList (zip smts [0..])
-    smts    = funcSorts dEnv ts
+--    applsMap = M.fromList (zip smts [0..])
+--    smts    = funcSorts dEnv ts
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNINTERPRETED but POLYMORPHIC, hence need to go through
@@ -146,6 +150,7 @@ wiredInEnv = M.fromList
 --   such a strategy would NUKE the entire apply-sort machinery from the CODE base.
 --   [TODO]: dynamic-apply-declaration
 
+{-
 funcSorts :: SEnv DataDecl -> [Sort] -> [FuncSort]
 funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
   where
@@ -202,7 +207,7 @@ inlineArrSetBagFApp m env = go
       | Just n <- tyArgs c env
       , let i = n - length ts   = [SData c ((inlineArrSetBag False env . FAbs m =<< ts) ++ replicate i SInt)]
     go _ _                      = [SInt]
-
+-}
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
 symEnvTheory x env = lookupSEnv x (seTheory env)
@@ -228,24 +233,30 @@ symbolAtName mkSym e s =
 symbolAtSmtName :: (PPrint a) => Symbol -> a -> FuncSort -> SymM Text
 symbolAtSmtName mkSym e fs =
   -- formerly: intSymbol mkSym . funcSortIndex env e
-  appendSymbolText mkSym . Text.pack . show <$> funcSortIndex e fs
+  do fsi <- funcSortIndex e fs
+     let fsi' = trace ("sasn " ++ show fsi) fsi
+     pure $ appendSymbolText mkSym . Text.pack . show $ fsi'
 {-# SCC symbolAtSmtName #-}
 
 funcSortIndex :: (PPrint a) => a -> FuncSort -> SymM Int
-funcSortIndex e fs =
+--funcSortIndex e fs =
+funcSortIndex _ fs =
   do env <- get
      let aps = seAppls env
-     pure $ M.lookupDefault err fs aps
-{-
+     let apsn = seApplsNew env
+--     pure $ M.lookupDefault err fs aps
      case M.lookup fs aps of
       Just i  -> pure i
       Nothing ->
-        do let i = seIx env
-           modify (\env -> env { seAppls = M.insert fs i aps , seIx = 1 + i })
-           pure i
--}
-  where
-    err = panic ("Unknown func-sort: " ++ show fs ++ " for " ++ showpp e)
+        case M.lookup fs apsn of
+         Just i  -> pure i
+         Nothing ->
+           do let i = seIx env
+              modify (\env -> env { seApplsNew = M.insert fs i apsn , seIx = 1 + i })
+              pure i
+
+--  where
+--    err = panic ("Unknown func-sort: " ++ show fs ++ " for " ++ showpp e)
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = {- tracepp ("ffuncSort " ++ showpp (t1,t2)) -} (tx t1, tx t2)
@@ -409,5 +420,6 @@ coerceEnv slv env =
          , seData   = seData   env
          , seLits   = seLits   env
          , seAppls  = seAppls  env
+         , seApplsNew = seApplsNew env
          , seIx     = seIx     env
          }

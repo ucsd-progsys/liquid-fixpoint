@@ -162,7 +162,7 @@ instEnv cfg info cs restSolver = do
               }
     return $ InstEnv
        { ieCfg = cfg
-       , ieSMT = ctx
+--       , ieSMT = ctx
        , ieBEnv = coerceBindEnv ef (bs info)
        , ieAenv = ae info
        , ieCstrs = cs
@@ -278,7 +278,8 @@ loopB env ctx delta iMb res b = case b of
 --
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> SmtM b) -> SmtM b
 withAssms env ctx delta cidMb act = do
-  let ctx' = updCtx env ctx delta cidMb
+  sctx <- get
+  let ctx' = updCtx env sctx ctx delta cidMb
   let assms = icAssms ctx'
 
   SMT.smtBracket "PLE.withAssms" $ do
@@ -292,6 +293,7 @@ withAssms env ctx delta cidMb act = do
 -- @ieKnowl@.
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> SmtM (ICtx, InstEnv a, InstRes)
 ple1 ie@InstEnv{..} ctx i res = do
+  ieSMT <- get
   (ctx', env) <- liftIO $ runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
   let pendings = collectPendingUnfoldings env (icSubcId ctx)
       newEqs = pendings ++ S.toList (S.difference (icEquals ctx') (icEquals ctx))
@@ -322,14 +324,15 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 -- >       or the environment becomes inconsistent
 --
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalST ICtx
-evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
+evalCandsLoop cfg ictx0 ctx0 γ = go ictx0 ctx0 0
   where
-    go ictx _ | S.null (icCands ictx) = return ictx
-    go ictx i = do
+    go :: ICtx -> SMT.Context -> Int -> EvalST ICtx
+    go ictx _   _ | S.null (icCands ictx) = return ictx
+    go ictx ctx i = do
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
         then return ictx
-        else do liftIO $ evalStateT (SMT.smtAssert (pAndNoDedup (S.toList $ icAssms ictx))) ctx
+        else do (_, ctx') <- liftIO $ runStateT (SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))) ctx
                 let ictx' = ictx { icAssms = mempty }
                     cands = S.toList $ icCands ictx
                 candss <- mapM (evalOne γ ictx' i) cands
@@ -342,7 +345,7 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
                       else do let eqsSMT = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
                               let ictx'' = ictx' { icEquals = icEquals ictx <> unknownEqs
                                                  , icAssms  = S.filter (not . isTautoPred) eqsSMT }
-                              go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
+                              go (ictx'' { icCands = S.fromList (concat candss) }) ctx' (i + 1)
 
     testForInconsistentEnvironment =
       liftIO $ evalStateT (knPreds γ (knLams γ) PFalse) (knContext γ)
@@ -368,7 +371,7 @@ resSInfo cfg env info res = strengthenBinds info res'
 
 data InstEnv a = InstEnv
   { ieCfg   :: !Config
-  , ieSMT   :: !SMT.Context
+--  , ieSMT   :: !SMT.Context
   , ieBEnv  :: !(BindEnv a)
   , ieAenv  :: !AxiomEnv
   , ieCstrs :: !(CMap (SimpC a))
@@ -429,8 +432,8 @@ updRes res  Nothing _ = res
 --   to the context.
 ----------------------------------------------------------------------------------------------
 
-updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx
-updCtx InstEnv{..} ctx delta cidMb
+updCtx :: InstEnv a -> SMT.Context -> ICtx -> Diff -> Maybe SubcId -> ICtx
+updCtx InstEnv{..} ieSMT ctx delta cidMb
             = ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
                   , icCands  = S.fromList deANFedCands <> icCands  ctx
                   , icSimpl  = icSimpl ctx <> econsts
@@ -1348,12 +1351,10 @@ withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
 withCtx cfg file env defns k =
   bracket acquire release $ \ctx ->
   do _   <- evalStateT SMT.smtPush ctx
-     res <- evalStateT k ctx
-     SMT.cleanupContext ctx
-     return res
+     evalStateT k ctx
   where
     acquire = SMT.makeContextWithSEnv cfg file env defns
-    release  = SMT.cleanupContext
+    release = SMT.cleanupContext
 
 -- (sel_i, D, i), meaning sel_i (D x1 .. xn) = xi,
 -- i.e., sel_i selects the ith value for the data constructor D

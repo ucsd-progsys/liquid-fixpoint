@@ -38,6 +38,9 @@ module Language.Fixpoint.Smt.Interface (
 
     -- * Execute Queries
     , command
+
+    , command'
+
     , smtSetMbqi
 
     -- * Query API
@@ -45,11 +48,17 @@ module Language.Fixpoint.Smt.Interface (
     , smtDecls
     , smtDefineFunc
     , smtAssert
+
+    , smtAssertDecl
+
     , smtFuncDecl
     , smtAssertAxiom
     , smtCheckUnsat
     , smtCheckSat
     , smtBracket, smtBracketAt
+
+--    , smtBracketDecl
+
     , smtDistinct
     , smtPush, smtPop
 
@@ -58,6 +67,8 @@ module Language.Fixpoint.Smt.Interface (
     , checkValid'
     , checkValidWithContext
     , checkValids
+
+    , funcSortVars
 
     ) where
 
@@ -105,6 +116,7 @@ import qualified SMTLIB.Backends
 import qualified SMTLIB.Backends.Process as Process
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Control.Concurrent.Async (async)
+import Debug.Trace
 
 {-
 runFile f
@@ -177,6 +189,21 @@ commandRaw ctxLog ctxSolver ctxVerbose cmdBS = do
         Data.Text.IO.putStrLn textResponse
       return r
 
+command'              :: Builder -> SmtM Response
+--------------------------------------------------------------------------------
+command' cmdBS       = do
+  -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
+  --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
+  ctxLog <- gets ctxLog
+  ctxSolver <- gets ctxSolver
+  -- ctxVerbose <- gets ctxVerbose
+  ctx <- gets ctxSymEnv
+  let cmdBS' = trace ("command " ++ show (seAppls ctx) ++ " / " ++ show (seIx ctx)) cmdBS
+  forM_ ctxLog $ \h -> lift $ do
+    BS.hPutBuilder h cmdBS'
+    LBS.hPutStr h "\n"
+  lift $ (SMTLIB.Backends.command_ ctxSolver cmdBS) >> return Ok
+
 --------------------------------------------------------------------------------
 {-# SCC command #-}
 command              :: Command -> SmtM Response
@@ -188,8 +215,10 @@ command !cmd       = do
   ctxSolver <- gets ctxSolver
   ctxVerbose <- gets ctxVerbose
   cmdBS <- hoistSMT $ runSmt2 cmd
+  ctx <- gets ctxSymEnv
+  let cmdBS' = trace ("command " ++ show (seAppls ctx) ++ " / " ++ show (seIx ctx)) cmdBS
   forM_ ctxLog $ \h -> lift $ do
-    BS.hPutBuilder h cmdBS
+    BS.hPutBuilder h cmdBS'
     LBS.hPutStr h "\n"
   lift $ case cmd of
     CheckSat   -> commandRaw ctxLog ctxSolver ctxVerbose cmdBS
@@ -394,7 +423,7 @@ smtDecl x t = do
   let env = seData (ctxSymEnv me)
   let ins' = sortSmtSort False env <$> ins
   let out' = sortSmtSort False env     out
-  interact' ({- notracepp msg $ -} Declare (symbolSafeText x) ins' out')
+  interact' (tracepp _msg $ Declare (symbolSafeText x) ins' out')
   where
     (ins, out) = deconSort t
     _msg       = "smtDecl: " ++ showpp (x, t, ins, out)
@@ -421,19 +450,21 @@ smtCheckSat p
 smtAssert :: Expr -> SmtM ()
 smtAssert p = interact' (Assert Nothing p)
 
+smtAssertDecl :: Expr -> SmtM ()
+smtAssertDecl p = interactDecl' (Assert Nothing p)
+
 smtDefineEqn :: Equation -> SmtM ()
 smtDefineEqn Equ {..} = smtDefineFunc eqName eqArgs eqSort eqBody
 
 smtDefineFunc :: Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> SmtM ()
 smtDefineFunc name symList rsort e =
-  do me <- get
-     let env = seData (ctxSymEnv me)
-     interact' $
-           DefineFunc
-             name
-             (map (sortSmtSort False env <$>) symList)
-             (sortSmtSort False env rsort)
-             e
+  do env <- gets (seData . ctxSymEnv)
+     interactDecl' $
+        DefineFunc
+          name
+          (map (sortSmtSort False env <$>) symList)
+          (sortSmtSort False env rsort)
+          e
 
 -----------------------------------------------------------------
 
@@ -453,9 +484,23 @@ smtBracketAt sp _msg a =
 smtBracket :: String -> SmtM a -> SmtM a
 smtBracket _msg a = do
   smtPush
-  r <- a
+  r <- trace ("BRACKET " ++ _msg) a
   smtPop
   return r
+
+{-
+smtBracketDecl :: String -> SmtM a -> SmtM a
+smtBracketDecl _msg a = do
+  smtPush
+  ctx <- get
+  let env = ctxSymEnv ctx
+  let ats = funcSortVars env
+  forM_ ats $ uncurry $ smtFuncDecl
+  put (ctx {ctxSymEnv = env {seAppls = seAppls env <> seApplsNew env, seApplsNew = M.empty} })
+  r <- trace ("BRACKETDECL " ++ _msg) a
+  smtPop
+  return r
+-}
 
 respSat :: Response -> Bool
 respSat Unsat   = True
@@ -466,6 +511,15 @@ respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ sho
 interact' :: Command -> SmtM ()
 interact' cmd  = void $ command cmd
 
+interactDecl' :: Command -> SmtM ()
+interactDecl' cmd  = do
+  cmdBS <- hoistSMT $ runSmt2 cmd
+  ctx <- get
+  let env = ctxSymEnv ctx
+  let ats = funcSortVars env
+  forM_ ats $ uncurry $ smtFuncDecl
+  put (ctx {ctxSymEnv = env {seAppls = seAppls env <> seApplsNew env, seApplsNew = M.empty} })
+  void $ command' cmdBS
 
 makeTimeout :: Config -> [Builder]
 makeTimeout cfg
@@ -492,14 +546,14 @@ declare = do
   let thyXTs     =             [ (x, t) | (x, t) <- xts, symKind env x == Just F.Uninterp ]
   let qryXTs     = fmap tx <$> [ (x, t) | (x, t) <- xts, symKind env x == Nothing ]
   let -- isKind n   = (n ==)  . symKind env . fst
-  let ats        = funcSortVars env
+--  let ats        = funcSortVars env
   let MkDefinedFuns defs = ctxDefines me
   let ess        = distinctLiterals  lts
   let axs        = Thy.axiomLiterals lts
   forM_ dss    $           smtDataDecl
   forM_ thyXTs $ uncurry $ smtDecl
   forM_ qryXTs $ uncurry $ smtDecl
-  forM_ ats    $ uncurry $ smtFuncDecl
+--  forM_ ats    $ uncurry $ smtFuncDecl
   forM_ defs   $           smtDefineEqn
   forM_ ess    $           smtDistinct
   forM_ axs    $           smtAssert
@@ -519,8 +573,10 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
                  ++ [(var lambdaName t       , lamSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where
-    var n t       = evalState (F.symbolAtSmtName n () t) env
-    ts            = M.keys (F.seAppls env)
+    var n t       =
+        let vr = evalState (F.symbolAtSmtName n () t) env
+        in trace ("var " ++ show vr) vr
+    ts            = M.keys (F.seApplsNew env)
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)
     argSort (s,_) = ([]    , s)

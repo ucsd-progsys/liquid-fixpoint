@@ -60,6 +60,8 @@ import qualified Data.HashMap.Strict as M
 import           Data.Maybe (catMaybes)
 import           Control.Exception.Base (bracket)
 
+--import Debug.Trace
+
 --------------------------------------------------------------------------------
 -- | Solver Monadic API --------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -120,7 +122,12 @@ incChck n = modifyStats $ \s -> s {numChck = n + numChck s}
 incVald n = modifyStats $ \s -> s {numVald = n + numVald s}
 
 liftSMT :: SmtM a -> SolveM ann a
-liftSMT k = (lift . ST.evalStateT k) =<< getContext
+liftSMT k =
+  do es <- get
+     let ctx = ssCtx es
+     (a, ctx') <- lift $ ST.runStateT k ctx
+     put (es {ssCtx = ctx'})
+     pure a
 
 getContext :: SolveM ann Context
 getContext = ssCtx <$> get
@@ -148,12 +155,14 @@ sendConcreteBindingsToSMT known act = do
         , not (F.memberIBindEnv i known)
         ]
   st <- get
-  (a, st') <- liftSMT $
-    smtBracket "" $ do
+  (a, st'') <- liftSMT $
+    smtBracket "sendConcreteBindingsToSMT" $ do
       forM_ concretePreds $ \(i, e) ->
         smtDefineFunc (F.bindSymbol (fromIntegral i)) [] F.boolSort e
-      liftIO $ flip runStateT st $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
-  put st'
+      ctx <- get
+      let st' = st { ssCtx = ctx }
+      liftIO $ flip runStateT st' $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
+  put st''
   return a
   where
     isShortExpr F.PTrue = True
@@ -186,10 +195,10 @@ filterValid sp p qs = do
 {-# SCC filterValid_ #-}
 filterValid_ :: F.SrcSpan -> F.Expr -> F.Cand a -> SmtM [a]
 filterValid_ sp p qs = catMaybes <$> do
-  smtAssert p
+  smtAssertDecl p
   forM qs $ \(q, x) ->
     smtBracketAt sp "filterValidRHS" $ do
-      smtAssert (F.PNot q)
+      smtAssertDecl (F.PNot q)
       valid <- smtCheckUnsat
       return $ if valid then Just x else Nothing
 
