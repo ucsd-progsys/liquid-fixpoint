@@ -52,6 +52,7 @@ import Language.REST.ExploredTerms as ExploredTerms
 import Language.REST.RuntimeTerm as RT
 import Language.REST.SMT (withZ3, SolverHandle)
 
+import           Control.Exception.Base (bracket)
 import           Control.Monad (filterM, foldM, forM_, when, replicateM)
 import           Control.Monad.Reader
 import           Control.Monad.State
@@ -280,7 +281,7 @@ withAssms env ctx delta cidMb act = do
   let ctx' = updCtx env ctx delta cidMb
   let assms = icAssms ctx'
 
-  SMT.smtBracket "PLE.evaluate" $ do
+  SMT.smtBracket "PLE.withAssms" $ do
     forM_ assms SMT.smtAssert
     act ctx' { icAssms = mempty }
 
@@ -1344,13 +1345,15 @@ partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
 --------------------------------------------------------------------------------
 
 withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
-withCtx cfg file env defns k = do
-  ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env defns
-  _   <- evalStateT SMT.smtPush ctx
-  res <- evalStateT k ctx
-  liftIO $ SMT.cleanupContext ctx
-  return res
-
+withCtx cfg file env defns k =
+  bracket acquire release $ \ctx ->
+  do _   <- evalStateT SMT.smtPush ctx
+     res <- evalStateT k ctx
+     SMT.cleanupContext ctx
+     return res
+  where
+    acquire = SMT.makeContextWithSEnv cfg file env defns
+    release  = SMT.cleanupContext
 
 -- (sel_i, D, i), meaning sel_i (D x1 .. xn) = xi,
 -- i.e., sel_i selects the ith value for the data constructor D
