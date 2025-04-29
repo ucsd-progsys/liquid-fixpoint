@@ -56,7 +56,8 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
-import           Control.Monad.Reader
+-- import           Control.Monad.Reader
+import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
@@ -324,15 +325,15 @@ type VarAs = Symbol -> Sort -> SymM Builder
 smt2App :: VarAs -> Expr -> [Builder] -> SymM (Maybe Builder)
 --------------------------------------------------------------------------------
 smt2App _ ex@(dropECst -> EVar f) [d]
-  | f == arrConstS = do env <- ask
+  | f == arrConstS = do env <- get
                         pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == arrConstB = do env <- ask
+  | f == arrConstB = do env <- get
                         pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == arrConstM = do env <- ask
+  | f == arrConstM = do env <- get
                         pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == setEmpty  = do env <- ask
+  | f == setEmpty  = do env <- get
                         pure $ Just $ key "as set.empty" (getTarget env ex)
-  | f == bagEmpty  = do env <- ask
+  | f == bagEmpty  = do env <- get
                         pure $ Just $ key "as bag.empty" (getTarget env ex)
   where
     getTarget :: SymEnv -> Expr -> Builder
@@ -347,7 +348,7 @@ smt2App _ _ [] = pure Nothing
 
 smt2AppArg :: VarAs -> Expr -> SymM (Maybe Builder)
 smt2AppArg k (ECst (dropECst -> EVar f) t)
-  = do env <- ask
+  = do env <- get
        case symEnvTheory f env of
          Just fThy -> if isPolyCtor fThy t
                            then Just <$> k f (ffuncOut t)

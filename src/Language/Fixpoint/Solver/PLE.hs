@@ -127,7 +127,7 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
 instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SmtM (InstEnv a)
 instEnv cfg info cs restSolver = do
-    ctx <- ask
+    ctx <- get
     refRESTCache <- liftIO $ newIORef mempty
     refRESTSatCache <- liftIO $ newIORef mempty
     let
@@ -328,7 +328,7 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
         then return ictx
-        else do liftIO $ runReaderT (SMT.smtAssert (pAndNoDedup (S.toList $ icAssms ictx))) ctx
+        else do liftIO $ evalStateT (SMT.smtAssert (pAndNoDedup (S.toList $ icAssms ictx))) ctx
                 let ictx' = ictx { icAssms = mempty }
                     cands = S.toList $ icCands ictx
                 candss <- mapM (evalOne γ ictx' i) cands
@@ -344,7 +344,7 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
                               go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
 
     testForInconsistentEnvironment =
-      liftIO $ runReaderT (knPreds γ (knLams γ) PFalse) (knContext γ)
+      liftIO $ evalStateT (knPreds γ (knLams γ) PFalse) (knContext γ)
 
     eqCand [e0] e1 = e0 == e1
     eqCand _ _ = False
@@ -1188,14 +1188,14 @@ isValidCached γ e = do
   case M.lookup e (evSMTCache env) of
     Nothing -> do
       let isFreeInE (s, _) = not (S.member s (exprSymbolsSet e))
-      b <- liftIO $ runReaderT (knPreds γ (knLams γ) e) (knContext γ)
+      b <- liftIO $ evalStateT (knPreds γ (knLams γ) e) (knContext γ)
       if b
         then do
           when (all isFreeInE (knLams γ)) $
             put (env { evSMTCache = M.insert e True (evSMTCache env) })
           return (Just True)
         else do
-          b2 <- liftIO $ runReaderT (knPreds γ (knLams γ) (PNot e)) (knContext γ)
+          b2 <- liftIO $ evalStateT (knPreds γ (knLams γ) (PNot e)) (knContext γ)
           if b2
             then do
               when (all isFreeInE (knLams γ)) $
@@ -1239,7 +1239,7 @@ isValid cacheRef γ e = do
     smtCache <- liftIO $ readIORef cacheRef
     case M.lookup e smtCache of
       Nothing -> do
-        b <- runReaderT (knPreds γ (knLams γ) e) (knContext γ)
+        b <- evalStateT (knPreds γ (knLams γ) e) (knContext γ)
         when b $
           liftIO $ writeIORef cacheRef (M.insert e True smtCache)
         return b
@@ -1346,8 +1346,8 @@ partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
 withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
 withCtx cfg file env defns k = do
   ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env defns
-  _   <- runReaderT SMT.smtPush ctx
-  res <- runReaderT k ctx
+  _   <- evalStateT SMT.smtPush ctx
+  res <- evalStateT k ctx
   liftIO $ SMT.cleanupContext ctx
   return res
 

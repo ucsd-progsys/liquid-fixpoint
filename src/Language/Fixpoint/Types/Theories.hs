@@ -47,7 +47,8 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
-import           Control.Monad.Reader
+--import           Control.Monad.Reader
+import           Control.Monad.State
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
@@ -86,7 +87,7 @@ data SymEnv = SymEnv
 {- type FuncSort = {v:Sort | isFFunc v} @-}
 type FuncSort = (SmtSort, SmtSort)
 
-type SymM a = Reader SymEnv a
+type SymM a = State SymEnv a
 
 instance NFData   SymEnv
 instance S.Store SymEnv
@@ -220,7 +221,7 @@ insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
 symbolAtName :: (PPrint a) => Symbol -> a -> Sort -> SymM Text
 symbolAtName mkSym e s =
-  do env <- ask
+  do env <- get
      symbolAtSmtName mkSym e (ffuncSort env s)
 {-# SCC symbolAtName #-}
 
@@ -232,7 +233,7 @@ symbolAtSmtName mkSym e fs =
 
 funcSortIndex :: (PPrint a) => a -> FuncSort -> SymM Int
 funcSortIndex e fs =
-  do env <- ask
+  do env <- get
      let aps = seAppls env
      pure $ M.lookupDefault err fs aps
 {-

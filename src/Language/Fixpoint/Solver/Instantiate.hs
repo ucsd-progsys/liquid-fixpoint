@@ -36,7 +36,7 @@ import qualified Language.Fixpoint.Solver.Common as Common (toSMT)
 import           Language.Fixpoint.Solver.Common          (askSMT)
 import           Control.Monad ((>=>), foldM, forM, forM_, join)
 import           Control.Monad.State
-import           Control.Monad.Reader
+-- import           Control.Monad.Reader
 import           Data.Bifunctor (first, second)
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
@@ -85,7 +85,7 @@ incrInstantiate' cfg info subcIds = do
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $
                withCtx cfg file sEnv (defns info) $
-                 do ctx <- ask
+                 do ctx <- get
                     pleTrie t $ instEnv cfg info cs ctx               -- 2. TRAVERSE Trie to compute InstRes
     return $ resSInfo cfg sEnv info res                               -- 3. STRENGTHEN SInfo using InstRes
   where
@@ -166,7 +166,7 @@ evalCandsLoop :: Config -> Knowledge -> EvalEnv -> [Expr] -> SmtM [Unfold]
 evalCandsLoop cfg γ s0 = go []
   where
     go acc []    = return acc
-    go acc cands = do ctx <- ask
+    go acc cands = do ctx <- get
                       eqss <- SMT.smtBracket "PLE.evaluate" $ do
                                 SMT.smtAssert (unfoldPred cfg ctx acc)
                                 mapM (liftIO . evalOne γ s0) cands
@@ -347,7 +347,7 @@ evaluate :: Config -> AxiomEnv -- ^ Definitions
          -> SmtM [(Expr, Expr)]              -- ^ Newly unfolded equalities
 --------------------------------------------------------------------------------
 evaluate cfg aenv facts es subId = do
-  ctx <- ask
+  ctx <- get
   let eqs      = initEqualities ctx aenv facts
   let γ        = knowledge cfg ctx aenv
   let cands    = mytracepp ("evaluate-cands " ++ showpp subId) $ Misc.setNub (concatMap topApps es)
@@ -363,7 +363,7 @@ _evalLoop :: Config -> Knowledge -> EvalEnv -> [Pred] -> [Expr] -> SmtM [(Expr, 
 _evalLoop cfg γ s0 ctxEqs = loop 0 []
   where
     loop _ acc []    = return acc
-    loop i acc cands = do ctx <- ask
+    loop i acc cands = do ctx <- get
                           let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
                           eqss <- SMT.smtBracket "PLE.evaluate" $ do
                                     forM_ (eqp : ctxEqs) SMT.smtAssert
@@ -681,7 +681,7 @@ data Knowledge = KN
 
 isValid :: Knowledge -> Expr -> IO Bool
 isValid γ e = mytracepp ("isValid: " ++ showpp e) <$>
-                runReaderT (knPreds γ (knLams γ) e) (knContext γ)
+                evalStateT (knPreds γ (knLams γ) e) (knContext γ)
 
 isProof :: (a, SortedReft) -> Bool
 isProof (_, RR s _) = showpp s == "Tuple"
@@ -811,8 +811,8 @@ assertSelectors γ expr' = do
 withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
 withCtx cfg file env defns k = do
   ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env defns
-  _   <- runReaderT SMT.smtPush ctx
-  res <- runReaderT k ctx
+  _   <- evalStateT SMT.smtPush ctx
+  res <- evalStateT k ctx
   liftIO $ SMT.cleanupContext ctx
   return res
 

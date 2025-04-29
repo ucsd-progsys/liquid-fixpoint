@@ -34,8 +34,8 @@ module Language.Fixpoint.Smt.Types (
 
     ) where
 import           Control.Exception
--- import           Control.Monad.State
-import           Control.Monad.Reader
+import           Control.Monad.State
+--import           Control.Monad.Reader
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config (ElabFlags)
@@ -116,7 +116,7 @@ data Context = Ctx
 
 -- | SMT monad
 
--- type SmtM a = StateT SymEnv IO a
+{-
 type SmtM = ReaderT Context IO
 
 hoistSMT :: SymM a -> SmtM a
@@ -138,14 +138,16 @@ bracketSMT acquire release use = ReaderT $ \s ->
     (runReaderT acquire s)
     release
     (\resource -> runReaderT (use resource) s)
+-}
 
-{-
+type SmtM a = StateT Context IO a
+
 -- TODO hacky?
 hoistSMT :: SymM a -> SmtM a
 hoistSMT s =
-  do env <- get
-     let (a, env') = runState s env
-     put env'
+  do ctx <- get
+     let (a, env') = runState s (ctxSymEnv ctx)
+     put (ctx {ctxSymEnv = env'})
      pure a
 
 catchSMT :: Exception e => SmtM a -> (e -> IO a) -> SmtM a
@@ -157,7 +159,6 @@ bracketSMT acquire release use = StateT $ \s ->
     (runStateT acquire s)
     (\(resource, _) -> release resource)
     (\(resource, intermediateState) -> runStateT (use resource) intermediateState)
--}
 
 --------------------------------------------------------------------------------
 -- | AST Conversion: Types that can be serialized ------------------------------

@@ -2,7 +2,8 @@
 
 module Language.Fixpoint.Solver.Common (askSMT, toSMT) where
 
-import Control.Monad.Reader
+--import Control.Monad.Reader
+import Control.Monad.State
 import Language.Fixpoint.Types.Config (Config, solver, solverFlags)
 import Language.Fixpoint.Smt.Interface (Context(..), checkValidWithContext)
 import Language.Fixpoint.Smt.Types (SmtM)
@@ -19,7 +20,7 @@ askSMT cfg xs e
 --   | isContraPred e  = return False
   | isTautoPred  e     = return True
   | null (kvarsExpr e) =
-      do ctx <- ask
+      do ctx <- get
          let e' = toSMT "askSMT" cfg ctx xs e
          checkValidWithContext xs PTrue e'
   | otherwise          = return False

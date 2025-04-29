@@ -15,7 +15,8 @@
 
 module Language.Fixpoint.Smt.Serialize (smt2SortMono) where
 
-import           Control.Monad.Reader
+--import           Control.Monad.Reader
+import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Types
@@ -52,7 +53,7 @@ smt2SortPoly = smt2Sort True
 
 smt2Sort :: (PPrint a) => Bool -> a -> Sort -> SymM Builder
 smt2Sort poly _ t =
-  do env <- ask
+  do env <- get
      smt2 (Thy.sortSmtSort poly (seData env) t)
 
 smt2data :: [DataDecl] -> SymM Builder
@@ -120,7 +121,7 @@ declUsedVars = sortNub . Vis.foldDataDecl go []
     go is _        = is
 
 instance SMTLIB2 Symbol where
-  smt2 s = do env <- ask
+  smt2 s = do env <- get
               case Thy.smt2Symbol env s of
                 Just t  -> pure t
                 Nothing -> pure $ symbolBuilder s
@@ -215,7 +216,7 @@ smt2Cast e        _ = smt2    e
 smt2Var :: Symbol -> Sort -> SymM Builder
 smt2Var x t
   | isLamArgSymbol x = smtLamArg x t
-  | otherwise        = do env <- ask
+  | otherwise        = do env <- get
                           case symEnvSort x env of
                             Just s | isPolyInst s t -> smt2VarAs x t
                             _                       -> smt2 x

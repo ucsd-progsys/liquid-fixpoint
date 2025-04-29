@@ -73,7 +73,8 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
 import           Control.Applicative      ((<|>))
 import           Control.Monad
-import           Control.Monad.Reader
+-- import           Control.Monad.Reader
+import           Control.Monad.State
 import           Control.Exception
 import           Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as BS
@@ -129,7 +130,7 @@ checkValidWithContext xts p q =
 checkValid :: Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValid cfg f xts p q = do
   me <- makeContext cfg f
-  runReaderT (checkValid' xts p q) me
+  evalStateT (checkValid' xts p q) me
 
 checkValid' :: [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
 checkValid' xts p q = do
@@ -144,7 +145,7 @@ checkValid' xts p q = do
 checkValids :: Config -> FilePath -> [(Symbol, Sort)] -> [Expr] -> IO [Bool]
 checkValids cfg f xts ps = do
   me <- makeContext cfg f
-  runReaderT (checkValids' xts ps) me
+  evalStateT (checkValids' xts ps) me
 
 checkValids' :: [(Symbol, Sort)] -> [Expr] -> SmtM [Bool]
 checkValids' xts ps = do
@@ -183,9 +184,9 @@ command              :: Command -> SmtM Response
 command !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
   --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
-  ctxLog <- asks ctxLog
-  ctxSolver <- asks ctxSolver
-  ctxVerbose <- asks ctxVerbose
+  ctxLog <- gets ctxLog
+  ctxSolver <- gets ctxSolver
+  ctxVerbose <- gets ctxVerbose
   cmdBS <- hoistSMT $ runSmt2 cmd
   forM_ ctxLog $ \h -> lift $ do
     BS.hPutBuilder h cmdBS
@@ -270,7 +271,7 @@ makeContextWithSEnv :: Config -> FilePath -> SymEnv -> DefinedFuns -> IO Context
 makeContextWithSEnv cfg f env defns = do
   ctx     <- makeContext cfg f
   let ctx' = ctx {ctxSymEnv = env, ctxDefines = defns}
-  runReaderT declare ctx'
+  _ <- runStateT declare ctx'
   return ctx'
 
 makeContextNoLog :: Config -> IO Context
@@ -380,7 +381,7 @@ noString smt v cfg
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
 
-smtPush, smtPop   :: SmtM ()
+smtPush, smtPop :: SmtM ()
 smtPush = interact' Push
 smtPop  = interact' Pop
 
@@ -389,7 +390,7 @@ smtDecls = mapM_ $ uncurry smtDecl
 
 smtDecl :: Symbol -> Sort -> SmtM ()
 smtDecl x t = do
-  me <- ask
+  me <- get
   let env = seData (ctxSymEnv me)
   let ins' = sortSmtSort False env <$> ins
   let out' = sortSmtSort False env     out
@@ -425,7 +426,7 @@ smtDefineEqn Equ {..} = smtDefineFunc eqName eqArgs eqSort eqBody
 
 smtDefineFunc :: Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> SmtM ()
 smtDefineFunc name symList rsort e =
-  do me <- ask
+  do me <- get
      let env = seData (ctxSymEnv me)
      interact' $
            DefineFunc
@@ -482,7 +483,7 @@ makeMbqi cfg
 declare :: SmtM ()
 --------------------------------------------------------------------------------
 declare = do
-  me <- ask
+  me <- get
   let env        = ctxSymEnv me
   let xts        = symbolSorts (F.seSort env)
   let tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
@@ -518,7 +519,7 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
                  ++ [(var lambdaName t       , lamSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where
-    var n t       = runReader (F.symbolAtSmtName n () t) env
+    var n t       = evalState (F.symbolAtSmtName n () t) env
     ts            = M.keys (F.seAppls env)
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)

@@ -53,8 +53,9 @@ import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Data.Maybe           (catMaybes)
 import           Data.List            (partition)
 -- import           Data.Char            (isUpper)
+import qualified Control.Monad.State as ST
 import           Control.Monad.State.Strict
-import           Control.Monad.Reader
+--import           Control.Monad.Reader
 import qualified Data.HashMap.Strict as M
 import           Data.Maybe (catMaybes)
 import           Control.Exception.Base (bracket)
@@ -119,7 +120,7 @@ incChck n = modifyStats $ \s -> s {numChck = n + numChck s}
 incVald n = modifyStats $ \s -> s {numVald = n + numVald s}
 
 liftSMT :: SmtM a -> SolveM ann a
-liftSMT k = (lift . runReaderT k) =<< getContext
+liftSMT k = (lift . ST.evalStateT k) =<< getContext
 
 getContext :: SolveM ann Context
 getContext = ssCtx <$> get
