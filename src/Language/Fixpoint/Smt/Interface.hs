@@ -68,12 +68,12 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types         hiding (allowHO)
 import qualified Language.Fixpoint.Types         as F
-import           Language.Fixpoint.Smt.Types
+import Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize ()
 import           Control.Applicative      ((<|>))
 import           Control.Monad
-import           Control.Monad.State
+import           Control.Monad.Reader
 import           Control.Exception
 import           Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as BS
@@ -82,6 +82,7 @@ import qualified Data.ByteString.Lazy.Char8 as Char8
 import           Data.Char
 import qualified Data.HashMap.Strict      as M
 import           Data.Maybe              (fromMaybe)
+--import           Data.Functor.Identity   -- TODO remove
 import qualified Data.Text                as T
 import qualified Data.Text.Encoding       as TE
 import qualified Data.Text.IO
@@ -118,35 +119,39 @@ runCommands cmds
        return zs
 -}
 
-checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
-checkValidWithContext me xts p q =
-  smtBracket me "checkValidWithContext" $
-    checkValid' me xts p q
+checkValidWithContext :: [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
+checkValidWithContext xts p q =
+  smtBracket "checkValidWithContext" $
+    checkValid' xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
 checkValid :: Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValid cfg f xts p q = do
   me <- makeContext cfg f
-  checkValid' me xts p q
+  runReaderT (checkValid' xts p q) me
 
-checkValid' :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
-checkValid' me xts p q = do
-  smtDecls me xts
-  smtAssert me $ pAnd [p, PNot q]
-  smtCheckUnsat me
+checkValid' :: [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
+checkValid' xts p q = do
+  smtDecls xts
+  smtAssert $ pAnd [p, PNot q]
+  smtCheckUnsat
 
 -- | If you already HAVE a context, where all the variables have declared types
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
 checkValids :: Config -> FilePath -> [(Symbol, Sort)] -> [Expr] -> IO [Bool]
-checkValids cfg f xts ps
-  = do me <- makeContext cfg f
-       smtDecls me xts
-       forM ps $ \p ->
-          smtBracket me "checkValids" $
-            smtAssert me (PNot p) >> smtCheckUnsat me
+checkValids cfg f xts ps = do
+  me <- makeContext cfg f
+  runReaderT (checkValids' xts ps) me
+
+checkValids' :: [(Symbol, Sort)] -> [Expr] -> SmtM [Bool]
+checkValids' xts ps = do
+  smtDecls xts
+  forM ps $ \p ->
+     smtBracket "checkValids" $
+       smtAssert (PNot p) >> smtCheckUnsat
 
 -- debugFile :: FilePath
 -- debugFile = "DEBUG.smt2"
@@ -155,41 +160,47 @@ checkValids cfg f xts ps
 -- | SMT IO --------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+commandRaw :: Maybe Handle -> SMTLIB.Backends.Solver -> Bool -> Builder -> IO Response
+commandRaw ctxLog ctxSolver ctxVerbose cmdBS = do
+  resp <- SMTLIB.Backends.command ctxSolver cmdBS
+  let respTxt =
+        TE.decodeUtf8With (const $ const $ Just ' ') $
+        LBS.toStrict resp
+  case A.parseOnly responseP respTxt of
+    Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
+    Right r -> do
+      let textResponse = "; SMT Says: " <> T.pack (show r)
+      forM_ ctxLog $ \h ->
+        Data.Text.IO.hPutStrLn h textResponse
+      when ctxVerbose $
+        Data.Text.IO.putStrLn textResponse
+      return r
+
 --------------------------------------------------------------------------------
 {-# SCC command #-}
-command              :: Context -> Command -> IO Response
+command              :: Command -> SmtM Response
 --------------------------------------------------------------------------------
-command Ctx{..} !cmd       = do
+command !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
   --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
-  forM_ ctxLog $ \h -> do
+  ctxLog <- asks ctxLog
+  ctxSolver <- asks ctxSolver
+  ctxVerbose <- asks ctxVerbose
+  cmdBS <- hoistSMT $ runSmt2 cmd
+  forM_ ctxLog $ \h -> lift $ do
     BS.hPutBuilder h cmdBS
     LBS.hPutStr h "\n"
-  case cmd of
-    CheckSat   -> commandRaw
-    GetValue _ -> commandRaw
-    _          -> SMTLIB.Backends.command_ ctxSolver cmdBS >> return Ok
-  where
-    commandRaw      = do
-      resp <- SMTLIB.Backends.command ctxSolver cmdBS
-      let respTxt =
-            TE.decodeUtf8With (const $ const $ Just ' ') $
-            LBS.toStrict resp
-      parse respTxt
-    cmdBS = {-# SCC "Command-runSmt2" #-} evalState (runSmt2 cmd) ctxSymEnv
-    parse resp      = do
-      case A.parseOnly responseP resp of
-        Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
-        Right r -> do
-          let textResponse = "; SMT Says: " <> T.pack (show r)
-          forM_ ctxLog $ \h ->
-            Data.Text.IO.hPutStrLn h textResponse
-          when ctxVerbose $
-            Data.Text.IO.putStrLn textResponse
-          return r
+  lift $ case cmd of
+    CheckSat   -> commandRaw ctxLog ctxSolver ctxVerbose cmdBS
+    GetValue _ -> commandRaw ctxLog ctxSolver ctxVerbose cmdBS
+    _          -> (SMTLIB.Backends.command_ ctxSolver cmdBS) >> return Ok
+--  where
+--    cmdBS :: Builder
+--    cmdBS = {-# SCC "Command-runSmt2" #-} evalState (runSmt2 cmd) ctxSymEnv
 
-smtSetMbqi :: Context -> IO ()
-smtSetMbqi me = interact' me SetMbqi
+
+smtSetMbqi :: SmtM ()
+smtSetMbqi = interact' SetMbqi
 
 type SmtParser a = Parser T.Text a
 
@@ -259,7 +270,7 @@ makeContextWithSEnv :: Config -> FilePath -> SymEnv -> DefinedFuns -> IO Context
 makeContextWithSEnv cfg f env defns = do
   ctx     <- makeContext cfg f
   let ctx' = ctx {ctxSymEnv = env, ctxDefines = defns}
-  declare ctx'
+  runReaderT declare ctx'
   return ctx'
 
 makeContextNoLog :: Config -> IO Context
@@ -369,27 +380,29 @@ noString smt v cfg
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
 
-smtPush, smtPop   :: Context -> IO ()
-smtPush me        = interact' me Push
-smtPop me         = interact' me Pop
+smtPush, smtPop   :: SmtM ()
+smtPush = interact' Push
+smtPop  = interact' Pop
 
-smtDecls :: Context -> [(Symbol, Sort)] -> IO ()
-smtDecls = mapM_ . uncurry . smtDecl
+smtDecls :: [(Symbol, Sort)] -> SmtM ()
+smtDecls = mapM_ $ uncurry smtDecl
 
-smtDecl :: Context -> Symbol -> Sort -> IO ()
-smtDecl me x t = interact' me ({- notracepp msg $ -} Declare (symbolSafeText x) ins' out')
+smtDecl :: Symbol -> Sort -> SmtM ()
+smtDecl x t = do
+  me <- ask
+  let env = seData (ctxSymEnv me)
+  let ins' = sortSmtSort False env <$> ins
+  let out' = sortSmtSort False env     out
+  interact' ({- notracepp msg $ -} Declare (symbolSafeText x) ins' out')
   where
-    ins'       = sortSmtSort False env <$> ins
-    out'       = sortSmtSort False env     out
     (ins, out) = deconSort t
-    _msg        = "smtDecl: " ++ showpp (x, t, ins, out)
-    env        = seData (ctxSymEnv me)
+    _msg       = "smtDecl: " ++ showpp (x, t, ins, out)
 
-smtFuncDecl :: Context -> T.Text -> ([SmtSort],  SmtSort) -> IO ()
-smtFuncDecl me x (ts, t) = interact' me (Declare x ts t)
+smtFuncDecl :: T.Text -> ([SmtSort],  SmtSort) -> SmtM ()
+smtFuncDecl x (ts, t) = interact' (Declare x ts t)
 
-smtDataDecl :: Context -> [DataDecl] -> IO ()
-smtDataDecl me ds = interact' me (DeclData ds)
+smtDataDecl :: [DataDecl] -> SmtM ()
+smtDataDecl ds = interact' (DeclData ds)
 
 deconSort :: Sort -> ([Sort], Sort)
 deconSort t = case functionSort t of
@@ -397,48 +410,50 @@ deconSort t = case functionSort t of
                 Nothing            -> ([], t)
 
 -- hack now this is used only for checking gradual condition.
-smtCheckSat :: Context -> Expr -> IO Bool
-smtCheckSat me p
- = smtAssert me p >> (ans <$> command me CheckSat)
+smtCheckSat :: Expr -> SmtM Bool
+smtCheckSat p
+ = smtAssert p >> (ans <$> command CheckSat)
  where
    ans Sat = True
    ans _   = False
 
-smtAssert :: Context -> Expr -> IO ()
-smtAssert me p = interact' me (Assert Nothing p)
+smtAssert :: Expr -> SmtM ()
+smtAssert p = interact' (Assert Nothing p)
 
-smtDefineEqn :: Context -> Equation -> IO ()
-smtDefineEqn me Equ {..} = smtDefineFunc me eqName eqArgs eqSort eqBody
+smtDefineEqn :: Equation -> SmtM ()
+smtDefineEqn Equ {..} = smtDefineFunc eqName eqArgs eqSort eqBody
 
-smtDefineFunc :: Context -> Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> IO ()
-smtDefineFunc me name symList rsort e =
-  let env = seData (ctxSymEnv me)
-  in interact' me $
-        DefineFunc
-          name
-          (map (sortSmtSort False env <$>) symList)
-          (sortSmtSort False env rsort)
-          e
+smtDefineFunc :: Symbol -> [(Symbol, F.Sort)] -> F.Sort -> Expr -> SmtM ()
+smtDefineFunc name symList rsort e =
+  do me <- ask
+     let env = seData (ctxSymEnv me)
+     interact' $
+           DefineFunc
+             name
+             (map (sortSmtSort False env <$>) symList)
+             (sortSmtSort False env rsort)
+             e
 
 -----------------------------------------------------------------
 
-smtAssertAxiom :: Context -> Triggered Expr -> IO ()
-smtAssertAxiom me p  = interact' me (AssertAx p)
+smtAssertAxiom :: Triggered Expr -> SmtM ()
+smtAssertAxiom p  = interact' (AssertAx p)
 
-smtDistinct :: Context -> [Expr] -> IO ()
-smtDistinct me az = interact' me (Distinct az)
+smtDistinct :: [Expr] -> SmtM ()
+smtDistinct az = interact' (Distinct az)
 
-smtCheckUnsat :: Context -> IO Bool
-smtCheckUnsat me  = respSat <$> command me CheckSat
+smtCheckUnsat :: SmtM Bool
+smtCheckUnsat = respSat <$> command CheckSat
 
-smtBracketAt :: SrcSpan -> Context -> String -> IO a -> IO a
-smtBracketAt sp x y z = smtBracket x y z `catch` dieAt sp
+smtBracketAt :: SrcSpan -> String -> SmtM a -> SmtM a
+smtBracketAt sp _msg a =
+  smtBracket _msg a `catchSMT` dieAt sp
 
-smtBracket :: Context -> String -> IO a -> IO a
-smtBracket me _msg a   = do
-  smtPush me
+smtBracket :: String -> SmtM a -> SmtM a
+smtBracket _msg a = do
+  smtPush
   r <- a
-  smtPop me
+  smtPop
   return r
 
 respSat :: Response -> Bool
@@ -447,8 +462,8 @@ respSat Sat     = False
 respSat Unknown = False
 respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ show r)
 
-interact' :: Context -> Command -> IO ()
-interact' me cmd  = void $ command me cmd
+interact' :: Command -> SmtM ()
+interact' cmd  = void $ command cmd
 
 
 makeTimeout :: Config -> [Builder]
@@ -464,29 +479,29 @@ makeMbqi cfg
 
 
 --------------------------------------------------------------------------------
-declare :: Context -> IO ()
+declare :: SmtM ()
 --------------------------------------------------------------------------------
-declare me = do
-  forM_ dss    $           smtDataDecl me
-  forM_ thyXTs $ uncurry $ smtDecl     me
-  forM_ qryXTs $ uncurry $ smtDecl     me
-  forM_ ats    $ uncurry $ smtFuncDecl me
-  forM_ defs   $           smtDefineEqn me
-  forM_ ess    $           smtDistinct me
-  forM_ axs    $           smtAssert   me
-  where
-    env        = ctxSymEnv me
-    dss        = dataDeclarations          env
-    lts        = F.toListSEnv . F.seLits $ env
-    ess        = distinctLiterals  lts
-    axs        = Thy.axiomLiterals lts
-    thyXTs     =             [ (x, t) | (x, t) <- xts, symKind env x == Just F.Uninterp ]
-    qryXTs     = fmap tx <$> [ (x, t) | (x, t) <- xts, symKind env x == Nothing ]
-    -- isKind n   = (n ==)  . symKind env . fst
-    xts        = symbolSorts (F.seSort env)
-    tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
-    ats        = funcSortVars env
-    MkDefinedFuns defs = ctxDefines me
+declare = do
+  me <- ask
+  let env        = ctxSymEnv me
+  let xts        = symbolSorts (F.seSort env)
+  let tx         = elaborate (ElabParam (ctxElabF me) "declare" env)
+  let lts        = F.toListSEnv . F.seLits $ env
+  let dss        = dataDeclarations          env
+  let thyXTs     =             [ (x, t) | (x, t) <- xts, symKind env x == Just F.Uninterp ]
+  let qryXTs     = fmap tx <$> [ (x, t) | (x, t) <- xts, symKind env x == Nothing ]
+  let -- isKind n   = (n ==)  . symKind env . fst
+  let ats        = funcSortVars env
+  let MkDefinedFuns defs = ctxDefines me
+  let ess        = distinctLiterals  lts
+  let axs        = Thy.axiomLiterals lts
+  forM_ dss    $           smtDataDecl
+  forM_ thyXTs $ uncurry $ smtDecl
+  forM_ qryXTs $ uncurry $ smtDecl
+  forM_ ats    $ uncurry $ smtFuncDecl
+  forM_ defs   $           smtDefineEqn
+  forM_ ess    $           smtDistinct
+  forM_ axs    $           smtAssert
 
 symbolSorts :: F.SEnv F.Sort -> [(F.Symbol, F.Sort)]
 symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
@@ -503,7 +518,7 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
                  ++ [(var lambdaName t       , lamSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where
-    var n t       = evalState (F.symbolAtSmtName n () t) env
+    var n t       = runReader (F.symbolAtSmtName n () t) env
     ts            = M.keys (F.seAppls env)
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)

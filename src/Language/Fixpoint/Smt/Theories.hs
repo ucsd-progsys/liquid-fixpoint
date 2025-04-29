@@ -56,7 +56,7 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
-import           Control.Monad.State
+import           Control.Monad.Reader
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
@@ -319,20 +319,20 @@ smt2SmtSort (SData c ts) = parenSeqs [symbolBuilder c, smt2SmtSorts ts]
 smt2SmtSorts :: [SmtSort] -> Builder
 smt2SmtSorts = seqs . fmap smt2SmtSort
 
-type VarAs = Symbol -> Sort -> State SymEnv Builder
+type VarAs = Symbol -> Sort -> SymM Builder
 --------------------------------------------------------------------------------
-smt2App :: VarAs -> Expr -> [Builder] -> State SymEnv (Maybe Builder)
+smt2App :: VarAs -> Expr -> [Builder] -> SymM (Maybe Builder)
 --------------------------------------------------------------------------------
 smt2App _ ex@(dropECst -> EVar f) [d]
-  | f == arrConstS = do env <- get
+  | f == arrConstS = do env <- ask
                         pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == arrConstB = do env <- get
+  | f == arrConstB = do env <- ask
                         pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == arrConstM = do env <- get
+  | f == arrConstM = do env <- ask
                         pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == setEmpty  = do env <- get
+  | f == setEmpty  = do env <- ask
                         pure $ Just $ key "as set.empty" (getTarget env ex)
-  | f == bagEmpty  = do env <- get
+  | f == bagEmpty  = do env <- ask
                         pure $ Just $ key "as bag.empty" (getTarget env ex)
   where
     getTarget :: SymEnv -> Expr -> Builder
@@ -345,9 +345,9 @@ smt2App k ex (builder:builders) =
      pure $ (\fb -> key fb (builder <> mconcat [ " " <> d | d <- builders])) <$> a
 smt2App _ _ [] = pure Nothing
 
-smt2AppArg :: VarAs -> Expr -> State SymEnv (Maybe Builder)
+smt2AppArg :: VarAs -> Expr -> SymM (Maybe Builder)
 smt2AppArg k (ECst (dropECst -> EVar f) t)
-  = do env <- get
+  = do env <- ask
        case symEnvTheory f env of
          Just fThy -> if isPolyCtor fThy t
                            then Just <$> k f (ffuncOut t)

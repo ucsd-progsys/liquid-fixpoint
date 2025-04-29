@@ -34,6 +34,7 @@ import           Language.Fixpoint.Types.Solutions (CMap)
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc
 import qualified Language.Fixpoint.Smt.Interface as SMT
+import           Language.Fixpoint.Smt.Types (SmtM)
 import           Language.Fixpoint.Defunctionalize
 import           Language.Fixpoint.Solver.EnvironmentReduction (inlineInExpr, undoANF)
 import qualified Language.Fixpoint.Utils.Files   as Files
@@ -52,6 +53,7 @@ import Language.REST.RuntimeTerm as RT
 import Language.REST.SMT (withZ3, SolverHandle)
 
 import           Control.Monad (filterM, foldM, forM_, when, replicateM)
+import           Control.Monad.Reader
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Bifunctor (second)
@@ -79,11 +81,12 @@ instantiate cfg fi' subcIds = do
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm info)
     let t  = mkCTrie (M.toList cs)                                          -- 1. BUILD the Trie
-    res   <- withRESTSolver $ \solver -> withProgress (1 + M.size cs) $
-               withCtx cfg file sEnv (defns fi') $ \ctx -> do
-                  env <- instEnv cfg info cs solver ctx
+    res   <- withRESTSolver $ \solver ->
+               withProgress (1 + M.size cs) $
+               withCtx cfg file sEnv (defns fi') $
+               do env <- instEnv cfg info cs solver
                   pleTrie t env                                             -- 2. TRAVERSE Trie to compute InstRes
-    savePLEEqualities cfg info sEnv res
+    liftIO $ savePLEEqualities cfg info sEnv res
     return $ resSInfo cfg sEnv info res                                     -- 3. STRENGTHEN SInfo using InstRes
   where
     withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
@@ -122,10 +125,11 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
 
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
-instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SMT.Context -> IO (InstEnv a)
-instEnv cfg info cs restSolver ctx = do
-    refRESTCache <- newIORef mempty
-    refRESTSatCache <- newIORef mempty
+instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SmtM (InstEnv a)
+instEnv cfg info cs restSolver = do
+    ctx <- ask
+    refRESTCache <- liftIO $ newIORef mempty
+    refRESTSatCache <- liftIO $ newIORef mempty
     let
         restOrd = FC.restOC cfg
         oc0 = ordConstraints restOrd $ Mb.fromJust restSolver
@@ -212,7 +216,7 @@ mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
 
 ----------------------------------------------------------------------------------------------
 -- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
-pleTrie :: CTrie -> InstEnv a -> IO InstRes
+pleTrie :: CTrie -> InstEnv a -> SmtM InstRes
 pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where
     diff0        = []
@@ -238,7 +242,7 @@ loopT
                   --   'Nothing' when this is the top-level trie.
   -> InstRes
   -> CTrie
-  -> IO InstRes
+  -> SmtM InstRes
 loopT env ctx delta i res t = case t of
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
@@ -254,11 +258,11 @@ loopB
                   --   'Nothing' when this is a branch of the top-level trie.
   -> InstRes
   -> CBranch
-  -> IO InstRes
+  -> SmtM InstRes
 loopB env ctx delta iMb res b = case b of
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do
-                  progressTick
+                  liftIO progressTick
                   (\(_, _, r) -> r) <$> ple1 env ctx' iMb res
 
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
@@ -271,13 +275,13 @@ loopB env ctx delta iMb res b = case b of
 -- Pushes assumptions from the modified context to the SMT solver, runs @act@,
 -- and then pops the assumptions.
 --
-withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b
-withAssms env@InstEnv{..} ctx delta cidMb act = do
+withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> SmtM b) -> SmtM b
+withAssms env ctx delta cidMb act = do
   let ctx' = updCtx env ctx delta cidMb
   let assms = icAssms ctx'
 
-  SMT.smtBracket ieSMT "PLE.evaluate" $ do
-    forM_ assms (SMT.smtAssert ieSMT)
+  SMT.smtBracket "PLE.evaluate" $ do
+    forM_ assms SMT.smtAssert
     act ctx' { icAssms = mempty }
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
@@ -285,9 +289,9 @@ withAssms env@InstEnv{..} ctx delta cidMb act = do
 -- It will generate equalities for all function invocations in the candidates
 -- in @ctx@ for which definitions are known. The function definitions are in
 -- @ieKnowl@.
-ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstEnv a, InstRes)
+ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> SmtM (ICtx, InstEnv a, InstRes)
 ple1 ie@InstEnv{..} ctx i res = do
-  (ctx', env) <- runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
+  (ctx', env) <- liftIO $ runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
   let pendings = collectPendingUnfoldings env (icSubcId ctx)
       newEqs = pendings ++ S.toList (S.difference (icEquals ctx') (icEquals ctx))
   return (ctx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
@@ -324,7 +328,7 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
         then return ictx
-        else do liftIO $ SMT.smtAssert ctx (pAndNoDedup (S.toList $ icAssms ictx))
+        else do liftIO $ runReaderT (SMT.smtAssert (pAndNoDedup (S.toList $ icAssms ictx))) ctx
                 let ictx' = ictx { icAssms = mempty }
                     cands = S.toList $ icCands ictx
                 candss <- mapM (evalOne γ ictx' i) cands
@@ -340,7 +344,7 @@ evalCandsLoop cfg ictx0 ctx γ = go ictx0 0
                               go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
 
     testForInconsistentEnvironment =
-      liftIO $ knPreds γ (knContext γ) (knLams γ) PFalse
+      liftIO $ runReaderT (knPreds γ (knLams γ) PFalse) (knContext γ)
 
     eqCand [e0] e1 = e0 == e1
     eqCand _ _ = False
@@ -1184,14 +1188,14 @@ isValidCached γ e = do
   case M.lookup e (evSMTCache env) of
     Nothing -> do
       let isFreeInE (s, _) = not (S.member s (exprSymbolsSet e))
-      b <- liftIO $ knPreds γ (knContext γ) (knLams γ) e
+      b <- liftIO $ runReaderT (knPreds γ (knLams γ) e) (knContext γ)
       if b
         then do
           when (all isFreeInE (knLams γ)) $
             put (env { evSMTCache = M.insert e True (evSMTCache env) })
           return (Just True)
         else do
-          b2 <- liftIO $ knPreds γ (knContext γ) (knLams γ) (PNot e)
+          b2 <- liftIO $ runReaderT (knPreds γ (knLams γ) (PNot e)) (knContext γ)
           if b2
             then do
               when (all isFreeInE (knLams γ)) $
@@ -1214,7 +1218,7 @@ data Knowledge = KN
     knSims              :: Map Symbol [(Rewrite, IsUserDataSMeasure)]
   , knAms               :: Map Symbol Equation -- ^ All function definitions
   , knContext           :: SMT.Context
-  , knPreds             :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+  , knPreds             :: [(Symbol, Sort)] -> Expr -> SmtM Bool
   , knLams              :: ![(Symbol, Sort)]
   , knSummary           :: ![(Symbol, Int)]     -- ^ summary of functions to be evaluates (knSims and knAsms) with their arity
   , knDCs               :: !(S.HashSet Symbol)  -- ^ data constructors drawn from Rewrite
@@ -1232,12 +1236,12 @@ data IsUserDataSMeasure = NoUserDataSMeasure | UserDataSMeasure
 
 isValid :: IORef (M.HashMap Expr Bool) -> Knowledge -> Expr -> IO Bool
 isValid cacheRef γ e = do
-    smtCache <- readIORef cacheRef
+    smtCache <- liftIO $ readIORef cacheRef
     case M.lookup e smtCache of
       Nothing -> do
-        b <- knPreds γ (knContext γ) (knLams γ) e
+        b <- runReaderT (knPreds γ (knLams γ) e) (knContext γ)
         when b $
-          writeIORef cacheRef (M.insert e True smtCache)
+          liftIO $ writeIORef cacheRef (M.insert e True smtCache)
         return b
       mb -> return (mb == Just True)
 
@@ -1248,7 +1252,7 @@ knowledge cfg ctx si = KN
                                    [ (smDC rw, [(rw, UserDataSMeasure)]) | rw <- dataSims ]
   , knAms                      = Map.fromList [(eqName eq, eq) | eq <- aenvEqs aenv]
   , knContext                  = ctx
-  , knPreds                    = askSMT  cfg
+  , knPreds                    = askSMT cfg
   , knLams                     = []
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims)
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
@@ -1339,12 +1343,12 @@ partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> (SMT.Context -> IO a) -> IO a
+withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
 withCtx cfg file env defns k = do
-  ctx <- SMT.makeContextWithSEnv cfg file env defns
-  _   <- SMT.smtPush ctx
-  res <- k ctx
-  SMT.cleanupContext ctx
+  ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env defns
+  _   <- runReaderT SMT.smtPush ctx
+  res <- runReaderT k ctx
+  liftIO $ SMT.cleanupContext ctx
   return res
 
 

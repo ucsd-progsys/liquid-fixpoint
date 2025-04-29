@@ -25,6 +25,7 @@ module Language.Fixpoint.Types.Theories (
 
     -- * Symbol Environments
     , SymEnv (..)
+    , SymM
     , symEnv
     , symEnvSort
     , symEnvTheory
@@ -46,7 +47,7 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
-import           Control.Monad.State
+import           Control.Monad.Reader
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
@@ -84,6 +85,8 @@ data SymEnv = SymEnv
 
 {- type FuncSort = {v:Sort | isFFunc v} @-}
 type FuncSort = (SmtSort, SmtSort)
+
+type SymM a = Reader SymEnv a
 
 instance NFData   SymEnv
 instance S.Store SymEnv
@@ -215,32 +218,31 @@ deleteSymEnv x env = env { seSort = deleteSEnv x (seSort env) }
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
 insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
-symbolAtName :: (PPrint a) => Symbol -> a -> Sort -> State SymEnv Text
+symbolAtName :: (PPrint a) => Symbol -> a -> Sort -> SymM Text
 symbolAtName mkSym e s =
-  do env <- get
+  do env <- ask
      symbolAtSmtName mkSym e (ffuncSort env s)
 {-# SCC symbolAtName #-}
 
-symbolAtSmtName :: (PPrint a) => Symbol -> a -> FuncSort -> State SymEnv Text
+symbolAtSmtName :: (PPrint a) => Symbol -> a -> FuncSort -> SymM Text
 symbolAtSmtName mkSym e fs =
   -- formerly: intSymbol mkSym . funcSortIndex env e
   appendSymbolText mkSym . Text.pack . show <$> funcSortIndex e fs
 {-# SCC symbolAtSmtName #-}
 
-funcSortIndex :: (PPrint a) => a -> FuncSort -> State SymEnv Int
+funcSortIndex :: (PPrint a) => a -> FuncSort -> SymM Int
 funcSortIndex e fs =
-  do env <- get
+  do env <- ask
      let aps = seAppls env
      pure $ M.lookupDefault err fs aps
-     {-
+{-
      case M.lookup fs aps of
       Just i  -> pure i
       Nothing ->
         do let i = seIx env
            modify (\env -> env { seAppls = M.insert fs i aps , seIx = 1 + i })
            pure i
-     -}
-
+-}
   where
     err = panic ("Unknown func-sort: " ++ show fs ++ " for " ++ showpp e)
 

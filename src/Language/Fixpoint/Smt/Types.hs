@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -12,11 +13,8 @@ module Language.Fixpoint.Smt.Types (
     -- * Serialized Representation
     --    symbolBuilder
 
-    -- * SMT monad
-      SmtST
-
     -- * Commands
-    , Command  (..)
+      Command  (..)
 
     -- * Responses
     , Response (..)
@@ -28,9 +26,16 @@ module Language.Fixpoint.Smt.Types (
     -- * SMTLIB2 Process Context
     , Context (..)
 
-    ) where
+    -- * SMT monad
+    , SmtM
+    , hoistSMT
+    , catchSMT
+    , bracketSMT
 
-import           Control.Monad.State
+    ) where
+import           Control.Exception
+-- import           Control.Monad.State
+import           Control.Monad.Reader
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config (ElabFlags)
@@ -47,9 +52,6 @@ import           System.IO                (Handle)
 
 -- symbolBuilder :: Symbol -> LT.Builder
 -- symbolBuilder = LT.fromText . symbolSafeText
-
--- | SMT monad
-type SmtST a = StateT SymEnv IO a
 
 -- | Commands issued to SMT engine
 data Command      = Push
@@ -112,12 +114,57 @@ data Context = Ctx
   , ctxDefines :: DefinedFuns
   }
 
+-- | SMT monad
+
+-- type SmtM a = StateT SymEnv IO a
+type SmtM = ReaderT Context IO
+
+hoistSMT :: SymM a -> SmtM a
+hoistSMT s =
+  do env <- asks ctxSymEnv
+     let a = runReader s env
+--     put env'
+     pure a
+
+catchSMT :: Exception e => SmtM a -> (e -> IO a) -> SmtM a
+catchSMT action handler =
+  ReaderT $ \ctx -> catch (runReaderT action ctx) handler
+
+   -- StateT $ \s -> catch (runStateT action s) (\e -> (,s) <$> handler e)
+
+bracketSMT :: SmtM a -> (a -> IO b) -> (a -> SmtM c) -> SmtM c
+bracketSMT acquire release use = ReaderT $ \s ->
+  bracket
+    (runReaderT acquire s)
+    release
+    (\resource -> runReaderT (use resource) s)
+
+{-
+-- TODO hacky?
+hoistSMT :: SymM a -> SmtM a
+hoistSMT s =
+  do env <- get
+     let (a, env') = runState s env
+     put env'
+     pure a
+
+catchSMT :: Exception e => SmtM a -> (e -> IO a) -> SmtM a
+catchSMT action handler = StateT $ \s -> catch (runStateT action s) (\e -> (,s) <$> handler e)
+
+bracketSMT :: SmtM a -> (a -> IO b) -> (a -> SmtM c) -> SmtM c
+bracketSMT acquire release use = StateT $ \s ->
+  bracket
+    (runStateT acquire s)
+    (\(resource, _) -> release resource)
+    (\(resource, intermediateState) -> runStateT (use resource) intermediateState)
+-}
+
 --------------------------------------------------------------------------------
 -- | AST Conversion: Types that can be serialized ------------------------------
 --------------------------------------------------------------------------------
 
 class SMTLIB2 a where
-  smt2 :: a -> State SymEnv Builder
+  smt2 :: a -> SymM Builder
 
-runSmt2 :: (SMTLIB2 a) => a -> State SymEnv Builder
+runSmt2 :: (SMTLIB2 a) => a -> SymM Builder
 runSmt2 = smt2

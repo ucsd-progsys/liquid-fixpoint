@@ -5,6 +5,7 @@
 module Language.Fixpoint.Solver.Monad
        ( -- * Type
          SolveM
+       , liftSMT
 
          -- * Execution
        , runSolverM
@@ -43,6 +44,7 @@ import qualified Language.Fixpoint.Types.Visitor as F
 import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
+import           Language.Fixpoint.Smt.Types (SmtM)
 -- import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Solver.Sanitize
 import           Language.Fixpoint.Solver.Stats
@@ -52,6 +54,7 @@ import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 import           Data.List            (partition)
 -- import           Data.Char            (isUpper)
 import           Control.Monad.State.Strict
+import           Control.Monad.Reader
 import qualified Data.HashMap.Strict as M
 import           Data.Maybe (catMaybes)
 import           Control.Exception.Base (bracket)
@@ -115,8 +118,8 @@ incChck, incVald :: Int -> SolveM ann ()
 incChck n = modifyStats $ \s -> s {numChck = n + numChck s}
 incVald n = modifyStats $ \s -> s {numVald = n + numVald s}
 
-withContext :: (Context -> IO a) -> SolveM ann a
-withContext k = (lift . k) =<< getContext
+liftSMT :: SmtM a -> SolveM ann a
+liftSMT k = (lift . runReaderT k) =<< getContext
 
 getContext :: SolveM ann Context
 getContext = ssCtx <$> get
@@ -144,11 +147,11 @@ sendConcreteBindingsToSMT known act = do
         , not (F.memberIBindEnv i known)
         ]
   st <- get
-  (a, st') <- withContext $ \me -> do
-    smtBracket me "" $ do
+  (a, st') <- liftSMT $
+    smtBracket "" $ do
       forM_ concretePreds $ \(i, e) ->
-        smtDefineFunc me (F.bindSymbol (fromIntegral i)) [] F.boolSort e
-      flip runStateT st $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
+        smtDefineFunc (F.bindSymbol (fromIntegral i)) [] F.boolSort e
+      liftIO $ flip runStateT st $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
   put st'
   return a
   where
@@ -170,9 +173,9 @@ filterRequired = error "TBD:filterRequired"
 filterValid :: F.SrcSpan -> F.Expr -> F.Cand a -> SolveM ann [a]
 --------------------------------------------------------------------------------
 filterValid sp p qs = do
-  qs' <- withContext $ \me ->
-           smtBracket me "filterValidLHS" $
-             filterValid_ sp p qs me
+  qs' <- liftSMT $
+           smtBracket "filterValidLHS" $
+             filterValid_ sp p qs
   -- stats
   incBrkt
   incChck (length qs)
@@ -180,13 +183,13 @@ filterValid sp p qs = do
   return qs'
 
 {-# SCC filterValid_ #-}
-filterValid_ :: F.SrcSpan -> F.Expr -> F.Cand a -> Context -> IO [a]
-filterValid_ sp p qs me = catMaybes <$> do
-  smtAssert me p
+filterValid_ :: F.SrcSpan -> F.Expr -> F.Cand a -> SmtM [a]
+filterValid_ sp p qs = catMaybes <$> do
+  smtAssert p
   forM qs $ \(q, x) ->
-    smtBracketAt sp me "filterValidRHS" $ do
-      smtAssert me (F.PNot q)
-      valid <- smtCheckUnsat me
+    smtBracketAt sp "filterValidRHS" $ do
+      smtAssert (F.PNot q)
+      valid <- smtCheckUnsat
       return $ if valid then Just x else Nothing
 
 --------------------------------------------------------------------------------
@@ -196,50 +199,50 @@ filterValid_ sp p qs me = catMaybes <$> do
 filterValidGradual :: [F.Expr] -> F.Cand a -> SolveM ann [a]
 --------------------------------------------------------------------------------
 filterValidGradual p qs = do
-  qs' <- withContext $ \me ->
-           smtBracket me "filterValidGradualLHS" $
-             filterValidGradual_ p qs me
+  qs' <- liftSMT $
+           smtBracket "filterValidGradualLHS" $
+             filterValidGradual_ p qs
   -- stats
   incBrkt
   incChck (length qs)
   incVald (length qs')
   return qs'
 
-filterValidGradual_ :: [F.Expr] -> F.Cand a -> Context -> IO [a]
-filterValidGradual_ ps qs me
+filterValidGradual_ :: [F.Expr] -> F.Cand a -> SmtM [a]
+filterValidGradual_ ps qs
   = map snd . fst <$> foldM partitionCandidates ([], qs) ps
   where
-    partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> IO (F.Cand a, F.Cand a)
+    partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> SmtM (F.Cand a, F.Cand a)
     partitionCandidates (ok, candidates) p = do
-      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates me
+      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates
       let (valids, invalids) = (fst <$> valids', fst <$> invalids')
       return (ok ++ valids, invalids)
 
-filterValidOne_ :: F.Expr -> F.Cand a -> Context -> IO [((F.Expr, a), Bool)]
-filterValidOne_ p qs me = do
-  smtAssert me p
+filterValidOne_ :: F.Expr -> F.Cand a -> SmtM [((F.Expr, a), Bool)]
+filterValidOne_ p qs = do
+  smtAssert p
   forM qs $ \(q, x) ->
-    smtBracket me "filterValidRHS" $ do
-      smtAssert me (F.PNot q)
-      valid <- smtCheckUnsat me
+    smtBracket "filterValidRHS" $ do
+      smtAssert (F.PNot q)
+      valid <- smtCheckUnsat
       return ((q, x), valid)
 
 smtEnablembqi :: SolveM ann ()
 smtEnablembqi
-  = withContext smtSetMbqi
+  = liftSMT smtSetMbqi
 
 --------------------------------------------------------------------------------
 checkSat :: F.Expr -> SolveM ann Bool
 --------------------------------------------------------------------------------
 checkSat p
-  = withContext $ \me ->
-      smtBracket me "checkSat" $
-        smtCheckSat me p
+  = liftSMT $
+      smtBracket "checkSat" $
+        smtCheckSat p
 
 --------------------------------------------------------------------------------
 assumesAxioms :: [F.Triggered F.Expr] -> SolveM ann ()
 --------------------------------------------------------------------------------
-assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
+assumesAxioms es = liftSMT $ forM_ es smtAssertAxiom
 
 
 ---------------------------------------------------------------------------

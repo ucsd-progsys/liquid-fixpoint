@@ -24,6 +24,7 @@ import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
+import           Language.Fixpoint.Smt.Types (SmtM)
 import           Language.Fixpoint.Defunctionalize
 import qualified Language.Fixpoint.Utils.Trie    as T
 import           Language.Fixpoint.Utils.Progress -- as T
@@ -35,6 +36,7 @@ import qualified Language.Fixpoint.Solver.Common as Common (toSMT)
 import           Language.Fixpoint.Solver.Common          (askSMT)
 import           Control.Monad ((>=>), foldM, forM, forM_, join)
 import           Control.Monad.State
+import           Control.Monad.Reader
 import           Data.Bifunctor (first, second)
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
@@ -82,8 +84,10 @@ incrInstantiate' cfg info subcIds = do
                       ,  maybe True (i `L.elem`) subcIds ]
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $
-               withCtx cfg file sEnv (defns info) (pleTrie t . instEnv cfg info cs)  -- 2. TRAVERSE Trie to compute InstRes
-    return $ resSInfo cfg sEnv info res                                 -- 3. STRENGTHEN SInfo using InstRes
+               withCtx cfg file sEnv (defns info) $
+                 do ctx <- ask
+                    pleTrie t $ instEnv cfg info cs ctx               -- 2. TRAVERSE Trie to compute InstRes
+    return $ resSInfo cfg sEnv info res                               -- 3. STRENGTHEN SInfo using InstRes
   where
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg info
@@ -96,10 +100,10 @@ incrInstantiate' cfg info subcIds = do
 instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a
 instEnv cfg info cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
   where
-    bEnv              = bs info
-    aEnv              = ae info
-    γ                 = knowledge cfg ctx aEnv
-    s0                = EvalEnv 0 [] aEnv (SMT.ctxSymEnv ctx) cfg
+    bEnv = bs info
+    aEnv = ae info
+    γ    = knowledge cfg ctx aEnv
+    s0   = EvalEnv 0 [] aEnv (SMT.ctxSymEnv ctx) cfg
 
 ----------------------------------------------------------------------------------------------
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments
@@ -110,7 +114,7 @@ mkCTrie ics  = mytracepp  "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
 
 ----------------------------------------------------------------------------------------------
 -- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
-pleTrie :: CTrie -> InstEnv a -> IO InstRes
+pleTrie :: CTrie -> InstEnv a -> SmtM InstRes
 pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where
     diff0        = []
@@ -118,7 +122,7 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
     ctx0         = initCtx es0
     es0          = eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env)
 
-loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
+loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> SmtM InstRes
 loopT env ctx delta i res t = case t of
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
@@ -126,28 +130,28 @@ loopT env ctx delta i res t = case t of
                   (ctx'', res') <- ple1 env ctx' i Nothing res
                   foldM (loopB env ctx'' [] i) res' bs
 
-loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
+loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> SmtM InstRes
 loopB env ctx delta iMb res b = case b of
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do
-                  progressTick
+                  lift progressTick
                   snd <$> ple1 env ctx' iMb (Just cid) res
 
 
-withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b
-withAssms env@InstEnv{..} ctx delta cidMb act = do
+withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> SmtM b) -> SmtM b
+withAssms env ctx delta cidMb act = do
   let ctx'  = updCtx env ctx delta cidMb
   let assms = mytracepp  ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
-  SMT.smtBracket ieSMT  "PLE.evaluate" $ do
-    forM_ assms (SMT.smtAssert ieSMT)
+  SMT.smtBracket "PLE.evaluate" $ do
+    forM_ assms SMT.smtAssert
     act ctx'
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
-ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
+ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> SmtM (ICtx, InstRes)
 ple1 env@InstEnv{..} ctx i cidMb res = do
-  let cands = mytracepp  ("ple1-cands: "  ++ show cidMb) $ S.toList (icCands ctx)
+  let cands = mytracepp ("ple1-cands: " ++ show cidMb) $ S.toList (icCands ctx)
   -- unfolds  <- evalCands ieKnowl ieEvEnv cands
-  unfolds  <- evalCandsLoop ieCfg ieSMT ieKnowl ieEvEnv cands
+  unfolds  <- evalCandsLoop ieCfg ieKnowl ieEvEnv cands
   return    $ updCtxRes env ctx res i cidMb (mytracepp  ("ple1-cands-unfolds: " ++ show cidMb) unfolds)
 
 _evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold]
@@ -158,13 +162,14 @@ _evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
 unfoldPred :: Config -> SMT.Context -> [Unfold] -> Pred
 unfoldPred cfg ctx = toSMT cfg ctx [] . pAnd . concatMap snd
 
-evalCandsLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> IO [Unfold]
-evalCandsLoop cfg ctx γ s0 = go []
+evalCandsLoop :: Config -> Knowledge -> EvalEnv -> [Expr] -> SmtM [Unfold]
+evalCandsLoop cfg γ s0 = go []
   where
     go acc []    = return acc
-    go acc cands = do eqss   <- SMT.smtBracket ctx "PLE.evaluate" $ do
-                                  SMT.smtAssert ctx (unfoldPred cfg ctx acc)
-                                  mapM (evalOne γ s0) cands
+    go acc cands = do ctx <- ask
+                      eqss <- SMT.smtBracket "PLE.evaluate" $ do
+                                SMT.smtAssert (unfoldPred cfg ctx acc)
+                                mapM (liftIO . evalOne γ s0) cands
                       let us  = zip (Just <$> cands) eqss
                       case mkUnfolds us of
                         []  -> return acc
@@ -298,8 +303,8 @@ getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 instantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate' cfg info subcIds = sInfo cfg env info <$> withCtx cfg file env (defns info) act
   where
-    act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs info) aenv i c
+    act             = forM cstrs $ \(i, c) ->
+                        ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg (bs info) aenv i c
     cstrs           = [ (i, c) | (i, c) <- M.toList (cm info) , isPleCstr aenv i c
                                ,  maybe True (i `L.elem`) subcIds ]
     file            = srcFile cfg ++ ".evals"
@@ -313,12 +318,12 @@ sInfo cfg env info ips = strengthenHyp info (mytracepp  "ELAB-INST:  " $ zip (fs
     ps'              = defuncAny cfg env ps
     ps''             = zipWith (\(i, sp) -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc sp ("PLE1 " ++ show i)) env)) is ps'
 
-instSimpC :: Config -> SMT.Context -> BindEnv a -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
-instSimpC cfg ctx bds aenv subId sub
+instSimpC :: Config -> BindEnv a -> AxiomEnv -> SubcId -> SimpC a -> SmtM Expr
+instSimpC cfg bds aenv subId sub
   | isPleCstr aenv subId sub = do
     let is0       = mytracepp  "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv)
     let (bs, es0) = cstrExprs bds sub
-    equalities   <- evaluate cfg ctx aenv bs es0 subId
+    equalities   <- evaluate cfg aenv bs es0 subId
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ]
     return        $ pAnd (is0 ++ evalEqs)
   | otherwise     = return PTrue
@@ -335,32 +340,34 @@ cstrExprs bds sub = (second unElabSortedReft <$> binds, unElab <$> es)
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
 --------------------------------------------------------------------------------
-evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
+evaluate :: Config -> AxiomEnv -- ^ Definitions
          -> [(Symbol, SortedReft)]            -- ^ Environment of "true" facts
          -> [Expr]                            -- ^ Candidates for unfolding
          -> SubcId                            -- ^ Constraint Id
-         -> IO [(Expr, Expr)]                 -- ^ Newly unfolded equalities
+         -> SmtM [(Expr, Expr)]              -- ^ Newly unfolded equalities
 --------------------------------------------------------------------------------
-evaluate cfg ctx aenv facts es subId = do
+evaluate cfg aenv facts es subId = do
+  ctx <- ask
   let eqs      = initEqualities ctx aenv facts
   let γ        = knowledge cfg ctx aenv
-  let cands    = mytracepp  ("evaluate-cands " ++ showpp subId) $ Misc.setNub (concatMap topApps es)
+  let cands    = mytracepp ("evaluate-cands " ++ showpp subId) $ Misc.setNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvarsExpr $ reftPred $ sr_reft r) ]
-  eqss        <- _evalLoop cfg ctx γ s0 ctxEqs cands
+  eqss        <- _evalLoop cfg γ s0 ctxEqs cands
   return       $ eqs ++ eqss
 
 
 
-_evalLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Pred] -> [Expr] -> IO [(Expr, Expr)]
-_evalLoop cfg ctx γ s0 ctxEqs = loop 0 []
+_evalLoop :: Config -> Knowledge -> EvalEnv -> [Pred] -> [Expr] -> SmtM [(Expr, Expr)]
+_evalLoop cfg γ s0 ctxEqs = loop 0 []
   where
     loop _ acc []    = return acc
-    loop i acc cands = do let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
-                          eqss <- SMT.smtBracket ctx "PLE.evaluate" $ do
-                                    forM_ (eqp : ctxEqs) (SMT.smtAssert ctx)
-                                    mapM (evalOne γ s0) cands
+    loop i acc cands = do ctx <- ask
+                          let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
+                          eqss <- SMT.smtBracket "PLE.evaluate" $ do
+                                    forM_ (eqp : ctxEqs) SMT.smtAssert
+                                    mapM (liftIO . evalOne γ s0) cands
                           case concat eqss of
                             []   -> return acc
                             eqs' -> do let acc'   = acc ++ eqs'
@@ -668,13 +675,13 @@ data Knowledge = KN
   { knSims    :: ![Rewrite]           -- ^ Measure info, asserted for each new Ctor ('assertSelectors')
   , knAms     :: ![Equation]          -- ^ (Recursive) function definitions, used for PLE
   , knContext :: SMT.Context
-  , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+  , knPreds   :: [(Symbol, Sort)] -> Expr -> SmtM Bool
   , knLams    :: [(Symbol, Sort)]
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
 isValid γ e = mytracepp ("isValid: " ++ showpp e) <$>
-                knPreds γ (knContext γ) (knLams γ) e
+                runReaderT (knPreds γ (knLams γ) e) (knContext γ)
 
 isProof :: (a, SortedReft) -> Bool
 isProof (_, RR s _) = showpp s == "Tuple"
@@ -801,12 +808,12 @@ assertSelectors γ expr' = do
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> (SMT.Context -> IO a) -> IO a
+withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
 withCtx cfg file env defns k = do
-  ctx <- SMT.makeContextWithSEnv cfg file env defns
-  _   <- SMT.smtPush ctx
-  res <- k ctx
-  SMT.cleanupContext ctx
+  ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env defns
+  _   <- runReaderT SMT.smtPush ctx
+  res <- runReaderT k ctx
+  liftIO $ SMT.cleanupContext ctx
   return res
 
 infixl 9 ~>
