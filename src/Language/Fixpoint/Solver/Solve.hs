@@ -40,10 +40,10 @@ import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import qualified Language.Fixpoint.Types.Config as C
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
---import Debug.Trace                      (trace)
+import Debug.Trace                      (trace)
 
 mytrace :: String -> a -> a
-mytrace _ x = {- trace s -} x
+mytrace s x = trace s x
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
@@ -141,7 +141,9 @@ solve_ cfg fi s0 ks wkl = do
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
     Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
-      doPLE cfg fi1 (map fst $ mytrace ("before z3 PLE " ++ show (length bads2) ++ " constraints remain") bads2)
+      doPLE cfg fi1 (map fst $ mytrace ("before PLE " ++ show (length bads2) ++ " constraints remain") bads2)
+      -- TODO reset the ix stack too?
+      clearApplys
       sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
         s5    <- {- SCC "sol-refine" -} refine bindingsInSmt s4 wkl
         result bindingsInSmt cfg wkl s5

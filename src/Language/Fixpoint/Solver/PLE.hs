@@ -69,6 +69,8 @@ import qualified Data.Maybe           as Mb
 import qualified Data.Set as Set
 import           Text.PrettyPrint.HughesPJ.Compat
 
+import Debug.Trace (trace)
+
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
@@ -283,7 +285,7 @@ withAssms env ctx delta cidMb act = do
   let assms = icAssms ctx'
 
   SMT.smtBracket "PLE.withAssms" $ do
-    forM_ assms SMT.smtAssert
+    forM_ assms SMT.smtAssertDecl
     act ctx' { icAssms = mempty }
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
@@ -332,10 +334,12 @@ evalCandsLoop cfg ictx0 ctx0 γ = go ictx0 ctx0 0
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
         then return ictx
-        else do (_, ctx') <- liftIO $ runStateT (SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))) ctx
-                let ictx' = ictx { icAssms = mempty }
+        else do let ctx1 = trace ("before pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx)) ctx
+                (_, ctx') <- liftIO $ runStateT (SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))) ctx1
+                let ictx' = trace ("after pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx')) $ ictx { icAssms = mempty }
                     cands = S.toList $ icCands ictx
-                candss <- mapM (evalOne γ ictx' i) cands
+                let i' = trace ("before candss " ++ show (seAppls $ SMT.ctxSymEnv $ knContext γ)) i
+                candss <- mapM (evalOne γ ictx' i') cands
                 us <- gets evNewEqualities
                 modify $ \st -> st { evNewEqualities = mempty }
                 let noCandidateChanged = and (zipWith eqCand candss cands)
@@ -345,10 +349,13 @@ evalCandsLoop cfg ictx0 ctx0 γ = go ictx0 ctx0 0
                       else do let eqsSMT = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
                               let ictx'' = ictx' { icEquals = icEquals ictx <> unknownEqs
                                                  , icAssms  = S.filter (not . isTautoPred) eqsSMT }
-                              go (ictx'' { icCands = S.fromList (concat candss) }) ctx' (i + 1)
+                              go (ictx'' { icCands = S.fromList (concat candss) }) ctx' (i' + 1)
 
+    testForInconsistentEnvironment :: EvalST Bool
     testForInconsistentEnvironment =
-      liftIO $ evalStateT (knPreds γ (knLams γ) PFalse) (knContext γ)
+      let k = knContext γ
+          k' = trace ("before testForInconsistentEnvironment " ++ show (seAppls $ SMT.ctxSymEnv k)) k in
+      liftIO $ evalStateT (knPreds γ (knLams γ) PFalse) k'
 
     eqCand [e0] e1 = e0 == e1
     eqCand _ _ = False
@@ -1247,7 +1254,7 @@ isValid cacheRef γ e = do
         when b $
           liftIO $ writeIORef cacheRef (M.insert e True smtCache)
         return b
-      mb -> return (mb == Just True)
+      Just b -> return b
 
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN
@@ -1349,9 +1356,8 @@ partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
 
 withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
 withCtx cfg file env defns k =
-  bracket acquire release $ \ctx ->
-  do _   <- evalStateT SMT.smtPush ctx
-     evalStateT k ctx
+  bracket acquire release $
+    evalStateT $ SMT.smtPush >> k   -- TODO why is there no pop?
   where
     acquire = SMT.makeContextWithSEnv cfg file env defns
     release = SMT.cleanupContext

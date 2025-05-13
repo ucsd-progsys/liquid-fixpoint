@@ -111,6 +111,7 @@ data Context = Ctx
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
   , ctxSymEnv  :: !SymEnv
+  , ctxIxs     :: ![Int]
   , ctxDefines :: DefinedFuns
   }
 

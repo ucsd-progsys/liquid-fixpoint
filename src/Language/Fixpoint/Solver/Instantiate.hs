@@ -34,6 +34,7 @@ import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import qualified Language.Fixpoint.Solver.Common as Common (toSMT)
 import           Language.Fixpoint.Solver.Common          (askSMT)
+import           Control.Exception.Base (bracket)
 import           Control.Monad ((>=>), foldM, forM, forM_, join)
 import           Control.Monad.State
 -- import           Control.Monad.Reader
@@ -809,12 +810,12 @@ assertSelectors γ expr' = do
 --------------------------------------------------------------------------------
 
 withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
-withCtx cfg file env defns k = do
-  ctx <- liftIO $ SMT.makeContextWithSEnv cfg file env defns
-  _   <- evalStateT SMT.smtPush ctx
-  res <- evalStateT k ctx
-  liftIO $ SMT.cleanupContext ctx
-  return res
+withCtx cfg file env defns k =
+  bracket acquire release $
+    evalStateT $ SMT.smtPush >> k   -- TODO why is there no pop?
+  where
+    acquire = SMT.makeContextWithSEnv cfg file env defns
+    release = SMT.cleanupContext
 
 infixl 9 ~>
 (~>) :: (Expr, String) -> Expr -> EvalST Expr

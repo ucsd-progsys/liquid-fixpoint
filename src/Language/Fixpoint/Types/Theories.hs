@@ -23,6 +23,11 @@ module Language.Fixpoint.Types.Theories (
     , sortSmtSort
     , isIntSmtSort
 
+    , mergeTopAppls
+    , pushAppls
+    , popAppls
+    , peekAppls
+
     -- * Symbol Environments
     , SymEnv (..)
     , SymM
@@ -48,6 +53,7 @@ import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
 --import           Control.Monad.Reader
+import           Control.Applicative
 import           Control.Monad.State
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.Config
@@ -59,6 +65,7 @@ import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.List                as L
+import Data.Maybe ()
 import           Data.Text (Text)
 import qualified Data.Text                as Text
 import qualified Data.Store              as S
@@ -75,14 +82,34 @@ type Raw = Text
 --------------------------------------------------------------------------------
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'
 --------------------------------------------------------------------------------
+
+type Appls = [M.HashMap FuncSort Int]
+
+lookupAppls :: FuncSort -> Appls -> Maybe Int
+lookupAppls fs = foldr (\hm acc -> acc <|> M.lookup fs hm) Nothing
+
+mergeTopAppls :: M.HashMap FuncSort Int -> Appls -> Appls
+mergeTopAppls m (top : rest) = (top <> m) : rest
+mergeTopAppls m [] = [m]
+
+pushAppls :: Appls -> Appls
+pushAppls aps = (M.empty : aps)
+
+popAppls :: Appls -> Appls
+popAppls [] = []
+popAppls (_:xs) = xs
+
+peekAppls :: Appls -> Maybe (M.HashMap FuncSort Int)
+peekAppls [] = Nothing
+peekAppls (x:_) = Just x
+
 data SymEnv = SymEnv
   { seSort   :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
   , seTheory :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
   , seData   :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
   , seLits   :: !(SEnv Sort)              -- ^ Distinct Constant symbols
-  , seAppls  :: !(M.HashMap FuncSort Int) -- ^ Types at which `apply` was used;
-                                           --   see [NOTE:apply-monomorphization]
-  , seApplsNew :: !(M.HashMap FuncSort Int)
+  , seAppls  :: !Appls                    -- ^ Stack of function sort maps
+  , seApplsCur :: !(M.HashMap FuncSort Int) -- ^ Current function sort map
   , seIx     :: !Int                      -- ^ Largest unused index for sorts
   }
   deriving (Eq, Show, Data, Typeable, Generic)
@@ -100,17 +127,17 @@ instance Semigroup SymEnv where
                     , seTheory = seTheory e1 <> seTheory e2
                     , seData   = seData   e1 <> seData   e2
                     , seLits   = seLits   e1 <> seLits   e2
-                    , seAppls  = seAppls  e1 <> seAppls  e2
-                    , seApplsNew  = seApplsNew  e1 <> seApplsNew e2
+                    , seAppls  = zipWith (<>) (seAppls e1) (seAppls e2)
+                    , seApplsCur = seApplsCur e1 <> seApplsCur e2
                     , seIx     = seIx     e1 `max` seIx  e2
                     }
 
 instance Monoid SymEnv where
-  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty mempty 0
+  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv [] mempty 0
   mappend       = (<>)
 
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls _ {-ts-} = SymEnv xEnv' fEnv dEnv ls {-applsMap-} mempty mempty 0
+symEnv xEnv fEnv ds ls _ {-ts-} = SymEnv xEnv' fEnv dEnv ls {-applsMap-} [] mempty 0
   where
     xEnv'   = unionSEnv xEnv wiredInEnv
     dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
@@ -243,16 +270,16 @@ funcSortIndex :: (PPrint a) => a -> FuncSort -> SymM Int
 funcSortIndex _ fs =
   do env <- get
      let aps = seAppls env
-     let apsn = seApplsNew env
+     let apsc = seApplsCur env
 --     pure $ M.lookupDefault err fs aps
-     case M.lookup fs aps of
+     case lookupAppls fs aps of
       Just i  -> pure i
       Nothing ->
-        case M.lookup fs apsn of
-         Just i  -> pure i
-         Nothing ->
+        case M.lookup fs apsc of
+          Just i  -> pure i
+          Nothing ->
            do let i = seIx env
-              modify (\env -> env { seApplsNew = M.insert fs i apsn , seIx = 1 + i })
+              modify (\env -> env { seApplsCur = M.insert fs i apsc , seIx = 1 + i })
               pure i
 
 --  where
@@ -420,6 +447,6 @@ coerceEnv slv env =
          , seData   = seData   env
          , seLits   = seLits   env
          , seAppls  = seAppls  env
-         , seApplsNew = seApplsNew env
+         , seApplsCur = seApplsCur env
          , seIx     = seIx     env
          }

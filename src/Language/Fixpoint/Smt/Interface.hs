@@ -93,6 +93,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as Char8
 import           Data.Char
 import qualified Data.HashMap.Strict      as M
+import           Data.List                (uncons)
 import           Data.Maybe              (fromMaybe)
 --import           Data.Functor.Identity   -- TODO remove
 import qualified Data.Text                as T
@@ -147,7 +148,7 @@ checkValid cfg f xts p q = do
 checkValid' :: [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
 checkValid' xts p q = do
   smtDecls xts
-  smtAssert $ pAnd [p, PNot q]
+  smtAssertDecl $ pAnd [p, PNot q]
   smtCheckUnsat
 
 -- | If you already HAVE a context, where all the variables have declared types
@@ -300,8 +301,8 @@ makeContextWithSEnv :: Config -> FilePath -> SymEnv -> DefinedFuns -> IO Context
 makeContextWithSEnv cfg f env defns = do
   ctx     <- makeContext cfg f
   let ctx' = ctx {ctxSymEnv = env, ctxDefines = defns}
-  _ <- runStateT declare ctx'
-  return ctx'
+  (_, ctx'') <- runStateT declare ctx'
+  return ctx''
 
 makeContextNoLog :: Config -> IO Context
 makeContextNoLog cfg = do
@@ -358,6 +359,7 @@ makeContext' cfg ctxLog
                   , ctxLog       = ctxLog
                   , ctxVerbose   = loud
                   , ctxSymEnv    = mempty
+                  , ctxIxs       = []
                   , ctxDefines   = mempty
                   }
 
@@ -484,8 +486,20 @@ smtBracketAt sp _msg a =
 smtBracket :: String -> SmtM a -> SmtM a
 smtBracket _msg a = do
   smtPush
+  modify $ \ctx ->
+    let env = ctxSymEnv ctx in
+    ctx { ctxSymEnv = env { seAppls = pushAppls (seAppls env) }
+        , ctxIxs = seIx env : ctxIxs ctx}
+--  hoistSMT $ modify $ \env -> env { seAppls = pushAppls (seAppls env) }
   r <- trace ("BRACKET " ++ _msg) a
   smtPop
+  modify $ \ctx ->
+    let env = ctxSymEnv ctx
+        (i , is) = fromMaybe (0, []) (uncons $ ctxIxs ctx)
+      in
+    ctx { ctxSymEnv = env {seAppls = popAppls (seAppls env) , seIx = i}
+        , ctxIxs = is}
+--  hoistSMT $ modify $ \env -> env { seAppls = popAppls (seAppls env) }
   return r
 
 {-
@@ -515,10 +529,11 @@ interactDecl' :: Command -> SmtM ()
 interactDecl' cmd  = do
   cmdBS <- hoistSMT $ runSmt2 cmd
   ctx <- get
-  let env = ctxSymEnv ctx
+  let env = trace ("interactDecl' [ " ++ show cmd ++ " ] " ++ show (seAppls $ ctxSymEnv ctx) ++ "; " ++ show (seApplsCur $ ctxSymEnv ctx))
+                  (ctxSymEnv ctx)
   let ats = funcSortVars env
   forM_ ats $ uncurry $ smtFuncDecl
-  put (ctx {ctxSymEnv = env {seAppls = seAppls env <> seApplsNew env, seApplsNew = M.empty} })
+  put (ctx {ctxSymEnv = env {seAppls = mergeTopAppls (seApplsCur env) (seAppls env), seApplsCur = M.empty} })
   void $ command' cmdBS
 
 makeTimeout :: Config -> [Builder]
@@ -576,7 +591,7 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
     var n t       =
         let vr = evalState (F.symbolAtSmtName n () t) env
         in trace ("var " ++ show vr) vr
-    ts            = M.keys (F.seApplsNew env)
+    ts            = M.keys $ F.seApplsCur env
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)
     argSort (s,_) = ([]    , s)

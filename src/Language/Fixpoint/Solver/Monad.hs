@@ -28,6 +28,9 @@ module Language.Fixpoint.Solver.Monad
        , stats
        , numIter
        , SolverState(..)
+
+       , modifyContext
+       , clearApplys
        )
        where
 
@@ -135,6 +138,12 @@ getContext = ssCtx <$> get
 modifyStats :: (Stats -> Stats) -> SolveM ann ()
 modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 
+modifyContext :: (Context -> Context) -> SolveM ann ()
+modifyContext f = modify $ \s -> s { ssCtx = f (ssCtx s) }
+
+clearApplys :: SolveM ann ()
+clearApplys = modifyContext $ \c -> c { ctxSymEnv = (ctxSymEnv c) { F.seAppls = mempty , F.seApplsCur = mempty , F.seIx = 0 } }
+
 --------------------------------------------------------------------------------
 -- | SMT Interface -------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -186,6 +195,7 @@ filterValid sp p qs = do
   qs' <- liftSMT $
            smtBracket "filterValidLHS" $
              filterValid_ sp p qs
+--  clearApplys
   -- stats
   incBrkt
   incChck (length qs)
