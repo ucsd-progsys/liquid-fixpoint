@@ -777,7 +777,7 @@ elabAs f t e = notracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
     go (EApp e1 e2)    = elabAppAs f t e1 e2
-    go e'@(EIte _ _ _) = fst <$> elab f (ECst e' t)
+    go e'@(EIte {}) = fst <$> elab f (ECst e' t)
     go e'              = fst <$> elab f e' -- (ECst e' t)
 
 -- DUPLICATION with `checkApp'`
