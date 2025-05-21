@@ -626,6 +626,10 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
   let !result = EBin o (eCst e1' s1) (eCst e2' s2)
   return (result, s)
 
+elab !f (ECst (EApp !e1 !e2) t) = do 
+   ee <- elabAppAs f t e1 e2 
+   return (ECst ee t, t) 
+
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
   let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
@@ -773,7 +777,7 @@ elabAs f t e = notracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
     go (EApp e1 e2) = elabAppAs f t e1 e2
-    go e'           = fst <$> elab f e'
+    go e'           = fst <$> elab f (ECst e' t)
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
