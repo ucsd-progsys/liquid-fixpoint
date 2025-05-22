@@ -215,7 +215,7 @@ command !cmd       = do
   ctxLog <- gets ctxLog
   ctxSolver <- gets ctxSolver
   ctxVerbose <- gets ctxVerbose
-  cmdBS <- hoistSMT $ runSmt2 cmd
+  cmdBS <- liftSym $ runSmt2 cmd
   ctx <- gets ctxSymEnv
   let cmdBS' = trace ("command " ++ show (seAppls ctx) ++ " / " ++ show (seIx ctx)) cmdBS
   forM_ ctxLog $ \h -> lift $ do
@@ -527,7 +527,7 @@ interact' cmd  = void $ command cmd
 
 interactDecl' :: Command -> SmtM ()
 interactDecl' cmd  = do
-  cmdBS <- hoistSMT $ runSmt2 cmd
+  cmdBS <- liftSym $ runSmt2 cmd
   ctx <- get
   let env = trace ("interactDecl' [ " ++ show cmd ++ " ] " ++ show (seAppls $ ctxSymEnv ctx) ++ "; " ++ show (seApplsCur $ ctxSymEnv ctx))
                   (ctxSymEnv ctx)

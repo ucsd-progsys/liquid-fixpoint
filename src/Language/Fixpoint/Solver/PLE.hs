@@ -69,7 +69,7 @@ import qualified Data.Maybe           as Mb
 import qualified Data.Set as Set
 import           Text.PrettyPrint.HughesPJ.Compat
 
-import Debug.Trace (trace)
+--import Debug.Trace (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -152,6 +152,7 @@ instEnv cfg info cs restSolver = do
         s0 = EvalEnv
               { evEnv = SMT.ctxSymEnv ctx
               , evElabF = ef
+              , evKCtx = ctx
               , evPendingUnfoldings = mempty
               , evNewEqualities = mempty
               , evSMTCache = mempty
@@ -168,7 +169,7 @@ instEnv cfg info cs restSolver = do
        , ieBEnv = coerceBindEnv ef (bs info)
        , ieAenv = ae info
        , ieCstrs = cs
-       , ieKnowl = knowledge cfg ctx info
+       , ieKnowl = knowledge cfg {- ctx -} info
        , ieEvEnv = s0
        , ieLRWs  = lrws info
        }
@@ -246,12 +247,12 @@ loopT
   -> InstRes
   -> CTrie
   -> SmtM InstRes
-loopT env ctx delta i res t = case t of
+loopT env ictx delta i res t = case t of
   T.Node []  -> return res
-  T.Node [b] -> loopB env ctx delta i res b
-  T.Node bs  -> withAssms env ctx delta Nothing $ \ctx' -> do
-                  (ctx'', env'', res') <- ple1 env ctx' i res
-                  foldM (loopB env'' ctx'' [] i) res' bs
+  T.Node [b] -> loopB env ictx delta i res b
+  T.Node bs  -> withAssms env ictx delta Nothing $ \ictx' -> do
+                  (ictx'', env'', res') <- ple1 env ictx' i res
+                  foldM (loopB env'' ictx'' [] i) res' bs
 
 loopB
   :: InstEnv a
@@ -262,11 +263,11 @@ loopB
   -> InstRes
   -> CBranch
   -> SmtM InstRes
-loopB env ctx delta iMb res b = case b of
-  T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
-  T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do
+loopB env ictx delta iMb res b = case b of
+  T.Bind i t -> loopT env ictx (i:delta) (Just i) res t
+  T.Val cid  -> withAssms env ictx delta (Just cid) $ \ictx' -> do
                   liftIO progressTick
-                  (\(_, _, r) -> r) <$> ple1 env ctx' iMb res
+                  (\(_, _, r) -> r) <$> ple1 env ictx' iMb res
 
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
@@ -281,12 +282,12 @@ loopB env ctx delta iMb res b = case b of
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> SmtM b) -> SmtM b
 withAssms env ctx delta cidMb act = do
   sctx <- get
-  let ctx' = updCtx env sctx ctx delta cidMb
-  let assms = icAssms ctx'
+  let ictx' = updCtx env sctx ctx delta cidMb
+  let assms = icAssms ictx'
 
   SMT.smtBracket "PLE.withAssms" $ do
     forM_ assms SMT.smtAssertDecl
-    act ctx' { icAssms = mempty }
+    act $ ictx' { icAssms = mempty }
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 --
@@ -294,12 +295,13 @@ withAssms env ctx delta cidMb act = do
 -- in @ctx@ for which definitions are known. The function definitions are in
 -- @ieKnowl@.
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> SmtM (ICtx, InstEnv a, InstRes)
-ple1 ie@InstEnv{..} ctx i res = do
-  ieSMT <- get
-  (ctx', env) <- liftIO $ runStateT (evalCandsLoop ieCfg ctx ieSMT ieKnowl) ieEvEnv
-  let pendings = collectPendingUnfoldings env (icSubcId ctx)
-      newEqs = pendings ++ S.toList (S.difference (icEquals ctx') (icEquals ctx))
-  return (ctx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
+ple1 ie@InstEnv{..} ictx i res = do
+  ctx <- get
+  -- ieSMT <- get
+  (ictx', env) <- liftIO $ runStateT (evalCandsLoop ieCfg ictx {- ieSMT -} ieKnowl) (ieEvEnv { evKCtx = ctx })
+  let pendings = collectPendingUnfoldings env (icSubcId ictx)
+      newEqs = pendings ++ S.toList (S.difference (icEquals ictx') (icEquals ictx))
+  return (ictx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
   where
     -- Pending unfoldings (i.e. with undecided guards) are collected only
     -- when we reach a leaf in the Trie, and only if the user asked for them.
@@ -325,21 +327,24 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 -- > until no new equalities are discovered
 -- >       or the environment becomes inconsistent
 --
-evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalST ICtx
-evalCandsLoop cfg ictx0 ctx0 γ = go ictx0 ctx0 0
+evalCandsLoop :: Config -> ICtx -> {- SMT.Context -> -} Knowledge -> EvalST ICtx
+evalCandsLoop cfg ictx0 {- ctx0 -} γ = go ictx0 {- ctx0 -} 0
   where
-    go :: ICtx -> SMT.Context -> Int -> EvalST ICtx
-    go ictx _   _ | S.null (icCands ictx) = return ictx
-    go ictx ctx i = do
+    go :: ICtx -> {- SMT.Context -> -} Int -> EvalST ICtx
+    go ictx {- _ -}  _ | S.null (icCands ictx) = return ictx
+    go ictx {- ctx -} i = do
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
         then return ictx
-        else do let ctx1 = trace ("before pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx)) ctx
-                (_, ctx') <- liftIO $ runStateT (SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))) ctx1
-                let ictx' = trace ("after pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx')) $ ictx { icAssms = mempty }
-                    cands = S.toList $ icCands ictx
-                let i' = trace ("before candss " ++ show (seAppls $ SMT.ctxSymEnv $ knContext γ)) i
-                candss <- mapM (evalOne γ ictx' i') cands
+        else do ctx <- gets evKCtx
+                -- let ictx' = trace ("before pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx)) ictx
+                liftSMT $ SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))
+                -- (_, ctx') <- liftIO $ runStateT (SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))) ctx1
+                -- let ictx' = trace ("after pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx')) $ ictx { icAssms = mempty }
+                let cands = S.toList $ icCands ictx
+--                k <- gets evKCtx
+--                let i' = trace ("before candss " ++ show (seAppls $ SMT.ctxSymEnv $ k)) i
+                candss <- mapM (evalOne γ ictx i) cands
                 us <- gets evNewEqualities
                 modify $ \st -> st { evNewEqualities = mempty }
                 let noCandidateChanged = and (zipWith eqCand candss cands)
@@ -347,15 +352,17 @@ evalCandsLoop cfg ictx0 ctx0 γ = go ictx0 ctx0 0
                 if S.null unknownEqs && noCandidateChanged
                       then return ictx
                       else do let eqsSMT = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
-                              let ictx'' = ictx' { icEquals = icEquals ictx <> unknownEqs
+                              let ictx'' = ictx { icEquals = icEquals ictx <> unknownEqs
                                                  , icAssms  = S.filter (not . isTautoPred) eqsSMT }
-                              go (ictx'' { icCands = S.fromList (concat candss) }) ctx' (i' + 1)
+                              go (ictx'' { icCands = S.fromList (concat candss) }) {- ctx' -} (i + 1)
 
     testForInconsistentEnvironment :: EvalST Bool
     testForInconsistentEnvironment =
-      let k = knContext γ
-          k' = trace ("before testForInconsistentEnvironment " ++ show (seAppls $ SMT.ctxSymEnv k)) k in
-      liftIO $ evalStateT (knPreds γ (knLams γ) PFalse) k'
+      liftSMT $ knPreds γ (knLams γ) PFalse
+      --do
+      --k <- gets evKCtx
+      --let k' = trace ("before testForInconsistentEnvironment " ++ show (seAppls $ SMT.ctxSymEnv k)) k
+      --liftIO $ evalStateT (knPreds γ (knLams γ) PFalse) k'
 
     eqCand [e0] e1 = e0 == e1
     eqCand _ _ = False
@@ -440,17 +447,17 @@ updRes res  Nothing _ = res
 ----------------------------------------------------------------------------------------------
 
 updCtx :: InstEnv a -> SMT.Context -> ICtx -> Diff -> Maybe SubcId -> ICtx
-updCtx InstEnv{..} ieSMT ctx delta cidMb
-            = ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
-                  , icCands  = S.fromList deANFedCands <> icCands  ctx
-                  , icSimpl  = icSimpl ctx <> econsts
-                  , icSubcId = cidMb
-                  , icANFs   = anfBinds
-                  , icLRWs   = mconcat $ icLRWs ctx : newLRWs
-                  }
+updCtx InstEnv{..} ieSMT ictx delta cidMb =
+  ictx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
+       , icCands  = S.fromList deANFedCands <> icCands ictx
+       , icSimpl  = icSimpl ictx <> econsts
+       , icSubcId = cidMb
+       , icANFs   = anfBinds
+       , icLRWs   = mconcat $ icLRWs ictx : newLRWs
+       }
   where
     cands     = rhs:es
-    anfBinds  = bs : icANFs ctx
+    anfBinds  = bs : icANFs ictx
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
                   [ c | xr <- bs, c <- conjuncts (expr xr), null (Vis.kvarsExpr c) ]
@@ -465,8 +472,8 @@ updCtx InstEnv{..} ieSMT ctx delta cidMb
     deANFedCands =
       -- We only call 'deANF' if necessary.
       if not (null (getAutoRws ieKnowl cidMb))
-         || icExtensionalityFlag ctx
-         || icEtaBetaFlag ctx then
+         || icExtensionalityFlag ictx
+         || icEtaBetaFlag ictx then
         deANF anfBinds cands
       else
         cands
@@ -496,6 +503,7 @@ type EvEqualities = S.HashSet (Expr, Expr)
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evElabF    :: ElabFlags
+  , evKCtx     :: SMT.Context
     -- | Equalities where we couldn't evaluate the guards
   , evPendingUnfoldings :: M.HashMap Expr Expr
   , evNewEqualities :: EvEqualities -- ^ Equalities discovered during a traversal of
@@ -523,6 +531,15 @@ defFuelCount :: Config -> FuelCount
 defFuelCount cfg = FC mempty (fuel cfg)
 
 type EvalST a = StateT EvalEnv IO a
+
+liftSMT :: SmtM a -> EvalST a
+liftSMT k =
+  do es <- get
+     let ctx = evKCtx es
+     (a, ctx') <- lift $ runStateT k ctx
+     put (es {evKCtx = ctx'})
+     pure a
+
 --------------------------------------------------------------------------------
 
 getAutoRws :: Knowledge -> Maybe SubcId -> [AutoRewrite]
@@ -819,7 +836,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
       Just exploredTerms -> do
         se <- liftIO (shouldExploreTerm exploredTerms exprs)
         if se then do
-          possibleRWs <- getRWs
+          possibleRWs <- liftSMT getRWs
           rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
           oldEqualities <- gets evNewEqualities
           modify $ \st -> st { evNewEqualities = mempty }
@@ -912,7 +929,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
           then
             do
               let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
-              let getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
+              let getRWs' s  = Mb.catMaybes <$> mapM (runMaybeT . getRW s) autorws
               concat <$> mapM getRWs' (subExprs exprs)
           else return []
 
@@ -1199,14 +1216,19 @@ isValidCached γ e = do
   case M.lookup e (evSMTCache env) of
     Nothing -> do
       let isFreeInE (s, _) = not (S.member s (exprSymbolsSet e))
-      b <- liftIO $ evalStateT (knPreds γ (knLams γ) e) (knContext γ)
+      --k <- gets evKCtx
+      --let k' = trace ("before isValidCached1 " ++ show (seAppls $ SMT.ctxSymEnv k)) k
+      -- b <- liftIO $ evalStateT (knPreds γ (knLams γ) e) k'
+      b <- liftSMT (knPreds γ (knLams γ) e)
       if b
         then do
           when (all isFreeInE (knLams γ)) $
             put (env { evSMTCache = M.insert e True (evSMTCache env) })
           return (Just True)
         else do
-          b2 <- liftIO $ evalStateT (knPreds γ (knLams γ) (PNot e)) (knContext γ)
+          -- let e' = trace ("before isValidCached2 " ++ show (seAppls $ SMT.ctxSymEnv k)) e
+          -- b2 <- liftIO $ evalStateT (knPreds γ (knLams γ) (PNot e')) k'
+          b2 <- liftSMT (knPreds γ (knLams γ) (PNot e))
           if b2
             then do
               when (all isFreeInE (knLams γ)) $
@@ -1228,7 +1250,6 @@ data Knowledge = KN
     -- user data declaration.
     knSims              :: Map Symbol [(Rewrite, IsUserDataSMeasure)]
   , knAms               :: Map Symbol Equation -- ^ All function definitions
-  , knContext           :: SMT.Context
   , knPreds             :: [(Symbol, Sort)] -> Expr -> SmtM Bool
   , knLams              :: ![(Symbol, Sort)]
   , knSummary           :: ![(Symbol, Int)]     -- ^ summary of functions to be evaluates (knSims and knAsms) with their arity
@@ -1245,24 +1266,25 @@ data Knowledge = KN
 data IsUserDataSMeasure = NoUserDataSMeasure | UserDataSMeasure
   deriving (Eq, Show)
 
-isValid :: IORef (M.HashMap Expr Bool) -> Knowledge -> Expr -> IO Bool
+isValid :: IORef (M.HashMap Expr Bool) -> Knowledge -> Expr -> SmtM Bool
 isValid cacheRef γ e = do
     smtCache <- liftIO $ readIORef cacheRef
     case M.lookup e smtCache of
       Nothing -> do
-        b <- evalStateT (knPreds γ (knLams γ) e) (knContext γ)
+        -- k <- gets evKCtx
+        -- let k' = trace ("before isValid " ++ show (seAppls $ SMT.ctxSymEnv k)) ctx
+        b <- knPreds γ (knLams γ) e --) k'
         when b $
           liftIO $ writeIORef cacheRef (M.insert e True smtCache)
         return b
       Just b -> return b
 
-knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
-knowledge cfg ctx si = KN
+knowledge :: Config -> {- SMT.Context -> -} SInfo a -> Knowledge
+knowledge cfg {- ctx -} si = KN
   { knSims                     = Map.fromListWith (++) $
                                    [ (smDC rw, [(rw, NoUserDataSMeasure)]) | rw <- sims ] ++
                                    [ (smDC rw, [(rw, UserDataSMeasure)]) | rw <- dataSims ]
   , knAms                      = Map.fromList [(eqName eq, eq) | eq <- aenvEqs aenv]
-  , knContext                  = ctx
   , knPreds                    = askSMT cfg
   , knLams                     = []
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims)

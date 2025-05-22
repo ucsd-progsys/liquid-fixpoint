@@ -28,7 +28,7 @@ module Language.Fixpoint.Smt.Types (
 
     -- * SMT monad
     , SmtM
-    , hoistSMT
+    , liftSym
     , catchSMT
     , bracketSMT
 
@@ -141,11 +141,11 @@ bracketSMT acquire release use = ReaderT $ \s ->
     (\resource -> runReaderT (use resource) s)
 -}
 
-type SmtM a = StateT Context IO a
+type SmtM = StateT Context IO
 
 -- TODO hacky?
-hoistSMT :: SymM a -> SmtM a
-hoistSMT s =
+liftSym :: SymM a -> SmtM a
+liftSym s =
   do ctx <- get
      let (a, env') = runState s (ctxSymEnv ctx)
      put (ctx {ctxSymEnv = env'})
