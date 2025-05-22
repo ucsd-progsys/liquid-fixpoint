@@ -628,7 +628,7 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
 
 elab !f (ECst (EApp !e1 !e2) t) = do 
    ee <- elabAppAs f t e1 e2 
-   return (ECst ee t, t) 
+   return (eCst ee t, t) 
 
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
@@ -792,7 +792,7 @@ elabAppAs env@(_, f) t g e = do
   g'       <- elabAs env tg g
   let te    = apply su eT
   e'       <- elabAs env te e
-  pure     $ EApp (ECst g' tg) (ECst e' te)
+  pure     $ EApp (eCst g' tg) (eCst e' te)
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
