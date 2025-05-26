@@ -299,6 +299,7 @@ ple1 ie@InstEnv{..} ictx i res = do
   ctx <- get
   -- ieSMT <- get
   (ictx', env) <- liftIO $ runStateT (evalCandsLoop ieCfg ictx {- ieSMT -} ieKnowl) (ieEvEnv { evKCtx = ctx })
+  put $ evKCtx env
   let pendings = collectPendingUnfoldings env (icSubcId ictx)
       newEqs = pendings ++ S.toList (S.difference (icEquals ictx') (icEquals ictx))
   return (ictx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
@@ -336,7 +337,7 @@ evalCandsLoop cfg ictx0 {- ctx0 -} γ = go ictx0 {- ctx0 -} 0
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
         then return ictx
-        else do ctx <- gets evKCtx
+        else do -- ctx <- gets evKCtx
                 -- let ictx' = trace ("before pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx)) ictx
                 liftSMT $ SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))
                 -- (_, ctx') <- liftIO $ runStateT (SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))) ctx1
@@ -352,7 +353,8 @@ evalCandsLoop cfg ictx0 {- ctx0 -} γ = go ictx0 {- ctx0 -} 0
                     unknownEqs = us `S.difference` icEquals ictx
                 if S.null unknownEqs && noCandidateChanged
                       then return ictx
-                      else do let eqsSMT = evalToSMT "evalCandsLoop" cfg ctx `S.map` unknownEqs
+                      else do ctx' <- gets evKCtx
+                              let eqsSMT = evalToSMT "evalCandsLoop" cfg ctx' `S.map` unknownEqs
                               let ictx'' = ictx { icEquals = icEquals ictx <> unknownEqs
                                                  , icAssms  = S.filter (not . isTautoPred) eqsSMT }
                               go (ictx'' { icCands = S.fromList (concat candss) }) {- ctx' -} (i + 1)
