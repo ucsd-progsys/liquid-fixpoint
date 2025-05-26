@@ -40,10 +40,12 @@ import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import qualified Language.Fixpoint.Types.Config as C
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
-import Debug.Trace                      (trace)
+-- import Debug.Trace                      (trace)
 
 mytrace :: String -> a -> a
-mytrace s x = trace s x
+mytrace
+  {- s x = trace s x -}
+  _ x = x
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))

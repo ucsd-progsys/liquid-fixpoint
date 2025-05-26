@@ -340,11 +340,12 @@ evalCandsLoop cfg ictx0 {- ctx0 -} γ = go ictx0 {- ctx0 -} 0
                 -- let ictx' = trace ("before pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx)) ictx
                 liftSMT $ SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))
                 -- (_, ctx') <- liftIO $ runStateT (SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))) ctx1
-                -- let ictx' = trace ("after pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx')) $ ictx { icAssms = mempty }
+                let ictx' = -- trace ("after pandnoded " ++ show (seAppls $ SMT.ctxSymEnv ctx')) $
+                            ictx { icAssms = mempty }
                 let cands = S.toList $ icCands ictx
 --                k <- gets evKCtx
 --                let i' = trace ("before candss " ++ show (seAppls $ SMT.ctxSymEnv $ k)) i
-                candss <- mapM (evalOne γ ictx i) cands
+                candss <- mapM (evalOne γ ictx' i) cands
                 us <- gets evNewEqualities
                 modify $ \st -> st { evNewEqualities = mempty }
                 let noCandidateChanged = and (zipWith eqCand candss cands)

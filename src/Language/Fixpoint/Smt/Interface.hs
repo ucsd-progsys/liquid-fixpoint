@@ -117,7 +117,7 @@ import qualified SMTLIB.Backends
 import qualified SMTLIB.Backends.Process as Process
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Control.Concurrent.Async (async)
-import Debug.Trace
+-- import Debug.Trace
 
 {-
 runFile f
@@ -198,8 +198,9 @@ command' cmdBS       = do
   ctxLog <- gets ctxLog
   ctxSolver <- gets ctxSolver
   -- ctxVerbose <- gets ctxVerbose
-  ctx <- gets ctxSymEnv
-  let cmdBS' = trace ("command " ++ show (seAppls ctx) ++ " / " ++ show (seIx ctx)) cmdBS
+  -- ctx <- gets ctxSymEnv
+  let cmdBS' = -- trace ("command " ++ show (seAppls ctx) ++ " / " ++ show (seIx ctx))
+               cmdBS
   forM_ ctxLog $ \h -> lift $ do
     BS.hPutBuilder h cmdBS'
     LBS.hPutStr h "\n"
@@ -216,8 +217,9 @@ command !cmd       = do
   ctxSolver <- gets ctxSolver
   ctxVerbose <- gets ctxVerbose
   cmdBS <- liftSym $ runSmt2 cmd
-  ctx <- gets ctxSymEnv
-  let cmdBS' = trace ("command " ++ show (seAppls ctx) ++ " / " ++ show (seIx ctx)) cmdBS
+  -- ctx <- gets ctxSymEnv
+  let cmdBS' = -- trace ("command " ++ show (seAppls ctx) ++ " / " ++ show (seIx ctx))
+               cmdBS
   forM_ ctxLog $ \h -> lift $ do
     BS.hPutBuilder h cmdBS'
     LBS.hPutStr h "\n"
@@ -425,7 +427,7 @@ smtDecl x t = do
   let env = seData (ctxSymEnv me)
   let ins' = sortSmtSort False env <$> ins
   let out' = sortSmtSort False env     out
-  interact' (tracepp _msg $ Declare (symbolSafeText x) ins' out')
+  interact' (notracepp _msg $ Declare (symbolSafeText x) ins' out')
   where
     (ins, out) = deconSort t
     _msg       = "smtDecl: " ++ showpp (x, t, ins, out)
@@ -491,7 +493,8 @@ smtBracket _msg a = do
     ctx { ctxSymEnv = env { seAppls = pushAppls (seAppls env) }
         , ctxIxs = seIx env : ctxIxs ctx}
 --  hoistSMT $ modify $ \env -> env { seAppls = pushAppls (seAppls env) }
-  r <- trace ("BRACKET " ++ _msg) a
+  r <- -- trace ("BRACKET " ++ _msg)
+       a
   smtPop
   modify $ \ctx ->
     let env = ctxSymEnv ctx
@@ -529,7 +532,7 @@ interactDecl' :: Command -> SmtM ()
 interactDecl' cmd  = do
   cmdBS <- liftSym $ runSmt2 cmd
   ctx <- get
-  let env = trace ("interactDecl' [ " ++ show cmd ++ " ] " ++ show (seAppls $ ctxSymEnv ctx) ++ "; " ++ show (seApplsCur $ ctxSymEnv ctx))
+  let env = -- trace ("interactDecl' [ " ++ show cmd ++ " ] " ++ show (seAppls $ ctxSymEnv ctx) ++ "; " ++ show (seApplsCur $ ctxSymEnv ctx))
                   (ctxSymEnv ctx)
   let ats = funcSortVars env
   forM_ ats $ uncurry $ smtFuncDecl
@@ -590,7 +593,8 @@ funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
   where
     var n t       =
         let vr = evalState (F.symbolAtSmtName n () t) env
-        in trace ("var " ++ show vr) vr
+        in -- trace ("var " ++ show vr)
+           vr
     ts            = M.keys $ F.seApplsCur env
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)

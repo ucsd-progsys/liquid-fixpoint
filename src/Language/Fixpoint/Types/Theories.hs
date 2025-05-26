@@ -72,7 +72,7 @@ import qualified Data.Store              as S
 import qualified Data.HashMap.Strict      as M
 import qualified Language.Fixpoint.Misc   as Misc
 
-import Debug.Trace
+-- import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values
@@ -261,7 +261,8 @@ symbolAtSmtName :: (PPrint a) => Symbol -> a -> FuncSort -> SymM Text
 symbolAtSmtName mkSym e fs =
   -- formerly: intSymbol mkSym . funcSortIndex env e
   do fsi <- funcSortIndex e fs
-     let fsi' = trace ("sasn " ++ show fsi) fsi
+     let fsi' = -- trace ("sasn " ++ show fsi)
+                fsi
      pure $ appendSymbolText mkSym . Text.pack . show $ fsi'
 {-# SCC symbolAtSmtName #-}
 
