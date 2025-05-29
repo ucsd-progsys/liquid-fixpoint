@@ -20,6 +20,7 @@ module Language.Fixpoint.Types.Theories (
 
     -- * Theory Sorts
     , SmtSort (..)
+    , FuncSort
     , sortSmtSort
     , isIntSmtSort
 

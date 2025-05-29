@@ -113,6 +113,7 @@ data Context = Ctx
   , ctxSymEnv  :: !SymEnv
   , ctxIxs     :: ![Int]
   , ctxDefines :: DefinedFuns
+  , ctxLams    :: !Bool
   }
 
 -- | SMT monad

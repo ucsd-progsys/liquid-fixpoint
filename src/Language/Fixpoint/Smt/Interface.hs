@@ -73,7 +73,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config ( SMTSolver (..), solverFlags
-                                                , Config (solver, smtTimeout, gradual, stringTheory, save))
+                                                , Config (solver, smtTimeout, gradual, stringTheory, save, allowHO))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -363,6 +363,7 @@ makeContext' cfg ctxLog
                   , ctxSymEnv    = mempty
                   , ctxIxs       = []
                   , ctxDefines   = mempty
+                  , ctxLams      = allowHO cfg
                   }
 
 -- | Close file handles and release the solver backend's resources.
@@ -534,7 +535,7 @@ interactDecl' cmd  = do
   ctx <- get
   let env = -- trace ("interactDecl' [ " ++ show cmd ++ " ] " ++ show (seAppls $ ctxSymEnv ctx) ++ "; " ++ show (seApplsCur $ ctxSymEnv ctx))
                   (ctxSymEnv ctx)
-  let ats = funcSortVars env
+  let ats = funcSortVars (ctxLams ctx) env
   forM_ ats $ uncurry $ smtFuncDecl
   put (ctx {ctxSymEnv = env {seAppls = mergeTopAppls (seApplsCur env) (seAppls env), seApplsCur = M.empty} })
   void $ command' cmdBS
@@ -585,16 +586,15 @@ symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
 dataDeclarations :: SymEnv -> [[DataDecl]]
 dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
-funcSortVars :: F.SymEnv -> [(T.Text, ([F.SmtSort], F.SmtSort))]
-funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
-                 ++ [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
-                 ++ [(var lambdaName t       , lamSort t) | t <- ts]
-                 ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
+funcSortVars :: Bool -> F.SymEnv -> [(T.Text, ([F.SmtSort], F.SmtSort))]
+funcSortVars lams env =
+                  [(var applyName  t       , appSort t) | t <- ts]
+  ++              [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
+  ++              [(var lambdaName t       , lamSort t) | t <- ts]
+  ++ if lams then [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ] else []
   where
-    var n t       =
-        let vr = evalState (F.symbolAtSmtName n () t) env
-        in -- trace ("var " ++ show vr)
-           vr
+    var :: F.Symbol -> F.FuncSort -> T.Text
+    var n t       = evalState (F.symbolAtSmtName n () t) env
     ts            = M.keys $ F.seApplsCur env
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)

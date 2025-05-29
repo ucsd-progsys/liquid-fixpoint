@@ -654,12 +654,12 @@ bvConcatSort = FAbs 0 $ FAbs 1 $ FAbs 2 $
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
 
--- This variable is uded to generate the lambda names `lam_arg$n` in
+-- This variable is used to generate the lambda names `lam_arg$n` in
 -- `Interface.hs` that will be used during defunctionalization in
--- `Defunctionalize.hs`, is a pretty gross hack as if the user typees in the
--- program or ple generates a term that has more than `maxLamArg` lambda binders
--- one inside the other, the smt will crash complaining that
--- `lam_arg${maxLamArg}` was not declared.
+-- `Defunctionalize.hs`, is a pretty gross hack as if the user types in the
+-- program or PLE generates a term that has more than `maxLamArg` lambda binders
+-- one inside the other, the SMT will crash complaining that
+-- `lam_arg${maxLamArg + k}` was not declared.
 maxLamArg :: Int
 maxLamArg = 20
 
