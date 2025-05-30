@@ -206,7 +206,7 @@ command !cmd       = do
   lift $ case cmd of
     CheckSat   -> commandRaw ctxLog ctxSolver ctxVerbose cmdBS
     GetValue _ -> commandRaw ctxLog ctxSolver ctxVerbose cmdBS
-    _          -> (SMTLIB.Backends.command_ ctxSolver cmdBS) >> return Ok
+    _          -> SMTLIB.Backends.command_ ctxSolver cmdBS >> return Ok
 
 
 smtSetMbqi :: SmtM ()
@@ -495,7 +495,7 @@ interactDecl' cmd  = do
   ctx <- get
   let env = ctxSymEnv ctx
   let ats = funcSortVars (ctxLams ctx) env
-  forM_ ats $ uncurry $ smtFuncDecl
+  forM_ ats $ uncurry smtFuncDecl
   put (ctx {ctxSymEnv = env {seAppls = mergeTopAppls (seApplsCur env) (seAppls env), seApplsCur = M.empty} })
   void $ commandB cmdBS
 

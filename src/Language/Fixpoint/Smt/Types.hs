@@ -127,7 +127,7 @@ liftSym s =
      pure a
 
 catchSMT :: Exception e => SmtM a -> (e -> IO a) -> SmtM a
-catchSMT action handler = StateT $ \s -> catch (runStateT action s) (\e -> (,s) <$> handler e)
+catchSMT action handler = StateT $ \s -> catch (runStateT action s) (fmap (, s) . handler)
 
 bracketSMT :: SmtM a -> (a -> IO b) -> (a -> SmtM c) -> SmtM c
 bracketSMT acquire release use = StateT $ \s ->

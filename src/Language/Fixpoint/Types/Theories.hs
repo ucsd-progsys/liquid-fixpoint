@@ -89,7 +89,7 @@ mergeTopAppls m (top : rest) = (top <> m) : rest
 mergeTopAppls m [] = [m]
 
 pushAppls :: Appls -> Appls
-pushAppls aps = (M.empty : aps)
+pushAppls aps = M.empty : aps
 
 popAppls :: Appls -> Appls
 popAppls [] = []
