@@ -21,8 +21,6 @@ module Language.Fixpoint.Solver.Rewrite
 
 import           Control.Monad (guard)
 import           Control.Monad.Trans.Maybe
--- import           Control.Monad.State hiding (lift)
-
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
@@ -32,8 +30,7 @@ import           GHC.Generics
 import           Text.PrettyPrint (text)
 import           Language.Fixpoint.Types.Config (RESTOrdering(..))
 import           Language.Fixpoint.Types hiding (simplify)
-import           Language.Fixpoint.Smt.Types (SmtM {-, Context-})
-
+import           Language.Fixpoint.Smt.Types (SmtM)
 import           Language.REST
 import           Language.REST.KBO (kbo)
 import           Language.REST.LPO (lpo)

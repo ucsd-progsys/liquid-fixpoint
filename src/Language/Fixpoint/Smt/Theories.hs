@@ -3,7 +3,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE UndecidableInstances      #-}
--- {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ViewPatterns              #-}
 
 {-# OPTIONS_GHC -Wno-orphans           #-}
@@ -56,7 +55,6 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
--- import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types.Sorts
@@ -390,19 +388,6 @@ sortAppInfo t = case bkFFunc t of
 instance TheorySymbols SMTSolver where
   theorySymbols :: SMTSolver -> SEnv TheorySymbol
   theorySymbols = fromListSEnv . interpSymbols
-
-{-
--- | `theorySymbols` contains the list of ALL SMT symbols with interpretations,
---   i.e. which are given via `define-fun` (as opposed to `declare-fun`)
-theorySymbols :: SMTSolver -> [DataDecl] -> SEnv TheorySymbol -- M.HashMap Symbol TheorySymbol
-theorySymbols cfg ds = fromListSEnv $  -- SHIFTLAM uninterpSymbols  -- SHIFTLAM uninterpSymbols  -- SHIFTLAM uninterpSymbols  -- SHIFTLAM uninterpSymbols
-                                    -- SHIFTLAM uninterpSymbols
-                                    -- SHIFTLAM uninterpSymbols
-                                    -- SHIFTLAM uninterpSymbols  -- SHIFTLAM uninterpSymbols
-                                    -- SHIFTLAM uninterpSymbols
-                                  interpSymbols cfg
-                               ++ concatMap dataDeclSymbols ds
--}
 
 instance TheorySymbols [DataDecl] where
   theorySymbols :: [DataDecl] -> SEnv TheorySymbol

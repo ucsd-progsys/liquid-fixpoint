@@ -53,7 +53,6 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
---import           Control.Monad.Reader
 import           Control.Applicative
 import           Control.Monad.State
 import           Control.DeepSeq
@@ -61,19 +60,15 @@ import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
--- import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.List                as L
-import Data.Maybe ()
 import           Data.Text (Text)
 import qualified Data.Text                as Text
 import qualified Data.Store              as S
 import qualified Data.HashMap.Strict      as M
 import qualified Language.Fixpoint.Misc   as Misc
-
--- import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values
@@ -105,13 +100,13 @@ peekAppls [] = Nothing
 peekAppls (x:_) = Just x
 
 data SymEnv = SymEnv
-  { seSort   :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
-  , seTheory :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
-  , seData   :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
-  , seLits   :: !(SEnv Sort)              -- ^ Distinct Constant symbols
-  , seAppls  :: !Appls                    -- ^ Stack of function sort maps
+  { seSort     :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
+  , seTheory   :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
+  , seData     :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
+  , seLits     :: !(SEnv Sort)              -- ^ Distinct Constant symbols
+  , seAppls    :: !Appls                    -- ^ Stack of function sort maps
   , seApplsCur :: !(M.HashMap FuncSort Int) -- ^ Current function sort map
-  , seIx     :: !Int                      -- ^ Largest unused index for sorts
+  , seIx       :: !Int                      -- ^ Largest unused index for sorts
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -138,12 +133,10 @@ instance Monoid SymEnv where
   mappend       = (<>)
 
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls _ {-ts-} = SymEnv xEnv' fEnv dEnv ls {-applsMap-} [] mempty 0
+symEnv xEnv fEnv ds ls _ = SymEnv xEnv' fEnv dEnv ls [] mempty 0
   where
     xEnv'   = unionSEnv xEnv wiredInEnv
     dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
---    applsMap = M.fromList (zip smts [0..])
---    smts    = funcSorts dEnv ts
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNINTERPRETED but POLYMORPHIC, hence need to go through
@@ -153,89 +146,6 @@ wiredInEnv = M.fromList
   [ (toIntName, mkFFunc 1 [FVar 0, FInt])
   , (tyCastName, FAbs 0 $ FAbs 1 $ FFunc (FVar 0) (FVar 1))
   ]
-
-
--- | 'funcSorts' attempts to compute a list of all the input-output sorts
---   at which applications occur. This is a gross hack; as during unfolding
---   we may create _new_ terms with weird new sorts. Ideally, we MUST allow
---   for EXTENDING the apply-sorts with those newly created terms.
---   the solution is perhaps to *preface* each VC query of the form
---
---      push
---      assert p
---      check-sat
---      pop
---
---   with the declarations needed to make 'p' well-sorted under SMT, i.e.
---   change the above to
---
---      declare apply-sorts
---      push
---      assert p
---      check-sat
---      pop
---
---   such a strategy would NUKE the entire apply-sort machinery from the CODE base.
---   [TODO]: dynamic-apply-declaration
-
-{-
-funcSorts :: SEnv DataDecl -> [Sort] -> [FuncSort]
-funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
-  where
-    smts = Misc.sortNub $ concat $ [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
-    tx   = inlineArrSetBag False dEnv
-
--- Related to the above, after merging #688, we now allow types other than
--- Int to which Arrays/Sets/Bags can be applied.
--- However, the `sortSmtSort` function below, previously used in `funcSorts`,
--- only instantiates type variables at Ints. This causes the solver to crash
--- when PLE generates apply queries for polymorphic sets (see
--- https://github.com/ucsd-progsys/liquidhaskell/issues/2438). The following
--- pair of functions is a temporary fix for this - it generates additional
--- array/set/bag sorts instantiated at all user types for a "polymorphic depth 1"
--- (i.e., `Array (Foo Int) Int` but not `Array (Foo (Foo Int)) Int`, to keep
--- the applys table from blowing up exponentially). Ultimately, a general
--- solution should be implemented for generating ad-hoc sets of applys on the
--- fly, as described above.
-
-inlineArrSetBag :: Bool -> SEnv DataDecl -> Sort -> [SmtSort]
-inlineArrSetBag isASB env t = go . unAbs $ t
-  where
-    m = sortAbs t
-    go (FFunc _ _)    = [SInt]
-    go FInt           = [SInt]
-    go FReal          = [SReal]
-    go t
-      | t == boolSort = [SBool]
-      | isString t    = [SString]
-    go (FVar _)
-      | isASB     = SInt : map (\q -> let dd = snd q in
-                                      SData (ddTyCon dd) (replicate (ddVars dd) SInt))
-                               (M.toList $ seBinds env)
-      | otherwise = [SInt]
-    go t
-      | (ct:ts) <- unFApp t = inlineArrSetBagFApp m env ct ts
-      | otherwise = error "Unexpected empty 'unFApp t'"
-
-inlineArrSetBagFApp :: Int -> SEnv DataDecl -> Sort -> [Sort] -> [SmtSort]
-inlineArrSetBagFApp m env = go
-  where
-    go (FTC c) [a]
-      | setConName == symbol c   = SSet <$> inlineArrSetBag True env a
-    go (FTC c) [a]
-      | bagConName == symbol c   = SBag <$> inlineArrSetBag True env a
-    go (FTC c) [a, b]
-      | arrayConName == symbol c = SArray <$> inlineArrSetBag True env a <*> inlineArrSetBag True env b
-    go (FTC bv) [FTC s]
-      | bitVecName == symbol bv
-      , Just n <- sizeBv s      = [SBitVec n]
-    go s []
-      | isString s              = [SString]
-    go (FTC c) ts
-      | Just n <- tyArgs c env
-      , let i = n - length ts   = [SData c ((inlineArrSetBag False env . FAbs m =<< ts) ++ replicate i SInt)]
-    go _ _                      = [SInt]
--}
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
 symEnvTheory x env = lookupSEnv x (seTheory env)
@@ -252,28 +162,24 @@ deleteSymEnv x env = env { seSort = deleteSEnv x (seSort env) }
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
 insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
-symbolAtName :: (PPrint a) => Symbol -> a -> Sort -> SymM Text
-symbolAtName mkSym e s =
+symbolAtName :: Symbol -> Sort -> SymM Text
+symbolAtName mkSym s =
   do env <- get
-     symbolAtSmtName mkSym e (ffuncSort env s)
+     symbolAtSmtName mkSym (ffuncSort env s)
 {-# SCC symbolAtName #-}
 
-symbolAtSmtName :: (PPrint a) => Symbol -> a -> FuncSort -> SymM Text
-symbolAtSmtName mkSym e fs =
+symbolAtSmtName :: Symbol -> FuncSort -> SymM Text
+symbolAtSmtName mkSym fs =
   -- formerly: intSymbol mkSym . funcSortIndex env e
-  do fsi <- funcSortIndex e fs
-     let fsi' = -- trace ("sasn " ++ show fsi)
-                fsi
-     pure $ appendSymbolText mkSym . Text.pack . show $ fsi'
+  do fsi <- funcSortIndex fs
+     pure $ appendSymbolText mkSym . Text.pack . show $ fsi
 {-# SCC symbolAtSmtName #-}
 
-funcSortIndex :: (PPrint a) => a -> FuncSort -> SymM Int
---funcSortIndex e fs =
-funcSortIndex _ fs =
+funcSortIndex :: FuncSort -> SymM Int
+funcSortIndex fs =
   do env <- get
      let aps = seAppls env
      let apsc = seApplsCur env
---     pure $ M.lookupDefault err fs aps
      case lookupAppls fs aps of
       Just i  -> pure i
       Nothing ->
@@ -283,9 +189,6 @@ funcSortIndex _ fs =
            do let i = seIx env
               modify (\env -> env { seApplsCur = M.insert fs i apsc , seIx = 1 + i })
               pure i
-
---  where
---    err = panic ("Unknown func-sort: " ++ show fs ++ " for " ++ showpp e)
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = {- tracepp ("ffuncSort " ++ showpp (t1,t2)) -} (tx t1, tx t2)
@@ -444,11 +347,11 @@ coerceSort ef = (if elabSetBag ef then coerceSetBagToArray else id) . coerceMapT
 
 coerceEnv :: ElabFlags -> SymEnv -> SymEnv
 coerceEnv slv env =
-  SymEnv { seSort   = coerceSortEnv slv (seSort env)
-         , seTheory = seTheory env
-         , seData   = seData   env
-         , seLits   = seLits   env
-         , seAppls  = seAppls  env
+  SymEnv { seSort     = coerceSortEnv slv (seSort env)
+         , seTheory   = seTheory env
+         , seData     = seData   env
+         , seLits     = seLits   env
+         , seAppls    = seAppls  env
          , seApplsCur = seApplsCur env
-         , seIx     = seIx     env
+         , seIx       = seIx     env
          }

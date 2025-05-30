@@ -37,7 +37,6 @@ import           Language.Fixpoint.Solver.Common          (askSMT)
 import           Control.Exception.Base (bracket)
 import           Control.Monad ((>=>), foldM, forM, forM_, join)
 import           Control.Monad.State
--- import           Control.Monad.Reader
 import           Data.Bifunctor (first, second)
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M

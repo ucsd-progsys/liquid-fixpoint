@@ -15,7 +15,6 @@
 
 module Language.Fixpoint.Smt.Serialize (smt2SortMono) where
 
---import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.SortCheck
@@ -27,7 +26,6 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 -- import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)
 import           Language.Fixpoint.Utils.Builder as Builder
--- import System.Process (CreateProcess())
 -- import Debug.Trace (trace)
 
 instance SMTLIB2 (Symbol, Sort) where
@@ -42,11 +40,7 @@ instance SMTLIB2 (Symbol, Expr) where
     do s <- smt2 sym
        ss <- smt2 e
        pure $ parenSeqs [s, ss]
-{-}
-  smt2 env (sym, e) =  parenSeqs [smt2 env sym, smt2 env e]
 
-smt2SortMono, smt2SortPoly :: (PPrint a) => a -> SymEnv -> Sort -> Builder
--}
 smt2SortMono, smt2SortPoly :: (PPrint a) => a -> Sort -> SymM Builder
 smt2SortMono = smt2Sort False
 smt2SortPoly = smt2Sort True
@@ -223,7 +217,7 @@ smt2Var x t
 
 smtLamArg :: Symbol -> Sort -> SymM Builder
 smtLamArg x t =
-  do s <- symbolAtName x () (FFunc t FInt)
+  do s <- symbolAtName x (FFunc t FInt)
      pure $ Builder.fromText s
 
 smt2VarAs :: Symbol -> Sort -> SymM Builder
@@ -235,16 +229,16 @@ smt2VarAs x t =
 smt2Lam :: (Symbol, Sort) -> Expr -> SymM Builder
 smt2Lam (x, xT) full@(ECst _ eT) =
   do x' <- smtLamArg x xT
-     lambda <- symbolAtName lambdaName () (FFunc xT eT)
+     lambda <- symbolAtName lambdaName (FFunc xT eT)
      f <- smt2 full
      pure $ parenSeqs [Builder.fromText lambda, x', f]
 smt2Lam _ e
   = panic ("smtlib2: Cannot serialize unsorted lambda: " ++ showpp e)
 
 smt2App :: Expr -> SymM Builder
-smt2App e@(EApp (EApp f e1) e2)
+smt2App (EApp (EApp f e1) e2)
   | Just t <- unApplyAt f
-  = do a <- symbolAtName applyName e t
+  = do a <- symbolAtName applyName t
        s <- smt2s [e1, e2]
        pure $ parenSeqs [Builder.fromText a, s]
 smt2App e = do s0 <- traverse smt2 es
@@ -260,7 +254,7 @@ smt2App e = do s0 <- traverse smt2 es
 smt2Coerc :: Sort -> Sort -> Expr -> SymM Builder
 smt2Coerc t1 t2 e
   | t1 == t2  = smt2 e
-  | otherwise = do coerceFn <- symbolAtName coerceName (ECoerc t1 t2 e) (FFunc t1 t2)
+  | otherwise = do coerceFn <- symbolAtName coerceName (FFunc t1 t2)
                    s <- smt2 e
                    pure $ parenSeqs [Builder.fromText coerceFn , s]
 
@@ -299,17 +293,6 @@ instance SMTLIB2 Command where
        r <- smt2 rsort
        e' <- smt2 e
        pure $ parenSeqs ["define-fun", n, parenSeqs bParams, r, e']
-
-
-{-
-PAtom Eq
-      (ECst (EVar "y")
-            (FApp (FApp (FTC (TC "Array_t" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) FInt) FInt))
-      (ECst (EApp (ECst (EVar "acc") (FFunc (FApp (FApp (FTC (TC "Data" defined at: issue-738.smt2:1:12-1:16 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) FInt) FInt)
-                                            (FApp (FApp (FTC (TC "Array_t" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) FInt) FInt)))
-                  (ECst (EVar "x")          (FApp (FApp (FTC (TC "Data" defined at: issue-738.smt2:4:15-4:19 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) FInt) FInt)))
-            (FApp (FApp (FTC (TC "Array_t" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) FInt) FInt))
--}
 
   smt2     (Assert Nothing p)  = {-# SCC "smt2-assert" #-}
                                   do s <- smt2 p

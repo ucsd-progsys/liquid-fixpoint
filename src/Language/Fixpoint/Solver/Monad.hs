@@ -58,12 +58,9 @@ import           Data.List            (partition)
 -- import           Data.Char            (isUpper)
 import qualified Control.Monad.State as ST
 import           Control.Monad.State.Strict
---import           Control.Monad.Reader
 import qualified Data.HashMap.Strict as M
 import           Data.Maybe (catMaybes)
 import           Control.Exception.Base (bracket)
-
---import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Solver Monadic API --------------------------------------------------------
@@ -195,7 +192,6 @@ filterValid sp p qs = do
   qs' <- liftSMT $
            smtBracket "filterValidLHS" $
              filterValid_ sp p qs
---  clearApplys
   -- stats
   incBrkt
   incChck (length qs)

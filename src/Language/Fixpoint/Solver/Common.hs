@@ -2,7 +2,6 @@
 
 module Language.Fixpoint.Solver.Common (askSMT, toSMT) where
 
---import Control.Monad.Reader
 import Control.Monad.State
 import Language.Fixpoint.Types.Config (Config, solver, solverFlags)
 import Language.Fixpoint.Smt.Interface (Context(..), checkValidWithContext)
@@ -11,7 +10,6 @@ import Language.Fixpoint.Types
 import Language.Fixpoint.Types.Visitor (kvarsExpr)
 import Language.Fixpoint.Defunctionalize (defuncAny)
 import Language.Fixpoint.SortCheck (ElabParam(..), elaborate)
--- import Debug.Trace
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -23,9 +21,7 @@ askSMT cfg xs e
   | null (kvarsExpr e) =
       do ctx <- get
          let e' = toSMT "askSMT" cfg ctx xs e
-         let e'' = -- trace ("askSMT e': " ++ showpp e')
-                      e'
-         checkValidWithContext xs PTrue e''
+         checkValidWithContext xs PTrue e'
   | otherwise          = return False
 
 toSMT :: String -> Config -> Context -> [(Symbol, Sort)] -> Expr -> Pred

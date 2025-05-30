@@ -35,7 +35,6 @@ module Language.Fixpoint.Smt.Types (
     ) where
 import           Control.Exception
 import           Control.Monad.State
---import           Control.Monad.Reader
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config (ElabFlags)
@@ -118,33 +117,8 @@ data Context = Ctx
 
 -- | SMT monad
 
-{-
-type SmtM = ReaderT Context IO
-
-hoistSMT :: SymM a -> SmtM a
-hoistSMT s =
-  do env <- asks ctxSymEnv
-     let a = runReader s env
---     put env'
-     pure a
-
-catchSMT :: Exception e => SmtM a -> (e -> IO a) -> SmtM a
-catchSMT action handler =
-  ReaderT $ \ctx -> catch (runReaderT action ctx) handler
-
-   -- StateT $ \s -> catch (runStateT action s) (\e -> (,s) <$> handler e)
-
-bracketSMT :: SmtM a -> (a -> IO b) -> (a -> SmtM c) -> SmtM c
-bracketSMT acquire release use = ReaderT $ \s ->
-  bracket
-    (runReaderT acquire s)
-    release
-    (\resource -> runReaderT (use resource) s)
--}
-
 type SmtM = StateT Context IO
 
--- TODO hacky?
 liftSym :: SymM a -> SmtM a
 liftSym s =
   do ctx <- get

@@ -44,7 +44,7 @@ import Language.Fixpoint.Solver.Instantiate (instantiate)
 
 mytrace :: String -> a -> a
 mytrace
-  {- s x = trace s x -}
+  -- s x = trace s x
   _ x = x
 
 --------------------------------------------------------------------------------
