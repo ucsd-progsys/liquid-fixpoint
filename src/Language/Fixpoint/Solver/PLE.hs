@@ -334,7 +334,7 @@ evalCandsLoop cfg ictx0 γ = go ictx0 0
         then return ictx
         else do liftSMT $ SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))
                 let ictx' = ictx { icAssms = mempty }
-                let cands = S.toList $ icCands ictx
+                    cands = S.toList $ icCands ictx
                 candss <- mapM (evalOne γ ictx' i) cands
                 us <- gets evNewEqualities
                 modify $ \st -> st { evNewEqualities = mempty }
@@ -344,7 +344,7 @@ evalCandsLoop cfg ictx0 γ = go ictx0 0
                       then return ictx
                       else do ctx' <- gets evKCtx
                               let eqsSMT = evalToSMT "evalCandsLoop" cfg ctx' `S.map` unknownEqs
-                              let ictx'' = ictx { icEquals = icEquals ictx <> unknownEqs
+                                  ictx'' = ictx { icEquals = icEquals ictx <> unknownEqs
                                                  , icAssms  = S.filter (not . isTautoPred) eqsSMT }
                               go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
 
@@ -1203,14 +1203,14 @@ isValidCached γ e = do
   case M.lookup e (evSMTCache env) of
     Nothing -> do
       let isFreeInE (s, _) = not (S.member s (exprSymbolsSet e))
-      b <- liftSMT (knPreds γ (knLams γ) e)
+      b <- liftSMT $ knPreds γ (knLams γ) e
       if b
         then do
           when (all isFreeInE (knLams γ)) $
             put (env { evSMTCache = M.insert e True (evSMTCache env) })
           return (Just True)
         else do
-          b2 <- liftSMT (knPreds γ (knLams γ) (PNot e))
+          b2 <- liftSMT $ knPreds γ (knLams γ) (PNot e)
           if b2
             then do
               when (all isFreeInE (knLams γ)) $

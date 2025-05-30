@@ -119,13 +119,13 @@ instance NFData   SymEnv
 instance S.Store SymEnv
 
 instance Semigroup SymEnv where
-  e1 <> e2 = SymEnv { seSort   = seSort   e1 <> seSort   e2
-                    , seTheory = seTheory e1 <> seTheory e2
-                    , seData   = seData   e1 <> seData   e2
-                    , seLits   = seLits   e1 <> seLits   e2
-                    , seAppls  = zipWith (<>) (seAppls e1) (seAppls e2)
+  e1 <> e2 = SymEnv { seSort     = seSort     e1 <> seSort     e2
+                    , seTheory   = seTheory   e1 <> seTheory   e2
+                    , seData     = seData     e1 <> seData     e2
+                    , seLits     = seLits     e1 <> seLits     e2
+                    , seAppls    = zipWith (<>) (seAppls e1) (seAppls e2)
                     , seApplsCur = seApplsCur e1 <> seApplsCur e2
-                    , seIx     = seIx     e1 `max` seIx  e2
+                    , seIx       = seIx       e1 `max` seIx    e2
                     }
 
 instance Monoid SymEnv where
