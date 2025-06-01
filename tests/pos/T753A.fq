@@ -1,0 +1,45 @@
+// Config {srcFile = "tests/pos/T2535.hs", cores = Nothing, minPartSize = 500, maxPartSize = 700, solver = z3, linear = False, stringTheory = False, defunction = False, allowHO = True, allowHOqs = False, eliminate = some, scrape = no, elimBound = Nothing, smtTimeout = Nothing, elimStats = False, solverStats = False, metadata = False, stats = False, parts = False, save = True, minimize = False, minimizeQs = False, minimizeKs = False, minimalSol = False, etaElim = False, gradual = False, ginteractive = False, autoKuts = False, nonLinCuts = False, noslice = False, rewriteAxioms = False, pleWithUndecidedGuards = False, etabeta = False, localRewrites = False, interpreter = False, oldPLE = False, noIncrPle = False, noEnvironmentReduction = True, inlineANFBindings = False, checkCstr = [], extensionality = False, rwTerminationCheck = False, stdin = False, json = False, noLazyPLE = False, fuel = Nothing, restOrdering = "rpo", noSmtHorn = False}
+
+data AB 2 = [
+       | B {selectB : int}
+       | A {selectA : int}
+     ]
+data T 1 = [
+       | T {selectT1 : @(0)}
+     ]
+
+match selectA A lq_tmp$x##423  =  (lq_tmp$x##423)
+match selectB B lq_tmp$x##502  =  (lq_tmp$x##502)
+match check A lq_tmp$x##423  =  (true)
+match check B lq_tmp$x##502  =  (false)
+match isA A lq_tmp$x##423  =  (true)
+match isA B lq_tmp$x##502  =  (false)
+
+constant A : (func(2 , [int; (AB @(0) @(1))]))
+constant selectA : (func(2 , [(AB @(0) @(1)); int]))
+constant B : (func(2 , [int; (AB @(0) @(1))]))
+constant selectB : (func(2 , [(AB @(0) @(1)); int]))
+constant T : (func(1 , [@(0); (T @(0))]))
+distinct A : (func(2 , [int; (AB @(0) @(1))]))
+distinct B : (func(2 , [int; (AB @(0) @(1))]))
+
+
+bind 1 A : {VV : func(2 , [int; (AB @(0) @(1))]) | []}
+bind 2 B : {VV : func(2 , [int; (AB @(0) @(1))]) | []}
+bind 3 T : {VV : func(1 , [@(0); (T @(0))]) | []}
+bind 4 check : {VV : func(2 , [(AB @(0) @(1)); bool]) | []}
+bind 5 x : {v : (AB int (T aFD)) | [(check v)]}
+
+constraint:
+  env [1; 2; 3; 4; 5]
+  lhs {VV : (AB int (T aFD)) | [(VV = (if (is$A VV) then (A (selectA VV)) else (B (selectB VV))))]}
+  rhs {VV : (AB int (T aFD)) | [( 3 = (1 + 2) )]}
+  id 24 tag [4]
+  // META constraint id 24 : tests/pos/T2535.hs:11:1-9
+
+
+// unless the sort of application is propagated in both the function and the argument 
+// as fixed in PR: https://github.com/ucsd-progsys/liquid-fixpoint/pull/753
+// the above query crashes with 
+// Crash!: :1:1-1:1: Error
+//   crash: SMTLIB2 respSat = Error "line 3 column 13267: Sorts (AB Int (T Int)) and (AB Int Int) are incompatible"
