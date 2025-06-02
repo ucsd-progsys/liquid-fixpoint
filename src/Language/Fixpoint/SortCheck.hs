@@ -626,6 +626,10 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
   let !result = EBin o (eCst e1' s1) (eCst e2' s2)
   return (result, s)
 
+elab !f (ECst (EApp !e1 !e2) t) = do 
+   ee <- elabAppAs f t e1 e2 
+   return (eCst ee t, t) 
+
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
   let !e = eAppC s (eCst e1' s1) (eCst e2' s2)
@@ -772,8 +776,9 @@ elabAs :: ElabEnv -> Sort -> Expr -> CheckM Expr
 elabAs f t e = notracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
-    go (EApp e1 e2) = elabAppAs f t e1 e2
-    go e'           = fst <$> elab f e'
+    go (EApp e1 e2)    = elabAppAs f t e1 e2
+    go e'@(EIte {}) = fst <$> elab f (ECst e' t)
+    go e'              = fst <$> elab f e' -- (ECst e' t)
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
@@ -787,7 +792,7 @@ elabAppAs env@(_, f) t g e = do
   g'       <- elabAs env tg g
   let te    = apply su eT
   e'       <- elabAs env te e
-  pure     $ EApp (ECst g' tg) (ECst e' te)
+  pure     $ EApp (eCst g' tg) (eCst e' te)
 
 elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
@@ -1352,6 +1357,18 @@ unify1 f e !θ (FVar !i) !t
   = unifyVar f e θ i t
 unify1 f e !θ !t (FVar !i)
   = unifyVar f e θ i t
+unify1 f e !θ t1 t2 
+  | [FTC bg, tt1] <- unFApp t1
+  , bagConName == symbol bg || setConName == symbol bg
+  , [FTC arr, tt2, _] <- unFApp t2
+  , arrayConName == symbol arr 
+  = unify1 f e θ tt1 tt2
+unify1 f e !θ t1 t2 
+  | [FTC bg, tt2] <- unFApp t2
+  , bagConName == symbol bg || setConName == symbol bg
+  , [FTC arr, tt1, _] <- unFApp t1
+  , arrayConName == symbol arr 
+  = unify1 f e θ tt1 tt2
 unify1 f e !θ (FApp !t1 !t2) (FApp !t1' !t2')
   = unifyMany f e θ [t1, t2] [t1', t2']
 unify1 _ _ !θ (FTC !l1) (FTC !l2)
