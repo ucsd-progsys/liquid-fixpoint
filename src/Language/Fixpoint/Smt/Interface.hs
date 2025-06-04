@@ -280,8 +280,7 @@ makeContextWithSEnv :: Config -> FilePath -> SymEnv -> DefinedFuns -> IO Context
 makeContextWithSEnv cfg f env defns = do
   ctx      <- makeContext cfg f
   let ctx' = ctx {ctxSymEnv = env, ctxDefines = defns}
-  ctx''    <- execStateT declare ctx'
-  return ctx''
+  execStateT declare ctx'
 
 makeContextNoLog :: Config -> IO Context
 makeContextNoLog cfg = do
