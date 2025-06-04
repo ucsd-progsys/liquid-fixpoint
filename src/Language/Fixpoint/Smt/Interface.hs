@@ -179,16 +179,6 @@ commandRaw ctxLog ctxSolver ctxVerbose cmdBS = do
         Data.Text.IO.putStrLn textResponse
       return r
 
-commandB :: Builder -> SmtM Response
---------------------------------------------------------------------------------
-commandB cmdBS       = do
-  ctxLog <- gets ctxLog
-  ctxSolver <- gets ctxSolver
-  forM_ ctxLog $ \h -> lift $ do
-    BS.hPutBuilder h cmdBS
-    LBS.hPutStr h "\n"
-  lift $ SMTLIB.Backends.command_ ctxSolver cmdBS >> return Ok
-
 --------------------------------------------------------------------------------
 {-# SCC command #-}
 command  :: Command -> SmtM Response
@@ -208,6 +198,16 @@ command !cmd       = do
     GetValue _ -> commandRaw ctxLog ctxSolver ctxVerbose cmdBS
     _          -> SMTLIB.Backends.command_ ctxSolver cmdBS >> return Ok
 
+-- | A variant of `command` that accepts a pre-built command
+commandB :: Builder -> SmtM Response
+--------------------------------------------------------------------------------
+commandB cmdBS       = do
+  ctxLog <- gets ctxLog
+  ctxSolver <- gets ctxSolver
+  forM_ ctxLog $ \h -> lift $ do
+    BS.hPutBuilder h cmdBS
+    LBS.hPutStr h "\n"
+  lift $ SMTLIB.Backends.command_ ctxSolver cmdBS >> return Ok
 
 smtSetMbqi :: SmtM ()
 smtSetMbqi = interact' SetMbqi
@@ -278,9 +278,9 @@ makeContext cfg f
 
 makeContextWithSEnv :: Config -> FilePath -> SymEnv -> DefinedFuns -> IO Context
 makeContextWithSEnv cfg f env defns = do
-  ctx     <- makeContext cfg f
+  ctx      <- makeContext cfg f
   let ctx' = ctx {ctxSymEnv = env, ctxDefines = defns}
-  (_, ctx'') <- runStateT declare ctx'
+  ctx''    <- execStateT declare ctx'
   return ctx''
 
 makeContextNoLog :: Config -> IO Context
@@ -340,6 +340,9 @@ makeContext' cfg ctxLog
                   , ctxSymEnv    = mempty
                   , ctxIxs       = []
                   , ctxDefines   = mempty
+                  -- This is a heurstic to avoid generating large sequences of unused `lam_arg` symbols
+                  -- when there's no higher-order reasoning. It might require some tuning on larger codebases
+                  -- if `unknown function/constant lam_arg$XXX` errors are encountered.
                   , ctxLams      = allowHO cfg
                   }
 
@@ -432,6 +435,8 @@ smtCheckSat p
 smtAssert :: Expr -> SmtM ()
 smtAssert p = interact' (Assert Nothing p)
 
+-- the following three functions will emit additional `apply`,
+-- `coerce`, and `lambda` symbols for fresh function sorts as needed
 smtAssertDecl :: Expr -> SmtM ()
 smtAssertDecl p = interactDecl' (Assert Nothing p)
 
@@ -463,6 +468,8 @@ smtBracketAt :: SrcSpan -> String -> SmtM a -> SmtM a
 smtBracketAt sp _msg a =
   smtBracket _msg a `catchSMT` dieAt sp
 
+-- | `smtBracket` adds a new level to the apply stack and saves the last fresh index
+--   on the index stack before the action, and reverts these changes after the action.
 smtBracket :: String -> SmtM a -> SmtM a
 smtBracket _msg a = do
   smtPush
@@ -489,6 +496,8 @@ respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ sho
 interact' :: Command -> SmtM ()
 interact' cmd  = void $ command cmd
 
+-- | a variant of `interact'` which also emits fresh
+--   `apply`, `coerce`, and `lambda` symbols
 interactDecl' :: Command -> SmtM ()
 interactDecl' cmd  = do
   cmdBS <- liftSym $ runSmt2 cmd

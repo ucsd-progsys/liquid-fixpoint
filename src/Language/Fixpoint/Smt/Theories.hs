@@ -323,16 +323,15 @@ type VarAs = Symbol -> Sort -> SymM Builder
 smt2App :: VarAs -> Expr -> [Builder] -> SymM (Maybe Builder)
 --------------------------------------------------------------------------------
 smt2App _ ex@(dropECst -> EVar f) [d]
-  | f == arrConstS = do env <- get
-                        pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == arrConstB = do env <- get
-                        pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == arrConstM = do env <- get
-                        pure $ Just $ key (key "as const" (getTarget env ex)) d
-  | f == setEmpty  = do env <- get
-                        pure $ Just $ key "as set.empty" (getTarget env ex)
-  | f == bagEmpty  = do env <- get
-                        pure $ Just $ key "as bag.empty" (getTarget env ex)
+  | f == arrConstS || f == arrConstB || f == arrConstM =
+      do env <- get
+         pure $ Just $ key (key "as const" (getTarget env ex)) d
+  | f == setEmpty  =
+      do env <- get
+         pure $ Just $ key "as set.empty" (getTarget env ex)
+  | f == bagEmpty  =
+      do env <- get
+         pure $ Just $ key "as bag.empty" (getTarget env ex)
   where
     getTarget :: SymEnv -> Expr -> Builder
     -- const is a function, but SMT expects only the output sort

@@ -110,13 +110,17 @@ data Context = Ctx
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
   , ctxSymEnv  :: !SymEnv
+  -- | The stack of sort indexes which were fresh at the corresponding level of push/pop stack.
   , ctxIxs     :: ![Int]
   , ctxDefines :: DefinedFuns
+  -- | Flag which controls the generation SMT placeholders for lambda arguments
+  --   See also `L.F.Smt.Theories.maxLamArg`
   , ctxLams    :: !Bool
   }
 
--- | SMT monad
-
+-- | SMT monad, used to communicate with the SMT solver backend.
+--   The `SymM` monad embeds into it, as the symbolic state has to be threaded
+--   through for gnerating `apply`s and other function sort symbols.
 type SmtM = StateT Context IO
 
 liftSym :: SymM a -> SmtM a

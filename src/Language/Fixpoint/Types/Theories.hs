@@ -113,6 +113,11 @@ data SymEnv = SymEnv
 {- type FuncSort = {v:Sort | isFFunc v} @-}
 type FuncSort = (SmtSort, SmtSort)
 
+-- | Generating SMT expressions is a stateful process because new symbols ('apply', 'coerce',
+--   'smt_lambda' and 'lam_arg') need to be emitted with unique ids for each newly encountered
+--   function sort. The 'SymM' monad carries the 'SymEnv' state required to track the ids.
+--   The state updates are performed in `L.F.Smt.Serialize` (functions `smt2App`, `smt2Coerc`,
+--   `smt2Lam` and `smtLamArg`, correspondingly).
 type SymM a = State SymEnv a
 
 instance NFData   SymEnv
