@@ -39,7 +39,7 @@ module Language.Fixpoint.Types.Theories (
     , deleteSymEnv
     , insertsSymEnv
     , symbolAtName
-    , symbolAtSmtName
+    , symbolAtSortIndex
 
     -- * Coercing sorts in environments
     , coerceSort
@@ -79,6 +79,13 @@ type Raw = Text
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'
 --------------------------------------------------------------------------------
 
+-- | This is a type of "apply tags", i.e. a stack of lookup maps relating a
+--   function sort to a numeric tag. Every time we issue a `push` a new level
+--   is added to the stack, and correspondingly, a `pop` removes a level. This
+--   way we can emit new tag "lazily", i.e. only the first time they are
+--   encountered in an expression during SMT serialization. This means we
+--   can repeatedly re-emit same definitions in new push/pop brackets, but
+--   this doesn't seem to incur any significant performance penalties.
 type Appls = [M.HashMap FuncSort Int]
 
 lookupAppls :: FuncSort -> Appls -> Maybe Int
@@ -99,6 +106,11 @@ peekAppls :: Appls -> Maybe (M.HashMap FuncSort Int)
 peekAppls [] = Nothing
 peekAppls (x:_) = Just x
 
+-- | In addition to the tag map stack, we also maintain a "workplace" or "current"
+--   map that holds the tags that have been created but not yet emitted at the
+--   current bracket level. After emitting, the contents of the current map are
+--   moved to the top of the map stack, this way we ensure that there are no
+--   duplicate definitions (which crash the SMT solver).
 data SymEnv = SymEnv
   { seSort     :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
   , seTheory   :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
@@ -167,18 +179,16 @@ deleteSymEnv x env = env { seSort = deleteSEnv x (seSort env) }
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
 insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
+symbolAtSortIndex :: Symbol -> Int -> Text
+symbolAtSortIndex mkSym si = appendSymbolText mkSym . Text.pack . show $ si
+{-# SCC symbolAtSortIndex #-}
+
 symbolAtName :: Symbol -> Sort -> SymM Text
 symbolAtName mkSym s =
   do env <- get
-     symbolAtSmtName mkSym (ffuncSort env s)
+     fsi <- funcSortIndex (ffuncSort env s)
+     pure $ symbolAtSortIndex mkSym fsi
 {-# SCC symbolAtName #-}
-
-symbolAtSmtName :: Symbol -> FuncSort -> SymM Text
-symbolAtSmtName mkSym fs =
-  -- formerly: intSymbol mkSym . funcSortIndex env e
-  do fsi <- funcSortIndex fs
-     pure $ appendSymbolText mkSym . Text.pack . show $ fsi
-{-# SCC symbolAtSmtName #-}
 
 funcSortIndex :: FuncSort -> SymM Int
 funcSortIndex fs =

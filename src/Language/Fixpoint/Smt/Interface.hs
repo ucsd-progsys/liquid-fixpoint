@@ -553,13 +553,19 @@ dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
 funcSortVars :: Bool -> F.SymEnv -> [(T.Text, ([F.SmtSort], F.SmtSort))]
 funcSortVars lams env =
+  -- TODO It would probably be even faster (if slightly) to convert `seApplsCur`
+  -- to a key-value list and iterate over it, at least this way we can get rid of
+  -- the unreachable `error` below.
                   [(var applyName  t       , appSort t) | t <- ts]
   ++              [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
   ++              [(var lambdaName t       , lamSort t) | t <- ts]
   ++ if lams then [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ] else []
   where
     var :: F.Symbol -> F.FuncSort -> T.Text
-    var n t       = evalState (F.symbolAtSmtName n t) env
+    var n t       =
+      case M.lookup t (F.seApplsCur env) of
+        Just i  -> symbolAtSortIndex n i
+        Nothing -> error "funcSortVars: no index for sort in seApplsCur"
     ts            = M.keys $ F.seApplsCur env
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)

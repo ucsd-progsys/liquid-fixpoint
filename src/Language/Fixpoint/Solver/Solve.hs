@@ -134,6 +134,11 @@ solve_ cfg fi s0 ks wkl = do
   (fi1, s4, res1) <- case resStatus res0 of  {- first run the interpreter -}
     Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && interpreter cfg -> do
       fi1 <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
+      -- TODO the `clearApplys` is a workaround needed because `sendConcreteBindingsToSMT`
+      -- seems to not remove the tags introduced in its bracket from the tag stack,
+      -- meanwhile the SMT solver pops the corresponding definition. The result is
+      -- that when the same definition needs to re-emitted in the interpreter/PLE,
+      -- LH thinks it's still in the context, which causes the SMT solver to crash.
       clearApplys
       (s4, res1) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
         s4    <- {- SCC "sol-refine" -} refine bindingsInSmt s3 wkl

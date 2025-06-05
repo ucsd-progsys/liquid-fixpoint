@@ -214,16 +214,19 @@ smt2Var x t
                             Just s | isPolyInst s t -> smt2VarAs x t
                             _                       -> smt2 x
 
-smtLamArg :: Symbol -> Sort -> SymM Builder
-smtLamArg x t =
-  do s <- symbolAtName x (FFunc t FInt)
-     pure $ Builder.fromText s
-
 smt2VarAs :: Symbol -> Sort -> SymM Builder
 smt2VarAs x t =
   do s <- smt2 x
      s1 <- smt2SortMono x t
      pure $ parenSeqs ["as", s, s1]
+
+-- the next four functions (ones containing a call to `symbolAtName`) can trigger
+-- an expansion of the "nursery" tag table ('seApplsCur' in 'SymEnv') when processing
+-- a fresh function sort
+smtLamArg :: Symbol -> Sort -> SymM Builder
+smtLamArg x t =
+  do s <- symbolAtName x (FFunc t FInt)
+     pure $ Builder.fromText s
 
 smt2Lam :: (Symbol, Sort) -> Expr -> SymM Builder
 smt2Lam (x, xT) full@(ECst _ eT) =
