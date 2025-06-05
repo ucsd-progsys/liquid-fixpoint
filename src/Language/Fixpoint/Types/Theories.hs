@@ -181,7 +181,6 @@ insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
 symbolAtSortIndex :: Symbol -> Int -> Text
 symbolAtSortIndex mkSym si = appendSymbolText mkSym . Text.pack . show $ si
-{-# SCC symbolAtSortIndex #-}
 
 symbolAtName :: Symbol -> Sort -> SymM Text
 symbolAtName mkSym s =
