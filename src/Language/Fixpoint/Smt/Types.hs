@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -25,8 +26,15 @@ module Language.Fixpoint.Smt.Types (
     -- * SMTLIB2 Process Context
     , Context (..)
 
-    ) where
+    -- * SMT monad
+    , SmtM
+    , liftSym
+    , catchSMT
+    , bracketSMT
 
+    ) where
+import           Control.Exception
+import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config (ElabFlags)
@@ -102,15 +110,42 @@ data Context = Ctx
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
   , ctxSymEnv  :: !SymEnv
+  -- | The stack of sort indexes which were fresh at the corresponding level of push/pop stack.
+  , ctxIxs     :: ![Int]
   , ctxDefines :: DefinedFuns
+  -- | Flag which controls the generation SMT placeholders for lambda arguments
+  --   See also `L.F.Smt.Theories.maxLamArg`
+  , ctxLams    :: !Bool
   }
+
+-- | SMT monad, used to communicate with the SMT solver backend.
+--   The `SymM` monad embeds into it, as the symbolic state has to be threaded
+--   through for gnerating `apply`s and other function sort symbols.
+type SmtM = StateT Context IO
+
+liftSym :: SymM a -> SmtM a
+liftSym s =
+  do ctx <- get
+     let (a, env') = runState s (ctxSymEnv ctx)
+     put (ctx {ctxSymEnv = env'})
+     pure a
+
+catchSMT :: Exception e => SmtM a -> (e -> IO a) -> SmtM a
+catchSMT action handler = StateT $ \s -> catch (runStateT action s) (fmap (, s) . handler)
+
+bracketSMT :: SmtM a -> (a -> IO b) -> (a -> SmtM c) -> SmtM c
+bracketSMT acquire release use = StateT $ \s ->
+  bracket
+    (runStateT acquire s)
+    (\(resource, _) -> release resource)
+    (\(resource, intermediateState) -> runStateT (use resource) intermediateState)
 
 --------------------------------------------------------------------------------
 -- | AST Conversion: Types that can be serialized ------------------------------
 --------------------------------------------------------------------------------
 
 class SMTLIB2 a where
-  smt2 :: SymEnv -> a -> Builder
+  smt2 :: a -> SymM Builder
 
-runSmt2 :: (SMTLIB2 a) => SymEnv -> a -> Builder
+runSmt2 :: (SMTLIB2 a) => a -> SymM Builder
 runSmt2 = smt2

@@ -20,11 +20,18 @@ module Language.Fixpoint.Types.Theories (
 
     -- * Theory Sorts
     , SmtSort (..)
+    , FuncSort
     , sortSmtSort
     , isIntSmtSort
 
+    , mergeTopAppls
+    , pushAppls
+    , popAppls
+    , peekAppls
+
     -- * Symbol Environments
     , SymEnv (..)
+    , SymM
     , symEnv
     , symEnvSort
     , symEnvTheory
@@ -32,7 +39,7 @@ module Language.Fixpoint.Types.Theories (
     , deleteSymEnv
     , insertsSymEnv
     , symbolAtName
-    , symbolAtSmtName
+    , symbolAtSortIndex
 
     -- * Coercing sorts in environments
     , coerceSort
@@ -46,12 +53,13 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
+import           Control.Applicative
+import           Control.Monad.State
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
-import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ.Compat
@@ -70,41 +78,82 @@ type Raw = Text
 --------------------------------------------------------------------------------
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'
 --------------------------------------------------------------------------------
+
+-- | This is a type of "apply tags", i.e. a stack of lookup maps relating a
+--   function sort to a numeric tag. Every time we issue a `push` a new level
+--   is added to the stack, and correspondingly, a `pop` removes a level. This
+--   way we can emit new tag "lazily", i.e. only the first time they are
+--   encountered in an expression during SMT serialization. This means we
+--   can repeatedly re-emit same definitions in new push/pop brackets, but
+--   this doesn't seem to incur any significant performance penalties.
+type Appls = [M.HashMap FuncSort Int]
+
+lookupAppls :: FuncSort -> Appls -> Maybe Int
+lookupAppls fs = foldr (\hm acc -> acc <|> M.lookup fs hm) Nothing
+
+mergeTopAppls :: M.HashMap FuncSort Int -> Appls -> Appls
+mergeTopAppls m (top : rest) = (top <> m) : rest
+mergeTopAppls m [] = [m]
+
+pushAppls :: Appls -> Appls
+pushAppls aps = M.empty : aps
+
+popAppls :: Appls -> Appls
+popAppls [] = []
+popAppls (_:xs) = xs
+
+peekAppls :: Appls -> Maybe (M.HashMap FuncSort Int)
+peekAppls [] = Nothing
+peekAppls (x:_) = Just x
+
+-- | In addition to the tag map stack, we also maintain a "workplace" or "current"
+--   map that holds the tags that have been created but not yet emitted at the
+--   current bracket level. After emitting, the contents of the current map are
+--   moved to the top of the map stack, this way we ensure that there are no
+--   duplicate definitions (which crash the SMT solver).
 data SymEnv = SymEnv
-  { seSort   :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
-  , seTheory :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
-  , seData   :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
-  , seLits   :: !(SEnv Sort)              -- ^ Distinct Constant symbols
-  , seAppls  :: !(M.HashMap FuncSort Int) -- ^ Types at which `apply` was used;
-                                           --   see [NOTE:apply-monomorphization]
+  { seSort     :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
+  , seTheory   :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
+  , seData     :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
+  , seLits     :: !(SEnv Sort)              -- ^ Distinct Constant symbols
+  , seAppls    :: !Appls                    -- ^ Stack of function sort maps
+  , seApplsCur :: !(M.HashMap FuncSort Int) -- ^ Current function sort map
+  , seIx       :: !Int                      -- ^ Largest unused index for sorts
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
 {- type FuncSort = {v:Sort | isFFunc v} @-}
 type FuncSort = (SmtSort, SmtSort)
 
+-- | Generating SMT expressions is a stateful process because new symbols ('apply', 'coerce',
+--   'smt_lambda' and 'lam_arg') need to be emitted with unique ids for each newly encountered
+--   function sort. The 'SymM' monad carries the 'SymEnv' state required to track the ids.
+--   The state updates are performed in `L.F.Smt.Serialize` (functions `smt2App`, `smt2Coerc`,
+--   `smt2Lam` and `smtLamArg`, correspondingly).
+type SymM a = State SymEnv a
+
 instance NFData   SymEnv
 instance S.Store SymEnv
 
 instance Semigroup SymEnv where
-  e1 <> e2 = SymEnv { seSort   = seSort   e1 <> seSort   e2
-                    , seTheory = seTheory e1 <> seTheory e2
-                    , seData   = seData   e1 <> seData   e2
-                    , seLits   = seLits   e1 <> seLits   e2
-                    , seAppls  = seAppls  e1 <> seAppls  e2
+  e1 <> e2 = SymEnv { seSort     = seSort     e1 <> seSort     e2
+                    , seTheory   = seTheory   e1 <> seTheory   e2
+                    , seData     = seData     e1 <> seData     e2
+                    , seLits     = seLits     e1 <> seLits     e2
+                    , seAppls    = zipWith (<>) (seAppls e1) (seAppls e2)
+                    , seApplsCur = seApplsCur e1 <> seApplsCur e2
+                    , seIx       = seIx       e1 `max` seIx    e2
                     }
 
 instance Monoid SymEnv where
-  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty
+  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv [] mempty 0
   mappend       = (<>)
 
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
+symEnv xEnv fEnv ds ls _ = SymEnv xEnv' fEnv dEnv ls [] mempty 0
   where
     xEnv'   = unionSEnv xEnv wiredInEnv
     dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
-    sortMap = M.fromList (zip smts [0..])
-    smts    = funcSorts dEnv ts
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNINTERPRETED but POLYMORPHIC, hence need to go through
@@ -114,88 +163,6 @@ wiredInEnv = M.fromList
   [ (toIntName, mkFFunc 1 [FVar 0, FInt])
   , (tyCastName, FAbs 0 $ FAbs 1 $ FFunc (FVar 0) (FVar 1))
   ]
-
-
--- | 'funcSorts' attempts to compute a list of all the input-output sorts
---   at which applications occur. This is a gross hack; as during unfolding
---   we may create _new_ terms with weird new sorts. Ideally, we MUST allow
---   for EXTENDING the apply-sorts with those newly created terms.
---   the solution is perhaps to *preface* each VC query of the form
---
---      push
---      assert p
---      check-sat
---      pop
---
---   with the declarations needed to make 'p' well-sorted under SMT, i.e.
---   change the above to
---
---      declare apply-sorts
---      push
---      assert p
---      check-sat
---      pop
---
---   such a strategy would NUKE the entire apply-sort machinery from the CODE base.
---   [TODO]: dynamic-apply-declaration
-
-funcSorts :: SEnv DataDecl -> [Sort] -> [FuncSort]
-funcSorts dEnv ts = [ (t1, t2) | t1 <- smts, t2 <- smts]
-  where
-    smts = Misc.sortNub $ concat $ [ tx t1 ++ tx t2 | FFunc t1 t2 <- ts ]
-    tx   = inlineArrSetBag False dEnv
-
--- Related to the above, after merging #688, we now allow types other than
--- Int to which Arrays/Sets/Bags can be applied.
--- However, the `sortSmtSort` function below, previously used in `funcSorts`,
--- only instantiates type variables at Ints. This causes the solver to crash
--- when PLE generates apply queries for polymorphic sets (see
--- https://github.com/ucsd-progsys/liquidhaskell/issues/2438). The following
--- pair of functions is a temporary fix for this - it generates additional
--- array/set/bag sorts instantiated at all user types for a "polymorphic depth 1"
--- (i.e., `Array (Foo Int) Int` but not `Array (Foo (Foo Int)) Int`, to keep
--- the applys table from blowing up exponentially). Ultimately, a general
--- solution should be implemented for generating ad-hoc sets of applys on the
--- fly, as described above.
-
-inlineArrSetBag :: Bool -> SEnv DataDecl -> Sort -> [SmtSort]
-inlineArrSetBag isASB env t = go . unAbs $ t
-  where
-    m = sortAbs t
-    go (FFunc _ _)    = [SInt]
-    go FInt           = [SInt]
-    go FReal          = [SReal]
-    go t
-      | t == boolSort = [SBool]
-      | isString t    = [SString]
-    go (FVar _)
-      | isASB     = SInt : map (\q -> let dd = snd q in
-                                      SData (ddTyCon dd) (replicate (ddVars dd) SInt))
-                               (M.toList $ seBinds env)
-      | otherwise = [SInt]
-    go t
-      | (ct:ts) <- unFApp t = inlineArrSetBagFApp m env ct ts
-      | otherwise = error "Unexpected empty 'unFApp t'"
-
-inlineArrSetBagFApp :: Int -> SEnv DataDecl -> Sort -> [Sort] -> [SmtSort]
-inlineArrSetBagFApp m env = go
-  where
-    go (FTC c) [a]
-      | setConName == symbol c   = SSet <$> inlineArrSetBag True env a
-    go (FTC c) [a]
-      | bagConName == symbol c   = SBag <$> inlineArrSetBag True env a
-    go (FTC c) [a, b]
-      | arrayConName == symbol c = SArray <$> inlineArrSetBag True env a <*> inlineArrSetBag True env b
-    go (FTC bv) [FTC s]
-      | bitVecName == symbol bv
-      , Just n <- sizeBv s      = [SBitVec n]
-    go s []
-      | isString s              = [SString]
-    go (FTC c) ts
-      | Just n <- tyArgs c env
-      , let i = n - length ts   = [SData c ((inlineArrSetBag False env . FAbs m =<< ts) ++ replicate i SInt)]
-    go _ _                      = [SInt]
-
 
 symEnvTheory :: Symbol -> SymEnv -> Maybe TheorySymbol
 symEnvTheory x env = lookupSEnv x (seTheory env)
@@ -212,20 +179,30 @@ deleteSymEnv x env = env { seSort = deleteSEnv x (seSort env) }
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
 insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
-symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Text
-symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
+symbolAtSortIndex :: Symbol -> Int -> Text
+symbolAtSortIndex mkSym si = appendSymbolText mkSym . Text.pack . show $ si
+
+symbolAtName :: Symbol -> Sort -> SymM Text
+symbolAtName mkSym s =
+  do env <- get
+     fsi <- funcSortIndex (ffuncSort env s)
+     pure $ symbolAtSortIndex mkSym fsi
 {-# SCC symbolAtName #-}
 
-symbolAtSmtName :: (PPrint a) => Symbol -> SymEnv -> a -> FuncSort -> Text
-symbolAtSmtName mkSym env e =
-  -- formerly: intSymbol mkSym . funcSortIndex env e
-  appendSymbolText mkSym . Text.pack . show . funcSortIndex env e
-{-# SCC symbolAtSmtName #-}
-
-funcSortIndex :: (PPrint a) => SymEnv -> a -> FuncSort -> Int
-funcSortIndex env e fs = M.lookupDefault err fs (seAppls env)
-  where
-    err = panic ("Unknown func-sort: " ++ show fs ++ " for " ++ showpp e)
+funcSortIndex :: FuncSort -> SymM Int
+funcSortIndex fs =
+  do env <- get
+     let aps = seAppls env
+     let apsc = seApplsCur env
+     case lookupAppls fs aps of
+      Just i  -> pure i
+      Nothing ->
+        case M.lookup fs apsc of
+          Just i  -> pure i
+          Nothing ->
+           do let i = seIx env
+              modify (\env -> env { seApplsCur = M.insert fs i apsc , seIx = 1 + i })
+              pure i
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
 ffuncSort env t      = {- tracepp ("ffuncSort " ++ showpp (t1,t2)) -} (tx t1, tx t2)
@@ -335,9 +312,9 @@ fappSmtSort poly m env = go
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
 
     go (FTC c) [a]
-      | setConName == symbol c  = SSet (sortSmtSort poly env a)
+      | setConName == symbol c   = SSet (sortSmtSort poly env a)
     go (FTC c) [a]
-      | bagConName == symbol c  = SBag (sortSmtSort poly env a)
+      | bagConName == symbol c   = SBag (sortSmtSort poly env a)
     go (FTC c) [a, b]
       | arrayConName == symbol c = SArray (sortSmtSort poly env a) (sortSmtSort poly env b)
     go (FTC bv) [FTC s]
@@ -384,9 +361,11 @@ coerceSort ef = (if elabSetBag ef then coerceSetBagToArray else id) . coerceMapT
 
 coerceEnv :: ElabFlags -> SymEnv -> SymEnv
 coerceEnv slv env =
-  SymEnv { seSort   = coerceSortEnv slv (seSort env)
-         , seTheory = seTheory env
-         , seData   = seData   env
-         , seLits   = seLits   env
-         , seAppls  = seAppls  env
+  SymEnv { seSort     = coerceSortEnv slv (seSort env)
+         , seTheory   = seTheory env
+         , seData     = seData   env
+         , seLits     = seLits   env
+         , seAppls    = seAppls  env
+         , seApplsCur = seApplsCur env
+         , seIx       = seIx     env
          }

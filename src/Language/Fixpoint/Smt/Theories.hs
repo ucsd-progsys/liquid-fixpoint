@@ -3,7 +3,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ViewPatterns              #-}
 
 {-# OPTIONS_GHC -Wno-orphans           #-}
@@ -56,6 +55,7 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
+import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
@@ -298,7 +298,7 @@ smt2Symbol :: SymEnv -> Symbol -> Maybe Builder
 smt2Symbol env x = fromText . tsRaw <$> symEnvTheory x env
 
 instance SMTLIB2 SmtSort where
-  smt2 _ = smt2SmtSort
+  smt2 s = pure $ smt2SmtSort s
 
 smt2SmtSort :: SmtSort -> Builder
 smt2SmtSort SInt         = "Int"
@@ -318,37 +318,41 @@ smt2SmtSort (SData c ts) = parenSeqs [symbolBuilder c, smt2SmtSorts ts]
 smt2SmtSorts :: [SmtSort] -> Builder
 smt2SmtSorts = seqs . fmap smt2SmtSort
 
-type VarAs = SymEnv -> Symbol -> Sort -> Builder
+type VarAs = Symbol -> Sort -> SymM Builder
 --------------------------------------------------------------------------------
-smt2App :: VarAs -> SymEnv -> Expr -> [Builder] -> Maybe Builder
+smt2App :: VarAs -> Expr -> [Builder] -> SymM (Maybe Builder)
 --------------------------------------------------------------------------------
-smt2App _ env ex@(dropECst -> EVar f) [d]
-  | f == arrConstS = Just (key (key "as const" (getTarget ex)) d)
-  | f == arrConstB = Just (key (key "as const" (getTarget ex)) d)
-  | f == arrConstM = Just (key (key "as const" (getTarget ex)) d)
-  | f == setEmpty  = Just (key "as set.empty" (getTarget ex))
-  | f == bagEmpty  = Just (key "as bag.empty" (getTarget ex))
+smt2App _ ex@(dropECst -> EVar f) [d]
+  | f == arrConstS || f == arrConstB || f == arrConstM =
+      do env <- get
+         pure $ Just $ key (key "as const" (getTarget env ex)) d
+  | f == setEmpty  =
+      do env <- get
+         pure $ Just $ key "as set.empty" (getTarget env ex)
+  | f == bagEmpty  =
+      do env <- get
+         pure $ Just $ key "as bag.empty" (getTarget env ex)
   where
-    getTarget :: Expr -> Builder
+    getTarget :: SymEnv -> Expr -> Builder
     -- const is a function, but SMT expects only the output sort
-    getTarget (ECst _ t) = smt2SmtSort $ sortSmtSort True (seData env) (ffuncOut t)
-    getTarget e = bShow e
+    getTarget env (ECst _ t) = smt2SmtSort $ sortSmtSort True (seData env) (ffuncOut t)
+    getTarget _ e = bShow e
 
-smt2App k env ex (builder:builders)
-  | Just fb <- smt2AppArg k env ex
-  = Just $ key fb (builder <> mconcat [ " " <> d | d <- builders])
+smt2App k ex (builder:builders) =
+  do a <- smt2AppArg k ex
+     pure $ (\fb -> key fb (builder <> mconcat [ " " <> d | d <- builders])) <$> a
+smt2App _ _ [] = pure Nothing
 
-smt2App _ _ _ _    = Nothing
-
-smt2AppArg :: VarAs -> SymEnv -> Expr -> Maybe Builder
-smt2AppArg k env (ECst (dropECst -> EVar f) t)
-  | Just fThy <- symEnvTheory f env
-  = Just $ if isPolyCtor fThy t
-            then k env f (ffuncOut t)
-            else fromText (tsRaw fThy)
-
-smt2AppArg _ _ _
-  = Nothing
+smt2AppArg :: VarAs -> Expr -> SymM (Maybe Builder)
+smt2AppArg k (ECst (dropECst -> EVar f) t)
+  = do env <- get
+       case symEnvTheory f env of
+         Just fThy -> if isPolyCtor fThy t
+                           then Just <$> k f (ffuncOut t)
+                           else pure $ Just $ fromText (tsRaw fThy)
+         Nothing   -> pure Nothing
+smt2AppArg _ _
+  = pure Nothing
 
 isPolyCtor :: TheorySymbol -> Sort -> Bool
 isPolyCtor fThy t = isPolyInst (tsSort fThy) t && tsInterp fThy == Ctor
@@ -634,12 +638,12 @@ bvConcatSort = FAbs 0 $ FAbs 1 $ FAbs 2 $
 interpSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 interpSym x n t = (x, Thy x n t Theory)
 
--- This variable is uded to generate the lambda names `lam_arg$n` in
+-- This variable is used to generate the lambda names `lam_arg$n` in
 -- `Interface.hs` that will be used during defunctionalization in
--- `Defunctionalize.hs`, is a pretty gross hack as if the user typees in the
--- program or ple generates a term that has more than `maxLamArg` lambda binders
--- one inside the other, the smt will crash complaining that
--- `lam_arg${maxLamArg}` was not declared.
+-- `Defunctionalize.hs`, is a pretty gross hack as if the user types in the
+-- program or PLE generates a term that has more than `maxLamArg` lambda binders
+-- one inside the other, the SMT will crash complaining that
+-- `lam_arg${maxLamArg + k}` was not declared.
 maxLamArg :: Int
 maxLamArg = 20
 

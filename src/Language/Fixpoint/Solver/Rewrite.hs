@@ -30,6 +30,7 @@ import           GHC.Generics
 import           Text.PrettyPrint (text)
 import           Language.Fixpoint.Types.Config (RESTOrdering(..))
 import           Language.Fixpoint.Types hiding (simplify)
+import           Language.Fixpoint.Smt.Types (SmtM)
 import           Language.REST
 import           Language.REST.KBO (kbo)
 import           Language.REST.LPO (lpo)
@@ -54,7 +55,7 @@ data RWTerminationOpts =
   | RWTerminationCheckDisabled
 
 data RewriteArgs = RWArgs
- { isRWValid          :: Expr -> IO Bool
+ { isRWValid          :: Expr -> SmtM Bool
  , rwTerminationOpts  :: RWTerminationOpts
  }
 
@@ -128,7 +129,7 @@ getRewrite ::
   -> oc
   -> SubExpr
   -> AutoRewrite
-  -> MaybeT IO ((Expr, Expr), Expr, oc)
+  -> MaybeT SmtM ((Expr, Expr), Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
   do
     su <- MaybeT $ return $ unify freeVars lhs subE
@@ -145,7 +146,7 @@ getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
           (eqn, expr', c')
       RWTerminationCheckDisabled -> (eqn, expr', c)
   where
-    check :: Expr -> MaybeT IO ()
+    check :: Expr -> MaybeT SmtM ()
     check e = do
       valid <- MaybeT $ Just <$> isRWValid rwArgs e
       guard valid

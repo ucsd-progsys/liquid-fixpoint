@@ -14,6 +14,7 @@
 
 module Language.Fixpoint.Smt.Serialize (smt2SortMono) where
 
+import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Types
@@ -27,50 +28,65 @@ import           Language.Fixpoint.Utils.Builder as Builder
 -- import Debug.Trace (trace)
 
 instance SMTLIB2 (Symbol, Sort) where
-  smt2 env c@(sym, t) = -- build "({} {})" (smt2 env sym, smt2SortMono c env t)
-                        parenSeqs [smt2 env sym, smt2SortMono c env t]
+  smt2 c@(sym, t) =
+    -- build "({} {})" (smt2 env sym, smt2SortMono c env t)
+    do s <- smt2 sym
+       ss <- smt2SortMono c t
+       pure $ parenSeqs [s , ss]
 
 instance SMTLIB2 (Symbol, Expr) where
-  smt2 env (sym, e) =  parenSeqs [smt2 env sym, smt2 env e]
+  smt2 (sym, e) =
+    do s <- smt2 sym
+       ss <- smt2 e
+       pure $ parenSeqs [s, ss]
 
-smt2SortMono, smt2SortPoly :: (PPrint a) => a -> SymEnv -> Sort -> Builder
+smt2SortMono, smt2SortPoly :: (PPrint a) => a -> Sort -> SymM Builder
 smt2SortMono = smt2Sort False
 smt2SortPoly = smt2Sort True
 
-smt2Sort :: (PPrint a) => Bool -> a -> SymEnv -> Sort -> Builder
-smt2Sort poly _ env t = smt2 env (Thy.sortSmtSort poly (seData env) t)
+smt2Sort :: (PPrint a) => Bool -> a -> Sort -> SymM Builder
+smt2Sort poly _ t =
+  do env <- get
+     smt2 (Thy.sortSmtSort poly (seData env) t)
 
-smt2data :: SymEnv -> [DataDecl] -> Builder
-smt2data env = smt2data' env . map padDataDecl
+smt2data :: [DataDecl] -> SymM Builder
+smt2data = smt2data' . map padDataDecl
 
-smt2data' :: SymEnv -> [DataDecl] -> Builder
-smt2data' env ds = seqs [ parens $ smt2many (smt2dataname env <$> ds)
-                        , parens $ smt2many (smt2datactors env <$> ds)
-                        ]
+smt2data' :: [DataDecl] -> SymM Builder
+smt2data' ds =
+  do n <- traverse smt2dataname ds
+     d <- traverse smt2datactors ds
+     pure $ seqs [ parens $ smt2many n , parens $ smt2many d ]
 
 
-smt2dataname :: SymEnv -> DataDecl -> Builder
-smt2dataname env (DDecl tc as _) = parenSeqs [name, n]
+smt2dataname :: DataDecl -> SymM Builder
+smt2dataname (DDecl tc as _) =
+  do name <- smt2 (symbol tc)
+     n    <- smt2 as
+     pure $ parenSeqs [name, n]
+
+
+smt2datactors :: DataDecl -> SymM Builder
+smt2datactors (DDecl _ as cs) =
+  do ds <- traverse (smt2ctor as) cs
+     if as > 0
+      then do tvars <- traverse smt2TV [0..(as-1)]
+              pure $ parenSeqs ["par", parens (smt2many tvars), parens (smt2many ds)]
+      else pure $                                               parens (smt2many ds)
   where
-    name  = smt2 env (symbol tc)
-    n     = smt2 env as
+    smt2TV = smt2 . SVar
 
+smt2ctor :: Int -> DataCtor -> SymM Builder
+smt2ctor as (DCtor c fs) =
+  do h <- smt2 c
+     t <- traverse (smt2field as) fs
+     pure $ parenSeqs (h : t)
 
-smt2datactors :: SymEnv -> DataDecl -> Builder
-smt2datactors env (DDecl _ as cs)
-  | as > 0       = parenSeqs ["par", parens tvars, parens ds]
-  | otherwise    =                                 parens ds
-  where
-    tvars        = smt2many (smt2TV <$> [0..(as-1)])
-    smt2TV       = smt2 env . SVar
-    ds           = smt2many (smt2ctor env as <$> cs)
-
-smt2ctor :: SymEnv -> Int -> DataCtor -> Builder
-
-smt2ctor env as (DCtor c fs)  = parenSeqs (smt2 env c : (smt2field env as <$> fs))
-
-smt2field :: SymEnv -> Int -> DataField -> Builder
-smt2field env as d@(DField x t) = parenSeqs [smt2 env x, smt2SortPoly d env $ mkPoly as t]
+smt2field :: Int -> DataField -> SymM Builder
+smt2field as d@(DField x t) =
+  do s <- smt2 x
+     ss <- smt2SortPoly d $ mkPoly as t
+     pure $ parenSeqs [s , ss]
 
 -- | SMTLIB/Z3 don't like "unused" type variables; they get pruned away and
 --   cause wierd hassles. See tests/pos/adt_poly_dead.fq for an example.
@@ -98,121 +114,151 @@ declUsedVars = sortNub . Vis.foldDataDecl go []
     go is _        = is
 
 instance SMTLIB2 Symbol where
-  smt2 env s
-    | Just t <- Thy.smt2Symbol env s = t
-  smt2 _ s                           = symbolBuilder s
-
+  smt2 s = do env <- get
+              case Thy.smt2Symbol env s of
+                Just t  -> pure t
+                Nothing -> pure $ symbolBuilder s
 instance SMTLIB2 Int where
-  smt2 _ = Builder.fromString . show
+  smt2 i = pure $ Builder.fromString $ show i
 
 instance SMTLIB2 LocSymbol where
-  smt2 env = smt2 env . val
+  smt2 = smt2 . val
 
 instance SMTLIB2 SymConst where
-  smt2 env = smt2 env . symbol
+  smt2 = smt2 . symbol
 
 instance SMTLIB2 Constant where
-  smt2 _ (I n)   = bShow n
-  smt2 _ (R d)   = bFloat d
-  smt2 _ (L t _) = fromText t
+  smt2 (I n)   = pure $ bShow n
+  smt2 (R d)   = pure $ bFloat d
+  smt2 (L t _) = pure $ fromText t
 
 instance SMTLIB2 Bop where
-  smt2 _ Plus   = "+"
-  smt2 _ Minus  = "-"
-  smt2 _ Times  = symbolBuilder mulFuncName
-  smt2 _ Div    = symbolBuilder divFuncName
-  smt2 _ RTimes = "*"
-  smt2 _ RDiv   = "/"
-  smt2 _ Mod    = "mod"
+  smt2 Plus   = pure "+"
+  smt2 Minus  = pure "-"
+  smt2 Times  = pure $ symbolBuilder mulFuncName
+  smt2 Div    = pure $ symbolBuilder divFuncName
+  smt2 RTimes = pure "*"
+  smt2 RDiv   = pure "/"
+  smt2 Mod    = pure "mod"
 
 instance SMTLIB2 Brel where
-  smt2 _ Eq    = "="
-  smt2 _ Ueq   = "="
-  smt2 _ Gt    = ">"
-  smt2 _ Ge    = ">="
-  smt2 _ Lt    = "<"
-  smt2 _ Le    = "<="
-  smt2 _ _     = errorstar "SMTLIB2 Brel"
+  smt2 Eq  = pure "="
+  smt2 Ueq = pure "="
+  smt2 Gt  = pure ">"
+  smt2 Ge  = pure ">="
+  smt2 Lt  = pure "<"
+  smt2 Le  = pure "<="
+  smt2 _   = errorstar "SMTLIB2 Brel"
 
 -- NV TODO: change the way EApp is printed
 instance SMTLIB2 Expr where
-  smt2 env (ESym z)         = smt2 env z
-  smt2 env (ECon c)         = smt2 env c
-  smt2 env (EVar x)         = smt2 env x
-  smt2 env e@(EApp _ _)     = smt2App env e
-  smt2 env (ENeg e)         = parenSeqs ["-", smt2 env e]
-  smt2 env (EBin o e1 e2)   = parenSeqs [smt2 env o, smt2 env e1, smt2 env e2]
-  smt2 env (ELet x e1 e2)   = parenSeqs ["let", parens (smt2 env (x, e1)), smt2 env e2]
-  smt2 env (EIte e1 e2 e3)  = parenSeqs ["ite", smt2 env e1, smt2 env e2, smt2 env e3]
-  smt2 env (ECst e t)       = smt2Cast env e t
-  smt2 _   PTrue            = "true"
-  smt2 _   PFalse           = "false"
-  smt2 _   (PAnd [])        = "true"
-  smt2 env (PAnd ps)        = parenSeqs ["and", smt2s env ps]
-  smt2 _   (POr [])         = "false"
-  smt2 env (POr ps)         = parenSeqs ["or", smt2s env ps]
-  smt2 env (PNot p)         = parenSeqs ["not", smt2 env p]
-  smt2 env (PImp p q)       = parenSeqs ["=>", smt2 env p, smt2 env q]
-  smt2 env (PIff p q)       = parenSeqs ["=", smt2 env p, smt2 env q]
-  smt2 env (PExist [] p)    = smt2 env p
-  smt2 env (PExist xs p)    = parenSeqs ["exists", parens (smt2s env xs), smt2 env p]
-  smt2 env (PAll   [] p)    = smt2 env p
-  smt2 env (PAll   xs p)    = parenSeqs ["forall", parens (smt2s env xs), smt2 env p]
-  smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
-  smt2 env (ELam b e)       = smt2Lam env b e
-  smt2 env (ECoerc t1 t2 e) = smt2Coerc env t1 t2 e
-  smt2 _   e                = panic ("smtlib2 Pred  " ++ show e)
-
-
+  smt2 (ESym z)         = smt2 z
+  smt2 (ECon c)         = smt2 c
+  smt2 (EVar x)         = smt2 x
+  smt2 e@(EApp _ _)     = smt2App e
+  smt2 (ENeg e)         = do s <- smt2 e
+                             pure $ parenSeqs ["-", s]
+  smt2 (EBin o e1 e2)   = do so <- smt2 o
+                             s1 <- smt2 e1
+                             s2 <- smt2 e2
+                             pure $ parenSeqs [so, s1, s2]
+  smt2 (ELet x e1 e2)   = do s1 <- smt2 (x, e1)
+                             s2 <- smt2 e2
+                             pure $ parenSeqs ["let", parens s1, s2]
+  smt2 (EIte e1 e2 e3)  = do s1 <- smt2 e1
+                             s2 <- smt2 e2
+                             s3 <- smt2 e3
+                             pure $ parenSeqs ["ite", s1, s2, s3]
+  smt2 (ECst e t)       = smt2Cast e t
+  smt2 PTrue            = pure "true"
+  smt2 PFalse           = pure "false"
+  smt2 (PAnd [])        = pure "true"
+  smt2 (PAnd ps)        = do s <- smt2s ps
+                             pure $ parenSeqs ["and", s]
+  smt2 (POr [])         = pure "false"
+  smt2 (POr ps)         = do s <- smt2s ps
+                             pure $ parenSeqs ["or", s]
+  smt2 (PNot p)         = do s <- smt2 p
+                             pure $ parenSeqs ["not", s]
+  smt2 (PImp p q)       = do s1 <- smt2 p
+                             s2 <- smt2 q
+                             pure $ parenSeqs ["=>", s1, s2]
+  smt2 (PIff p q)       = do s1 <- smt2 p
+                             s2 <- smt2 q
+                             pure $ parenSeqs ["=", s1, s2]
+  smt2 (PExist [] p)    = smt2 p
+  smt2 (PExist xs p)    = do s <- smt2s xs
+                             s1 <- smt2 p
+                             pure $ parenSeqs ["exists", parens s, s1]
+  smt2 (PAll   [] p)    = smt2 p
+  smt2 (PAll   xs p)    = do s <- smt2s xs
+                             s1 <- smt2 p
+                             pure $ parenSeqs ["forall", parens s, s1]
+  smt2 (PAtom r e1 e2)  = mkRel r e1 e2
+  smt2 (ELam b e)       = smt2Lam b e
+  smt2 (ECoerc t1 t2 e) = smt2Coerc t1 t2 e
+  smt2 e                = panic ("smtlib2 Pred  " ++ show e)
 
 -- | smt2Cast uses the 'as x T' pattern needed for polymorphic ADT constructors
 --   like Nil, see `tests/pos/adt_list_1.fq`
 
-smt2Cast :: SymEnv -> Expr -> Sort -> Builder
-smt2Cast env (EVar x) t = smt2Var env x t
-smt2Cast env e        _ = smt2    env e
+smt2Cast :: Expr -> Sort -> SymM Builder
+smt2Cast (EVar x) t = smt2Var x t
+smt2Cast e        _ = smt2    e
 
-smt2Var :: SymEnv -> Symbol -> Sort -> Builder
-smt2Var env x t
-  | isLamArgSymbol x            = smtLamArg env x t
-  | Just s <- symEnvSort x env
-  , isPolyInst s t              = smt2VarAs env x t
-  | otherwise                   = smt2 env x
+smt2Var :: Symbol -> Sort -> SymM Builder
+smt2Var x t
+  | isLamArgSymbol x = smtLamArg x t
+  | otherwise        = do env <- get
+                          case symEnvSort x env of
+                            Just s | isPolyInst s t -> smt2VarAs x t
+                            _                       -> smt2 x
 
-smtLamArg :: SymEnv -> Symbol -> Sort -> Builder
-smtLamArg env x t = Builder.fromText $ symbolAtName x env () (FFunc t FInt)
+smt2VarAs :: Symbol -> Sort -> SymM Builder
+smt2VarAs x t =
+  do s <- smt2 x
+     s1 <- smt2SortMono x t
+     pure $ parenSeqs ["as", s, s1]
 
-smt2VarAs :: SymEnv -> Symbol -> Sort -> Builder
-smt2VarAs env x t = parenSeqs ["as", smt2 env x, smt2SortMono x env t]
+-- the next four functions (ones containing a call to `symbolAtName`) can trigger
+-- an expansion of the "nursery" tag table ('seApplsCur' in 'SymEnv') when processing
+-- a fresh function sort
+smtLamArg :: Symbol -> Sort -> SymM Builder
+smtLamArg x t =
+  do s <- symbolAtName x (FFunc t FInt)
+     pure $ Builder.fromText s
 
-smt2Lam :: SymEnv -> (Symbol, Sort) -> Expr -> Builder
-smt2Lam env (x, xT) full@(ECst _ eT) = parenSeqs [Builder.fromText lambda, x', smt2 env full]
-  where
-    x'     = smtLamArg env x xT
-    lambda = symbolAtName lambdaName env () (FFunc xT eT)
-
-smt2Lam _ _ e
+smt2Lam :: (Symbol, Sort) -> Expr -> SymM Builder
+smt2Lam (x, xT) full@(ECst _ eT) =
+  do x' <- smtLamArg x xT
+     lambda <- symbolAtName lambdaName (FFunc xT eT)
+     f <- smt2 full
+     pure $ parenSeqs [Builder.fromText lambda, x', f]
+smt2Lam _ e
   = panic ("smtlib2: Cannot serialize unsorted lambda: " ++ showpp e)
 
-smt2App :: SymEnv -> Expr -> Builder
-smt2App env e@(EApp (EApp f e1) e2)
+smt2App :: Expr -> SymM Builder
+smt2App (EApp (EApp f e1) e2)
   | Just t <- unApplyAt f
-  = parenSeqs [Builder.fromText (symbolAtName applyName env e t), smt2s env [e1, e2]]
-smt2App env e
-  | Just b <- Thy.smt2App smt2VarAs env f (smt2 env <$> es)
-  = b
-  | otherwise
-  = parenSeqs [smt2 env f, smt2s env es]
+  = do a <- symbolAtName applyName t
+       s <- smt2s [e1, e2]
+       pure $ parenSeqs [Builder.fromText a, s]
+smt2App e = do s0 <- traverse smt2 es
+               s1 <- Thy.smt2App smt2VarAs f s0
+               case s1 of
+                 Just b -> pure b
+                 Nothing -> do s2 <- smt2 f
+                               s3 <- smt2s es
+                               pure $ parenSeqs [s2, s3]
   where
-    (f, es)   = splitEApp' e
+    (f, es) = splitEApp' e
 
-smt2Coerc :: SymEnv -> Sort -> Sort -> Expr -> Builder
-smt2Coerc env t1 t2 e
-  | t1 == t2  = smt2 env e
-  | otherwise = parenSeqs [Builder.fromText coerceFn , smt2 env e]
-  where
-    coerceFn  = symbolAtName coerceName env (ECoerc t1 t2 e) t
-    t         = FFunc t1 t2
+smt2Coerc :: Sort -> Sort -> Expr -> SymM Builder
+smt2Coerc t1 t2 e
+  | t1 == t2  = smt2 e
+  | otherwise = do coerceFn <- symbolAtName coerceName (FFunc t1 t2)
+                   s <- smt2 e
+                   pure $ parenSeqs [Builder.fromText coerceFn , s]
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
@@ -221,50 +267,75 @@ splitEApp'            = go []
   --   go acc (ECst e _) = go acc e
     go acc e          = (e, acc)
 
-mkRel :: SymEnv -> Brel -> Expr -> Expr -> Builder
-mkRel env Ne  e1 e2 = mkNe env e1 e2
-mkRel env Une e1 e2 = mkNe env e1 e2
-mkRel env r   e1 e2 = parenSeqs [smt2 env r, smt2 env e1, smt2 env e2]
+mkRel :: Brel -> Expr -> Expr -> SymM Builder
+mkRel Ne  e1 e2 = mkNe e1 e2
+mkRel Une e1 e2 = mkNe e1 e2
+mkRel r   e1 e2 = do s <- smt2 r
+                     s1 <- smt2 e1
+                     s2 <- smt2 e2
+                     pure $ parenSeqs [s, s1, s2]
 
-mkNe :: SymEnv -> Expr -> Expr -> Builder
-mkNe env e1 e2      = key "not" (parenSeqs ["=",  smt2 env e1, smt2 env e2])
-
+mkNe :: Expr -> Expr -> SymM Builder
+mkNe e1 e2 = do s1 <- smt2 e1
+                s2 <- smt2 e2
+                pure $ key "not" (parenSeqs ["=", s1, s2])
 instance SMTLIB2 Command where
-  smt2 env (DeclData ds)       = key "declare-datatypes" (smt2data env ds)
-  smt2 env (Declare x ts t)    = parenSeqs ["declare-fun", Builder.fromText x, parens (smt2many (smt2 env <$> ts)), smt2 env t]
-  smt2 env c@(Define t)        = key "declare-sort" (smt2SortMono c env t)
-  smt2 env (DefineFunc name paramxs rsort e) =
-    let bParams = [ parenSeqs [smt2 env s, smt2 env t] | (s, t) <- paramxs]
-     in parenSeqs ["define-fun", smt2 env name, parenSeqs bParams, smt2 env rsort, smt2 env e]
-  smt2 env (Assert Nothing p)  = {-# SCC "smt2-assert" #-} key "assert" (smt2 env p)
-  smt2 env (Assert (Just i) p) = {-# SCC "smt2-assert" #-} key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> bShow i))
-  smt2 env (Distinct az)
-    | length az < 2            = ""
-    | otherwise                = key "assert" (key "distinct" (smt2s env az))
-  smt2 env (AssertAx t)        = key "assert" (smt2 env t)
-  smt2 _   Push                = "(push 1)"
-  smt2 _   Pop                 = "(pop 1)"
-  smt2 _   CheckSat            = "(check-sat)"
-  smt2 env (GetValue xs)       = key "key-value" (parens (smt2s env xs))
-  smt2 env (CMany cmds)        = smt2many (smt2 env <$> cmds)
-  smt2 _   Exit                = "(exit)"
-  smt2 _   SetMbqi             = "(set-option :smt.mbqi true)"
+  smt2     (DeclData ds)       = do s <- smt2data ds
+                                    pure $ key "declare-datatypes" s
+  smt2     (Declare x ts t)    = do s <- smt2s ts
+                                    s1 <- smt2 t
+                                    pure $ parenSeqs ["declare-fun", Builder.fromText x, parens s, s1]
+  smt2     c@(Define t)        = do s <- smt2SortMono c t
+                                    pure $ key "declare-sort" s
+  smt2     (DefineFunc name paramxs rsort e) =
+    do n <- smt2 name
+       bParams <- traverse (\(s, t) -> do s0 <- smt2 s
+                                          s1 <- smt2 t
+                                          pure $ parenSeqs [s0 , s1]) paramxs
+       r <- smt2 rsort
+       e' <- smt2 e
+       pure $ parenSeqs ["define-fun", n, parenSeqs bParams, r, e']
+
+  smt2     (Assert Nothing p)  = {-# SCC "smt2-assert" #-}
+                                  do s <- smt2 p
+                                     pure $ key "assert" s
+  smt2     (Assert (Just i) p) = {-# SCC "smt2-assert" #-}
+                                  do s <- smt2 p
+                                     pure $ key "assert" (parens ("!"<+> s <+> ":named p-" <> bShow i))
+  smt2     (Distinct az)
+    | length az < 2            = pure ""
+    | otherwise                = do s <- smt2s az
+                                    pure $ key "assert" $ key "distinct" s
+  smt2     (AssertAx t)        = do s <- smt2 t
+                                    pure $ key "assert" s
+  smt2     Push                = pure "(push 1)"
+  smt2     Pop                 = pure "(pop 1)"
+  smt2     CheckSat            = pure "(check-sat)"
+  smt2     (GetValue xs)       = do s <- smt2s xs
+                                    pure $ key "key-value" (parens s)
+  smt2     (CMany cmds)        = smt2s cmds
+  smt2     Exit                = pure "(exit)"
+  smt2     SetMbqi             = pure "(set-option :smt.mbqi true)"
 
 instance SMTLIB2 (Triggered Expr) where
-  smt2 env (TR NoTrigger e)       = smt2 env e
-  smt2 env (TR _ (PExist [] p))   = smt2 env p
-  smt2 env t@(TR _ (PExist xs p)) = smtTr env "exists" xs p t
-  smt2 env (TR _ (PAll   [] p))   = smt2 env p
-  smt2 env t@(TR _ (PAll   xs p)) = smtTr env "forall" xs p t
-  smt2 env (TR _ e)               = smt2 env e
+  smt2 (TR NoTrigger e)       = smt2 e
+  smt2 (TR _ (PExist [] p))   = smt2 p
+  smt2 t@(TR _ (PExist xs p)) = smtTr "exists" xs p t
+  smt2 (TR _ (PAll   [] p))   = smt2 p
+  smt2 t@(TR _ (PAll   xs p)) = smtTr "forall" xs p t
+  smt2 (TR _ e)               = smt2 e
 
 {-# INLINE smtTr #-}
-smtTr :: SymEnv -> Builder -> [(Symbol, Sort)] -> Expr -> Triggered Expr -> Builder
-smtTr env q xs p t = key q (parens (smt2s env xs) <+> key "!" (smt2 env p <+> ":pattern" <> parens (smt2s env (makeTriggers t))))
+smtTr :: Builder -> [(Symbol, Sort)] -> Expr -> Triggered Expr -> SymM Builder
+smtTr q xs p t =
+  do s <- smt2s xs
+     s1 <- smt2 p
+     s2 <- smt2s (makeTriggers t)
+     pure $ key q (parens s <+> key "!" (s1 <+> ":pattern" <> parens s2))
 
 {-# INLINE smt2s #-}
-smt2s    :: SMTLIB2 a => SymEnv -> [a] -> Builder
-smt2s env as = smt2many (smt2 env <$> as)
+smt2s :: SMTLIB2 a => [a] -> SymM Builder
+smt2s as = smt2many <$> traverse smt2 as
 
 {-# INLINE smt2many #-}
 smt2many :: [Builder] -> Builder
