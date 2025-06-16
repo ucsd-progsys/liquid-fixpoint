@@ -200,7 +200,7 @@ instance Elaborate Expr where
 
 elaborateExpr :: ElabParam -> Expr -> Maybe Sort -> Expr
 elaborateExpr (ElabParam ef msg env) e t =
-  elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') t . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id) $ e
+  elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') t .  elabSorts ef . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id) $ e
     where
       env' = coerceEnv ef env
 
@@ -326,6 +326,28 @@ elabFSetBagZ3 (PExist bs e)     = PExist bs (elabFSetBagZ3 e)
 elabFSetBagZ3 (PGrad  k su i e) = PGrad k su i (elabFSetBagZ3 e)
 elabFSetBagZ3 (ECoerc a t e)    = ECoerc a t (elabFSetBagZ3 e)
 elabFSetBagZ3 e                 = e
+
+elabSorts :: Cfg.ElabFlags -> Expr -> Expr
+elabSorts ef (EApp e1 e2)      = EApp (elabSorts ef e1) (elabSorts ef e2)
+elabSorts ef (ENeg e)          = ENeg (elabSorts ef e)
+elabSorts ef (EBin b e1 e2)    = EBin b (elabSorts ef e1) (elabSorts ef e2)
+elabSorts ef (ELet x e1 e2)    = ELet x (elabSorts ef e1) (elabSorts ef e2)
+elabSorts ef (EIte e1 e2 e3)   = EIte (elabSorts ef e1) (elabSorts ef e2) (elabSorts ef e3)
+elabSorts ef (ECst e s)        = ECst (elabSorts ef e) (coerceSort ef s)
+elabSorts ef (ELam b e)        = ELam b (elabSorts ef e)
+elabSorts ef (ETApp e s)       = ETApp (elabSorts ef e) (coerceSort ef s)
+elabSorts ef (ETAbs e t)       = ETAbs (elabSorts ef e) t
+elabSorts ef (PAnd es)         = PAnd (elabSorts ef <$> es)
+elabSorts ef (POr es)          = POr (elabSorts ef <$> es)
+elabSorts ef (PNot e)          = PNot (elabSorts ef e)
+elabSorts ef (PImp e1 e2)      = PImp (elabSorts ef e1) (elabSorts ef e2)
+elabSorts ef (PIff e1 e2)      = PIff (elabSorts ef e1) (elabSorts ef e2)
+elabSorts ef (PAtom r e1 e2)   = PAtom r (elabSorts ef e1) (elabSorts ef e2)
+elabSorts ef (PAll   bs e)     = PAll bs (elabSorts ef e)
+elabSorts ef (PExist bs e)     = PExist bs (elabSorts ef e)
+elabSorts ef (PGrad  k su i e) = PGrad k su i (elabSorts ef e)
+elabSorts ef (ECoerc s1 s2 e)  = ECoerc (coerceSort ef s1) (coerceSort ef s2) (elabSorts ef e)
+elabSorts _ e                 = e
 
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
@@ -626,9 +648,9 @@ elab f@(!_, !g) e@(EBin !o !e1 !e2) = do
   let !result = EBin o (eCst e1' s1) (eCst e2' s2)
   return (result, s)
 
-elab !f (ECst (EApp !e1 !e2) t) = do 
-   ee <- elabAppAs f t e1 e2 
-   return (eCst ee t, t) 
+elab !f (ECst (EApp !e1 !e2) t) = do
+   ee <- elabAppAs f t e1 e2
+   return (eCst ee t, t)
 
 elab !f (EApp !e1 !e2) = do
   (!e1', !s1, !e2', !s2, !s) <- elabEApp f e1 e2
@@ -777,8 +799,8 @@ elabAs f t e = notracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
     go (EApp e1 e2)    = elabAppAs f t e1 e2
-    go e'@(EIte {}) = fst <$> elab f (ECst e' t)
-    go e'              = fst <$> elab f e' -- (ECst e' t)
+    --go e'@(EIte {}) = fst <$> elab f (ECst e' t)
+    go e'              = fst <$> elab f (eCst e' t)
 
 -- DUPLICATION with `checkApp'`
 elabAppAs :: ElabEnv -> Sort -> Expr -> Expr -> CheckM Expr
@@ -1357,18 +1379,20 @@ unify1 f e !θ (FVar !i) !t
   = unifyVar f e θ i t
 unify1 f e !θ !t (FVar !i)
   = unifyVar f e θ i t
-unify1 f e !θ t1 t2 
+{-
+unify1 f e !θ t1 t2
   | [FTC bg, tt1] <- unFApp t1
   , bagConName == symbol bg || setConName == symbol bg
   , [FTC arr, tt2, _] <- unFApp t2
-  , arrayConName == symbol arr 
+  , arrayConName == symbol arr
   = unify1 f e θ tt1 tt2
-unify1 f e !θ t1 t2 
+unify1 f e !θ t1 t2
   | [FTC bg, tt2] <- unFApp t2
   , bagConName == symbol bg || setConName == symbol bg
   , [FTC arr, tt1, _] <- unFApp t1
-  , arrayConName == symbol arr 
+  , arrayConName == symbol arr
   = unify1 f e θ tt1 tt2
+-}
 unify1 f e !θ (FApp !t1 !t2) (FApp !t1' !t2')
   = unifyMany f e θ [t1, t2] [t1', t2']
 unify1 _ _ !θ (FTC !l1) (FTC !l2)
