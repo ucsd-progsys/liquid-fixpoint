@@ -780,11 +780,11 @@ elab !_ (ETAbs _ _) =
 
 -- | 'eCstAtom' is to support tests like `tests/pos/undef00.fq`
 eCstAtom :: ElabEnv -> Expr -> Sort -> CheckM Expr
-eCstAtom f@(sym,g) (EVar x) t
+eCstAtom f@(sym,g) (ECst (EVar x) _) t
   | Found s <- g x
   , isUndef s
-  , not (isNum sym t) = (`ECst` t) <$> elabAs f t (EApp (eVar tyCastName) (eVar x))
-eCstAtom _ e t = return (ECst e t)
+  , not (isNum sym t) = (`eCst` t) <$> elabAppAs f t (eVar tyCastName) (eVar x)
+eCstAtom _ e t = return (eCst e t)
 
 isUndef :: Sort -> Bool
 isUndef s = case bkAbs s of
@@ -799,7 +799,6 @@ elabAs f t e = notracepp _msg <$> go e
   where
     _msg  = "elabAs: t = " ++ showpp t ++ "; e = " ++ showpp e
     go (EApp e1 e2)    = elabAppAs f t e1 e2
-    --go e'@(EIte {}) = fst <$> elab f (ECst e' t)
     go e'              = fst <$> elab f (eCst e' t)
 
 -- DUPLICATION with `checkApp'`
