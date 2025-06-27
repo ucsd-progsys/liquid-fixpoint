@@ -1378,20 +1378,6 @@ unify1 f e !θ (FVar !i) !t
   = unifyVar f e θ i t
 unify1 f e !θ !t (FVar !i)
   = unifyVar f e θ i t
-{-
-unify1 f e !θ t1 t2
-  | [FTC bg, tt1] <- unFApp t1
-  , bagConName == symbol bg || setConName == symbol bg
-  , [FTC arr, tt2, _] <- unFApp t2
-  , arrayConName == symbol arr
-  = unify1 f e θ tt1 tt2
-unify1 f e !θ t1 t2
-  | [FTC bg, tt2] <- unFApp t2
-  , bagConName == symbol bg || setConName == symbol bg
-  , [FTC arr, tt1, _] <- unFApp t1
-  , arrayConName == symbol arr
-  = unify1 f e θ tt1 tt2
--}
 unify1 f e !θ (FApp !t1 !t2) (FApp !t1' !t2')
   = unifyMany f e θ [t1, t2] [t1', t2']
 unify1 _ _ !θ (FTC !l1) (FTC !l2)
