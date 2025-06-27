@@ -162,7 +162,7 @@ instEnv cfg info cs restSolver = do
               }
     return $ InstEnv
        { ieCfg = cfg
-       , ieBEnv = coerceBindEnv ef (bs info)
+       , ieBEnv = bs info
        , ieAenv = ae info
        , ieCstrs = cs
        , ieKnowl = knowledge cfg info
