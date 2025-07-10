@@ -34,11 +34,13 @@ module Language.Fixpoint.Types.Sorts (
   , strFTyCon
   , setFTyCon
   , mapFTyCon -- TODO: hide these
+  , ffldFTyCon
   , mapFVar
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   -- , bitVec32Sort, bitVec64Sort
   , setSort, bitVecSort, bagSort
   , arraySort
+  , finfieldSort
   , sizedBitVecSort
   , mapSort, charSort
   , listFTyCon
@@ -66,7 +68,7 @@ module Language.Fixpoint.Types.Sorts (
   , sortSymbols
   , substSort
 
-  , isBool, isNumeric, isReal, isString, isSet, isMap, isBag, isArray, isPolyInst
+  , isBool, isNumeric, isReal, isString, isSet, isMap, isBag, isArray, isFinfield, isPolyInst
 
   -- * User-defined ADTs
   , DataField (..)
@@ -152,7 +154,7 @@ defRealInfo = False
 defStrInfo  = False
 
 charFTyCon, intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon :: FTycon
-strFTyCon, listFTyCon, mapFTyCon, bagFTyCon, setFTyCon :: FTycon
+strFTyCon, listFTyCon, mapFTyCon, bagFTyCon, setFTyCon, ffldFTyCon :: FTycon
 intFTyCon  = TC (dummyLoc "int"       ) numTcInfo
 boolFTyCon = TC (dummyLoc boolLConName) defTcInfo
 realFTyCon = TC (dummyLoc "real"      ) realTcInfo
@@ -164,6 +166,7 @@ charFTyCon = TC (dummyLoc charConName ) defTcInfo
 setFTyCon  = TC (dummyLoc setConName  ) defTcInfo
 mapFTyCon  = TC (dummyLoc mapConName  ) defTcInfo
 bagFTyCon  = TC (dummyLoc bagConName  ) defTcInfo
+ffldFTyCon = TC (dummyLoc ffldConName ) defTcInfo
 
 isListConName :: LocSymbol -> Bool
 isListConName x = c == listConName || c == listLConName --"List"
@@ -204,6 +207,14 @@ isArrayConName x = c == arrayConName
 
 isArrayTC :: FTycon -> Bool
 isArrayTC (TC z _) = isArrayConName z
+
+isFinfieldConName :: LocSymbol -> Bool
+isFinfieldConName x = c == ffldConName
+  where
+    c           = val x
+
+isFinfieldTC :: FTycon -> Bool
+isFinfieldTC (TC z _) = isFinfieldConName z
 
 sizeBv :: FTycon -> Maybe Int
 sizeBv tc = do
@@ -293,6 +304,7 @@ mapFVar f = go
         go t@FReal       = t
         go t@FNum        = t
         go t@FFrac       = t
+        go t@(FNatNum _) = t
 
 --------------------------------------------------------------------------------
 -- | Sorts ---------------------------------------------------------------------
@@ -301,12 +313,13 @@ data Sort = FInt
           | FReal
           | FNum                 -- ^ numeric kind for Num tyvars
           | FFrac                -- ^ numeric kind for Fractional tyvars
-          | FObj  !Symbol        -- ^ uninterpreted type
-          | FVar  !Int           -- ^ fixpoint type variable
-          | FFunc !Sort !Sort    -- ^ function
-          | FAbs  !Int !Sort     -- ^ type-abstraction
-          | FTC   !FTycon
-          | FApp  !Sort !Sort    -- ^ constructed type
+          | FObj    !Symbol      -- ^ uninterpreted type
+          | FVar    !Int         -- ^ fixpoint type variable
+          | FFunc   !Sort !Sort  -- ^ function
+          | FAbs    !Int !Sort   -- ^ type-abstraction
+          | FTC     !FTycon
+          | FApp    !Sort !Sort  -- ^ constructed type
+          | FNatNum !Integer     -- ^ natural numeral
             deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 instance PPrint Sort where
@@ -423,6 +436,10 @@ isArray :: Sort -> Bool
 isArray (FTC c) = isArrayTC c
 isArray _       = False
 
+isFinfield :: Sort -> Bool
+isFinfield (FTC c) = isFinfieldTC c
+isFinfield _       = False
+
 isChar :: Sort -> Bool
 isChar (FTC c) = c == charFTyCon
 isChar _       = False
@@ -490,6 +507,7 @@ toFixSort t@(FAbs _ _) = toFixAbsApp t
 toFixSort t@(FFunc _ _)= toFixAbsApp t
 toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (unFApp t)
+toFixSort (FNatNum x)  = toFix x
 
 toFixAbsApp :: Sort -> Doc
 toFixAbsApp (functionSort -> Just (vs, ss, s)) =
@@ -571,6 +589,9 @@ mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))
 
 arraySort :: Sort -> Sort -> Sort
 arraySort = FApp . FApp (FTC (symbolFTycon' arrayConName))
+
+finfieldSort :: Sort -> Sort
+finfieldSort = FApp (FTC ffldFTyCon)
 
 symbolFTycon' :: Symbol -> FTycon
 symbolFTycon' = symbolFTycon . dummyLoc

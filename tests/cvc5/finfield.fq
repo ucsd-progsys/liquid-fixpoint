@@ -1,0 +1,16 @@
+bind 1 b1 : {v : FFld_t '3 | v = FF_val 1 }
+bind 2 b2 : {v : FFld_t '3 | v = FF_val 2 }
+bind 3 b3 : {v : FFld_t '7 | v = FF_val 3 }
+bind 4 b4 : {v : FFld_t '7 | v = FF_val 5 }
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : FFld_t '3 | v = FF_add b1 b2 }
+  rhs {v : FFld_t '3 | v = FF_val 0 }
+  id 1 tag []
+
+constraint:
+  env [ 3; 4 ]
+  lhs {v : FFld_t '7 | v = FF_mul b3 b4 }
+  rhs {v : FFld_t '7 | v = FF_val 1 }
+  id 2 tag []

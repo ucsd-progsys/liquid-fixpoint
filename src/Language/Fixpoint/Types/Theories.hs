@@ -270,8 +270,11 @@ data SmtSort
   | SBool
   | SReal
   | SString
+  --- CVC(5) only
   | SSet !SmtSort
   | SBag !SmtSort
+  | SFFld !Integer
+  ---
   | SArray !SmtSort !SmtSort
   | SBitVec !Int
   | SVar    !Int
@@ -315,6 +318,8 @@ fappSmtSort poly m env = go
       | setConName == symbol c   = SSet (sortSmtSort poly env a)
     go (FTC c) [a]
       | bagConName == symbol c   = SBag (sortSmtSort poly env a)
+    go (FTC c) [FNatNum n]
+      | ffldConName == symbol c  = SFFld n
     go (FTC c) [a, b]
       | arrayConName == symbol c = SArray (sortSmtSort poly env a) (sortSmtSort poly env b)
     go (FTC bv) [FTC s]
@@ -340,6 +345,7 @@ instance PPrint SmtSort where
   pprintTidy _ SString      = text "Str"
   pprintTidy k (SSet a)     = ppParens k (text "Set") [a]
   pprintTidy k (SBag a)     = ppParens k (text "Bag") [a]
+  pprintTidy _ (SFFld n)    = text "FiniteField" <+> integer n
   pprintTidy k (SArray a b) = ppParens k (text "Array") [a, b]
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
   pprintTidy _ (SVar i)     = text "@" <-> int i

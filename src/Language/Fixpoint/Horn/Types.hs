@@ -411,6 +411,7 @@ toHornSort t@(F.FAbs _ _) = toHornAbsApp t
 toHornSort t@(F.FFunc _ _)= toHornAbsApp t
 toHornSort (F.FTC c)      = toHornSMT c
 toHornSort t@(F.FApp _ _) = toHornFApp (F.unFApp t)
+toHornSort (F.FNatNum x)  = P.integer x
 
 toHornAbsApp :: F.Sort -> P.Doc
 toHornAbsApp (F.functionSort -> Just (vs, ss, s)) = P.parens ("func" P.<+> P.int (length vs) P.<+> toHornSMT ss P.<+> toHornSMT s )

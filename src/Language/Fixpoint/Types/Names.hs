@@ -101,6 +101,7 @@ module Language.Fixpoint.Types.Names (
   , mapConName
   , bagConName
   , arrayConName
+  , ffldConName
   , strConName
   , charConName
   , nilName
@@ -652,19 +653,20 @@ preludeName, dummyName, boolConName, boolLConName, funConName :: Symbol
 preludeName  = "Prelude"
 dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
-boolLConName  = "bool"
+boolLConName = "bool"
 funConName   = "->"
 
 
-listConName, listLConName, propConName, _hpropConName, vvName, setConName, mapConName, bagConName, arrayConName:: Symbol
-listConName  = "[]"
-listLConName = "List"
-setConName   = "Set_Set"
-mapConName   = "Map_t"
-bagConName   = "Bag_t"
-arrayConName = "Array_t"
-vvName       = "VV"
-propConName  = "Prop"
+listConName, listLConName, propConName, _hpropConName, vvName, setConName, mapConName, bagConName, arrayConName, ffldConName :: Symbol
+listConName   = "[]"
+listLConName  = "List"
+setConName    = "Set_Set"
+mapConName    = "Map_t"
+bagConName    = "Bag_t"
+arrayConName  = "Array_t"
+ffldConName   = "FFld_t"
+vvName        = "VV"
+propConName   = "Prop"
 _hpropConName = "HProp"
 
 strConName, charConName :: (IsString a) => a
