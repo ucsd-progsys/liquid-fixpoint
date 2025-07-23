@@ -1,0 +1,24 @@
+name: "Github releases"
+description: "Create or update a github releases with artifacts"
+inputs:
+  token:
+    description: "GitHub token"
+    required: true
+  name:
+    description: "Name of the release"
+    required: true
+  body:
+    description: "Message body of the release"
+    required: true
+  tag_name:
+    description: "Name of the tag to create or update the release with"
+    required: true
+  tag_message:
+    description: "Tag message to create or update the release with"
+    required: true
+  files:
+    description: "Glob pattern of files to upload to the release"
+    required: true
+runs:
+  using: "docker"
+  image: "Dockerfile"
