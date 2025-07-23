@@ -48,7 +48,7 @@ jobs:
             ~/.cabal/store
             dist-newstyle
           key: |
-            ${{ runner.os }}-${{ env.GHC_VERSION }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+            ${{ matrix.os }}-${{ env.GHC_VERSION }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
 
       - name: Build
         run: |
