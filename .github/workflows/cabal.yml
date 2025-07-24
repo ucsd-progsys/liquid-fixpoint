@@ -58,7 +58,9 @@ jobs:
             ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
-          key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+          key:
+            ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project',
+            '**/cabal.project.freeze') }}
 
       - name: Update package list
         run: cabal update
