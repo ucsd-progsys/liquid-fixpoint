@@ -28,39 +28,57 @@ jobs:
             artifact: fixpoint-x86_64-apple-darwin
           - os: macos-14
             artifact: fixpoint-aarch64-apple-darwin
+          - os: windows-2025
+            artifact: fixpoint-x86_64-pc-windows
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Haskell
+        id: setup-haskell
         uses: haskell-actions/setup@v2
         with:
           ghc-version: ${{ env.GHC_VERSION }}
           cabal-version: ${{ env.CABAL_VERSION }}
 
-      # Use cache in PRs, but do a clean build before releases
-      - name: Cache ~/.cabal/packages, ~/.cabal/store and dist-newstyle
+      - name: Freeze Cabal plan
+        run: |
+          cabal update
+          cabal freeze
+
+      - name: Cache Cabal build artifacts
         if: github.event_name == 'pull_request'
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cabal/packages
-            ~/.cabal/store
+            ${{ steps.setup-haskell.outputs.cabal-store }}
             dist-newstyle
-          key: |
-            ${{ matrix.os }}-${{ env.GHC_VERSION }}-cabal-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+          key:
+            ${{ matrix.os }}-${{ env.GHC_VERSION }}-cabal-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ env.GHC_VERSION }}-cabal-
 
       - name: Build
+        run: cabal build exe:fixpoint
+
+      - name: Compress
+        shell: bash
         run: |
-          cabal update
-          cabal build exe:fixpoint
-          cp $(cabal list-bin exe:fixpoint) ${{ matrix.artifact }}
+          if [[ "${{ runner.os }}" == Windows ]]; then
+            cp $(cabal list-bin exe:fixpoint) fixpoint.exe
+            powershell Compress-Archive -Path fixpoint.exe -DestinationPath ${{ matrix.artifact }}.zip
+          else
+            cp $(cabal list-bin exe:fixpoint) fixpoint
+            tar -czvf ${{ matrix.artifact }}.tar.gz fixpoint
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.tar.gz
 
   publish:
     # Only publish a release when pushing to `develop`, i.e, after merging the PR
@@ -73,15 +91,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: fixpoint-x86_64-linux-gnu
-          path: dist
-      - uses: actions/download-artifact@v4
-        with:
-          name: fixpoint-aarch64-apple-darwin
-          path: dist
-      - uses: actions/download-artifact@v4
-        with:
-          name: fixpoint-x86_64-apple-darwin
+          pattern: fixpoint*
+          merge-multiple: true
           path: dist
 
       - name: Publish Nightly Release
@@ -99,3 +110,4 @@ jobs:
             - Linux x86_64 (built on Ubuntu 22.04)
               - glibc (2.35)
               - gmp (6.2)
+            - Windows x86_64 (built on Windows 2025)
