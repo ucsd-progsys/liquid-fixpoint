@@ -35,31 +35,43 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Haskell
-        id: setup-haskell
+        id: setup
         uses: haskell-actions/setup@v2
         with:
           ghc-version: ${{ env.GHC_VERSION }}
           cabal-version: ${{ env.CABAL_VERSION }}
+          cabal-update: true
 
-      - name: Freeze Cabal plan
-        run: |
-          cabal update
-          cabal freeze
+      # Cache dependencies based on dist-newstyle/cache/plan.json. This follows the example in
+      # https://github.com/haskell-actions/setup/blob/main/docs/examples.md#model-cabal-workflow-with-caching
+      - name: Generate plan.json
+        run: cabal build all --dry-run
 
-      - name: Cache Cabal build artifacts
-        if: github.event_name == 'pull_request'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.setup-haskell.outputs.cabal-store }}
-            dist-newstyle
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v4
+        id: cache
+        env:
           key:
-            ${{ matrix.os }}-${{ env.GHC_VERSION }}-cabal-${{ hashFiles('cabal.project.freeze') }}
-          restore-keys: |
-            ${{ matrix.os }}-${{ env.GHC_VERSION }}-cabal-
+            ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{
+            steps.setup.outputs.cabal-version }}
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: ${{ env.key }}-
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cabal build all --only-dependencies
+
+      - name: Save cached dependencies
+        uses: actions/cache/save@v4
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Build
-        run: cabal build exe:fixpoint
+        run: cabal build all
 
       - name: Compress
         shell: bash
