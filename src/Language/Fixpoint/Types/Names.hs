@@ -108,8 +108,8 @@ module Language.Fixpoint.Types.Names (
   , vvName
   , sizeName
   , bitVecName
-  -- , bvAndName, bvOrName, bvSubName, bvAddName
   , intbv32Name, intbv64Name, bv32intName, bv64intName
+  , intbv8Name, intbv16Name, bv8intName, bv16intName
   , propConName
 
   -- HKT , tyAppName
@@ -407,9 +407,6 @@ consSym c (symbolText -> s) = symbol $ T.cons c s
 unconsSym :: Symbol -> Maybe (Char, Symbol)
 unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
--- singletonSym :: Char -> Symbol -- Yuck
--- singletonSym = (`consSym` "")
-
 lengthSym :: Symbol -> Int
 lengthSym (symbolText -> t) = T.length t
 
@@ -443,7 +440,6 @@ suffixSymbolText :: T.Text -> T.Text -> T.Text
 suffixSymbolText  x y = x <> symSepName <> y
 
 vv                  :: Maybe Integer -> Symbol
--- vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
 vv (Just i)         = intSymbol vvName i
 vv Nothing          = vvName
 
@@ -453,12 +449,6 @@ isNontrivialVV      = (vv Nothing /=)
 vvCon, dummySymbol :: Symbol
 vvCon       = vvName `suffixSymbol` "F"
 dummySymbol = dummyName
-
--- ctorSymbol :: Symbol -> Symbol
--- ctorSymbol s = ctorPrefix `mappendSym` s
-
--- isCtorSymbol :: Symbol -> Bool
--- isCtorSymbol = isPrefixOfSym ctorPrefix
 
 -- | 'testSymbol c' creates the `is-c` symbol for the adt-constructor named 'c'.
 testSymbol :: Symbol -> Symbol
@@ -518,9 +508,6 @@ bindPrefix   = "b$"
 testPrefix  :: Symbol
 testPrefix   = "is$"
 
--- ctorPrefix  :: Symbol
--- ctorPrefix   = "mk$"
-
 kArgPrefix, existPrefix, hvarPrefix :: Symbol
 kArgPrefix  = "lq_karg$"
 existPrefix = "lq_ext$"
@@ -561,10 +548,6 @@ unPrefixSymbol p s = fromMaybe s (stripPrefix p s)
 unSuffixSymbol :: Symbol -> Symbol
 unSuffixSymbol s@(symbolText -> t)
   = maybe s symbol $ T.stripSuffix symSepName $ fst $ T.breakOnEnd symSepName t
-
--- takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
--- takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
-
 
 nonSymbol :: Symbol
 nonSymbol = ""
@@ -670,29 +653,21 @@ _hpropConName = "HProp"
 strConName, charConName :: (IsString a) => a
 strConName   = "Str"
 charConName  = "Char"
--- symSepName   :: Char
--- symSepName   = '#' -- DO NOT EVER CHANGE THIS
 
 symSepName   :: (IsString a) => a
 symSepName   = "##"
 
--- nilName, consName, size32Name, size64Name, bitVecName :: Symbol
--- nilName      = "nil"
--- consName     = "cons"
--- size32Name   = "Size32"
--- size64Name   = "Size64"
--- bitVecName   = "BitVec"
-
--- bvOrName, bvAndName, bvSubName, bvAddName,
 intbv32Name, intbv64Name, bv32intName, bv64intName :: Symbol
--- bvOrName    = "bvor"
--- bvAndName   = "bvand"
--- bvSubName   = "bvsub"
--- bvAddName   = "bvadd"
 intbv32Name = "int_to_bv32"
 intbv64Name = "int_to_bv64"
 bv32intName = "bv32_to_int"
 bv64intName = "bv64_to_int"
+
+intbv8Name, intbv16Name, bv8intName, bv16intName :: Symbol
+intbv8Name  = "int_to_bv8"
+intbv16Name = "int_to_bv16"
+bv8intName  = "bv8_to_int"
+bv16intName = "bv16_to_int"
 
 nilName, consName, sizeName, bitVecName :: Symbol
 nilName       = "nil"
@@ -717,8 +692,6 @@ prims = S.fromList
   , "List"
   , "[]"
   , "bool"
-  -- , "int"
-  -- , "real"
   , setConName
   , charConName
   , "Set_sng"
