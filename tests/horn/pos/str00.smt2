@@ -13,4 +13,7 @@
       (forall ((y Str) ((= y "dog")))
         (and
           ((= x "cat"))
-          ((= y "dog")))))))
+          ((= y "dog"))
+          ((= (concatString x y) "catdog"))
+	)))))
+

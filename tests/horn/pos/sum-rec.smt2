@@ -1,11 +1,12 @@
  
  
-(qualif Bar ((v Int)) (>= v 0))
- 
+(qualif Ba1 ((v Int)) (>= v 0))
+(qualif Ba2 ((v Int)) (>= v 10))
+(qualif Ba3 ((v Int)) (<= v 10)) 
+(qualif Ba4 ((v Int) (x Int)) (<= x v)) 
+(qualif Ba5 ((v Int) (x Int)) (<= v x)) 
+
 (var $k1 (Int Int))
- 
- 
- 
  
  
 (constraint
