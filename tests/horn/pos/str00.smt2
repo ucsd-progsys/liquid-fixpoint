@@ -1,12 +1,5 @@
 (fixpoint "--eliminate=horn")
- 
- 
- 
- 
- 
- 
- 
- 
+
 (constraint
   (and
     (forall ((x Str) ((= x "cat")))
@@ -14,6 +7,4 @@
         (and
           ((= x "cat"))
           ((= y "dog"))
-          ((= (concatString x y) "catdog"))
 	)))))
-
