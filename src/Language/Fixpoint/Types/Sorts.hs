@@ -319,7 +319,7 @@ data Sort = FInt
           | FAbs    !Int !Sort   -- ^ type-abstraction
           | FTC     !FTycon
           | FApp    !Sort !Sort  -- ^ constructed type
-          | FNatNum !Integer     -- ^ natural numeral
+          | FNatNum !Integer     -- ^ typelevel natural numeral
             deriving (Eq, Ord, Show, Data, Typeable, Generic, ToJSON, FromJSON)
 
 instance PPrint Sort where
