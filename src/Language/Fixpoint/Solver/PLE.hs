@@ -301,7 +301,7 @@ ple1 ie@InstEnv{..} ictx i res = do
   where
     -- Pending unfoldings (i.e. with undecided guards) are collected only
     -- when we reach a leaf in the Trie, and only if the user asked for them.
-    collectPendingUnfoldings env (Just _) | pleWithUndecidedGuards ieCfg =
+    collectPendingUnfoldings env (Just _) | pleUndecGuards ieCfg =
       M.toList (evPendingUnfoldings env)
     collectPendingUnfoldings _ _ = []
 
@@ -1276,7 +1276,7 @@ knowledge cfg si = KN
   , knConsts                   = Mb.mapMaybe makeCons sims
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
-      if rwTerminationCheck cfg
+      if rwTermination cfg
       then RWTerminationCheckEnabled
       else RWTerminationCheckDisabled
   }

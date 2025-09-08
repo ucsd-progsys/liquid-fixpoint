@@ -516,7 +516,7 @@ simplifyBindings cfg finfo =
 
           mergedEnv = mergeDuplicatedBindings env
           undoANFEnv =
-            if inlineANFBindings cfg then undoANFOnlyModified mergedEnv else HashMap.empty
+            if inlineANFBinds cfg then undoANFOnlyModified mergedEnv else HashMap.empty
           boolSimplEnv =
             simplifyBooleanRefts $ HashMap.union undoANFEnv mergedEnv
 

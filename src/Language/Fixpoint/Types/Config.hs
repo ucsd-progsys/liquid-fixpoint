@@ -3,6 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE TemplateHaskell           #-}
 
 module Language.Fixpoint.Types.Config (
     Config  (..)
@@ -45,7 +46,9 @@ import System.Console.CmdArgs.Explicit
 
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Language.Fixpoint.Utils.Files
-
+import Development.GitRev (gitHash)
+import Data.Version (showVersion)
+import Paths_liquid_fixpoint (version)
 
 --------------------------------------------------------------------------------
 withPragmas :: Config -> [String] -> IO Config
@@ -100,18 +103,18 @@ data Config = Config
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
-  , pleWithUndecidedGuards :: Bool     -- ^ Unfold invocations with undecided guards in PLE
+  , pleUndecGuards   :: Bool           -- ^ Unfold invocations with undecided guards in PLE
   , etabeta          :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
   , localRewrites    :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
   , interpreter      :: Bool           -- ^ Do not use the interpreter to assist PLE
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
-  , noEnvironmentReduction :: Bool     -- ^ Don't use environment reduction
-  , inlineANFBindings :: Bool          -- ^ Inline ANF bindings.
+  , noEnvReduction   :: Bool     -- ^ Don't use environment reduction
+  , inlineANFBinds   :: Bool          -- ^ Inline ANF bindings.
                                        -- Sometimes improves performance and sometimes worsens it.
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
-  , rwTerminationCheck  :: Bool        -- ^ Enable termination checking for rewriting
+  , rwTermination    :: Bool        -- ^ Enable termination checking for rewriting
   , stdin               :: Bool        -- ^ Read input query from stdin
   , json                :: Bool        -- ^ Render output in JSON format
   , noLazyPLE           :: Bool
@@ -261,7 +264,7 @@ defConfig = Config {
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms            = False &= name "ple" &= help "Allow axiom instantiation via rewriting (PLE)"
-  , pleWithUndecidedGuards   =
+  , pleUndecGuards   =
       False
         &= name "ple-with-undecided-guards"
         &= help "Unfold invocations with undecided guards in PLE"
@@ -272,42 +275,36 @@ defConfig = Config {
         &= help "Use the interpreter to assist PLE"
   , oldPLE                   = False &= help "Use old version of PLE"
   , etabeta                  = False &= help "Use eta expansion and beta reduction to aid PLE"
-  , localRewrites            = False &= name "local-rewrites" &= help "Perform local rewrites inside PLE"
+  , localRewrites            = False &= help "Perform local rewrites inside PLE"
   , noIncrPle                = False &= help "Don't use incremental PLE"
-  , noEnvironmentReduction   =
-      False
-        &= name "no-environment-reduction"
-        &= help "Don't perform environment reduction"
-  , inlineANFBindings        =
-      False
-        &= name "inline-anf-bindings"
-        &= help (unwords
+  , noEnvReduction           = False &= help "Don't perform environment reduction"
+  , inlineANFBinds           = False &= help (unwords
           [ "Inline ANF bindings."
           , "Sometimes improves performance and sometimes worsens it."
-          , "Disabled by --no-environment-reduction"
+          , "Disabled by --noenvreduction"
           ])
   , checkCstr                = []    &= help "Only check these specific constraint-ids"
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
-  , rwTerminationCheck       = False   &= help "Enable rewrite divergence checker"
+  , rwTermination       = False   &= help "Enable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"
   , json                     = False   &= help "Render result in JSON"
   , noLazyPLE                = False   &= help "Don't use lazy PLE"
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
-  , restOrdering             = "rpo"
-        &= name "rest-ordering"
-        &= help "Ordering Constraint Algebra to use for REST"
+  , restOrdering             = "rpo"   &= help "Ordering Constraint Algebra to use for REST"
   , noSmtHorn                = False &= help "Do not use SMTLIB horn format"
   }
   &= verbosity
   &= program "fixpoint"
   &= help    "Predicate Abstraction Based Horn-Clause Solver"
-  &= summary "fixpoint Copyright 2009-15 Regents of the University of California."
+  &= summary summaryInfo
   &= details [ "Predicate Abstraction Based Horn-Clause Solver"
              , ""
              , "To check a file foo.fq type:"
              , "  fixpoint foo.fq"
              ]
 
+summaryInfo :: String
+summaryInfo = "fixpoint " ++ showVersion version ++ " " ++ "("  ++ $(gitHash) ++ ")"
 config :: Mode (CmdArgs Config)
 config = cmdArgsMode defConfig
 
@@ -318,7 +315,7 @@ getOpts = do
   return md
 
 banner :: String
-banner =  "\n\nLiquid-Fixpoint Copyright 2013-21 Regents of the University of California.\n"
+banner =  "\n\nLiquid-Fixpoint Copyright 2009-25 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
 
 restOC :: Config -> RESTOrdering
