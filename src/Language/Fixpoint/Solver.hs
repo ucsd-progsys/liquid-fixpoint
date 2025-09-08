@@ -264,7 +264,7 @@ reduceFInfo cfg fi = do
       reducedFi = {- SCC "reduceEnvironments" -} reduceEnvironments simplifiedFi
   when (save cfg) $
     savePrettifiedQuery cfg reducedFi
-  if noEnvironmentReduction cfg then
+  if noEnvReduction cfg then
     return fi
   else
     return reducedFi
