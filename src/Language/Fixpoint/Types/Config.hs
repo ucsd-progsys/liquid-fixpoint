@@ -3,6 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE TemplateHaskell           #-}
 
 module Language.Fixpoint.Types.Config (
     Config  (..)
@@ -45,7 +46,9 @@ import System.Console.CmdArgs.Explicit
 
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Language.Fixpoint.Utils.Files
-
+import Development.GitRev (gitHash)
+import Data.Version (showVersion)
+import Paths_liquid_fixpoint (version)
 
 --------------------------------------------------------------------------------
 withPragmas :: Config -> [String] -> IO Config
@@ -118,6 +121,8 @@ data Config = Config
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
   , restOrdering        :: String      -- ^ Term ordering for use in REST
   , noSmtHorn           :: Bool        -- ^ Do not use (new) SMTLIB horn parser
+  -- , version             :: Bool        -- ^ Show version information
+  -- , numericVersion      :: Bool        -- ^ Show numeric version only
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -297,17 +302,21 @@ defConfig = Config {
         &= name "rest-ordering"
         &= help "Ordering Constraint Algebra to use for REST"
   , noSmtHorn                = False &= help "Do not use SMTLIB horn format"
+  -- , version                  = False &= help "Show version information"
+  -- , numericVersion           = False &= help "Show numeric version only"
   }
   &= verbosity
   &= program "fixpoint"
   &= help    "Predicate Abstraction Based Horn-Clause Solver"
-  &= summary "fixpoint Copyright 2009-15 Regents of the University of California."
+  &= summary summaryInfo
   &= details [ "Predicate Abstraction Based Horn-Clause Solver"
              , ""
              , "To check a file foo.fq type:"
              , "  fixpoint foo.fq"
              ]
 
+summaryInfo :: String
+summaryInfo = "fixpoint " ++ showVersion version ++ " " ++ "("  ++ $(gitHash) ++ ")"
 config :: Mode (CmdArgs Config)
 config = cmdArgsMode defConfig
 
@@ -318,7 +327,7 @@ getOpts = do
   return md
 
 banner :: String
-banner =  "\n\nLiquid-Fixpoint Copyright 2013-21 Regents of the University of California.\n"
+banner =  "\n\nLiquid-Fixpoint Copyright 2009-25 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
 
 restOC :: Config -> RESTOrdering

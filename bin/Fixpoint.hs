@@ -24,10 +24,10 @@ solveQuery cfg     = solver cfg `Ex.catch` errorExit
       | otherwise  = solveFQ
 
 isHorn :: F.Config -> Bool
-isHorn cfg = F.isExtFile F.Smt2 file 
+isHorn cfg = F.isExtFile F.Smt2 file
           || F.isExtFile F.Json file
           || F.stdin cfg
-  where 
+  where
     file = F.srcFile cfg
 
 errorExit :: F.Error -> IO ExitCode
