@@ -1,7 +1,7 @@
 module SimplifyTests (tests) where
 
 import Arbitrary (subexprs)
-import Language.Fixpoint.Types.Refinements (Bop (Minus), Constant (I), Expr, ExprV (..))
+import Language.Fixpoint.Types.Refinements (Bop (Minus), Constant (I), Expr, ExprBV (..))
 import qualified SimplifyInterpreter
 import qualified SimplifyPLE
 import Test.Tasty
