@@ -171,7 +171,11 @@ tidyResult :: F.Result a -> F.Result a
 tidyResult r = r
   { F.resSolution = tidySolution (F.resSolution r)
   , F.resNonCutsSolution = tidySolution (F.resNonCutsSolution r)
+  , F.resSorts = tidyBind <$>  F.resSorts r
   }
+
+tidyBind :: [(F.Symbol, F.Sort)] -> [(F.Symbol, F.Sort)]
+tidyBind xts = [ (F.tidySymbol x, t) | (x, t) <- xts ]
 
 tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
@@ -281,8 +285,7 @@ kvarScope fi be k = do
   w <- M.lookup k (F.ws fi)
   let bs = F.wenv w
   let (v, t, _) = F.wrft w
-  let xts = (v, t) : [ bindInfo be i | i <- F.elemsIBindEnv bs ]
-  return $ [ (F.tidySymbol x, t) | (x, t) <- xts ]
+  return $ (v, t) : [ bindInfo be i | i <- F.elemsIBindEnv bs ]
 
 bindInfo :: F.BindEnv a -> F.BindId -> (F.Symbol, F.Sort)
 bindInfo be i = (x, F.sr_sort sr)

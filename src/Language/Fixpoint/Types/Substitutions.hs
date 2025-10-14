@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans   #-}
+{-# LANGUAGE InstanceSigs #-}
 
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
@@ -126,6 +127,7 @@ captureAvoiding x f y = if y == x then EVar x else f y
 instance Subable Expr where
   syms                     = exprSymbols
   substa f                 = substf (EVar . f)
+  substf :: (Symbol -> Expr) -> Expr -> Expr
   substf f (EApp s e)      = EApp (substf f s) (substf f e)
   substf f (ELam (x,t) e)  = ELam (x, t) (substf (captureAvoiding x f) e)
   substf f (ECoerc a t e)  = ECoerc a t (substf f e)
@@ -144,6 +146,7 @@ instance Subable Expr where
   substf f (PKVar k (Su su)) = PKVar k (Su $ M.map (substf f) su)
   substf _ (PAll _ _)      = errorstar "substf: FORALL"
   substf f (PGrad k su i e)= PGrad k su i (substf f e)
+  substf f (PExist xts e)  = PExist xts (substf f e)
   substf _  p              = p
 
 

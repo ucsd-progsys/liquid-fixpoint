@@ -358,8 +358,11 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
     msg     = "applyKVar: " ++ show (ceCid g)
 
 mkNonCutsExpr :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Hyp -> ElabM F.Expr
-mkNonCutsExpr ce s k cs = do bcps <- traverse (bareCubePred ce s k) cs
-                             pure $ F.pOr bcps
+mkNonCutsExpr ce s k cs = do
+  bcps <- traverse (bareCubePred ce s k) cs
+  pure $ F.notracepp msg (F.pOr bcps)
+  where
+    msg = "nonCutsExpr for k = " ++ F.showpp k
 
 nonCutsResult :: F.BindEnv ann -> Sol.Sol a Sol.QBind -> ElabM (M.HashMap F.KVar F.Expr)
 nonCutsResult be s = M.traverseWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
@@ -384,11 +387,16 @@ nonCutsResult be s = M.traverseWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
 --    particular use of the KVar. Thus @cubePred@ produces a different
 --    expression for every use site of the kvar, while here we produce one
 --    expression for all the uses.
+-- NOTE: In this case, we *keep* the `xts` "free" in the final predicate. as
+-- That is, we only quantify out the `yts` as, in this use-case, the `xts`
+-- are the "parameters" of the KVar that we want to leave in to make
+-- explicit what equalities those parameters have in each cube.
+
 bareCubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Cube -> ElabM F.Expr
 bareCubePred g s k c =
-  do (xts, psu) <- substElim (Sol.sEnv s) sEnv g' k su
+  do (_xts, psu) <- substElim (Sol.sEnv s) sEnv g' k su
      (p, _kI) <- apply g' s bs'
-     pure $ F.pExist (xts ++ yts) (psu &.& p)
+     pure $ F.pExist yts (psu &.& p)
   where
     bs = Sol.cuBinds c
     su = Sol.cuSubst c

@@ -33,7 +33,6 @@ import qualified Data.Text.Lazy.IO                as LT
 import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
-import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (mplus, when)
 import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.EnvironmentReduction
@@ -60,6 +59,8 @@ import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
 import Data.Maybe (catMaybes, mapMaybe)
+import Data.Ord (comparing)
+import qualified Text.PrettyPrint.HughesPJ as PJ
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -86,7 +87,7 @@ resultExitCode cfg r = do
     jStr    = LT.decodeUtf8 . encode $ r
     stat    = resStatus $!! r
     eCode   = resultExit . resStatus
-    statStr = render . resultDoc
+    statStr = PJ.render . resultDoc
 
 ignoreQualifiers :: Config -> FInfo a -> FInfo a
 ignoreQualifiers cfg fi
@@ -207,7 +208,7 @@ type ErrorMap a = HashMap.HashMap SrcSpan a
 findError :: ErrorMap a -> Error1 -> Maybe ((Integer, a), Maybe String)
 findError m e = do
   ann <- HashMap.lookup (errLoc e) m
-  let str = render (errMsg e)
+  let str = PJ.render (errMsg e)
   return ((-1, ann), Just str)
 
 -- The order is important here: we want the "binders" to get the "precedence"
@@ -219,7 +220,7 @@ errorMap fi = HashMap.fromList [ (srcSpan a, a) | a <- anns ]
             ++ [ a | (_, (_,_, a)) <- bindEnvToList (Types.bs fi) ]
 
 loudDump :: (Fixpoint a) => Int -> Config -> SInfo a -> IO ()
-loudDump i cfg si = when False (writeLoud $ msg ++ render (toFixpoint cfg si))
+loudDump i cfg si = when False (writeLoud $ msg ++ PJ.render (toFixpoint cfg si))
   where
     msg           = "fq file after Uniqify & Rename " ++ show i ++ "\n"
 
@@ -315,15 +316,32 @@ saveSolution cfg res = when (save cfg) $ do
     , ""
     , "Non-cut kvars:"
     , ""
-    , showpp (HashMap.map unElab $ resNonCutsSolution res)
+    , PJ.render nonCutsDoc
     ]
+    where
+      nonCutsDoc = PJ.vcat (ncDoc <$> nonCuts')
+      nonCuts = HashMap.toList ({- HashMap.map unElab $  -} resNonCutsSolution res)
+      nonCuts' = [ (k, scope k, e) | (k, e) <- nonCuts]
+      scope k = case HashMap.lookup k (resSorts res) of
+                  Just xts -> L.sortBy (comparing fst) xts
+                  Nothing -> []
+      ncDoc :: (KVar, [(Symbol, Sort)], Expr) -> PJ.Doc
+      ncDoc (k, xts, e) = PJ.hsep [ pprint k PJ.<> PJ.parens (pprint xts), ":=", pprint e ]
 
 simplifyResult :: Result a -> Result a
 simplifyResult res =
     res
-      { resSolution = HashMap.map simplifyKVar (resSolution res)
-      , resNonCutsSolution = HashMap.map simplifyKVar (resNonCutsSolution res)
+      { resSolution = HashMap.mapWithKey (simplifyKVar' sorts) (resSolution res)
+      , resNonCutsSolution = HashMap.mapWithKey (simplifyKVar' sorts) (resNonCutsSolution res)
       }
+  where
+    sorts = resSorts res
+
+simplifyKVar' :: HashMap.HashMap KVar [(Symbol, Sort)] -> KVar -> Expr -> Expr
+simplifyKVar' scope k e = {- tracepp msg -} unElab $ simplifyKVar xs e
+  where
+    _msg = "simplifyKVar: KVar " ++ showpp (k, xs, e)
+    xs = fst <$> HashMap.lookupDefault [] k scope
 
 -- | Simplifies existential expressions with unused or inconsequential bindings.
 --
@@ -340,52 +358,55 @@ simplifyResult res =
 --
 -- We require that relevant variables occur more than once, or that
 -- they occur in some other place than as an argument to @==@.
---
-simplifyKVar :: Expr -> Expr
-simplifyKVar (POr es) = POr $ map simplifyKVar es
-simplifyKVar (PExist bs e@(PAnd es)) =
-    let fvs = L.group $ L.sort $ collectFreeVarOccurrences e
-        esv = map (isUniqueEq fvs) es
-        removed = mapMaybe fst esv
-        needed = map head fvs L.\\ removed
-        bs' = filter ((`elem` needed) . fst) bs
-     in
-        PExist bs' $ PAnd $ [ei | (Nothing, ei) <- esv]
+-- However, we do not want to eliminate any equalities over "free" variables, e.g.
+-- the parameters of the KVar, as those are important to keep.
+simplifyKVar :: [Symbol] -> Expr -> Expr
+simplifyKVar freeVars = go
   where
-    -- | Determine if the expression is an equality that sets the value of
-    -- a variable that doesn't occur elsewhere.
-    --
-    -- In @isUniqueEq fvs e@, @fvs@ contains the occurrences of the free
-    -- variables, so we can infer if there is more than one occurrence
-    -- of a given free variable, and @e@ is the equality to analyze.
-    --
-    -- Yields @(Just v, e)@ if @v@ doesn't occur elsewhere, and @e@ has
-    -- the form @v == e'@.
-    isUniqueEq :: [[Symbol]] -> Expr -> (Maybe Symbol, Expr)
-    isUniqueEq fvs er = case unElab er of
-      PAtom brel e0 e1
-        | isEqRel brel ->
-          let m = isVarToDrop fvs e0 `mplus` isVarToDrop fvs e1
-           in (m, er)
-      _ ->
-        (Nothing, er)
+    go (POr es) = POr $ map go es
+    go (PExist bs e@(PAnd es)) =
+      let fvs = L.group $ L.sort $ freeVars ++ collectFreeVarOccurrences e
+          esv = map (isUniqueEq fvs) es
+          removed = mapMaybe fst esv
+          needed = map head fvs L.\\ removed
+          bs' = filter ((`elem` needed) . fst) bs
+      in
+          PExist bs' $ PAnd $ [ei | (Nothing, ei) <- esv]
+    go e = e
+-- | Determine if the expression is an equality that sets the value of
+-- a variable that doesn't occur elsewhere.
+--
+-- In @isUniqueEq fvs e@, @fvs@ contains the occurrences of the free
+-- variables, so we can infer if there is more than one occurrence
+-- of a given free variable, and @e@ is the equality to analyze.
+--
+-- Yields @(Just v, e)@ if @v@ doesn't occur elsewhere, and @e@ has
+-- the form @v == e'@.
+isUniqueEq :: [[Symbol]] -> Expr -> (Maybe Symbol, Expr)
+isUniqueEq fvs er = case unElab er of
+  PAtom brel e0 e1
+    | isEqRel brel ->
+      let m = isVarToDrop fvs e0 `mplus` isVarToDrop fvs e1
+       in (m, er)
+  _ ->
+    (Nothing, er)
 
-    -- | Tells if the binary relation is an equality.
-    isEqRel Eq = True
-    isEqRel Ueq = True
-    isEqRel _ = False
+-- | Tells if the binary relation is an equality.
+isEqRel :: Brel -> Bool
+isEqRel Eq = True
+isEqRel Ueq = True
+isEqRel _ = False
 
-    -- | @isVarToDrop fvs s@ yields @Just s@ if the variable @s@ doesn't occur
-    -- elsewhere according to @fvs@.
-    --
-    -- > isVarToDrop fvs (cast_as_int s) == isVarToDrop fvs s
-    --
-    isVarToDrop fvs (EApp (EVar "cast_as_int") ei) = isVarToDrop fvs ei
-    isVarToDrop fvs (EVar s)
-      | elem [s] fvs = Just s
-    isVarToDrop _fvs _ = Nothing
-
-simplifyKVar e = e
+-- | @isVarToDrop fvs s@ yields @Just s@ if the variable @s@ doesn't occur
+-- elsewhere according to @fvs@.
+--
+-- > isVarToDrop fvs (cast_as_int s) == isVarToDrop fvs s
+--
+isVarToDrop ::  [[Symbol]] -> ExprV Symbol -> Maybe Symbol
+isVarToDrop fvs (EApp (EVar "cast_as_int") ei) = isVarToDrop fvs ei
+isVarToDrop fvs (EVar s)
+  | elem [s] fvs = Just s
+isVarToDrop _fvs _ = Nothing
 
 -- | Produces the free variables of an expressions as many times as they occur.
 --
