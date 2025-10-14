@@ -97,6 +97,7 @@ module Language.Fixpoint.Types.Constraints (
   , substVars
   , sortVars
   , gSorts
+  , scopedResult
   ) where
 
 import qualified Data.Store as S
@@ -131,6 +132,7 @@ import qualified Data.ByteString           as B
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Binary as B
+import Data.Ord (comparing)
 
 --------------------------------------------------------------------------------
 -- | Constraints ---------------------------------------------------------------
@@ -295,6 +297,26 @@ data Result a = Result
   deriving (Generic, Show, Functor)
 
 type ResultSorts = M.HashMap KVar [(Symbol, Sort)]
+
+data ScopedResult = MkScopedResult
+  { scCuts    :: M.HashMap KVar ScopedExpr
+  , scNonCuts :: M.HashMap KVar ScopedExpr
+  }
+  deriving (Generic, Show)
+
+data ScopedExpr = MkScopedExpr
+  { seParams :: [(Symbol, Sort)]
+  , seBody :: !Expr
+  }
+  deriving (Generic, Show)
+
+scopedResult :: Result a -> ScopedResult
+scopedResult res = MkScopedResult cuts  nonCuts
+  where
+    cuts = scoped (resSolution res)
+    nonCuts = scoped (resNonCutsSolution res)
+    scoped sol = M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
+    scope k = L.sortBy (comparing fst) $ M.lookupDefault [] k $ resSorts res
 
 
 instance ToJSON a => ToJSON (Result a) where
