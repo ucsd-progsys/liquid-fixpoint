@@ -305,7 +305,7 @@ saveSolution cfg res = when (save cfg) $ do
   writeFile f $ unlines $
     [ ""
     , "Solution:"
-    , showpp (resSolution  res)
+    , scopedRender (resSolution  res)
     ] ++
     ( if gradual cfg then
         ["", "", showpp $ gresSolution res]
@@ -316,17 +316,13 @@ saveSolution cfg res = when (save cfg) $ do
     , ""
     , "Non-cut kvars:"
     , ""
-    , PJ.render nonCutsDoc
+    , scopedRender (resNonCutsSolution res)
     ]
     where
-      nonCutsDoc = PJ.vcat (ncDoc <$> nonCuts')
-      nonCuts = HashMap.toList ({- HashMap.map unElab $  -} resNonCutsSolution res)
-      nonCuts' = [ (k, scope k, e) | (k, e) <- nonCuts]
-      scope k = case HashMap.lookup k (resSorts res) of
-                  Just xts -> L.sortBy (comparing fst) xts
-                  Nothing -> []
-      ncDoc :: (KVar, [(Symbol, Sort)], Expr) -> PJ.Doc
-      ncDoc (k, xts, e) = PJ.hsep [ pprint k PJ.<> PJ.parens (pprint xts), ":=", pprint e ]
+      scopedRender = PJ.render . PJ.vcat . map ncDoc . scoped
+      scoped sol = [ (k, scope k, e) | (k, e) <- HashMap.toList sol]
+      scope k = L.sortBy (comparing fst) $ HashMap.lookupDefault [] k $ resSorts res
+      ncDoc (k, xts, e) = PJ.hsep [ pprint k PJ.<> pprint xts, ":=", pprint e ]
 
 simplifyResult :: Result a -> Result a
 simplifyResult res =
