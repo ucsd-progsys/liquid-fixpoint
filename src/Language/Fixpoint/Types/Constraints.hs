@@ -296,6 +296,7 @@ data Result a = Result
 
 type ResultSorts = M.HashMap KVar [(Symbol, Sort)]
 
+
 instance ToJSON a => ToJSON (Result a) where
   toJSON (Result {..}) = object
     [ "status"            .= resStatus
