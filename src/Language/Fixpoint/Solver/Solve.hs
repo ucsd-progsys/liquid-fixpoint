@@ -281,7 +281,8 @@ kvarScope fi be k = do
   w <- M.lookup k (F.ws fi)
   let bs = F.wenv w
   let (v, t, _) = F.wrft w
-  return $ (v, t) : [ bindInfo be i | i <- F.elemsIBindEnv bs ]
+  let xts = (v, t) : [ bindInfo be i | i <- F.elemsIBindEnv bs ]
+  return $ [ (F.tidySymbol x, t) | (x, t) <- xts ]
 
 bindInfo :: F.BindEnv a -> F.BindId -> (F.Symbol, F.Sort)
 bindInfo be i = (x, F.sr_sort sr)
