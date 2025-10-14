@@ -358,11 +358,8 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
     msg     = "applyKVar: " ++ show (ceCid g)
 
 mkNonCutsExpr :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Hyp -> ElabM F.Expr
-mkNonCutsExpr ce s k cs = do
-  bcps <- traverse (bareCubePred ce s k) cs
-  pure $ F.notracepp msg (F.pOr bcps)
-  where
-    msg = "nonCutsExpr for k = " ++ F.showpp k
+mkNonCutsExpr ce s k cs = do bcps <- traverse (bareCubePred ce s k) cs
+                             pure $ F.pOr bcps
 
 nonCutsResult :: F.BindEnv ann -> Sol.Sol a Sol.QBind -> ElabM (M.HashMap F.KVar F.Expr)
 nonCutsResult be s = M.traverseWithKey (mkNonCutsExpr g s) $ Sol.sHyp s

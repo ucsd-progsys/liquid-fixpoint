@@ -338,9 +338,8 @@ simplifyResult res =
     sorts = resSorts res
 
 simplifyKVar' :: HashMap.HashMap KVar [(Symbol, Sort)] -> KVar -> Expr -> Expr
-simplifyKVar' scope k e = {- tracepp msg -} unElab $ simplifyKVar xs e
+simplifyKVar' scope k e = unElab $ simplifyKVar xs e
   where
-    _msg = "simplifyKVar: KVar " ++ showpp (k, xs, e)
     xs = fst <$> HashMap.lookupDefault [] k scope
 
 -- | Simplifies existential expressions with unused or inconsequential bindings.
