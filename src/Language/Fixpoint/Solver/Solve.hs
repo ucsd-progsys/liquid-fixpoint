@@ -40,6 +40,7 @@ import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import qualified Language.Fixpoint.Types.Config as C
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
+import Data.Maybe (maybeToList)
 -- import Debug.Trace                      (trace)
 
 mytrace :: String -> a -> a
@@ -128,7 +129,7 @@ solve_ cfg fi s0 ks wkl = do
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
     -- let s3   = solveEbinds fi s2
     s3       <- {- SCC "sol-refine" -} refine bindingsInSmt s2 wkl
-    res0     <- {- SCC "sol-result" -} result bindingsInSmt cfg wkl s3
+    res0     <- {- SCC "sol-result" -} result bindingsInSmt cfg fi wkl s3
     return (s3, res0)
 
   (fi1, s4, res1) <- case resStatus res0 of  {- first run the interpreter -}
@@ -142,7 +143,7 @@ solve_ cfg fi s0 ks wkl = do
       clearApplys
       (s4, res1) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
         s4    <- {- SCC "sol-refine" -} refine bindingsInSmt s3 wkl
-        res1  <- {- SCC "sol-result" -} result bindingsInSmt cfg wkl s4
+        res1  <- {- SCC "sol-result" -} result bindingsInSmt cfg fi1 wkl s4
         return (s4, res1)
       return (fi1, s4, res1)
     _ -> return  (fi, s3, mytrace "all checked before interpreter" res0)
@@ -154,7 +155,7 @@ solve_ cfg fi s0 ks wkl = do
       clearApplys
       sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
         s5    <- {- SCC "sol-refine" -} refine bindingsInSmt s4 wkl
-        result bindingsInSmt cfg wkl s5
+        result bindingsInSmt cfg fi1 wkl s5
     _ -> return $ mytrace "all checked with interpreter" res1
 
   st      <- stats
@@ -252,26 +253,35 @@ result
   :: (F.Fixpoint a, F.Loc a, NFData a)
   => F.IBindEnv
   -> Config
+  -> F.SInfo a
   -> W.Worklist a
   -> Sol.Solution
   -> SolveM a (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-result bindingsInSmt cfg wkl s =
+result bindingsInSmt cfg fi wkl s =
   sendConcreteBindingsToSMT bindingsInSmt $ \bindingsInSmt2 -> do
-    lift    $ writeLoud "Computing Result"
-    stat   <- result_ bindingsInSmt2 cfg wkl s
-    lift    $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-    F.Result (ci <$> stat) <$> solResult cfg s <*> solNonCutsResult s <*> return mempty <*> resultSorts s
+    lift       $ writeLoud "Computing Result"
+    stat      <- result_ bindingsInSmt2 cfg wkl s
+    lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
+    resCut    <- solResult cfg s
+    resNonCut <- solNonCutsResult s
+    resSorts  <- resultSorts fi (M.keys resCut ++ M.keys resNonCut) <$> getBinds
+    return     $ F.Result (ci <$> stat) resCut resNonCut mempty resSorts
   where
     ci c = (F.subcId c, F.sinfo c)
 
-resultSorts :: Sol.Solution -> SolveM a F.ResultSorts
-resultSorts s = do
-  be <- getBinds
-  return  (kvarScope be <$> Sol.sScp s)
+resultSorts :: F.SInfo a -> [F.KVar] -> F.BindEnv a -> F.ResultSorts
+resultSorts fi ks be = M.fromList
+  [(k, xts)
+    | k <- ks
+    , xts <- maybeToList (kvarScope fi be k) ]
 
-kvarScope :: F.BindEnv a -> F.IBindEnv -> [(F.Symbol, F.Sort)]
-kvarScope be bs = bindInfo be <$> F.elemsIBindEnv bs
+kvarScope :: F.SInfo a -> F.BindEnv a -> F.KVar -> Maybe [(F.Symbol, F.Sort)]
+kvarScope fi be k = do
+  w <- M.lookup k (F.ws fi)
+  let bs = F.wenv w
+  let (v, t, _) = F.wrft w
+  return $ (v, t) : [ bindInfo be i | i <- F.elemsIBindEnv bs ]
 
 bindInfo :: F.BindEnv a -> F.BindId -> (F.Symbol, F.Sort)
 bindInfo be i = (x, F.sr_sort sr)
