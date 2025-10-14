@@ -262,9 +262,20 @@ result bindingsInSmt cfg wkl s =
     stat    <- result_ bindingsInSmt2 cfg wkl s
     lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
 
-    F.Result (ci <$> stat) <$> solResult cfg s <*> solNonCutsResult s <*> return mempty
+    F.Result (ci <$> stat) <$> solResult cfg s <*> solNonCutsResult s <*> return mempty <*> resultSorts s
   where
     ci c = (F.subcId c, F.sinfo c)
+
+resultSorts :: Sol.Solution -> SolveM a F.ResultSorts
+resultSorts s = do
+  _be <- getBinds
+  error "TBD: kvarSorts" -- undefined
+  -- ef <- T.ctxElabF <$> getContext
+  -- let kvs = M.keys (Sol.result s)
+  -- let go k = runReader (S.kvarSort be k s) ef
+  -- sorts <- mapM go kvs
+  -- return $ M.fromListWith L.union [(k, [sort]) | (k, sort) <- zip kvs sorts, not (F.isTauto sort)]
+
 
 solResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result

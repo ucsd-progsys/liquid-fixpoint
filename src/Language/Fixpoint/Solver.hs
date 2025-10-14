@@ -187,7 +187,7 @@ solveNative !cfg !fi0 = solveNative' cfg fi0
                              (return . crashResult (errorMap fi0))
 
 crashResult :: (PPrint a) => ErrorMap a -> Error -> Result (Integer, a)
-crashResult m err' = Result res mempty mempty mempty
+crashResult m err' = Result res mempty mempty mempty mempty
   where
     res           = Crash es msg
     es            = catMaybes [ findError m e | e <- ers ]

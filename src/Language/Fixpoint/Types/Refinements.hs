@@ -249,6 +249,8 @@ refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 newtype KVar = KV { kv :: Symbol }
                deriving (Eq, Ord, Data, Typeable, Generic, IsString, ToJSON, FromJSON)
 
+instance ToJSONKey KVar
+
 intKvar :: Integer -> KVar
 intKvar = KV . intSymbol "k_"
 

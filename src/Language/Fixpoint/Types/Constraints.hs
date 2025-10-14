@@ -13,6 +13,7 @@
 {-# LANGUAGE PatternGuards              #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing     #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
@@ -64,7 +65,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Results
   , FixSolution
   , GFixSolution, toGFixSol
-  , Result (..)
+  , Result (..), ResultSorts
   , unsafe, isUnsafe, isSafe ,safe
 
   -- * Cut KVars
@@ -289,24 +290,31 @@ data Result a = Result
   , resSolution  :: !FixSolution
   , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution
+  , resSorts     :: !ResultSorts
   }
   deriving (Generic, Show, Functor)
 
-
+type ResultSorts = M.HashMap KVar [(Symbol, Sort)]
 
 instance ToJSON a => ToJSON (Result a) where
-  toJSON = toJSON . resStatus
+  toJSON (Result {..}) = object
+    [ "status"            .= resStatus
+    , "solution"          .= resSolution
+    , "nonCutsSolution"   .= resNonCutsSolution
+    , "sorts"             .= resSorts
+    ]
 
 instance Semigroup (Result a) where
-  r1 <> r2  = Result stat soln nonCutsSoln gsoln
+  r1 <> r2  = Result stat soln nonCutsSoln gsoln sorts
     where
       stat  = resStatus r1    <> resStatus r2
       soln  = resSolution r1  <> resSolution r2
       nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
       gsoln = gresSolution r1 <> gresSolution r2
+      sorts = M.unionWith L.union (resSorts r1) (resSorts r2)
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty mempty mempty
+  mempty        = Result mempty mempty mempty mempty mempty
   mappend       = (<>)
 
 unsafe, safe :: Result a
@@ -734,7 +742,7 @@ allowHOquals = hoQuals . hoInfo
 data GInfo c a = FI
   { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
   , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
-  , bs       :: !(BindEnv a)               -- ^ Bind  |-> (Symbol, SortedReft)
+  , bs       :: !(BindEnv a)               -- ^ BindId  |-> (Symbol, SortedReft)
   , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
   , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
   , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
