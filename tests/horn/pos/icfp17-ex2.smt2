@@ -1,14 +1,14 @@
-(fixpoint "--eliminate=horn")
- 
- 
- 
+; (fixpoint "--eliminate=horn")
+
+
+
 (var $kx (Int))
 (var $ky (Int))
- 
- 
- 
- 
- 
+
+
+
+
+
 (constraint
   (and
     (forall ((x Int) ((>= x 0)))

@@ -258,24 +258,25 @@ result
 --------------------------------------------------------------------------------
 result bindingsInSmt cfg wkl s =
   sendConcreteBindingsToSMT bindingsInSmt $ \bindingsInSmt2 -> do
-    lift $ writeLoud "Computing Result"
-    stat    <- result_ bindingsInSmt2 cfg wkl s
-    lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
-
+    lift    $ writeLoud "Computing Result"
+    stat   <- result_ bindingsInSmt2 cfg wkl s
+    lift    $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     F.Result (ci <$> stat) <$> solResult cfg s <*> solNonCutsResult s <*> return mempty <*> resultSorts s
   where
     ci c = (F.subcId c, F.sinfo c)
 
 resultSorts :: Sol.Solution -> SolveM a F.ResultSorts
 resultSorts s = do
-  _be <- getBinds
-  error "TBD: kvarSorts" -- undefined
-  -- ef <- T.ctxElabF <$> getContext
-  -- let kvs = M.keys (Sol.result s)
-  -- let go k = runReader (S.kvarSort be k s) ef
-  -- sorts <- mapM go kvs
-  -- return $ M.fromListWith L.union [(k, [sort]) | (k, sort) <- zip kvs sorts, not (F.isTauto sort)]
+  be <- getBinds
+  return  (kvarScope be <$> Sol.sScp s)
 
+kvarScope :: F.BindEnv a -> F.IBindEnv -> [(F.Symbol, F.Sort)]
+kvarScope be bs = bindInfo be <$> F.elemsIBindEnv bs
+
+bindInfo :: F.BindEnv a -> F.BindId -> (F.Symbol, F.Sort)
+bindInfo be i = (x, F.sr_sort sr)
+  where
+    (x, sr, _) = F.lookupBindEnv i be
 
 solResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
