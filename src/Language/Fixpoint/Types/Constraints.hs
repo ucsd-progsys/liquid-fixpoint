@@ -304,11 +304,16 @@ data Result a = Result
 type ResultSorts = M.HashMap KVar [(Symbol, Sort)]
 
 data ScopedResult = MkScopedResult
-  { scCuts    :: M.HashMap KVar ScopedExpr
-  , scNonCuts :: M.HashMap KVar ScopedExpr
+  { scCuts    :: KVarMap ScopedExpr
+  , scNonCuts :: KVarMap ScopedExpr
   }
   deriving (Generic, Show)
 
+newtype KVarMap a = MkKVarMap { unKVarMap :: M.HashMap KVar a }
+  deriving (Generic, Show)
+
+newtype KVarBind a = MkKVarBind { unKVarBind :: (KVar, a) }
+  deriving (Generic, Show)
 data ScopedExpr = MkScopedExpr
   { seParams :: [(Symbol, Sort)]
   , seBody :: !Expr
@@ -324,7 +329,7 @@ scopedResult res = MkScopedResult cuts  nonCuts
   where
     cuts = scoped (resSolution res)
     nonCuts = scoped (resNonCutsSolution res)
-    scoped sol = M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
+    scoped sol = MkKVarMap $ M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
     scope k = L.sortBy (comparing fst) $ M.lookupDefault [] k $ resSorts res
 
 instance ToJSON a => ToJSON (Result a) where
@@ -335,6 +340,15 @@ instance ToJSON a => ToJSON (Result a) where
     ]
     where
       scopedSolution = scopedResult r
+
+instance ToJSON a => ToJSON (KVarBind a) where
+  toJSON (MkKVarBind (k, v)) = object
+    [ "kvar" .= k
+    , "val"  .= v
+    ]
+
+instance ToJSON a => ToJSON (KVarMap a) where
+  toJSON = toJSON . map MkKVarBind . M.toList . unKVarMap
 
 instance ToJSON ScopedExpr where
   toJSON = toJSON . render . toHornSMT
