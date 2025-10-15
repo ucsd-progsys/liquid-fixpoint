@@ -9,6 +9,8 @@ on:
   push:
     branches:
       - develop
+    tags:
+      - 'nightly-*'
 
 jobs:
   build:
@@ -95,7 +97,7 @@ jobs:
 
   publish:
     # Only publish a release when pushing to `develop`, i.e, after merging the PR
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     needs: [build]
     runs-on: ubuntu-latest
     steps:
@@ -120,6 +122,41 @@ jobs:
             Automated nightly release of liquid-fixpoint.
             - Darwin aarch64 (built on macOS 14)
             - Darwin x86_64 (built on macOS 13)
+            - Linux x86_64 (built on Ubuntu 22.04)
+              - glibc (2.35)
+              - gmp (6.2)
+            - Windows x86_64 (built on Windows 2025)
+
+  publish-nightly:
+    # Only publish a nightly release when a tag matching 'nightly-*' is pushed
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/nightly-')
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: fixpoint*
+          merge-multiple: true
+          path: dist
+
+      - name: Extract tag name
+        id: tag
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Publish Nightly Release
+        uses: ./.github/actions/github-release
+        with:
+          files: "dist/*"
+          name: "Nightly Release ${{ steps.tag.outputs.TAG_NAME }}"
+          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
+          tag_message: "nightly release ${{ steps.tag.outputs.TAG_NAME }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            Automated nightly release of liquid-fixpoint (${{ steps.tag.outputs.TAG_NAME }}).
+            - Darwin aarch64 (built on macOS 14)
             - Linux x86_64 (built on Ubuntu 22.04)
               - glibc (2.35)
               - gmp (6.2)
