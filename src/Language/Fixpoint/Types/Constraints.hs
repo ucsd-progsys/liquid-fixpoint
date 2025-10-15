@@ -13,6 +13,7 @@
 {-# LANGUAGE PatternGuards              #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing     #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
@@ -64,7 +65,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Results
   , FixSolution
   , GFixSolution, toGFixSol
-  , Result (..)
+  , Result (..), ResultSorts
   , unsafe, isUnsafe, isSafe ,safe
 
   -- * Cut KVars
@@ -91,11 +92,16 @@ module Language.Fixpoint.Types.Constraints (
   , lookupRewrite
   , lookupLocalRewrites
   , insertRewrites
+  , eqnToHornSMT
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
   , sortVars
   , gSorts
+
+  -- * ScopedResult
+  , ScopedResult (..), ScopedExpr (..)
+  , scopedResult
   ) where
 
 import qualified Data.Store as S
@@ -110,6 +116,7 @@ import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Control.Monad             (when, void)
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.SMTPrint
 import qualified Language.Fixpoint.Types.Config as C
 import           Language.Fixpoint.Types.Triggers
 import           Language.Fixpoint.Types.Names
@@ -130,6 +137,7 @@ import qualified Data.ByteString           as B
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Binary as B
+import Data.Ord (comparing)
 
 --------------------------------------------------------------------------------
 -- | Constraints ---------------------------------------------------------------
@@ -289,24 +297,59 @@ data Result a = Result
   , resSolution  :: !FixSolution
   , resNonCutsSolution :: !FixSolution
   , gresSolution :: !GFixSolution
+  , resSorts     :: !ResultSorts
   }
   deriving (Generic, Show, Functor)
 
+type ResultSorts = M.HashMap KVar [(Symbol, Sort)]
 
+data ScopedResult = MkScopedResult
+  { scCuts    :: M.HashMap KVar ScopedExpr
+  , scNonCuts :: M.HashMap KVar ScopedExpr
+  }
+  deriving (Generic, Show)
+
+data ScopedExpr = MkScopedExpr
+  { seParams :: [(Symbol, Sort)]
+  , seBody :: !Expr
+  }
+  deriving (Generic, Show)
+
+instance ToHornSMT ScopedExpr where
+  toHornSMT (MkScopedExpr xts p) = toHornWithBinders "lambda" xts p
+
+
+scopedResult :: Result a -> ScopedResult
+scopedResult res = MkScopedResult cuts  nonCuts
+  where
+    cuts = scoped (resSolution res)
+    nonCuts = scoped (resNonCutsSolution res)
+    scoped sol = M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
+    scope k = L.sortBy (comparing fst) $ M.lookupDefault [] k $ resSorts res
 
 instance ToJSON a => ToJSON (Result a) where
-  toJSON = toJSON . resStatus
+  toJSON r@(Result {..}) = object
+    [ "status"            .= resStatus
+    , "solution"          .= scCuts scopedSolution
+    , "nonCutsSolution"   .= scNonCuts scopedSolution
+    ]
+    where
+      scopedSolution = scopedResult r
+
+instance ToJSON ScopedExpr where
+  toJSON = toJSON . render . toHornSMT
 
 instance Semigroup (Result a) where
-  r1 <> r2  = Result stat soln nonCutsSoln gsoln
+  r1 <> r2  = Result stat soln nonCutsSoln gsoln sorts
     where
       stat  = resStatus r1    <> resStatus r2
       soln  = resSolution r1  <> resSolution r2
       nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
       gsoln = gresSolution r1 <> gresSolution r2
+      sorts = M.unionWith L.union (resSorts r1) (resSorts r2)
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty mempty mempty
+  mempty        = Result mempty mempty mempty mempty mempty
   mappend       = (<>)
 
 unsafe, safe :: Result a
@@ -509,6 +552,10 @@ data QualParam = QP
   }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance ToHornSMT QualParam where
+  toHornSMT qp = toHornSMT (qpSym qp, qpSort qp)
+
+
 data QualPattern
   = PatNone                 -- ^ match everything
   | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
@@ -527,6 +574,11 @@ instance FromJSON Equation    where
 instance ToJSON   Rewrite     where
 instance FromJSON Rewrite     where
 
+instance ToHornSMT Qualifier where
+  toHornSMT (Q n qps p _) =  toHornWithBinders name xts p
+    where
+      name = "qualif" <+> pprint n
+      xts =  [(qpSym qp, qpSort qp) | qp <- qps]
 
 trueQual :: Qualifier
 trueQual = Q (symbol ("QTrue" :: String)) [] PTrue (dummyPos "trueQual")
@@ -734,7 +786,7 @@ allowHOquals = hoQuals . hoInfo
 data GInfo c a = FI
   { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
   , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
-  , bs       :: !(BindEnv a)               -- ^ Bind  |-> (Symbol, SortedReft)
+  , bs       :: !(BindEnv a)               -- ^ BindId  |-> (Symbol, SortedReft)
   , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
   , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
   , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
@@ -1015,6 +1067,10 @@ data EquationV v = Equ
   }
   deriving (Data, Eq, Ord, Show, Generic, Functor)
 
+eqnToHornSMT :: Doc -> Equation -> Doc
+eqnToHornSMT keyword (Equ f xs e s _) = parens (keyword <+> pprint f <+> toHornSMT xs <+> toHornSMT s <+> toHornSMT e)
+
+
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
 mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
@@ -1077,6 +1133,11 @@ data Rewrite  = SMeasure
   , smBody  :: Expr           -- eg. e[xs]
   }
   deriving (Data, Eq, Ord, Show, Generic)
+
+instance ToHornSMT Rewrite where
+  toHornSMT (SMeasure f d xs e) =  parens ("match" <+> toHornSMT f <+> toHornSMT (d:xs) <+> toHornSMT e)
+
+
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> L.sort (aenvEqs axe)) ++ (toFix <$> L.sort (aenvSimpl axe)))
