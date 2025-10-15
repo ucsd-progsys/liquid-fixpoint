@@ -1,6 +1,9 @@
 (qualif Bar ((v Int)) (>= v 0))
+
 (qualif Baz ((v Int) (a Int)) (>= v a))
+
 (var $k1 (Int Int))
+
 (constraint
   (and
     (and
