@@ -353,52 +353,61 @@ simplifyKVar = go
   where
     go (POr es) = POr $ map go es
     go (PExist bs e@(PAnd es)) =
-      let fvs = [ g | g <- L.group $ L.sort $ collectFreeVarOccurrences e
-                    , isBound g
-                ]
-          isBound g = case g of {v:_ ->  elem v (map fst bs) ; _ -> False }
-          esv = map (isUniqueEq fvs) es
+      let -- existential bindings that occur only once in the body of the
+          -- existential
+          singleOccurrenceBindings =
+            filter isExistentialBinding $
+              concat $ filter occursExactlyOnce $
+                L.group $ L.sort $ collectFreeVarOccurrences e
+          isExistentialBinding = (`elem` map fst bs)
+          occursExactlyOnce [_] = True
+          occursExactlyOnce _   = False
+
+          esv = map (isUniqueEq singleOccurrenceBindings) es
           removed = mapMaybe fst esv
-          needed = map head fvs L.\\ removed
+          needed = singleOccurrenceBindings L.\\ removed
           bs' = filter ((`elem` needed) . fst) bs
       in
           PExist bs' $ PAnd $ [ei | (Nothing, ei) <- esv]
     go e = e
 
+
+
 -- | Determine if the expression is an equality that sets the value of
--- a variable that doesn't occur elsewhere.
+-- a variable that occurs only once.
 --
--- In @isUniqueEq fvs e@, @fvs@ contains the occurrences of the free
--- variables, so we can infer if there is more than one occurrence
--- of a given free variable, and @e@ is the equality to analyze.
+-- In @isUniqueEq fvs e@, @fvs@ contains the variables that occur only once,
+-- and @e@ is the equality to analyze.
 --
--- Yields @(Just v, e)@ if @v@ doesn't occur elsewhere, and @e@ has
+-- Yields @(Just v, e)@ if @v@ is in @fvs@, and @e@ has
 -- the form @v == e'@.
-isUniqueEq :: [[Symbol]] -> Expr -> (Maybe Symbol, Expr)
+isUniqueEq :: [Symbol] -> Expr -> (Maybe Symbol, Expr)
 isUniqueEq fvs er = case unElab er of
   PAtom brel e0 e1
     | isEqRel brel ->
-      let m = isVarToDrop fvs e0 `mplus` isVarToDrop fvs e1
+      let m = isVarIn e0 fvs `mplus` isVarIn e1 fvs
        in (m, er)
   _ ->
     (Nothing, er)
+  where
+    -- | Tells if the binary relation is an equality.
+    isEqRel :: Brel -> Bool
+    isEqRel Eq = True
+    isEqRel Ueq = True
+    isEqRel _ = False
 
--- | Tells if the binary relation is an equality.
-isEqRel :: Brel -> Bool
-isEqRel Eq = True
-isEqRel Ueq = True
-isEqRel _ = False
-
--- | @isVarToDrop fvs s@ yields @Just s@ if the variable @s@ doesn't occur
--- elsewhere according to @fvs@.
---
--- > isVarToDrop fvs (cast_as_int s) == isVarToDrop fvs s
---
-isVarToDrop ::  [[Symbol]] -> ExprV Symbol -> Maybe Symbol
-isVarToDrop fvs (EApp (EVar "cast_as_int") ei) = isVarToDrop fvs ei
-isVarToDrop fvs (EVar s)
-  | elem [s] fvs = Just s
-isVarToDrop _fvs _ = Nothing
+    -- | @isVarIn s fvs@ yields @Just s@ if @s@ is a variable and it is in
+    -- @fvs@.
+    --
+    -- It also ignores @cast_as_int@ coercions, so that
+    --
+    -- > isVarIn (cast_as_int s) fvs == isVarIn s fvs
+    --
+    isVarIn :: Expr -> [Symbol] -> Maybe Symbol
+    isVarIn (EApp (EVar "cast_as_int") ei) vs = isVarIn ei vs
+    isVarIn (EVar s) vs
+      | elem s vs = Just s
+    isVarIn _ _vs = Nothing
 
 -- | Produces the free variables of an expressions as many times as they occur.
 --
