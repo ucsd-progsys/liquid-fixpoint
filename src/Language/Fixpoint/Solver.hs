@@ -327,16 +327,11 @@ saveSolution cfg res = when (save cfg) $ do
 simplifyResult :: Result a -> Result a
 simplifyResult res =
     res
-      { resSolution = HashMap.mapWithKey (simplifyKVar' sorts) (resSolution res)
-      , resNonCutsSolution = HashMap.mapWithKey (simplifyKVar' sorts) (resNonCutsSolution res)
+      { resSolution = HashMap.map simplifyKVar' (resSolution res)
+      , resNonCutsSolution = HashMap.map simplifyKVar' (resNonCutsSolution res)
       }
   where
-    sorts = resSorts res
-
-simplifyKVar' :: HashMap.HashMap KVar [(Symbol, Sort)] -> KVar -> Expr -> Expr
-simplifyKVar' scope k e = unElab $ simplifyKVar xs e
-  where
-    xs = fst <$> HashMap.lookupDefault [] k scope
+    simplifyKVar' = unElab . simplifyKVar
 
 -- | Simplifies existential expressions with unused or inconsequential bindings.
 --
@@ -353,14 +348,15 @@ simplifyKVar' scope k e = unElab $ simplifyKVar xs e
 --
 -- We require that relevant variables occur more than once, or that
 -- they occur in some other place than as an argument to @==@.
--- However, we do not want to eliminate any equalities over "free" variables, e.g.
--- the parameters of the KVar, as those are important to keep.
-simplifyKVar :: [Symbol] -> Expr -> Expr
-simplifyKVar freeVars = go
+simplifyKVar :: Expr -> Expr
+simplifyKVar = go
   where
     go (POr es) = POr $ map go es
     go (PExist bs e@(PAnd es)) =
-      let fvs = L.group $ L.sort $ freeVars ++ collectFreeVarOccurrences e
+      let fvs = [ g | g <- L.group $ L.sort $ collectFreeVarOccurrences e
+                    , isBound g
+                ]
+          isBound g = case g of {v:_ ->  elem v (map fst bs) ; _ -> False }
           esv = map (isUniqueEq fvs) es
           removed = mapMaybe fst esv
           needed = map head fvs L.\\ removed
@@ -368,6 +364,7 @@ simplifyKVar freeVars = go
       in
           PExist bs' $ PAnd $ [ei | (Nothing, ei) <- esv]
     go e = e
+
 -- | Determine if the expression is an equality that sets the value of
 -- a variable that doesn't occur elsewhere.
 --

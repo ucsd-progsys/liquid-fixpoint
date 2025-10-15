@@ -92,11 +92,15 @@ module Language.Fixpoint.Types.Constraints (
   , lookupRewrite
   , lookupLocalRewrites
   , insertRewrites
+  , eqnToHornSMT
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
   , sortVars
   , gSorts
+
+  -- * ScopedResult
+  , ScopedResult (..), ScopedExpr (..)
   , scopedResult
   ) where
 
@@ -112,6 +116,7 @@ import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Control.Monad             (when, void)
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.SMTPrint
 import qualified Language.Fixpoint.Types.Config as C
 import           Language.Fixpoint.Types.Triggers
 import           Language.Fixpoint.Types.Names
@@ -310,6 +315,10 @@ data ScopedExpr = MkScopedExpr
   }
   deriving (Generic, Show)
 
+instance ToHornSMT ScopedExpr where
+  toHornSMT (MkScopedExpr xts p) = toHornWithBinders "lambda" xts p
+
+
 scopedResult :: Result a -> ScopedResult
 scopedResult res = MkScopedResult cuts  nonCuts
   where
@@ -318,14 +327,17 @@ scopedResult res = MkScopedResult cuts  nonCuts
     scoped sol = M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
     scope k = L.sortBy (comparing fst) $ M.lookupDefault [] k $ resSorts res
 
-
 instance ToJSON a => ToJSON (Result a) where
-  toJSON (Result {..}) = object
+  toJSON r@(Result {..}) = object
     [ "status"            .= resStatus
-    , "solution"          .= resSolution
-    , "nonCutsSolution"   .= resNonCutsSolution
-    , "sorts"             .= resSorts
+    , "solution"          .= scCuts scopedSolution
+    , "nonCutsSolution"   .= scNonCuts scopedSolution
     ]
+    where
+      scopedSolution = scopedResult r
+
+instance ToJSON ScopedExpr where
+  toJSON = toJSON . render . toHornSMT
 
 instance Semigroup (Result a) where
   r1 <> r2  = Result stat soln nonCutsSoln gsoln sorts
@@ -540,6 +552,10 @@ data QualParam = QP
   }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance ToHornSMT QualParam where
+  toHornSMT qp = toHornSMT (qpSym qp, qpSort qp)
+
+
 data QualPattern
   = PatNone                 -- ^ match everything
   | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
@@ -558,6 +574,11 @@ instance FromJSON Equation    where
 instance ToJSON   Rewrite     where
 instance FromJSON Rewrite     where
 
+instance ToHornSMT Qualifier where
+  toHornSMT (Q n qps p _) =  toHornWithBinders name xts p
+    where
+      name = "qualif" <+> pprint n
+      xts =  [(qpSym qp, qpSort qp) | qp <- qps]
 
 trueQual :: Qualifier
 trueQual = Q (symbol ("QTrue" :: String)) [] PTrue (dummyPos "trueQual")
@@ -1046,6 +1067,10 @@ data EquationV v = Equ
   }
   deriving (Data, Eq, Ord, Show, Generic, Functor)
 
+eqnToHornSMT :: Doc -> Equation -> Doc
+eqnToHornSMT keyword (Equ f xs e s _) = parens (keyword <+> pprint f <+> toHornSMT xs <+> toHornSMT s <+> toHornSMT e)
+
+
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
 mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
@@ -1108,6 +1133,11 @@ data Rewrite  = SMeasure
   , smBody  :: Expr           -- eg. e[xs]
   }
   deriving (Data, Eq, Ord, Show, Generic)
+
+instance ToHornSMT Rewrite where
+  toHornSMT (SMeasure f d xs e) =  parens ("match" <+> toHornSMT f <+> toHornSMT (d:xs) <+> toHornSMT e)
+
+
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> L.sort (aenvEqs axe)) ++ (toFix <$> L.sort (aenvSimpl axe)))
