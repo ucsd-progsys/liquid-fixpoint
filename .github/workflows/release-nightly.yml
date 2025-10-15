@@ -90,7 +90,7 @@ jobs:
 
   publish:
     # Only publish a nightly release when a tag matching 'nightly-*' is pushed
-    if: true #github.event_name == 'push' && startsWith(github.ref, 'refs/tags/nightly-')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/nightly-')
     needs: [build]
     runs-on: ubuntu-latest
     steps:
