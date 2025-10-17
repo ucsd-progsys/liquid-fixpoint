@@ -328,7 +328,7 @@ simplifyResult :: Result a -> Result a
 simplifyResult res =
     res
       { resSolution = HashMap.map simplifyKVar' (resSolution res)
-      , resNonCutsSolution = HashMap.map simplifyKVar' (tracepp "pre-simplify" $ resNonCutsSolution res)
+      , resNonCutsSolution = HashMap.map simplifyKVar' (resNonCutsSolution res)
       }
   where
     simplifyKVar' = unElab . simplifyKVar
@@ -378,7 +378,7 @@ simplifyKVar = go
           needed = (singleOccurrenceBindings L.\\ removed) ++ multipleOccurrenceBindings
           bs' = tracepp ("bs=" ++ show (bs, removed, needed)) $ filter ((`elem` needed) . fst) bs
       in
-          PExist bs' $ PAnd $ [ei | (Nothing, ei) <- esv]
+          pExist bs' $ pAnd [ei | (Nothing, ei) <- esv]
     go e = e
 
 
