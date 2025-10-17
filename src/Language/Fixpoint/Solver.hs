@@ -328,7 +328,7 @@ simplifyResult :: Result a -> Result a
 simplifyResult res =
     res
       { resSolution = HashMap.map simplifyKVar' (resSolution res)
-      , resNonCutsSolution = HashMap.map simplifyKVar' (resNonCutsSolution res)
+      , resNonCutsSolution = HashMap.map simplifyKVar' (tracepp "pre-simplify" $ resNonCutsSolution res)
       }
   where
     simplifyKVar' = unElab . simplifyKVar
@@ -353,20 +353,30 @@ simplifyKVar = go
   where
     go (POr es) = POr $ map go es
     go (PExist bs e@(PAnd es)) =
-      let -- existential bindings that occur only once in the body of the
+      let -- Count occurrences of each variable
+          allOccurrences = L.group $ L.sort $ collectFreeVarOccurrences e
+
+          -- existential bindings that occur only once in the body of the
           -- existential
           singleOccurrenceBindings =
             filter isExistentialBinding $
-              concat $ filter occursExactlyOnce $
-                L.group $ L.sort $ collectFreeVarOccurrences e
+              concat $ filter occursExactlyOnce allOccurrences
+
+          -- existential bindings that occur more than once
+          multipleOccurrenceBindings =
+            filter isExistentialBinding $
+              map head $ filter occursMoreThanOnce allOccurrences
+
           isExistentialBinding = (`elem` map fst bs)
           occursExactlyOnce [_] = True
           occursExactlyOnce _   = False
+          occursMoreThanOnce (_:_:_) = True
+          occursMoreThanOnce _ = False
 
           esv = map (isUniqueEq singleOccurrenceBindings) es
           removed = mapMaybe fst esv
-          needed = singleOccurrenceBindings L.\\ removed
-          bs' = filter ((`elem` needed) . fst) bs
+          needed = (singleOccurrenceBindings L.\\ removed) ++ multipleOccurrenceBindings
+          bs' = tracepp ("bs=" ++ show (bs, removed, needed)) $ filter ((`elem` needed) . fst) bs
       in
           PExist bs' $ PAnd $ [ei | (Nothing, ei) <- esv]
     go e = e
