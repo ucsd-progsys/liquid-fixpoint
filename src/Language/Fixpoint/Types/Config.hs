@@ -121,6 +121,7 @@ data Config = Config
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
   , restOrdering        :: String      -- ^ Term ordering for use in REST
   , noSmtHorn           :: Bool        -- ^ Do not use (new) SMTLIB horn parser
+  , fullSolution        :: Bool        -- ^ Do not simplify solutions
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -292,6 +293,7 @@ defConfig = Config {
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
   , restOrdering             = "rpo"   &= help "Ordering Constraint Algebra to use for REST"
   , noSmtHorn                = False &= help "Do not use SMTLIB horn format"
+  , fullSolution             = False &= help "Do not simplify solution"
   }
   &= verbosity
   &= program "fixpoint"

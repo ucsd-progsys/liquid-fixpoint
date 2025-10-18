@@ -273,7 +273,7 @@ reduceFInfo cfg fi = do
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
   res0 <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
-  let res = simplifyResult res0
+  let res = simplifyResult cfg res0
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   -- saveSolution cfg res
@@ -324,14 +324,31 @@ saveSolution cfg res = when (save cfg) $ do
       scope k = L.sortBy (comparing fst) $ HashMap.lookupDefault [] k $ resSorts res
       ncDoc (k, xts, e) = PJ.hsep [ pprint k PJ.<> pprint xts, ":=", pprint e ]
 
-simplifyResult :: Result a -> Result a
-simplifyResult res =
+simplifyResult :: Config -> Result a -> Result a
+simplifyResult cfg res =
     res
       { resSolution = HashMap.map simplifyKVar' (resSolution res)
       , resNonCutsSolution = HashMap.map simplifyKVar' (resNonCutsSolution res)
       }
   where
-    simplifyKVar' = unElab . simplifyKVar
+    simplifyKVar' = unElab . simplifyKVar cfg
+
+simplifyKVar :: Config -> Expr -> Expr
+simplifyKVar cfg
+  | fullSolution cfg = simplifyKVarTrivial
+  | otherwise        = simplifyKVarOccurrences
+
+
+simplifyKVarTrivial :: Expr -> Expr
+simplifyKVarTrivial = go
+  where
+    go (POr es)      = POr (go <$> es)
+    go (PAnd es)     = PAnd (go <$> es)
+    go (PExist bs e) = pExist bs' e
+      where
+        fvs = collectFreeVarOccurrences e
+        bs' = filter (\(b, _) -> b `elem` fvs) bs
+    go e = e
 
 -- | Simplifies existential expressions with unused or inconsequential bindings.
 --
@@ -348,8 +365,8 @@ simplifyResult res =
 --
 -- We require that relevant variables occur more than once, or that
 -- they occur in some other place than as an argument to @==@.
-simplifyKVar :: Expr -> Expr
-simplifyKVar = go
+simplifyKVarOccurrences :: Expr -> Expr
+simplifyKVarOccurrences = go
   where
     go (POr es) = POr $ map go es
     go (PExist bs e@(PAnd es)) =
