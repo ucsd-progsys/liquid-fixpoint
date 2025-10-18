@@ -40,7 +40,7 @@ import           Language.Fixpoint.Solver.EnvironmentReduction
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
-import           Language.Fixpoint.SortCheck            (ElabParam (..), Elaborate (..), unElab)
+import           Language.Fixpoint.SortCheck            (ElabParam (..), Elaborate (..), unElab, unElabFSetBagZ3)
 import           Language.Fixpoint.Solver.Extensionality (expand)
 import           Language.Fixpoint.Solver.Prettify (savePrettifiedQuery)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
@@ -333,10 +333,15 @@ simplifyResult cfg res =
   where
     simplifyKVar' = unElab . simplifyKVar cfg
 
+    --   (if Cfg.elabSetBag ef then elabFSetBagZ3 else id)
 simplifyKVar :: Config -> Expr -> Expr
 simplifyKVar cfg
-  | fullSolution cfg = simplifyKVarTrivial
-  | otherwise        = simplifyKVarOccurrences
+  | full        = unElabSets . simplifyKVarTrivial
+  | otherwise   = simplifyKVarOccurrences
+  where
+    full        = fullSolution cfg
+    sets        = elabSetBag . solverFlags . solver $ cfg
+    unElabSets  = if sets then unElabFSetBagZ3 else id
 
 
 simplifyKVarTrivial :: Expr -> Expr
