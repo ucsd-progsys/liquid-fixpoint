@@ -159,7 +159,7 @@ solve_ cfg fi s0 ks wkl = do
     _ -> return $ mytrace "all checked with interpreter" res1
 
   st      <- stats
-  let res3 = {- SCC "sol-tidy" -} tidyResult res2
+  let res3 = {- SCC "sol-tidy" -} tidyResult cfg res2
   return $!! (res3, st)
 
 
@@ -167,21 +167,43 @@ solve_ cfg fi s0 ks wkl = do
 -- | tidyResult ensures we replace the temporary kVarArg names introduced to
 --   ensure uniqueness with the original names in the given WF constraints.
 --------------------------------------------------------------------------------
-tidyResult :: F.Result a -> F.Result a
-tidyResult r = r
-  { F.resSolution = tidySolution (F.resSolution r)
-  , F.resNonCutsSolution = tidySolution (F.resNonCutsSolution r)
-  , F.resSorts = tidyBind <$>  F.resSorts r
-  }
-
-tidyBind :: [(F.Symbol, F.Sort)] -> [(F.Symbol, F.Sort)]
-tidyBind xts = [ (F.tidySymbol x, t) | (x, t) <- xts ]
+tidyResult :: Config -> F.Result a -> F.Result a
+tidyResult cfg r
+  | fullSolution cfg = r
+  | otherwise = r { F.resSolution = tidySolution (F.resSolution r)
+                  , F.resNonCutsSolution = tidySolution (F.resNonCutsSolution r)
+                  , F.resSorts = fmap tidyBind <$>  F.resSorts r
+                }
 
 tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
 
+tidyBind :: (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
+tidyBind (x, t) = (F.tidySymbol x, t)
+
 tidyPred :: F.Expr -> F.Expr
-tidyPred = F.substf (F.eVar . F.tidySymbol)
+tidyPred =  go
+  where
+    ts = F.tidySymbol
+    tb = tidyBind
+    go (F.EApp s e)      = F.EApp (go s) (go e)
+    go (F.ELam (x,t) e)  = F.ELam (ts x, t) (go e)
+    go (F.ECoerc a t e)  = F.ECoerc a t (go e)
+    go (F.ENeg e)        = F.ENeg (go e)
+    go (F.EBin op e1 e2) = F.EBin op (go e1) (go e2)
+    go (F.ELet x e1 e2)  = F.ELet (ts x) (go e1) (go e2)
+    go (F.EIte p e1 e2)  = F.EIte (go p) (go e1) (go e2)
+    go (F.ECst e so)     = F.ECst (go e) so
+    go (F.EVar x)        = F.EVar (ts x)
+    go (F.PAnd ps)       = F.PAnd $ map go ps
+    go (F.POr  ps)       = F.POr  $ map go ps
+    go (F.PNot p)        = F.PNot $ go p
+    go (F.PImp p1 p2)    = F.PImp (go p1) (go p2)
+    go (F.PIff p1 p2)    = F.PIff (go p1) (go p2)
+    go (F.PAtom r e1 e2) = F.PAtom r (go e1) (go e2)
+    go (F.PExist xts e)  = F.PExist (tb <$> xts) (go e)
+    go (F.PAll xts e)    = F.PAll   (tb <$> xts) (go e)
+    go  p                = p
 
 --------------------------------------------------------------------------------
 {-# SCC refine #-}
@@ -268,7 +290,7 @@ result bindingsInSmt cfg fi wkl s =
     stat      <- result_ bindingsInSmt2 cfg wkl s
     lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     resCut    <- solResult cfg s
-    resNonCut <- solNonCutsResult s
+    resNonCut <- solNonCutsResult cfg s
     resSorts  <- resultSorts fi (M.keys resCut ++ M.keys resNonCut) <$> getBinds
     return     $ F.Result (ci <$> stat) resCut resNonCut mempty resSorts
   where
@@ -295,11 +317,16 @@ bindInfo be i = (x, F.sr_sort sr)
 solResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-solNonCutsResult :: Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
-solNonCutsResult s = do
-  be <- getBinds
-  ef <- T.ctxElabF <$> getContext
-  pure $ runReader (S.nonCutsResult be s) ef
+solNonCutsResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
+solNonCutsResult cfg s
+  | cfgNonCuts cfg = do
+    be <- getBinds
+    ef <- T.ctxElabF <$> getContext
+    pure $ runReader (S.nonCutsResult be s) ef
+  | otherwise = pure mempty
+
+cfgNonCuts :: Config -> Bool
+cfgNonCuts cfg = save cfg || (json cfg && fullSolution cfg)
 
 result_
   :: (F.Loc a, NFData a)

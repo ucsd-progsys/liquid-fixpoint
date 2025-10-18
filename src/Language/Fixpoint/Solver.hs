@@ -393,7 +393,7 @@ simplifyKVarOccurrences = go
           esv = map (isUniqueEq singleOccurrenceBindings) es
           removed = mapMaybe fst esv
           needed = (singleOccurrenceBindings L.\\ removed) ++ multipleOccurrenceBindings
-          bs' = tracepp ("bs=" ++ show (bs, removed, needed)) $ filter ((`elem` needed) . fst) bs
+          bs' = filter ((`elem` needed) . fst) bs
       in
           pExist bs' $ pAnd [ei | (Nothing, ei) <- esv]
     go e = e
