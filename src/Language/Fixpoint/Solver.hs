@@ -331,18 +331,18 @@ simplifyResult cfg res =
       , resNonCutsSolution = HashMap.map simplifyKVar' (resNonCutsSolution res)
       }
   where
-    simplifyKVar' = unElab . simplifyKVar cfg
+    simplifyKVar' = unElabSets . unElab . simplifyKVar cfg
+    sets          = elabSetBag . solverFlags . solver $ cfg
+    unElabSets    = if sets then unElabFSetBagZ3 else id
+
 
     --   (if Cfg.elabSetBag ef then elabFSetBagZ3 else id)
 simplifyKVar :: Config -> Expr -> Expr
 simplifyKVar cfg
-  | full        = unElabSets . simplifyKVarTrivial
+  | full        = simplifyKVarTrivial
   | otherwise   = simplifyKVarOccurrences
   where
     full        = fullSolution cfg
-    sets        = elabSetBag . solverFlags . solver $ cfg
-    unElabSets  = if sets then unElabFSetBagZ3 else id
-
 
 simplifyKVarTrivial :: Expr -> Expr
 simplifyKVarTrivial = go
