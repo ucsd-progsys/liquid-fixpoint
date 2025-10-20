@@ -168,12 +168,11 @@ solve_ cfg fi s0 ks wkl = do
 --   ensure uniqueness with the original names in the given WF constraints.
 --------------------------------------------------------------------------------
 tidyResult :: Config -> F.Result a -> F.Result a
-tidyResult cfg r
-  | fullSolution cfg = r
-  | otherwise = r { F.resSolution = tidySolution (F.resSolution r)
-                  , F.resNonCutsSolution = tidySolution (F.resNonCutsSolution r)
-                  , F.resSorts = fmap tidyBind <$>  F.resSorts r
-                }
+tidyResult _ r = r
+  { F.resSolution = tidySolution (F.resSolution r)
+  , F.resNonCutsSolution = tidySolution (F.resNonCutsSolution r)
+  , F.resSorts = fmap tidyBind <$>  F.resSorts r
+  }
 
 tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
@@ -326,7 +325,7 @@ solNonCutsResult cfg s
   | otherwise = pure mempty
 
 cfgNonCuts :: Config -> Bool
-cfgNonCuts cfg = save cfg || (json cfg && fullSolution cfg)
+cfgNonCuts cfg = save cfg || (json cfg {- && fullSolution cfg -})
 
 result_
   :: (F.Loc a, NFData a)
