@@ -56,6 +56,7 @@ module Language.Fixpoint.SortCheck  (
   , elabNumeric
   , unApply
   , unElab
+  , unElabFSetBagZ3
   , unElabSortedReft
   , unApplySortedReft
   , unApplyAt
@@ -283,49 +284,132 @@ elabFMap (PGrad  k su i e) = PGrad k su i (elabFMap e)
 elabFMap (ECoerc a t e)    = ECoerc a t (elabFMap e)
 elabFMap e                 = e
 
+
 elabFSetBagZ3 :: Expr -> Expr
-elabFSetBagZ3 (EApp h@(EVar f) e)
-  | f == Thy.setEmpty         = EApp (EVar Thy.arrConstS) PFalse
-  | f == Thy.setEmp           = PAtom Eq (EApp (EVar Thy.arrConstS) PFalse) (elabFSetBagZ3 e)
-  | f == Thy.setSng           = EApp (EApp (EApp (EVar Thy.arrStoreS) (EApp (EVar Thy.arrConstS) PFalse)) (elabFSetBagZ3 e)) PTrue
-  | f == Thy.setCom           = EApp (EVar Thy.arrMapNotS) (elabFSetBagZ3 e)
-  | f == Thy.bagEmpty         = EApp (EVar Thy.arrConstB) (ECon (I 0))
-  | otherwise                 = EApp (elabFSetBagZ3 h) (elabFSetBagZ3 e)
-elabFSetBagZ3 (EApp (EApp h@(EVar f) e1) e2)
-  | f == Thy.setMem           = EApp (EApp (EVar Thy.arrSelectS) (elabFSetBagZ3 e2)) (elabFSetBagZ3 e1)
-  | f == Thy.setCup           = EApp (EApp (EVar Thy.arrMapOrS) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
-  | f == Thy.setCap           = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
-  | f == Thy.setAdd           = EApp (EApp (EApp (EVar Thy.arrStoreS) (elabFSetBagZ3 e2)) (elabFSetBagZ3 e1)) PTrue
-  -- A \ B == A /\ ~B == ~(A => B)
-  | f == Thy.setDif           = EApp (EApp (EVar Thy.arrMapAndS) (elabFSetBagZ3 e1)) (EApp (EVar Thy.arrMapNotS) (elabFSetBagZ3 e2))
-  | f == Thy.setSub           = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapImpS) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2))
-  | f == Thy.bagCount         = EApp (EApp (EVar Thy.arrSelectB) (elabFSetBagZ3 e2)) (elabFSetBagZ3 e1)
-  | f == Thy.bagSng           = EApp (EApp (EApp (EVar Thy.arrStoreB) (EApp (EVar Thy.arrConstB) (ECon (I 0)))) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
-  | f == Thy.bagCup           = EApp (EApp (EVar Thy.arrMapPlusB) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
-  | f == Thy.bagSub           = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2))
-  | f == Thy.bagMax           = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapGtB) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2))) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
-  | f == Thy.bagMin           = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapLeB) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2))) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
-  | otherwise                 = EApp (EApp (elabFSetBagZ3 h) (elabFSetBagZ3 e1)) (elabFSetBagZ3 e2)
-elabFSetBagZ3 (EApp e1 e2)      = EApp (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
-elabFSetBagZ3 (ENeg e)          = ENeg (elabFSetBagZ3 e)
-elabFSetBagZ3 (EBin b e1 e2)    = EBin b (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
-elabFSetBagZ3 (ELet x e1 e2)    = ELet x (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
-elabFSetBagZ3 (EIte e1 e2 e3)   = EIte (elabFSetBagZ3 e1) (elabFSetBagZ3 e2) (elabFSetBagZ3 e3)
-elabFSetBagZ3 (ECst e t)        = ECst (elabFSetBagZ3 e) t
-elabFSetBagZ3 (ELam b e)        = ELam b (elabFSetBagZ3 e)
-elabFSetBagZ3 (ETApp e t)       = ETApp (elabFSetBagZ3 e) t
-elabFSetBagZ3 (ETAbs e t)       = ETAbs (elabFSetBagZ3 e) t
-elabFSetBagZ3 (PAnd es)         = PAnd (elabFSetBagZ3 <$> es)
-elabFSetBagZ3 (POr es)          = POr (elabFSetBagZ3 <$> es)
-elabFSetBagZ3 (PNot e)          = PNot (elabFSetBagZ3 e)
-elabFSetBagZ3 (PImp e1 e2)      = PImp (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
-elabFSetBagZ3 (PIff e1 e2)      = PIff (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
-elabFSetBagZ3 (PAtom r e1 e2)   = PAtom r (elabFSetBagZ3 e1) (elabFSetBagZ3 e2)
-elabFSetBagZ3 (PAll   bs e)     = PAll bs (elabFSetBagZ3 e)
-elabFSetBagZ3 (PExist bs e)     = PExist bs (elabFSetBagZ3 e)
-elabFSetBagZ3 (PGrad  k su i e) = PGrad k su i (elabFSetBagZ3 e)
-elabFSetBagZ3 (ECoerc a t e)    = ECoerc a t (elabFSetBagZ3 e)
-elabFSetBagZ3 e                 = e
+elabFSetBagZ3 = go
+  where
+    go (EApp h@(EVar f) e)
+      | f == Thy.setEmpty = EApp (EVar Thy.arrConstS) PFalse
+      | f == Thy.setEmp   = PAtom Eq (EApp (EVar Thy.arrConstS) PFalse) (go e)
+      | f == Thy.setSng   = EApp (EApp (EApp (EVar Thy.arrStoreS) (EApp (EVar Thy.arrConstS) PFalse)) (go e)) PTrue
+      | f == Thy.setCom   = EApp (EVar Thy.arrMapNotS) (go e)
+      | f == Thy.bagEmpty = EApp (EVar Thy.arrConstB) (ECon (I 0))
+      | otherwise         = EApp (go h) (go e)
+    go (EApp (EApp h@(EVar f) e1) e2)
+      | f == Thy.setMem   = EApp (EApp (EVar Thy.arrSelectS) (go e2)) (go e1)
+      | f == Thy.setCup   = EApp (EApp (EVar Thy.arrMapOrS) (go e1)) (go e2)
+      | f == Thy.setCap   = EApp (EApp (EVar Thy.arrMapAndS) (go e1)) (go e2)
+      | f == Thy.setAdd   = EApp (EApp (EApp (EVar Thy.arrStoreS) (go e2)) (go e1)) PTrue
+      -- A \ B == A /\ ~B == ~(A => B)
+      | f == Thy.setDif   = EApp (EApp (EVar Thy.arrMapAndS) (go e1)) (EApp (EVar Thy.arrMapNotS) (go e2))
+      | f == Thy.setSub   = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapImpS) (go e1)) (go e2))
+      | f == Thy.bagCount = EApp (EApp (EVar Thy.arrSelectB) (go e2)) (go e1)
+      | f == Thy.bagSng   = EApp (EApp (EApp (EVar Thy.arrStoreB) (EApp (EVar Thy.arrConstB) (ECon (I 0)))) (go e1)) (go e2)
+      | f == Thy.bagCup   = EApp (EApp (EVar Thy.arrMapPlusB) (go e1)) (go e2)
+      | f == Thy.bagSub   = PAtom Eq (EApp (EVar Thy.arrConstS) PTrue) (EApp (EApp (EVar Thy.arrMapLeB) (go e1)) (go e2))
+      | f == Thy.bagMax   = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapGtB) (go e1)) (go e2))) (go e1)) (go e2)
+      | f == Thy.bagMin   = EApp (EApp (EApp (EVar Thy.arrMapIteB) (EApp (EApp (EVar Thy.arrMapLeB) (go e1)) (go e2))) (go e1)) (go e2)
+      | otherwise         = EApp (EApp (go h) (go e1)) (go e2)
+    go (EApp e1 e2)       = EApp   (go e1) (go e2)
+    go (ENeg e)           = ENeg   (go e)
+    go (EBin b e1 e2)     = EBin b (go e1) (go e2)
+    go (ELet x e1 e2)     = ELet x (go e1) (go e2)
+    go (EIte e1 e2 e3)    = EIte   (go e1) (go e2) (go e3)
+    go (ECst e t)         = ECst   (go e) t
+    go (ELam b e)         = ELam b (go e)
+    go (ETApp e t)        = ETApp  (go e) t
+    go (ETAbs e t)        = ETAbs  (go e) t
+    go (PAnd es)          = PAnd   (go <$> es)
+    go (POr es)           = POr    (go <$> es)
+    go (PNot e)           = PNot   (go e)
+    go (PImp e1 e2)       = PImp   (go e1) (go e2)
+    go (PIff e1 e2)       = PIff   (go e1) (go e2)
+    go (PAtom r e1 e2)    = PAtom r (go e1) (go e2)
+    go (PAll   bs e)      = PAll bs (go e)
+    go (PExist bs e)      = PExist bs (go e)
+    go (PGrad  k su i e)  = PGrad k su i (go e)
+    go (ECoerc a t e)     = ECoerc a t (go e)
+    go e                  = e
+
+-- | Reverse transformation of elabFSetBagZ3: converts array representations back to set/bag operations
+unElabFSetBagZ3 :: Expr -> Expr
+unElabFSetBagZ3 = go
+  where
+    -- arr_const_s false -> Set_empty
+    go (EApp (EVar f) PFalse)
+      | f == Thy.arrConstS = EVar Thy.setEmpty
+    -- arr_const_s false == e -> Set_emp e
+    go (PAtom Eq (EApp (EVar f) PFalse) e)
+      | f == Thy.arrConstS = EApp (EVar Thy.setEmp) (go e)
+    -- arr_store_s (arr_const_s false) e true -> Set_sng e
+    go (EApp (EApp (EApp (EVar f1) (EApp (EVar f2) PFalse)) e) PTrue)
+      | f1 == Thy.arrStoreS && f2 == Thy.arrConstS = EApp (EVar Thy.setSng) (go e)
+    -- arr_map_not_s e -> Set_com e
+    go (EApp (EVar f) e)
+      | f == Thy.arrMapNotS = EApp (EVar Thy.setCom) (go e)
+    -- arr_const_b 0 -> Bag_empty
+    go (EApp (EVar f) (ECon (I 0)))
+      | f == Thy.arrConstB = EVar Thy.bagEmpty
+    -- arr_select_s e2 e1 -> Set_mem e1 e2
+    go (EApp (EApp (EVar f) e2) e1)
+      | f == Thy.arrSelectS = EApp (EApp (EVar Thy.setMem) (go e1)) (go e2)
+    -- arr_map_or_s e1 e2 -> Set_cup e1 e2
+    go (EApp (EApp (EVar f) e1) e2)
+      | f == Thy.arrMapOrS = EApp (EApp (EVar Thy.setCup) (go e1)) (go e2)
+    -- arr_map_and_s e1 e2 -> Set_cap e1 e2
+    go (EApp (EApp (EVar f) e1) e2)
+      | f == Thy.arrMapAndS = EApp (EApp (EVar Thy.setCap) (go e1)) (go e2)
+    -- arr_store_s e2 e1 true -> Set_add e1 e2
+    go (EApp (EApp (EApp (EVar f) e2) e1) PTrue)
+      | f == Thy.arrStoreS = EApp (EApp (EVar Thy.setAdd) (go e1)) (go e2)
+    -- arr_map_and_s e1 (arr_map_not_s e2) -> Set_dif e1 e2
+    go (EApp (EApp (EVar f1) e1) (EApp (EVar f2) e2))
+      | f1 == Thy.arrMapAndS && f2 == Thy.arrMapNotS = EApp (EApp (EVar Thy.setDif) (go e1)) (go e2)
+    -- arr_const_s true == arr_map_imp_s e1 e2 -> Set_sub e1 e2
+    go (PAtom Eq (EApp (EVar f1) PTrue) (EApp (EApp (EVar f2) e1) e2))
+      | f1 == Thy.arrConstS && f2 == Thy.arrMapImpS = EApp (EApp (EVar Thy.setSub) (go e1)) (go e2)
+    -- arr_select_b e2 e1 -> Bag_count e1 e2
+    go (EApp (EApp (EVar f) e2) e1)
+      | f == Thy.arrSelectB = EApp (EApp (EVar Thy.bagCount) (go e1)) (go e2)
+    -- arr_store_b (arr_const_b 0) e1 e2 -> Bag_sng e1 e2
+    go (EApp (EApp (EApp (EVar f1) (EApp (EVar f2) (ECon (I 0)))) e1) e2)
+      | f1 == Thy.arrStoreB && f2 == Thy.arrConstB = EApp (EApp (EVar Thy.bagSng) (go e1)) (go e2)
+    -- arr_map_plus_b e1 e2 -> Bag_cup e1 e2
+    go (EApp (EApp (EVar f) e1) e2)
+      | f == Thy.arrMapPlusB = EApp (EApp (EVar Thy.bagCup) (go e1)) (go e2)
+    -- arr_const_s true == arr_map_le_b e1 e2 -> Bag_sub e1 e2
+    go (PAtom Eq (EApp (EVar f1) PTrue) (EApp (EApp (EVar f2) e1) e2))
+      | f1 == Thy.arrConstS && f2 == Thy.arrMapLeB = EApp (EApp (EVar Thy.bagSub) (go e1)) (go e2)
+    -- arr_map_ite_b (arr_map_gt_b e1 e2) e1 e2 -> Bag_max e1 e2
+    go (EApp (EApp (EApp (EVar f1) (EApp (EApp (EVar f2) e1a) e2a)) e1b) e2b)
+      | f1 == Thy.arrMapIteB && f2 == Thy.arrMapGtB && e1a == e1b && e2a == e2b
+      = EApp (EApp (EVar Thy.bagMax) (go e1a)) (go e2a)
+    -- arr_map_ite_b (arr_map_le_b e1 e2) e1 e2 -> Bag_min e1 e2
+    go (EApp (EApp (EApp (EVar f1) (EApp (EApp (EVar f2) e1a) e2a)) e1b) e2b)
+      | f1 == Thy.arrMapIteB && f2 == Thy.arrMapLeB && e1a == e1b && e2a == e2b
+      = EApp (EApp (EVar Thy.bagMin) (go e1a)) (go e2a)
+    -- Recursive cases
+    go (EApp e1 e2)       = EApp   (go e1) (go e2)
+    go (ENeg e)           = ENeg   (go e)
+    go (EBin b e1 e2)     = EBin b (go e1) (go e2)
+    go (ELet x e1 e2)     = ELet x (go e1) (go e2)
+    go (EIte e1 e2 e3)    = EIte   (go e1) (go e2) (go e3)
+    go (ECst e t)         = ECst   (go e) t
+    go (ELam b e)         = ELam b (go e)
+    go (ETApp e t)        = ETApp  (go e) t
+    go (ETAbs e t)        = ETAbs  (go e) t
+    go (PAnd es)          = PAnd   (go <$> es)
+    go (POr es)           = POr    (go <$> es)
+    go (PNot e)           = PNot   (go e)
+    go (PImp e1 e2)       = PImp   (go e1) (go e2)
+    go (PIff e1 e2)       = PIff   (go e1) (go e2)
+    go (PAtom r e1 e2)    = PAtom r (go e1) (go e2)
+    go (PAll   bs e)      = PAll bs (go e)
+    go (PExist bs e)      = PExist bs (go e)
+    go (PGrad  k su i e)  = PGrad k su i (go e)
+    go (ECoerc a t e)     = ECoerc a t (go e)
+    go e                  = e
+
 
 elabSorts :: Cfg.ElabFlags -> Expr -> Expr
 elabSorts ef (EApp e1 e2)      = EApp (elabSorts ef e1) (elabSorts ef e2)

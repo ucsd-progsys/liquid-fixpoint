@@ -38,7 +38,7 @@ instance ToHornSMT a => ToHornSMT [a] where
   toHornSMT = toHornMany . fmap toHornSMT
 
 toHornMany :: [P.Doc] -> P.Doc
-toHornMany = P.parens . P.sep -- Misc.intersperse " "
+toHornMany = P.parens . P.sep 
 
 toHornAnd :: (a -> P.Doc) -> [a] -> P.Doc
 toHornAnd f xs = P.parens (P.vcat ("and" : (P.nest 1 . f <$> xs)))

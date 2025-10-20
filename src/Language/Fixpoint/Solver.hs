@@ -40,7 +40,7 @@ import           Language.Fixpoint.Solver.EnvironmentReduction
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
-import           Language.Fixpoint.SortCheck            (ElabParam (..), Elaborate (..), unElab)
+import           Language.Fixpoint.SortCheck            (ElabParam (..), Elaborate (..), unElab, unElabFSetBagZ3)
 import           Language.Fixpoint.Solver.Extensionality (expand)
 import           Language.Fixpoint.Solver.Prettify (savePrettifiedQuery)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
@@ -273,7 +273,7 @@ reduceFInfo cfg fi = do
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
   res0 <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
-  let res = simplifyResult res0
+  let res = simplifyResult cfg res0
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   -- saveSolution cfg res
@@ -324,14 +324,17 @@ saveSolution cfg res = when (save cfg) $ do
       scope k = L.sortBy (comparing fst) $ HashMap.lookupDefault [] k $ resSorts res
       ncDoc (k, xts, e) = PJ.hsep [ pprint k PJ.<> pprint xts, ":=", pprint e ]
 
-simplifyResult :: Result a -> Result a
-simplifyResult res =
+simplifyResult :: Config -> Result a -> Result a
+simplifyResult cfg res =
     res
       { resSolution = HashMap.map simplifyKVar' (resSolution res)
       , resNonCutsSolution = HashMap.map simplifyKVar' (resNonCutsSolution res)
       }
   where
-    simplifyKVar' = unElab . simplifyKVar
+    simplifyKVar' = unElabSets . unElab . simplifyKVar
+    sets          = elabSetBag . solverFlags . solver $ cfg
+    unElabSets    = if sets then unElabFSetBagZ3 else id
+
 
 -- | Simplifies existential expressions with unused or inconsequential bindings.
 --
@@ -353,22 +356,32 @@ simplifyKVar = go
   where
     go (POr es) = POr $ map go es
     go (PExist bs e@(PAnd es)) =
-      let -- existential bindings that occur only once in the body of the
+      let -- Count occurrences of each variable
+          allOccurrences = L.group $ L.sort $ collectFreeVarOccurrences e
+
+          -- existential bindings that occur only once in the body of the
           -- existential
           singleOccurrenceBindings =
             filter isExistentialBinding $
-              concat $ filter occursExactlyOnce $
-                L.group $ L.sort $ collectFreeVarOccurrences e
+              concat $ filter occursExactlyOnce allOccurrences
+
+          -- existential bindings that occur more than once
+          multipleOccurrenceBindings =
+            filter isExistentialBinding $
+              map head $ filter occursMoreThanOnce allOccurrences
+
           isExistentialBinding = (`elem` map fst bs)
           occursExactlyOnce [_] = True
           occursExactlyOnce _   = False
+          occursMoreThanOnce (_:_:_) = True
+          occursMoreThanOnce _ = False
 
           esv = map (isUniqueEq singleOccurrenceBindings) es
           removed = mapMaybe fst esv
-          needed = singleOccurrenceBindings L.\\ removed
+          needed = (singleOccurrenceBindings L.\\ removed) ++ multipleOccurrenceBindings
           bs' = filter ((`elem` needed) . fst) bs
       in
-          PExist bs' $ PAnd $ [ei | (Nothing, ei) <- esv]
+          pExist bs' $ pAnd [ei | (Nothing, ei) <- esv]
     go e = e
 
 
