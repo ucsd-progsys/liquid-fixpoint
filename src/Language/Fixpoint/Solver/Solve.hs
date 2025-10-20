@@ -325,7 +325,7 @@ solNonCutsResult cfg s
   | otherwise = pure mempty
 
 cfgNonCuts :: Config -> Bool
-cfgNonCuts cfg = save cfg || (json cfg {- && fullSolution cfg -})
+cfgNonCuts cfg = save cfg || json cfg
 
 result_
   :: (F.Loc a, NFData a)

@@ -331,25 +331,10 @@ simplifyResult cfg res =
       , resNonCutsSolution = HashMap.map simplifyKVar' (resNonCutsSolution res)
       }
   where
-    simplifyKVar' = unElabSets . unElab . simplifyKVar cfg
+    simplifyKVar' = unElabSets . unElab . simplifyKVar
     sets          = elabSetBag . solverFlags . solver $ cfg
     unElabSets    = if sets then unElabFSetBagZ3 else id
 
-simplifyKVar :: Config -> Expr -> Expr
-simplifyKVar _cfg = simplifyKVarOccurrences
-  -- | False && fullSolution cfg = simplifyKVarTrivial
-  -- | otherwise        = simplifyKVarOccurrences
-
--- _simplifyKVarTrivial :: Expr -> Expr
--- _simplifyKVarTrivial = go
---   where
---     go (POr es)      = POr (go <$> es)
---     go (PAnd es)     = PAnd (go <$> es)
---     go (PExist bs e) = pExist bs' e
---       where
---         fvs = collectFreeVarOccurrences e
---         bs' = filter (\(b, _) -> b `elem` fvs) bs
---     go e = e
 
 -- | Simplifies existential expressions with unused or inconsequential bindings.
 --
@@ -366,8 +351,8 @@ simplifyKVar _cfg = simplifyKVarOccurrences
 --
 -- We require that relevant variables occur more than once, or that
 -- they occur in some other place than as an argument to @==@.
-simplifyKVarOccurrences :: Expr -> Expr
-simplifyKVarOccurrences = go
+simplifyKVar :: Expr -> Expr
+simplifyKVar = go
   where
     go (POr es) = POr $ map go es
     go (PExist bs e@(PAnd es)) =
