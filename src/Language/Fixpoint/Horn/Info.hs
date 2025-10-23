@@ -225,10 +225,6 @@ qualParams env e = [ (x, t) | (_, x, t) <- L.sortBy (comparing Down) ixts ]
   where
     xs = Misc.nubOrd (F.syms e)
     ixts = [ (i, x, t) | x <- xs, (t, i) <- Mb.maybeToList (lookupBindEnv x env) ]
-    -- ixts <- forM xs $ \x -> do
-    --           (t, i) <- lookupBindEnv x env
-    --           return (i, x, t)
-
 
 -------------------------------------------------------------------------------
 

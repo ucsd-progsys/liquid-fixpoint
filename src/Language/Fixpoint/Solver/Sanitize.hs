@@ -361,11 +361,6 @@ banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
     bads    = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
     free q  = filter (not . isGlobal) (F.syms q)
     isGlobal x = F.memberSEnv x (SortCheck.globalEnv fi)
-    -- dataEnv || F.memberSEnv x litEnv
-    -- litEnv  = F.gLits fi
-    -- dataEnv = F.fromListSEnv [ (x, F.tsSort thy) | (x, thy) <- concatMap F.dataDeclSymbols (F.ddecls fi)]
-    -- lits    = fst <$> F.toListSEnv (F.gLits fi)
-    -- free q  = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (F.qpSym <$> F.qParams q))
 
 badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error
 badQuals bqs = E.catErrors [ E.errFreeVarInQual q xs | (q, xs) <- bqs]
