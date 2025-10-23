@@ -194,13 +194,13 @@ reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
     ras'                     = if null ps then ks else conj ps : ks  -- see [NOTE:pAnd-SLOW]
-    (ps, ks)                 = partition isConc (refaConjuncts ra)
+    (ps, ks)                 = partition isConc (conjuncts ra)
 
 isConc :: Expr -> Bool
 isConc p = not (isKvar p || isGradual p)
 
 concConjuncts :: Expr -> [Expr]
-concConjuncts e = filter isConc (refaConjuncts e)
+concConjuncts e = filter isConc (conjuncts e)
 
 isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
@@ -236,10 +236,6 @@ instance HasGradual SortedReft where
   isGradual = isGradual . sr_reft
   gVars     = gVars . sr_reft
   ungrad r  = r {sr_reft = ungrad (sr_reft r)}
-
-refaConjuncts :: Expr -> [Expr]
-refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
-
 
 
 --------------------------------------------------------------------------------
