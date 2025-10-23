@@ -293,7 +293,8 @@ apply g s bs      =
      (pks, kI) <- applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
      pure (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
 
-
+-- | Produces conjuncts of each sorted reft in the IBindEnv, separated
+-- into concrete conjuncts, kvars, and gradual kvars.
 envConcKVars :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ElabM ([F.Expr], [F.KVSub], [F.KVSub])
 envConcKVars g s bs =
   do xrs <- traverse (lookupBindEnvExt g s) is
@@ -346,8 +347,10 @@ exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
                             , yi `F.memberIBindEnv` ienv                  ]
 
 applyKVars :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ElabM ExprInfo
-applyKVars g s ks =
-  mrExprInfosM (applyKVar g s) F.pAndNoDedup mconcat ks
+applyKVars g s ks = do
+  bcs <- traverse (applyKVar g s) ks
+  let (es, is) = unzip bcs
+  pure (F.pAndNoDedup es, mconcat is)
 
 applyKVar :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> ElabM ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
@@ -407,6 +410,15 @@ hypPred g s ksu hyp =
   do cs <- traverse (cubePred g s ksu) hyp
      pure $ F.pOr *** mconcatPlus $ unzip cs
 
+elabExist :: F.SrcSpan -> Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> ElabM F.Expr
+elabExist sp s xts p =
+  do ef <- ask
+     let elab = So.elaborate (So.ElabParam ef (F.atLoc sp "elabExist") env)
+     let xts' = [ (x, elab t) | (x, t) <- xts]
+     pure $ F.pExist xts' p
+  where
+    env = Sol.sEnv s
+
 {- | `cubePred g s k su c` returns the predicate for
 
         (k . su)
@@ -421,16 +433,6 @@ hypPred g s ksu hyp =
         p'  := the predicate corresponding to the "extra" binders
 
  -}
-
-elabExist :: F.SrcSpan -> Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> ElabM F.Expr
-elabExist sp s xts p =
-  do ef <- ask
-     let elab = So.elaborate (So.ElabParam ef (F.atLoc sp "elabExist") env)
-     let xts' = [ (x, elab t) | (x, t) <- xts]
-     pure $ F.pExist xts' p
-  where
-    env = Sol.sEnv s
-
 cubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ElabM ExprInfo
 cubePred g s ksu c    =
   do ((xts,psu,p), kI) <- cubePredExc g s ksu c bs'
@@ -587,12 +589,6 @@ appendTags ts ts' = Misc.sortNub (ts ++ ts')
 extendKInfo :: KInfo -> F.Tag -> KInfo
 extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
                       , kiDepth = 1  +            kiDepth ki }
-
-mrExprInfosM :: Monad m => (a -> m (b, c)) -> ([b] -> b1) -> ([c] -> c1) -> [a] -> m (b1, c1)
-mrExprInfosM mF erF irF xs =
-  do bcs <- traverse mF xs
-     let (es, is) = unzip bcs
-     pure (erF es, irF is)
 
 --------------------------------------------------------------------------------
 -- | `ebindInfo` constructs the information about the "ebind-definitions".
