@@ -941,7 +941,7 @@ isSingletonExpr _ _        = Nothing
 
 -- | 'conj' is a fast version of 'pAnd' needed for the ebind tests
 conj :: [Pred] -> Pred
-conj []  = PFalse
+conj []  = PTrue
 conj [p] = p
 conj ps  = PAnd ps
 
