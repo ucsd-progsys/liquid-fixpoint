@@ -293,7 +293,8 @@ apply g s bs      =
      (pks, kI) <- applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
      pure (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
 
-
+-- | Produces conjuncts of each sorted reft in the IBindEnv, separated
+-- into concrete conjuncts, kvars, and gradual kvars.
 envConcKVars :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ElabM ([F.Expr], [F.KVSub], [F.KVSub])
 envConcKVars g s bs =
   do xrs <- traverse (lookupBindEnvExt g s) is
