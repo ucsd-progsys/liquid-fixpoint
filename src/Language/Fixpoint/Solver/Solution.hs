@@ -410,6 +410,15 @@ hypPred g s ksu hyp =
   do cs <- traverse (cubePred g s ksu) hyp
      pure $ F.pOr *** mconcatPlus $ unzip cs
 
+elabExist :: F.SrcSpan -> Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> ElabM F.Expr
+elabExist sp s xts p =
+  do ef <- ask
+     let elab = So.elaborate (So.ElabParam ef (F.atLoc sp "elabExist") env)
+     let xts' = [ (x, elab t) | (x, t) <- xts]
+     pure $ F.pExist xts' p
+  where
+    env = Sol.sEnv s
+
 {- | `cubePred g s k su c` returns the predicate for
 
         (k . su)
@@ -424,16 +433,6 @@ hypPred g s ksu hyp =
         p'  := the predicate corresponding to the "extra" binders
 
  -}
-
-elabExist :: F.SrcSpan -> Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> ElabM F.Expr
-elabExist sp s xts p =
-  do ef <- ask
-     let elab = So.elaborate (So.ElabParam ef (F.atLoc sp "elabExist") env)
-     let xts' = [ (x, elab t) | (x, t) <- xts]
-     pure $ F.pExist xts' p
-  where
-    env = Sol.sEnv s
-
 cubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ElabM ExprInfo
 cubePred g s ksu c    =
   do ((xts,psu,p), kI) <- cubePredExc g s ksu c bs'
