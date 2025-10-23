@@ -24,8 +24,8 @@ module Language.Fixpoint.Solver.Worklist
 import           Prelude hiding (init)
 import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types   as F
+import           Language.Fixpoint.Types.Visitor (isConcC)
 import           Language.Fixpoint.Graph.Types
-import           Language.Fixpoint.Graph   (isTarget)
 
 import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
@@ -104,9 +104,11 @@ init sI    = WL { wCs     = items
     cd        = siDeps sI
     rankm     = cRank cd
     items     = S.fromList $ workItemsAt rankm 0 <$> kvarCs
-    concCs    = fst <$> ics
+    concCs    = fst <$> filter (isNonTriv . snd) ics
     kvarCs    = fst <$> iks
-    (ics,iks) = L.partition (isTarget . snd) (M.toList cm)
+    (ics,iks) = L.partition (isConcC . snd) (M.toList cm)
+
+    isNonTriv = not .  F.isTautoPred . F.crhs
 
 ---------------------------------------------------------------------------
 -- | Candidate Constraints to be checked AFTER computing Fixpoint ---------
