@@ -15,6 +15,12 @@ for various Liquid Types. The solver uses SMTLIB2 to implement an algorithm simi
 + [Houdini](https://users.soe.ucsc.edu/~cormac/papers/fme01.pdf)
 + [Cartesian predicate abstraction](http://swt.informatik.uni-freiburg.de/berit/papers/boolean-and-cartesian-....pdf)
 
+Algorithms implemented in liquid-fixpoint:
+
++ [FUSION](https://ranjitjhala.github.io/static/local_refinement_typing.pdf) Local refinement typing
++ [PLE](https://ranjitjhala.github.io/static/refinement_reflection.pdf) Refinement Reflection: Complete Verification with SMT
++ [REST](https://drops.dagstuhl.de/entities/document/10.4230/DARTS.8.2.12) REST: Integrating Term Rewriting with Program Verification
+
 
 Requirements
 ------------
