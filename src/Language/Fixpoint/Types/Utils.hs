@@ -49,7 +49,9 @@ reftFreeVars :: Reft -> S.HashSet Symbol
 reftFreeVars r@(Reft (v, _)) = S.delete v $ S.fromList $ syms r
 
 --------------------------------------------------------------------------------
--- | Split a SortedReft into its concrete and KVar components
+-- | Split a SortedReft into its concrete and KVar conjuncts
+--
+-- Produces @(concrete conjunts, normal kvars, gradual kvars)@
 --------------------------------------------------------------------------------
 sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub], [KVSub])
 sortedReftConcKVars x sr = go [] [] [] ves
