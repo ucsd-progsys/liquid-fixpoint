@@ -35,6 +35,7 @@ import qualified Data.Text                                         as T
 import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import qualified Language.Fixpoint.SortCheck as SortCheck
 
 type SanitizeM a = Either E.Error a
 
@@ -358,8 +359,11 @@ banQualifFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
     bads    = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
-    free q  = filter (not . isLit) (F.syms q)
-    isLit x = F.memberSEnv x (F.gLits fi)
+    free q  = filter (not . isGlobal) (F.syms q)
+    isGlobal x = F.memberSEnv x (SortCheck.globalEnv fi)
+    -- dataEnv || F.memberSEnv x litEnv
+    -- litEnv  = F.gLits fi
+    -- dataEnv = F.fromListSEnv [ (x, F.tsSort thy) | (x, thy) <- concatMap F.dataDeclSymbols (F.ddecls fi)]
     -- lits    = fst <$> F.toListSEnv (F.gLits fi)
     -- free q  = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (F.qpSym <$> F.qParams q))
 

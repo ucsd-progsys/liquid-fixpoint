@@ -631,8 +631,9 @@ instance PPrint QualPattern where
 instance Fixpoint Qualifier where
   toFix = pprQual
 
-instance PPrint (QualifierV v) where
-  pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
+instance (Ord v, Fixpoint v, PPrint v) => PPrint (QualifierV v) where
+  pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> pprintTidy k (qBody q) <+> "defined at" <+> pprintTidy k (qPos q)
+
 
 pprQual :: Qualifier -> Doc
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <-> parens args <-> colon <+> parens (toFix p) <+> text "//" <+> toFix l

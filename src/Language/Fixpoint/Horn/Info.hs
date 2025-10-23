@@ -5,7 +5,6 @@ module Language.Fixpoint.Horn.Info (
     hornFInfo
   ) where
 
-import           Control.Monad (forM)
 import           Data.Ord (Down(..), comparing)
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
@@ -189,9 +188,9 @@ scrapePred senv (H.Reft e)  = concatMap (mkQual senv) (F.concConjuncts e)
 
 -- NOTE: Constraints.mkQual will do extra stuff like generalizing the sorts...
 mkQual :: BindEnv -> F.Expr -> [ F.Qualifier ]
-mkQual env e = case qualParams env e of
-  Nothing  -> []
-  Just xts -> [ mkScrapeQual xts' e | xts' <- shiftCycle xts ]
+mkQual env e = [ mkScrapeQual xts' e | xts' <- shiftCycle xts ]
+  where
+    xts = qualParams env e
 
 mkScrapeQual :: [(F.Symbol, F.Sort)] -> F.Expr -> F.Qualifier
 mkScrapeQual xts e = F.mkQual (F.symbol "AUTO") qParams (F.subst su e) (F.dummyPos "")
@@ -221,15 +220,15 @@ maxQualifierParams = 3
   2. Permute the args?
  -}
 
-qualParams :: BindEnv -> F.Expr -> Maybe [(F.Symbol, F.Sort)]
-qualParams env e = do
-    let xs = Misc.nubOrd (F.syms e)
-    ixts <- forM xs $ \x -> do
-              (t, i) <- lookupBindEnv x env
-              return (i, x, t)
-    return [ (x, t) | (_, x, t) <- L.sortBy (comparing Down) ixts ]
+qualParams :: BindEnv -> F.Expr -> [(F.Symbol, F.Sort)]
+qualParams env e = [ (x, t) | (_, x, t) <- L.sortBy (comparing Down) ixts ]
+  where
+    xs = Misc.nubOrd (F.syms e)
+    ixts = [ (i, x, t) | x <- xs, (t, i) <- Mb.maybeToList (lookupBindEnv x env) ]
+    -- ixts <- forM xs $ \x -> do
+    --           (t, i) <- lookupBindEnv x env
+    --           return (i, x, t)
 
-    -- ixts = [ (i, x, t) | x <- xs, (i, t) <- lookupBindEnv x env ]
 
 -------------------------------------------------------------------------------
 

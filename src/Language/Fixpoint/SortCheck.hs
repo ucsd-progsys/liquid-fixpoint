@@ -18,6 +18,7 @@ module Language.Fixpoint.SortCheck  (
     TVSubst
   , Env
   , mkSearchEnv
+  , globalEnv
 
   -- * Checking Well-Formedness
   , checkSorted
@@ -1698,3 +1699,8 @@ errNonFractional  l  = printf "The sort %s is not fractional" (showpp l)
 
 errBoolSort :: Expr -> Sort -> String
 errBoolSort     e s  = printf "Expressions %s should have bool sort, but has %s" (showpp e) (showpp s)
+
+globalEnv :: F.GInfo c a -> SEnv Sort
+globalEnv finfo = F.gLits finfo <> dataEnv
+  where
+    dataEnv = fromListSEnv [ (x, F.tsSort thy) | (x, thy) <- concatMap Thy.dataDeclSymbols (F.ddecls finfo)]
