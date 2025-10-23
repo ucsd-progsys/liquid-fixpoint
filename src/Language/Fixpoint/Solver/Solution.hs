@@ -347,8 +347,10 @@ exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
                             , yi `F.memberIBindEnv` ienv                  ]
 
 applyKVars :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ElabM ExprInfo
-applyKVars g s ks =
-  mrExprInfosM (applyKVar g s) F.pAndNoDedup mconcat ks
+applyKVars g s ks = do
+  bcs <- traverse (applyKVar g s) ks
+  let (es, is) = unzip bcs
+  pure (F.pAndNoDedup es, mconcat is)
 
 applyKVar :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> ElabM ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
@@ -588,12 +590,6 @@ appendTags ts ts' = Misc.sortNub (ts ++ ts')
 extendKInfo :: KInfo -> F.Tag -> KInfo
 extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
                       , kiDepth = 1  +            kiDepth ki }
-
-mrExprInfosM :: Monad m => (a -> m (b, c)) -> ([b] -> b1) -> ([c] -> c1) -> [a] -> m (b1, c1)
-mrExprInfosM mF erF irF xs =
-  do bcs <- traverse mF xs
-     let (es, is) = unzip bcs
-     pure (erF es, irF is)
 
 --------------------------------------------------------------------------------
 -- | `ebindInfo` constructs the information about the "ebind-definitions".
