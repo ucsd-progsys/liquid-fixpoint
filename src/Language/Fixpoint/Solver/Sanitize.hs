@@ -161,11 +161,6 @@ eliminateEta cfg si
       | otherwise
       = Nothing
 
--- theoryEnv :: Config -> F.GInfo c a -> F.SEnv F.TheorySymbol
--- theoryEnv cfg si
---   =  Thy.theorySymbols (Cfg.solver cfg)
---   <> Thy.theorySymbols (F.defns si)
---   <> Thy.theorySymbols (F.ddecls si)
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
