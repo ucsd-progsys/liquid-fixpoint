@@ -56,10 +56,17 @@ init cfg si ks_ = Sol.fromList symEnv mempty keqs [] mempty ebs xEnv
     qs_        = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w), k `S.member` ks ]
     ks         = {- trace ("init-ks-size" ++ show (S.size ks_)) $ -} ks_
-    genv       = So.globalEnv cfg si <> instConstants si
+    genv       = initQualifierEnv cfg si
     symEnv     = symbolEnv cfg si
     ebs        = ebindInfo si
     xEnv       = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,(x,sr,_)) <- F.bindEnvToList (F.bs si)]
+
+initQualifierEnv :: (F.Fixpoint a) => Config -> F.SInfo a -> F.SEnv F.Sort
+initQualifierEnv cfg si
+  | scraping  = So.globalEnv cfg si <> instConstants si
+  | otherwise = instConstants si
+  where
+    scraping = scrape cfg /= No
 
 --------------------------------------------------------------------------------
 -- | [NOTE:qual-cluster] It is wasteful to perform instantiation *individually*
