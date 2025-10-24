@@ -205,6 +205,11 @@ edgeGraph :: [CEdge] -> KVGraph
 edgeGraph es = KVGraph [(v, v, vs) | (v, vs) <- groupList es ]
 
 -- need to plumb list of ebinds
+
+-- | Compute dependencies between constraints and kvars.
+--
+-- @(k, c)@ means that constraint @c@ uses kvar @k@ on the LHS.
+-- @(c, k)@ means that constraint @c@ uses kvar @k@ on the RHS.
 {-# SCC kvEdges #-}
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
 kvEdges fi = selfes ++ concatMap (subcEdges bs) cs ++ concatMap (ebindEdges ebs bs) cs
@@ -307,8 +312,10 @@ dNonCut v = Deps S.empty (S.singleton v)
 dCut    v = Deps (S.singleton v) S.empty
 
 --------------------------------------------------------------------------------
--- | Compute Dependencies and Cuts ---------------------------------------------
---------------------------------------------------------------------------------
+-- | Compute Dependencies and Cuts
+--
+-- Computes greedily a set of kvars that make the dependency graph acyclic when
+-- removed. Also yields the edges of the dependency graph.
 {-# SCC elimVars #-}
 elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 --------------------------------------------------------------------------------
@@ -581,9 +588,8 @@ graphStats cfg si = Stats {
     nlks          = nonLinearKVars si
     d             = snd $ elimVars cfg si
 
---------------------------------------------------------------------------------
+-- | KVars used more than once in the LHS of some constraint
 nonLinearKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
---------------------------------------------------------------------------------
 nonLinearKVars fi = S.unions $ nlKVarsC bs <$> cs
   where
     bs            = F.bs fi
