@@ -289,7 +289,7 @@ instance Show Cube where
 --------------------------------------------------------------------------------
 result :: Sol a QBind -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
-result s = sMap $ pAnd . fmap eqPred . qbEQuals <$> s
+result s = pAnd . fmap eqPred . qbEQuals <$> sMap s
 
 
 --------------------------------------------------------------------------------
