@@ -193,11 +193,12 @@ mkQual env e = [ mkScrapeQual xts' e | xts' <- shiftCycle xts ]
     xts = qualParams env e
 
 mkScrapeQual :: [(F.Symbol, F.Sort)] -> F.Expr -> F.Qualifier
-mkScrapeQual xts e = F.mkQual (F.symbol "AUTO") qParams (F.subst su e) (F.dummyPos "")
+mkScrapeQual xts e = F.mkQual (F.symbol "AUTO") qParams body (F.dummyPos "")
   where
     qParams = [ F.QP {F.qpSym = y, F.qpPat = F.PatNone, F.qpSort = t} | (_, y, t) <- xyts ]
     xyts    = zipWith (\i (x, t) -> (x, F.bindSymbol i, t)) [0..] xts
     su      = F.mkSubst [ (x, F.expr y) | (x, y, _) <- xyts ]
+    body    = F.subst su e
 
 
 shiftCycle :: [(F.Symbol, F.Sort)] -> [[(F.Symbol, F.Sort)]]

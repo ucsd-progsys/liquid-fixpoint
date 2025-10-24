@@ -632,7 +632,10 @@ instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance (Ord v, Fixpoint v, PPrint v) => PPrint (QualifierV v) where
-  pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> pprintTidy k (qBody q) <+> "defined at" <+> pprintTidy k (qPos q)
+  pprintTidy k q =
+    "qualif" <+> pprintTidy k (qName q) <+>
+     parens (hsep $ punctuate comma (pprintTidy k <$> qParams q)) <+>
+     colon <+> pprintTidy k (qBody q) <+> "//defined at" <+> pprintTidy k (qPos q)
 
 
 pprQual :: Qualifier -> Doc

@@ -151,7 +151,8 @@ instance Subable Expr where
 
 
   subst su (EApp f e)      = EApp (subst su f) (subst su e)
-  subst su (ELam x e)      = ELam x (subst (removeSubst su (fst x)) e)
+  subst su (ELam x e)      = ELam x (subst su' e) where su' = removeSubst su (fst x)
+  subst su (ELet x e1 e2)  = ELet x (subst su e1) (subst su' e2) where su' = removeSubst su x
   subst su (ECoerc a t e)  = ECoerc a t (subst su e)
   subst su (ENeg e)        = ENeg (subst su e)
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
