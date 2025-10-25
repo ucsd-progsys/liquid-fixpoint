@@ -256,7 +256,9 @@ simplifyFInfo !cfg !fi0 = do
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5
   if rewriteAxioms cfg && noLazyPLE cfg
-    then instantiate cfg si6 $!! Nothing
+    then do
+      bs <- instantiate cfg si6 $!! Nothing
+      return si6 { Types.bs = bs }
     else return si6
 
 reduceFInfo :: Fixpoint a => Config -> FInfo a -> IO (FInfo a)

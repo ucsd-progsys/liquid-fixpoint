@@ -53,7 +53,7 @@ mytracepp = notracepp
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE
 --------------------------------------------------------------------------------
-instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (BindEnv a)
 instantiate cfg info subcIds
   | not (oldPLE cfg)
   = PLE.instantiate cfg info subcIds
@@ -77,7 +77,7 @@ instantiate cfg info subcIds
  -}
 
 -------------------------------------------------------------------------------
-incrInstantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
+incrInstantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (BindEnv a)
 -------------------------------------------------------------------------------
 incrInstantiate' cfg info subcIds = do
     let cs = [ (i, c) | (i, c) <- M.toList (cm info), isPleCstr aEnv i c
@@ -182,7 +182,7 @@ evalCandsLoop cfg γ s0 = go []
 ----------------------------------------------------------------------------------------------
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo
 
-resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
+resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> BindEnv a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ mytracepp  "ELAB-INST:  " $ zip is ps''
@@ -300,7 +300,7 @@ getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 --------------------------------------------------------------------------------
 -- | "Old" GLOBAL PLE
 --------------------------------------------------------------------------------
-instantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
+instantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (BindEnv a)
 instantiate' cfg info subcIds = sInfo cfg env info <$> withCtx cfg file env (defns info) act
   where
     act             = forM cstrs $ \(i, c) ->
@@ -311,7 +311,7 @@ instantiate' cfg info subcIds = sInfo cfg env info <$> withCtx cfg file env (def
     env             = symbolEnv cfg info
     aenv            = {- mytracepp  "AXIOM-ENV" -} ae info
 
-sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
+sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> BindEnv a
 sInfo cfg env info ips = strengthenHyp info (mytracepp  "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips

@@ -208,7 +208,7 @@ data SimpC a = SimpC
 instance Loc a => Loc (SimpC a) where
   srcSpan = srcSpan . _cinfo
 
-strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
+strengthenHyp :: SInfo a -> [(Integer, Expr)] -> BindEnv a
 strengthenHyp si ies = strengthenBinds si bindExprs
   where
     bindExprs        = safeFromList "strengthenHyp" [ (subcBind si i, e) | (i, e) <- ies ]
@@ -221,8 +221,8 @@ subcBind si i
   = errorstar $ "Unknown subcId in subcBind: " ++ show i
 
 
-strengthenBinds :: SInfo a -> M.HashMap BindId Expr -> SInfo a
-strengthenBinds si m = si { bs = mapBindEnv f (bs si) }
+strengthenBinds :: SInfo a -> M.HashMap BindId Expr -> BindEnv a
+strengthenBinds si m = mapBindEnv f (bs si)
   where
     f i (x, sr, l)   = case M.lookup i m of
                          Nothing -> (x, sr, l)

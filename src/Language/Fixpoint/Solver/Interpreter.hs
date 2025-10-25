@@ -57,7 +57,7 @@ mytracepp = notracepp
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE
 --------------------------------------------------------------------------------
-instInterpreter :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
+instInterpreter :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (BindEnv a)
 instInterpreter cfg fi' subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
@@ -178,7 +178,7 @@ rewriteTop e rw
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo
 ----------------------------------------------------------------------------------------------
 
-resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
+resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> BindEnv a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''

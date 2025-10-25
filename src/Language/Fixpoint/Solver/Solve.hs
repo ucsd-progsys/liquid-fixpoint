@@ -91,16 +91,16 @@ siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
 doInterpret :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.SInfo a)
-doInterpret cfg fi0 subcIds = do
-  fi <- liftIO $ instInterpreter cfg fi0 (Just subcIds)
-  modify $ \ss -> ss{ssBinds = F.bs fi}
-  return fi
+doInterpret cfg fi subcIds = do
+  bs <- liftIO $ instInterpreter cfg fi (Just subcIds)
+  modify $ \ss -> ss{ssBinds = bs}
+  return fi { F.bs = bs }
 
 {-# SCC doPLE #-}
 doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a ()
 doPLE cfg fi0 subcIds = do
-  fi <- liftIO $ instantiate cfg fi0 (Just subcIds)
-  modify $ \ss -> ss{ssBinds = F.bs fi}
+  bs <- liftIO $ instantiate cfg fi0 (Just subcIds)
+  modify $ \ss -> ss{ssBinds = bs}
 
 --------------------------------------------------------------------------------
 {-# SCC solve_ #-}
