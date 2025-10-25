@@ -99,8 +99,7 @@ doInterpret cfg fi0 subcIds = do
   where
     update' fi ss = ss{ssBinds = F.bs fi'}
       where
-        fi' = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
-        sI  = solverInfo cfg fi
+        fi' = fi {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
 {-# SCC doPLE #-}
 doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a ()
@@ -110,8 +109,7 @@ doPLE cfg fi0 subcIds = do
   where
     update' fi ss = ss{ssBinds = F.bs fi'}
       where
-        fi' = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
-        sI  = solverInfo cfg fi
+        fi' = fi {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
 --------------------------------------------------------------------------------
 {-# SCC solve_ #-}
