@@ -37,7 +37,6 @@ import qualified Data.HashSet        as S
 -- import qualified Data.Maybe          as Mb
 import qualified Data.List           as L
 import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
-import qualified Language.Fixpoint.Types.Config as C
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import Language.Fixpoint.Solver.Instantiate (instantiate)
 import Data.Maybe (maybeToList)
@@ -94,22 +93,14 @@ siKvars = S.fromList . M.keys . F.ws
 doInterpret :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.SInfo a)
 doInterpret cfg fi0 subcIds = do
   fi <- liftIO $ instInterpreter cfg fi0 (Just subcIds)
-  modify $ update' fi
+  modify $ \ss -> ss{ssBinds = F.bs fi}
   return fi
-  where
-    update' fi ss = ss{ssBinds = F.bs fi'}
-      where
-        fi' = fi {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
 
 {-# SCC doPLE #-}
 doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a ()
 doPLE cfg fi0 subcIds = do
   fi <- liftIO $ instantiate cfg fi0 (Just subcIds)
-  modify $ update' fi
-  where
-    update' fi ss = ss{ssBinds = F.bs fi'}
-      where
-        fi' = fi {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+  modify $ \ss -> ss{ssBinds = F.bs fi}
 
 --------------------------------------------------------------------------------
 {-# SCC solve_ #-}
