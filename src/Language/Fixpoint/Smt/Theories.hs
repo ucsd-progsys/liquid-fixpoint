@@ -453,11 +453,8 @@ interpSymbols cfg =
   , interpSym bagMin   "bag.inter_min"      bagBopSort
   , interpSym bagSub   "bag.subbag"         (FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort)
 
-  -- , interpSym bvOrName  "bvor"  bvBopSort
-  -- , interpSym bvAndName "bvand" bvBopSort
-  -- , interpSym bvAddName "bvadd" bvBopSort
-  -- , interpSym bvSubName "bvsub" bvBopSort
-
+  -- Strings
+  
   , interpSym strLen    strLen    strLenSort
   , interpSym strSubstr strSubstr substrSort
   , interpSym strConcat strConcat concatstrSort
@@ -507,12 +504,20 @@ interpSymbols cfg =
   , interpBvCmp bvSLeName
   , interpBvCmp bvSGtName
   , interpBvCmp bvSGeName
+
+  -- int to bv Conversions
+  
   , interpSym intbv32Name   "(_ int2bv 32)" (FFunc intSort bv32)
   , interpSym intbv64Name   "(_ int2bv 64)" (FFunc intSort bv64)
   , interpSym bv32intName   (bv2i cfg 32) (FFunc bv32    intSort)
   , interpSym bv64intName   (bv2i cfg 64) (FFunc bv64    intSort)
-  -- , interpSym bv32intName   "(_ bv2int 32)" (FFunc bv32    intSort)
-  -- , interpSym bv64intName   "(_ bv2int 64)" (FFunc bv64    intSort)
+  , interpSym bv32intName   (bv2i cfg 32)   (FFunc bv32    intSort)
+  , interpSym bv64intName   (bv2i cfg 64)   (FFunc bv64    intSort)
+
+  , interpSym intbv8Name    "(_ int2bv 8)"  (FFunc intSort bv8)
+  , interpSym intbv16Name   "(_ int2bv 16)" (FFunc intSort bv16)
+  , interpSym bv8intName    (bv2i cfg 32)   (FFunc bv8    intSort)
+  , interpSym bv16intName   (bv2i cfg 64)   (FFunc bv16    intSort)
   ]
   ++
   if cfg == Z3 || cfg == Z3mem
@@ -545,7 +550,8 @@ interpSymbols cfg =
     mapArrSort = arraySort (FVar 0) (FVar 1)
     setArrSort = arraySort (FVar 0) boolSort
     bagArrSort = arraySort (FVar 0) intSort
-    -- (sizedBitVecSort "Size1")
+    bv8        = sizedBitVecSort "Size8"
+    bv16       = sizedBitVecSort "Size16"
     bv32       = sizedBitVecSort "Size32"
     bv64       = sizedBitVecSort "Size64"
     boolInt    = boolToIntName
