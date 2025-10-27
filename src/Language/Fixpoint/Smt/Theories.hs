@@ -454,7 +454,7 @@ interpSymbols cfg =
   , interpSym bagSub   "bag.subbag"         (FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort)
 
   -- Strings
-  
+
   , interpSym strLen    strLen    strLenSort
   , interpSym strSubstr strSubstr substrSort
   , interpSym strConcat strConcat concatstrSort
@@ -506,11 +506,9 @@ interpSymbols cfg =
   , interpBvCmp bvSGeName
 
   -- int to bv Conversions
-  
+
   , interpSym intbv32Name   "(_ int2bv 32)" (FFunc intSort bv32)
   , interpSym intbv64Name   "(_ int2bv 64)" (FFunc intSort bv64)
-  , interpSym bv32intName   (bv2i cfg 32) (FFunc bv32    intSort)
-  , interpSym bv64intName   (bv2i cfg 64) (FFunc bv64    intSort)
   , interpSym bv32intName   (bv2i cfg 32)   (FFunc bv32    intSort)
   , interpSym bv64intName   (bv2i cfg 64)   (FFunc bv64    intSort)
 
