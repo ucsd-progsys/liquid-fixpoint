@@ -73,9 +73,12 @@ mytracepp = notracepp
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE
---------------------------------------------------------------------------------
+--
+-- @instantiate cfg fi subcIds@ yields @F.bs fi@ strengthened with the
+-- unfoldings discovered by PLE on the constraints in @subcIds@ (or all
+-- constraints if @subcIds == Nothing@).
 {-# SCC instantiate #-}
-instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (BindEnv a)
 instantiate cfg fi' subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
@@ -359,7 +362,7 @@ evalCandsLoop cfg ictx0 γ = go ictx0 0
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo
 ----------------------------------------------------------------------------------------------
 
-resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
+resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> BindEnv a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''

@@ -48,7 +48,9 @@ kvScopes sI es = is2env <$> kiM
                      [(k, i) | (KVar k, Cstr i) <- es ]
 
 --------------------------------------------------------------------------------
-
+-- | @cutSInfo si kI cKs@ drops well-formed constraints that don't refer to the
+-- KVars in @cKs@. Also drops subtyping constraints that don't refer in their
+-- RHS to any of the KVars in @cKs@ or which aren't concrete.
 cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar -> SInfo a
 cutSInfo si kI cKs = si { ws = ws', cm = cm' }
   where
@@ -57,13 +59,17 @@ cutSInfo si kI cKs = si { ws = ws', cm = cm' }
     cs    = S.fromList      (concatMap kCs cKs)
     kCs k = M.lookupDefault [] k kI
 
+-- | Compute Dependencies and Cuts
+--
+-- Yields the edges of the dependency graph, then the set of KVars whose removal
+-- makes the graph acyclic (cuts), and finally the rest of the KVars.
 kutVars :: Config -> SInfo a -> ([CEdge], S.HashSet KVar, S.HashSet KVar)
 kutVars cfg si   = (es, depCuts ds, depNonCuts ds)
   where
     (es, ds)     = elimVars cfg si
 
 --------------------------------------------------------------------------------
--- | Map each `KVar` to the list of constraints on which it appears on RHS
+-- | Map each 'KVar' to the list of constraints on which it appears on RHS
 --------------------------------------------------------------------------------
 type KIndex = M.HashMap KVar [Integer]
 

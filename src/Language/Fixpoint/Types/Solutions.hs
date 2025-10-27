@@ -100,8 +100,13 @@ import           Language.Fixpoint.SortCheck (ElabM, ElabParam(..), elaborate)
 import           Text.PrettyPrint.HughesPJ.Compat
 
 --------------------------------------------------------------------------------
--- | Update Solution -----------------------------------------------------------
---------------------------------------------------------------------------------
+-- | Update Solution
+--
+-- @update s ks kqs@ sets in @s@ each KVar in @kqs@ to the corresponding EQuals.
+-- KVars in @ks@ which are not in @kqs@ are set to the empty list of EQuals.
+--
+-- Yields a pair @(b, s')@ where @b@ is true if the mapping of any KVar was
+-- changed.
 update :: Sol a QBind -> [KVar] -> [(KVar, EQual)] -> (Bool, Sol a QBind)
 --------------------------------------------------------------------------------
 update s ks kqs = {- tracepp msg -} (or bs, s')
@@ -117,6 +122,10 @@ folds f b = L.foldl' step ([], b)
        where
          (c, x')      = f acc x
 
+-- | @groupKs ks kqs@ groups the EQuals by KVar, ensuring that each KVar in @ks@
+-- is present (even if it has no associated EQuals).
+--
+-- Each KVar occurs only once in the output list.
 groupKs :: [KVar] -> [(KVar, EQual)] -> [(KVar, QBind)]
 groupKs ks kqs = [ (k, QB eqs) | (k, eqs) <- M.toList $ groupBase m0 kqs ]
   where
@@ -280,7 +289,7 @@ instance Show Cube where
 --------------------------------------------------------------------------------
 result :: Sol a QBind -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
-result s = sMap $ pAnd . fmap eqPred . qbEQuals <$> s
+result s = pAnd . fmap eqPred . qbEQuals <$> sMap s
 
 
 --------------------------------------------------------------------------------
@@ -381,8 +390,8 @@ type Cand a   = [(Expr, a)]
 --------------------------------------------------------------------------------
 data EQual = EQL
   { eqQual :: !Qualifier
-  , eqPred  :: !Expr
-  , _eqArgs :: ![Expr]
+  , eqPred  :: !Expr      -- ^ predicate obtained by instantiating the qualifier
+  , _eqArgs :: ![Expr]    -- ^ actual arguments used to instantiate the qualifier
   } deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Loc EQual where
@@ -396,7 +405,7 @@ instance PPrint EQual where
 
 instance NFData EQual
 
-{- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
+-- | @eQual q xs@ instantiates @q@ with the arguments in @xs@
 eQual :: Qualifier -> [Symbol] -> EQual
 eQual q xs = {- tracepp "eQual" $ -} EQL q p es
   where
