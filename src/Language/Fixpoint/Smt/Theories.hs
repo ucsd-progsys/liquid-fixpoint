@@ -268,12 +268,9 @@ data PreambleCondition = SAll | SOnly [SMTSolver]
   deriving (Eq, Show)
 
 setPreamble :: Config -> [Preamble]
--- CVC5 does not support set.is_empty as a built-in, but can be expressed as cardinality
 -- Z3 does not support cardinality on sets, which is defined to be uninterpreted function
 setPreamble _ 
-  = [ (SOnly [Cvc5],       bFun  "set.is_empty" [("s", "(Set Int)")] "Bool" "(= (set.card s) 0)") 
-    , (SOnly [Z3, Z3mem],  bFun' "set.card" ["(Array Int Bool)"] "Int") 
-    ]
+  = [ (SOnly [Z3, Z3mem],  bFun' "set.card" ["(Array Int Bool)"] "Int") ]
 
 boolPreamble :: Config -> [Preamble]
 boolPreamble _
