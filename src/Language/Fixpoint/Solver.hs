@@ -321,7 +321,7 @@ saveSolution cfg res = when (save cfg) $ do
     where
       scopedRender = PJ.render . PJ.vcat . map ncDoc . scoped
       scoped sol = [ (k, scope k, e) | (k, e) <- HashMap.toList sol]
-      scope k = L.sortBy (comparing fst) $ HashMap.lookupDefault [] k $ resSorts res
+      scope k = map (\(_bid, name, sort) -> (name, sort)) $ L.sortBy (comparing (\(bid, _, _) -> bid)) $ HashMap.lookupDefault [] k $ resSorts res
       ncDoc (k, xts, e) = PJ.hsep [ pprint k PJ.<> pprint xts, ":=", pprint e ]
 
 simplifyResult :: Config -> Result a -> Result a

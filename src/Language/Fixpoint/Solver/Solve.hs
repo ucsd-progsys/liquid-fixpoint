@@ -177,14 +177,14 @@ tidyResult _ r = r
 tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
 
-tidyBind :: (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
-tidyBind (x, t) = (F.tidySymbol x, t)
+tidyBind :: (F.BindId, F.Symbol, F.Sort) -> (F.BindId, F.Symbol, F.Sort)
+tidyBind (i, x, t) = (i, F.tidySymbol x, t)
 
 tidyPred :: F.Expr -> F.Expr
 tidyPred =  go
   where
     ts = F.tidySymbol
-    tb = tidyBind
+    tb (x, t) = (F.tidySymbol x, t)
     go (F.EApp s e)      = F.EApp (go s) (go e)
     go (F.ELam (x,t) e)  = F.ELam (ts x, t) (go e)
     go (F.ECoerc a t e)  = F.ECoerc a t (go e)
@@ -301,15 +301,15 @@ resultSorts fi ks be = M.fromList
     | k <- ks
     , xts <- maybeToList (kvarScope fi be k) ]
 
-kvarScope :: F.SInfo a -> F.BindEnv a -> F.KVar -> Maybe [(F.Symbol, F.Sort)]
+kvarScope :: F.SInfo a -> F.BindEnv a -> F.KVar -> Maybe [(F.BindId, F.Symbol, F.Sort)]
 kvarScope fi be k = do
   w <- M.lookup k (F.ws fi)
   let bs = F.wenv w
   let (v, t, _) = F.wrft w
-  return $ (v, t) : [ bindInfo be i | i <- F.elemsIBindEnv bs ]
+  return $ (0, v, t) : [ bindInfo be i | i <- F.elemsIBindEnv bs ]
 
-bindInfo :: F.BindEnv a -> F.BindId -> (F.Symbol, F.Sort)
-bindInfo be i = (x, F.sr_sort sr)
+bindInfo :: F.BindEnv a -> F.BindId -> (F.BindId, F.Symbol, F.Sort)
+bindInfo be i = (i, x, F.sr_sort sr)
   where
     (x, sr, _) = F.lookupBindEnv i be
 

@@ -301,7 +301,7 @@ data Result a = Result
   }
   deriving (Generic, Show, Functor)
 
-type ResultSorts = M.HashMap KVar [(Symbol, Sort)]
+type ResultSorts = M.HashMap KVar [(BindId, Symbol, Sort)]
 
 data ScopedResult = MkScopedResult
   { scCuts    :: KVarMap ScopedExpr
@@ -330,7 +330,7 @@ scopedResult res = MkScopedResult cuts  nonCuts
     cuts = scoped (resSolution res)
     nonCuts = scoped (resNonCutsSolution res)
     scoped sol = MkKVarMap $ M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
-    scope k = L.sortBy (comparing fst) $ M.lookupDefault [] k $ resSorts res
+    scope k = map (\(_bid, name, sort) -> (name, sort)) $ L.sortBy (comparing (\(bid, _, _) -> bid)) $ M.lookupDefault [] k $ resSorts res
 
 instance ToJSON a => ToJSON (Result a) where
   toJSON r@(Result {..}) = object
