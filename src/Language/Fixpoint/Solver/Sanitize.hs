@@ -17,7 +17,7 @@ module Language.Fixpoint.Solver.Sanitize
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor
-import           Language.Fixpoint.SortCheck     (ElabParam(..), elaborate, applySorts, isFirstOrder)
+import           Language.Fixpoint.SortCheck     (ElabParam(..), theoryEnv, elaborate, applySorts, isFirstOrder)
 -- import           Language.Fixpoint.Defunctionalize
 import           Language.Fixpoint.Misc ((==>))
 import qualified Language.Fixpoint.Misc                            as Misc
@@ -35,6 +35,7 @@ import qualified Data.Text                                         as T
 import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import qualified Language.Fixpoint.SortCheck as SortCheck
 
 type SanitizeM a = Either E.Error a
 
@@ -47,7 +48,7 @@ sanitize cfg =       banIrregularData
          >=> Misc.fM replaceDeadKvars
          >=> Misc.fM (dropDeadSubsts . restrictKVarDomain)
          >=>         banMixedRhs
-         >=>         banQualifFreeVars
+         >=>         banQualifFreeVars cfg
          >=>         banConstraintFreeVars cfg
          >=> Misc.fM addLiterals
          >=> Misc.fM (eliminateEta cfg)
@@ -160,11 +161,6 @@ eliminateEta cfg si
       | otherwise
       = Nothing
 
-theoryEnv :: Config -> F.GInfo c a -> F.SEnv F.TheorySymbol
-theoryEnv cfg si
-  =  Thy.theorySymbols (Cfg.solver cfg)
-  <> Thy.theorySymbols (F.defns si)
-  <> Thy.theorySymbols (F.ddecls si)
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
@@ -353,15 +349,13 @@ badDataDecl ds = E.catErrors [ E.errBadDataDecl d | d <- ds ]
 --------------------------------------------------------------------------------
 -- | check that no qualifier has free variables
 --------------------------------------------------------------------------------
-banQualifFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
+banQualifFreeVars :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
-banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
+banQualifFreeVars cfg fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
     bads    = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
-    free q  = filter (not . isLit) (F.syms q)
-    isLit x = F.memberSEnv x (F.gLits fi)
-    -- lits    = fst <$> F.toListSEnv (F.gLits fi)
-    -- free q  = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (F.qpSym <$> F.qParams q))
+    free q  = filter (not . isGlobal) (F.syms q)
+    isGlobal x = F.memberSEnv x (SortCheck.globalEnv cfg fi)
 
 badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error
 badQuals bqs = E.catErrors [ E.errFreeVarInQual q xs | (q, xs) <- bqs]

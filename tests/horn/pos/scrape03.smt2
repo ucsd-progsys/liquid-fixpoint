@@ -1,0 +1,40 @@
+(fixpoint "--scrape=both")
+;; Tag 0: Call at 214:5: 214:26 (ESpan { span: src/typestate_addr.rs:150:49: 150:85 (#0), base: None })
+;; Tag 1: Call at 215:5: 215:26 (ESpan { span: src/typestate_addr.rs:150:49: 150:85 (#0), base: None })
+;; Tag 2: Call at 216:24: 216:38 (ESpan { span: src/typestate_addr.rs:143:39: 143:74 (#0), base: None })
+
+(datatype (Adt0 0) ((mkadt0$0 ()) (mkadt0$1 ())))
+(qualif MyQ1 ((a19 int) (a20 int) (a21 int)) ((= a19 (+ a20 a21))))
+(qualif MyQ2 ((a22 int) (a23 int) (a24 int)) ((= a22 (- a23 a24))))
+(qualif EqTrue ((a0 bool)) (a0))
+(qualif EqFalse ((a0 bool)) ((not a0)))
+(qualif EqZero ((a0 int)) ((= a0 0)))
+(qualif GtZero ((a0 int)) ((> a0 0)))
+(qualif GeZero ((a0 int)) ((>= a0 0)))
+(qualif LtZero ((a0 int)) ((< a0 0)))
+(qualif LeZero ((a0 int)) ((<= a0 0)))
+(qualif Eq ((a0 int) (a1 int)) ((= a0 a1)))
+(qualif Gt ((a0 int) (a1 int)) ((> a0 a1)))
+(qualif Ge ((a0 int) (a1 int)) ((>= a0 a1)))
+(qualif Lt ((a0 int) (a1 int)) ((< a0 a1)))
+(qualif Le ((a0 int) (a1 int)) ((<= a0 a1)))
+(qualif Le1 ((a0 int) (a1 int)) ((<= a0 (- a1 1))))
+(constant gt (func 1 (@(0) @(0) ) bool))
+(constant ge (func 1 (@(0) @(0) ) bool))
+(constant lt (func 1 (@(0) @(0) ) bool))
+(constant le (func 1 (@(0) @(0) ) bool))
+(var $k0 (bool)) ;; orig: $k0
+
+(constraint
+ (forall ((a0 bool) (true))
+  (and
+   ($k0 a0)
+   (forall ((_$ int) ($k0 a0))
+    (forall ((a1 (BitVec Size32)) (true))
+     (forall ((a2 (BitVec Size32)) (true))
+      (forall ((a3 (BitVec Size32)) (true))
+       (and
+        (tag ((= (let ((a8 (bvand (bvlshr (let ((a4 (int_to_bv32 5))) (bvand (let ((a5 (int_to_bv32 1))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand (let ((a6 (int_to_bv32 0))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand a1 (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a6))) (bvor a1 (bvshl (lit "#x00000001" (BitVec Size32)) a6)))) (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a5))) (bvor (let ((a7 (int_to_bv32 0))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand a1 (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a7))) (bvor a1 (bvshl (lit "#x00000001" (BitVec Size32)) a7)))) (bvshl (lit "#x00000001" (BitVec Size32)) a5)))) (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a4)))) (int_to_bv32 0)) (lit "#x00000001" (BitVec Size32))))) (if (= a8 (lit "#x00000000" (BitVec Size32))) (mkadt0$0 ) (mkadt0$1 ))) (mkadt0$1 ))) "0")
+        (tag ((= (let ((a13 (bvand (bvlshr (let ((a9 (int_to_bv32 5))) (bvand (let ((a10 (int_to_bv32 1))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand (let ((a11 (int_to_bv32 0))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand a1 (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a11))) (bvor a1 (bvshl (lit "#x00000001" (BitVec Size32)) a11)))) (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a10))) (bvor (let ((a12 (int_to_bv32 0))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand a1 (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a12))) (bvor a1 (bvshl (lit "#x00000001" (BitVec Size32)) a12)))) (bvshl (lit "#x00000001" (BitVec Size32)) a10)))) (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a9)))) (int_to_bv32 1)) (lit "#x00000001" (BitVec Size32))))) (if (= a13 (lit "#x00000000" (BitVec Size32))) (mkadt0$0 ) (mkadt0$1 ))) (mkadt0$1 ))) "1")
+        (tag ((= (let ((a18 (bvand (bvlshr (let ((a14 (int_to_bv32 5))) (bvand (let ((a15 (int_to_bv32 1))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand (let ((a16 (int_to_bv32 0))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand a1 (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a16))) (bvor a1 (bvshl (lit "#x00000001" (BitVec Size32)) a16)))) (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a15))) (bvor (let ((a17 (int_to_bv32 0))) (if (= (mkadt0$1 ) (mkadt0$0 )) (bvand a1 (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a17))) (bvor a1 (bvshl (lit "#x00000001" (BitVec Size32)) a17)))) (bvshl (lit "#x00000001" (BitVec Size32)) a15)))) (bvnot (bvshl (lit "#x00000001" (BitVec Size32)) a14)))) (int_to_bv32 5)) (lit "#x00000001" (BitVec Size32))))) (if (= a18 (lit "#x00000000" (BitVec Size32))) (mkadt0$0 ) (mkadt0$1 ))) (mkadt0$0 ))) "2")))))))))
+

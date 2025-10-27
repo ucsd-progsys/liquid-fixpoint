@@ -65,7 +65,7 @@ refineK ho env qs (v, t, k) =
   do eqs' <- Sol.qbFilterM (okInst env v t) eqs
      pure (k, eqs')
    where
-    eqs                     = instK ho env v t qs
+    eqs    = instK ho env v t qs
 
 
 --------------------------------------------------------------------------------
@@ -130,6 +130,3 @@ okInst env v t eq =
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-
-
-
