@@ -31,7 +31,7 @@ module Language.Fixpoint.Smt.Theories
      , dataDeclSymbols
 
        -- * Theories
-     , setEmpty, setEmp, setSng, setAdd, setMem
+     , setEmpty, setEmp, setSng, setAdd, setMem, setCard
      , setCom, setCap, setCup, setDif, setSub
 
      , mapDef, mapSel, mapSto
@@ -139,7 +139,8 @@ mapDef   = "Map_default"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a
+setCard, setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a
+setCard  = "Set_card"
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -256,6 +257,7 @@ solverPreamble cfg
      , (SOnly [Cvc5],       "(set-logic ALL)")
      , (SOnly [Cvc4, Cvc5], "(set-option :incremental true)")
      ]
+  ++ setPreamble cfg
   ++ boolPreamble cfg
   ++ arithPreamble cfg
   ++ stringPreamble cfg
@@ -265,6 +267,13 @@ type Preamble = (PreambleCondition, Builder)
 data PreambleCondition = SAll | SOnly [SMTSolver]
   deriving (Eq, Show)
 
+setPreamble :: Config -> [Preamble]
+-- CVC5 does not support set.is_empty as a built-in, but can be expressed as cardinality
+-- Z3 does not support cardinality on sets, which is defined to be uninterpreted function
+setPreamble _ 
+  = [ (SOnly [Cvc5],       bFun  "set.is_empty" [("s", "(Set Int)")] "Bool" "(= (set.card s) 0)") 
+    , (SOnly [Z3, Z3mem],  bFun' "set.card" ["(Array Int Bool)"] "Int") 
+    ]
 
 boolPreamble :: Config -> [Preamble]
 boolPreamble _
@@ -422,6 +431,7 @@ interpSymbols cfg =
 
   -- CVC5 sets
 
+  , interpSym setCard  "set.card"       (FAbs 0 $ FFunc (setSort $ FVar 0) intSort)
   , interpSym setEmp   "set.is_empty"   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty "set.empty"      (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
   , interpSym setSng   "set.singleton"  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
@@ -443,7 +453,10 @@ interpSymbols cfg =
   , interpSym bagMin   "bag.inter_min"      bagBopSort
   , interpSym bagSub   "bag.subbag"         (FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort)
 
-  -- Strings
+  -- , interpSym bvOrName  "bvor"  bvBopSort
+  -- , interpSym bvAndName "bvand" bvBopSort
+  -- , interpSym bvAddName "bvadd" bvBopSort
+  -- , interpSym bvSubName "bvsub" bvBopSort
 
   , interpSym strLen    strLen    strLenSort
   , interpSym strSubstr strSubstr substrSort
@@ -494,18 +507,12 @@ interpSymbols cfg =
   , interpBvCmp bvSLeName
   , interpBvCmp bvSGtName
   , interpBvCmp bvSGeName
-
-  -- int to bv Conversions
-
   , interpSym intbv32Name   "(_ int2bv 32)" (FFunc intSort bv32)
   , interpSym intbv64Name   "(_ int2bv 64)" (FFunc intSort bv64)
-  , interpSym bv32intName   (bv2i cfg 32)   (FFunc bv32    intSort)
-  , interpSym bv64intName   (bv2i cfg 64)   (FFunc bv64    intSort)
-
-  , interpSym intbv8Name    "(_ int2bv 8)"  (FFunc intSort bv8)
-  , interpSym intbv16Name   "(_ int2bv 16)" (FFunc intSort bv16)
-  , interpSym bv8intName    (bv2i cfg 32)   (FFunc bv8    intSort)
-  , interpSym bv16intName   (bv2i cfg 64)   (FFunc bv16    intSort)
+  , interpSym bv32intName   (bv2i cfg 32) (FFunc bv32    intSort)
+  , interpSym bv64intName   (bv2i cfg 64) (FFunc bv64    intSort)
+  -- , interpSym bv32intName   "(_ bv2int 32)" (FFunc bv32    intSort)
+  -- , interpSym bv64intName   "(_ bv2int 64)" (FFunc bv64    intSort)
   ]
   ++
   if cfg == Z3 || cfg == Z3mem
@@ -538,8 +545,7 @@ interpSymbols cfg =
     mapArrSort = arraySort (FVar 0) (FVar 1)
     setArrSort = arraySort (FVar 0) boolSort
     bagArrSort = arraySort (FVar 0) intSort
-    bv8        = sizedBitVecSort "Size8"
-    bv16       = sizedBitVecSort "Size16"
+    -- (sizedBitVecSort "Size1")
     bv32       = sizedBitVecSort "Size32"
     bv64       = sizedBitVecSort "Size64"
     boolInt    = boolToIntName
