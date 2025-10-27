@@ -175,9 +175,9 @@ instance S.Store SMTSolver
 
 ---------------------------------------------------------------------------------------
 -- | `Scrape` describes which (Horn) constraints to scrape qualifiers from
---   No   = do not scrape, only use the supplied qualifiers
+--   None = do not scrape, only use the supplied qualifiers
 --   Head = scrape only from the constraint heads (i.e. "rhs")
---   Both = scrape all concrete predicates (i.e. "rhs" + "lhs")
+--   All  = scrape all concrete predicates (i.e. "rhs" + "lhs")
 
 data Scrape = No | Head | Both
   deriving (Eq, Data, Typeable, Generic)
