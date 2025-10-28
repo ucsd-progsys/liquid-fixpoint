@@ -31,7 +31,7 @@ module Language.Fixpoint.Smt.Theories
      , dataDeclSymbols
 
        -- * Theories
-     , setEmpty, setEmp, setSng, setAdd, setMem
+     , setEmpty, setEmp, setSng, setAdd, setMem, setCard
      , setCom, setCap, setCup, setDif, setSub
 
      , mapDef, mapSel, mapSto
@@ -139,7 +139,8 @@ mapDef   = "Map_default"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a
+setCard, setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a
+setCard  = "Set_card"
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -256,6 +257,7 @@ solverPreamble cfg
      , (SOnly [Cvc5],       "(set-logic ALL)")
      , (SOnly [Cvc4, Cvc5], "(set-option :incremental true)")
      ]
+  ++ setPreamble cfg
   ++ boolPreamble cfg
   ++ arithPreamble cfg
   ++ stringPreamble cfg
@@ -265,6 +267,10 @@ type Preamble = (PreambleCondition, Builder)
 data PreambleCondition = SAll | SOnly [SMTSolver]
   deriving (Eq, Show)
 
+setPreamble :: Config -> [Preamble]
+-- Z3 does not support cardinality on sets, which is defined to be uninterpreted function
+setPreamble _ 
+  = [ (SOnly [Z3, Z3mem],  bFun' "set.card" ["(Array Int Bool)"] "Int") ]
 
 boolPreamble :: Config -> [Preamble]
 boolPreamble _
@@ -422,6 +428,7 @@ interpSymbols cfg =
 
   -- CVC5 sets
 
+  , interpSym setCard  "set.card"       (FAbs 0 $ FFunc (setSort $ FVar 0) intSort)
   , interpSym setEmp   "set.is_empty"   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty "set.empty"      (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
   , interpSym setSng   "set.singleton"  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
