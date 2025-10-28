@@ -59,7 +59,6 @@ import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
 import Data.Maybe (catMaybes, mapMaybe)
-import Data.Ord (comparing)
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 ---------------------------------------------------------------------------
@@ -323,7 +322,7 @@ saveSolution cfg res = when (save cfg) $ do
     where
       scopedRender = PJ.render . PJ.vcat . map ncDoc . scoped
       scoped sol = [ (k, scope k, e) | (k, e) <- HashMap.toList sol]
-      scope k = L.sortBy (comparing fst) $ HashMap.lookupDefault [] k $ resSorts res
+      scope k = HashMap.lookupDefault [] k $ resSorts res
       ncDoc (k, xts, e) = PJ.hsep [ pprint k PJ.<> pprint xts, ":=", pprint e ]
 
 simplifyResult :: Config -> Result a -> Result a
