@@ -21,6 +21,17 @@ import           Language.Fixpoint.Solver.Sanitize
 --------------------------------------------------------------------------------
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
 --   indices needed by the worklist-based refinement loop
+--
+-- Computes the set of cut and non-cut kvars, then initializes the solutions of
+-- the non-cut KVars (in the sHyp field)
+--
+-- The concept of cut KVars comes from the FUSION algorithm described in:
+--
+-- "Local Refinement Typing", ICFP 2017, https://ranjitjhala.github.io/static/local_refinement_typing.pdf
+--
+-- Note though, that the implementation here is not trying to profit from the
+-- structure of the lexical scope of the program to reduce the size of the kvar
+-- solutions.
 --------------------------------------------------------------------------------
 {-# SCC solverInfo #-}
 solverInfo :: Config -> SInfo a -> SolverInfo a b
