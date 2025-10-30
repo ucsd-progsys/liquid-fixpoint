@@ -401,7 +401,7 @@ nonCutsResult be s = M.traverseWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
 
 bareCubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Cube -> ElabM F.Expr
 bareCubePred g s k c =
-  do (_xts, psu) <- substElim (Sol.sEnv s) sEnv g' k su
+  do (_xts, psu) <- substElim (Sol.sEnv s) sEnv g' su
      (p, _kI) <- apply g' s bs'
      pure $ F.pExist yts (psu &.& p)
   where
@@ -460,8 +460,8 @@ type Binders = [(F.Symbol, F.Sort)]
 cubePredExc :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> F.IBindEnv
             -> ElabM ((Binders, F.Pred, F.Pred), KInfo)
 cubePredExc g s ksu c bs' =
-  do (xts, psu)  <- substElim (Sol.sEnv s) sEnv g  k su
-     (_  , psu') <- substElim (Sol.sEnv s) sEnv g' k su'
+  do (xts, psu)  <- substElim (Sol.sEnv s) sEnv g  su
+     (_  , psu') <- substElim (Sol.sEnv s) sEnv g' su'
      (p', kI)    <- apply g' s bs'
      cubeE       <- elabExist sp s yts' (F.pAndNoDedup [p', psu'])
      let cubeP = (xts, psu, cubeE)
@@ -473,7 +473,6 @@ cubePredExc g s ksu c bs' =
     g'              = addCEnv  g bs
     su'             = Sol.cuSubst c
     bs              = Sol.cuBinds c
-    k               = F.ksuKVar   ksu
     su              = F.ksuSubst  ksu
     sEnv            = F.insertSEnv (F.ksuVV ksu) (F.ksuSort ksu) (F.seSort $ Sol.sEnv s)
 
@@ -503,8 +502,8 @@ cubePredExc g s ksu c bs' =
      2. are binders corresponding to sorts (e.g. `a : num`, currently used
         to hack typeclasses current.)
  -}
-substElim :: F.SymEnv -> F.SEnv F.Sort -> CombinedEnv a -> F.KVar -> F.Subst -> ElabM ([(F.Symbol, F.Sort)], F.Pred)
-substElim syEnv sEnv g _ (F.Su m) =
+substElim :: F.SymEnv -> F.SEnv F.Sort -> CombinedEnv a -> F.Subst -> ElabM ([(F.Symbol, F.Sort)], F.Pred)
+substElim syEnv sEnv g (F.Su m) =
     do p <- traverse (\(x, e ,t) -> mkSubst sp syEnv x (substSort sEnv x) e t) xets
        pure (xts, F.pAnd p)
   where
