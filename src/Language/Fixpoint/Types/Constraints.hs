@@ -137,7 +137,6 @@ import qualified Data.ByteString           as B
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Binary as B
-import Data.Ord (comparing)
 
 --------------------------------------------------------------------------------
 -- | Constraints ---------------------------------------------------------------
@@ -330,7 +329,7 @@ scopedResult res = MkScopedResult cuts  nonCuts
     cuts = scoped (resSolution res)
     nonCuts = scoped (resNonCutsSolution res)
     scoped sol = MkKVarMap $ M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
-    scope k = L.sortBy (comparing fst) $ M.lookupDefault [] k $ resSorts res
+    scope k = M.lookupDefault [] k $ resSorts res
 
 instance ToJSON a => ToJSON (Result a) where
   toJSON r@(Result {..}) = object
