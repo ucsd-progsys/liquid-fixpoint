@@ -22,16 +22,14 @@ import           Language.Fixpoint.Solver.Sanitize
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
 --   indices needed by the worklist-based refinement loop
 --
--- Computes the set of cut and non-cut kvars, then initializes the solutions of
--- the non-cut KVars (in the sHyp field)
+-- Computes the set of cut and non-cut kvars, computes the hypotheses common
+-- to all of the usage sites of each kvar, then initializes the solutions of
+-- the non-cut KVars (in the sHyp field).
 --
--- The concept of cut KVars comes from the FUSION algorithm described in:
+-- This is part of the implementation of the FUSION algorithm described in:
 --
 -- "Local Refinement Typing", ICFP 2017, https://ranjitjhala.github.io/static/local_refinement_typing.pdf
 --
--- Note though, that the implementation here is not trying to profit from the
--- structure of the lexical scope of the program to reduce the size of the kvar
--- solutions.
 --------------------------------------------------------------------------------
 {-# SCC solverInfo #-}
 solverInfo :: Config -> SInfo a -> SolverInfo a b
@@ -49,14 +47,25 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
     sE             = symbolEnv   cfg sI
     ebs            = S.fromList [x | i <- ebinds sI, let (x, _, _) = lookupBindEnv i (bs sI) ]
 
-
 --------------------------------------------------------------------------------
+-- | For each KVar, provide the intersection of the binding environments
+--   of all the constraints in which it appears.
+--
+-- See Section 2.4 of "Local Refinement Typing", ICFP 2017, for the motivation
+-- to collect these.
 kvScopes :: SInfo a -> [CEdge] -> M.HashMap KVar IBindEnv
-kvScopes sI es = is2env <$> kiM
+kvScopes sI es = commonBindingsOfConstraints <$> kvarUses
   where
-    is2env = foldr1 intersectionIBindEnv . fmap (senv . getSubC sI)
-    kiM    = group $ [(k, i) | (Cstr i, KVar k) <- es ] ++
-                     [(k, i) | (KVar k, Cstr i) <- es ]
+    -- | The common bindings of a list of constraints
+    commonBindingsOfConstraints :: [Integer] -> IBindEnv
+    commonBindingsOfConstraints =
+      foldr1 intersectionIBindEnv . fmap (senv . getSubC sI)
+
+    -- | The constraints in which each KVar appears
+    kvarUses :: M.HashMap KVar [Integer]
+    kvarUses =
+      group $ [(k, i) | (Cstr i, KVar k) <- es ] ++
+              [(k, i) | (KVar k, Cstr i) <- es ]
 
 --------------------------------------------------------------------------------
 -- | @cutSInfo si kI cKs@ drops well-formed constraints that don't refer to the
