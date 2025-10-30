@@ -408,7 +408,7 @@ bareCubePred g s k c =
     bs = Sol.cuBinds c
     su = Sol.cuSubst c
     g' = addCEnv  g bs
-    bs' = delCEnv s k bs
+    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
     yts = symSorts g bs'
     sEnv = F.seSort (Sol.sEnv s)
 
@@ -434,11 +434,9 @@ elabExist sp s xts p =
 
         c := [b1,...,bn] |- (k . su')
 
-      in the binder environment `g`.
-
-        bs' := the subset of "extra" binders in [b1...bn] that are *not* in `g`
-        p'  := the predicate corresponding to the "extra" binders
-
+      in the binder environment `g`. The binders in `sScp s k` are not included
+      in the final predicate. They are considered redundant conjuncts as per
+      section 2.4 of "Local Refinement Typing", ICFP 2017.
  -}
 cubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ElabM ExprInfo
 cubePred g s ksu c    =
@@ -447,7 +445,7 @@ cubePred g s ksu c    =
      pure (e , kI)
   where
     sp  = F.srcSpan g
-    bs' = delCEnv s k bs
+    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
     bs  = Sol.cuBinds c
     k   = F.ksuKVar ksu
 
@@ -551,12 +549,6 @@ combinedSEnv g = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
 
 addCEnv :: CombinedEnv a -> F.IBindEnv -> CombinedEnv a
 addCEnv g bs' = g { ceIEnv = F.unionIBindEnv (ceIEnv g) bs' }
-
-
-delCEnv :: Sol.Sol a Sol.QBind -> F.KVar -> F.IBindEnv -> F.IBindEnv
-delCEnv s k bs = F.diffIBindEnv bs _kbs
-  where
-    _kbs       = Misc.safeLookup "delCEnv" k (Sol.sScp s)
 
 symSorts :: CombinedEnv a -> F.IBindEnv -> [(F.Symbol, F.Sort)]
 symSorts g bs = second F.sr_sort <$> F.envCs (ceBEnv g) bs
