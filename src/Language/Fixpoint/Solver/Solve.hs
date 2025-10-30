@@ -9,7 +9,7 @@
 -- | Solve a system of horn-clause constraints ---------------------------------
 --------------------------------------------------------------------------------
 
-module Language.Fixpoint.Solver.Solve (solve, solverInfo) where
+module Language.Fixpoint.Solver.Solve (solve) where
 
 import           Control.Monad (when, filterM)
 import           Control.Monad.Reader
@@ -59,10 +59,14 @@ solve cfg fi = do
     -- print (numIter stat)
     return res
   where
-    act = solve_ cfg fi s0 ks  wkl
+    act = solve_ cfg fi s0 wkl
+    -- solverInfo computes the set of cut and non-cut kvars, then initializes
+    -- the solutions of the non-cut KVars (in the sHyp field)
+    --
+    -- S.init provides an initial solution for the cut KVars
     sI  = solverInfo cfg fi
     wkl = W.init sI
-    s0  = siSol  sI
+    s0  = mappend (siSol sI) (S.init cfg fi ks)
     ks  = siVars sI
 
 
@@ -108,13 +112,10 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        => Config
        -> F.SInfo a
        -> Sol.Solution
-       -> S.HashSet F.KVar
        -> W.Worklist a
        -> SolveM a (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
-solve_ cfg fi s0 ks wkl = do
-  let s1   = F.notracepp "solve_ " $ {-# SCC "sol-init" #-} S.init cfg fi ks
-  let s2   = mappend s0 s1
+solve_ cfg fi s2 wkl = do
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
     -- let s3   = solveEbinds fi s2
     s3       <- {- SCC "sol-refine" -} refine bindingsInSmt s2 wkl
@@ -195,6 +196,10 @@ tidyPred =  go
 
 --------------------------------------------------------------------------------
 {-# SCC refine #-}
+-- | Implementation of the inference algorithm from:
+--
+-- "Liquid Types", PLDI 2008, https://ranjitjhala.github.io/static/liquid_types.pdf
+--
 refine
   :: (F.Loc a)
   => F.IBindEnv

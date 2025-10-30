@@ -232,8 +232,13 @@ bind 2 y : ...
   Then a single `IBindEnv` should only mention _at most_
   one of `1` or `12`.
 
-* There is also a "tree-shape" property that its a bit hard
-  to describe ... TODO
+* [NOTE:TREE-LIKE] There is also a "tree-shape" property required by PLE:
+
+```
+  forall constraints c, c'.
+    if i in c and i in c' then
+      forall 0 <= j < i, j in c and j in c'
+```
 
 ### LHS
 

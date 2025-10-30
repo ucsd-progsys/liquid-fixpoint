@@ -401,14 +401,14 @@ nonCutsResult be s = M.traverseWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
 
 bareCubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Cube -> ElabM F.Expr
 bareCubePred g s k c =
-  do (_xts, psu) <- substElim (Sol.sEnv s) sEnv g' k su
+  do (_xts, psu) <- substElim (Sol.sEnv s) sEnv g' su
      (p, _kI) <- apply g' s bs'
      pure $ F.pExist yts (psu &.& p)
   where
     bs = Sol.cuBinds c
     su = Sol.cuSubst c
     g' = addCEnv  g bs
-    bs' = delCEnv s k bs
+    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
     yts = symSorts g bs'
     sEnv = F.seSort (Sol.sEnv s)
 
@@ -434,11 +434,9 @@ elabExist sp s xts p =
 
         c := [b1,...,bn] |- (k . su')
 
-      in the binder environment `g`.
-
-        bs' := the subset of "extra" binders in [b1...bn] that are *not* in `g`
-        p'  := the predicate corresponding to the "extra" binders
-
+      in the binder environment `g`. The binders in `sScp s k` are not included
+      in the final predicate. They are considered redundant conjuncts as per
+      section 2.4 of "Local Refinement Typing", ICFP 2017.
  -}
 cubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ElabM ExprInfo
 cubePred g s ksu c    =
@@ -447,7 +445,7 @@ cubePred g s ksu c    =
      pure (e , kI)
   where
     sp  = F.srcSpan g
-    bs' = delCEnv s k bs
+    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
     bs  = Sol.cuBinds c
     k   = F.ksuKVar ksu
 
@@ -460,8 +458,8 @@ type Binders = [(F.Symbol, F.Sort)]
 cubePredExc :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> F.IBindEnv
             -> ElabM ((Binders, F.Pred, F.Pred), KInfo)
 cubePredExc g s ksu c bs' =
-  do (xts, psu)  <- substElim (Sol.sEnv s) sEnv g  k su
-     (_  , psu') <- substElim (Sol.sEnv s) sEnv g' k su'
+  do (xts, psu)  <- substElim (Sol.sEnv s) sEnv g  su
+     (_  , psu') <- substElim (Sol.sEnv s) sEnv g' su'
      (p', kI)    <- apply g' s bs'
      cubeE       <- elabExist sp s yts' (F.pAndNoDedup [p', psu'])
      let cubeP = (xts, psu, cubeE)
@@ -473,7 +471,6 @@ cubePredExc g s ksu c bs' =
     g'              = addCEnv  g bs
     su'             = Sol.cuSubst c
     bs              = Sol.cuBinds c
-    k               = F.ksuKVar   ksu
     su              = F.ksuSubst  ksu
     sEnv            = F.insertSEnv (F.ksuVV ksu) (F.ksuSort ksu) (F.seSort $ Sol.sEnv s)
 
@@ -503,8 +500,8 @@ cubePredExc g s ksu c bs' =
      2. are binders corresponding to sorts (e.g. `a : num`, currently used
         to hack typeclasses current.)
  -}
-substElim :: F.SymEnv -> F.SEnv F.Sort -> CombinedEnv a -> F.KVar -> F.Subst -> ElabM ([(F.Symbol, F.Sort)], F.Pred)
-substElim syEnv sEnv g _ (F.Su m) =
+substElim :: F.SymEnv -> F.SEnv F.Sort -> CombinedEnv a -> F.Subst -> ElabM ([(F.Symbol, F.Sort)], F.Pred)
+substElim syEnv sEnv g (F.Su m) =
     do p <- traverse (\(x, e ,t) -> mkSubst sp syEnv x (substSort sEnv x) e t) xets
        pure (xts, F.pAnd p)
   where
@@ -552,12 +549,6 @@ combinedSEnv g = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
 
 addCEnv :: CombinedEnv a -> F.IBindEnv -> CombinedEnv a
 addCEnv g bs' = g { ceIEnv = F.unionIBindEnv (ceIEnv g) bs' }
-
-
-delCEnv :: Sol.Sol a Sol.QBind -> F.KVar -> F.IBindEnv -> F.IBindEnv
-delCEnv s k bs = F.diffIBindEnv bs _kbs
-  where
-    _kbs       = Misc.safeLookup "delCEnv" k (Sol.sScp s)
 
 symSorts :: CombinedEnv a -> F.IBindEnv -> [(F.Symbol, F.Sort)]
 symSorts g bs = second F.sr_sort <$> F.envCs (ceBEnv g) bs
