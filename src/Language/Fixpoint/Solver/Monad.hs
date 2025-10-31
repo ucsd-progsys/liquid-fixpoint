@@ -10,8 +10,6 @@ module Language.Fixpoint.Solver.Monad
          -- * Execution
        , runSolverM
 
-         -- * Get Binds
-       , getBinds
        , getContext
 
          -- * SMT Query
@@ -70,7 +68,6 @@ type SolveM ann = StateT (SolverState ann) IO
 
 data SolverState ann = SS
   { ssCtx     :: !Context         -- ^ SMT Solver Context
-  , ssBinds   :: !(F.BindEnv ann) -- ^ All variables and types
   , ssStats   :: !Stats           -- ^ Solver Statistics
   }
 
@@ -87,22 +84,16 @@ runSolverM cfg sI act =
     res <- runStateT act' (s0 ctx)
     return (fst res)
   where
-    s0 ctx   = SS ctx be (stats0 fi)
+    s0 ctx   = SS ctx (stats0 fi)
     act'     = assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv (F.defns fi)
     initEnv  = symbolEnv cfg fi
-    be       = F.bs fi
     file     = C.srcFile cfg
     -- only linear arithmetic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.cfgHoInfo cfg }
 
-
---------------------------------------------------------------------------------
-getBinds :: SolveM ann (F.BindEnv ann)
---------------------------------------------------------------------------------
-getBinds = ssBinds <$> get
 
 --------------------------------------------------------------------------------
 getIter :: SolveM ann Int
@@ -150,9 +141,8 @@ clearApplys = modifyContext $ \c -> c { ctxSymEnv = (ctxSymEnv c) { F.seAppls = 
 --
 -- Yields the ids of bindings known to the SMT
 sendConcreteBindingsToSMT
-  :: F.IBindEnv -> (F.IBindEnv -> SolveM ann a) -> SolveM ann a
-sendConcreteBindingsToSMT known act = do
-  be <- getBinds
+  :: F.IBindEnv -> F.BindEnv ann -> (F.IBindEnv -> SolveM ann a) -> SolveM ann a
+sendConcreteBindingsToSMT known be act = do
   let concretePreds =
         [ (i, F.subst1 p (v, F.EVar s))
         | (i, (s, F.RR _ (F.Reft (v, p)),_)) <- F.bindEnvToList be

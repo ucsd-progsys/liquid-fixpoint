@@ -14,7 +14,6 @@ module Language.Fixpoint.Solver.Solve (solve) where
 
 import           Control.Monad (when, filterM)
 import           Control.Monad.Reader
-import           Control.Monad.State.Strict (modify)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Misc            as Misc
 import qualified Language.Fixpoint.Types           as F
@@ -95,17 +94,12 @@ solverInfo cfg fI
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
-doInterpret :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.SInfo a)
-doInterpret cfg fi subcIds = do
-  bs <- liftIO $ instInterpreter cfg fi (Just subcIds)
-  modify $ \ss -> ss{ssBinds = bs}
-  return fi { F.bs = bs }
+doInterpret :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.BindEnv a)
+doInterpret cfg fi subcIds = liftIO $ instInterpreter cfg fi (Just subcIds)
 
 {-# SCC doPLE #-}
-doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a ()
-doPLE cfg fi0 subcIds = do
-  bs <- liftIO $ instantiate cfg fi0 (Just subcIds)
-  modify $ \ss -> ss{ssBinds = bs}
+doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.BindEnv a)
+doPLE cfg fi0 subcIds = liftIO $ instantiate cfg fi0 (Just subcIds)
 
 --------------------------------------------------------------------------------
 {-# SCC solve_ #-}
@@ -117,33 +111,35 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> SolveM a (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s2 wkl = do
-  (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
+  (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv (F.bs fi) $ \bindingsInSmt -> do
     -- let s3   = solveEbinds fi s2
-    s3       <- {- SCC "sol-refine" -} refine bindingsInSmt s2 wkl
+    s3       <- {- SCC "sol-refine" -} refine bindingsInSmt (F.bs fi) s2 wkl
     res0     <- {- SCC "sol-result" -} result bindingsInSmt cfg fi wkl s3
     return (s3, res0)
 
   (fi1, res1) <- case resStatus res0 of  {- first run the interpreter -}
     Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && interpreter cfg -> do
-      fi1 <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
+      bs <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
       -- TODO the `clearApplys` is a workaround needed because `sendConcreteBindingsToSMT`
       -- seems to not remove the tags introduced in its bracket from the tag stack,
       -- meanwhile the SMT solver pops the corresponding definition. The result is
       -- that when the same definition needs to re-emitted in the interpreter/PLE,
       -- LH thinks it's still in the context, which causes the SMT solver to crash.
       clearApplys
-      fmap (fi1,) $ sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt ->
+      let fi1 = fi { F.bs = bs }
+      fmap (fi1,) $ sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
         result bindingsInSmt cfg fi1 wkl s3
     _ -> return  (fi, mytrace "all checked before interpreter" res0)
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
     Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
-      doPLE cfg fi1 (map fst $ mytrace ("before PLE " ++ show (length bads2) ++ " constraints remain") bads2)
+      bs <- doPLE cfg fi1 (map fst $ mytrace ("before PLE " ++ show (length bads2) ++ " constraints remain") bads2)
       -- TODO reset the ix stack too?
       clearApplys
       -- Check the constraints one last time after PLE
-      sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt ->
-        result bindingsInSmt cfg fi1 wkl s3
+      let fi2 = fi { F.bs = bs }
+      sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
+        result bindingsInSmt cfg fi2 wkl s3
     _ -> return $ mytrace "all checked with interpreter" res1
 
   st      <- stats
@@ -201,17 +197,18 @@ tidyPred =  go
 refine
   :: (F.Loc a)
   => F.IBindEnv
+  -> F.BindEnv a
   -> Sol.Solution
   -> W.Worklist a
   -> SolveM a Sol.Solution
 --------------------------------------------------------------------------------
-refine bindingsInSmt s w
+refine bindingsInSmt be s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
      i       <- tickIter newScc
-     (b, s') <- refineC bindingsInSmt i s c
+     (b, s') <- refineC bindingsInSmt be i s c
      lift $ writeLoud $ refineMsg i c b rnk (showpp s')
      let w'' = if b then W.push c w' else w'
-     refine bindingsInSmt s' w''
+     refine bindingsInSmt be s' w''
   | otherwise = return s
   where
     -- DEBUG
@@ -225,18 +222,18 @@ refine bindingsInSmt s w
 refineC
   :: (F.Loc a)
   => F.IBindEnv
+  -> F.BindEnv a
   -> Int
   -> Sol.Solution
   -> F.SimpC a
   -> SolveM a (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
-refineC bindingsInSmt _i s c =
+refineC bindingsInSmt be _i s c =
   do ef <- T.ctxElabF <$> getContext
      let (ks, rhs) = runReader (rhsCands s c) ef
      if null rhs
         then return (False, s)
-        else do be     <- getBinds
-                let lhs = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
+        else do let lhs = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
                 kqs    <- filterValid (cstrSpan c) lhs rhs
                 return  $ S.update s ks kqs
   where
@@ -276,16 +273,17 @@ result
   -> SolveM a (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 result bindingsInSmt cfg fi wkl s =
-  sendConcreteBindingsToSMT bindingsInSmt $ \bindingsInSmt2 -> do
+  sendConcreteBindingsToSMT bindingsInSmt be $ \bindingsInSmt2 -> do
     lift       $ writeLoud "Computing Result"
-    stat      <- result_ bindingsInSmt2 cfg wkl s
+    stat      <- result_ bindingsInSmt2 be cfg wkl s
     lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     resCut    <- solResult cfg s
-    resNonCut <- solNonCutsResult cfg s
-    resSorts  <- resultSorts fi (M.keys resCut ++ M.keys resNonCut) <$> getBinds
+    resNonCut <- solNonCutsResult cfg be s
+    let resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
     return     $ F.Result (ci <$> stat) resCut resNonCut mempty resSorts
   where
     ci c = (F.subcId c, F.sinfo c)
+    be = F.bs fi
 
 resultSorts :: F.SInfo a -> [F.KVar] -> F.BindEnv a -> F.ResultSorts
 resultSorts fi ks be = M.fromList
@@ -308,10 +306,9 @@ bindInfo be i = (x, F.sr_sort sr)
 solResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-solNonCutsResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
-solNonCutsResult cfg s
+solNonCutsResult :: Config -> F.BindEnv a -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
+solNonCutsResult cfg be s
   | cfgNonCuts cfg = do
-    be <- getBinds
     ef <- T.ctxElabF <$> getContext
     pure $ runReader (S.nonCutsResult be s) ef
   | otherwise = pure mempty
@@ -322,12 +319,13 @@ cfgNonCuts cfg = save cfg || json cfg
 result_
   :: (F.Loc a, NFData a)
   => F.IBindEnv
+  -> F.BindEnv a
   -> Config
   -> W.Worklist a
   -> Sol.Solution
   -> SolveM a (F.FixResult (F.SimpC a))
-result_ bindingsInSmt cfg w s = do
-  filtered <- filterM (isUnsat bindingsInSmt s) cs
+result_ bindingsInSmt be cfg w s = do
+  filtered <- filterM (isUnsat bindingsInSmt be s) cs
   sts      <- stats
   pure $ res sts filtered
   where
@@ -368,12 +366,11 @@ minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
 
 --------------------------------------------------------------------------------
 isUnsat
-  :: (F.Loc a, NFData a) => F.IBindEnv -> Sol.Solution -> F.SimpC a -> SolveM a Bool
+  :: (F.Loc a, NFData a) => F.IBindEnv -> F.BindEnv a -> Sol.Solution -> F.SimpC a -> SolveM a Bool
 --------------------------------------------------------------------------------
-isUnsat bindingsInSmt s c = do
+isUnsat bindingsInSmt be s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
-  be    <- getBinds
   ef <- T.ctxElabF <$> getContext
   let lp = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
   let rp = rhsPred        c
