@@ -38,7 +38,7 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
-import Language.Fixpoint.Solver.Instantiate (instantiate)
+import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import Data.Maybe (maybeToList)
 -- import Debug.Trace                      (trace)
 
@@ -99,7 +99,7 @@ doInterpret cfg fi subcIds = liftIO $ instInterpreter cfg fi (Just subcIds)
 
 {-# SCC doPLE #-}
 doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.BindEnv a)
-doPLE cfg fi0 subcIds = liftIO $ instantiate cfg fi0 (Just subcIds)
+doPLE cfg fi0 subcIds = liftIO $ PLE.instantiate cfg fi0 (Just subcIds)
 
 --------------------------------------------------------------------------------
 {-# SCC solve_ #-}
