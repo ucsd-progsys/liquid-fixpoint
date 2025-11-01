@@ -114,7 +114,7 @@ solve_ cfg fi s2 wkl = do
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv (F.bs fi) $ \bindingsInSmt -> do
     -- let s3   = solveEbinds fi s2
     s3       <- {- SCC "sol-refine" -} refine bindingsInSmt (F.bs fi) s2 wkl
-    res0     <- {- SCC "sol-result" -} result bindingsInSmt cfg fi wkl s3
+    res0     <- {- SCC "sol-result" -} result bindingsInSmt cfg fi (W.unsatCandidates wkl) s3
     return (s3, res0)
 
   (fi1, res1) <- case resStatus res0 of  {- first run the interpreter -}
@@ -127,8 +127,9 @@ solve_ cfg fi s2 wkl = do
       -- LH thinks it's still in the context, which causes the SMT solver to crash.
       clearApplys
       let fi1 = fi { F.bs = bs }
+          badCs = lookupCMap (F.cm fi) <$> map fst bads
       fmap (fi1,) $ sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
-        result bindingsInSmt cfg fi1 wkl s3
+        result bindingsInSmt cfg fi1 badCs s3
     _ -> return  (fi, mytrace "all checked before interpreter" res0)
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
@@ -138,8 +139,9 @@ solve_ cfg fi s2 wkl = do
       clearApplys
       -- Check the constraints one last time after PLE
       let fi2 = fi { F.bs = bs }
+          badsCs2 = lookupCMap (F.cm fi) <$> map fst bads2
       sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
-        result bindingsInSmt cfg fi2 wkl s3
+        result bindingsInSmt cfg fi2 badsCs2 s3
     _ -> return $ mytrace "all checked with interpreter" res1
 
   st      <- stats
@@ -268,14 +270,14 @@ result
   => F.IBindEnv
   -> Config
   -> F.SInfo a
-  -> W.Worklist a
+  -> [F.SimpC a]
   -> Sol.Solution
   -> SolveM a (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-result bindingsInSmt cfg fi wkl s =
+result bindingsInSmt cfg fi cs s =
   sendConcreteBindingsToSMT bindingsInSmt be $ \bindingsInSmt2 -> do
     lift       $ writeLoud "Computing Result"
-    stat      <- result_ bindingsInSmt2 be cfg wkl s
+    stat      <- result_ bindingsInSmt2 be cfg cs s
     lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     resCut    <- solResult cfg s
     resNonCut <- solNonCutsResult cfg be s
@@ -321,15 +323,15 @@ result_
   => F.IBindEnv
   -> F.BindEnv a
   -> Config
-  -> W.Worklist a
+  -> [F.SimpC a]
   -> Sol.Solution
   -> SolveM a (F.FixResult (F.SimpC a))
-result_ bindingsInSmt be cfg w s = do
+result_ bindingsInSmt be cfg cs0 s = do
   filtered <- filterM (isUnsat bindingsInSmt be s) cs
   sts      <- stats
   pure $ res sts filtered
   where
-    cs          = isChecked cfg (W.unsatCandidates w)
+    cs          = isChecked cfg cs0
     res sts []  = F.Safe sts
     res sts cs' = F.Unsafe sts cs'
 
