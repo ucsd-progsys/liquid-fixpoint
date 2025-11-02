@@ -296,19 +296,17 @@ apply g s bs      =
   -- Clear the "known" bindings for applyKVars, since it depends on
   -- using the fully expanded representation of the predicates to bind their
   -- variables with quantifiers.
-  do (ps,  ks) <- envConcKVars g s bs
+  do xrs <- traverse (lookupBindEnvExt g s) (F.elemsIBindEnv bs)
+     let (ps,  ks) = envConcKVars xrs
      (pks, kI) <- applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
      pure (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
 
 -- | Produces conjuncts of each sorted reft in the IBindEnv, separated
 -- into concrete conjuncts and kvars.
-envConcKVars :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.IBindEnv -> ElabM ([F.Expr], [F.KVSub])
-envConcKVars g s bs =
-  do xrs <- traverse (lookupBindEnvExt g s) is
-     let (pss, kss) = unzip [ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
-     pure (concat pss, concat kss)
-  where
-    is = F.elemsIBindEnv bs
+envConcKVars :: [(F.Symbol, F.SortedReft)] -> ([F.Expr], [F.KVSub])
+envConcKVars xrs =
+  let (pss, kss) = unzip [ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
+   in (concat pss, concat kss)
 
 lookupBindEnvExt :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.BindId -> ElabM (F.Symbol, F.SortedReft)
 lookupBindEnvExt g s i =
