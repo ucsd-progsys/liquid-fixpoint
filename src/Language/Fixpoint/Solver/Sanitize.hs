@@ -2,7 +2,6 @@
 --   1. Each binder must be associated with a UNIQUE sort
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternGuards     #-}
 
 module Language.Fixpoint.Solver.Sanitize
   ( -- * Transform FInfo to enforce invariants
