@@ -107,8 +107,6 @@ data Config = Config
   , etabeta          :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
   , localRewrites    :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
   , interpreter      :: Bool           -- ^ Do not use the interpreter to assist PLE
-  , oldPLE           :: Bool           -- ^ Use old version of PLE
-  , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , noEnvReduction   :: Bool     -- ^ Don't use environment reduction
   , inlineANFBinds   :: Bool          -- ^ Inline ANF bindings.
                                        -- Sometimes improves performance and sometimes worsens it.
@@ -273,10 +271,8 @@ defConfig = Config {
       False
         &= name "interpreter"
         &= help "Use the interpreter to assist PLE"
-  , oldPLE                   = False &= help "Use old version of PLE"
   , etabeta                  = False &= help "Use eta expansion and beta reduction to aid PLE"
   , localRewrites            = False &= help "Perform local rewrites inside PLE"
-  , noIncrPle                = False &= help "Don't use incremental PLE"
   , noEnvReduction           = False &= help "Don't perform environment reduction"
   , inlineANFBinds           = False &= help (unwords
           [ "Inline ANF bindings."
