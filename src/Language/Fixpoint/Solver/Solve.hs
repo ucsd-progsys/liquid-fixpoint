@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
@@ -122,7 +123,7 @@ solve_ cfg fi s2 wkl = do
     res0     <- {- SCC "sol-result" -} result bindingsInSmt cfg fi wkl s3
     return (s3, res0)
 
-  (fi1, s4, res1) <- case resStatus res0 of  {- first run the interpreter -}
+  (fi1, res1) <- case resStatus res0 of  {- first run the interpreter -}
     Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && interpreter cfg -> do
       fi1 <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
       -- TODO the `clearApplys` is a workaround needed because `sendConcreteBindingsToSMT`
@@ -131,21 +132,18 @@ solve_ cfg fi s2 wkl = do
       -- that when the same definition needs to re-emitted in the interpreter/PLE,
       -- LH thinks it's still in the context, which causes the SMT solver to crash.
       clearApplys
-      (s4, res1) <- sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
-        s4    <- {- SCC "sol-refine" -} refine bindingsInSmt s3 wkl
-        res1  <- {- SCC "sol-result" -} result bindingsInSmt cfg fi1 wkl s4
-        return (s4, res1)
-      return (fi1, s4, res1)
-    _ -> return  (fi, s3, mytrace "all checked before interpreter" res0)
+      fmap (fi1,) $ sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt ->
+        result bindingsInSmt cfg fi1 wkl s3
+    _ -> return  (fi, mytrace "all checked before interpreter" res0)
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
     Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
       doPLE cfg fi1 (map fst $ mytrace ("before PLE " ++ show (length bads2) ++ " constraints remain") bads2)
       -- TODO reset the ix stack too?
       clearApplys
-      sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt -> do
-        s5    <- {- SCC "sol-refine" -} refine bindingsInSmt s4 wkl
-        result bindingsInSmt cfg fi1 wkl s5
+      -- Check the constraints one last time after PLE
+      sendConcreteBindingsToSMT F.emptyIBindEnv $ \bindingsInSmt ->
+        result bindingsInSmt cfg fi1 wkl s3
     _ -> return $ mytrace "all checked with interpreter" res1
 
   st      <- stats
