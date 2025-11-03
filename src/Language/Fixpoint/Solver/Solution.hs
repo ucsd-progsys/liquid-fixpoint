@@ -10,6 +10,10 @@ module Language.Fixpoint.Solver.Solution
     -- * Update Solution
   , Sol.update
 
+    -- * Apply Solution
+  , applyInSortedReft
+  , CombinedEnv(..)
+
     -- * Lookup Solution
   , lhsPred
 
@@ -300,6 +304,16 @@ apply g s bs      =
      let (ps,  ks) = envConcKVars xrs
      (pks, kI) <- applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
      pure (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
+
+applyInSortedReft
+  :: CombinedEnv ann
+  -> Sol.Sol Sol.QBind
+  -> (F.Symbol, F.SortedReft)
+  -> ElabM (F.Symbol, F.SortedReft)
+applyInSortedReft g s xsr@(x, sr) =
+  do let (ps,  ks) = envConcKVars [xsr]
+     (pks, _) <- applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
+     pure (x, sr { F.sr_reft = F.Reft (x, F.conj (pks:ps)) })
 
 -- | Produces conjuncts of each sorted reft in the IBindEnv, separated
 -- into concrete conjuncts and kvars.
