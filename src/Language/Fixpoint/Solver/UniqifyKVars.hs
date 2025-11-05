@@ -79,13 +79,11 @@ updateWfcs fi = M.foldl' updateWfc fi (ws fi)
 updateWfc :: SInfo a -> WfC a -> SInfo a
 updateWfc fi w    = fi'' { ws = M.insert k w' (ws fi) }
   where
-    w'            = updateWfCExpr (subst su) w''
-    w''           = w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) }
+    w'           = w { wenv = insertsIBindEnv newIds mempty, wrft = (v', t, k) }
     (_, fi'')     = newTopBind v' (trueSortedReft t) a fi'
     (fi', newIds) = foldl' (accumBindsIfValid k a) (fi, []) (L.sort $ elemsIBindEnv $ wenv w)
     (v, t, k)     = wrft w
     v'            = kArgSymbol v (kv k)
-    su            = mkSubst ((v, EVar v'):[(x, eVar $ kArgSymbol x (kv k)) | x <- kvarDomain fi k])
     a             = winfo w
 
 accumBindsIfValid :: KVar -> a -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])

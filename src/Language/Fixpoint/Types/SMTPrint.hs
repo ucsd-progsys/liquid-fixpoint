@@ -124,7 +124,6 @@ toHornExpr (F.ECoerc a t e)  = toHornMany ["coerce", toHornSMT a, toHornSMT t, t
 toHornExpr (F.PKVar k su)    = toHornMany [toHornSMT k, toHornSMT su]
 toHornExpr (F.ETApp e s)     = toHornMany ["ETApp" , toHornSMT e, toHornSMT s]
 toHornExpr (F.ETAbs e s)     = toHornMany ["ETAbs" , toHornSMT e, toHornSMT s]
-toHornExpr (F.PGrad k _ _ e) = toHornMany ["&&", toHornSMT e, toHornSMT k]
 
 toHornOp :: ToHornSMT a => P.Doc -> [a] -> P.Doc
 toHornOp op es = toHornMany (op : (toHornSMT <$> es))

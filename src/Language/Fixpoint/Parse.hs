@@ -1107,7 +1107,6 @@ mkFTycon locSymbol = do
 pred0P :: ParseableV v => ParserV v (ExprV v)
 pred0P =  trueP -- constant "true"
       <|> falseP -- constant "false"
-      <|> (reservedOp "??" >> makeUniquePGrad)
       <|> kvarPredP
       <|> fastIfP pIte predP -- "if-then-else", starts with "if"
       <|> try predrP -- binary relation, starts with anything that an expr can start with
@@ -1115,13 +1114,8 @@ pred0P =  trueP -- constant "true"
       <|> (reservedOp "?" *> exprP)
       <|> try funAppP
       <|> EVar <$> parseV -- identifier, starts with any letter or underscore
-      <|> (reservedOp "&&" >> pGAnds <$> predsP) -- built-in prefix and
+      <|> (reservedOp "&&" >> pAnd <$> predsP) -- built-in prefix and
       <|> (reservedOp "||" >> POr  <$> predsP) -- built-in prefix or
-
-makeUniquePGrad :: ParserV v (ExprV v)
-makeUniquePGrad
-  = do uniquePos <- getSourcePos
-       return $ PGrad (KV $ symbol $ show uniquePos) (Su mempty) (srcGradInfo uniquePos) PTrue
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
@@ -1161,7 +1155,7 @@ predP  = makeExprParser pred0P lops
   where
     lops = [ [Prefix (reservedOp "~"    >> return PNot)]
            , [Prefix (reserved   "not"  >> return PNot)]
-           , [InfixR (reservedOp "&&"   >> return pGAnd)]
+           , [InfixR (reservedOp "&&"   >> return (\x y -> pAnd [x, y]))]
            , [InfixR (reservedOp "||"   >> return (\x y -> POr [x,y]))]
            , [InfixR (reservedOp "=>"   >> return PImp)]
            , [InfixR (reservedOp "==>"  >> return PImp)]
