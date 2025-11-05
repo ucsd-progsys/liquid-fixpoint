@@ -51,18 +51,18 @@ reftFreeVars r@(Reft (v, _)) = S.delete v $ S.fromList $ syms r
 --------------------------------------------------------------------------------
 -- | Split a SortedReft into its concrete and KVar conjuncts
 --
--- Produces @(concrete conjunts, normal kvars, gradual kvars)@
+-- Produces @(concrete conjunts, normal kvars)@
 --------------------------------------------------------------------------------
-sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub], [KVSub])
-sortedReftConcKVars x sr = go [] [] [] ves
+sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub])
+sortedReftConcKVars x sr = go [] [] ves
   where
     ves                  = [(v, p `subst1` (v, eVar x)) | Reft (v, p) <- rs ]
     rs                   = reftConjuncts (sr_reft sr)
     t                    = sr_sort sr
 
-    go ps ks gs ((v, PKVar k su    ):xs) = go ps (KVS v t k su:ks) gs xs
-    go ps ks gs ((_, p):xs)              = go (p:ps) ks gs xs
-    go ps ks gs []                       = (ps, ks, gs)
+    go ps ks ((v, PKVar k su    ):xs) = go ps (KVS v t k su:ks) xs
+    go ps ks ((_, p):xs)              = go (p:ps) ks xs
+    go ps ks []                       = (ps, ks)
 
 
 -------------------------------------------------------------------------------

@@ -63,7 +63,6 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Results
   , FixSolution
-  , GFixSolution, toGFixSol
   , Result (..), ResultSorts
   , unsafe, isUnsafe, isSafe ,safe
 
@@ -249,22 +248,12 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
-type GFixSolution = GFixSol Expr
-
 type FixSolution  = M.HashMap KVar Expr
-
-newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
-  deriving (Generic, Semigroup, Monoid, Functor)
-
-toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
-toGFixSol = GSol
-
 
 data Result a = Result
   { resStatus    :: !(FixResult a)
   , resSolution  :: !FixSolution
   , resNonCutsSolution :: !FixSolution
-  , gresSolution :: !GFixSolution
   , resSorts     :: !ResultSorts
   }
   deriving (Generic, Show, Functor)
@@ -322,16 +311,15 @@ instance ToJSON ScopedExpr where
   toJSON = toJSON . render . toHornSMT
 
 instance Semigroup (Result a) where
-  r1 <> r2  = Result stat soln nonCutsSoln gsoln sorts
+  r1 <> r2  = Result stat soln nonCutsSoln sorts
     where
       stat  = resStatus r1    <> resStatus r2
       soln  = resSolution r1  <> resSolution r2
       nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
-      gsoln = gresSolution r1 <> gresSolution r2
       sorts = M.unionWith L.union (resSorts r1) (resSorts r2)
 
 instance Monoid (Result a) where
-  mempty        = Result mempty mempty mempty mempty mempty
+  mempty        = Result mempty mempty mempty mempty
   mappend       = (<>)
 
 unsafe, safe :: Result a
@@ -405,30 +393,12 @@ pprId :: Show a => Maybe a -> Doc
 pprId (Just i)  = "id" <+> tshow i
 pprId _         = ""
 
-instance PPrint GFixSolution where
-  pprintTidy k (GSol xs) = vcat $ punctuate "\n\n" (pprintTidyGradual k <$> M.toList xs)
-
-pprintTidyGradual :: Tidy -> (KVar, (Expr, [Expr])) -> Doc
-pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <-> pprint es)
-
-ppLocOfKVar :: KVar -> Doc
-ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv
-
-ppNonTauto :: Doc -> Expr -> Doc
-ppNonTauto d e
-  | isTautoPred e = mempty
-  | otherwise     = pprint e <-> d
-
-instance Show   GFixSolution where
-  show = showpp
-
 ----------------------------------------------------------------
 instance S.Store QualPattern
 instance S.Store QualParam
 instance S.Store Qualifier
 instance S.Store Kuts
 instance S.Store HOInfo
-instance S.Store GFixSolution
 instance (S.Store a) => S.Store (SubC a)
 instance (S.Store a) => S.Store (WfC a)
 instance (S.Store a) => S.Store (SimpC a)
@@ -439,7 +409,6 @@ instance NFData QualParam
 instance NFData v => NFData (QualifierV v)
 instance NFData Kuts
 instance NFData HOInfo
-instance NFData GFixSolution
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
