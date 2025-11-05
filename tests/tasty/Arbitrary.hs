@@ -22,7 +22,6 @@ import GHC.Generics
 import Language.Fixpoint.Types.Refinements as R
 import Language.Fixpoint.Parse             (isNotReserved)
 import Language.Fixpoint.Types             as T hiding (Result)
-import Language.Fixpoint.Types.Spans       as Spans
 import Data.Traversable                    (for)
 
 {-
@@ -76,7 +75,6 @@ subexprs (PAtom _ e0 e1) = [e0, e1]
 subexprs (PKVar _ _)     = []
 subexprs (PAll _ e)      = [e]
 subexprs (PExist _ e)    = [e]
-subexprs (PGrad _ _ _ e) = [e]
 subexprs (ECoerc _ _ e)  = [e]
 subexprs (ELet _ e1 e2)  = [e1, e2]
 
@@ -106,7 +104,6 @@ arbitraryFiniteExpr zeroExprGen n = frequency
   , (1, PKVar <$> arbitrary <*> arbitrary)
   , (1, PAll <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, PExist <$> arbitraryList arbitrary <*> arbitraryExpr')
-  , (1, PGrad <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitraryExpr')
   , (1, ECoerc <$> arbitrary <*> arbitrary <*> arbitraryExpr')
   , (1, ELet <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
   ]
@@ -134,12 +131,6 @@ arbitraryExprInvolving sym = arbitraryFiniteExpr . pure $ EVar sym
 
 instance Arbitrary KVar where
   arbitrary = KV <$> arbitrary
-
--- NOTE: This dummy Arbitrary instance returns a constant GradInfo.
-instance Arbitrary GradInfo where
-  arbitrary = pure $ GradInfo (SS pos pos) Nothing
-    where pos = Spans.dummyPos "<unknown>"
-  shrink _ = mempty
 
 instance Arbitrary Subst where
   arbitrary = do

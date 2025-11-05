@@ -282,7 +282,6 @@ elabFMap (PIff e1 e2)      = PIff (elabFMap e1) (elabFMap e2)
 elabFMap (PAtom r e1 e2)   = PAtom r (elabFMap e1) (elabFMap e2)
 elabFMap (PAll   bs e)     = PAll bs (elabFMap e)
 elabFMap (PExist bs e)     = PExist bs (elabFMap e)
-elabFMap (PGrad  k su i e) = PGrad k su i (elabFMap e)
 elabFMap (ECoerc a t e)    = ECoerc a t (elabFMap e)
 elabFMap e                 = e
 
@@ -329,7 +328,6 @@ elabFSetBagZ3 = go
     go (PAtom r e1 e2)    = PAtom r (go e1) (go e2)
     go (PAll   bs e)      = PAll bs (go e)
     go (PExist bs e)      = PExist bs (go e)
-    go (PGrad  k su i e)  = PGrad k su i (go e)
     go (ECoerc a t e)     = ECoerc a t (go e)
     go e                  = e
 
@@ -408,7 +406,6 @@ unElabFSetBagZ3 = go
     go (PAtom r e1 e2)    = PAtom r (go e1) (go e2)
     go (PAll   bs e)      = PAll bs (go e)
     go (PExist bs e)      = PExist bs (go e)
-    go (PGrad  k su i e)  = PGrad k su i (go e)
     go (ECoerc a t e)     = ECoerc a t (go e)
     go e                  = e
 
@@ -431,7 +428,6 @@ elabSorts ef (PIff e1 e2)      = PIff (elabSorts ef e1) (elabSorts ef e2)
 elabSorts ef (PAtom r e1 e2)   = PAtom r (elabSorts ef e1) (elabSorts ef e2)
 elabSorts ef (PAll   bs e)     = PAll bs (elabSorts ef e)
 elabSorts ef (PExist bs e)     = PExist bs (elabSorts ef e)
-elabSorts ef (PGrad  k su i e) = PGrad k su i (elabSorts ef e)
 elabSorts ef (ECoerc s1 s2 e)  = ECoerc (coerceSort ef s1) (coerceSort ef s2) (elabSorts ef e)
 elabSorts _ e                 = e
 
@@ -499,7 +495,6 @@ elabApply env = go
     step e@EApp {}        = go e
     step (ELam b e)       = ELam b       (go e)
     step (ECoerc a t e)   = ECoerc a t   (go e)
-    step (PGrad k su i e) = PGrad k su i (go e)
     step e@PKVar{}        = e
     step e@ESym{}         = e
     step e@ECon{}         = e
@@ -706,7 +701,6 @@ checkExpr f (PAnd ps)       = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (POr ps)        = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (PAtom r e e')  = checkRel f r e e' >> return boolSort
 checkExpr _ PKVar{}         = return boolSort
-checkExpr f (PGrad _ _ _ e) = checkPred f e >> return boolSort
 
 checkExpr f (PAll  bs e )   = checkExpr (addEnv f bs) e
 checkExpr f (PExist bs e)   = checkExpr (addEnv f bs) e
@@ -757,10 +751,6 @@ elab !_ e@(ECon (L _ !s)) =
 
 elab !_ e@(PKVar _ _) =
   return (e, boolSort)
-
-elab !f (PGrad !k !su !i !e) = do
-  (!e', !_) <- elab f e
-  return (PGrad k su i e', boolSort)
 
 elab (!_, !f) e@(EVar !x) = do
   !cs <- checkSym f x

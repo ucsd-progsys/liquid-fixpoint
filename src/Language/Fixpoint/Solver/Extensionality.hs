@@ -162,7 +162,6 @@ mapMPosExpr pos f = go pos
     go p (PExist xts e)  = f p . PExist xts =<< go p e
     go p (ETApp e s)     = f p . (`ETApp` s) =<< go p e
     go p (ETAbs e s)     = f p . (`ETAbs` s) =<< go p e
-    go p (PGrad k s i e) = f p . PGrad k s i =<< go p e
 
 normalize :: Expr -> Expr
 normalize expr' = mytracepp ("normalize: " ++ showpp expr') $ go expr'
@@ -189,7 +188,6 @@ normalize expr' = mytracepp ("normalize: " ++ showpp expr') $ go expr'
     go e@(PExist _ _)    = e -- Cannot appear
     go e@(ETApp _ _)     = e -- Cannot appear
     go e@(ETAbs _ _)     = e -- Cannot appear
-    go e@PGrad{}         = e -- Cannot appear
 
 
 type Ex a = State (ExSt a)

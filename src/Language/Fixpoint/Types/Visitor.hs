@@ -33,7 +33,7 @@ module Language.Fixpoint.Types.Visitor (
   , envKVars
   , envKVarsN
   , rhsKVars
-  , mapKVars, mapKVars', mapGVars', mapKVarSubsts
+  , mapKVars, mapKVars', mapKVarSubsts
   , mapExpr, mapExprOnExpr, mapMExpr
 
   -- * Coercion Substitutions
@@ -128,7 +128,6 @@ instance Visitable Expr where
       step (ETApp e s)      = ETApp (vE e) s
       step (ETAbs e s)      = ETAbs (vE e) s
       step p@(PKVar _ _)    = p
-      step (PGrad k su i e) = PGrad k su i (vE e)
 
 instance Visitable Reft where
   transE v (Reft (x, ra)) = Reft (x, transE v ra)
@@ -276,7 +275,6 @@ foldExpr !v    = vE
     step !c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step !c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _  p@(PKVar _ _)   = return p
-    step !c (PGrad k su i e) = PGrad k su i <$> vE c e
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -288,18 +286,8 @@ mapKVars' f = trans txK
   where
     txK (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
-    txK (PGrad k su _ _)
-      | Just p' <- f (k, su) = subst su p'
     txK p = p
 
-
-
-mapGVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
-mapGVars' f            = trans txK
-  where
-    txK (PGrad k su _ _)
-      | Just p' <- f (k, su) = subst su p'
-    txK p            = p
 
 mapExpr :: Visitable t => (Expr -> Expr) -> t -> t
 mapExpr f = trans f
@@ -371,9 +359,6 @@ mapExprOnExpr f = go
       ETAbs e s ->
         let !e' = go e
         in ETAbs e' s
-      PGrad k su i e ->
-        let !e' = go e
-        in PGrad k su i e'
       e@PKVar{} -> e
       e@EVar{} -> e
       e@ESym{} -> e
@@ -414,7 +399,6 @@ mapMExpr f = go
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
     go e@(PKVar _ _)   = f e
-    go (PGrad k s i e) = f . PGrad k s i =<< go e
     go (ENeg e)        = f . ENeg =<< go e
     go (PNot p)        = f . PNot =<< go p
     go (ECst e t)      = f . (`ECst` t) =<< go e
@@ -438,7 +422,6 @@ mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f          = trans txK
   where
     txK (PKVar k su)   = PKVar k (f k su)
-    txK (PGrad k su i e) = PGrad k (f k su) i e
     txK p              = p
 
 newtype MInt = MInt Integer -- deriving (Eq, NFData)
@@ -482,7 +465,6 @@ kvarsExpr = go []
       ECon _ -> acc
       EVar _ -> acc
       PKVar k _ -> k : acc
-      PGrad k _ _ _ -> k : acc
       ENeg e -> go acc e
       PNot p -> go acc p
       ECst e _t -> go acc e
@@ -525,7 +507,6 @@ isConcC = all isConc . conjuncts . crhs
 
 isKvar :: Expr -> Bool
 isKvar PKVar{} = True
-isKvar PGrad{} = True
 isKvar _       = False
 
 isConc :: Expr -> Bool
