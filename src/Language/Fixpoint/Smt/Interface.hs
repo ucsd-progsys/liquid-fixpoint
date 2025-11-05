@@ -49,7 +49,6 @@ module Language.Fixpoint.Smt.Interface (
     , smtFuncDecl
     , smtAssertAxiom
     , smtCheckUnsat
-    , smtCheckSat
     , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
@@ -65,7 +64,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config ( SMTSolver (..), solverFlags
-                                                , Config (solver, smtTimeout, gradual, stringTheory, save, allowHO))
+                                                , Config (solver, smtTimeout, stringTheory, save, allowHO))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -359,9 +358,11 @@ smtPreamble cfg s me
   | s == Z3 || s == Z3mem
     = do v <- getZ3Version me
          checkValidStringFlag Z3 v cfg
-         return $ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
+         return $ makeMbqi ++ makeTimeout cfg ++ Thy.preamble cfg Z3
   | otherwise
     = checkValidStringFlag s [] cfg >> return (Thy.preamble cfg s)
+  where
+    makeMbqi = ["\n(set-option :smt.mbqi false)"]
 
 getZ3Version :: Context -> IO [Int]
 getZ3Version me
@@ -422,14 +423,6 @@ deconSort :: Sort -> ([Sort], Sort)
 deconSort t = case functionSort t of
                 Just (_, ins, out) -> (ins, out)
                 Nothing            -> ([], t)
-
--- hack now this is used only for checking gradual condition.
-smtCheckSat :: Expr -> SmtM Bool
-smtCheckSat p
- = smtAssert p >> (ans <$> command CheckSat)
- where
-   ans Sat = True
-   ans _   = False
 
 smtAssert :: Expr -> SmtM ()
 smtAssert p = interact' (Assert Nothing p)
@@ -511,12 +504,6 @@ makeTimeout :: Config -> [Builder]
 makeTimeout cfg
   | Just i <- smtTimeout cfg = [ "\n(set-option :timeout " <> fromString (show i) <> ")\n"]
   | otherwise                = [""]
-
-
-makeMbqi :: Config -> [Builder]
-makeMbqi cfg
-  | gradual cfg = [""]
-  | otherwise   = ["\n(set-option :smt.mbqi false)"]
 
 
 --------------------------------------------------------------------------------

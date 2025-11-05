@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections     #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
@@ -46,19 +47,29 @@ mytrace :: String -> a -> a
 mytrace
   -- s x = trace s x
   _ x = x
+{-
+solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
+       => Config
+       -> F.SInfo a
+       -> Sol.Solution
+       -> W.Worklist a
+       -> SolveM a (F.Result (Integer, a), Stats)
+       -}
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solve :: forall a. (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 
 solve cfg fi = do
     whenLoud $ donePhase Misc.Loud "Worklist Initialize"
     vb <- getVerbosity
-    (res, stat) <- (if Quiet == vb || gradual cfg then id else withProgressFI sI) $ runSolverM cfg sI act
+    (res, stat) <- (if Quiet == vb then id else withProgressFI sI) $ runSolverM cfg sI act
     when (solverStats cfg) $ printStats fi wkl stat
     -- print (numIter stat)
     return res
   where
+    act :: SolveM a (F.Result (Integer, a), Stats)
     act = solve_ cfg fi s0 wkl
     -- solverInfo computes the set of cut and non-cut kvars, then initializes
     -- the solutions of the non-cut KVars (in the sHyp field)
@@ -73,7 +84,7 @@ solve cfg fi = do
 --------------------------------------------------------------------------------
 -- | Progress Bar
 --------------------------------------------------------------------------------
-withProgressFI :: SolverInfo a b -> IO b -> IO b
+withProgressFI :: SolverInfo a -> IO b -> IO b
 withProgressFI = withProgress . (+ 1) . fromIntegral . cNumScc . siDeps
 --------------------------------------------------------------------------------
 
@@ -83,7 +94,7 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
     ppTs          = putStrLn . showpp . mconcat
 
 --------------------------------------------------------------------------------
-solverInfo :: Config -> F.SInfo a -> SolverInfo a b
+solverInfo :: Config -> F.SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg fI
   | useElim cfg = E.solverInfo cfg fI
@@ -282,7 +293,7 @@ result bindingsInSmt cfg fi cs s =
     resCut    <- solResult cfg s
     resNonCut <- solNonCutsResult cfg be s
     let resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
-    return     $ F.Result (ci <$> stat) resCut resNonCut mempty resSorts
+    return     $ F.Result (ci <$> stat) resCut resNonCut resSorts
   where
     ci c = (F.subcId c, F.sinfo c)
     be = F.bs fi

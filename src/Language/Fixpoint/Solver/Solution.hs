@@ -48,7 +48,7 @@ import Text.Printf (printf)
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks_ = Sol.fromList symEnv mempty keqs [] mempty ebs xEnv
+init cfg si ks_ = Sol.fromList symEnv keqs [] mempty ebs xEnv
   where
     keqs       = runReader (traverse (refine si qcs genv) ws) (solverFlags $ solver cfg) `using` parList rdeepseq
     qcs        = {- trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ -} qcs_
@@ -291,26 +291,26 @@ instance F.Loc (CombinedEnv a) where
 type Cid         = Maybe Integer
 type ExprInfo    = (F.Expr, KInfo)
 
-apply :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ElabM ExprInfo
+apply :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.IBindEnv -> ElabM ExprInfo
 apply g s bs      =
   -- Clear the "known" bindings for applyKVars, since it depends on
   -- using the fully expanded representation of the predicates to bind their
   -- variables with quantifiers.
-  do (ps,  ks, _) <- envConcKVars g s bs
+  do (ps,  ks) <- envConcKVars g s bs
      (pks, kI) <- applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
      pure (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
 
 -- | Produces conjuncts of each sorted reft in the IBindEnv, separated
--- into concrete conjuncts, kvars, and gradual kvars.
-envConcKVars :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ElabM ([F.Expr], [F.KVSub], [F.KVSub])
+-- into concrete conjuncts and kvars.
+envConcKVars :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.IBindEnv -> ElabM ([F.Expr], [F.KVSub])
 envConcKVars g s bs =
   do xrs <- traverse (lookupBindEnvExt g s) is
-     let (pss, kss, gss) = unzip3 [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
-     pure (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
+     let (pss, kss) = unzip [ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
+     pure (concat pss, concat kss)
   where
     is = F.elemsIBindEnv bs
 
-lookupBindEnvExt :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.BindId -> ElabM (F.Symbol, F.SortedReft)
+lookupBindEnvExt :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.BindId -> ElabM (F.Symbol, F.SortedReft)
 lookupBindEnvExt g s i =
   do msol <- ebSol (g {ceBindingsInSmt = F.emptyIBindEnv}) s i
      pure (x, case msol of
@@ -321,7 +321,7 @@ lookupBindEnvExt g s i =
    where
       (x, sr, _)              = F.lookupBindEnv i (ceBEnv g)
 
-ebSol :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.BindId -> ElabM (Maybe F.Expr)
+ebSol :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.BindId -> ElabM (Maybe F.Expr)
 ebSol g sol bindId = case M.lookup bindId sebds of
   Just (Sol.EbSol p)    -> pure $ Just p
   Just (Sol.EbDef cs _) ->
@@ -336,7 +336,7 @@ ebSol g sol bindId = case M.lookup bindId sebds of
     sebds = Sol.sEbd sol
     s' = sol { Sol.sEbd = M.insert bindId Sol.EbIncr sebds }
 
-ebindReft :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.SimpC () -> ElabM F.Pred
+ebindReft :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.SimpC () -> ElabM F.Pred
 ebindReft g s c =
   do a <- apply g' s bs
      pure $ F.pAnd [ fst a , F.crhs c ]
@@ -353,13 +353,13 @@ exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
                             , xi < yi
                             , yi `F.memberIBindEnv` ienv                  ]
 
-applyKVars :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ElabM ExprInfo
+applyKVars :: CombinedEnv ann -> Sol.Sol Sol.QBind -> [F.KVSub] -> ElabM ExprInfo
 applyKVars g s ks = do
   bcs <- traverse (applyKVar g s) ks
   let (es, is) = unzip bcs
   pure (F.pAndNoDedup es, mconcat is)
 
-applyKVar :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> ElabM ExprInfo
+applyKVar :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> ElabM ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Left cs   -> hypPred g s ksu cs
   Right eqs -> do qbp <- Sol.qbPreds msg s (F.ksuSubst ksu) eqs
@@ -367,11 +367,11 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   where
     msg     = "applyKVar: " ++ show (ceCid g)
 
-mkNonCutsExpr :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Hyp -> ElabM F.Expr
+mkNonCutsExpr :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Hyp -> ElabM F.Expr
 mkNonCutsExpr ce s k cs = do bcps <- traverse (bareCubePred ce s k) cs
                              pure $ F.pOr bcps
 
-nonCutsResult :: F.BindEnv ann -> Sol.Sol a Sol.QBind -> ElabM (M.HashMap F.KVar F.Expr)
+nonCutsResult :: F.BindEnv ann -> Sol.Sol Sol.QBind -> ElabM (M.HashMap F.KVar F.Expr)
 nonCutsResult be s = M.traverseWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
   where
     g = CEnv Nothing be F.emptyIBindEnv F.dummySpan F.emptyIBindEnv
@@ -399,7 +399,7 @@ nonCutsResult be s = M.traverseWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
 -- are the "parameters" of the KVar that we want to leave in to make
 -- explicit what equalities those parameters have in each cube.
 
-bareCubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVar -> Sol.Cube -> ElabM F.Expr
+bareCubePred :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Cube -> ElabM F.Expr
 bareCubePred g s k c =
   do (_xts, psu) <- substElim (Sol.sEnv s) sEnv g' su
      (p, _kI) <- apply g' s bs'
@@ -412,12 +412,12 @@ bareCubePred g s k c =
     yts = symSorts g bs'
     sEnv = F.seSort (Sol.sEnv s)
 
-hypPred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Hyp -> ElabM ExprInfo
+hypPred :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Hyp -> ElabM ExprInfo
 hypPred g s ksu hyp =
   do cs <- traverse (cubePred g s ksu) hyp
      pure $ F.pOr *** mconcatPlus $ unzip cs
 
-elabExist :: F.SrcSpan -> Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> ElabM F.Expr
+elabExist :: F.SrcSpan -> Sol.Sol Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> ElabM F.Expr
 elabExist sp s xts p =
   do ef <- ask
      let elab = So.elaborate (So.ElabParam ef (F.atLoc sp "elabExist") env)
@@ -438,7 +438,7 @@ elabExist sp s xts p =
       in the final predicate. They are considered redundant conjuncts as per
       section 2.4 of "Local Refinement Typing", ICFP 2017.
  -}
-cubePred :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ElabM ExprInfo
+cubePred :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Cube -> ElabM ExprInfo
 cubePred g s ksu c    =
   do ((xts,psu,p), kI) <- cubePredExc g s ksu c bs'
      e <- F.notracepp "cubePred" <$> elabExist sp s xts (psu &.& p)
@@ -455,7 +455,7 @@ type Binders = [(F.Symbol, F.Sort)]
 --   The output is a tuple, `(xts, psu, p, kI)` such that the actual predicate
 --   we want is `Exists xts. (psu /\ p)`.
 
-cubePredExc :: CombinedEnv ann -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> F.IBindEnv
+cubePredExc :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Cube -> F.IBindEnv
             -> ElabM ((Binders, F.Pred, F.Pred), KInfo)
 cubePredExc g s ksu c bs' =
   do (xts, psu)  <- substElim (Sol.sEnv s) sEnv g  su

@@ -97,8 +97,6 @@ data Config = Config
   , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
   , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
   , etaElim     :: Bool                -- ^ eta eliminate function definitions
-  , gradual     :: Bool                -- ^ solve "gradual" constraints
-  , ginteractive :: Bool                -- ^ interactive gradual solving
   , autoKuts         :: Bool           -- ^ ignore given kut variables
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
@@ -256,8 +254,6 @@ defConfig = Config {
   , minimizeQs               = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
   , minimizeKs               = False &= help "Delta debug to minimize fq file (sat with max kvars replaced by True)"
   , minimalSol               = False &= help "Shrink fixpoint by removing implied qualifiers"
-  , gradual                  = False &= help "Solve gradual-refinement typing constraints"
-  , ginteractive             = False &= help "Interactive Gradual Solving"
   , autoKuts                 = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
   , noslice                  = False &= help "Disable non-concrete KVar slicing"

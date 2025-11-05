@@ -32,13 +32,13 @@ import           Language.Fixpoint.Solver.Sanitize
 --
 --------------------------------------------------------------------------------
 {-# SCC solverInfo #-}
-solverInfo :: Config -> SInfo a -> SolverInfo a b
+solverInfo :: Config -> SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs ebs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList sE mempty mempty kHyps kS [] sEnv
+    sHyp           = Sol.fromList sE mempty kHyps kS [] sEnv
     sEnv           = fromListSEnv [ (x, (i, sr_sort sr)) | (i, (x,sr, _)) <- bindEnvToList (bs sI)]
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
