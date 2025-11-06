@@ -547,7 +547,7 @@ getAutoRws γ mSubcId =
 -- way.
 evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
-  | i > 0 || null (getAutoRws γ (icSubcId ctx)) = (:[]) . fst <$> eval γ ctx NoRW e
+  | i > 0 || null (getAutoRws γ (icSubcId ctx)) = (:[]) <$> eval γ ctx NoRW e
 evalOne γ ctx _ e | isExprRewritable e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
@@ -577,36 +577,6 @@ data EvalType =
   | RWNormal   -- REST: Fully Expand Defs in the context of rewriting (similar to NoRW)
   deriving (Eq)
 
--- Indicates whether or not the evaluation has expanded a function statement
--- into a conditional branch.
--- In this case, rewriting should stop
--- It's unclear whether or not rewriting in either branch makes sense,
--- since one branch could be an ill-formed expression.
-newtype FinalExpand = FE Bool deriving (Show)
-
-noExpand :: FinalExpand
-noExpand = FE False
-
-expand :: FinalExpand
-expand = FE True
-
-mapFE :: (Expr -> Expr) -> (Expr, FinalExpand) -> (Expr, FinalExpand)
-mapFE f (e, fe) = (f e, fe)
-
-feVal :: FinalExpand -> Bool
-feVal (FE f) = f
-
-feAny :: [FinalExpand] -> FinalExpand
-feAny xs = FE $ any feVal xs
-
-infixl 9 <|>
-(<|>) :: FinalExpand -> FinalExpand -> FinalExpand
-(<|>) (FE True) _ = expand
-(<|>) _         f = f
-
-
-feSeq :: [(Expr, FinalExpand)] -> ([Expr], FinalExpand)
-feSeq xs = (map fst xs, feAny (map snd xs))
 
 -- | Unfolds function invocations in expressions.
 --
@@ -616,74 +586,55 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 --
 -- Also adds to the monad state all the unfolding equalities that have been
 -- discovered as necessary.
-eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
+eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST Expr
 eval γ ctx et = go
   where
     go (ELam (x,s) e)   = evalELam γ ctx et (x, s) e
     go e@EIte{}         = evalIte γ ctx et e
-    go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
+    go (ECoerc s t e)   = ECoerc s t <$> go e
     go e@(EApp _ _)     =
       case splitEAppThroughECst e of
        (f, es) | et == RWNormal ->
           -- Just evaluate the arguments first, to give rewriting a chance to step in
           -- if necessary
           do
-            (es', finalExpand) <- feSeq <$> mapM (eval γ ctx et) es
+            es' <- mapM (eval γ ctx et) es
             if es /= es'
-              then return (eApps f es', finalExpand)
+              then return (eApps f es')
               else do
-                (f', fe) <- case dropECst f of
-                  EVar _ -> pure (f, noExpand)
+                f' <- case dropECst f of
+                  EVar _ -> pure f
                   _      -> go f
-                (me', fe') <- evalApp γ ctx f' es et
-                return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
+                Mb.fromMaybe (eApps f' es') <$> evalApp γ ctx f' es et
        (f, es) ->
           do
-            (f', fe1) <- case dropECst f of
-              EVar _ -> pure (f, noExpand)
+            f' <- case dropECst f of
+              EVar _ -> pure f
               _      -> go f
-            (es', fe2) <- feSeq <$> mapM (eval γ ctx et) es
-            let fe = fe1 <|> fe2
-            (me', fe') <- evalApp γ ctx f' es' et
-            return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
+            es' <- mapM (eval γ ctx et) es
+            Mb.fromMaybe (eApps f' es') <$> evalApp γ ctx f' es' et
 
-    go (PAtom r e1 e2) = binOp (PAtom r) e1 e2
-    go (ENeg e)         = do (e', fe)  <- go e
-                             return (ENeg e', fe)
-    go (EBin o e1 e2)   = do (e1', fe1) <- go e1
-                             (e2', fe2) <- go e2
-                             return (EBin o e1' e2', fe1 <|> fe2)
-    go (ETApp e t)      = mapFE (`ETApp` t) <$> go e
-    go (ETAbs e s)      = mapFE (`ETAbs` s) <$> go e
-    go (PNot e')        = mapFE PNot <$> go e'
-    go (PImp e1 e2)     = binOp PImp e1 e2
-    go (PIff e1 e2)     = binOp PIff e1 e2
-    go (PAnd es)        = efAll PAnd (go `traverse` es)
-    go (POr es)         = efAll POr (go `traverse` es)
+    go (PAtom r e1 e2) = PAtom r <$> go e1 <*> go e2
+    go (ENeg e)         = ENeg <$> go e
+    go (EBin o e1 e2)   = EBin o <$> go e1 <*> go e2
+    go (ETApp e t)      = (`ETApp` t) <$> go e
+    go (ETAbs e s)      = (`ETAbs` s) <$> go e
+    go (PNot e')        = PNot <$> go e'
+    go (PImp e1 e2)     = PImp <$> go e1 <*> go e2
+    go (PIff e1 e2)     = PIff <$> go e1 <*> go e2
+    go (PAnd es)        = PAnd <$> traverse go es
+    go (POr es)         = POr <$> traverse go es
     go e | EVar _ <- dropECst e = do
-      (me', fe) <- evalApp γ ctx e [] et
-      return (Mb.fromMaybe e me', fe)
-    go (ECst e t)       = do (e', fe) <- go e
-                             return (ECst e' t, fe)
-    go (ELet x e1 e2)   = do (e1', fe1) <- go e1
-                             (e2', fe2) <- go e2
-                             return (ELet x e1' e2', fe1 <|> fe2)
+      Mb.fromMaybe e <$> evalApp γ ctx e [] et
+    go (ECst e t)       = (`ECst` t) <$> go e
+    go (ELet x e1 e2)   = ELet x <$> go e1 <*> go e2
 
-    go e                = return (e, noExpand)
+    go e                = return e
 
-    binOp f e1 e2 = do
-      (e1', fe1) <- go e1
-      (e2', fe2) <- go e2
-      return (f e1' e2', fe1 <|> fe2)
-
-    efAll f mes = do
-      xs <- mes
-      let (xs', fe) = feSeq xs
-      return (f xs', fe)
 
 -- | 'evalELam' produces equations that preserve the context of a rewrite
 -- so equations include any necessary lambda bindings.
-evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (Expr, FinalExpand)
+evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST Expr
 evalELam γ ctx et (x, s) e
   | not $ isEtaSymbol x = do
     -- We need to refresh it as for some reason names bound by lambdas
@@ -712,7 +663,7 @@ evalELam γ ctx et (x, s) e = do
     modify $ \st -> st
       { evEnv = insertSymEnv x s $ evEnv st }
 
-    (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
+    e' <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
     let e2' = simplify γ ctx e'
         elam = ELam (x, s) e
     -- Discard the old equalities which miss the lambda binding
@@ -722,7 +673,7 @@ evalELam γ ctx et (x, s) e = do
       -- Leaving the scope thus we need to get rid of it
       , evEnv = deleteSymEnv x $ evEnv st
       }
-    return (ELam (x, s) e', fe)
+    return (ELam (x, s) e')
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
@@ -832,10 +783,10 @@ evalRESTWithCache cacheRef γ ctx acc rp =
           modify $ \st -> st { evNewEqualities = mempty }
 
           -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
-          (e', FE fe) <- do
-            r@(ec, _) <- eval γ ctx FuncNormal exprs
+          e' <- do
+            ec <- eval γ ctx FuncNormal exprs
             if ec /= exprs
-              then return r
+              then return ec
               else eval γ ctx RWNormal exprs
 
           let evalIsNewExpr = e' `L.notElem` pathExprs
@@ -860,8 +811,8 @@ evalRESTWithCache cacheRef γ ctx acc rp =
             }
 
           acc'' <- if evalIsNewExpr
-            then if fe && any isRW (path rp)
-              then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW e'
+            then if e' /= exprs && any isRW (path rp)
+              then (:[]) <$> eval γ (addConst (exprs, e')) NoRW e'
               else evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' (rpEval newEqualities e')
             else return acc'
 
@@ -972,7 +923,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
 -- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
 -- and equations
-evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Maybe Expr, FinalExpand)
+evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Maybe Expr)
 evalApp γ ctx e0 es et
   | EVar f <- dropECst e0
   , Just eq <- Map.lookup f (knAms γ)
@@ -988,7 +939,7 @@ evalApp γ ctx e0 es et
                     then elaborateExpr "EvalApp unfold full: " newE
                     else pure newE
 
-         (e', fe) <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+         e' <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          let e2' = stripPLEUnfold e'
          let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
 
@@ -1000,15 +951,15 @@ evalApp γ ctx e0 es et
            modify $ \st -> st
              { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
              }
-           return (Nothing, noExpand)
+           return Nothing
          else do
            useFuel f
            modify $ \st -> st
              { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
              , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
              }
-           return (Just $ eApps e2' es2, fe)
-       else return (Nothing, noExpand)
+           return (Just $ eApps e2' es2)
+       else return Nothing
   where
     -- At the time of writing, any function application wrapping an
     -- if-statement would have the effect of unfolding the invocation.
@@ -1042,7 +993,7 @@ evalApp γ ctx e0 args@(e:es) _
     when (isUserDataSMeasure == NoUserDataSMeasure) $
       modify $ \st -> st
         { evNewEqualities = S.insert (eApps e0 args, simplify γ ctx newE) (evNewEqualities st) }
-    return (Just newE, noExpand)
+    return (Just newE)
 
 evalApp γ ctx e0 es _et
   | eqs@(_:_) <- noUserDataMeasureEqs γ (eApps e0 es)
@@ -1050,7 +1001,7 @@ evalApp γ ctx e0 es _et
        let eqs' = map (second $ simplify γ ctx) eqs
        modify $ \st ->
          st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs' }
-       return (Nothing, noExpand)
+       return Nothing
 
 evalApp γ ctx e0 es et
   | ELam (argName, _) body <- dropECst e0
@@ -1063,13 +1014,13 @@ evalApp γ ctx e0 es et
           useFuel argName
           let argSubst = mkSubst [(argName, lambdaArg)]
           let body' = subst argSubst body
-          (body'', fe) <- evalIte γ ctx et body'
+          body'' <- evalIte γ ctx et body'
           let simpBody = simplify γ ctx (eApps body'' remArgs)
           modify $ \st ->
             st { evNewEqualities = S.insert (eApps e0 es, simpBody) (evNewEqualities st) }
-          return (Just $ eApps body'' remArgs, fe)
+          return (Just $ eApps body'' remArgs)
         else do
-          return (Nothing, noExpand)
+          return Nothing
 
 evalApp _ ctx e0 es _
   | icLocalRewritesFlag ctx
@@ -1080,7 +1031,7 @@ evalApp _ ctx e0 es _
       let expandedTerm = eApps rw es
       modify $ \st -> st
         { evNewEqualities = S.insert (eApps e0 es, expandedTerm) (evNewEqualities st) }
-      return (Just expandedTerm, expand)
+      return (Just expandedTerm)
 
 evalApp _γ ctx e0 es _et
   -- We check the annotation instead of the equations in γ for two reasons.
@@ -1117,7 +1068,7 @@ evalApp _γ ctx e0 es _et
     -- is already handled by the previous case of evalApp
     modify $ \st -> st
       { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
-    return (Just etaExpandedTerm, expand)
+    return (Just etaExpandedTerm)
   where
     unpackFFuncs (FFunc t ts) = t : unpackFFuncs ts
     unpackFFuncs _ = []
@@ -1125,22 +1076,21 @@ evalApp _γ ctx e0 es _et
     mkLams subject binds = foldr ELam subject binds
 
 evalApp _ _ctx _e0 _es _ = do
-  return (Nothing, noExpand)
+  return Nothing
 
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
-evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
+evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST Expr
 evalIte γ ctx et (ECst e t) = do
-  (e', fe) <- evalIte γ ctx et e
-  return (ECst e' t, fe)
+  (`ECst` t) <$> evalIte γ ctx et e
 evalIte γ ctx et (EIte i e1 e2) = do
-      (b, _) <- eval γ ctx et i
+      b <- eval γ ctx et i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
       case b' of
         Just True -> evalIte γ ctx et e1
         Just False -> evalIte γ ctx et e2
-        _ -> return (EIte b e1 e2, expand)
-evalIte _ _ _ e' = return (e', noExpand)
+        _ -> return (EIte b e1 e2)
+evalIte _ _ _ e' = return e'
 
 -- | Creates equations that explain how to rewrite a given constructor
 -- application with all measures that aren't user data measures
