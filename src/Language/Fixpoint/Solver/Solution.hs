@@ -305,6 +305,11 @@ apply g s bs      =
      (pks, kI) <- applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
      pure (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
 
+-- | @applyInSortedReft@ applies the solution to a single sorted reft
+--
+-- At the time of writing this function is used in PLE, where we need the
+-- expression in unelaborated form. Thus the result is not elaborated here.
+--
 applyInSortedReft
   :: CombinedEnv ann
   -> Sol.Sol Sol.QBind
@@ -313,7 +318,7 @@ applyInSortedReft
 applyInSortedReft g s xsr@(x, sr) =
   do let (ps,  ks) = envConcKVars [xsr]
      (pks, _) <- applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
-     pure (x, sr { F.sr_reft = F.Reft (x, F.conj (pks:ps)) })
+     pure (x, sr { F.sr_reft = F.Reft (x, F.conj (So.unElab pks : ps)) })
 
 -- | Produces conjuncts of each sorted reft in the IBindEnv, separated
 -- into concrete conjuncts and kvars.
