@@ -269,7 +269,7 @@ data PreambleCondition = SAll | SOnly [SMTSolver]
 
 setPreamble :: Config -> [Preamble]
 -- Z3 does not support cardinality on sets, which is defined to be uninterpreted function
-setPreamble _ 
+setPreamble _
   = [ (SOnly [Z3, Z3mem],  bFun' "set.card" ["(Array Int Bool)"] "Int") ]
 
 boolPreamble :: Config -> [Preamble]
@@ -451,7 +451,6 @@ interpSymbols cfg =
   , interpSym bagSub   "bag.subbag"         (FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort)
 
   -- Strings
-
   , interpSym strLen    strLen    strLenSort
   , interpSym strSubstr strSubstr substrSort
   , interpSym strConcat strConcat concatstrSort
