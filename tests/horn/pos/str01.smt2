@@ -1,4 +1,4 @@
-(fixpoint "--stringtheory")
+;; (fixpoint "--stringtheory")
 
 (constraint
   (and
