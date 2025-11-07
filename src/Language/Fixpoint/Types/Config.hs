@@ -233,7 +233,7 @@ defConfig = Config {
   , defunction               = False   &= help "Allow higher order binders into fixpoint environment"
   , solver                   = def     &= help "Name of SMT Solver"
   , linear                   = False   &= help "Use uninterpreted integer multiplication and division"
-  , stringTheory             = False   &= help "Interpretation of String Theory by SMT"
+  , stringTheory             = True    &= help "Interpretation of String Theory by SMT"
   , allowHO                  = False   &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs                = False   &= help "Allow higher order qualifiers"
   , eliminate                = None    &= help "Eliminate KVars [none = quals for all-kvars, cuts = quals for cut-kvars, all = eliminate all-kvars (TRUE for cuts)]"
