@@ -1,5 +1,3 @@
-;; (fixpoint "--stringtheory")
-
 (constraint
   (and
     (forall ((x Str) ((= x "cat")))

@@ -78,7 +78,6 @@ data Config = Config
   , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
   , solver      :: SMTSolver           -- ^ which SMT solver to use
   , linear      :: Bool                -- ^ not interpret div and mul in SMT
-  , stringTheory :: Bool               -- ^ interpretation of string theory by SMT
   , defunction  :: Bool                -- ^ defunctionalize (use 'apply' for all uninterpreted applications)
   , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
   , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
@@ -117,6 +116,7 @@ data Config = Config
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
   , restOrdering        :: String      -- ^ Term ordering for use in REST
   , noSmtHorn           :: Bool        -- ^ Do not use (new) SMTLIB horn parser
+  , noStringTheory :: Bool             -- ^ disable interpretation of string theory by SMT
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -233,7 +233,7 @@ defConfig = Config {
   , defunction               = False   &= help "Allow higher order binders into fixpoint environment"
   , solver                   = def     &= help "Name of SMT Solver"
   , linear                   = False   &= help "Use uninterpreted integer multiplication and division"
-  , stringTheory             = True    &= help "Interpretation of String Theory by SMT"
+  , noStringTheory           = False   &= help "Disable use of string theory by SMT"
   , allowHO                  = False   &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs                = False   &= help "Allow higher order qualifiers"
   , eliminate                = None    &= help "Eliminate KVars [none = quals for all-kvars, cuts = quals for cut-kvars, all = eliminate all-kvars (TRUE for cuts)]"
