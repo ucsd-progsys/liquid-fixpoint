@@ -40,5 +40,6 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
           icLRWs = mempty,
           icEtaBetaFlag        = False,
           icExtensionalityFlag = False,
-          icLocalRewritesFlag  = False
+          icLocalRewritesFlag  = False,
+          icBindIds = mempty
         }

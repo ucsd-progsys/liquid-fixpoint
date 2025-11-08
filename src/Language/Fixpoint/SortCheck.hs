@@ -76,7 +76,7 @@ import           Control.Exception (Exception, catch, try, throwIO)
 import           Control.Monad
 import           Control.Monad.Reader
 
-import           Data.Bifunctor (first)
+import           Data.Bifunctor (first, second)
 import qualified Data.IntMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.IORef
@@ -972,6 +972,7 @@ unApply = Vis.mapExprOnExpr go
     go (ECst (EApp (EApp f e1) e2) _)
       | Just _ <- unApplyAt f = EApp e1 e2
     go (ELam (x,s) e)         = ELam (x, Vis.mapSort go' s) e
+    go (PExist bs e)          = PExist (map (second (Vis.mapSort go')) bs) e
     go e                      = e
 
     go' (FApp (FApp fs t1) t2) | fs == funcSort

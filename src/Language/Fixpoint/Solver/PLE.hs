@@ -30,7 +30,7 @@ module Language.Fixpoint.Solver.PLE
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
-import           Language.Fixpoint.Types.Solutions (CMap)
+import           Language.Fixpoint.Types.Solutions (CMap, Solution)
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc
 import qualified Language.Fixpoint.Smt.Interface as SMT
@@ -45,6 +45,7 @@ import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Common          (askSMT, toSMT)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Simplify
+import           Language.Fixpoint.Solver.Solution (CombinedEnv(..), applyInSortedReft)
 import           Language.Fixpoint.Solver.Rewrite as Rewrite
 
 import Language.REST.OCAlgebra as OC
@@ -54,6 +55,7 @@ import Language.REST.SMT (withZ3, SolverHandle)
 
 import           Control.Exception.Base (bracket)
 import           Control.Monad (filterM, foldM, forM_, when, replicateM)
+import           Control.Monad.Reader (runReader)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Bifunctor (second)
@@ -78,8 +80,8 @@ mytracepp = notracepp
 -- unfoldings discovered by PLE on the constraints in @subcIds@ (or all
 -- constraints if @subcIds == Nothing@).
 {-# SCC instantiate #-}
-instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (BindEnv a)
-instantiate cfg fi' subcIds = do
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe Solution -> Maybe [SubcId] -> IO (BindEnv a)
+instantiate cfg fi' mSol subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm info)
@@ -87,7 +89,7 @@ instantiate cfg fi' subcIds = do
     res   <- withRESTSolver $ \solver ->
                withProgress (1 + M.size cs) $
                withCtx cfg file sEnv (defns fi') $
-               do env <- instEnv cfg info cs solver
+               do env <- instEnv cfg info mSol cs solver
                   pleTrie t env                                             -- 2. TRAVERSE Trie to compute InstRes
     liftIO $ savePLEEqualities cfg info sEnv res
     return $ resSInfo cfg sEnv info res                                     -- 3. STRENGTHEN SInfo using InstRes
@@ -128,8 +130,15 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
 
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
-instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SmtM (InstEnv a)
-instEnv cfg info cs restSolver = do
+instEnv
+  :: Loc a
+  => Config
+  -> SInfo a
+  -> Maybe Solution
+  -> CMap (SimpC a)
+  -> Maybe SolverHandle
+  -> SmtM (InstEnv a)
+instEnv cfg info s cs restSolver = do
     ctx <- get
     refRESTCache <- liftIO $ newIORef mempty
     refRESTSatCache <- liftIO $ newIORef mempty
@@ -171,6 +180,7 @@ instEnv cfg info cs restSolver = do
        , ieKnowl = knowledge cfg info
        , ieEvEnv = s0
        , ieLRWs  = lrws info
+       , ieSol  = s
        }
   where
     ef = solverFlags $ solver cfg
@@ -219,7 +229,7 @@ mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
 
 ----------------------------------------------------------------------------------------------
 -- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
-pleTrie :: CTrie -> InstEnv a -> SmtM InstRes
+pleTrie :: Loc a => CTrie -> InstEnv a -> SmtM InstRes
 pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where
     diff0        = []
@@ -232,13 +242,15 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
       , icSubcId             = Nothing
       , icANFs               = []
       , icLRWs               = mempty
+      , icBindIds            = mempty
       , icEtaBetaFlag        = etabeta        $ ieCfg env
       , icExtensionalityFlag = extensionality $ ieCfg env
       , icLocalRewritesFlag  = localRewrites  $ ieCfg env
       }
 
 loopT
-  :: InstEnv a
+  :: Loc a
+  => InstEnv a
   -> ICtx
   -> Diff         -- ^ The longest path suffix without forks in reverse order
   -> Maybe BindId -- ^ bind id of the branch ancestor of the trie if any.
@@ -249,12 +261,13 @@ loopT
 loopT env ictx delta i res t = case t of
   T.Node []  -> return res
   T.Node [b] -> loopB env ictx delta i res b
-  T.Node bs  -> withAssms env ictx delta Nothing $ \ictx' -> do
+  T.Node bs  -> withAssms env ictx delta Nothing (Just t) $ \ictx' -> do
                   (ictx'', env'', res') <- ple1 env ictx' i res
                   foldM (loopB env'' ictx'' [] i) res' bs
 
 loopB
-  :: InstEnv a
+  :: Loc a
+  => InstEnv a
   -> ICtx
   -> Diff         -- ^ The longest path suffix without forks in reverse order
   -> Maybe BindId -- ^ bind id of the branch ancestor of the branch if any.
@@ -264,9 +277,16 @@ loopB
   -> SmtM InstRes
 loopB env ictx delta iMb res b = case b of
   T.Bind i t -> loopT env ictx (i:delta) (Just i) res t
-  T.Val cid  -> withAssms env ictx delta (Just cid) $ \ictx' -> do
+  T.Val cid  -> withAssms env ictx delta (Just cid) Nothing $ \ictx' -> do
                   liftIO progressTick
                   (\(_, _, r) -> r) <$> ple1 env ictx' iMb res
+
+collectConstraints :: CTrie -> [SubcId]
+collectConstraints = go
+  where
+    go (T.Node bs) = concatMap goB bs
+    goB (T.Bind _ t) = go t
+    goB (T.Val cid)  = [cid]
 
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
@@ -278,10 +298,18 @@ loopB env ictx delta iMb res b = case b of
 -- Pushes assumptions from the modified context to the SMT solver, runs @act@,
 -- and then pops the assumptions.
 --
-withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> SmtM b) -> SmtM b
-withAssms env ctx delta cidMb act = do
+withAssms
+  :: Loc a
+  => InstEnv a
+  -> ICtx
+  -> Diff
+  -> Maybe SubcId
+  -> Maybe CTrie
+  -> (ICtx -> SmtM b)
+  -> SmtM b
+withAssms env ctx delta cidMb mCTrie act = do
   sctx <- get
-  let ictx' = updCtx env sctx ctx delta cidMb
+  let ictx' = updCtx env sctx ctx delta cidMb mCTrie
   let assms = icAssms ictx'
 
   SMT.smtBracket "PLE.withAssms" $ do
@@ -382,6 +410,7 @@ data InstEnv a = InstEnv
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
   , ieLRWs  :: LocalRewritesEnv
+  , ieSol :: Maybe Solution
   }
 
 ----------------------------------------------------------------------------------------------
@@ -396,6 +425,7 @@ data ICtx    = ICtx
   , icSubcId             :: Maybe SubcId             -- ^ Current subconstraint ID
   , icANFs               :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
   , icLRWs               :: LocalRewrites            -- ^ Local rewrites
+  , icBindIds            :: IBindEnv                 -- ^ Bind Ids in the current context
   , icEtaBetaFlag        :: Bool                     -- ^ True if the etabeta flag is turned on, needed
                                                      -- for the eta expansion reasoning as its going to
                                                      -- generate ho constraints
@@ -436,16 +466,26 @@ updRes res  Nothing _ = res
 --   to the context.
 ----------------------------------------------------------------------------------------------
 
-updCtx :: InstEnv a -> SMT.Context -> ICtx -> Diff -> Maybe SubcId -> ICtx
-updCtx InstEnv{..} ieSMT ictx delta cidMb =
+updCtx
+  :: Loc a
+  => InstEnv a
+  -> SMT.Context
+  -> ICtx
+  -> Diff
+  -> Maybe SubcId
+  -> Maybe CTrie
+  -> ICtx
+updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
   ictx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
        , icCands  = S.fromList deANFedCands <> icCands ictx
        , icSimpl  = icSimpl ictx <> econsts
        , icSubcId = cidMb
        , icANFs   = anfBinds
        , icLRWs   = mconcat $ icLRWs ictx : newLRWs
+       , icBindIds = ibinds
        }
   where
+    ibinds = insertsIBindEnv delta (icBindIds ictx)
     cands     = rhs:es
     anfBinds  = bs : icANFs ictx
     econsts   = M.fromList $ findConstants ieKnowl es
@@ -455,7 +495,11 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb =
     rhs       = unApply eRhs
     es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
-    binds     = [ (x, y) | i <- delta, let (x, y, _) = lookupBindEnv i ieBEnv]
+
+    binds     = [ maybeApplyKVarSolutions (x, y)
+                | i <- delta
+                , let (x, y, _) = lookupBindEnv i ieBEnv
+                ]
     subMb     = getCstr ieCstrs <$> cidMb
     newLRWs   = Mb.mapMaybe (`lookupLocalRewrites` ieLRWs) delta
 
@@ -467,6 +511,22 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb =
         deANF anfBinds cands
       else
         cands
+
+    maybeApplyKVarSolutions xsr =
+      case ieSol of
+        Just sol -> runReader (applyInSortedReft g sol xsr) (SMT.ctxElabF ieSMT)
+        Nothing  -> xsr
+      where
+        gCid = case collectConstraints <$> mCTrie of
+          Just (c:_) -> Just c
+          _ -> Nothing
+        g = CEnv
+          { ceCid = gCid
+          , ceBEnv = ieBEnv
+          , ceIEnv = ibinds
+          , ceSpan = maybe dummySpan srcSpan $ gCid >>= (`M.lookup` ieCstrs)
+          , ceBindingsInSmt = emptyIBindEnv
+          }
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]

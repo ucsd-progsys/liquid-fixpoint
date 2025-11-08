@@ -108,10 +108,6 @@ siKvars = S.fromList . M.keys . F.ws
 doInterpret :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.BindEnv a)
 doInterpret cfg fi subcIds = liftIO $ instInterpreter cfg fi (Just subcIds)
 
-{-# SCC doPLE #-}
-doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM a (F.BindEnv a)
-doPLE cfg fi0 subcIds = liftIO $ PLE.instantiate cfg fi0 (Just subcIds)
-
 --------------------------------------------------------------------------------
 {-# SCC solve_ #-}
 solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
@@ -145,7 +141,7 @@ solve_ cfg fi s2 wkl = do
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
     Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
-      bs <- doPLE cfg fi1 (map fst $ mytrace ("before PLE " ++ show (length bads2) ++ " constraints remain") bads2)
+      bs <- liftIO $ PLE.instantiate cfg fi1 (Just s3) (Just $ map fst bads2)
       -- TODO reset the ix stack too?
       clearApplys
       -- Check the constraints one last time after PLE

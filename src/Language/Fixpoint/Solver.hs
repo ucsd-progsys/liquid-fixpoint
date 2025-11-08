@@ -256,7 +256,7 @@ simplifyFInfo !cfg !fi0 = do
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5
   if rewriteAxioms cfg && noLazyPLE cfg
     then do
-      bs <- PLE.instantiate cfg si6 $!! Nothing
+      bs <- PLE.instantiate cfg si6 Nothing Nothing
       return si6 { Types.bs = bs }
     else return si6
 
