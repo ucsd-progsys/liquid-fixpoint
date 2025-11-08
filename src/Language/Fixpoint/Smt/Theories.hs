@@ -291,7 +291,7 @@ arithPreamble cfg = (SAll,) <$>
  ]
 
 stringPreamble :: Config -> [Preamble]
-stringPreamble cfg | stringTheory cfg
+stringPreamble cfg | not (noStringTheory cfg)
   = [ (SAll, bSort string "String")
     , (SAll, bFun strLen [("s", fromText string)] "Int" (key (fromText smtlibStrLen) "s"))
     , (SAll, bFun strSubstr [("s", fromText string), ("i", "Int"), ("j", "Int")] (fromText string) (key (fromText smtlibStrSubstr) "s i j"))
@@ -672,8 +672,8 @@ maxLamArg = 20
 
 axiomLiterals :: Config -> [(Symbol, Sort)] -> [Expr]
 axiomLiterals cfg
-  | stringTheory cfg = strAxiomLiterals
-  | otherwise        = lenAxiomLiterals
+  | noStringTheory cfg = lenAxiomLiterals
+  | otherwise          = strAxiomLiterals
 
 strAxiomLiterals :: [(Symbol, Sort)] -> [Expr]
 strAxiomLiterals lts = catMaybes [ strAxiom l | (l, t) <- lts, isString t ]
