@@ -64,7 +64,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config ( SMTSolver (..), solverFlags
-                                                , Config (solver, smtTimeout, stringTheory, save, allowHO))
+                                                , Config (solver, smtTimeout, noStringTheory, save, allowHO))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -342,6 +342,7 @@ makeContext' cfg ctxLog
                   -- when there's no higher-order reasoning. It might require some tuning on larger codebases
                   -- if `unknown function/constant lam_arg$XXX` errors are encountered.
                   , ctxLams      = allowHO cfg
+                  , config       = cfg
                   }
 
 -- | Close file handles and release the solver backend's resources.
@@ -388,9 +389,8 @@ checkValidStringFlag smt v cfg
 
 noString :: SMTSolver -> [Int] -> Config -> Bool
 noString smt v cfg
-  =  stringTheory cfg
-  && not (smt == Z3 && (v >= [4, 4, 2]))
-
+  =  not (noStringTheory cfg)
+  && not (smt == Cvc5 || (smt == Z3 && (v >= [4, 4, 2])))
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
@@ -521,7 +521,7 @@ declare = do
   -- let isKind n   = (n ==)  . symKind env . fst
   let MkDefinedFuns defs = ctxDefines me
   let ess        = distinctLiterals  lts
-  let axs        = Thy.axiomLiterals lts
+  let axs        = Thy.axiomLiterals (config me) lts
   forM_ dss              smtDataDecl
   forM_ thyXTs $ uncurry smtDecl
   forM_ qryXTs $ uncurry smtDecl

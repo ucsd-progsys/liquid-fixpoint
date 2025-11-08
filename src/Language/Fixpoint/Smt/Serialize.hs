@@ -130,7 +130,9 @@ instance SMTLIB2 SymConst where
 instance SMTLIB2 Constant where
   smt2 (I n)   = pure $ bShow n
   smt2 (R d)   = pure $ bFloat d
-  smt2 (L t _) = pure $ fromText t
+  smt2 (L t s)
+    | isString s = pure $ quotes $ fromText t
+    | otherwise  = pure $ fromText t
 
 instance SMTLIB2 Bop where
   smt2 Plus   = pure "+"

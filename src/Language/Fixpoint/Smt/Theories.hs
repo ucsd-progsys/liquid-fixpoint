@@ -196,20 +196,28 @@ arrMapLeB   = "arr_map_le"
 arrMapGtB   = "arr_map_gt"
 arrMapIteB   = "arr_map_ite"
 
-strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
+strLen, strSubstr, strConcat, strConcat', strPrefixOf, strSuffixOf, strContains :: (IsString a) => a -- Symbol
 strLen    = "strLen"
 strSubstr = "subString"
 strConcat = "concatString"
+strConcat' = "strConcat"
+strPrefixOf  = "strPrefixOf"
+strSuffixOf = "strSuffixOf"
+strContains = "strContains"
 
-smtlibStrLen, smtlibStrSubstr, smtlibStrConcat :: Raw
+smtlibStrLen, smtlibStrSubstr, smtlibStrConcat, smtlibStrPrefixOf, smtlibStrSuffixOf, smtlibStrContains :: Raw
 smtlibStrLen    = "str.len"
 smtlibStrSubstr = "str.substr"
 smtlibStrConcat = "str.++"
+smtlibStrPrefixOf = "str.prefixof"
+smtlibStrSuffixOf = "str.suffixof"
+smtlibStrContains = "str.contains"
 
-strLenSort, substrSort, concatstrSort :: Sort
+strLenSort, substrSort, concatstrSort, strCompareSort :: Sort
 strLenSort    = FFunc strSort intSort
 substrSort    = mkFFunc 0 [strSort, intSort, intSort, strSort]
 concatstrSort = mkFFunc 0 [strSort, strSort, strSort]
+strCompareSort = mkFFunc 0 [strSort, strSort, boolSort]
 
 string :: Raw
 string = strConName
@@ -269,7 +277,7 @@ data PreambleCondition = SAll | SOnly [SMTSolver]
 
 setPreamble :: Config -> [Preamble]
 -- Z3 does not support cardinality on sets, which is defined to be uninterpreted function
-setPreamble _ 
+setPreamble _
   = [ (SOnly [Z3, Z3mem],  bFun' "set.card" ["(Array Int Bool)"] "Int") ]
 
 boolPreamble :: Config -> [Preamble]
@@ -283,7 +291,7 @@ arithPreamble cfg = (SAll,) <$>
  ]
 
 stringPreamble :: Config -> [Preamble]
-stringPreamble cfg | stringTheory cfg
+stringPreamble cfg | not (noStringTheory cfg)
   = [ (SAll, bSort string "String")
     , (SAll, bFun strLen [("s", fromText string)] "Int" (key (fromText smtlibStrLen) "s"))
     , (SAll, bFun strSubstr [("s", fromText string), ("i", "Int"), ("j", "Int")] (fromText string) (key (fromText smtlibStrSubstr) "s i j"))
@@ -451,10 +459,14 @@ interpSymbols cfg =
   , interpSym bagSub   "bag.subbag"         (FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort)
 
   -- Strings
+  , interpSym strLen     strLen    strLenSort
+  , interpSym strSubstr  strSubstr substrSort
+  , interpSym strConcat  strConcat concatstrSort
+  , interpSym strConcat' smtlibStrConcat concatstrSort
+  , interpSym strPrefixOf smtlibStrPrefixOf strCompareSort
+  , interpSym strSuffixOf smtlibStrSuffixOf strCompareSort
+  , interpSym strContains smtlibStrContains strCompareSort
 
-  , interpSym strLen    strLen    strLenSort
-  , interpSym strSubstr strSubstr substrSort
-  , interpSym strConcat strConcat concatstrSort
   , interpSym boolInt   boolInt   (FFunc boolSort intSort)
 
   -- Function mappings for indexed identifier functions
@@ -658,8 +670,20 @@ interpSym x n t = (x, Thy x n t Theory)
 maxLamArg :: Int
 maxLamArg = 20
 
-axiomLiterals :: [(Symbol, Sort)] -> [Expr]
-axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
+axiomLiterals :: Config -> [(Symbol, Sort)] -> [Expr]
+axiomLiterals cfg
+  | noStringTheory cfg = lenAxiomLiterals
+  | otherwise          = strAxiomLiterals
+
+strAxiomLiterals :: [(Symbol, Sort)] -> [Expr]
+strAxiomLiterals lts = catMaybes [ strAxiom l | (l, t) <- lts, isString t ]
+  where
+    strAxiom l = do
+      sym <- unLitSymbol l
+      pure (EEq (expr l) (ECon $ L (symbolText sym) strSort))
+
+lenAxiomLiterals :: [(Symbol, Sort)] -> [Expr]
+lenAxiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
   where
     lenAxiom l n  = EEq (EApp (expr (strLen :: Symbol)) (expr l)) (expr n `ECst` intSort)
     litLen        = fmap (Data.Text.length .  symbolText) . unLitSymbol

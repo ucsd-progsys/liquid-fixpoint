@@ -6,6 +6,7 @@ module Language.Fixpoint.Utils.Builder
   ( fromText
   , fromString
   , parens
+  , quotes
   , (<+>)
   , parenSeqs
   , seqs
@@ -31,6 +32,9 @@ fromText t = B.byteString $ T.encodeUtf8 t
 
 parens :: Builder -> Builder
 parens b = "(" <>  b <> ")"
+
+quotes :: Builder -> Builder
+quotes b = "\"" <> b <> "\""
 
 infixl 9 <+>
 (<+>) :: Builder -> Builder -> Builder

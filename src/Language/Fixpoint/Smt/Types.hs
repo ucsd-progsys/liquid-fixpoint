@@ -37,7 +37,7 @@ import           Control.Exception
 import           Control.Monad.State
 import           Data.ByteString.Builder (Builder)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Types.Config (ElabFlags)
+import           Language.Fixpoint.Types.Config (ElabFlags, Config)
 import qualified Data.Text                as T
 import           Text.PrettyPrint.HughesPJ
 import qualified SMTLIB.Backends
@@ -116,6 +116,8 @@ data Context = Ctx
   -- | Flag which controls the generation SMT placeholders for lambda arguments
   --   See also `L.F.Smt.Theories.maxLamArg`
   , ctxLams    :: !Bool
+  -- | Configuration options
+  , config     :: !Config
   }
 
 -- | SMT monad, used to communicate with the SMT solver backend.

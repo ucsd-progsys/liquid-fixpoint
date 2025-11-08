@@ -523,9 +523,6 @@ instance Symbolic SymConst where
 encodeSymConst        :: SymConst -> Symbol
 encodeSymConst (SL s) = litSymbol $ symbol s
 
--- _decodeSymConst :: Symbol -> Maybe SymConst
--- _decodeSymConst = fmap (SL . symbolText) . unLitSymbol
-
 instance Fixpoint SymConst where
   toFix (SL t) = text (show t)
 
