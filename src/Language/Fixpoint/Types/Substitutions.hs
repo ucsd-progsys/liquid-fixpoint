@@ -9,6 +9,10 @@
 --   be in the same place as the @Term@ definitions.
 module Language.Fixpoint.Types.Substitutions (
     mkSubst
+  , mkKVarSubst
+  , substFromKSubst
+  , kSubstFromSubst
+  , ksubst
   , isEmptySubst
   , substExcept
   , substfExcept
@@ -26,6 +30,7 @@ module Language.Fixpoint.Types.Substitutions (
 
 import           Data.List                 as List
 import           Data.Maybe
+import           Data.Hashable             (Hashable)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Language.Fixpoint.Types.PrettyPrint
@@ -43,6 +48,22 @@ instance Monoid Subst where
   mempty  = emptySubst
   mappend = (<>)
 
+instance Semigroup (KVarSubst Symbol Symbol) where
+  su1 <> su2 = kSubstFromSubst $ substFromKSubst su1 <> substFromKSubst su2
+
+instance Monoid (KVarSubst Symbol Symbol) where
+  mempty = kSubstFromSubst mempty
+  mappend = (<>)
+
+substFromKSubst :: Hashable v => KVarSubst v v -> SubstV v
+substFromKSubst = Su . fromKVarSubst
+
+kSubstFromSubst :: SubstV v -> KVarSubst v v
+kSubstFromSubst (Su m) = toKVarSubst m
+
+ksubst :: KVarSubst Symbol Symbol -> Expr -> Expr
+ksubst = subst . substFromKSubst
+
 filterSubst :: (Symbol -> Expr -> Bool) -> Subst -> Subst
 filterSubst f (Su m) = Su (M.filterWithKey f m)
 
@@ -59,6 +80,9 @@ mkSubst = Su . M.fromList . reverse . filter notTrivial
   where
     notTrivial (x, EVar y) = x /= y
     notTrivial _           = True
+
+mkKVarSubst :: [(Symbol, Expr)] -> KVarSubst Symbol Symbol
+mkKVarSubst = kSubstFromSubst . mkSubst
 
 isEmptySubst :: Subst -> Bool
 isEmptySubst (Su xes) = M.null xes
@@ -148,7 +172,7 @@ instance Subable Expr where
   substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
   substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
-  substf f (PKVar k (Su su)) = PKVar k (Su $ M.map (substf f) su)
+  substf f (PKVar k su)    = PKVar k (mapKVarSubst (substf f) su)
   substf _ (PAll _ _)      = errorstar "substf: FORALL"
   substf f (PExist xts e)  = PExist xts (substf f e)
   substf _  p              = p
@@ -193,7 +217,7 @@ instance Subable Expr where
         PAtom r e1 e2 ->
           PAtom r (go su e1) (go su e2)
         PKVar k su' ->
-          PKVar k $ su' `catSubst` su
+          PKVar k $ kSubstFromSubst $ substFromKSubst su' `catSubst` su
         PAll bs p
           | disjointRange su' bs ->
             PAll bs $ go su' p
@@ -288,10 +312,10 @@ rapierSubstExpr s su e0 =
     maybeFresh x =
       if x `S.member` s then Right (x, fresh x) else Left x
 
-    catSubstGo :: Subst -> Subst -> Subst
-    catSubstGo (Su s1) su2@(Su s2) = Su $ M.union s1' s2
+    catSubstGo :: KVarSubst Symbol Symbol -> Subst -> KVarSubst Symbol Symbol
+    catSubstGo su1 su2@(Su s2) = toKVarSubst $ M.union s1 s2
       where
-        s1' = rapierSubstExpr s su2 <$> s1
+        s1 = rapierSubstExpr s su2 <$> fromKVarSubst su1
 
 extendSubst :: Subst -> Symbol -> Expr -> Subst
 extendSubst (Su m) x e = Su $ M.insert x e m
@@ -332,7 +356,7 @@ pprReft (Reft (v, p)) d
   = braces (toFix v <+> colon <+> d <+> text "|" <+> ppRas [p])
 
 -- RJ: this depends on `isTauto` hence, here.
-instance (PPrint v, Fixpoint v, Ord v) => PPrint (ReftV v) where
+instance (PPrint v, Fixpoint v, Ord v, Hashable v) => PPrint (ReftV v) where
   pprintTidy k r
     | isTautoReft r        = text "true"
     | otherwise        = pprintReft k r

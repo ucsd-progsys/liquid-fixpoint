@@ -286,7 +286,7 @@ elabFMap (PAtom r e1 e2)   = PAtom r (elabFMap e1) (elabFMap e2)
 elabFMap (PAll   bs e)     = PAll bs (elabFMap e)
 elabFMap (PExist bs e)     = PExist bs (elabFMap e)
 elabFMap (ECoerc a t e)    = ECoerc a t (elabFMap e)
-elabFMap (PKVar k (Su m))  = PKVar k (Su (elabFMap <$> m))
+elabFMap (PKVar k su)      = PKVar k (toKVarSubst (elabFMap <$> fromKVarSubst su))
 elabFMap e                 = e
 
 
@@ -333,7 +333,7 @@ elabFSetBagZ3 = go
     go (PAll   bs e)      = PAll bs (go e)
     go (PExist bs e)      = PExist bs (go e)
     go (ECoerc a t e)     = ECoerc a t (go e)
-    go (PKVar k (Su m))   = PKVar k (Su (go <$> m))
+    go (PKVar k su)       = PKVar k (toKVarSubst (go <$> fromKVarSubst su))
     go e                  = e
 
 -- | Reverse transformation of elabFSetBagZ3: converts array representations back to set/bag operations
@@ -412,7 +412,7 @@ unElabFSetBagZ3 = go
     go (PAll   bs e)      = PAll bs (go e)
     go (PExist bs e)      = PExist bs (go e)
     go (ECoerc a t e)     = ECoerc a t (go e)
-    go (PKVar k (Su m))   = PKVar k (Su (go <$> m))
+    go (PKVar k su)       = PKVar k (toKVarSubst (go <$> fromKVarSubst su))
     go e                  = e
 
 
@@ -435,7 +435,7 @@ elabSorts ef (PAtom r e1 e2)   = PAtom r (elabSorts ef e1) (elabSorts ef e2)
 elabSorts ef (PAll   bs e)     = PAll bs (elabSorts ef e)
 elabSorts ef (PExist bs e)     = PExist bs (elabSorts ef e)
 elabSorts ef (ECoerc s1 s2 e)  = ECoerc (coerceSort ef s1) (coerceSort ef s2) (elabSorts ef e)
-elabSorts ef (PKVar k (Su m))  = PKVar k (Su (elabSorts ef <$> m))
+elabSorts ef (PKVar k su)      = PKVar k (toKVarSubst (elabSorts ef <$> fromKVarSubst su))
 elabSorts _ e                 = e
 
 --------------------------------------------------------------------------------
@@ -502,7 +502,7 @@ elabApply env = go
     step e@EApp {}        = go e
     step (ELam b e)       = ELam b       (go e)
     step (ECoerc a t e)   = ECoerc a t   (go e)
-    step (PKVar k (Su m)) = PKVar k (Su (go <$> m))
+    step (PKVar k su)     = PKVar k (toKVarSubst (go <$> fromKVarSubst su))
     step e@ESym{}         = e
     step e@ECon{}         = e
     step e@EVar{}         = e
@@ -759,14 +759,14 @@ elab !_ e@(ECon (L _ !s)) =
 -- TODO: the guard below is because some LH tests generate PKVar with ill-sorted substitutions.
 -- However, a cleaner solution could be to modify `Sanitize.restrictKVarDomain` to simply
 -- those ill-sorted substitutions right up at the outset.
-elab !f e@(PKVar k (Su m)) = do
+elab !f e@(PKVar k su) = do
   expKvars <- asks (elabExplicitKvars . chElabF)
   if expKvars
     then do
-      xargs' <- forM (HashMap.toList m) $ \(x, arg) -> do
+      xargs' <- forM (HashMap.toList $ fromKVarSubst su) $ \(x, arg) -> do
         (arg', _) <- elab f arg
         return (x, arg')
-      return (PKVar k (Su (HashMap.fromList xargs')), boolSort)
+      return (PKVar k (toKVarSubst (HashMap.fromList xargs')), boolSort)
     else
       return (e, boolSort)
 

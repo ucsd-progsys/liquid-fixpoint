@@ -281,11 +281,11 @@ mapKVars f = mapKVars' f'
   where
     f' (kv', _) = f kv'
 
-mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
+mapKVars' :: Visitable t => ((KVar, KVarSubst Symbol Symbol) -> Maybe Expr) -> t -> t
 mapKVars' f = trans txK
   where
     txK (PKVar k su)
-      | Just p' <- f (k, su) = subst su p'
+      | Just p' <- f (k, su) = ksubst su p'
     txK p = p
 
 
@@ -359,7 +359,7 @@ mapExprOnExpr f = go
       ETAbs e s ->
         let !e' = go e
         in ETAbs e' s
-      PKVar k (Su m) -> PKVar k (Su (go <$>m))
+      PKVar k su -> PKVar k (toKVarSubst (go <$> fromKVarSubst su))
       e@EVar{} -> e
       e@ESym{} -> e
       e@ECon{} -> e
@@ -418,7 +418,7 @@ mapMExpr f = go
     go (PAnd ps)       = f . PAnd =<< (go `traverse` ps)
     go (POr ps)        = f . POr =<< (go `traverse` ps)
 
-mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
+mapKVarSubsts :: Visitable t => (KVar -> KVarSubst Symbol Symbol -> KVarSubst Symbol Symbol) -> t -> t
 mapKVarSubsts f          = trans txK
   where
     txK (PKVar k su)   = PKVar k (f k su)

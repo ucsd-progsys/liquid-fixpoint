@@ -35,6 +35,7 @@ module Language.Fixpoint.Types.Refinements (
   , KVar (..)
   , Subst
   , SubstV (..)
+  , KVarSubst
   , KVSub (..)
   , Reft
   , ReftV (..)
@@ -69,6 +70,7 @@ module Language.Fixpoint.Types.Refinements (
   , predReft                -- any pred : p
   , reftPred
   , reftBind
+  , toKVarSubst
 
   -- * Predicates
   , isFunctionSortedReft, functionSort
@@ -96,11 +98,14 @@ module Language.Fixpoint.Types.Refinements (
   , sortedReftSymbols
   , substSortInExpr
   , sortSubstInExpr
+  , fromKVarSubst
+  , isEmptyKVarSubst
 
   -- * Transforming
   , mapPredReft
   , onEverySubexpr
   , pprintReft
+  , mapKVarSubst
 
   , debruijnIndex
 
@@ -148,6 +153,7 @@ instance NFData Constant
 instance NFData SymConst
 instance NFData Brel
 instance NFData Bop
+instance (NFData b, NFData v) => NFData (KVarSubst b v)
 instance (NFData b, NFData v) => NFData (ExprBV b v)
 instance NFData v => NFData (ReftV v)
 instance NFData SortedReft
@@ -162,6 +168,7 @@ instance S.Store Constant
 instance S.Store SymConst
 instance S.Store Brel
 instance S.Store Bop
+instance S.Store (KVarSubst Symbol Symbol)
 instance S.Store Expr
 instance S.Store Reft
 instance S.Store SortedReft
@@ -178,8 +185,9 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
   put = B.put . M.toList
   get = M.fromList <$> B.get
 
-instance B.Binary v => B.Binary (SubstV v)
-instance (B.Binary b, Hashable b, B.Binary v) => B.Binary (ExprBV b v)
+instance (B.Binary v, Hashable v) => B.Binary (SubstV v)
+instance (B.Binary b, B.Binary v) => B.Binary (KVarSubst b v)
+instance (B.Binary b, B.Binary v) => B.Binary (ExprBV b v)
 instance B.Binary v => B.Binary (ReftV v)
 
 
@@ -220,6 +228,7 @@ instance Hashable Bop
 instance Hashable SymConst
 instance Hashable Constant
 instance Hashable v => Hashable (SubstV v)
+instance (Hashable b, Hashable v) => Hashable (KVarSubst b v)
 instance (Hashable b, Hashable v) => Hashable (ExprBV b v)
 instance Hashable v => Hashable (ReftV v)
 
@@ -227,28 +236,50 @@ instance Hashable v => Hashable (ReftV v)
 -- | Substitutions -------------------------------------------------------------
 --------------------------------------------------------------------------------
 type Subst = SubstV Symbol
-newtype SubstV v = Su (M.HashMap Symbol (ExprV v))
-                deriving (Eq, Data, Ord, Typeable, Generic, Functor, Foldable, Traversable)
+newtype SubstV v = Su (M.HashMap v (ExprBV v v))
+                deriving (Eq, Data, Ord, Typeable, Generic)
 
 instance ToJSON Subst
 instance FromJSON Subst
 
-instance (Fixpoint v, Ord v, Show v) => Show (SubstV v) where
+instance (Fixpoint v, Ord v, Hashable v, Show v) => Show (SubstV v) where
   show = showFix
 
-instance (Ord v, Fixpoint v) => Fixpoint (SubstV v) where
-  toFix (Su m) = case hashMapToAscList m of
-                   []  -> empty
-                   xys -> hcat $ map (\(x,y) -> brackets $ toFix x <-> text ":=" <-> toFix y) xys
+instance (Ord v, Hashable v, Fixpoint v) => Fixpoint (SubstV v) where
+  toFix (Su m) = toFix m
 
-instance (Ord v, Fixpoint v) => PPrint (SubstV v) where
+instance (Ord v, Hashable v, Fixpoint v) => PPrint (SubstV v) where
+  pprintTidy _ = toFix
+
+newtype KVarSubst b v = KSu [(b, ExprBV b v)]
+  deriving (Eq, Ord, Data, Typeable, Generic, Functor, Foldable, Traversable)
+
+fromKVarSubst :: Hashable b => KVarSubst b v -> M.HashMap b (ExprBV b v)
+fromKVarSubst (KSu su) = M.fromList su
+
+toKVarSubst :: M.HashMap b (ExprBV b v) -> KVarSubst b v
+toKVarSubst = KSu . M.toList
+
+mapKVarSubst :: (ExprBV b v -> ExprBV b v) -> KVarSubst b v -> KVarSubst b v
+mapKVarSubst f (KSu su) = KSu $ fmap (fmap f) su
+
+isEmptyKVarSubst :: KVarSubst b v -> Bool
+isEmptyKVarSubst (KSu su) = null su
+
+instance (Ord v, Fixpoint v, Ord b, Fixpoint b, Hashable b) => Show (KVarSubst b v) where
+  show = showFix
+
+instance (Ord v, Fixpoint v, Ord b, Fixpoint b, Hashable b) => Fixpoint (KVarSubst b v) where
+  toFix = toFix . fromKVarSubst
+
+instance (Ord v, Fixpoint v, Ord b, Fixpoint b, Hashable b) => PPrint (KVarSubst b v) where
   pprintTidy _ = toFix
 
 data KVSub = KVS
   { ksuVV    :: Symbol
   , ksuSort  :: Sort
   , ksuKVar  :: KVar
-  , ksuSubst :: Subst
+  , ksuSubst :: KVarSubst Symbol Symbol
   } deriving (Eq, Data, Typeable, Generic, Show)
 
 instance PPrint KVSub where
@@ -278,11 +309,13 @@ data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv
 instance ToJSON Constant  where
 instance ToJSON Brel      where
 instance ToJSON Bop       where
+instance ToJSON (KVarSubst Symbol Symbol) where
 instance ToJSON Expr      where
 
 instance FromJSON Constant  where
 instance FromJSON Brel      where
 instance FromJSON Bop       where
+instance FromJSON (KVarSubst Symbol Symbol) where
 instance FromJSON Expr      where
 
 
@@ -308,7 +341,7 @@ data ExprBV b v
           | PImp   !(ExprBV b v) !(ExprBV b v)
           | PIff   !(ExprBV b v) !(ExprBV b v)
           | PAtom  !Brel  !(ExprBV b v) !(ExprBV b v)
-          | PKVar  !KVar !(SubstV v)
+          | PKVar  !KVar !(KVarSubst b v)
           | PAll   ![(b, Sort)] !(ExprBV b v)
           | PExist ![(b, Sort)] !(ExprBV b v)
           | ECoerc !Sort !Sort !(ExprBV b v)
@@ -373,7 +406,7 @@ exprSymbolsSet = go
     go (PIff p1 p2)       = gos [p1, p2]
     go (PImp p1 p2)       = gos [p1, p2]
     go (PAtom _ e1 e2)    = gos [e1, e2]
-    go (PKVar _ (Su su))  = HashSet.unions $ map exprSymbolsSet (M.elems su)
+    go (PKVar _ su)       = HashSet.unions $ map exprSymbolsSet (M.elems $ fromKVarSubst su)
     go (PAll xts p)       = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go _                  = HashSet.empty
@@ -401,7 +434,7 @@ sortSubstInExpr f = onEverySubexpr go
       ECoerc t0 t1 e -> ECoerc (sortSubst f t0) (sortSubst f t1) e
       e -> e
 
-exprKVars :: Expr -> HashMap KVar [Subst]
+exprKVars :: Expr -> HashMap KVar [KVarSubst Symbol Symbol]
 exprKVars = go
   where
     gos es                = HashMap.unions (go <$> es)
@@ -420,8 +453,8 @@ exprKVars = go
     go (PIff p1 p2)       = gos [p1, p2]
     go (PImp p1 p2)       = gos [p1, p2]
     go (PAtom _ e1 e2)    = gos [e1, e2]
-    go (PKVar k substs@(Su su))  =
-      HashMap.insertWith (++) k [substs] $ HashMap.unions $ map exprKVars (M.elems su)
+    go (PKVar k su) =
+      HashMap.insertWith (++) k [su] $ HashMap.unions $ map exprKVars (M.elems $ fromKVarSubst su)
     go (PAll _xts p)       = go p
     go (PExist _xts p)     = go p
     go _                  = HashMap.empty
@@ -551,7 +584,7 @@ instance Fixpoint Bop where
   toFix RDiv   = text "/."
   toFix Mod    = text "mod"
 
-instance (Ord b, Fixpoint b, Ord v, Fixpoint v) => Fixpoint (ExprBV b v) where
+instance (Ord b, Fixpoint b, Hashable b, Ord v, Fixpoint v) => Fixpoint (ExprBV b v) where
   toFix (ESym c)       = toFix c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
@@ -718,7 +751,7 @@ opPrec RTimes = 7
 opPrec Div    = 7
 opPrec RDiv   = 7
 
-instance (Ord b, Fixpoint b, Ord v, Fixpoint v, PPrint v) => PPrint (ExprBV b v) where
+instance (Ord b, Fixpoint b, Hashable b, PPrint b, Ord v, Fixpoint v, PPrint v) => PPrint (ExprBV b v) where
   pprintPrec _ k (ESym c)        = pprintTidy k c
   pprintPrec _ k (ECon c)        = pprintTidy k c
   pprintPrec _ k (EVar s)        = pprintTidy k s
@@ -782,7 +815,7 @@ instance (Ord b, Fixpoint b, Ord v, Fixpoint v, PPrint v) => PPrint (ExprBV b v)
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
 
 pprintQuant
-  :: (Ord b, Fixpoint b, Ord v, Fixpoint v, PPrint v)
+  :: (Ord b, Fixpoint b, Hashable b, PPrint b, Ord v, Fixpoint v, PPrint v)
   => Tidy -> Doc -> [(b, Sort)] -> ExprBV b v -> Doc
 pprintQuant k d xts p = (d <+> pprintTidy k xts)
                         $+$
@@ -886,7 +919,7 @@ conj ps  = PAnd ps
 --   so they SHOULD NOT be used inside the solver loop. Instead, use 'conj' which ensures
 --   some basic things but is faster.
 
-pAnd, pOr     :: (Fixpoint b, Ord b, Fixpoint v, Ord v) => ListNE (ExprBV b v) -> ExprBV b v
+pAnd, pOr     :: (Fixpoint b, Ord b, Hashable b, Fixpoint v, Ord v) => ListNE (ExprBV b v) -> ExprBV b v
 pAnd          = simplify . PAnd
 
 pAndNoDedup :: ListNE Pred -> Pred
@@ -902,7 +935,7 @@ infixl 9 |.|
 (|.|) :: Pred -> Pred -> Pred
 (|.|) p q = pOr [p, q]
 
-pIte :: (Fixpoint b, Ord b, Fixpoint v, Ord v) => ExprBV b v -> ExprBV b v -> ExprBV b v -> ExprBV b v
+pIte :: (Fixpoint b, Ord b, Hashable b, Fixpoint v, Ord v) => ExprBV b v -> ExprBV b v -> ExprBV b v -> ExprBV b v
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, PNot p1 `PImp` p3]
 
 pExist :: [(b, Sort)] -> ExprBV b v -> ExprBV b v

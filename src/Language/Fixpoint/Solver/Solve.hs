@@ -268,10 +268,10 @@ refineC bindingsInSmt be _i s c =
     rhsCands s = M.toList $ M.fromList $ map cnd ks
       where
         ks          = predKs . F.crhs $ c
-        cnd :: (F.KVar, F.Subst) -> (F.KVar , Sol.Cand Sol.EQual)
-        cnd (k, su) = (k, Sol.qbPreds su (Sol.lookupQBind s k))
+        cnd :: (F.KVar, F.KVarSubst F.Symbol F.Symbol) -> (F.KVar , Sol.Cand Sol.EQual)
+        cnd (k, su) = (k, Sol.qbPreds (F.substFromKSubst su) (Sol.lookupQBind s k))
 
-predKs :: F.Expr -> [(F.KVar, F.Subst)]
+predKs :: F.ExprBV b v -> [(F.KVar, F.KVarSubst b v)]
 predKs (F.PAnd ps)    = concatMap predKs ps
 predKs (F.PKVar k su) = [(k, su)]
 predKs _              = []

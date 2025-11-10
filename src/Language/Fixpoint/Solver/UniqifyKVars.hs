@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                    #-}
+{-# LANGUAGE ViewPatterns           #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 {- | This module creates new bindings for each argument of each kvar.
@@ -56,14 +57,14 @@ remakeSubsts :: SInfo a -> SInfo a
 --------------------------------------------------------------------------------
 remakeSubsts fi = mapKVarSubsts (remakeSubst fi) fi
 
-remakeSubst :: SInfo a -> KVar -> Subst -> Subst
+remakeSubst :: SInfo a -> KVar -> KVarSubst Symbol Symbol -> KVarSubst Symbol Symbol
 remakeSubst fi k su = foldl' (updateSubst k) su (kvarDomain fi k)
 
-updateSubst :: KVar -> Subst -> Symbol -> Subst
-updateSubst k (Su su) sym
+updateSubst :: KVar -> KVarSubst Symbol Symbol -> Symbol -> KVarSubst Symbol Symbol
+updateSubst k (fromKVarSubst -> su) sym
   = case M.lookup sym su of
-      Just z  -> Su $ M.delete sym $ M.insert ksym z          su
-      Nothing -> Su $                M.insert ksym (eVar sym) su
+      Just z  -> toKVarSubst $ M.delete sym $ M.insert ksym z          su
+      Nothing -> toKVarSubst $                M.insert ksym (eVar sym) su
     where
       kx      = kv k
       ksym    = kArgSymbol sym kx
