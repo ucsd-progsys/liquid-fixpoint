@@ -14,6 +14,7 @@
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 {-# OPTIONS_GHC -Wno-orphans            #-}
 
@@ -387,7 +388,7 @@ pattern EDiv e1 e2 = EBin Div    e1 e2
 pattern ERDiv :: ExprBV b v -> ExprBV b v -> ExprBV b v
 pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
-exprSymbolsSet :: Expr -> HashSet Symbol
+exprSymbolsSet :: (Eq v, Hashable v) => ExprBV v v -> HashSet v
 exprSymbolsSet = go
   where
     gos es                = HashSet.unions (go <$> es)
@@ -1043,17 +1044,21 @@ instance Falseable Reft where
 -- | Class Predicates for Valid Refinements -----------------------------
 -------------------------------------------------------------------------
 
-class Subable a where
-  syms   :: a -> [Symbol]                   -- ^ free symbols of a
-  substa :: (Symbol -> Symbol) -> a -> a
+class (Eq (Variable a), Hashable (Variable a)) => Subable a where
+  type Variable a
+  type Variable a = Symbol
+
+  syms   :: a -> [Variable a]                   -- ^ free symbols of a
+  substa :: (Variable a -> Variable a) -> a -> a
   -- substa f  = substf (EVar . f)
 
-  substf :: (Symbol -> Expr) -> a -> a
-  subst  :: HasCallStack => Subst -> a -> a
-  subst1 :: a -> (Symbol, Expr) -> a
+  substf :: (Variable a -> ExprBV (Variable a) (Variable a)) -> a -> a
+  subst  :: HasCallStack => SubstV (Variable a) -> a -> a
+  subst1 :: a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
   subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
 
 instance Subable a => Subable (Located a) where
+  type Variable (Located a) = Variable a
   syms (Loc _ _ x)   = syms x
   substa f (Loc l l' x) = Loc l l' (substa f x)
   substf f (Loc l l' x) = Loc l l' (substf f x)
