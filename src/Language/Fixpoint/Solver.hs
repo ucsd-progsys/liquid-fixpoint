@@ -35,6 +35,8 @@ import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Control.Monad                      (mplus, when)
 import           Control.Exception                  (catch)
+import           Control.Exception.Compat
+    (ExceptionWithContext(..), displayExceptionContext, wrapExceptionWithContext)
 import           Language.Fixpoint.Solver.EnvironmentReduction
   (reduceEnvironments, simplifyBindings)
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
@@ -184,22 +186,18 @@ solveNative, solveNative' :: (NFData a, Fixpoint a, Show a, Loc a, PPrint a) => 
 --------------------------------------------------------------------------------
 solveNative !cfg !fi0 = solveNative' cfg fi0
                           `catch`
-                             (return . crashResult (errorMap fi0))
+                             (return . crashResult (errorMap fi0). wrapExceptionWithContext)
 
-crashResult :: (PPrint a) => ErrorMap a -> Error -> Result (Integer, a)
-crashResult m err' = Result res mempty mempty mempty
+crashResult :: (PPrint a) => ErrorMap a -> ExceptionWithContext Error -> Result (Integer, a)
+crashResult m (ExceptionWithContext ectx ex) = Result res mempty mempty mempty
   where
-    res           = Crash es msg
-    es            = catMaybes [ findError m e | e <- ers ]
-    ers           = errs err'
-    msg | null ers = "Sorry, unexpected panic in liquid-fixpoint!"
-        --  {-dbgFalse-} True  = "Sorry, unexpected panic in liquid-fixpoint!\n" ++ crashMessage es
-        | otherwise = showpp err'
-
-_crashMessage :: [((Integer, a), Maybe String) ] -> String
-_crashMessage es = L.intercalate "\n" [ msg i s | ((i,_), Just s) <- es ]
-  where
-    msg i s = "Error in constraint " ++ show i ++ ":\n" ++ s
+    res = Crash es msg
+    es  = catMaybes [ findError m e | e <- ers ]
+    ers = errs ex
+    msg = displayExceptionContext ectx ++ "\n" ++ msg0
+    msg0 | null ers = "Sorry, unexpected panic in liquid-fixpoint!\n"
+                       ++ showpp ex
+         | otherwise = showpp ex
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
 type ErrorMap a = HashMap.HashMap SrcSpan a

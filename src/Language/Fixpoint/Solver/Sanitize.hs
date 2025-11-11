@@ -33,6 +33,7 @@ import qualified Data.List                                         as L
 import qualified Data.Text                                         as T
 import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
+import           GHC.Stack           (HasCallStack)
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import qualified Language.Fixpoint.SortCheck as SortCheck
 
@@ -356,7 +357,7 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   function definitions inside the `AxiomEnv` which cannot be elaborated as
 --   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
-symbolEnv :: Config -> F.SInfo a -> F.SymEnv
+symbolEnv :: HasCallStack => Config -> F.SInfo a -> F.SymEnv
 symbolEnv cfg si = F.symEnv sEnv thyEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae'
@@ -375,7 +376,7 @@ symbolEnv cfg si = F.symEnv sEnv thyEnv ds lits (ts ++ ts')
 litsAEnv :: F.AxiomEnv -> [(F.Symbol, F.Sort)]
 litsAEnv ae = zip (F.symbol <$> symConsts ae) (repeat F.strSort)
 
-symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
+symbolSorts :: HasCallStack => Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
 
 symbolSorts' :: Config -> F.GInfo c a -> SanitizeM [(F.Symbol, F.Sort)]
