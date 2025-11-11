@@ -248,7 +248,14 @@ simplifyFInfo !cfg !fi0 = do
   -- writeLoud $ "fq file after defunc: \n" ++ render (toFixpoint cfg si4)
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
-  let si5  = {- SCC "elaborate" -} elaborate (ElabParam (solverFlags $ solver cfg) (atLoc dummySpan "solver") (symbolEnv cfg si4)) si4
+  let ef = solverFlags (solver cfg)
+      si5  = {- SCC "elaborate" -}
+             elaborate
+               (ElabParam
+                  ef
+                  (atLoc dummySpan "solver")
+                  (coerceEnv ef (symbolEnv cfg si4)))
+               si4
   -- writeLoud $ "fq file after elaborate: \n" ++ render (toFixpoint cfg si5)
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5

@@ -21,7 +21,7 @@ import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Solutions as Sol
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
-import           Language.Fixpoint.SortCheck          (ElabM)
+import           Language.Fixpoint.SortCheck          (ElabParam(..), elaborate)
 import qualified Language.Fixpoint.Solver.Solution  as S
 import qualified Language.Fixpoint.Smt.Types as T
 import qualified Language.Fixpoint.Solver.Worklist  as W
@@ -41,7 +41,6 @@ import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import Data.Maybe (maybeToList)
--- import Debug.Trace                      (trace)
 
 mytrace :: String -> a -> a
 mytrace
@@ -70,7 +69,10 @@ solve cfg fi = do
     return res
   where
     act :: SolveM a (F.Result (Integer, a), Stats)
-    act = solve_ cfg fi s0 wkl
+    act = do
+      ctx <- getContext
+      let s1 = s0{Sol.sMap = M.map (elabQBind ctx "solve" (Sol.sEnv s0)) (Sol.sMap s0)}
+      solve_ cfg fi s1 wkl
     -- solverInfo computes the set of cut and non-cut kvars, then initializes
     -- the solutions of the non-cut KVars (in the sHyp field)
     --
@@ -79,6 +81,14 @@ solve cfg fi = do
     wkl = W.init sI
     s0  = mappend (siSol sI) (S.init cfg fi ks)
     ks  = siVars sI
+    elabQBind ctx msg env (Sol.QB xs) = Sol.QB (map elabEQual xs)
+      where
+        elabEQual eq =
+          eq { Sol.eqPred =
+                elaborate
+                 (ElabParam (T.ctxElabF ctx) (F.atLoc F.dummySpan msg) env)
+                 (Sol.eqPred eq)
+             }
 
 
 --------------------------------------------------------------------------------
@@ -204,32 +214,35 @@ tidyPred =  go
 -- "Liquid Types", PLDI 2008, https://ranjitjhala.github.io/static/liquid_types.pdf
 --
 refine
-  :: (F.Loc a)
+  :: forall a. F.Loc a
   => F.IBindEnv
   -> F.BindEnv a
   -> Sol.Solution
   -> W.Worklist a
   -> SolveM a Sol.Solution
 --------------------------------------------------------------------------------
-refine bindingsInSmt be s w
-  | Just (c, w', newScc, rnk) <- W.pop w = do
-     i       <- tickIter newScc
-     (b, s') <- refineC bindingsInSmt be i s c
-     lift $ writeLoud $ refineMsg i c b rnk (showpp s')
-     let w'' = if b then W.push c w' else w'
-     refine bindingsInSmt be s' w''
-  | otherwise = return s
+refine bindingsInSmt be0 s0 w0 = go be0 s0 w0
   where
-    -- DEBUG
-    refineMsg i c b rnk s = printf "\niter=%d id=%d change=%s rank=%d s=%s\n"
-                             i (F.subcId c) (show b) rnk s
+    go :: F.BindEnv a -> Sol.Solution -> W.Worklist a -> SolveM a Sol.Solution
+    go be s w
+      | Just (c, w', newScc, rnk) <- W.pop w = do
+         i       <- tickIter newScc
+         (b, s') <- refineC bindingsInSmt be i s c
+         lift $ writeLoud $ refineMsg i c b rnk (showpp s')
+         let w'' = if b then W.push c w' else w'
+         go be s' w''
+      | otherwise = return s
+      where
+        -- DEBUG
+        refineMsg i c b rnk s = printf "\niter=%d id=%d change=%s rank=%d s=%s\n"
+                                 i (F.subcId c) (show b) rnk s
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
 {-# SCC refineC #-}
 refineC
-  :: (F.Loc a)
+  :: forall a. (F.Loc a)
   => F.IBindEnv
   -> F.BindEnv a
   -> Int
@@ -238,30 +251,23 @@ refineC
   -> SolveM a (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
 refineC bindingsInSmt be _i s c =
-  do ef <- T.ctxElabF <$> getContext
-     let (ks, rhs) = runReader (rhsCands s c) ef
+  do ctx <- getContext
+     let (ks, rhs) = rhsCands s
      if null rhs
         then return (False, s)
-        else do let lhs = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
-                kqs    <- filterValid (cstrSpan c) lhs rhs
-                return  $ S.update s ks kqs
+        else do
+          let lhs = S.lhsPred (elab ctx "refineC") bindingsInSmt be s c
+          kqs <- filterValid (cstrSpan c) lhs rhs
+          return $ S.update s ks kqs
   where
-    _ci       = F.subcId c
-    -- msg       = printf "refineC: iter = %d, sid = %s, soln = \n%s\n"
-    --               _i (show (F.sid c)) (showpp s)
-    _msg ks xs ys = printf "refineC: iter = %d, sid = %s, s = %s, rhs = %d, rhs' = %d \n"
-                     _i (show _ci) (showpp ks) (length xs) (length ys)
+    rhsCands :: Sol.Solution -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
+    rhsCands s = (fst <$> ks, concatMap cnd ks)
+      where
+        cnd :: (F.KVar, F.Subst) -> [(F.Pred, (F.KVar, Sol.EQual))]
+        cnd (k, su) = map (\(p , q) -> (p , (k , q))) $ Sol.qbPreds su (Sol.lookupQBind s k)
+        ks          = predKs . F.crhs $ c
 
-rhsCands :: Sol.Solution -> F.SimpC a -> ElabM ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
-rhsCands s c    =
-  do pq <- traverse cnd ks
-     pure (fst <$> ks, concat pq)
-  where
-    cnd :: (F.KVar, F.Subst) -> ElabM [(F.Pred, (F.KVar, Sol.EQual))]
-    cnd (k, su) = map (\(p , q) -> (p , (k , q))) <$> Sol.qbPreds msg s su (Sol.lookupQBind s k)
-    ks          = predKs . F.crhs $ c
-
-    msg         = "rhsCands: " ++ show (F.sid c)
+    elab ctx msg = elaborate (ElabParam (T.ctxElabF ctx) (F.atLoc c msg) (Sol.sEnv s))
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps
@@ -287,8 +293,8 @@ result bindingsInSmt cfg fi cs s =
     stat      <- result_ bindingsInSmt2 be cfg cs s
     lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     resCut    <- solResult cfg s
-    resNonCut <- solNonCutsResult cfg be s
-    let resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
+    let resNonCut = solNonCutsResult cfg be s
+        resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
     return     $ F.Result (ci <$> stat) resCut resNonCut resSorts
   where
     ci c = (F.subcId c, F.sinfo c)
@@ -315,12 +321,10 @@ bindInfo be i = (x, F.sr_sort sr)
 solResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-solNonCutsResult :: Config -> F.BindEnv a -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
+solNonCutsResult :: Config -> F.BindEnv a -> Sol.Solution -> M.HashMap F.KVar F.Expr
 solNonCutsResult cfg be s
-  | cfgNonCuts cfg = do
-    ef <- T.ctxElabF <$> getContext
-    pure $ runReader (S.nonCutsResult be s) ef
-  | otherwise = pure mempty
+  | cfgNonCuts cfg = S.nonCutsResult be s
+  | otherwise = mempty
 
 cfgNonCuts :: Config -> Bool
 cfgNonCuts cfg = save cfg || json cfg
@@ -380,12 +384,14 @@ isUnsat
 isUnsat bindingsInSmt be s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
-  ef <- T.ctxElabF <$> getContext
-  let lp = runReader (S.lhsPred bindingsInSmt (F.coerceBindEnv ef be) s c) ef
-  let rp = rhsPred        c
+  ctx <- getContext
+  let lp = S.lhsPred (elab ctx "isUnsat") bindingsInSmt be s c
+      rp = rhsPred c
   res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
   return res
+  where
+    elab ctx msg = elaborate (ElabParam (T.ctxElabF ctx) (F.atLoc c msg) (Sol.sEnv s))
 
 showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
 showUnsat u i lP rP = {- when u $ -} do

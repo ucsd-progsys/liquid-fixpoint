@@ -144,6 +144,8 @@ instance (Loc a) => Elaborate (SInfo a) where
   elaborate ep si = si
     { F.cm      = elaborate ep <$> F.cm      si
     , F.bs      = elaborate ep  $  F.bs      si
+    , F.gLits   = coerceSort (epFlags ep) <$> F.gLits   si
+    , F.dLits   = coerceSort (epFlags ep) <$> F.dLits   si
     , F.asserts = elaborate ep <$> F.asserts si
     , F.defns   = elaborate ep  $ F.defns    si
     , F.ddecls  = coerceDataDecl (epFlags ep) <$> F.ddecls si
@@ -157,7 +159,7 @@ instance (Elaborate a) => (Elaborate (Maybe a)) where
   elaborate ep t = elaborate ep <$> t
 
 instance Elaborate Sort where
-  elaborate _ = go
+  elaborate ep =  coerceSort (epFlags ep) . go
    where
       go s | isString s = strSort
       go (FAbs i s)    = FAbs i  (go s)
@@ -233,7 +235,7 @@ elabNumeric = Vis.mapExprOnExpr go
       = e
 
 instance Elaborate SortedReft where
-  elaborate ep (RR s (Reft (v, e))) = RR s (Reft (v, e'))
+  elaborate ep (RR s (Reft (v, e))) = RR (coerceSort (epFlags ep) s) (Reft (v, e'))
     where
       e'   = elaborateExpr ep' e (Just boolSort) -- check that a SortedReft is in fact a bool
       ep' = ep { epEnv = insertSymEnv v s (epEnv ep) }

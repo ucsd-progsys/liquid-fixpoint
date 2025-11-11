@@ -55,7 +55,6 @@ import Language.REST.SMT (withZ3, SolverHandle)
 
 import           Control.Exception.Base (bracket)
 import           Control.Monad (filterM, foldM, forM_, when, replicateM)
-import           Control.Monad.Reader (runReader)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Bifunctor (second)
@@ -514,7 +513,7 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
 
     maybeApplyKVarSolutions xsr =
       case ieSol of
-        Just sol -> runReader (applyInSortedReft g sol xsr) (SMT.ctxElabF ieSMT)
+        Just sol -> applyInSortedReft g sol xsr
         Nothing  -> xsr
       where
         gCid = case collectConstraints <$> mCTrie of
