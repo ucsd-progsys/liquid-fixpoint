@@ -22,6 +22,7 @@ import qualified Language.Fixpoint.Types.Solutions as Sol
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (stats)
 import           Language.Fixpoint.SortCheck          (ElabParam(..), elaborate)
+import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import qualified Language.Fixpoint.Solver.Solution  as S
 import qualified Language.Fixpoint.Smt.Types as T
 import qualified Language.Fixpoint.Solver.Worklist  as W
@@ -71,7 +72,8 @@ solve cfg fi = do
     act :: SolveM a (F.Result (Integer, a), Stats)
     act = do
       ctx <- getContext
-      let s1 = s0{Sol.sMap = M.map (elabQBind ctx "solve" (Sol.sEnv s0)) (Sol.sMap s0)}
+      let sEnv = symbolEnv cfg fi
+          s1 = s0{Sol.sMap = M.map (elabQBind ctx "solve" sEnv) (Sol.sMap s0)}
       solve_ cfg fi s1 wkl
     -- solverInfo computes the set of cut and non-cut kvars, then initializes
     -- the solutions of the non-cut KVars (in the sHyp field)
@@ -251,12 +253,11 @@ refineC
   -> SolveM a (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
 refineC bindingsInSmt be _i s c =
-  do ctx <- getContext
-     let (ks, rhs) = rhsCands s
+  do let (ks, rhs) = rhsCands s
      if null rhs
         then return (False, s)
         else do
-          let lhs = S.lhsPred (elab ctx "refineC") bindingsInSmt be s c
+          let lhs = S.lhsPred bindingsInSmt be s c
           kqs <- filterValid (cstrSpan c) lhs rhs
           return $ S.update s ks kqs
   where
@@ -266,8 +267,6 @@ refineC bindingsInSmt be _i s c =
         cnd :: (F.KVar, F.Subst) -> [(F.Pred, (F.KVar, Sol.EQual))]
         cnd (k, su) = map (\(p , q) -> (p , (k , q))) $ Sol.qbPreds su (Sol.lookupQBind s k)
         ks          = predKs . F.crhs $ c
-
-    elab ctx msg = elaborate (ElabParam (T.ctxElabF ctx) (F.atLoc c msg) (Sol.sEnv s))
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps
@@ -384,14 +383,11 @@ isUnsat
 isUnsat bindingsInSmt be s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
-  ctx <- getContext
-  let lp = S.lhsPred (elab ctx "isUnsat") bindingsInSmt be s c
+  let lp = S.lhsPred bindingsInSmt be s c
       rp = rhsPred c
   res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
   return res
-  where
-    elab ctx msg = elaborate (ElabParam (T.ctxElabF ctx) (F.atLoc c msg) (Sol.sEnv s))
 
 showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
 showUnsat u i lP rP = {- when u $ -} do

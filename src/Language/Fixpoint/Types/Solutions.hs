@@ -24,7 +24,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
     Solution
-  , Sol (sEnv, sEbd, sxEnv)
+  , Sol (sEbd, sxEnv)
   , sHyp
   , sScp
   , sMap
@@ -87,7 +87,6 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
-import           Language.Fixpoint.Types.Theories
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
@@ -193,8 +192,7 @@ updateEbind s i !e = case M.lookup i (sEbd s) of
 --   in particular, to compute `lhsPred` for any given constraint.
 --------------------------------------------------------------------------------
 data Sol a = Sol
-  { sEnv :: !SymEnv                      -- ^ Environment used to elaborate solutions
-  , sMap :: !(M.HashMap KVar a)          -- ^ Actual solution (for cut kvar)
+  { sMap :: !(M.HashMap KVar a)          -- ^ Actual solution (for cut kvar)
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
   , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
@@ -204,8 +202,7 @@ data Sol a = Sol
 deriving instance NFData a => NFData (Sol a)
 
 instance Semigroup (Sol a) where
-  s1 <> s2 = Sol { sEnv  = sEnv s1  <> sEnv s2
-                 , sMap  = sMap s1  <> sMap s2
+  s1 <> s2 = Sol { sMap  = sMap s1  <> sMap s2
                  , sHyp  = sHyp s1  <> sHyp s2
                  , sScp  = sScp s1  <> sScp s2
                  , sEbd  = sEbd s1  <> sEbd s2
@@ -213,8 +210,7 @@ instance Semigroup (Sol a) where
                  }
 
 instance Monoid (Sol a) where
-  mempty = Sol { sEnv = mempty
-               , sMap = mempty
+  mempty = Sol { sMap = mempty
                , sHyp = mempty
                , sScp = mempty
                , sEbd = mempty
@@ -223,7 +219,7 @@ instance Monoid (Sol a) where
   mappend = (<>)
 
 instance Functor Sol where
-  fmap f (Sol e s m1 m2 m3 m4) = Sol e (f <$> s) m1 m2 m3 m4
+  fmap f (Sol s m1 m2 m3 m4) = Sol (f <$> s) m1 m2 m3 m4
 
 instance PPrint a => PPrint (Sol a) where
   pprintTidy k s = vcat [ "sMap :=" <+> pprintTidy k (sMap s)
@@ -256,15 +252,14 @@ result s = pAnd . fmap eqPred . qbEQuals <$> sMap s
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: SymEnv
-         -> [(KVar, a)]
+fromList :: [(KVar, a)]
          -> [(KVar, Hyp)]
          -> M.HashMap KVar IBindEnv
          -> [(BindId, EbindSol)]
          -> SEnv (BindId, Sort)
          -> Sol a
-fromList env kXs kYs z ebs xbs
-        = Sol env kXm kYm z ebm xbs
+fromList kXs kYs z ebs xbs
+        = Sol kXm kYm z ebm xbs
   where
     kXm = M.fromList kXs
     kYm = M.fromList kYs
