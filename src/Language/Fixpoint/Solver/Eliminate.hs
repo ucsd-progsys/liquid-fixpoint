@@ -16,7 +16,6 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvarsExpr, isConcC)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
-import           Language.Fixpoint.Solver.Sanitize
 
 --------------------------------------------------------------------------------
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
@@ -38,13 +37,12 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs ebs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList sE mempty kHyps kS [] sEnv
+    sHyp           = Sol.fromList mempty kHyps kS [] sEnv
     sEnv           = fromListSEnv [ (x, (i, sr_sort sr)) | (i, (x,sr, _)) <- bindEnvToList (bs sI)]
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
     kS             = kvScopes     sI es
-    sE             = symbolEnv   cfg sI
     ebs            = S.fromList [x | i <- ebinds sI, let (x, _, _) = lookupBindEnv i (bs sI) ]
 
 --------------------------------------------------------------------------------
