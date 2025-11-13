@@ -112,7 +112,7 @@ solverInfo cfg fI
   | useElim cfg = E.solverInfo cfg fI
   | otherwise   = SI mempty fI cD (siKvars fI)
   where
-    cD          = elimDeps fI (kvEdges fI) mempty mempty
+    cD          = elimDeps fI (kvEdges fI) mempty
 
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws

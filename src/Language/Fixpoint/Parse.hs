@@ -1443,15 +1443,13 @@ boolP = (reserved "True" >> return True)
     <|> (reserved "False" >> return False)
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae lrws mempty
+defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs lts dts kts qs binfo adts mempty mempty ae lrws mempty
   where
     cm         = Misc.safeFromList
                    "defs-cm"        [(cid c, c)         | Cst c       <- defs]
     ws         = Misc.safeFromList
                    "defs-ws"        [(i, w)              | Wfc w    <- defs, let i = Misc.thd3 (wrft w)]
-    bs         = bindEnvFromList  $ exBinds ++ [(n,(x,r,a)) | IBind n x r a <- defs]
-    ebs        =                    [ n                  | (n,_) <- exBinds]
-    exBinds    =                    [(n, (x, RR t trueReft, a)) | EBind n x t a <- defs]
+    bs         = bindEnvFromList    [(n,(x,r,a)) | IBind n x r a <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]

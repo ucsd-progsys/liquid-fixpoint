@@ -7,7 +7,6 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveAnyClass             #-}
@@ -24,7 +23,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
     Solution
-  , Sol (sEbd, sxEnv)
+  , Sol
   , sHyp
   , sScp
   , sMap
@@ -33,7 +32,6 @@ module Language.Fixpoint.Types.Solutions (
   -- * Solution elements
   , Hyp, Cube (..), QBind (..)
   , EQual (..)
-  , EbindSol (..)
 
   -- * Equal elements
   , eQual
@@ -49,7 +47,6 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Update
   , update
-  , updateEbind
 
   -- * Lookup
   , lookupQBind
@@ -162,32 +159,6 @@ instance PPrint QBind where
   pprintTidy k = pprintTidy k . qbEQuals
 
 --------------------------------------------------------------------------------
--- | An `EbindSol` contains the relevant information for an existential-binder;
---   (See tests/pos/ebind-*.fq for examples.) This is either
---   1. the constraint whose HEAD is a singleton that defines the binder, OR
---   2. the solved out TERM that we should use in place of the ebind at USES.
---------------------------------------------------------------------------------
-data EbindSol
-  = EbDef [SimpC ()] Symbol -- ^ The constraint whose HEAD "defines" the Ebind
-                             -- and the @Symbol@ for that EBind
-  | EbSol Expr             -- ^ The solved out term that should be used at USES.
-  | EbIncr                 -- ^ EBinds not to be solved for (because they're currently being solved for)
-   deriving (Show, Generic, NFData)
-
-instance PPrint EbindSol where
-  pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x
-  pprintTidy k (EbSol e)   = "EbSol:" <+> pprintTidy k e
-  pprintTidy _ EbIncr    = "EbIncr"
-
---------------------------------------------------------------------------------
-updateEbind :: Sol a -> BindId -> Pred -> Sol a
---------------------------------------------------------------------------------
-updateEbind s i !e = case M.lookup i (sEbd s) of
-  Nothing         -> errorstar $ "updateEBind: Unknown ebind " ++ show i
-  Just (EbSol e0) -> errorstar $ "updateEBind: Re-assigning ebind " ++ show i ++ " with solution: " ++ show e0
-  Just _          -> s { sEbd = M.insert i (EbSol e) (sEbd s) }
-
---------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
 --   in particular, to compute `lhsPred` for any given constraint.
 --------------------------------------------------------------------------------
@@ -195,8 +166,6 @@ data Sol a = Sol
   { sMap :: !(M.HashMap KVar a)          -- ^ Actual solution (for cut kvar)
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
-  , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
-  , sxEnv :: !(SEnv (BindId, Sort))      --   TODO: merge with sEnv? used for sorts of ebinds to solve ebinds in lhsPred
   } deriving (Generic)
 
 deriving instance NFData a => NFData (Sol a)
@@ -205,26 +174,20 @@ instance Semigroup (Sol a) where
   s1 <> s2 = Sol { sMap  = sMap s1  <> sMap s2
                  , sHyp  = sHyp s1  <> sHyp s2
                  , sScp  = sScp s1  <> sScp s2
-                 , sEbd  = sEbd s1  <> sEbd s2
-                 , sxEnv = sxEnv s1 <> sxEnv s2
                  }
 
 instance Monoid (Sol a) where
   mempty = Sol { sMap = mempty
                , sHyp = mempty
                , sScp = mempty
-               , sEbd = mempty
-               , sxEnv = mempty
                }
   mappend = (<>)
 
 instance Functor Sol where
-  fmap f (Sol s m1 m2 m3 m4) = Sol (f <$> s) m1 m2 m3 m4
+  fmap f (Sol s m1 m2) = Sol (f <$> s) m1 m2
 
 instance PPrint a => PPrint (Sol a) where
-  pprintTidy k s = vcat [ "sMap :=" <+> pprintTidy k (sMap s)
-                        , "sEbd :=" <+> pprintTidy k (sEbd s)
-                        ]
+  pprintTidy k s = vcat [ "sMap :=" <+> pprintTidy k (sMap s) ]
 
 --------------------------------------------------------------------------------
 -- | A `Cube` is a single constraint defining a KVar ---------------------------
@@ -255,15 +218,11 @@ result s = pAnd . fmap eqPred . qbEQuals <$> sMap s
 fromList :: [(KVar, a)]
          -> [(KVar, Hyp)]
          -> M.HashMap KVar IBindEnv
-         -> [(BindId, EbindSol)]
-         -> SEnv (BindId, Sort)
          -> Sol a
-fromList kXs kYs z ebs xbs
-        = Sol kXm kYm z ebm xbs
+fromList kXs kYs z = Sol kXm kYm z
   where
     kXm = M.fromList kXs
     kYm = M.fromList kYs
-    ebm = M.fromList ebs
 
 --------------------------------------------------------------------------------
 qbPreds :: Subst -> QBind -> [(Pred, EQual)]
