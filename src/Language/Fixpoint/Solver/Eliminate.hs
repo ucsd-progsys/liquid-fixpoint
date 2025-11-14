@@ -35,15 +35,13 @@ solverInfo :: Config -> SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg sI = SI sHyp sI' cD cKs
   where
-    cD             = elimDeps     sI es nKs ebs
+    cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList mempty kHyps kS [] sEnv
-    sEnv           = fromListSEnv [ (x, (i, sr_sort sr)) | (i, (x,sr, _)) <- bindEnvToList (bs sI)]
+    sHyp           = Sol.fromList mempty kHyps kS
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
     kS             = kvScopes     sI es
-    ebs            = S.fromList [x | i <- ebinds sI, let (x, _, _) = lookupBindEnv i (bs sI) ]
 
 --------------------------------------------------------------------------------
 -- | For each KVar, provide the intersection of the binding environments

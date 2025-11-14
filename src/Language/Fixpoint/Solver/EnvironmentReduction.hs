@@ -33,9 +33,9 @@ import qualified Data.HashMap.Strict as HashMap.Strict
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
 #if MIN_VERSION_base(4,20,0)
-import           Data.List (nub, partition)
+import           Data.List (partition)
 #else
-import           Data.List (foldl', nub, partition)
+import           Data.List (foldl', partition)
 #endif
 import           Data.Maybe (fromMaybe)
 import           Data.ShareMap (ShareMap)
@@ -153,7 +153,6 @@ reduceEnvironments finfo =
      { bs = bs'
      , cm = HashMap.fromList cm'
      , ws = ws'
-     , ebinds = updateEbinds bs' (ebinds finfo)
      , bindInfo = updateBindInfoKeys bs' $ bindInfo finfo
      }
 
@@ -169,9 +168,6 @@ reduceEnvironments finfo =
             map wenv (HashMap.elems wmap)
        in
           HashMap.filterWithKey (\bId _ -> memberIBindEnv bId ibindEnv) be
-
-    -- Updates BindIds in an ebinds list
-    updateEbinds be = filter (`HashMap.member` beBinds be)
 
     -- Updates BindId keys in a bindInfos map
     updateBindInfoKeys be oldBindInfos =
@@ -470,15 +466,9 @@ simplifyBindings cfg finfo =
    in finfo
         { bs = bs'
         , cm = cm'
-        , ebinds = updateEbinds oldToNew (ebinds finfo)
         , bindInfo = updateBindInfoKeys oldToNew $ bindInfo finfo
         }
   where
-    updateEbinds :: HashMap BindId [BindId] -> [BindId] -> [BindId]
-    updateEbinds oldToNew ebs =
-      nub $
-      concat [ bId : fromMaybe [] (HashMap.lookup bId oldToNew) | bId <- ebs ]
-
     updateBindInfoKeys
       :: HashMap BindId [BindId] -> HashMap BindId a -> HashMap BindId a
     updateBindInfoKeys oldToNew infoMap =

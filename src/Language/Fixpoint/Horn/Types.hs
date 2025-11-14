@@ -110,7 +110,6 @@ cstrQuals = go
     go env v (Head p _)  = predQuals env v p
     go env v (CAnd   cs) = concatMap (go env v) cs
     go env _ (All  b c)  = bindQuals env b c
-    go env _ (Any  b c)  = bindQuals env b c
 
 bindQuals  :: F.SEnv F.Sort -> Bind a -> Cstr a -> [F.Qualifier]
 bindQuals env b c = predQuals env' bx (bPred b) ++ cstrQuals env' bx c
@@ -175,7 +174,6 @@ data Cstr a
   = Head  !Pred !a                  -- ^ p
   | CAnd  ![Cstr a]                 -- ^ c1 /\ ... /\ cn
   | All   !(Bind a)  !(Cstr a)      -- ^ \all x:t. p => c
-  | Any   !(Bind a)  !(Cstr a)      -- ^ \exi x:t. p /\ c or is it \exi x:t. p => c?
   deriving (Data, Typeable, Generic, Functor, Eq, ToJSON, FromJSON)
 
 instance F.ToHornSMT (Cstr a) where
@@ -186,8 +184,6 @@ toHornCstr (Head p _) = F.toHornSMT p
 toHornCstr (CAnd cs)  = F.toHornAnd toHornCstr cs
 toHornCstr (All b c)  = P.parens (P.vcat ["forall" P.<+> F.toHornSMT b
                                          , P.nest 1 (toHornCstr c)])
-toHornCstr (Any b c)  = P.parens (P.vcat ["exists" P.<+> F.toHornSMT b
-                                         , P.nest 1 (toHornCstr c)])
 
 cLabel :: Cstr a -> a
 cLabel cstr = case go cstr of
@@ -197,13 +193,11 @@ cLabel cstr = case go cstr of
     go (Head _ l)   = [l]
     go (CAnd cs)    = mconcat $ go <$> cs
     go (All _ c)    = go c
-    go (Any _ c)    = go c
 
 -- We want all valid constraints to start with a binding at the top
 
 okCstr :: Cstr a -> Bool
 okCstr All {} = True
-okCstr Any {} = True
 okCstr _      = False
 
 
@@ -311,7 +305,6 @@ instance Show Pred where
 instance Show (Cstr a) where
   show (Head p _) = parens $ show p
   show (All b c)  = parens $ unwords ["forall" , show b , show c]
-  show (Any b c)  = parens $ unwords ["exists" , show b , show c]
   show (CAnd cs)  = parens $ unwords $ "and" : map show cs
 
 instance Show (Bind a) where
@@ -328,9 +321,6 @@ instance F.PPrint Pred where
 instance F.PPrint (Cstr a) where
   pprintPrec k t (Head p _) = P.parens $ F.pprintPrec k t p
   pprintPrec k t (All b c)  = P.parens $ P.vcat [ P.ptext "forall" P.<+> F.pprintPrec (k+2) t b
-                                                , F.pprintPrec (k+1) t c
-                                                ]
-  pprintPrec k t (Any b c)  = P.parens $ P.vcat [P.ptext "exists" P.<+> F.pprintPrec (k+2) t b
                                                 , F.pprintPrec (k+1) t c
                                                 ]
   pprintPrec k t (CAnd cs) = P.parens $ P.vcat  $ P.ptext "and" : map (F.pprintPrec (k+2) t) cs

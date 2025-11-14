@@ -680,12 +680,11 @@ fi :: [SubC a]
    -> [Triggered Expr]
    -> AxiomEnv
    -> [DataDecl]
-   -> [BindId]
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
+fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
-       , bs       = foldr (adjustBindEnv stripReft) binds ebs
+       , bs       = binds
        , gLits    = ls
        , dLits    = ds
        , kuts     = ks
@@ -695,14 +694,12 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
        , asserts  = es
        , ae       = axe
        , ddecls   = adts
-       , ebinds   = ebs
        , lrws     = mempty
        , defns    = mempty
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
     err = errorstar "multiple WfCs with same kvar"
-    stripReft (sym, reft) = (sym, reft { sr_reft = trueReft })
 
 ------------------------------------------------------------------------
 -- | Top-level Queries
@@ -733,7 +730,6 @@ data GInfo c a = FI
   { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
   , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
   , bs       :: !(BindEnv a)               -- ^ BindId  |-> (Symbol, SortedReft)
-  , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
   , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
   , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
   , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
@@ -760,7 +756,6 @@ instance Semigroup (GInfo c a) where
   i1 <> i2 = FI { cm       = cm i1       <> cm i2
                 , ws       = ws i1       <> ws i2
                 , bs       = bs i1       <> bs i2
-                , ebinds   = ebinds i1   <> ebinds i2
                 , gLits    = gLits i1    <> gLits i2
                 , dLits    = dLits i1    <> dLits i2
                 , kuts     = kuts i1     <> kuts i2
@@ -779,7 +774,6 @@ instance Monoid (GInfo c a) where
   mempty        = FI { cm       = M.empty
                      , ws       = mempty
                      , bs       = mempty
-                     , ebinds   = mempty
                      , gLits    = mempty
                      , dLits    = mempty
                      , kuts     = mempty
@@ -826,9 +820,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     kutsDoc       = toFix    . kuts
     -- packsDoc      = toFix    . packs
     declsDoc      = vcat     . map ((text "data" <+>) . toFix) . L.sort . ddecls
-    (ubs, ebs)    = splitByQuantifiers (bs x') (ebinds x')
-    bindsDoc      = toFix    ubs
-               $++$ toFix    ebs
+    bindsDoc      = toFix (bs x')
     qualsDoc      = vcat     . map toFix . L.sort . quals
     aeDoc         = toFix    . ae
     lrwsDoc       = toFix    . lrws
