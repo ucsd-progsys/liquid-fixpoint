@@ -781,7 +781,7 @@ instance (Ord v, Fixpoint v, PPrint v) => PPrint (ExprV v) where
 pprintQuant
   :: (Ord v, Fixpoint v, PPrint v)
   => Tidy -> Doc -> [(Symbol, Sort)] -> ExprV v -> Doc
-pprintQuant k d xts p = (d <+> toFix xts)
+pprintQuant k d xts p = (d <+> pprintTidy k xts)
                         $+$
                         ("  ." <+> pprintTidy k p)
 
