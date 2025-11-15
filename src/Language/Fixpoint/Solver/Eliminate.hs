@@ -37,7 +37,11 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList mempty kHyps kS
+    sHyp = Sol.Sol
+      { Sol.sMap = mempty
+      , Sol.sHyp = M.fromList kHyps
+      , Sol.sScp = kS
+      }
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI

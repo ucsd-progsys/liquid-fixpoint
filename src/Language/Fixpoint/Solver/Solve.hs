@@ -81,7 +81,7 @@ solve cfg fi = do
     -- S.init provides an initial solution for the cut KVars
     sI  = solverInfo cfg fi
     wkl = W.init sI
-    s0  = mappend (siSol sI) (S.init cfg fi ks)
+    s0  = (siSol sI) { Sol.sMap = S.init cfg fi ks }
     ks  = siVars sI
     elabQBind ctx msg env (Sol.QB xs) = Sol.QB (map elabEQual xs)
       where

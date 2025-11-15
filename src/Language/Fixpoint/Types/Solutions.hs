@@ -23,10 +23,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
     Solution
-  , Sol
-  , sHyp
-  , sScp
-  , sMap
+  , Sol (..)
   , CMap
 
   -- * Solution elements
@@ -41,9 +38,6 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution Candidates (move to SolverMonad?)
   , Cand
-
-  -- * Constructor
-  , fromList
 
   -- * Update
   , update
@@ -165,7 +159,8 @@ instance PPrint QBind where
 data Sol a = Sol
   { sMap :: !(M.HashMap KVar a)          -- ^ Actual solution (for cut kvar)
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
-  , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
+  , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of binders which are in scope for every
+                                         -- occurrence of the kvar
   } deriving (Generic)
 
 deriving instance NFData a => NFData (Sol a)
@@ -211,18 +206,6 @@ result :: Sol QBind -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
 result s = pAnd . fmap eqPred . qbEQuals <$> sMap s
 
-
---------------------------------------------------------------------------------
--- | Create a Solution ---------------------------------------------------------
---------------------------------------------------------------------------------
-fromList :: [(KVar, a)]
-         -> [(KVar, Hyp)]
-         -> M.HashMap KVar IBindEnv
-         -> Sol a
-fromList kXs kYs z = Sol kXm kYm z
-  where
-    kXm = M.fromList kXs
-    kYm = M.fromList kYs
 
 --------------------------------------------------------------------------------
 qbPreds :: Subst -> QBind -> [(Pred, EQual)]
