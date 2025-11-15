@@ -19,7 +19,6 @@ module Language.Fixpoint.Solver.Solution
   , nonCutsResult
   ) where
 
-import           Control.Parallel.Strategies
 import           Control.Arrow (second, (***))
 import           Control.Monad.Reader
 import qualified Data.HashSet                   as S
@@ -37,25 +36,18 @@ import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
 import           Prelude                              hiding (init, lookup)
 
--- DEBUG
-import Text.Printf (printf)
--- import Debug.Trace (trace)
-
 
 --------------------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------------------
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> M.HashMap F.KVar Sol.QBind
 --------------------------------------------------------------------------------
-init cfg si ks_ = M.fromList
-    (runReader (traverse (refine si qcs genv) ws) (solverFlags $ solver cfg) `using` parList rdeepseq)
+init cfg si ks =
+    runReader (traverse (refine si qcs genv) ws) (solverFlags $ solver cfg)
   where
-    qcs        = {- trace ("init-qs-size " ++ show (length ws, length qs_, M.keys qcs_)) $ -} qcs_
-    qcs_       = mkQCluster qs_
-    qs_        = F.quals si
-    ws         = [ w | (k, w) <- M.toList (F.ws si), k `S.member` ks ]
-    ks         = {- trace ("init-ks-size" ++ show (S.size ks_)) $ -} ks_
-    genv       = initQualifierEnv cfg si
+    qcs = mkQCluster (F.quals si)
+    ws = M.intersection (F.ws si) (S.toMap ks)
+    genv = initQualifierEnv cfg si
 
 initQualifierEnv :: (F.Fixpoint a) => Config -> F.SInfo a -> F.SEnv F.Sort
 initQualifierEnv cfg si
@@ -85,7 +77,7 @@ qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ]
 
 --------------------------------------------------------------------------------
 
-refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> ElabM (F.KVar, Sol.QBind)
+refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> ElabM Sol.QBind
 refine info qs genv w = refineK (allowHOquals info) env qs (F.wrft w)
   where
     env             = wenvSort <> genv
@@ -97,14 +89,10 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
     notLit    = not . F.isLitSymbol . fst
 
 
-refineK :: Bool -> F.SEnv F.Sort -> QCluster -> (F.Symbol, F.Sort, F.KVar) -> ElabM (F.KVar, Sol.QBind)
-refineK ho env qs (v, t, k) =
-  do eqs' <- Sol.qbFilterM (okInst env v t) eqs
-     pure $ F.notracepp _msg (k, eqs')
+refineK :: Bool -> F.SEnv F.Sort -> QCluster -> (F.Symbol, F.Sort, F.KVar) -> ElabM Sol.QBind
+refineK ho env qs (v, t, _k) = Sol.qbFilterM (okInst env v t) eqs
    where
-    eqs                     = instK ho env v t qs
-
-    _msg                    = printf "\n\nrefineK: k = %s, eqs = %s" (F.showpp k) (F.showpp eqs)
+    eqs = instK ho env v t qs
 
 --------------------------------------------------------------------------------
 instK :: Bool
