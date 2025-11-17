@@ -445,10 +445,10 @@ collectFreeVarOccurrences = go []
       ENeg e -> go acc e
       PNot p -> go acc p
       ECst e _t -> go acc e
-      PAll _xts p -> go acc p
-      ELam (b, _) e -> go acc e L.\\ [b]
+      PAll xts p -> filter (`notElem` map fst xts) $ go acc p
+      ELam (b, _) e -> filter (b /=) $ go acc e
       ECoerc _a _t e -> go acc e
-      PExist _xts p -> go acc p
+      PExist xts p -> filter (`notElem` map fst xts) $ go acc p
       ETApp e _s -> go acc e
       ETAbs e _s -> go acc e
       EApp g e -> go (go acc e) g
@@ -456,7 +456,7 @@ collectFreeVarOccurrences = go []
       PImp p1 p2 -> go (go acc p2) p1
       PIff p1 p2 -> go (go acc p2) p1
       PAtom _r e1 e2 -> go (go acc e2) e1
-      ELet x e1 e2 -> go (go acc e2 L.\\ [x]) e1
+      ELet x e1 e2 -> go (filter (x /=) $ go acc e2) e1
       EIte p e1 e2 -> go (go (go acc e2) e1) p
       PAnd ps -> foldr (flip go) acc ps
       POr ps -> foldr (flip go) acc ps
