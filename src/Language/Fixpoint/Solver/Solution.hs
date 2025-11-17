@@ -24,6 +24,7 @@ import           Control.Monad                  (guard)
 import           Control.Monad.Reader
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
+import qualified Data.List                      as List
 import           Data.Maybe                     (maybeToList, isJust, isNothing)
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
@@ -250,7 +251,7 @@ lhsPred
   -> F.SimpC a
   -> F.Expr
 lhsPred bindingsInSmt be s c =
-    let ap = apply g s bs
+    let ap = apply g mempty s bs
      in F.notracepp _msg $ fst ap
   where
     g          = CEnv ci be bs (F.srcSpan c) bindingsInSmt
@@ -272,14 +273,16 @@ data CombinedEnv a = CEnv
 type Cid         = Maybe Integer
 type ExprInfo    = (F.Expr, KInfo)
 
-apply :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.IBindEnv -> ExprInfo
-apply g s bs =
+apply :: CombinedEnv ann -> F.IBindEnv -> Sol.Sol Sol.QBind -> F.IBindEnv -> ExprInfo
+apply g bsInScope s bs
+  | F.nullIBindEnv bs = (F.PTrue, mempty)
+  | otherwise =
     -- Clear the "known" bindings for applyKVars, since it depends on
     -- using the fully expanded representation of the predicates to bind their
     -- variables with quantifiers.
     let xrs = map (lookupBindEnvExt g) (F.elemsIBindEnv bs)
         (ps,  ks) = envConcKVars xrs
-        (pks, kI) = applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
+        (pks, kI) = applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} bsInScope s ks
      in (F.conj (pks:ps), kI)   -- see [NOTE: pAnd-SLOW]
 
 -- | @applyInSortedReft@ applies the solution to a single sorted reft
@@ -290,7 +293,7 @@ applyInSortedReft
   -> (F.Symbol, F.SortedReft)
 applyInSortedReft g s xsr@(x, sr) =
     let (ps,  ks) = envConcKVars [xsr]
-        (pks, _) = applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} s ks
+        (pks, _) = applyKVars g {ceBindingsInSmt = F.emptyIBindEnv} mempty s ks
      in (x, sr { F.sr_reft = F.Reft (x, F.conj (pks : ps)) })
 
 -- | Produces conjuncts of each sorted reft in the IBindEnv, separated
@@ -310,22 +313,43 @@ lookupBindEnvExt g i =
    where
       (x, sr, _)              = F.lookupBindEnv i (ceBEnv g)
 
-applyKVars :: CombinedEnv ann -> Sol.Sol Sol.QBind -> [F.KVSub] -> ExprInfo
-applyKVars g s ks =
-  let bcs = map (applyKVar g s) ks
+applyKVars :: CombinedEnv ann -> F.IBindEnv -> Sol.Sol Sol.QBind -> [F.KVSub] -> ExprInfo
+applyKVars g bsInScope s ks =
+  let bsCommon = F.diffIBindEnv (commonBindsOfKVars s ks) bsInScope
+      g' = addCEnv g bsCommon
+      bcs = map (applyKVar g' (F.unionIBindEnv bsInScope bsCommon) s) ks
       (es, is) = unzip bcs
-   in (F.pAndNoDedup es, mconcat is)
+      yts = symSorts g' bsCommon
+      (p, _kI) = apply g' mempty s bsCommon
+   in
+      (F.pExist yts (p F.&.& F.pAndNoDedup es), mconcat is)
 
-applyKVar :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> ExprInfo
-applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
-  Left cs   -> hypPred g s ksu cs
+commonBindsOfKVars :: Sol.Sol Sol.QBind -> [F.KVSub] -> F.IBindEnv
+commonBindsOfKVars s ks =
+  F.unionsIBindEnv $ M.elems $
+    M.fromListWith F.unionIBindEnv [ (F.ksuKVar ksu, commonBindsOfKVar s ksu) | ksu <- ks ]
+
+commonBindsOfKVar :: Sol.Sol Sol.QBind -> F.KVSub -> F.IBindEnv
+commonBindsOfKVar s ksu =
+  case Sol.lookup s (F.ksuKVar ksu) of
+    Left cs   -> List.foldl' F.intersectionIBindEnv mempty $ map Sol.cuBinds cs
+    Right _eqs -> mempty
+
+applyKVar :: CombinedEnv ann -> F.IBindEnv -> Sol.Sol Sol.QBind -> F.KVSub -> ExprInfo
+applyKVar g bsInScope s ksu = case Sol.lookup s (F.ksuKVar ksu) of
+  Left cs   -> hypPred g bsInScope s ksu cs
   Right eqs -> let qbp = Sol.qbPreds (F.ksuSubst ksu) eqs
                 in (F.pAndNoDedup $ fst <$> qbp, mempty) -- TODO: don't initialize kvars that have a hyp solution
 
 mkNonCutsExpr :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Hyp -> F.Expr
 mkNonCutsExpr ce s k cs =
-  let bcps = map (bareCubePred ce s k) cs
-   in F.pOr bcps
+  let bsCommon = List.foldl' F.intersectionIBindEnv mempty $ map Sol.cuBinds cs
+      bs' = F.diffIBindEnv bsCommon (Misc.safeLookup "sScp" k (Sol.sScp s))
+      g' = addCEnv ce bs'
+      yts = symSorts g' bs'
+      bcps = map (bareCubePred g' bsCommon s k) cs
+      (p, _kI) = apply g' mempty s bs'
+   in F.pExist yts (p F.&.& F.pOr bcps)
 
 nonCutsResult :: F.BindEnv ann -> Sol.Sol Sol.QBind -> M.HashMap F.KVar F.Expr
 nonCutsResult be s = M.mapWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
@@ -351,9 +375,9 @@ nonCutsResult be s = M.mapWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
 -- are the "parameters" of the KVar that we want to leave in to make
 -- explicit what equalities those parameters have in each cube.
 
-bareCubePred :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Cube -> F.Expr
-bareCubePred g s k c =
-    let (p, _kI) = apply g' s bs'
+bareCubePred :: CombinedEnv ann -> F.IBindEnv -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Cube -> F.Expr
+bareCubePred g bsInScope s k c =
+    let (p, _kI) = apply g' bsInScope s bs'
         -- Free variables in p should not colide with those generated by
         -- the rapier substitution. If that were the case, perhaps we would
         -- need to include @combinedSEnv g@ in the scope set.
@@ -362,7 +386,7 @@ bareCubePred g s k c =
     bs = Sol.cuBinds c
     su = dropUnsortedExprs g (Sol.cuSubst c)
     g' = addCEnv  g bs
-    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
+    bs' = F.diffIBindEnv bs $ F.unionIBindEnv bsInScope $ Misc.safeLookup "sScp" k (Sol.sScp s)
     yts = symSorts g bs'
 
 -- TODO: Figure out why liquid-fixpoint allows unsorted expressions in substitutions.
@@ -378,10 +402,18 @@ dropUnsortedExprs g (F.Su m) = F.Su $
     sp  = ceSpan g
     env = combinedSEnv g
 
-hypPred :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Hyp -> ExprInfo
-hypPred g s ksu hyp =
-  let cs = map (cubePred g s ksu) hyp
-   in F.pOr *** mconcatPlus $ unzip cs
+hypPred :: CombinedEnv ann -> F.IBindEnv -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Hyp -> ExprInfo
+hypPred g bsInScope s ksu hyp =
+  let bsCommon = List.foldl' F.intersectionIBindEnv mempty $ map Sol.cuBinds hyp
+      k = F.ksuKVar ksu
+      bs' = F.diffIBindEnv bsCommon $
+              F.unionIBindEnv bsInScope $
+                Misc.safeLookup "sScp" k (Sol.sScp s)
+      g' = addCEnv g bs'
+      yts = symSorts g' bs'
+      (p, _kI) = apply g' mempty s bs'
+      cs = map (cubePred g' (F.unionIBindEnv bsCommon bsInScope) s ksu) hyp
+   in (\bcps -> F.pExist yts (p F.&.& F.pOr bcps)) *** mconcatPlus $ unzip cs
 
 {- | `cubePred g s k su c` returns the predicate for
 
@@ -395,25 +427,25 @@ hypPred g s ksu hyp =
       in the final predicate. They are considered redundant conjuncts as per
       section 2.4 of "Local Refinement Typing", ICFP 2017.
  -}
-cubePred :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
-cubePred g s ksu c    =
-    let (p, kI) = cubePredExc g s c bs'
+cubePred :: CombinedEnv ann -> F.IBindEnv -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
+cubePred g bsInScope s ksu c    =
+    let (p, kI) = cubePredExc g bsInScope s c bs'
         -- Free variables in p should not colide with those generated by
         -- the rapier substitution. If that were the case, perhaps we would
         -- need to include @combinedSEnv g@ in the scope set.
      in (F.rapierSubstExpr (F.substSymbolsSet su) su p, kI)
   where
-    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
+    bs' = F.diffIBindEnv bs $ F.unionIBindEnv bsInScope $ Misc.safeLookup "sScp" k (Sol.sScp s)
     bs  = Sol.cuBinds c
     k   = F.ksuKVar ksu
     su = dropUnsortedExprs g (F.ksuSubst  ksu)
 
 -- | @cubePredExc@ computes the predicate for the subset of binders bs'.
-cubePredExc :: CombinedEnv ann -> Sol.Sol Sol.QBind -> Sol.Cube -> F.IBindEnv
+cubePredExc :: CombinedEnv ann -> F.IBindEnv -> Sol.Sol Sol.QBind -> Sol.Cube -> F.IBindEnv
             -> (F.Pred, KInfo)
-cubePredExc g s c bs' =
+cubePredExc g bsInScope s c bs' =
     let (_  , psu') = substElim g' su'
-        (p', kI) = apply g' s bs'
+        (p', kI) = apply g' bsInScope s bs'
         cubeE = F.pExist yts' (F.pAndNoDedup [p', psu'])
      in (cubeE, extendKInfo kI (Sol.cuTag c))
   where
