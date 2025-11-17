@@ -357,11 +357,12 @@ simplifyKVar = go
   where
     go (POr es) = POr $ map go es
     go (PAnd es) = PAnd $ map go es
-    go (PExist bs (PAnd es0)) =
-      let es = map go es0
+    go (PExist bs e0) =
+      let es = map go (conjuncts e0)
+          e = pAnd es
 
           -- Count occurrences of each variable
-          allOccurrences = L.group $ L.sort $ collectFreeVarOccurrences (PAnd es)
+          allOccurrences = L.group $ L.sort $ collectFreeVarOccurrences e
 
           -- existential bindings that occur only once in the body of the
           -- existential
