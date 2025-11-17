@@ -24,6 +24,7 @@ module Language.Fixpoint.Types.Environments (
   , filterSEnv
   , lookupSEnvWithDistance
   , envCs
+  , envCsI
 
   -- * Local Constraint Environments
   , IBindEnv, BindId, BindMap
@@ -37,6 +38,7 @@ module Language.Fixpoint.Types.Environments (
   , unionsIBindEnv
   , diffIBindEnv
   , intersectionIBindEnv
+  , intersectionsIBindEnv
   , nullIBindEnv
   , filterIBindEnv
 
@@ -268,6 +270,10 @@ unionsIBindEnv = L.foldl' unionIBindEnv emptyIBindEnv
 intersectionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 intersectionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.intersection` m2
 
+intersectionsIBindEnv :: [IBindEnv] -> IBindEnv
+intersectionsIBindEnv [] = emptyIBindEnv
+intersectionsIBindEnv (ibs:ibss) = L.foldl' intersectionIBindEnv ibs ibss
+
 nullIBindEnv :: IBindEnv -> Bool
 nullIBindEnv (FB m) = S.null m
 
@@ -319,6 +325,9 @@ instance Monoid (BindEnv a) where
 
 envCs :: BindEnv a -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be (FB s) = [(x, y) | (x, y, _) <- M.elems (M.intersection (beBinds be) (S.toMap s))]
+
+envCsI :: BindEnv a -> IBindEnv -> [(BindId, (Symbol, SortedReft))]
+envCsI be (FB s) = [(i, (x, y)) | (i, (x, y, _)) <- M.toList (M.intersection (beBinds be) (S.toMap s))]
 
 instance Fixpoint IBindEnv where
   toFix (FB ids) = text "env" <+> toFix ids
