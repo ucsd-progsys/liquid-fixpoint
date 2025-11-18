@@ -72,7 +72,6 @@ module Language.Fixpoint.Types.Names (
   , dummySymbol
   , intSymbol
   , tempSymbol
-  , gradIntSymbol
   , appendSymbolText
   , hvarArgSymbol
 
@@ -488,9 +487,6 @@ kArgSymbol x k = (kArgPrefix `mappendSym` x) `suffixSymbol` k
 existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 
-gradIntSymbol :: Integer -> Symbol
-gradIntSymbol = intSymbol gradPrefix
-
 hvarArgSymbol :: Symbol -> Int -> Symbol
 hvarArgSymbol s i = intSymbol (suffixSymbol hvarPrefix s) i
 
@@ -501,13 +497,12 @@ hvarArgSymbol s i = intSymbol (suffixSymbol hvarPrefix s) i
 bindSymbol :: Integer -> Symbol
 bindSymbol = intSymbol bindPrefix
 
-tempPrefix, anfPrefix, renamePrefix, substPrefix, litPrefix, gradPrefix, bindPrefix :: Symbol
+tempPrefix, anfPrefix, renamePrefix, substPrefix, litPrefix, bindPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
 substPrefix = "subst$"
 litPrefix    = "lit$"
-gradPrefix   = "grad$"
 bindPrefix   = "b$"
 
 testPrefix  :: Symbol
