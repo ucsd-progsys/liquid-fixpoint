@@ -5,6 +5,7 @@
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
@@ -26,14 +27,14 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent                 (setNumCapabilities)
 import qualified Data.HashMap.Strict              as HashMap
+import qualified Data.HashSet                     as S
 import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
-import qualified Data.List as L
 import qualified Data.Text.Lazy.IO                as LT
 import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
-import           Control.Monad                      (mplus, when)
+import           Control.Monad                      (guard, mplus, when)
 import           Control.Exception                  (catch)
 import           Control.Exception.Compat
     (ExceptionWithContext(..), displayExceptionContext, wrapExceptionWithContext)
@@ -60,7 +61,7 @@ import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.PLE as PLE (instantiate)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
-import Data.Maybe (catMaybes, mapMaybe)
+import Data.Maybe (catMaybes)
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 ---------------------------------------------------------------------------
@@ -341,7 +342,9 @@ simplifyResult cfg res =
 --
 -- For instance, in the following example, "x" is not used at all.
 --
--- > simplifyKVar "exists x y. y == z && y == C" == "exists y. y == z && y == C"
+-- > simplifyKVar "exists x y. y == z && y == C"
+-- >   ==
+-- > "exists y. y == z && y == C"
 --
 -- And in the following example, @x@ is used but in a way that doesn't
 -- contribute any useful knowledge.
@@ -350,63 +353,52 @@ simplifyResult cfg res =
 -- >   ==
 -- > "exists y. y == z && y == C"
 --
--- We require that relevant variables occur more than once, or that
--- they occur in some other place than as an argument to @==@.
+-- Therefore we eliminate variables that appear in equalities via substitutions.
+--
+-- > simplifyKVar "exists x y. x == C && P && Q y"
+-- >   ==
+-- > "exists y. (P && Q y)[x:=C]"
+--
 simplifyKVar :: Expr -> Expr
 simplifyKVar = go
   where
     go (POr es) = POr $ map go es
     go (PAnd es) = PAnd $ map go es
+    go (PExist bs0 (PExist bs1 p)) =
+      let bs0' = filter (\(x,_) -> x `notElem` map fst bs1) bs0
+       in PExist (bs0' ++ bs1) p
     go (PExist bs e0) =
       let es = map go (conjuncts e0)
-          e = pAnd es
-
-          -- Count occurrences of each variable
-          allOccurrences = L.group $ L.sort $ collectFreeVarOccurrences e
-
-          -- existential bindings that occur only once in the body of the
-          -- existential
-          singleOccurrenceBindings =
-            filter isExistentialBinding $
-              concat $ filter occursExactlyOnce allOccurrences
-
-          -- existential bindings that occur more than once
-          multipleOccurrenceBindings =
-            filter isExistentialBinding $
-              map head $ filter occursMoreThanOnce allOccurrences
-
-          isExistentialBinding = (`elem` map fst bs)
-          occursExactlyOnce [_] = True
-          occursExactlyOnce _   = False
-          occursMoreThanOnce (_:_:_) = True
-          occursMoreThanOnce _ = False
-
-          esv = map (isUniqueEq singleOccurrenceBindings) es
-          removed = mapMaybe fst esv
-          needed = (singleOccurrenceBindings L.\\ removed) ++ multipleOccurrenceBindings
-          bs' = filter ((`elem` needed) . fst) bs
+          esv = map (isVarEq (map fst bs)) es
+          -- Eliminating multiple variables at once can be difficult if the
+          -- equalities define cyclic dependencies, so we only eliminate one
+          -- variable at a time.
+          esvElim = take 1 [ (x, v) | (Just (x, v), _) <- esv ]
+          su = mkSubst esvElim
+          e' = rapierSubstExpr (substSymbolsSet su) su $ pAnd [ei | (Nothing, ei) <- esv]
+          bs' = filter ((`S.member` exprSymbolsSet e') . fst) bs
+          e'' = pExist bs' e'
       in
-          pExist bs' $ pAnd [ei | (Nothing, ei) <- esv]
+         if null esvElim then e'' else go e''
     go e = e
 
-
-
 -- | Determine if the expression is an equality that sets the value of
--- a variable that occurs only once.
+-- a variable in the given set.
 --
--- In @isUniqueEq fvs e@, @fvs@ contains the variables that occur only once,
--- and @e@ is the equality to analyze.
---
--- Yields @(Just v, e)@ if @v@ is in @fvs@, and @e@ has
+-- @isVarEq fvs e@ yields @(Just (v, e'), e)@ if @v@ is in @fvs@, and @e@ has
 -- the form @v == e'@.
-isUniqueEq :: [Symbol] -> Expr -> (Maybe Symbol, Expr)
-isUniqueEq fvs er = case unElab er of
+isVarEq :: [Symbol] -> Expr -> (Maybe (Symbol, Expr), Expr)
+isVarEq fvs ei0 = case unElab ei0 of
   PAtom brel e0 e1
     | isEqRel brel ->
-      let m = isVarIn e0 fvs `mplus` isVarIn e1 fvs
-       in (m, er)
+      let m = do
+            (v, ei) <- ((,e1) <$> isVarIn e0 fvs) `mplus`
+                       ((,e0) <$> isVarIn e1 fvs)
+            () <- guard (not (S.member v (exprSymbolsSet ei)))
+            return (v, ei)
+       in (m, ei0)
   _ ->
-    (Nothing, er)
+    (Nothing, ei0)
   where
     -- | Tells if the binary relation is an equality.
     isEqRel :: Brel -> Bool
@@ -426,37 +418,3 @@ isUniqueEq fvs er = case unElab er of
     isVarIn (EVar s) vs
       | elem s vs = Just s
     isVarIn _ _vs = Nothing
-
--- | Produces the free variables of an expressions as many times as they occur.
---
--- There are no guarantees on the order in which the variables are produced. For
--- instance,
---
--- > collectFreeVarOccurrences "z (y x) (y x)" == ["z", "y", "x", "y", "x"]
---
-collectFreeVarOccurrences :: Expr -> [Symbol]
-collectFreeVarOccurrences = go []
-  where
-    go acc e0 = case e0 of
-      ESym _ -> acc
-      ECon _ -> acc
-      EVar v -> v : acc
-      PKVar _ (Su m) -> foldr (flip go) acc $ HashMap.elems m
-      ENeg e -> go acc e
-      PNot p -> go acc p
-      ECst e _t -> go acc e
-      PAll xts p -> filter (`notElem` map fst xts) $ go acc p
-      ELam (b, _) e -> filter (b /=) $ go acc e
-      ECoerc _a _t e -> go acc e
-      PExist xts p -> filter (`notElem` map fst xts) $ go acc p
-      ETApp e _s -> go acc e
-      ETAbs e _s -> go acc e
-      EApp g e -> go (go acc e) g
-      EBin _o e1 e2 -> go (go acc e2) e1
-      PImp p1 p2 -> go (go acc p2) p1
-      PIff p1 p2 -> go (go acc p2) p1
-      PAtom _r e1 e2 -> go (go acc e2) e1
-      ELet x e1 e2 -> go (filter (x /=) $ go acc e2) e1
-      EIte p e1 e2 -> go (go (go acc e2) e1) p
-      PAnd ps -> foldr (flip go) acc ps
-      POr ps -> foldr (flip go) acc ps
