@@ -382,34 +382,28 @@ hypPred g s ksu hyp =
  -}
 cubePred :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
 cubePred g s ksu c    =
-    let ((xts,psu,p), kI) = cubePredExc g s ksu c bs'
+    let (p, kI) = cubePredExc g s c bs'
+        (xts, psu) = substElim g su
      in (F.pExist xts (psu &.& p), kI)
   where
     bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
     bs  = Sol.cuBinds c
     k   = F.ksuKVar ksu
-
-type Binders = [(F.Symbol, F.Sort)]
+    su  = F.ksuSubst  ksu
 
 -- | @cubePredExc@ computes the predicate for the subset of binders bs'.
---   The output is a tuple, `(xts, psu, p, kI)` such that the actual predicate
---   we want is `Exists xts. (psu /\ p)`.
-
-cubePredExc :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Cube -> F.IBindEnv
-            -> ((Binders, F.Pred, F.Pred), KInfo)
-cubePredExc g s ksu c bs' =
-    let (xts, psu)  = substElim g  su
-        (_  , psu') = substElim g' su'
+cubePredExc :: CombinedEnv ann -> Sol.Sol Sol.QBind -> Sol.Cube -> F.IBindEnv
+            -> (F.Pred, KInfo)
+cubePredExc g s c bs' =
+    let (_  , psu') = substElim g' su'
         (p', kI) = apply g' s bs'
         cubeE = F.pExist yts' (F.pAndNoDedup [p', psu'])
-        cubeP = (xts, psu, cubeE)
-     in (cubeP, extendKInfo kI (Sol.cuTag c))
+     in (cubeE, extendKInfo kI (Sol.cuTag c))
   where
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
     su'             = Sol.cuSubst c
     bs              = Sol.cuBinds c
-    su              = F.ksuSubst  ksu
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
 
