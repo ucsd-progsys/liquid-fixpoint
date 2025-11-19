@@ -72,7 +72,6 @@ module Language.Fixpoint.Types.Names (
   , dummySymbol
   , intSymbol
   , tempSymbol
-  , gradIntSymbol
   , appendSymbolText
   , hvarArgSymbol
 
@@ -81,6 +80,7 @@ module Language.Fixpoint.Types.Names (
   , bindSymbol
   , testSymbol
   , renameSymbol
+  , renameSubstSymbol
   , kArgSymbol
   , existSymbol
   , suffixSymbol
@@ -475,6 +475,9 @@ appendSymbolText s t = encode (symbolText s <> symSepName <> t)
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
 
+renameSubstSymbol :: Symbol -> Int -> Symbol
+renameSubstSymbol prefix = intSymbol (substPrefix `mappendSym` prefix)
+
 renameSymbol :: Symbol -> Int -> Symbol
 renameSymbol prefix = intSymbol (renamePrefix `mappendSym` prefix)
 
@@ -483,9 +486,6 @@ kArgSymbol x k = (kArgPrefix `mappendSym` x) `suffixSymbol` k
 
 existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
-
-gradIntSymbol :: Integer -> Symbol
-gradIntSymbol = intSymbol gradPrefix
 
 hvarArgSymbol :: Symbol -> Int -> Symbol
 hvarArgSymbol s i = intSymbol (suffixSymbol hvarPrefix s) i
@@ -497,12 +497,12 @@ hvarArgSymbol s i = intSymbol (suffixSymbol hvarPrefix s) i
 bindSymbol :: Integer -> Symbol
 bindSymbol = intSymbol bindPrefix
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix, bindPrefix :: Symbol
+tempPrefix, anfPrefix, renamePrefix, substPrefix, litPrefix, bindPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
+substPrefix = "subst$"
 litPrefix    = "lit$"
-gradPrefix   = "grad$"
 bindPrefix   = "b$"
 
 testPrefix  :: Symbol
