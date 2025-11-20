@@ -932,7 +932,7 @@ saveTextQuery cfg fi = do
 --
 -- Usage example:
 --
--- > when (save cfg) $ do
+-- > when (save cfg) $
 -- >   saveSInfo cfg ".sinfo" si
 --
 -- This will write a file like `.liquid/Test.hs.sinfo.fq` when the
