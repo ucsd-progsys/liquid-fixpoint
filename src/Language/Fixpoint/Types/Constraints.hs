@@ -29,6 +29,7 @@ module Language.Fixpoint.Types.Constraints (
   , toFixpoint
   , writeFInfo
   , saveQuery
+  , saveSInfo
 
    -- * Constructing Queries
   , fi
@@ -923,6 +924,14 @@ saveTextQuery cfg fi = do
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
   ensurePath fq
   T.writeFile fq $ T.pack $ render (toFixpoint cfg fi)
+
+-- Used for debugging to inspect intermediate SInfo files
+saveSInfo :: Fixpoint a => C.Config -> FilePath -> SInfo a -> IO ()
+saveSInfo cfg sfx si = do
+  let fq = Files.tempFileName (C.srcFile cfg ++ sfx ++ ".fq")
+  putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
+  ensurePath fq
+  T.writeFile fq $ T.pack $ render (toFixpoint cfg si)
 
 ---------------------------------------------------------------------------
 -- | Axiom Instantiation Information --------------------------------------

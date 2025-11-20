@@ -14,6 +14,7 @@ module Language.Fixpoint.Utils.Files (
   , extFileName
   , extFileNameR
   , tempDirectory
+  , tempFileName
   , extModuleName
   , withExt
   , isExtFile
@@ -139,11 +140,10 @@ withExt         :: FilePath -> Ext -> FilePath
 withExt f ext   =  replaceExtension f (extMap ext)
 
 extFileName     :: Ext -> FilePath -> FilePath
-extFileName e f = path </> addExtension file ext
-  where
-    path        = tempDirectory f
-    file        = takeFileName  f
-    ext         = extMap e
+extFileName e f = tempFileName (addExtension f (extMap e))
+
+tempFileName     :: FilePath -> FilePath
+tempFileName f = tempDirectory f </> takeFileName f
 
 tempDirectory   :: FilePath -> FilePath
 tempDirectory f
