@@ -925,8 +925,20 @@ saveTextQuery cfg fi = do
   ensurePath fq
   T.writeFile fq $ T.pack $ render (toFixpoint cfg fi)
 
--- Used for debugging to inspect intermediate SInfo files
-saveSInfo :: Fixpoint a => C.Config -> FilePath -> SInfo a -> IO ()
+-- | Used for debugging to inspect intermediate 'SInfo' files.
+--
+-- Takes a suffix to put in the name of the written file, whose name
+-- is still derived from the input file name in `cfg`.
+--
+-- Usage example:
+--
+-- > when (save cfg) $ do
+-- >   saveSInfo cfg ".sinfo" si
+--
+-- This will write a file like `.liquid/Test.hs.sinfo.fq` when the
+-- `--save` flag is used.
+--
+saveSInfo :: Fixpoint a => C.Config -> String -> SInfo a -> IO ()
 saveSInfo cfg sfx si = do
   let fq = Files.tempFileName (C.srcFile cfg ++ sfx ++ ".fq")
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
