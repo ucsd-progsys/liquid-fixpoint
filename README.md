@@ -245,7 +245,7 @@ bind 2 y : ...
 Each `slhs` of a constraint is a `SortedReft`.
 
 - Each `SortredReft` is basically a `Reft` -- a logical predicate.
-  The important bit is that a `KVar` i.e. terms of the formalized
+  The important bit is that a `KVar` i.e. terms of the form
 
 ```
      $k1[x1:=y1][x2:=y2]...[xn:=yn]
@@ -282,10 +282,29 @@ Each `slhs` of a constraint is a `SortedReft`.
 
   is not. The exact definition is formalized in `Language.Fixpoint.SortCheck`
 
-
 ### RHS
 
 Similarly each `rhs` of a `SubC` must either be a single `$k[...]` or an plain `$k`-free `Expr`.
+
+### KVar occurrences
+
+* Each `KVar` that appears in any binding or constraint must have exactly one
+  associated wf constraint.
+
+* Each `KVar` that appears in any binding or constraint must have an
+  accompanying substitution whose domain has the same symbols as the environment
+  of the corresponding wf constraint plus the symbol of its refinement type.
+
+For example, if the wf constraint is
+```
+    x:int, y: int |- {v:int | $k_##42 }
+```
+
+any occurrence of `$k_##42` must be of the form
+
+```
+    $k_##42 [x:=e1][y:=e2][v:=e3]
+```
 
 ### Global vs. Distinct Literals
 
