@@ -318,7 +318,7 @@ instance Monoid (BindEnv a) where
   mappend = (<>)
 
 envCs :: BindEnv a -> IBindEnv -> [(Symbol, SortedReft)]
-envCs be env = [(x, y) | i <- elemsIBindEnv env, let (x, y, _) = lookupBindEnv i be]
+envCs be (FB s) = [(x, y) | (x, y, _) <- M.elems (M.intersection (beBinds be) (S.toMap s))]
 
 instance Fixpoint IBindEnv where
   toFix (FB ids) = text "env" <+> toFix ids
