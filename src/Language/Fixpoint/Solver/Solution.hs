@@ -22,6 +22,7 @@ module Language.Fixpoint.Solver.Solution
 import           Control.Arrow (second, (***))
 import           Control.Monad                  (guard)
 import           Control.Monad.Reader
+import           Data.Either                    (partitionEithers)
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import           Data.Maybe                     (maybeToList, isJust, isNothing)
@@ -412,53 +413,53 @@ cubePred g s ksu c    =
 cubePredExc :: CombinedEnv ann -> Sol.Sol Sol.QBind -> Sol.Cube -> F.IBindEnv
             -> (F.Pred, KInfo)
 cubePredExc g s c bs' =
-    let (_  , psu') = substElim g' su'
+    let (psu', su'@(F.Su m)) = substElim (map fst yts) su
         (p', kI) = apply g' s bs'
-        cubeE = F.pExist yts' (F.pAndNoDedup [p', psu'])
-     in (cubeE, extendKInfo kI (Sol.cuTag c))
+        p'' = F.rapierSubstExpr (F.substSymbolsSet su') su'
+                (F.pAndNoDedup [p', psu'])
+     in (F.pExist (filter (not . (`M.member` m) . fst) yts) p'', extendKInfo kI (Sol.cuTag c))
   where
-    yts'            = symSorts g bs'
-    g'              = addCEnv  g bs
-    su'             = Sol.cuSubst c
-    bs              = Sol.cuBinds c
+    yts = symSorts g bs'
+    g' = addCEnv  g bs
+    su = dropUnsortedExprs g' (Sol.cuSubst c)
+    bs = Sol.cuBinds c
 
--- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
 
-{- | @substElim@ returns the binders that must be existentially quantified,
-     and the equality predicate relating the kvar-"parameters" and their
-     actual values. i.e. given
+{- | @substElim@ returns the equalities that a substitution implies, and a
+     substitution that can be applied without losing information.
 
-        K[x1 := e1]...[xn := en]
+     e.g.
+       exists u v. K=e && K[x1:=u][x2:=p v]
 
-     where e1 ... en have types t1 ... tn
-     we want to quantify out
+     is equivalent to
 
-       x1:t1 ... xn:tn
+     > exists u v x1 x2. K=e && e && x1 = u && x2 = p v
 
-     and generate the equality predicate && [x1 ~~ e1, ... , xn ~~ en]
-     we use ~~ because the param and value may have different sorts, see:
+     which we can compress to
 
-        tests/pos/kvar-param-poly-00.hs
+     > exists v x1 x2. K=e && e[u:=x1] && x2 = p v
 
-     Finally, we filter out binders if they are
+     More generally,
 
-     1. "free" in e1...en i.e. in the outer environment.
-        (Hmm, that shouldn't happen...?)
+     @substElim [v1..vm] [x1:=e1;..;xn:=en]@ computes @(p, su)@ 
+     such that
 
-     2. are binders corresponding to sorts (e.g. `a : num`, currently used
-        to hack typeclasses current.)
+     > exists v1..vm. K=e && x1 = e1 && ... && xn = en
+
+     is equivalent to
+
+     > exists w1..wk. K=e && e[su] && p
+
+     where @w1..wk@ is a subset of @v1..vm@, and @p@ contains a subset
+     of the equalities in @x1 = e1 && ... && xn = en@.
  -}
-substElim :: CombinedEnv a -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
-substElim g (F.Su m) =
-    (xts, F.pAnd [ F.EEq (F.expr x) e | (x, e, _) <- xets ])
+substElim :: [F.Symbol] -> F.Subst -> (F.Pred, F.Subst)
+substElim exBinds (F.Su m) =
+    (F.pAnd [ F.EEq (F.expr x) e | (x, e) <- xesNV ], F.mkSubst xesV)
   where
-    xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
-    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t)]
-    frees  = S.fromList (concatMap (F.syms . snd) xes)
-    sortOf = maybeToList . So.checkSortExpr sp env
-    sp     = ceSpan g
-    xes    = M.toList m
-    env    = combinedSEnv g
+    (xesNV, xesV) = partitionEithers $ map eitherEBind $ M.toList m
+    eitherEBind (x, F.EVar v) | elem v exBinds = Right (v, F.expr x)
+    eitherEBind (x, e) = Left (x, e)
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True
