@@ -362,11 +362,11 @@ simplifyResult cfg res =
 simplifyKVar :: Expr -> Expr
 simplifyKVar = go
   where
-    go (POr es) = POr $ map go es
-    go (PAnd es) = PAnd $ map go es
+    go (POr es) = pOr $ map go es
+    go (PAnd es) = pAnd $ map go es
     go (PExist bs0 (PExist bs1 p)) =
       let bs0' = filter (\(x,_) -> x `notElem` map fst bs1) bs0
-       in PExist (bs0' ++ bs1) p
+       in go (PExist (bs0' ++ bs1) p)
     go (PExist bs e0) =
       let es = map go (conjuncts e0)
           esv = map (isVarEq (map fst bs)) es
