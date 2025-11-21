@@ -409,56 +409,30 @@ cubePred g s ksu c    =
     su = dropUnsortedExprs g (F.ksuSubst  ksu)
 
 -- | @cubePredExc@ computes the predicate for the subset of binders bs'.
+--
+-- Schematically, the result is
+--
+-- > Exists (bindsOf bs'). (pAnd (predicatesOf bs'))[Sol.cuSubst c]
+--
+-- but we also preserve the information about which variables are being
+-- substituted:
+--
+-- > Exists (bindsOf bs'). pAnd (predicatesOf bs') && x1=e1 && ... && xn=en
+--
+-- where @Sol.cuSubst c = [x1:=e1;...;xn:=en]@.
+--
 cubePredExc :: CombinedEnv ann -> Sol.Sol Sol.QBind -> Sol.Cube -> F.IBindEnv
             -> (F.Pred, KInfo)
 cubePredExc g s c bs' =
-    let (_  , psu') = substElim g' su'
+    let psu' = F.pAnd [ F.EEq (F.expr x) e | (x, e) <- M.toList m ]
         (p', kI) = apply g' s bs'
         cubeE = F.pExist yts' (F.pAndNoDedup [p', psu'])
      in (cubeE, extendKInfo kI (Sol.cuTag c))
   where
-    yts'            = symSorts g bs'
-    g'              = addCEnv  g bs
-    su'             = Sol.cuSubst c
-    bs              = Sol.cuBinds c
-
--- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
-
-{- | @substElim@ returns the binders that must be existentially quantified,
-     and the equality predicate relating the kvar-"parameters" and their
-     actual values. i.e. given
-
-        K[x1 := e1]...[xn := en]
-
-     where e1 ... en have types t1 ... tn
-     we want to quantify out
-
-       x1:t1 ... xn:tn
-
-     and generate the equality predicate && [x1 ~~ e1, ... , xn ~~ en]
-     we use ~~ because the param and value may have different sorts, see:
-
-        tests/pos/kvar-param-poly-00.hs
-
-     Finally, we filter out binders if they are
-
-     1. "free" in e1...en i.e. in the outer environment.
-        (Hmm, that shouldn't happen...?)
-
-     2. are binders corresponding to sorts (e.g. `a : num`, currently used
-        to hack typeclasses current.)
- -}
-substElim :: CombinedEnv a -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
-substElim g (F.Su m) =
-    (xts, F.pAnd [ F.EEq (F.expr x) e | (x, e, _) <- xets ])
-  where
-    xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
-    xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t)]
-    frees  = S.fromList (concatMap (F.syms . snd) xes)
-    sortOf = maybeToList . So.checkSortExpr sp env
-    sp     = ceSpan g
-    xes    = M.toList m
-    env    = combinedSEnv g
+    yts' = symSorts g bs'
+    g' = addCEnv  g bs
+    F.Su m = dropUnsortedExprs g' (Sol.cuSubst c)
+    bs = Sol.cuBinds c
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True
