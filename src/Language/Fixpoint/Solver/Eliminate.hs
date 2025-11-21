@@ -7,8 +7,10 @@
 
 module Language.Fixpoint.Solver.Eliminate ( solverInfo ) where
 
+import           Control.Monad.State
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
+import qualified Data.List           as List
 
 import           Language.Fixpoint.Types.Config    (Config)
 import qualified Language.Fixpoint.Types.Solutions as Sol
@@ -41,11 +43,51 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
       { Sol.sMap = mempty
       , Sol.sHyp = M.fromList kHyps
       , Sol.sScp = kS
+      , Sol.sKVarInvs = kvInvariants es mempty nKs
       }
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
     kS             = kvScopes     sI es
+
+-- | For each KVar, provide the bindings that it must always satisfy
+kvInvariants
+  :: [CEdge] -> M.HashMap KVar IBindEnv -> S.HashSet KVar -> M.HashMap KVar IBindEnv
+kvInvariants es m0 nKs = flip execState m0 $ mapM invariantsOfKVar $ S.toList nKs
+  where
+    -- | The constraints in which each KVar appears on the RHS
+    definingConstraints :: M.HashMap KVar [Integer]
+    definingConstraints = group $ [(k, i) | (Cstr i, KVar k) <- es ]
+
+    -- | The KVars that appear on the LHS of a constraint
+    neededKVars :: M.HashMap Integer (S.HashSet KVar)
+    neededKVars = M.fromListWith S.union [ (i, S.singleton k) | (KVar k, Cstr i) <- es ]
+
+    invariantsOfKVar :: KVar -> State (M.HashMap KVar IBindEnv) IBindEnv
+    invariantsOfKVar k = do
+        m <- get
+        case M.lookup k m of
+          Just ibs -> return ibs
+          Nothing -> do
+              invs <- commonInvsOfConstraints cs
+              modify (M.insert k invs)
+              return invs
+            where
+              cs   = M.lookupDefault [] k definingConstraints
+
+    commonInvsOfConstraints :: [Integer] -> State (M.HashMap KVar IBindEnv) IBindEnv
+    commonInvsOfConstraints is0 = do
+        ibss0 <- mapM invariantsOfConstraint is0
+        case ibss0 of
+          []     -> return mempty
+          (ibs:ibss) ->
+            return $ List.foldl' intersectionIBindEnv ibs ibss
+
+    invariantsOfConstraint :: Integer -> State (M.HashMap KVar IBindEnv) IBindEnv
+    invariantsOfConstraint i0 = do
+        let ks =  S.toList $ M.lookupDefault S.empty i0 neededKVars
+        List.foldl' unionIBindEnv mempty
+          <$> mapM invariantsOfKVar ks
 
 --------------------------------------------------------------------------------
 -- | For each KVar, provide the intersection of the binding environments

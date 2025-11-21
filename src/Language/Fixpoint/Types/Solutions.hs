@@ -161,6 +161,7 @@ data Sol a = Sol
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of binders which are in scope for every
                                          -- occurrence of the kvar
+  , sKVarInvs :: !(M.HashMap KVar IBindEnv) -- ^ Invariants that each non-cut kvar must satisfy
   } deriving (Generic)
 
 deriving instance NFData a => NFData (Sol a)
@@ -169,17 +170,19 @@ instance Semigroup (Sol a) where
   s1 <> s2 = Sol { sMap  = sMap s1  <> sMap s2
                  , sHyp  = sHyp s1  <> sHyp s2
                  , sScp  = sScp s1  <> sScp s2
+                 , sKVarInvs = sKVarInvs s1 <> sKVarInvs s2
                  }
 
 instance Monoid (Sol a) where
   mempty = Sol { sMap = mempty
                , sHyp = mempty
                , sScp = mempty
+               , sKVarInvs = mempty
                }
   mappend = (<>)
 
 instance Functor Sol where
-  fmap f (Sol s m1 m2) = Sol (f <$> s) m1 m2
+  fmap f (Sol s m1 m2 m3) = Sol (f <$> s) m1 m2 m3
 
 instance PPrint a => PPrint (Sol a) where
   pprintTidy k s = vcat [ "sMap :=" <+> pprintTidy k (sMap s) ]
