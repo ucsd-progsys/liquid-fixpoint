@@ -28,6 +28,7 @@ module Language.Fixpoint.Solver (
 import           Control.Concurrent                 (setNumCapabilities)
 import qualified Data.HashMap.Strict              as HashMap
 import qualified Data.HashSet                     as S
+import qualified Data.List                        as List
 import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
 import qualified Data.Text.Lazy.IO                as LT
@@ -360,15 +361,15 @@ simplifyResult cfg res =
 -- > "exists y. (P && Q y)[x:=C]"
 --
 simplifyKVar :: Expr -> Expr
-simplifyKVar = go
+simplifyKVar = pAnd . dedupByAlphaEq . floatPExistConjuncts . go
   where
-    go (POr es) = pOr $ map go es
-    go (PAnd es) = pAnd $ map go es
+    go (POr es) = pOr $ map (pAnd . floatPExistConjuncts . go) es
+    go (PAnd es) = pAnd $ dedupByAlphaEq $ concatMap (floatPExistConjuncts . go) es
     go (PExist bs0 (PExist bs1 p)) =
       let bs0' = filter (\(x,_) -> x `notElem` map fst bs1) bs0
        in go (PExist (bs0' ++ bs1) p)
     go (PExist bs e0) =
-      let es = map go (conjuncts e0)
+      let es = concatMap (floatPExistConjuncts . go) (conjuncts e0)
           esv = map (isVarEq (map fst bs)) es
           -- Eliminating multiple variables at once can be difficult if the
           -- equalities define cyclic dependencies, so we only eliminate one
@@ -379,8 +380,45 @@ simplifyKVar = go
           bs' = filter ((`S.member` exprSymbolsSet e') . fst) bs
           e'' = pExist bs' e'
       in
-         if null esvElim then e'' else go e''
+          if null esvElim then e'' else go e''
     go e = e
+
+    dedupByAlphaEq :: [Expr] -> [Expr]
+    dedupByAlphaEq = List.nubBy (\e1 e2 -> alphaEq e1 e2)
+
+-- | Float out conjuncts from an existential expression that does not
+-- depend on the existentially bound variables.
+floatPExistConjuncts :: Expr -> [Expr]
+floatPExistConjuncts e0@(PExist bs (PAnd es)) =
+    let (floatable, nonFloatable) =
+           List.partition (isFloatableConjunct (S.fromList (map fst bs))) es
+     in
+        if null floatable then
+          [e0]
+        else
+          PExist bs (pAndNoDedup nonFloatable) : floatable
+  where
+    isFloatableConjunct :: S.HashSet Symbol -> Expr -> Bool
+    isFloatableConjunct s e = S.null $ S.intersection (exprSymbolsSet e) s
+floatPExistConjuncts e = [e]
+
+-- | Determine if two expressions are alpha-equivalent.
+--
+-- Doesn't handle all cases, just enough for simplifying KVars which requires
+-- alpha-equivalence checking of existentially quantified expressions.
+alphaEq :: Expr -> Expr -> Bool
+alphaEq = go (mkSubst [])
+  where
+    go :: Subst -> Expr -> Expr -> Bool
+    go su (PExist bs1 x1) (PExist bs2 x2) =
+      let su' = foldl (\s (v1, v2) -> extendSubst s v1 (EVar v2)) su (zip (map fst bs1) (map fst bs2))
+       in go su' x1 x2
+    go su (PAnd es1) (PAnd es2) =
+      length es1 == length es2 && all (\(e1, e2) -> go su e1 e2) (zip es1 es2)
+    go su (POr es1) (POr es2) =
+      length es1 == length es2 && all (\(e1, e2) -> go su e1 e2) (zip es1 es2)
+    go su e1 e2 =
+      subst su e1 == e2
 
 -- | Determine if the expression is an equality that sets the value of
 -- a variable in the given set.
