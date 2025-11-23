@@ -23,6 +23,9 @@ module Language.Fixpoint.Solver (
 
     -- * Simplified Info
   , simplifyFInfo
+
+    -- * Simplify KVar solutions
+  , simplifyKVar
 ) where
 
 import           Control.Concurrent                 (setNumCapabilities)
