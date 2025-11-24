@@ -6,15 +6,15 @@ data Vec 1 = [
   | VCons { mhead : @(0), mtail : Vec @(0) }
 ]
 
-match isNil VNil       = true 
-match isNil VCons x xs = false
+match isNil VNil        { true  }
+match isNil VCons x xs  { false }
 
-match isCons VNil       = false 
-match isCons VCons x xs = true
+match isCons VNil        { false  }
+match isCons VCons x xs  { true }
 
 
-match head VCons x xs = (x)
-match tail VCons x xs = (xs)
+match head VCons x xs  { x }
+match tail VCons x xs  { xs }
 
 constant mall: (func(0, [func(0,[int;bool]); Vec int; bool]))
 constant geq: (func(0, [int; int; bool]))

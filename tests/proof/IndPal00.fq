@@ -9,26 +9,26 @@ data IndPalindrome.PalP 1 = [
      ]
 
 
-match tail Cons lq_tmp$x##536 lq_tmp$x##537  =  (lq_tmp$x##537)
-match head Cons lq_tmp$x##536 lq_tmp$x##537  =  (lq_tmp$x##536)
-match is$Cons Cons lq_tmp$x##536 lq_tmp$x##537  =  (true)
-match is$Nil Cons lq_tmp$x##536 lq_tmp$x##537  =  (false)
-match len Cons lq_tmp$x##536 lq_tmp$x##537  =  ((1 + (len lq_tmp$x##537)))
-match is$Cons Nil  =  (false)
-match is$Nil Nil  =  (true)
-match len Nil  =  (0)
-match getPal IndPalindrome.Pal lq_tmp$x##540x  =  (lq_tmp$x##540x)
-match is$IndPalindrome.Pal IndPalindrome.Pal lq_tmp$x##540xx  =  (true)
+match tail Cons lq_tmp$x##536 lq_tmp$x##537   { lq_tmp$x##537 }
+match head Cons lq_tmp$x##536 lq_tmp$x##537   { lq_tmp$x##536 }
+match is$Cons Cons lq_tmp$x##536 lq_tmp$x##537   { true }
+match is$Nil Cons lq_tmp$x##536 lq_tmp$x##537   { false }
+match len Cons lq_tmp$x##536 lq_tmp$x##537   { (1 + (len lq_tmp$x##537)) }
+match is$Cons Nil   { false }
+match is$Nil Nil   { true }
+match len Nil   { 0 }
+match getPal IndPalindrome.Pal lq_tmp$x##540x   { lq_tmp$x##540x }
+match is$IndPalindrome.Pal IndPalindrome.Pal lq_tmp$x##540xx   { true }
 // match IndPalindrome.Pal lq_tmp$x##540xxx  =  ((IndPalindrome.Pal lq_tmp$x##540xxx))
-match fromJust GHC.Maybe.Just lq_tmp$x##487  =  (lq_tmp$x##487)
-match is$IndPalindrome.Pals IndPalindrome.Pal0  =  (false)
-match is$IndPalindrome.Pal0 IndPalindrome.Pal0  =  (true)
-match prop IndPalindrome.Pal0  =  ((IndPalindrome.Pal Nil))
-match PHeads IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  (lq_tmp$x##496)
-match PHead IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  (lq_tmp$x##495)
-match is$IndPalindrome.Pals IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  (true)
-match is$IndPalindrome.Pal0 IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  (false)
-match prop IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  ((IndPalindrome.Pal lq_tmp$x##496))
+match fromJust GHC.Maybe.Just lq_tmp$x##487   { lq_tmp$x##487 }
+match is$IndPalindrome.Pals IndPalindrome.Pal0   { false }
+match is$IndPalindrome.Pal0 IndPalindrome.Pal0   { true }
+match prop IndPalindrome.Pal0   { (IndPalindrome.Pal Nil) }
+match PHeads IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496   { lq_tmp$x##496 }
+match PHead IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496   { lq_tmp$x##495 }
+match is$IndPalindrome.Pals IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496   { true }
+match is$IndPalindrome.Pal0 IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496   { false }
+match prop IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496   { (IndPalindrome.Pal lq_tmp$x##496) }
 expand [23 : True]
 
 

@@ -16,14 +16,14 @@ define killer (arg1 : Thing,  arg2 : Thing) : Thing = {
 
 constant killer : (func(0 , [Thing; Thing; Thing]))
 
-match is$Op N x       =  (false)
-match eNum  N x       =  (x) 
-match is$N  N x       =  (true)
-match N       x       =  ((N x)) 
-match opRight Op x y  =  (y)
-match opLeft  Op x y  =  (x)
-match is$Op   Op x y  =  (true)
-match is$N    Op x y  =  (false)
+match is$Op N x        { false }
+match eNum  N x        { (x)  }
+match is$N  N x        { true }
+match N       x        { ((N x))  }
+match opRight Op x y   { y }
+match opLeft  Op x y   { x }
+match is$Op   Op x y   { true }
+match is$N    Op x y   { false }
 
 bind 0 arg2 : {v : Thing | []}
 bind 1 e1   : {v : Thing | []}
