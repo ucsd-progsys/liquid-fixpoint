@@ -1119,8 +1119,7 @@ instance Fixpoint Rewrite where
     = text "match"
    <+> toFix f
    <+> toFix d <+> hsep (toFix <$> xs)
-   <+> text " = "
-   <+> parens (toFix e)
+   <+> braces (toFix e)
 
 instance PPrint Rewrite where
   pprintTidy _ = toFix
