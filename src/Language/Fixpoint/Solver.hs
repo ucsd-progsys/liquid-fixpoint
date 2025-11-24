@@ -65,7 +65,7 @@ import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Language.Fixpoint.Solver.PLE as PLE (instantiate)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, isJust)
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 ---------------------------------------------------------------------------
@@ -378,8 +378,11 @@ simplifyKVar = pAnd . dedupByAlphaEq . floatPExistConjuncts . go
           -- equalities define cyclic dependencies, so we only eliminate one
           -- variable at a time.
           esvElim = take 1 [ (x, v) | (Just (x, v), _) <- esv ]
+          esvKeep =
+            let (xs, ys) = break (isJust . fst) esv
+             in map snd (xs ++ drop 1 ys)
           su = mkSubst esvElim
-          e' = rapierSubstExpr (substSymbolsSet su) su $ pAnd [ei | (Nothing, ei) <- esv]
+          e' = rapierSubstExpr (substSymbolsSet su) su $ pAnd esvKeep
           bs' = filter ((`S.member` exprSymbolsSet e') . fst) bs
           e'' = pExist bs' e'
       in
