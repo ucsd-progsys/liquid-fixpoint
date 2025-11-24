@@ -131,11 +131,7 @@ simpleApp =
 testFunAppP :: TestTree
 testFunAppP =
   testGroup "FunAppP"
-    [ testCase "ECon (litP)" $
-        show (doParse' funAppP "test" "lit \"#x00000008\" (BitVec  Size32)") @?=
-          "ECon (L \"#x00000008\" (FApp (FTC (TC \"BitVec\" defined at: test:1:19-1:25 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size32\" defined at: test:1:27-1:33 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))))"
-
-    , testCase "ECon (exprFunSpacesP)" $
+    [ testCase "ECon (exprFunSpacesP)" $
         show (doParse' funAppP "test" "fooBar baz qux") @?= "EApp (EApp (EVar \"fooBar\") (EVar \"baz\")) (EVar \"qux\")"
 
     , testCase "ECon (exprFunCommasP)" $
@@ -200,54 +196,14 @@ testExpr0P =
         show (doParse' expr0P "test" "1") @?= "ECon (I 1)"
     ]
 
--- ---------------------------------------------------------------------
-{-
-
-pred = expressionParse (prefixOp++infixOp) pred0
-
-prefixOp = '~' | 'not'
-
-infixOp  = '&&' | '||' | '=>' | '==>' | '<=>'
-
--- terms are pred0
-pred0 = 'true' | 'false'
-      | '??'
-      | kvarPred
-      | fastIfP
-      | predr
-      | '(' pred ')'
-      | '?' expr
-      | funApp
-      | symbol
-      | '&&' preds
-      | '||' preds
-
-kvarPred = kvar substs
-
-kvar = '$' symbol
-
-substs = {- empty -}
-       | subst substs
-
-subst = '[' symbol ':=' expr ']'
-
-preds = '[' predslist ']'
-
-predslist = pred
-          | pred `;` predslist
-
-fastIf = 'if' pred 'then' pred 'else' pred
-
-predr = expr brel expr
-
-brelP = '==' | '=' | '~~' | '!=' | '/=' | '!~' | '<' | '<=' | '>' | '>='
-
--}
-
 testPredP :: TestTree
 testPredP =
-  testGroup "predP"
-    [ testCase "PTrue" $
+  testGroup "exprP"
+    [ testCase "ECon (litP)" $
+        show (doParse' exprP "test" "lit \"#x00000008\" (BitVec  Size32)") @?=
+          "ECon (L \"#x00000008\" (FApp (FTC (TC \"BitVec\" defined at: test:1:19-1:25 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size32\" defined at: test:1:27-1:33 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))))"
+
+    , testCase "PTrue" $
         show (doParse' predP "test" "true") @?= "PAnd []" -- pattern for PTrue
 
     , testCase "PFalse" $
@@ -268,8 +224,7 @@ testPredP =
 
     , testCase "fastIf" $
         show (doParse' predP "test" "if true then true else false" ) @?=
-          -- note conversion
-          "PAnd [PImp (PAnd []) (PAnd []),PImp (PNot (PAnd [])) (POr [])]"
+          "EIte (PAnd []) (PAnd []) (POr [])"
 
     , testCase "brel" $
         show (doParse' predP "test" "1 == 2") @?= "PAtom Eq (ECon (I 1)) (ECon (I 2))"

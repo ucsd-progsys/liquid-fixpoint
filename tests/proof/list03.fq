@@ -17,12 +17,12 @@ define isPos (lq1 : int) : bool = {
 }
 
 
-match isCons Cons x xs = (true)
-match isNil  Cons x xs = (false)
-match isCons Nil       = (false)
-match isNil  Nil       = (true)
-match tail Cons x xs   = (xs)
-match head Cons x xs   = (x)
+match isCons Cons x xs  { true }
+match isNil  Cons x xs  { false }
+match isCons Nil        { false }
+match isNil  Nil        { true }
+match tail Cons x xs    { xs }
+match head Cons x xs    { x }
 
 constant isCons : (func(1 , [[@(0)]; bool]))
 constant isNil  : (func(1 , [[@(0)]; bool]))

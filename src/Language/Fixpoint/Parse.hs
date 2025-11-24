@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -123,9 +122,7 @@ import           Control.Monad.Combinators.Expr
 import qualified Data.IntMap.Strict          as IM
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
-#if !MIN_VERSION_base(4,20,0)
-import           Data.List                   (foldl')
-#endif
+import qualified Data.List                   as List
 import           Data.List.NonEmpty          (NonEmpty(..))
 import qualified Data.Text                   as T
 import qualified Data.Text.IO                as T
@@ -476,6 +473,7 @@ reservedNames = S.fromList
   , "func"
   , "autorewrite"
   , "rewrite"
+  , "lit"
 
   -- reserved words used in liquid haskell
   , "forall"
@@ -677,7 +675,7 @@ naturalR =
 -- * an error message to display if the final check fails.
 --
 condIdR :: ParserV v Char -> (Char -> Bool) -> (String -> Bool) -> String -> ParserV v Symbol
-condIdR initial okChars condition msg = do
+condIdR initial okChars condition msg = try $ do
   s <- (:) <$> initial <*> takeWhileP Nothing okChars
   if condition s
     then pure (symbol s)
@@ -789,28 +787,18 @@ instance ParseableV Symbol where
 -- This parser is reused by Liquid Haskell.
 --
 expr0P :: ParseableV v => ParserV v (ExprV v)
-expr0P
-  =  trueP -- constant "true"
- <|> falseP -- constant "false"
- <|> (reservedOp "?" *> predP)
- <|> fastIfP EIte exprP -- "if-then-else", starts with "if"
- <|> coerceP exprP -- coercion, starts with "coerce"
- <|> (ESym <$> symconstP) -- string literal, starts with double-quote
- <|> (ECon <$> constantP) -- numeric literal, starts with a digit
- <|> (reservedOp "_|_" >> return EBot) -- constant bottom, equivalent to "false"
- <|> lamP -- lambda abstraction, starts with backslash
- <|> try tupleP -- tuple expressions, starts with "("
- <|> try (parens exprP) -- parenthesised expression, starts with "("
- <|> try (parens exprCastP) -- explicit type annotation, starts with "(", TODO: should be an operator rather than require parentheses?
- <|> EVar <$> parseV  -- identifier, starts with any letter or underscore
- <|> try (located (brackets (pure ())) >>= emptyListP) -- empty list, start with "["
- <|> try (located (brackets exprP) >>= singletonListP) -- singleton list, starts with "["
- --
- -- Note:
- --
- -- In the parsers above, it is important that *all* parsers starting with "("
- -- are prefixed with "try". This is because expr0P itself is chained with
- -- additional parsers in funAppP ...
+expr0P =
+        botP
+    <|> try (reserved "not") *> fmap PNot appliableExprP -- built-in prefix not
+    <|> funAppP
+    <|> appliableExprP
+    <|> fastIfP EIte exprP -- "if-then-else", starts with "if"
+    <|> try (coerceP exprP) -- coercion, starts with "coerce"
+    <|> litP
+    <|> lamP -- lambda abstraction, starts with backslash
+    <|> (reservedOp "&&" >> pAnd <$> predsP) -- built-in prefix and
+    <|> (reservedOp "||" >> POr  <$> predsP) -- built-in prefix or
+    <|> try (reservedOp "?") *> predP
 
 emptyListP :: Located () -> ParserV v (ExprV v)
 emptyListP lx = do
@@ -848,35 +836,12 @@ coerceP p = do
   (s, t) <- parens (pairP sortP (reservedOp "~") sortP)
   ECoerc s t <$> p
 
-
-
-{-
-qmIfP f bodyP
-  = parens $ do
-      p  <- predP
-      reserved "?"
-      b1 <- bodyP
-      colon
-      b2 <- bodyP
-      return $ f p b1 b2
--}
-
--- | Parser for atomic expressions plus function applications.
---
--- Base parser used in 'exprP' which adds in other operators.
---
-expr1P :: ParseableV v => ParserV v (ExprV v)
-expr1P
-  =  try funAppP
- <|> expr0P
-
 -- | Expressions
 
 exprP :: ParseableV v => ParserV v (ExprV v)
-exprP =
-  do
+exprP = do
     table <- gets fixityTable
-    makeExprParser expr1P (flattenOpTable table)
+    makeExprParser expr0P (flattenOpTable table)
 
 data Assoc = AssocNone | AssocLeft | AssocRight
 
@@ -968,7 +933,7 @@ initOpTable = IM.empty
 
 -- | Built-in operator table, parameterised over the composition function.
 bops :: forall v. ParseableV v => Maybe (Located String -> ExprV v) -> OpTable v
-bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
+bops cmpFun = List.foldl' (flip addOperator) initOpTable builtinOps
   where
     -- Built-in Haskell operators, see https://www.haskell.org/onlinereport/decls.html#fixity
     builtinOps :: [Fixity v]
@@ -980,18 +945,25 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
                  , FInfix  (Just 5) "mod" (Just $ const $ EBin Mod)   AssocLeft -- Haskell gives mod 7
                  , FInfix  (Just 9) "."   applyCompose        AssocRight
                 --  --
-                --  , FInfix  (Just 4) "<"   (Just $ PAtom Lt)  AssocNone
-                --  , FInfix  (Just 4) "=="  (Just $ PAtom Eq)  AssocNone
-                --  , FInfix  (Just 4) "="   (Just $ PAtom Eq)  AssocNone
-                --  , FInfix  (Just 4) "~~"  (Just $ PAtom Ueq) AssocNone
-                --  , FInfix  (Just 4) "!="  (Just $ PAtom Ne)  AssocNone
-                --  , FInfix  (Just 4) "/="  (Just $ PAtom Ne)  AssocNone
-                --  , FInfix  (Just 4) "!~"  (Just $ PAtom Une) AssocNone
-                --  , FInfix  (Just 4) "<"   (Just $ PAtom Lt)  AssocNone
-                --  , FInfix  (Just 4) "<="  (Just $ PAtom Le)  AssocNone
-                --  , FInfix  (Just 4) ">"   (Just $ PAtom Gt)  AssocNone
-                --  , FInfix  (Just 4) ">="  (Just $ PAtom Ge)  AssocNone
+                 , FInfix  (Just 4) "=="  (Just $ const $ PAtom Eq)  AssocNone
+                 , FInfix  (Just 4) "="   (Just $ const $ PAtom Eq)  AssocNone
+                 , FInfix  (Just 4) "~~"  (Just $ const $ PAtom Ueq) AssocNone
+                 , FInfix  (Just 4) "!="  (Just $ const $ PAtom Ne)  AssocNone
+                 , FInfix  (Just 4) "/="  (Just $ const $ PAtom Ne)  AssocNone
+                 , FInfix  (Just 4) "!~"  (Just $ const $ PAtom Une) AssocNone
+                 , FInfix  (Just 4) "<"   (Just $ const $ PAtom Lt)  AssocNone
+                 , FInfix  (Just 4) "<="  (Just $ const $ PAtom Le)  AssocNone
+                 , FInfix  (Just 4) ">"   (Just $ const $ PAtom Gt)  AssocNone
+                 , FInfix  (Just 4) ">="  (Just $ const $ PAtom Ge)  AssocNone
+
+                 , FInfix  (Just 3) "&&"  (Just $ const $ \x y -> pAnd [x,y]) AssocRight
+                 , FInfix  (Just 2) "||"  (Just $ const $ \x y -> POr [x,y]) AssocRight
+                 , FInfix  (Just 1) "=>"  (Just $ const PImp) AssocRight
+                 , FInfix  (Just 1) "==>" (Just $ const PImp) AssocRight
+                 , FInfix  (Just 1) "<=>" (Just $ const PIff) AssocRight
+                 , FPrefix (Just 9) "~"   (Just $ const PNot)
                  ]
+
     applyCompose :: Maybe (Located String -> ExprV v -> ExprV v -> ExprV v)
     applyCompose = (\f lop x y -> f lop `eApps` [x,y]) <$> cmpFun
 
@@ -1000,16 +972,31 @@ bops cmpFun = foldl' (flip addOperator) initOpTable builtinOps
 -- Andres, TODO: Why is this so complicated?
 --
 funAppP :: ParseableV v => ParserV v (ExprV v)
-funAppP      =  litP <|> exprFunP <|> simpleAppP
-  where
-    exprFunP = eApps <$> funSymbolP <*> funRhsP
-    funRhsP  =  some expr0P
-            <|> parens innerP
-    innerP   = brackets (sepBy exprP semi)
+funAppP = do
+    f <- appliableExprP
+    foldl EApp f <$> (<|>)
+      (try $ parens $ brackets $ sepBy exprP semi)  -- special form: f ([e1; e2; ...; en])
+      (many appliableExprP)                   -- normal function application: f e1 e2 ... en
 
-    -- TODO:AZ the parens here should be superfluous, but it hits an infinite loop if removed
-    simpleAppP     = EApp <$> parens exprP <*> parens exprP
-    funSymbolP     = EVar <$> parseV
+appliableExprP :: ParseableV v => ParserV v (ExprV v)
+appliableExprP =
+       trueP -- constant "true"
+   <|> falseP -- constant "false"
+   <|> (ESym <$> symconstP) -- string literal, starts with double-quote
+   <|> (ECon <$> constantP) -- numeric literal, starts with a digit
+   <|> botP
+   <|> try tupleP -- tuple expressions, starts with "("
+   <|> try (parens exprP) -- parenthesised expression, starts with "("
+   <|> try (parens exprCastP) -- explicit type annotation, starts with "(", TODO: should be an operator rather than require parentheses?
+   <|> EVar <$> parseV  -- identifier, starts with any letter or underscore
+   <|> try (located (brackets (pure ())) >>= emptyListP) -- empty list, start with "["
+   <|> try (located (brackets exprP) >>= singletonListP) -- singleton list, starts with "["
+   <|> kvarPredP
+   <|> try (reservedOp "?" *> char '(') *> predP <* char ')'
+
+-- | constant bottom, equivalent to "false"
+botP :: ParserV v (ExprV v)
+botP = reservedOp "_|_" >> return EBot
 
 -- | Parser for tuple expressions (two or more components).
 tupleP :: ParseableV v => ParserV v (ExprV v)
@@ -1105,19 +1092,7 @@ mkFTycon locSymbol = do
 -- This parser is reused by Liquid Haskell.
 --
 pred0P :: ParseableV v => ParserV v (ExprV v)
-pred0P =  trueP -- constant "true"
-      <|> falseP -- constant "false"
-      <|> kvarPredP
-      <|> fastIfP pIte predP -- "if-then-else", starts with "if"
-      <|> try predrP -- binary relation, starts with anything that an expr can start with
-      <|> parens predP -- parenthesised predicate, starts with "("
-      <|> (reservedOp "?" *> exprP)
-      <|> try funAppP
-      <|> EVar <$> parseV -- identifier, starts with any letter or underscore
-      <|> (reservedOp "&&" >> pAnd <$> predsP) -- built-in prefix and
-      <|> (reservedOp "||" >> POr  <$> predsP) -- built-in prefix or
-
--- qmP    = reserved "?" <|> reserved "Bexp"
+pred0P =  exprP
 
 -- | Parser for the reserved constant "true".
 trueP :: ParserV v (ExprV v)
@@ -1148,49 +1123,8 @@ predsP = brackets $ sepBy predP semi
 
 -- | Parses a predicate.
 --
--- Unlike for expressions, there is a built-in operator list.
---
 predP  :: ParseableV v => ParserV v (ExprV v)
-predP  = makeExprParser pred0P lops
-  where
-    lops = [ [Prefix (reservedOp "~"    >> return PNot)]
-           , [Prefix (reserved   "not"  >> return PNot)]
-           , [InfixR (reservedOp "&&"   >> return (\x y -> pAnd [x, y]))]
-           , [InfixR (reservedOp "||"   >> return (\x y -> POr [x,y]))]
-           , [InfixR (reservedOp "=>"   >> return PImp)]
-           , [InfixR (reservedOp "==>"  >> return PImp)]
-           , [InfixR (reservedOp "="    >> return PIff)]
-           , [InfixR (reservedOp "<=>"  >> return PIff)]
-           , [InfixR (reservedOp "!="   >> return pNotIff)]
-           , [InfixR (reservedOp "/="   >> return pNotIff)]
-           ]
-
-pNotIff :: ExprV v -> ExprV v -> ExprV v
-pNotIff x y = PNot (PIff x y)
-
--- | Parses a relation predicate.
---
--- Binary relations connect expressions and predicates.
---
-predrP :: ParseableV v => ParserV v (ExprV v)
-predrP =
-  (\ e1 r e2 -> r e1 e2) <$> exprP <*> brelP <*> exprP
-
--- | Parses a relation symbol.
---
--- There is a built-in table of available relations.
---
-brelP ::  ParserV v (ExprV v -> ExprV v -> ExprV v)
-brelP =  (reservedOp "==" >> return (PAtom Eq))
-     <|> (reservedOp "="  >> return (PAtom Eq))
-     <|> (reservedOp "~~" >> return (PAtom Ueq))
-     <|> (reservedOp "!=" >> return (PAtom Ne))
-     <|> (reservedOp "/=" >> return (PAtom Ne))
-     <|> (reservedOp "!~" >> return (PAtom Une))
-     <|> (reservedOp "<"  >> return (PAtom Lt))
-     <|> (reservedOp "<=" >> return (PAtom Le))
-     <|> (reservedOp ">"  >> return (PAtom Gt))
-     <|> (reservedOp ">=" >> return (PAtom Ge))
+predP  = pred0P
 
 --------------------------------------------------------------------------------
 -- | BareTypes -----------------------------------------------------------------
@@ -1254,8 +1188,7 @@ qualifierP tP = do
   pos    <- getSourcePos
   n      <- upperIdP
   params <- parens $ sepBy1 (qualParamP tP) comma
-  _      <- colon
-  body   <- predP
+  body   <- braces exprP
   return  $ mkQual n params body pos
 
 qualParamP :: ParserV v Sort -> ParserV v QualParam
@@ -1296,8 +1229,10 @@ autoRewriteP = do
   _          <- spaces
   _          <- reserved "="
   _          <- spaces
-  (lhs, rhs) <- braces $
-      pairP exprP (reserved "=") exprP
+  e <- braces exprP
+  (lhs, rhs) <- case e of
+                  PAtom Eq l r -> return (l, r)
+                  _ -> error "Expected rewrite rule of the form: LHS = RHS"
   return $ AutoRewrite args lhs rhs
 
 
@@ -1325,7 +1260,7 @@ rewriteP = do
         return (x, e)
 
 matchP :: Parser Rewrite
-matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
+matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> braces exprP
 
 pairsP :: Parser a -> Parser b -> Parser [(a, b)]
 pairsP aP bP = brackets $ sepBy (pairP aP (reserved ":") bP) semi
@@ -1460,7 +1395,7 @@ defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs lts dts kts qs binfo adts 
     rews       =                    [r                  | Mat r       <- defs]
     autoRWs    = M.fromList         [(arId , s)         | AutoRW arId s <- defs]
     rwEntries  =                    [(i, f)             | RWMap fs   <- defs, (i,f) <- fs]
-    rwMap      = foldl' insert (M.fromList []) rwEntries
+    rwMap      = List.foldl' insert (M.fromList []) rwEntries
                  where
                    insert map' (cid', arId) =
                      case M.lookup arId autoRWs of
@@ -1639,100 +1574,3 @@ instance Inputable Command where
 instance Inputable [Command] where
   rr' = doParse' commandsP
 
-{-
----------------------------------------------------------------
---------------------------- Testing ---------------------------
----------------------------------------------------------------
-
--- A few tricky predicates for parsing
--- myTest1 = "((((v >= 56320) && (v <= 57343)) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o ((i - o) - 1)))) && (((numchars a o (i - (o -1))) >= 0) && (((i - o) - 1) >= 0)))) && ((not (((v >= 56320) && (v <= 57343)))) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o (i - o)))) && ((numchars a o (i - o)) >= 0))))"
---
--- myTest2 = "len x = len y - 1"
--- myTest3 = "len x y z = len a b c - 1"
--- myTest4 = "len x y z = len a b (c - 1)"
--- myTest5 = "x >= -1"
--- myTest6 = "(bLength v) = if n > 0 then n else 0"
--- myTest7 = "(bLength v) = (if n > 0 then n else 0)"
--- myTest8 = "(bLength v) = (n > 0 ? n : 0)"
-
-
-sa  = "0"
-sb  = "x"
-sc  = "(x0 + y0 + z0) "
-sd  = "(x+ y * 1)"
-se  = "_|_ "
-sf  = "(1 + x + _|_)"
-sg  = "f(x,y,z)"
-sh  = "(f((x+1), (y * a * b - 1), _|_))"
-si  = "(2 + f((x+1), (y * a * b - 1), _|_))"
-
-s0  = "true"
-s1  = "false"
-s2  = "v > 0"
-s3  = "(0 < v && v < 100)"
-s4  = "(x < v && v < y+10 && v < z)"
-s6  = "[(v > 0)]"
-s6' = "x"
-s7' = "(x <=> y)"
-s8' = "(x <=> a = b)"
-s9' = "(x <=> (a <= b && b < c))"
-
-s7  = "{ v: Int | [(v > 0)] }"
-s8  = "x:{ v: Int | v > 0 } -> {v : Int | v >= x}"
-s9  = "v = x+y"
-s10 = "{v: Int | v = x + y}"
-
-s11 = "x:{v:Int | true } -> {v:Int | true }"
-s12 = "y : {v:Int | true } -> {v:Int | v = x }"
-s13 = "x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x + y}"
-s14 = "x:{v:a  | true} -> y:{v:b | true } -> {v:a | (x < v && v < y) }"
-s15 = "x:Int -> Bool"
-s16 = "x:Int -> y:Int -> {v:Int | v = x + y}"
-s17 = "a"
-s18 = "x:a -> Bool"
-s20 = "forall a . x:Int -> Bool"
-
-s21 = "x:{v : GHC.Prim.Int# | true } -> {v : Int | true }"
-
-r0  = (rr s0) :: Pred
-r0' = (rr s0) :: [Refa]
-r1  = (rr s1) :: [Refa]
-
-
-e1, e2  :: Expr
-e1  = rr "(k_1 + k_2)"
-e2  = rr "k_1"
-
-o1, o2, o3 :: FixResult Integer
-o1  = rr "SAT "
-o2  = rr "UNSAT [1, 2, 9,10]"
-o3  = rr "UNSAT []"
-
--- sol1 = doParse solution1P "solution: k_5 := [0 <= VV_int]"
--- sol2 = doParse solution1P "solution: k_4 := [(0 <= VV_int)]"
-
-b0, b1, b2, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13 :: BareType
-b0  = rr "Int"
-b1  = rr "x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x + y}"
-b2  = rr "x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x - y}"
-b4  = rr "forall a . x : a -> Bool"
-b5  = rr "Int -> Int -> Int"
-b6  = rr "(Int -> Int) -> Int"
-b7  = rr "({v: Int | v > 10} -> Int) -> Int"
-b8  = rr "(x:Int -> {v: Int | v > x}) -> {v: Int | v > 10}"
-b9  = rr "x:Int -> {v: Int | v > x} -> {v: Int | v > 10}"
-b10 = rr "[Int]"
-b11 = rr "x:[Int] -> {v: Int | v > 10}"
-b12 = rr "[Int] -> String"
-b13 = rr "x:(Int, [Bool]) -> [(String, String)]"
-
--- b3 :: BareType
--- b3  = rr "x:Int -> y:Int -> {v:Bool | ((v is True) <=> x = y)}"
-
-m1 = ["len :: [a] -> Int", "len (Nil) = 0", "len (Cons x xs) = 1 + len(xs)"]
-m2 = ["tog :: LL a -> Int", "tog (Nil) = 100", "tog (Cons y ys) = 200"]
-
-me1, me2 :: Measure.Measure BareType Symbol
-me1 = (rr $ intercalate "\n" m1)
-me2 = (rr $ intercalate "\n" m2)
--}

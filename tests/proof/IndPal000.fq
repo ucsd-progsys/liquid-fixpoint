@@ -1,10 +1,10 @@
 fixpoint "--rewrite"
 
 
-match is$Cons Cons x xs = (true)
-match is$Nil  Cons x xs = (false)
-match is$Cons Nil       = (false)
-match is$Nil  Nil       = (true)
+match is$Cons Cons x xs  { true }
+match is$Nil  Cons x xs  { false }
+match is$Cons Nil        { false }
+match is$Nil  Nil        { true }
 
 constant Cons : (func(1 , [@(0); [@(0)]; [@(0)]]))
 constant is$Cons : (func(1 , [[@(0)]; bool]))
