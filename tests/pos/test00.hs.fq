@@ -1,61 +1,61 @@
 
-qualif IsEmp(v:GHC.Types.Bool, xs: [a]) : (Prop(v) <=> len([xs]) > 0)
-qualif IsEmp(v:GHC.Types.Bool, xs: [a]) : (Prop(v) <=> len([xs]) = 0)
-qualif ListZ(v: [a])          : len([v]) =  0 
-qualif ListZ(v: [a])          : len([v]) >= 0 
-qualif ListZ(v: [a])          : len([v]) >  0 
-qualif CmpLen(v:[a], xs:[b])  : len([v]) =  len([xs]) 
-qualif CmpLen(v:[a], xs:[b])  : len([v]) >= len([xs]) 
-qualif CmpLen(v:[a], xs:[b])  : len([v]) >  len([xs]) 
-qualif CmpLen(v:[a], xs:[b])  : len([v]) <= len([xs]) 
-qualif CmpLen(v:[a], xs:[b])  : len([v]) <  len([xs]) 
-qualif EqLen(v:int, xs: [a]): v = len([xs]) 
-qualif LenEq(v:[a], x: int) :  x = len([v]) 
-qualif LenDiff(v:[a], x:int): len([v]) = x + 1
-qualif LenDiff(v:[a], x:int): len([v]) = x - 1
-qualif LenAcc(v:int, xs:[a], n: int): (v = len([xs]) + n)
+qualif IsEmp(v:GHC.Types.Bool, xs: [a])  { Prop(v) <=> len([xs]) > 0 }
+qualif IsEmp(v:GHC.Types.Bool, xs: [a])  { Prop(v) <=> len([xs]) = 0 }
+qualif ListZ(v: [a])           { len([v]) =  0  }
+qualif ListZ(v: [a])           { len([v]) >= 0  }
+qualif ListZ(v: [a])           { len([v]) >  0  }
+qualif CmpLen(v:[a], xs:[b])   { len([v]) =  len([xs])  }
+qualif CmpLen(v:[a], xs:[b])   { len([v]) >= len([xs])  }
+qualif CmpLen(v:[a], xs:[b])   { len([v]) >  len([xs])  }
+qualif CmpLen(v:[a], xs:[b])   { len([v]) <= len([xs])  }
+qualif CmpLen(v:[a], xs:[b])   { len([v]) <  len([xs])  }
+qualif EqLen(v:int, xs: [a]) { v = len([xs])  }
+qualif LenEq(v:[a], x: int)  { x = len([v])  }
+qualif LenDiff(v:[a], x:int) { len([v]) = x + 1 }
+qualif LenDiff(v:[a], x:int) { len([v]) = x - 1 }
+qualif LenAcc(v:int, xs:[a], n: int) { v = len([xs]) + n }
 
-qualif Bot(v:obj): 0 = 1 
-qualif Bot(v:a): 0 = 1 
-qualif Bot(v:bool): 0 = 1 
-qualif Bot(v:int): 0 = 1 
-qualif CmpZ(v:a): (v <  0)
-qualif CmpZ(v:a): (v <= 0)
-qualif CmpZ(v:a): (v >  0)
-qualif CmpZ(v:a): (v >= 0)
-qualif CmpZ(v:a): (v  = 0)
-qualif CmpZ(v:a): (v != 0)
+qualif Bot(v:obj) { 0 = 1  }
+qualif Bot(v:a) { 0 = 1  }
+qualif Bot(v:bool) { 0 = 1  }
+qualif Bot(v:int) { 0 = 1  }
+qualif CmpZ(v:a) { v <  0 }
+qualif CmpZ(v:a) { v <= 0 }
+qualif CmpZ(v:a) { v >  0 }
+qualif CmpZ(v:a) { v >= 0 }
+qualif CmpZ(v:a) { v  = 0 }
+qualif CmpZ(v:a) { v != 0 }
 
-qualif Cmp(v:a, x:a): (v <  x)
-qualif Cmp(v:a, x:a): (v <= x)
-qualif Cmp(v:a, x:a): (v >  x)
-qualif Cmp(v:a, x:a): (v >= x)
-qualif Cmp(v:a, x:a): (v  = x)
-qualif Cmp(v:a, x:a): (v != x)
+qualif Cmp(v:a, x:a) { v <  x }
+qualif Cmp(v:a, x:a) { v <= x }
+qualif Cmp(v:a, x:a) { v >  x }
+qualif Cmp(v:a, x:a) { v >= x }
+qualif Cmp(v:a, x:a) { v  = x }
+qualif Cmp(v:a, x:a) { v != x }
 
-qualif One(v:int)     : v = 1
-qualif True(v:bool)   : (? v) 
-qualif False(v:bool)  : ~ (? v) 
-qualif True1(v:GHC.Types.Bool): (Prop(v))
-qualif False1(v:GHC.Types.Bool): (~ Prop(v))
-qualif Papp(v:a, p:Pred a) : (papp1 p v)
+qualif One(v:int)      { v = 1 }
+qualif True(v:bool)    { ? v  }
+qualif False(v:bool)   { ~ (? v)  }
+qualif True1(v:GHC.Types.Bool) { Prop(v) }
+qualif False1(v:GHC.Types.Bool) { ~ Prop(v) }
+qualif Papp(v:a, p:Pred a)  { papp1 p v }
 
 constant papp1 : func(1, [Pred @(0); @(0); bool])
 
-qualif Papp2(v:a,x:b,p:Pred a b) : (papp2 p v x)
+qualif Papp2(v:a,x:b,p:Pred a b)  { papp2 p v x }
 constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
 
-qualif Papp3(v:a,x:b, y:c, p:Pred a b c) : (papp3 p v x y)
+qualif Papp3(v:a,x:b, y:c, p:Pred a b c)  { papp3 p v x y }
 constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
 
-qualif Papp4(v:a,x:b, y:c, z:d, p:Pred a b c d) : (papp4 p v x y z)
+qualif Papp4(v:a,x:b, y:c, z:d, p:Pred a b c d)  { papp4 p v x y z }
 constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool])
 
 
 
 constant Prop : func(0, [GHC.Types.Bool; bool])
-qualif Fst(v : @(1), fix##126#Y : @(0)): (v = fst([fix##126#Y])) // "/Users/rjhala/research/liquid/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 26, column 8)
-qualif Snd(v : @(1), fix##126#Y : @(0)): (v = snd([fix##126#Y])) // "/Users/rjhala/research/liquid/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 27, column 8)
+qualif Fst(v : @(1), fix##126#Y : @(0)) { v = fst([fix##126#Y])  } // "/Users/rjhala/research/liquid/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 26, column 8)
+qualif Snd(v : @(1), fix##126#Y : @(0)) { v = snd([fix##126#Y])  } // "/Users/rjhala/research/liquid/liquidhaskell/.cabal-sandbox/share/x86_64-osx-ghc-7.8.3/liquidhaskell-0.3.1.0/include/GHC/Base.spec" (line 27, column 8)
 
 constant Prop : func(0, [GHC.Types.Bool; bool])
 constant x_Tuple54 : func(5, [FAppTy (FAppTy (FAppTy (FAppTy (FAppTy fix##40##41#  @(0))  @(1))  @(2))  @(3))  @(4);
