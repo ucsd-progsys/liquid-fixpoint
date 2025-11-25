@@ -570,9 +570,9 @@ instance (Ord v, Fixpoint v) => Fixpoint (ExprV v) where
   toFix (POr  ps)      = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ sep [ toFix e1 <+> toFix r, nest 2 (toFix e2)]
   toFix (PKVar k su)     = toFix k <-> toFix su
-  toFix (PAll xts p)     = "forall" <+> (toFix xts
+  toFix (PAll xts p)     = parens $ "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
-  toFix (PExist xts p)   = "exists" <+> (toFix xts
+  toFix (PExist xts p)   = parens $ "exists" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
@@ -770,8 +770,8 @@ instance (Ord v, Fixpoint v, PPrint v) => PPrint (ExprV v) where
                                    pprintTidy k r         <+>
                                    pprintPrec (za+1) k e2
     where za = 4
-  pprintPrec _ k (PAll xts p)    = pprintQuant k "forall" xts p
-  pprintPrec _ k (PExist xts p)  = pprintQuant k "exists" xts p
+  pprintPrec z k (PAll xts p)    = parensIf (z > 0) $ pprintQuant k "forall" xts p
+  pprintPrec z k (PExist xts p)  = parensIf (z > 0) $ pprintQuant k "exists" xts p
   pprintPrec _ k (ELam (x,t) e)  = "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprintTidy k e
   pprintPrec _ k (ECoerc a t e)  = parens $ "coerce" <+> toFix a <+> "~" <+> toFix t <+> text "in" <+> pprintTidy k e
   pprintPrec _ _ p@PKVar{}    = toFix p
