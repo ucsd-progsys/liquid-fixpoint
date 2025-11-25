@@ -2,8 +2,8 @@ qualif Append(v : [@(0)], xs : [@(0)], ys : [@(0)]) { len([v]) = (len([xs]) + le
 qualif Fst(v : @(1), y : @(0)) { v = fst([y])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.spec" (line 29, column 8)
 qualif Snd(v : @(1), y : @(0)) { v = snd([y])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.spec" (line 30, column 8)
 qualif Auto(v : [int]) { len([v]) = 2  } // "tests/pos/listqual.hs" (line 10, column 1)
-qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]) { (? Prop([v])) <=> (len([xs]) > 0)  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 13, column 8)
-qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]) { (? Prop([v])) <=> (len([xs]) = 0)  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 14, column 8)
+qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]) { Prop([v]) <=> len([xs]) > 0  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 13, column 8)
+qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]) { Prop([v]) <=> len([xs]) = 0  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 14, column 8)
 qualif ListZ(v : [@(0)]) { len([v]) = 0  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 16, column 8)
 qualif ListZ(v : [@(0)]) { len([v]) >= 0  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 17, column 8)
 qualif ListZ(v : [@(0)]) { len([v]) > 0  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 18, column 8)
@@ -35,19 +35,19 @@ qualif Cmp(v : @(0), x : @(0)) { v >= x  } // "/Users/rjhala/research/stack/liqu
 qualif Cmp(v : @(0), x : @(0)) { v = x  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 20, column 8)
 qualif Cmp(v : @(0), x : @(0)) { v != x  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 21, column 8)
 qualif One(v : int) { v = 1  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 28, column 8)
-qualif True(v : bool) { ? v  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 29, column 8)
-qualif False(v : bool) { ~ ((? v))  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 30, column 8)
-qualif True1(v : GHC.Types.Bool) { ? Prop([v])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 31, column 8)
-qualif False1(v : GHC.Types.Bool) { ~ ((? Prop([v])))  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 32, column 8)
-qualif Papp(v : @(0), p : (Pred  @(0))) { (? papp1([p;
-                                                   v])) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 35, column 8)
-qualif Papp2(v : @(1), x : @(0), p : (Pred  @(1)  @(0))) { (? papp2([p;
+qualif True(v : bool) {  v  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 29, column 8)
+qualif False(v : bool) { ~ v  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 30, column 8)
+qualif True1(v : GHC.Types.Bool) {  Prop([v])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 31, column 8)
+qualif False1(v : GHC.Types.Bool) { ~ Prop([v])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 32, column 8)
+qualif Papp(v : @(0), p : (Pred  @(0))) { papp1([p;
+                                                   v]) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 35, column 8)
+qualif Papp2(v : @(1), x : @(0), p : (Pred  @(1)  @(0))) { papp2([p;
                                                                     v;
-                                                                    x])) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 38, column 8)
-qualif Papp3(v : @(2), x : @(0), y : @(1), p : (Pred  @(2)  @(0)  @(1))) { (? papp3([p;
+                                                                    x]) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 38, column 8)
+qualif Papp3(v : @(2), x : @(0), y : @(1), p : (Pred  @(2)  @(0)  @(1))) { papp3([p;
                                                                                     v;
                                                                                     x;
-                                                                                    y])) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 41, column 8)
+                                                                                    y]) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 41, column 8)
 
 
 cut $k__185
@@ -163,10 +163,10 @@ bind 12 lq_anf__dwU : {lq_tmp_x_198 : [a_awA] | [(lq_tmp_x_198 = ds_dwT);
 bind 13 lq_anf__dwU : {lq_tmp_x_198 : [a_awA] | [(lq_tmp_x_198 = ds_dwT);
                                                  (len([lq_tmp_x_198]) >= 0);
                                                  (len([lq_tmp_x_198]) = 0);
-                                                 ((? null([lq_tmp_x_198])) <=> true);
+                                                 (null([lq_tmp_x_198]) <=> true);
                                                  (lq_tmp_x_198 = GHC.Types.$91$$93$$35$6m([]));
                                                  (len([lq_tmp_x_198]) = 0);
-                                                 ((? null([lq_tmp_x_198])) <=> true);
+                                                 (null([lq_tmp_x_198]) <=> true);
                                                  (len([lq_tmp_x_198]) >= 0)]}
 bind 14 lq_anf__dwU : {lq_tmp_x_208 : [a_awA] | [(lq_tmp_x_208 = ds_dwT);
                                                  (len([lq_tmp_x_208]) >= 0);
@@ -176,13 +176,13 @@ bind 16 xs$35$awp : {lq_tmp_x_218 : [a_awA] | [(len([lq_tmp_x_218]) >= 0)]}
 bind 17 lq_anf__dwU : {lq_tmp_x_208 : [a_awA] | [(lq_tmp_x_208 = ds_dwT);
                                                  (len([lq_tmp_x_208]) >= 0);
                                                  (len([lq_tmp_x_208]) = (1 + len([xs$35$awp])));
-                                                 ((? null([lq_tmp_x_208])) <=> false);
+                                                 (null([lq_tmp_x_208]) <=> false);
                                                  (xsListSelector([lq_tmp_x_208]) = xs$35$awp);
                                                  (xListSelector([lq_tmp_x_208]) = x$35$awo);
                                                  (lq_tmp_x_208 = GHC.Types.$58$$35$64([x$35$awo;
                                                                                        xs$35$awp]));
                                                  (len([lq_tmp_x_208]) = (1 + len([xs$35$awp])));
-                                                 ((? null([lq_tmp_x_208])) <=> false);
+                                                 (null([lq_tmp_x_208]) <=> false);
                                                  (xsListSelector([lq_tmp_x_208]) = xs$35$awp);
                                                  (xListSelector([lq_tmp_x_208]) = x$35$awo);
                                                  (len([lq_tmp_x_208]) >= 0)]}
@@ -192,22 +192,22 @@ bind 19 lq_tmp_x_259 : {VV : a_awA | []}
 bind 20 lq_anf__dwW : {lq_tmp_x_264 : int | [(lq_tmp_x_264 = (1  :  int))]}
 bind 21 lq_tmp_x_278 : {VV$35$279 : int | []}
 bind 22 lq_anf__dwX : {lq_tmp_x_270 : [int] | [(len([lq_tmp_x_270]) = 0);
-                                               ((? null([lq_tmp_x_270])) <=> true);
+                                               (null([lq_tmp_x_270]) <=> true);
                                                (len([lq_tmp_x_270]) >= 0)]}
 bind 23 lq_tmp_x_296 : {VV$35$297 : int | []}
 bind 24 lq_anf__dwY : {lq_tmp_x_284 : [int] | [(len([lq_tmp_x_284]) = (1 + len([lq_anf__dwX])));
-                                               ((? null([lq_tmp_x_284])) <=> false);
+                                               (null([lq_tmp_x_284]) <=> false);
                                                (xsListSelector([lq_tmp_x_284]) = lq_anf__dwX);
                                                (xListSelector([lq_tmp_x_284]) = lq_anf__dwW);
                                                (len([lq_tmp_x_284]) >= 0)]}
 bind 25 lq_anf__dwZ : {lq_tmp_x_305 : int | [(lq_tmp_x_305 = (2  :  int))]}
 bind 26 lq_tmp_x_319 : {VV$35$320 : int | []}
 bind 27 lq_anf__dx0 : {lq_tmp_x_311 : [int] | [(len([lq_tmp_x_311]) = 0);
-                                               ((? null([lq_tmp_x_311])) <=> true);
+                                               (null([lq_tmp_x_311]) <=> true);
                                                (len([lq_tmp_x_311]) >= 0)]}
 bind 28 lq_tmp_x_337 : {VV$35$338 : int | []}
 bind 29 lq_anf__dx1 : {lq_tmp_x_325 : [int] | [(len([lq_tmp_x_325]) = (1 + len([lq_anf__dx0])));
-                                               ((? null([lq_tmp_x_325])) <=> false);
+                                               (null([lq_tmp_x_325]) <=> false);
                                                (xsListSelector([lq_tmp_x_325]) = lq_anf__dx0);
                                                (xListSelector([lq_tmp_x_325]) = lq_anf__dwZ);
                                                (len([lq_tmp_x_325]) >= 0)]}
@@ -269,12 +269,12 @@ bind 71 VV$35$424 : {VV$35$424 : int | [(VV$35$424 = lq_anf__dwW)]}
 bind 72 VV$35$427 : {VV$35$427 : int | [(VV$35$427 = 1)]}
 bind 73 VV$35$427 : {VV$35$427 : int | [(VV$35$427 = 1)]}
 bind 74 VV$35$430 : {VV$35$430 : [a_awA] | [(len([VV$35$430]) = (1 + len([lq_anf__dwV])));
-                                            ((? null([VV$35$430])) <=> false);
+                                            (null([VV$35$430]) <=> false);
                                             (xsListSelector([VV$35$430]) = lq_anf__dwV);
                                             (xListSelector([VV$35$430]) = x$35$awo);
                                             (len([VV$35$430]) >= 0)]}
 bind 75 VV$35$430 : {VV$35$430 : [a_awA] | [(len([VV$35$430]) = (1 + len([lq_anf__dwV])));
-                                            ((? null([VV$35$430])) <=> false);
+                                            (null([VV$35$430]) <=> false);
                                             (xsListSelector([VV$35$430]) = lq_anf__dwV);
                                             (xListSelector([VV$35$430]) = x$35$awo);
                                             (len([VV$35$430]) >= 0)]}
@@ -384,7 +384,7 @@ constraint:
 constraint:
   env [0; 16; 1; 17; 2; 18; 3; 4; 5; 6; 7; 8; 9; 10; 74; 11; 14; 15]
   lhs {VV$35$F18 : [a_awA] | [(len([VV$35$F18]) = (1 + len([lq_anf__dwV])));
-                              ((? null([VV$35$F18])) <=> false);
+                              (null([VV$35$F18]) <=> false);
                               (xsListSelector([VV$35$F18]) = lq_anf__dwV);
                               (xListSelector([VV$35$F18]) = x$35$awo);
                               (len([VV$35$F18]) >= 0)]}

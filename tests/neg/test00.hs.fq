@@ -1,7 +1,7 @@
 qualif Fst(v : @(1), y : @(0)) { v = fst([y])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.spec" (line 29, column 8)
 qualif Snd(v : @(1), y : @(0)) { v = snd([y])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.spec" (line 30, column 8)
-qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]) { (? Prop([v])) <=> (len([xs]) > 0)  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 13, column 8)
-qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]) { (? Prop([v])) <=> (len([xs]) = 0)  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 14, column 8)
+qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]) { (Prop([v])) <=> (len([xs]) > 0)  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 13, column 8)
+qualif IsEmp(v : GHC.Types.Bool, xs : [@(0)]) { (Prop([v])) <=> (len([xs]) = 0)  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 14, column 8)
 qualif ListZ(v : [@(0)]) { len([v]) = 0  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 16, column 8)
 qualif ListZ(v : [@(0)]) { len([v]) >= 0  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 17, column 8)
 qualif ListZ(v : [@(0)]) { len([v]) > 0  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/GHC/Base.hquals" (line 18, column 8)
@@ -33,16 +33,16 @@ qualif Cmp(v : @(0), x : @(0)) { v >= x  } // "/Users/rjhala/research/stack/liqu
 qualif Cmp(v : @(0), x : @(0)) { v = x  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 20, column 8)
 qualif Cmp(v : @(0), x : @(0)) { v != x  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 21, column 8)
 qualif One(v : int) { v = 1  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 28, column 8)
-qualif True(v : bool) { ? v  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 29, column 8)
-qualif False(v : bool) { ~ ((? v))  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 30, column 8)
-qualif True1(v : GHC.Types.Bool) { ? Prop([v])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 31, column 8)
-qualif False1(v : GHC.Types.Bool) { ~ ((? Prop([v])))  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 32, column 8)
-qualif Papp(v : @(0), p : (Pred  @(0))) { (? papp1([p;
+qualif True(v : bool) { v  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 29, column 8)
+qualif False(v : bool) { ~ ((v))  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 30, column 8)
+qualif True1(v : GHC.Types.Bool) { Prop([v])  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 31, column 8)
+qualif False1(v : GHC.Types.Bool) { ~ ((Prop([v])))  } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 32, column 8)
+qualif Papp(v : @(0), p : (Pred  @(0))) { (papp1([p;
                                                    v])) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 35, column 8)
-qualif Papp2(v : @(1), x : @(0), p : (Pred  @(1)  @(0))) { (? papp2([p;
+qualif Papp2(v : @(1), x : @(0), p : (Pred  @(1)  @(0))) { (papp2([p;
                                                                     v;
                                                                     x])) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 38, column 8)
-qualif Papp3(v : @(2), x : @(0), y : @(1), p : (Pred  @(2)  @(0)  @(1))) { (? papp3([p;
+qualif Papp3(v : @(2), x : @(0), y : @(1), p : (Pred  @(2)  @(0)  @(1))) { (papp3([p;
                                                                                     v;
                                                                                     x;
                                                                                     y])) } // "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/liquidhaskell-0.5.0.2/include/Prelude.hquals" (line 41, column 8)
@@ -137,33 +137,33 @@ bind 2 GHC.Classes.$36$fOrdInt$35$rni : {VV$35$166 : (GHC.Classes.Ord  int) | []
 bind 3 GHC.Types.EQ$35$6U : {VV$35$167 : GHC.Types.Ordering | [(VV$35$167 = GHC.Types.EQ$35$6U)]}
 bind 4 GHC.Types.LT$35$6S : {VV$35$168 : GHC.Types.Ordering | [(VV$35$168 = GHC.Types.LT$35$6S)]}
 bind 5 GHC.Types.GT$35$6W : {VV$35$169 : GHC.Types.Ordering | [(VV$35$169 = GHC.Types.GT$35$6W)]}
-bind 6 GHC.Types.True$35$6u : {v$35$4 : GHC.Types.Bool | [(? Prop([v$35$4]))]}
-bind 7 GHC.Types.False$35$68 : {v$35$5 : GHC.Types.Bool | [(~ ((? Prop([v$35$5]))))]}
-bind 8 GHC.Types.False$35$68 : {v$35$5 : GHC.Types.Bool | [(~ ((? Prop([v$35$5]))))]}
+bind 6 GHC.Types.True$35$6u : {v$35$4 : GHC.Types.Bool | [(Prop([v$35$4]))]}
+bind 7 GHC.Types.False$35$68 : {v$35$5 : GHC.Types.Bool | [(~ ((Prop([v$35$5]))))]}
+bind 8 GHC.Types.False$35$68 : {v$35$5 : GHC.Types.Bool | [(~ ((Prop([v$35$5]))))]}
 bind 9 GHC.Types.$91$$93$$35$6m : {VV : func(1, [[@(0)]]) | []}
-bind 10 GHC.Types.True$35$6u : {v$35$4 : GHC.Types.Bool | [(? Prop([v$35$4]))]}
+bind 10 GHC.Types.True$35$6u : {v$35$4 : GHC.Types.Bool | [(Prop([v$35$4]))]}
 bind 11 GHC.Types.GT$35$6W : {VV$35$214 : GHC.Types.Ordering | [(cmp([VV$35$214]) = GHC.Types.GT$35$6W)]}
 bind 12 GHC.Types.LT$35$6S : {VV$35$215 : GHC.Types.Ordering | [(cmp([VV$35$215]) = GHC.Types.LT$35$6S)]}
 bind 13 GHC.Types.EQ$35$6U : {VV$35$216 : GHC.Types.Ordering | [(cmp([VV$35$216]) = GHC.Types.EQ$35$6U)]}
 bind 14 GHC.Base.Nothing$35$r1d : {VV : func(1, [(GHC.Base.Maybe  @(0))]) | []}
 bind 15 z$35$a10N : {VV$35$221 : int | [$k_$35$222]}
 bind 16 lq_anf$36$_d116 : {lq_tmp$36$x$35$229 : int | [(lq_tmp$36$x$35$229 = (100  :  int))]}
-bind 17 lq_anf$36$_d117 : {lq_tmp$36$x$35$236 : GHC.Types.Bool | [((? Prop([lq_tmp$36$x$35$236])) <=> (z$35$a10N >= lq_anf$36$_d116))]}
+bind 17 lq_anf$36$_d117 : {lq_tmp$36$x$35$236 : GHC.Types.Bool | [((Prop([lq_tmp$36$x$35$236])) <=> (z$35$a10N >= lq_anf$36$_d116))]}
 bind 18 lq_anf$36$_d118 : {lq_tmp$36$x$35$254 : int | [(lq_tmp$36$x$35$254 = (0  :  int))]}
 bind 19 Test0.x$35$rYP : {VV$35$250 : int | [$k_$35$251]}
 bind 20 lq_anf$36$_d119 : {lq_tmp$36$x$35$269 : int | [(lq_tmp$36$x$35$269 = (0  :  int))]}
-bind 21 lq_anf$36$_d11a : {lq_tmp$36$x$35$275 : GHC.Types.Bool | [((? Prop([lq_tmp$36$x$35$275])) <=> (Test0.x$35$rYP > lq_anf$36$_d119))]}
+bind 21 lq_anf$36$_d11a : {lq_tmp$36$x$35$275 : GHC.Types.Bool | [((Prop([lq_tmp$36$x$35$275])) <=> (Test0.x$35$rYP > lq_anf$36$_d119))]}
 bind 22 lq_anf$36$_d11b : {lq_tmp$36$x$35$291 : GHC.Types.Bool | [(lq_tmp$36$x$35$291 = lq_anf$36$_d11a)]}
 bind 23 lq_anf$36$_d11b : {lq_tmp$36$x$35$293 : GHC.Types.Bool | [(lq_tmp$36$x$35$293 = lq_anf$36$_d11a)]}
 bind 24 lq_anf$36$_d11b : {lq_tmp$36$x$35$293 : GHC.Types.Bool | [(lq_tmp$36$x$35$293 = lq_anf$36$_d11a);
-                                                                  (~ ((? Prop([lq_tmp$36$x$35$293]))));
-                                                                  (~ ((? Prop([lq_tmp$36$x$35$293]))));
-                                                                  (~ ((? Prop([lq_tmp$36$x$35$293]))))]}
+                                                                  (~ ((Prop([lq_tmp$36$x$35$293]))));
+                                                                  (~ ((Prop([lq_tmp$36$x$35$293]))));
+                                                                  (~ ((Prop([lq_tmp$36$x$35$293]))))]}
 bind 25 lq_anf$36$_d11b : {lq_tmp$36$x$35$299 : GHC.Types.Bool | [(lq_tmp$36$x$35$299 = lq_anf$36$_d11a)]}
 bind 26 lq_anf$36$_d11b : {lq_tmp$36$x$35$299 : GHC.Types.Bool | [(lq_tmp$36$x$35$299 = lq_anf$36$_d11a);
-                                                                  (? Prop([lq_tmp$36$x$35$299]));
-                                                                  (? Prop([lq_tmp$36$x$35$299]));
-                                                                  (? Prop([lq_tmp$36$x$35$299]))]}
+                                                                  (Prop([lq_tmp$36$x$35$299]));
+                                                                  (Prop([lq_tmp$36$x$35$299]));
+                                                                  (Prop([lq_tmp$36$x$35$299]))]}
 bind 27 Test0.prop_abs$35$r10h : {VV$35$265 : GHC.Types.Bool | [$k_$35$266]}
 bind 28 VV$35$310 : {VV$35$310 : GHC.Types.Bool | [$k_$35$226[lq_tmp$36$x$35$307:=Test0.x$35$rYP][lq_tmp$36$x$35$305:=VV$35$310][VV$35$225:=VV$35$310][z$35$a10N:=Test0.x$35$rYP]]}
 bind 29 VV$35$310 : {VV$35$310 : GHC.Types.Bool | [$k_$35$226[lq_tmp$36$x$35$307:=Test0.x$35$rYP][lq_tmp$36$x$35$305:=VV$35$310][VV$35$225:=VV$35$310][z$35$a10N:=Test0.x$35$rYP]]}
@@ -183,8 +183,8 @@ bind 42 VV$35$331 : {VV$35$331 : int | [(VV$35$331 = lq_anf$36$_d118)]}
 bind 43 VV$35$331 : {VV$35$331 : int | [(VV$35$331 = lq_anf$36$_d118)]}
 bind 44 VV$35$334 : {VV$35$334 : int | [(VV$35$334 = 0)]}
 bind 45 VV$35$334 : {VV$35$334 : int | [(VV$35$334 = 0)]}
-bind 46 VV$35$337 : {VV$35$337 : GHC.Types.Bool | [(? Prop([VV$35$337]))]}
-bind 47 VV$35$337 : {VV$35$337 : GHC.Types.Bool | [(? Prop([VV$35$337]))]}
+bind 46 VV$35$337 : {VV$35$337 : GHC.Types.Bool | [(Prop([VV$35$337]))]}
+bind 47 VV$35$337 : {VV$35$337 : GHC.Types.Bool | [(Prop([VV$35$337]))]}
 bind 48 VV$35$340 : {VV$35$340 : GHC.Types.Bool | [(VV$35$340 = lq_anf$36$_d117)]}
 bind 49 VV$35$340 : {VV$35$340 : GHC.Types.Bool | [(VV$35$340 = lq_anf$36$_d117)]}
 bind 50 VV$35$343 : {VV$35$343 : int | [(VV$35$343 = lq_anf$36$_d116)]}
@@ -260,7 +260,7 @@ constraint:
        14;
        15]
   lhs {VV$35$F8 : GHC.Types.Bool | [(VV$35$F8 = lq_anf$36$_d117)]}
-  rhs {VV$35$F8 : GHC.Types.Bool | [(? Prop([VV$35$F8]))]}
+  rhs {VV$35$F8 : GHC.Types.Bool | [(Prop([VV$35$F8]))]}
   id 8 tag [1]
   // META constraint id 8 : tests/neg/test00.hs:11:23-35
 

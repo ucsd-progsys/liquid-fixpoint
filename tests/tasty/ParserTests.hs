@@ -232,9 +232,6 @@ testPredP =
     , testCase "parens pred" $
         show (doParse' predP "test" "((1 == 2))") @?= "PAtom Eq (ECon (I 1)) (ECon (I 2))"
 
-    , testCase "? expr" $
-        show (doParse' predP "test" "? (1+2)") @?= "EBin Plus (ECon (I 1)) (ECon (I 2))"
-
     , testCase "funApp 1" $
         show (doParse' predP "test" "f a b") @?= "EApp (EApp (EVar \"f\") (EVar \"a\")) (EVar \"b\")"
 
@@ -245,10 +242,10 @@ testPredP =
         show (doParse' predP "test" "f ([a; b])") @?= "EApp (EApp (EVar \"f\") (EVar \"a\")) (EVar \"b\")"
 
     , testCase "funApp 4" $
-        show (doParse' funAppP "" "f ?(x > 1)") @?= "EApp (EVar \"f\") (PAtom Gt (EVar \"x\") (ECon (I 1)))"
+        show (doParse' funAppP "" "f (x > 1)") @?= "EApp (EVar \"f\") (PAtom Gt (EVar \"x\") (ECon (I 1)))"
 
     , testCase "funApp 5" $
-        show (doParse' predP "" "f ?(x > 1)") @?= "EApp (EVar \"f\") (PAtom Gt (EVar \"x\") (ECon (I 1)))"
+        show (doParse' predP "" "f (x > 1)") @?= "EApp (EVar \"f\") (PAtom Gt (EVar \"x\") (ECon (I 1)))"
 
     , testCase "symbol" $
         show (doParse' predP "test" "f") @?= "EVar \"f\""

@@ -537,7 +537,7 @@ _reservedOpNames =
   , "->"
   , ":="
   , "&", "^", "<<", ">>", "--"
-  , "?", "Bexp"
+  , "Bexp"
   , "'"
   , "_|_"
   , "|"
@@ -800,7 +800,6 @@ expr0P =
     <|> lamP -- lambda abstraction, starts with backslash
     <|> (reservedOp "&&" >> pAnd <$> predsP) -- built-in prefix and
     <|> (reservedOp "||" >> POr  <$> predsP) -- built-in prefix or
-    <|> try (reservedOp "?") *> exprP
 
 emptyListP :: Located () -> ParserV v (ExprV v)
 emptyListP lx = do
@@ -991,7 +990,6 @@ appliableExprP =
    <|> try (located (brackets (pure ())) >>= emptyListP) -- empty list, start with "["
    <|> try (located (brackets exprP) >>= singletonListP) -- singleton list, starts with "["
    <|> kvarPredP
-   <|> try (reservedOp "?" *> char '(') *> exprP <* char ')'
 
 -- | constant bottom, equivalent to "false"
 botP :: ParserV v (ExprV v)
