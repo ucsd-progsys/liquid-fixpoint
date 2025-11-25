@@ -91,6 +91,7 @@ module Language.Fixpoint.Parse (
 
   -- * Parsing Function
   , doParse'
+  , doParse''
   , parseTest'
   , parseFromFile
   , parseFromStdIn
@@ -228,6 +229,7 @@ data PStateV v = PState { fixityTable :: OpTable v
                      , supply      :: !Integer
                      , layoutStack :: LayoutStack
                      , numTyCons   :: !(S.HashSet Symbol)
+                     , allowExists :: !Bool
                      }
 type PState = PStateV Symbol
 
@@ -791,7 +793,7 @@ expr0P =
         botP
     <|> try (reserved "not") *> fmap PNot appliableExprP -- built-in prefix not
     <|> funAppP
-    <|> appliableExprP
+    <|> existP
     <|> fastIfP EIte exprP -- "if-then-else", starts with "if"
     <|> try (coerceP exprP) -- coercion, starts with "coerce"
     <|> litP
@@ -968,9 +970,6 @@ bops cmpFun = List.foldl' (flip addOperator) initOpTable builtinOps
     applyCompose = (\f lop x y -> f lop `eApps` [x,y]) <$> cmpFun
 
 -- | Parser for function applications.
---
--- Andres, TODO: Why is this so complicated?
---
 funAppP :: ParseableV v => ParserV v (ExprV v)
 funAppP = do
     f <- appliableExprP
@@ -1125,6 +1124,17 @@ predsP = brackets $ sepBy predP semi
 --
 predP  :: ParseableV v => ParserV v (ExprV v)
 predP  = pred0P
+
+existP :: ParseableV v => ParserV v (ExprV v)
+existP = do
+    allow <- gets allowExists
+    if allow then do
+      reserved "exists"
+      bs <- brackets $ sepBy ((,) <$> bindP <*> sortP) comma
+      _ <- dot
+      PExist bs <$> exprP
+     else
+      empty
 
 --------------------------------------------------------------------------------
 -- | BareTypes -----------------------------------------------------------------
@@ -1474,6 +1484,7 @@ initPState cmpFun = PState { fixityTable = bops cmpFun
                            , supply      = 0
                            , layoutStack = Empty
                            , numTyCons   = S.empty
+                           , allowExists = False
                            }
 
 -- | Entry point for parsing, for testing.
@@ -1482,8 +1493,11 @@ initPState cmpFun = PState { fixityTable = bops cmpFun
 -- Fails with an exception on a parse error.
 --
 doParse' :: Parser a -> SourceName -> String -> a
-doParse' parser fileName input =
-  case runParser (evalStateT (spaces *> parser <* eof) (initPState Nothing)) fileName input of
+doParse' = doParse'' False
+
+doParse'' :: Bool -> Parser a -> SourceName -> String -> a
+doParse'' allowEx parser fileName input =
+  case runParser (evalStateT (spaces *> parser <* eof) ((initPState Nothing) { allowExists = allowEx})) fileName input of
     Left peb@(ParseErrorBundle errors posState) -> -- parse errors; we extract the first error from the error bundle
       let
         ((_, pos) :| _, _) = attachSourcePos errorOffset errors posState

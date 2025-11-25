@@ -19,6 +19,7 @@ module Language.Fixpoint.Types.Substitutions (
   , filterSubst
   , catSubst
   , exprSymbolsSet
+  , extendSubst
   , meetReft
   , pprReft
   ) where
@@ -247,13 +248,13 @@ rapierSubstExpr s su e0 =
     maybeFresh x =
       if x `S.member` s then Right (x, fresh x) else Left x
 
-    extendSubst :: Subst -> Symbol -> Expr -> Subst
-    extendSubst (Su m) x e = Su $ M.insert x e m
-
     catSubstGo :: Subst -> Subst -> Subst
     catSubstGo (Su s1) su2@(Su s2) = Su $ M.union s1' s2
       where
         s1' = rapierSubstExpr s su2 <$> s1
+
+extendSubst :: Subst -> Symbol -> Expr -> Subst
+extendSubst (Su m) x e = Su $ M.insert x e m
 
 disjoint :: Subst -> [(Symbol, Sort)] -> Bool
 disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms

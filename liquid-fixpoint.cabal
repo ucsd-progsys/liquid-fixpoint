@@ -234,10 +234,15 @@ test-suite tasty
                     ShareMapReference
                     ShareMapTests
                     SimplifyInterpreter
+                    SimplifyKVarTests
                     SimplifyPLE
                     SimplifyTests
                     UndoANFTests
                     Paths_liquid_fixpoint
+  if impl(ghc>=9.12.1)
+    hs-source-dirs: tests/tasty/ghc-9.12.1
+  else
+    hs-source-dirs: tests/tasty/ghc-before-9.12.1
   autogen-modules:  Paths_liquid_fixpoint
   hs-source-dirs:   tests/tasty
   ghc-options:      -threaded
