@@ -417,7 +417,7 @@ alphaEq = go (mkSubst [])
   where
     go :: Subst -> Expr -> Expr -> Bool
     go su (PExist bs1 x1) (PExist bs2 x2) =
-      let su' = foldl (\s (v1, v2) -> extendSubst s v1 (EVar v2)) su (zip (map fst bs1) (map fst bs2))
+      let su' = List.foldl' (\s (v1, v2) -> extendSubst s v1 (EVar v2)) su (zip (map fst bs1) (map fst bs2))
        in go su' x1 x2
     go su (PAnd es1) (PAnd es2) =
       length es1 == length es2 && all (\(e1, e2) -> go su e1 e2) (zip es1 es2)
