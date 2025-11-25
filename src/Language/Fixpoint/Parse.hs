@@ -800,7 +800,7 @@ expr0P =
     <|> lamP -- lambda abstraction, starts with backslash
     <|> (reservedOp "&&" >> pAnd <$> predsP) -- built-in prefix and
     <|> (reservedOp "||" >> POr  <$> predsP) -- built-in prefix or
-    <|> try (reservedOp "?") *> predP
+    <|> try (reservedOp "?") *> exprP
 
 emptyListP :: Located () -> ParserV v (ExprV v)
 emptyListP lx = do
@@ -826,7 +826,7 @@ exprCastP
 fastIfP :: ParseableV v => (ExprV v -> a -> a -> a) -> ParserV v a -> ParserV v a
 fastIfP f bodyP
   = do reserved "if"
-       p <- predP
+       p <- exprP
        reserved "then"
        b1 <- bodyP
        reserved "else"
@@ -991,7 +991,7 @@ appliableExprP =
    <|> try (located (brackets (pure ())) >>= emptyListP) -- empty list, start with "["
    <|> try (located (brackets exprP) >>= singletonListP) -- singleton list, starts with "["
    <|> kvarPredP
-   <|> try (reservedOp "?" *> char '(') *> predP <* char ')'
+   <|> try (reservedOp "?" *> char '(') *> exprP <* char ')'
 
 -- | constant bottom, equivalent to "false"
 botP :: ParserV v (ExprV v)
@@ -1086,13 +1086,6 @@ mkFTycon locSymbol = do
 -- | Predicates ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
--- | Parser for "atomic" predicates.
---
--- This parser is reused by Liquid Haskell.
---
-pred0P :: ParseableV v => ParserV v (ExprV v)
-pred0P =  exprP
-
 -- | Parser for the reserved constant "true".
 trueP :: ParserV v (ExprV v)
 trueP  = reserved "true"  >> return PTrue
@@ -1118,12 +1111,12 @@ substP = mkSu <$> many (brackets $ pairP symbolP aP exprP)
 -- disjunction.
 --
 predsP :: ParseableV v => ParserV v [ExprV v]
-predsP = brackets $ sepBy predP semi
+predsP = brackets $ sepBy exprP semi
 
 -- | Parses a predicate.
 --
 predP  :: ParseableV v => ParserV v (ExprV v)
-predP  = pred0P
+predP  = exprP
 
 existP :: ParseableV v => ParserV v (ExprV v)
 existP = do
@@ -1142,8 +1135,8 @@ existP = do
 
 -- | Refa
 refaP :: ParseableV v => ParserV v (ExprV v)
-refaP =  try (pAnd <$> brackets (sepBy predP semi))
-     <|> predP
+refaP =  try (pAnd <$> brackets (sepBy exprP semi))
+     <|> exprP
 
 
 -- | (Sorted) Refinements with configurable sub-parsers
@@ -1251,9 +1244,7 @@ defineP = do
   name   <- symbolP
   params <- parens        $ sepBy (symBindP sortP) comma
   sort   <- colon        *> sortP
-  body   <- reserved "=" *> braces (
-              if sort == boolSort then predP else exprP
-               )
+  body   <- reserved "=" *> braces exprP
   return  $ mkEquation name params body sort
 
 defineLocalP :: Parser (Int, [(Symbol, Expr)])
@@ -1436,7 +1427,7 @@ crashP pp = do
   return $ Crash [(i, Nothing)] msg
 
 predSolP :: Parser Expr
-predSolP = parens (predP  <* (comma >> iQualP))
+predSolP = parens (exprP  <* (comma >> iQualP))
 
 iQualP :: Parser [Symbol]
 iQualP = upperIdP >> parens (sepBy symbolP comma)
@@ -1541,7 +1532,7 @@ commandP
  <|> (reserved "push"     >> return Push)
  <|> (reserved "pop"      >> return Pop)
  <|> (reserved "check"    >> return CheckSat)
- <|> (reserved "assert"   >> (Assert Nothing <$> predP))
+ <|> (reserved "assert"   >> (Assert Nothing <$> exprP))
  <|> (reserved "distinct" >> (Distinct <$> brackets (sepBy exprP comma)))
 
 cmdVarP :: Parser Command
