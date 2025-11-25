@@ -1127,13 +1127,12 @@ predP  = pred0P
 
 existP :: ParseableV v => ParserV v (ExprV v)
 existP = do
-    allow <- allowExists <$> get
+    allow <- gets allowExists
     if allow then do
       reserved "exists"
       bs <- brackets $ sepBy ((,) <$> bindP <*> sortP) comma
       _ <- dot
-      p <- predP
-      return (PExist bs p)
+      PExist bs <$> exprP
      else
       empty
 

@@ -420,9 +420,9 @@ alphaEq = go (mkSubst [])
       let su' = List.foldl' (\s (v1, v2) -> extendSubst s v1 (EVar v2)) su (zip (map fst bs1) (map fst bs2))
        in go su' x1 x2
     go su (PAnd es1) (PAnd es2) =
-      length es1 == length es2 && all (\(e1, e2) -> go su e1 e2) (zip es1 es2)
+      length es1 == length es2 && and (zipWith (go su) es1 es2)
     go su (POr es1) (POr es2) =
-      length es1 == length es2 && all (\(e1, e2) -> go su e1 e2) (zip es1 es2)
+      length es1 == length es2 && and (zipWith (go su) es1 es2)
     go su e1 e2 =
       subst su e1 == e2
 
