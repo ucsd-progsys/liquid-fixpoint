@@ -338,9 +338,9 @@ result_
   -> Sol.Solution
   -> SolveM a (F.FixResult (F.SimpC a))
 result_ bindingsInSmt be cfg cs0 s = do
-  filtered <- filterM (isUnsat bindingsInSmt be s) cs
+  unsatisfiedConstraints <- filterM (isUnsat bindingsInSmt be s) cs
   sts      <- stats
-  pure $ res sts filtered
+  pure $ res sts unsatisfiedConstraints
   where
     cs          = isChecked cfg cs0
     res sts []  = F.Safe sts
