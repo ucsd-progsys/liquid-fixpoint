@@ -87,41 +87,22 @@ import           Text.PrettyPrint.HughesPJ.Compat
 --------------------------------------------------------------------------------
 -- | Update Solution
 --
--- @update s ks kqs@ sets in @s@ each KVar in @kqs@ to the corresponding EQuals.
--- KVars in @ks@ which are not in @kqs@ are set to the empty list of EQuals.
+-- @update s kqs@ sets in @s@ each KVar in @kqs@ to the corresponding QBind.
 --
 -- Yields a pair @(b, s')@ where @b@ is true if the mapping of any KVar was
 -- changed.
-update :: Sol QBind -> [KVar] -> [(KVar, EQual)] -> (Bool, Sol QBind)
---------------------------------------------------------------------------------
-update s ks kqs = {- tracepp msg -} (or bs, s')
-  where
-    kqss        = groupKs ks kqs
-    (bs, s')    = folds update1 s kqss
-    -- msg      = printf "ks = %s, s = %s" (showpp ks) (showpp s)
-
-folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
-folds f b = L.foldl' step ([], b)
-  where
-     step (cs, acc) x = (c:cs, x')
-       where
-         (c, x')      = f acc x
-
--- | @groupKs ks kqs@ groups the EQuals by KVar, ensuring that each KVar in @ks@
--- is present (even if it has no associated EQuals).
 --
--- Each KVar occurs only once in the output list.
-groupKs :: [KVar] -> [(KVar, EQual)] -> [(KVar, QBind)]
-groupKs ks kqs = [ (k, QB eqs) | (k, eqs) <- M.toList $ groupBase m0 kqs ]
+-- Precondition: @kqs@ contains no duplicate KVars.
+--
+update :: Sol QBind -> [(KVar, QBind)] -> (Bool, Sol QBind)
+--------------------------------------------------------------------------------
+update s kqs = L.foldl' step (False, s) kqs
   where
-    m0         = M.fromList $ (,[]) <$> ks
-
-update1 :: Sol QBind -> (KVar, QBind) -> (Bool, Sol QBind)
-update1 s (k, qs) = (change, updateK k qs s)
-  where
-    oldQs         = lookupQBind s k
-    change        = qbSize oldQs /= qbSize qs
-
+    step :: (Bool, Sol QBind) -> (KVar, QBind) -> (Bool, Sol QBind)
+    step (changed, s) (k, qs) = (changed || distinctSizes, updateK k qs s)
+      where
+        oldQs = lookupQBind s k
+        distinctSizes = qbSize oldQs /= qbSize qs
 
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
