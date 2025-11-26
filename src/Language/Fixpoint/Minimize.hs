@@ -21,6 +21,11 @@ import           Language.Fixpoint.Types            hiding (fi)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
+-- | Top level Solvers ----------------------------------------------------
+---------------------------------------------------------------------------
+type Solver a = Config -> FInfo a -> IO (Result (Integer, a))
+
+---------------------------------------------------------------------------
 -- polymorphic delta debugging implementation
 ---------------------------------------------------------------------------
 deltaDebug :: Bool -> Oracle a c -> Config -> Solver a -> FInfo a -> [c] -> [c] -> IO [c]

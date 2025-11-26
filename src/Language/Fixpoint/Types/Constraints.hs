@@ -23,7 +23,6 @@ module Language.Fixpoint.Types.Constraints (
     FInfo, SInfo, GInfo (..), FInfoWithOpts(..)
   , convertFormat
   , sinfoToFInfo
-  , Solver
 
    -- * Serializing
   , toFixpoint
@@ -897,11 +896,6 @@ simpcToSubc env s = SubC
   }
   where
     (b, sr, _) = lookupBindEnv (cbind s) env
-
----------------------------------------------------------------------------
--- | Top level Solvers ----------------------------------------------------
----------------------------------------------------------------------------
-type Solver a = C.Config -> FInfo a -> IO (Result (Integer, a))
 
 --------------------------------------------------------------------------------
 saveQuery :: (Fixpoint a) => C.Config -> FInfo a -> IO ()

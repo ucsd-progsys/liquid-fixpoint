@@ -9,7 +9,7 @@
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
-    solve, Solver
+    solve
 
     -- * Invoke Solver on a .fq file
   , solveFQ
@@ -104,7 +104,9 @@ ignoreQualifiers cfg fi
 --------------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints -----------------------------
 --------------------------------------------------------------------------------
-solve :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a) => Solver a
+solve
+  :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a)
+  => Config -> FInfo a -> IO (Result (Integer, a))
 --------------------------------------------------------------------------------
 solve cfg q
   | parts cfg      = partition  cfg        $!! q
@@ -114,15 +116,16 @@ solve cfg q
   | minimizeKs cfg = minKvars cfg solve'   $!! q
   | otherwise      = solve'     cfg        $!! q
 
-solve' :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a) => Solver a
+
+solve'
+  :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a)
+  => Config -> FInfo a -> IO (Result (Integer, a))
 solve' cfg q = do
   when (save cfg) $ saveQuery   cfg q
-  configSW  cfg     solveNative cfg q
-
-configSW :: (NFData a, Fixpoint a, Show a, Loc a) => Config -> Solver a -> Solver a
-configSW cfg
-  | multicore cfg = solveParWith
-  | otherwise     = solveSeqWith
+  if multicore cfg then
+    solvePar cfg q
+  else
+    solveNative cfg (slice cfg q)
 
 --------------------------------------------------------------------------------
 readFInfo :: FilePath -> IO (FInfo (), [String])
@@ -147,17 +150,11 @@ readBinFq file = {-# SCC "parseBFq" #-} do
 --------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
 --------------------------------------------------------------------------------
-solveSeqWith :: (Fixpoint a) => Solver a -> Solver a
-solveSeqWith s c fi0 = {- withProgressFI fi $ -} s c fi
-  where
-    fi               = slice c fi0
-
+solvePar
+  :: (Loc a, NFData a, PPrint a, Show a, Fixpoint a)
+  => Config -> FInfo a -> IO (Result (Integer, a))
 --------------------------------------------------------------------------------
--- | Solve in parallel after partitioning an FInfo to indepdendant parts
---------------------------------------------------------------------------------
-solveParWith :: (Fixpoint a) => Solver a -> Solver a
---------------------------------------------------------------------------------
-solveParWith s c fi0 = do
+solvePar c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
   let fi    = slice c fi0
   mci      <- mcInfo c
@@ -168,10 +165,10 @@ solveParWith s c fi0 = do
   writeLoud $ "maximum part size    : " ++ show (maxPartSize c)
   case fis of
     []        -> errorstar "partiton' returned empty list!"
-    [onePart] -> s c onePart
-    _         -> inParallelUsing (f s c) $ zip [1..] fis
+    [onePart] -> solveNative c onePart
+    _         -> inParallelUsing (f c) $ zip [1..] fis
     where
-      f s' c' (j, fi) = s' (c {srcFile = queryFile (Part j) c'}) fi
+      f c' (j, fi) = solveNative (c {srcFile = queryFile (Part j) c'}) fi
 
 --------------------------------------------------------------------------------
 -- | Solve a list of FInfos using the provided solver function in parallel
@@ -187,7 +184,9 @@ inParallelUsing f xs = do
 --------------------------------------------------------------------------------
 -- | Native Haskell Solver -----------------------------------------------------
 --------------------------------------------------------------------------------
-solveNative, solveNative' :: (NFData a, Fixpoint a, Show a, Loc a, PPrint a) => Solver a
+solveNative, solveNative'
+  :: (NFData a, Fixpoint a, Show a, Loc a, PPrint a)
+  => Config -> FInfo a -> IO (Result (Integer, a))
 --------------------------------------------------------------------------------
 solveNative !cfg !fi0 = solveNative' cfg fi0
                           `catch`
