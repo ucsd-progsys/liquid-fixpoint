@@ -391,21 +391,21 @@ simplifyKVar = pAnd . dedupByAlphaEq . floatPExistConjuncts . go
     dedupByAlphaEq :: [Expr] -> [Expr]
     dedupByAlphaEq = List.nubBy (\e1 e2 -> alphaEq e1 e2)
 
--- | Float out conjuncts from an existential expression that does not
--- depend on the existentially bound variables.
-floatPExistConjuncts :: Expr -> [Expr]
-floatPExistConjuncts e0@(PExist bs (PAnd es)) =
-    let (floatable, nonFloatable) =
+    -- | Float out conjuncts from an existential expression that does not
+    -- depend on the existentially bound variables.
+    floatPExistConjuncts :: Expr -> [Expr]
+    floatPExistConjuncts e0@(PExist bs (PAnd es)) =
+      let (floatable, nonFloatable) =
            List.partition (isFloatableConjunct (S.fromList (map fst bs))) es
-     in
-        if null floatable then
-          [e0]
-        else
-          PExist bs (pAndNoDedup nonFloatable) : floatable
-  where
-    isFloatableConjunct :: S.HashSet Symbol -> Expr -> Bool
-    isFloatableConjunct s e = S.null $ S.intersection (exprSymbolsSet e) s
-floatPExistConjuncts e = [e]
+       in
+          if null floatable then
+            [e0]
+          else
+            go (PExist bs (pAndNoDedup nonFloatable)) : floatable
+      where
+        isFloatableConjunct :: S.HashSet Symbol -> Expr -> Bool
+        isFloatableConjunct s e = S.null $ S.intersection (exprSymbolsSet e) s
+    floatPExistConjuncts e = [e]
 
 -- | Determine if two expressions are alpha-equivalent.
 --
