@@ -26,6 +26,9 @@ module Language.Fixpoint.Solver (
 
     -- * Simplify KVar solutions
   , simplifyKVar
+
+    -- * Exported for testing
+  , alphaEq
 ) where
 
 import           Control.Concurrent                 (setNumCapabilities)

@@ -78,15 +78,16 @@ data SimplificationTest = SimplificationTest
 simplificationTest :: SimplificationTest -> TestTree
 simplificationTest test =
   testCase (name test) $ do
-    let actual = F.showpp (F.simplifyKVar (doParse'' True predP (name test) (input test)))
-    when (unwords (words actual) /= unwords (words (expected test))) $ do
+    let actual = F.simplifyKVar (doParse'' True predP (name test) (input test))
+        expectedE = doParse'' True predP (name test) (expected test)
+    when (not (F.alphaEq actual expectedE)) $ do
       assertFailure $ unlines
         [ "output is not as expected"
         , "Expected:"
         , expected test
         , ""
         , "Actual:"
-        , actual
+        , F.showpp actual
         ]
 
 largeSimplificationTest :: SimplificationTest
