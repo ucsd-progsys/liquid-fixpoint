@@ -339,17 +339,19 @@ nonCutsResult be s = M.mapWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
 -- differences since the result of 'cubePred' is fed to the verification
 -- pipeline and @bareCubePred@ is meant for human inspection.
 --
--- 1) Only one existential quantifier is introduced at the top of the
---    expression.
--- 2) The expression is created from its defining constraints only, while
---    @cubePred@ does expect the caller to supply the substitution at a
---    particular use of the KVar. Thus @cubePred@ produces a different
---    expression for every use site of the kvar, while here we produce one
---    expression for all the uses.
--- NOTE: In this case, we *keep* the `xts` "free" in the final predicate. as
--- That is, we only quantify out the `yts` as, in this use-case, the `xts`
--- are the "parameters" of the KVar that we want to leave in to make
+-- The expression is created from its defining constraints only, while
+-- @cubePred@ does expect the caller to supply the substitution at a
+-- particular use of the KVar. Thus @cubePred@ produces a different
+-- expression for every use site of the kvar, while here we produce one
+-- expression for all the uses.
+--
+-- Where the cube rhs is @k[params:=xts]@, we keep the parameters free in the
+-- final predicate. e.g. @params == xts && exists yts . ...@
+-- That is, we only quantify out the `yts` as we want to make
 -- explicit what equalities those parameters have in each cube.
+--
+-- Issue https://github.com/ucsd-progsys/liquid-fixpoint/issues/808 discusses
+-- an example where the equalities are essential to keep.
 
 bareCubePred :: CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Cube -> F.Expr
 bareCubePred g s k c =
@@ -363,7 +365,9 @@ bareCubePred g s k c =
     bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
     yts = symSorts g bs'
 
--- TODO: Figure out why liquid-fixpoint allows unsorted expressions in substitutions.
+-- | At the moment, the liquid-fixpoint implementation allows for unsorted
+-- expressions in substitutions. See the discussion in
+-- https://github.com/ucsd-progsys/liquid-fixpoint/issues/800
 dropUnsortedExprs :: CombinedEnv ann -> F.Subst -> F.Subst
 dropUnsortedExprs g (F.Su m) = F.Su $
     M.filter
