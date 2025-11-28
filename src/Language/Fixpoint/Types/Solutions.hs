@@ -12,7 +12,6 @@
 {-# LANGUAGE DeriveAnyClass             #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE TupleSections              #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing     #-}
 
