@@ -295,7 +295,7 @@ result bindingsInSmt cfg fi cs s =
     stat      <- result_ bindingsInSmt2 be cfg cs s
     lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     resCut    <- solResult cfg s
-    let resNonCut = solNonCutsResult cfg be s
+    let resNonCut = S.nonCutsResult be s
         resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
     return     $ F.Result (ci <$> stat) resCut resNonCut resSorts
   where
@@ -322,14 +322,6 @@ bindInfo be i = (x, F.sr_sort sr)
 
 solResult :: Config -> Sol.Solution -> SolveM ann (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
-
-solNonCutsResult :: Config -> F.BindEnv a -> Sol.Solution -> M.HashMap F.KVar F.Expr
-solNonCutsResult cfg be s
-  | cfgNonCuts cfg = S.nonCutsResult be s
-  | otherwise = mempty
-
-cfgNonCuts :: Config -> Bool
-cfgNonCuts cfg = save cfg || json cfg
 
 result_
   :: (F.Loc a, NFData a)
