@@ -363,15 +363,24 @@ simplifyResult cfg res =
 -- > "exists y. (P && Q y)[x:=C]"
 --
 simplifyKVar :: Expr -> Expr
-simplifyKVar = pAnd . dedupByAlphaEq . floatPExistConjuncts . go
+simplifyKVar =
+   pAnd . dedupByAlphaEq . floatPExistConjuncts . go
   where
     go (POr es) = pOr $ map (pAnd . floatPExistConjuncts . go) es
     go (PAnd es) = pAnd $ dedupByAlphaEq $ concatMap (floatPExistConjuncts . go) es
-    go (PExist bs0 (PExist bs1 p)) =
-      let bs0' = filter (\(x,_) -> x `notElem` map fst bs1) bs0
-       in go (PExist (bs0' ++ bs1) p)
     go (PExist bs e0) =
       let es = concatMap (floatPExistConjuncts . go) (conjuncts e0)
+       in elimExistentialBinds (PExist bs (pAnd es))
+    go e = e
+
+    dedupByAlphaEq :: [Expr] -> [Expr]
+    dedupByAlphaEq = List.nubBy (\e1 e2 -> alphaEq e1 e2)
+
+    elimExistentialBinds (PExist bs0 (PExist bs1 p)) =
+      let bs0' = filter (\(x,_) -> x `notElem` map fst bs1) bs0
+       in elimExistentialBinds (PExist (bs0' ++ bs1) p)
+    elimExistentialBinds (PExist bs e0) =
+      let es = conjuncts e0
           esv = map (isVarEq (map fst bs)) es
           -- Eliminating multiple variables at once can be difficult if the
           -- equalities define cyclic dependencies, so we only eliminate one
@@ -384,24 +393,22 @@ simplifyKVar = pAnd . dedupByAlphaEq . floatPExistConjuncts . go
           e' = rapierSubstExpr (substSymbolsSet su) su $ pAnd esvKeep
           bs' = filter ((`S.member` exprSymbolsSet e') . fst) bs
           e'' = pExist bs' e'
-      in
-          if null esvElim then e'' else go e''
-    go e = e
-
-    dedupByAlphaEq :: [Expr] -> [Expr]
-    dedupByAlphaEq = List.nubBy (\e1 e2 -> alphaEq e1 e2)
+       in
+          if null esvElim then e'' else elimExistentialBinds e''
+    elimExistentialBinds e = e
 
     -- | Float out conjuncts from an existential expression that does not
     -- depend on the existentially bound variables.
     floatPExistConjuncts :: Expr -> [Expr]
-    floatPExistConjuncts e0@(PExist bs (PAnd es)) =
-      let (floatable, nonFloatable) =
+    floatPExistConjuncts e0@(PExist bs es0) =
+      let es = conjuncts es0
+          (floatable, nonFloatable) =
            List.partition (isFloatableConjunct (S.fromList (map fst bs))) es
        in
           if null floatable then
             [e0]
           else
-            go (PExist bs (pAndNoDedup nonFloatable)) : floatable
+            elimExistentialBinds (pExist bs (pAndNoDedup nonFloatable)) : floatable
       where
         isFloatableConjunct :: S.HashSet Symbol -> Expr -> Bool
         isFloatableConjunct s e = S.null $ S.intersection (exprSymbolsSet e) s
