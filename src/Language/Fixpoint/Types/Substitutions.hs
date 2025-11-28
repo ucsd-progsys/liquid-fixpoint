@@ -24,7 +24,6 @@ module Language.Fixpoint.Types.Substitutions (
   , pprReft
   ) where
 
-import           Data.Either               (rights)
 import           Data.List                 as List
 import           Data.Maybe
 import qualified Data.HashMap.Strict       as M
@@ -224,7 +223,7 @@ rapierSubstExpr s su e0 =
     PKVar k su' -> PKVar k $ catSubstGo su' su
     PAll bs p ->
       let mfs = map (maybeFresh . fst) bs
-          fs = rights mfs
+          fs = map (either (\x -> (x, x)) id) mfs
           su' = List.foldl' (\su1 (x, x') -> extendSubst su1 x (EVar x')) su fs
           bs' = zip (map (either id snd) mfs) (map snd bs)
           s' = foldr (S.insert . fst) s bs'
@@ -232,7 +231,7 @@ rapierSubstExpr s su e0 =
           PAll bs' $ go s' su' p
     PExist bs p ->
       let mfs = map (maybeFresh . fst) bs
-          fs = rights mfs
+          fs = map (either (\x -> (x, x)) id) mfs
           su' = List.foldl' (\su1 (x, x') -> extendSubst su1 x (EVar x')) su fs
           bs' = zip (map (either id snd) mfs) (map snd bs)
           s' = foldr (S.insert . fst) s bs'
