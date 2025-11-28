@@ -13,7 +13,7 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
-import           Control.Monad (when, filterM)
+import           Control.Monad (forM, when, filterM)
 import           Control.Monad.Reader
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Misc            as Misc
@@ -58,7 +58,9 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
-solve :: forall a. (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
+solve
+  :: forall a. (NFData a, F.Fixpoint a, Show a, F.Loc a)
+  => Config -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 
 solve cfg fi = do
@@ -253,20 +255,21 @@ refineC
   -> SolveM a (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
 refineC bindingsInSmt be _i s c =
-  do let (ks, rhs) = rhsCands s
-     if null rhs
+  do let krhs = rhsCands s
+     if all (null . snd) krhs
         then return (False, s)
         else do
           let lhs = S.lhsPred bindingsInSmt be s c
-          kqs <- filterValid (cstrSpan c) lhs rhs
-          return $ S.update s ks kqs
+          kqs <- forM krhs $ \(k, rhs) ->
+            (,) k . Sol.QB <$> filterValid (cstrSpan c) lhs rhs
+          return $ S.update s kqs
   where
-    rhsCands :: Sol.Solution -> ([F.KVar], Sol.Cand (F.KVar, Sol.EQual))
-    rhsCands s = (fst <$> ks, concatMap cnd ks)
+    rhsCands :: Sol.Solution -> [(F.KVar, Sol.Cand Sol.EQual)]
+    rhsCands s = M.toList $ M.fromList $ map cnd ks
       where
-        cnd :: (F.KVar, F.Subst) -> [(F.Pred, (F.KVar, Sol.EQual))]
-        cnd (k, su) = map (\(p , q) -> (p , (k , q))) $ Sol.qbPreds su (Sol.lookupQBind s k)
         ks          = predKs . F.crhs $ c
+        cnd :: (F.KVar, F.Subst) -> (F.KVar , Sol.Cand Sol.EQual)
+        cnd (k, su) = (k, Sol.qbPreds su (Sol.lookupQBind s k))
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps
@@ -337,9 +340,9 @@ result_
   -> Sol.Solution
   -> SolveM a (F.FixResult (F.SimpC a))
 result_ bindingsInSmt be cfg cs0 s = do
-  filtered <- filterM (isUnsat bindingsInSmt be s) cs
+  unsatisfiedConstraints <- filterM (isUnsat bindingsInSmt be s) cs
   sts      <- stats
-  pure $ res sts filtered
+  pure $ res sts unsatisfiedConstraints
   where
     cs          = isChecked cfg cs0
     res sts []  = F.Safe sts

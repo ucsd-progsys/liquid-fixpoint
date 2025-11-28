@@ -306,9 +306,16 @@ dropIrrelevantBindings aenvMap extraSymbols env =
   filter relevantBind env
   where
     allSymbols =
-      reachableSymbols (HashSet.union extraSymbols envSymbols) aenvMap
+      reachableSymbols (HashSet.unions [extraSymbols, envSymbols, withKVars]) aenvMap
     envSymbols =
       HashSet.unions $ map (\(_, _, sr,_) -> sortedReftSymbols sr) env
+
+    -- If there are bindings with KVars, we include them to be conservative.
+    withKVars =
+      HashSet.fromList $
+      map fst $
+      filter (not . HashMap.null . exprKVars . reftPred . sr_reft . snd) $
+      map (\(x, _, sr, _) -> (x, sr)) env
 
     relevantBind (s, _, sr, _)
       | HashSet.member s allSymbols = True
@@ -739,7 +746,13 @@ dropLikelyIrrelevantBindings
 dropLikelyIrrelevantBindings ss env = HashMap.filterWithKey relevant env
   where
     directlyUses = HashMap.map (exprSymbolsSet . reftPred . sr_reft) env
-    relatedSyms = relatedSymbols ss directlyUses
+    relatedSyms = relatedSymbols (HashSet.union ss withKVars) directlyUses
+    -- If there are bindings with KVars, we include them to be conservative.
+    withKVars =
+      HashSet.fromList $
+      map fst $
+      filter (not . HashMap.null . exprKVars . reftPred . sr_reft . snd) $
+      HashMap.toList env
     relevant s _sr =
       (not (capitalizedSym s) || prefixOfSym s /= s) && s `HashSet.member` relatedSyms
     capitalizedSym = Text.all isUpper . Text.take 1 . symbolText
