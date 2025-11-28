@@ -12,7 +12,7 @@ import Test.Tasty.HUnit
 
 tests :: TestTree
 tests =
-  testGroup "simplifyKVar" $ map simplificationTest 
+  testGroup "simplifyKVar" $ map simplificationTest
     [ SimplificationTest
         { name = "single elimination"
         , expected = """
