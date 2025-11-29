@@ -327,8 +327,8 @@ mkNonCutsExpr ce s k cs =
   let bcps = map (bareCubePred ce s k) cs
    in F.pOr bcps
 
-nonCutsResult :: F.BindEnv ann -> Sol.Sol Sol.QBind -> M.HashMap F.KVar F.Expr
-nonCutsResult be s = M.mapWithKey (mkNonCutsExpr g s) $ Sol.sHyp s
+nonCutsResult :: F.BindEnv ann -> Sol.Sol Sol.QBind -> FixDelayedSolution
+nonCutsResult be s = M.mapWithKey (\k -> Delayed . mkNonCutsExpr g s k) $ Sol.sHyp s
   where
     g = CEnv Nothing be F.emptyIBindEnv F.dummySpan F.emptyIBindEnv
 

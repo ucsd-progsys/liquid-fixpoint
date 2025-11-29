@@ -31,14 +31,14 @@ import qualified Language.Fixpoint.Misc as Misc
 --------------------------------------------------------------------------------
 -- | Compute the domain of a kvar
 --------------------------------------------------------------------------------
-kvarDomain :: SInfo a -> KVar -> [Symbol]
+kvarDomain :: GInfo c a -> KVar -> [Symbol]
 --------------------------------------------------------------------------------
 kvarDomain si k = domain (bs si) (getWfC si k)
 
 domain :: BindEnv a -> WfC a -> [Symbol]
 domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
 
-getWfC :: SInfo a -> KVar -> WfC a
+getWfC :: GInfo c a -> KVar -> WfC a
 getWfC si k = ws si M.! k
 
 --------------------------------------------------------------------------------

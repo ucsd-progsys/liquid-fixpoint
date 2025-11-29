@@ -1424,28 +1424,6 @@ crashP pp = do
   msg <- takeWhileP Nothing (const True) -- consume the rest of the input
   return $ Crash [(i, Nothing)] msg
 
-predSolP :: Parser Expr
-predSolP = parens (exprP  <* (comma >> iQualP))
-
-iQualP :: Parser [Symbol]
-iQualP = upperIdP >> parens (sepBy symbolP comma)
-
-solution1P :: Parser (KVar, Expr)
-solution1P = do
-  reserved "solution:"
-  k  <- kvP
-  reservedOp ":="
-  ps <- brackets $ sepBy predSolP semi
-  return (k, simplify $ PAnd ps)
-  where
-    kvP = try kvarP <|> (KV <$> symbolP)
-
-solutionP :: Parser (M.HashMap KVar Expr)
-solutionP = M.fromList <$> sepBy solution1P spaces
-
-solutionFileP :: Parser (FixResult Integer, M.HashMap KVar Expr)
-solutionFileP = (,) <$> fixResultP natural <*> solutionP
-
 --------------------------------------------------------------------------------
 
 -- | Parse via the given parser, and obtain the rest of the input
@@ -1561,9 +1539,6 @@ instance Inputable Expr where
 
 instance Inputable (FixResult Integer) where
   rr' = doParse' $ fixResultP natural
-
-instance Inputable (FixResult Integer, FixSolution) where
-  rr' = doParse' solutionFileP
 
 instance Inputable (FInfo ()) where
   rr' = {- SCC "fInfoP" -} doParse' fInfoP
