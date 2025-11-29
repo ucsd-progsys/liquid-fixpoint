@@ -177,7 +177,7 @@ solve_ cfg fi s2 wkl = do
 tidyResult :: Config -> F.Result a -> F.Result a
 tidyResult _ r = r
   { F.resSolution = tidySolution (F.resSolution r)
-  , F.resNonCutsSolution = tidySolution (F.resNonCutsSolution r)
+  , F.resNonCutsSolution = M.map (fmap tidyPred) (F.resNonCutsSolution r)
   , F.resSorts = fmap tidyBind <$>  F.resSorts r
   }
 

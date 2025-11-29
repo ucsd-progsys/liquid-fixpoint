@@ -63,6 +63,8 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Results
   , FixSolution
+  , FixDelayedSolution
+  , Delayed (..)
   , Result (..), ResultSorts
   , unsafe, isUnsafe, isSafe ,safe
 
@@ -97,9 +99,6 @@ module Language.Fixpoint.Types.Constraints (
   , sortVars
   , gSorts
 
-  -- * ScopedResult
-  , ScopedResult (..), ScopedExpr (..)
-  , scopedResult
   ) where
 
 import qualified Data.Store as S
@@ -248,12 +247,24 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
+-- | Since some solutions are expensive to compute, we wrap them in a
+-- "Delayed" type to compute them only if needed.
+{- HLINT ignore Delayed "Use newtype instead of data" -}
+data Delayed a = Delayed
+  { forceDelayed  :: a
+  }
+  deriving (Generic, Show, Functor)
+
+instance (NFData a) => NFData (Delayed a)
+
+
 type FixSolution  = M.HashMap KVar Expr
+type FixDelayedSolution  = M.HashMap KVar (Delayed Expr)
 
 data Result a = Result
   { resStatus    :: !(FixResult a)
   , resSolution  :: !FixSolution
-  , resNonCutsSolution :: !FixSolution
+  , resNonCutsSolution :: !FixDelayedSolution
   , resSorts     :: !ResultSorts
   }
   deriving (Generic, Show, Functor)
@@ -284,8 +295,8 @@ instance ToHornSMT ScopedExpr where
 scopedResult :: Result a -> ScopedResult
 scopedResult res = MkScopedResult cuts  nonCuts
   where
-    cuts = scoped (resSolution res)
-    nonCuts = scoped (resNonCutsSolution res)
+    cuts = scoped $ resSolution res
+    nonCuts = scoped $ M.map forceDelayed $ resNonCutsSolution res
     scoped sol = MkKVarMap $ M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
     scope k = M.lookupDefault [] k $ resSorts res
 

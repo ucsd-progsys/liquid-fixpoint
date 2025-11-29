@@ -324,7 +324,7 @@ saveSolution cfg res = when (save cfg) $ do
     , ""
     , "Non-cut kvars:"
     , ""
-    , scopedRender (resNonCutsSolution res)
+    , scopedRender (HashMap.map forceDelayed $ resNonCutsSolution res)
     ]
     where
       scopedRender = PJ.render . PJ.vcat . map ncDoc . scoped
@@ -336,7 +336,7 @@ simplifyResult :: Config -> Result a -> Result a
 simplifyResult cfg res =
     res
       { resSolution = HashMap.map simplifyKVar' (resSolution res)
-      , resNonCutsSolution = HashMap.map simplifyKVar' (resNonCutsSolution res)
+      , resNonCutsSolution = HashMap.map (fmap simplifyKVar') (resNonCutsSolution res)
       }
   where
     simplifyKVar' = unElabSets . unElab . simplifyKVar
