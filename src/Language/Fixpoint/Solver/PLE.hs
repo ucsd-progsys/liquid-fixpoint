@@ -8,6 +8,7 @@
 --     2. "Reasoning about Functions", VMCAI 2018, https://ranjitjhala.github.io/static/reasoning-about-functions.pdf
 --------------------------------------------------------------------------------
 
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
@@ -245,6 +246,7 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
       , icEtaBetaFlag        = etabeta        $ ieCfg env
       , icExtensionalityFlag = extensionality $ ieCfg env
       , icLocalRewritesFlag  = localRewrites  $ ieCfg env
+      , icFreshExistentialCounter = 0
       }
 
 loopT
@@ -431,6 +433,7 @@ data ICtx    = ICtx
                                                      -- See Note [Eta expansion].
   , icExtensionalityFlag :: Bool                     -- ^ True if the extensionality flag is turned on
   , icLocalRewritesFlag  :: Bool                     -- ^ True if the local rewrites flag is turned on
+  , icFreshExistentialCounter :: Int                 -- ^ Counter to generate fresh names for existentials
   }
 
 ----------------------------------------------------------------------------------------------
@@ -482,6 +485,7 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
        , icANFs   = anfBinds
        , icLRWs   = mconcat $ icLRWs ictx : newLRWs
        , icBindIds = ibinds
+       , icFreshExistentialCounter = existentialCounter
        }
   where
     ibinds = insertsIBindEnv delta (icBindIds ictx)
@@ -495,7 +499,9 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
     es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
 
-    binds     = [ maybeApplyKVarSolutions (x, y)
+    (binds, existentialCounter) = renameExistentialsInSortedRefts binds0 (icFreshExistentialCounter ictx)
+
+    binds0    = [ maybeApplyKVarSolutions (x, y)
                 | i <- delta
                 , let (x, y, _) = lookupBindEnv i ieBEnv
                 ]
@@ -1510,3 +1516,39 @@ checkFuel f = do
   case (M.lookup f (fcMap fc), fcMax fc) of
     (Just fk, Just n) -> pure (fk <= n)
     _                 -> pure True
+
+-- | Renames existential variables in the predicates of the given bindings to make them
+-- unique.
+--
+-- Rather than looking for all existential bindings, this function only renames
+-- the superficial existentials which can be introduced by KVar solutions.
+--
+-- These superficial existentials appear in conjunctions, disjunctions and in the
+-- body of other existentials only.
+renameExistentialsInSortedRefts
+  :: [(Symbol, SortedReft)]
+  -> Int
+  -> ([(Symbol, SortedReft)], Int)
+renameExistentialsInSortedRefts binds0 existentialCounter =
+    let
+        binds = [ (x, sr { sr_reft = mapPredReft (const p) (sr_reft sr) }) | ((x, sr), p) <- zip binds0 preds ]
+        (preds, existentialCounter') =
+          renameKVarExistentials (map (reftPred . sr_reft . snd) binds0) existentialCounter
+     in
+        (binds, existentialCounter')
+
+renameKVarExistentials :: [Expr] -> Int -> ([Expr], Int)
+renameKVarExistentials = runState . mapM go
+  where
+    go (POr es) = POr <$> mapM go es
+    go (PAnd es) = PAnd <$> mapM go es
+    go (PExist bs e0) = do
+      i1 <- get
+      let i2 = i1 + length bs
+      put i2
+      let vs = map fst bs
+          vs' = [ existSymbol v (fromIntegral i) | (v, i) <- zip vs [i1..] ]
+          bs' = zip vs' (map snd bs)
+          su = mkSubst $ zip vs (map EVar vs')
+      PExist bs' <$> go (rapierSubstExpr (S.fromList vs') su e0)
+    go e = pure e
