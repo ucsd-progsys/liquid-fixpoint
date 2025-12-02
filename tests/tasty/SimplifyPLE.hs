@@ -32,8 +32,8 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
     emptyICtx =
       ICtx
         { icAssms = S.empty,      -- S.HashSet Pred
-          icCands = S.empty,      -- :: S.HashSet Expr
-          icEquals = S.empty,     -- :: EvAccum
+          icCands = mempty,      -- :: S.HashSet Expr
+          icEquals = mempty,     -- :: EvAccum
           icSimpl = SM.empty,     -- :: !ConstMap
           icSubcId = Nothing,     -- :: Maybe SubcId
           icANFs = [],            -- :: [[(Symbol, SortedReft)]]
@@ -41,5 +41,7 @@ simplify' = PLE.simplify emptyKnowledge emptyICtx
           icEtaBetaFlag        = False,
           icExtensionalityFlag = False,
           icLocalRewritesFlag  = False,
-          icBindIds = mempty
+          icBindIds = mempty,
+          icFreshExistentialCounter = 0,
+          icInitialLHSs = mempty
         }

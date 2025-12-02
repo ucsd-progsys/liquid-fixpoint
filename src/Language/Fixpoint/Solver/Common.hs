@@ -15,13 +15,18 @@ import GHC.Stack (HasCallStack)
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
-askSMT :: HasCallStack => Config -> [(Symbol, Sort)] -> Expr -> SmtM Bool
-askSMT cfg xs e
---   | isContraPred e  = return False
+askSMT
+  :: HasCallStack
+  => Config
+  -> [(Symbol, Sort)] -- ^ symbols already declared in the SMT solver
+  -> [(Symbol, Sort)] -- ^ symbols to declare in the SMT solver
+  -> Expr
+  -> SmtM Bool
+askSMT cfg bsInSMT xs e
   | isTautoPred  e     = return True
   | null (kvarsExpr e) =
       do ctx <- get
-         let e' = toSMT "askSMT" cfg ctx xs e
+         let e' = toSMT "askSMT" cfg ctx (xs ++ bsInSMT) e
          checkValidWithContext xs PTrue e'
   | otherwise          = return False
 
