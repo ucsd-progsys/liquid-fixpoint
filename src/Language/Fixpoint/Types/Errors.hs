@@ -138,7 +138,7 @@ err :: SrcSpan -> Doc -> Error
 err sp d = Error [Error1 sp d]
 
 ---------------------------------------------------------------------
-panic :: String -> a
+panic :: HasCallStack => String -> a
 ---------------------------------------------------------------------
 panic = die . err dummySpan . text . (panicMsg ++)
 

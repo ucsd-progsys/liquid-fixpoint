@@ -137,7 +137,7 @@ data ElabParam = ElabParam
   }
 
 class Elaborate a where
-  elaborate :: ElabParam -> a -> a
+  elaborate :: HasCallStack => ElabParam -> a -> a
 
 
 instance (Loc a) => Elaborate (SInfo a) where
@@ -203,7 +203,7 @@ elabDefinedEqn ep eq = eq { eqBody = elaborateExpr ep' (eqBody eq) (Just t')
 instance Elaborate Expr where
   elaborate p e = elaborateExpr p e Nothing
 
-elaborateExpr :: ElabParam -> Expr -> Maybe Sort -> Expr
+elaborateExpr :: HasCallStack => ElabParam -> Expr -> Maybe Sort -> Expr
 elaborateExpr (ElabParam ef msg env) e t =
   elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') t .  elabSorts ef . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id) $ e
     where
@@ -436,7 +436,7 @@ elabSorts _ e                 = e
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
-elabExpr :: ElabParam -> Maybe Sort -> Expr -> Expr
+elabExpr :: HasCallStack => ElabParam -> Maybe Sort -> Expr -> Expr
 elabExpr ep t e = case elabExprE ep t e of
   Left ex  -> die ex
   Right e' -> F.notracepp ("elabExp " ++ showpp e) e'
