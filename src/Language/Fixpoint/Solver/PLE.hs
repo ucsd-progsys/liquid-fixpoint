@@ -380,23 +380,25 @@ evalCandsLoop cfg ictx0 γ = go ictx0 0
         then return ictx
         else do liftSMT $ SMT.smtAssertDecl $ pAndNoDedup $ S.toList $ icAssms ictx
                 let ictx' = ictx { icAssms = mempty }
-                    (sts, candSets) = unzip $ M.toList $ icCands ictx
+                    (scopes, candSets) = unzip $ M.toList $ icCands ictx
                     cands = map S.toList candSets
-                (candss, uss) <- unzip <$>
-                  zipWithM (\s -> withExScope s . (>>= collectEqs) . mapM (evalOne γ ictx' i)) sts cands
-                let noCandidateChanged = and $ map and $ (zipWith (zipWith eqCand) candss cands)
-                    unknownEqs = M.unionWith S.difference (M.fromList (zip sts uss)) (icEquals ictx)
-                if all null unknownEqs && noCandidateChanged
-                      then return ictx
-                      else do ctx' <- gets evKCtx
-                              let eqsSMT = S.unions $ M.elems $
-                                    M.mapWithKey
-                                      (\scope -> S.map $ evalToSMT "evalCandsLoop" cfg ctx' scope)
-                                      unknownEqs
-                                  ictx'' = ictx { icEquals = M.unionWith S.union (icEquals ictx) unknownEqs
-                                                , icAssms  = S.filter (not . isTautoPred) eqsSMT
-                                                }
-                              go (ictx'' { icCands = M.fromList $ zip sts (map (S.fromList . concat) candss) }) (i + 1)
+                (candss, uss) <- unzip <$> zipWithM (evalCand ictx' i) scopes cands
+                let noCandidateChanged = all and $ zipWith (zipWith eqCand) candss cands
+                    unknownEqs = M.unionWith S.difference (M.fromList (zip scopes uss)) (icEquals ictx)
+                if all null unknownEqs && noCandidateChanged then
+                  return ictx
+                else do
+                  ctx' <- gets evKCtx
+                  let eqsSMT =
+                        S.unions $ M.elems $
+                          M.mapWithKey
+                            (\scope -> S.map $ evalToSMT "evalCandsLoop" cfg ctx' scope)
+                            unknownEqs
+                      ictx'' = ictx
+                        { icEquals = M.unionWith S.union (icEquals ictx) unknownEqs
+                        , icAssms  = S.filter (not . isTautoPred) eqsSMT
+                        }
+                  go (ictx'' { icCands = M.fromList $ zip scopes (map (S.fromList . concat) candss) }) (i + 1)
 
     testForInconsistentEnvironment :: EvalST Bool
     testForInconsistentEnvironment =
@@ -404,6 +406,9 @@ evalCandsLoop cfg ictx0 γ = go ictx0 0
 
     eqCand [e0] e1 = e0 == e1
     eqCand _ _ = False
+
+    evalCand :: ICtx -> Int -> ExScope -> [Expr] -> EvalST ([[Expr]], S.HashSet (Expr, Expr))
+    evalCand ictx i scope es = withExScope scope $ mapM (evalOne γ ictx i) es >>= collectEqs
 
     collectEqs :: [[Expr]] -> EvalST ([[Expr]], S.HashSet (Expr, Expr))
     collectEqs es = do
