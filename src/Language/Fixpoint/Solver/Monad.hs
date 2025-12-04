@@ -26,7 +26,6 @@ module Language.Fixpoint.Solver.Monad
        , SolverState(..)
 
        , modifyContext
-       , clearApplys
        )
        where
 
@@ -126,9 +125,6 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 modifyContext :: (Context -> Context) -> SolveM ann ()
 modifyContext f = modify $ \s -> s { ssCtx = f (ssCtx s) }
 
-clearApplys :: SolveM ann ()
-clearApplys = modifyContext $ \c -> c { ctxSymEnv = (ctxSymEnv c) { F.seAppls = mempty , F.seApplsCur = mempty , F.seIx = 0 } }
-
 --------------------------------------------------------------------------------
 -- | SMT Interface -------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -148,15 +144,15 @@ sendConcreteBindingsToSMT known be act = do
         , not (F.memberIBindEnv i known)
         ]
   st <- get
-  (a, st'') <- liftSMT $
+  liftSMT $
     smtBracket "sendConcreteBindingsToSMT" $ do
       forM_ concretePreds $ \(i, e) ->
         smtDefineFunc (F.bindSymbol (fromIntegral i)) [] F.boolSort e
       ctx <- get
       let st' = st { ssCtx = ctx }
-      liftIO $ flip runStateT st' $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
-  put st''
-  return a
+      (a, st'') <- liftIO $ flip runStateT st' $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
+      put (ssCtx st'')
+      return a
   where
     isShortExpr F.PTrue = True
     isShortExpr F.PTop = True

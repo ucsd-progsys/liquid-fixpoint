@@ -139,14 +139,8 @@ solve_ cfg fi s2 wkl = do
     return (s3, res0)
 
   (fi1, res1) <- case resStatus res0 of  {- first run the interpreter -}
-    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg && interpreter cfg -> do
+    Unsafe _ bads | rewriteAxioms cfg && interpreter cfg -> do
       bs <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
-      -- TODO the `clearApplys` is a workaround needed because `sendConcreteBindingsToSMT`
-      -- seems to not remove the tags introduced in its bracket from the tag stack,
-      -- meanwhile the SMT solver pops the corresponding definition. The result is
-      -- that when the same definition needs to re-emitted in the interpreter/PLE,
-      -- LH thinks it's still in the context, which causes the SMT solver to crash.
-      clearApplys
       let fi1 = fi { F.bs = bs }
           badCs = lookupCMap (F.cm fi) <$> map fst bads
       fmap (fi1,) $ sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
@@ -154,10 +148,8 @@ solve_ cfg fi s2 wkl = do
     _ -> return  (fi, mytrace "all checked before interpreter" res0)
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
-    Unsafe _ bads2 | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
+    Unsafe _ bads2 | rewriteAxioms cfg -> do
       bs <- liftIO $ PLE.instantiate cfg fi1 (Just s3) (Just $ map fst bads2)
-      -- TODO reset the ix stack too?
-      clearApplys
       -- Check the constraints one last time after PLE
       let fi2 = fi { F.bs = bs }
           badsCs2 = lookupCMap (F.cm fi) <$> map fst bads2
