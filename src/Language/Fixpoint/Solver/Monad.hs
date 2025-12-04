@@ -143,7 +143,7 @@ sendConcreteBindingsToSMT known be act = do
         , not (F.memberIBindEnv i known)
         ]
   st <- get
-  liftSMT $
+  (a, st'') <- liftSMT $
     smtBracket "sendConcreteBindingsToSMT" $ do
       forM_ concretePreds $ \(i, e) ->
         smtDefineFunc (F.bindSymbol (fromIntegral i)) [] F.boolSort e
@@ -151,7 +151,9 @@ sendConcreteBindingsToSMT known be act = do
       let st' = st { ssCtx = ctx }
       (a, st'') <- liftIO $ flip runStateT st' $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
       put (ssCtx st'')
-      return a
+      return (a, st'')
+  modify $ \st''' -> st'' { ssCtx = ssCtx st''' }
+  return a
   where
     isShortExpr F.PTrue = True
     isShortExpr F.PTop = True
