@@ -1371,7 +1371,7 @@ partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
 withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
 withCtx cfg file env defns k =
   bracket acquire release $
-    evalStateT $ SMT.smtPush >> k   -- TODO why is there no pop?
+    evalStateT $ SMT.smtBracket "withCtx" k
   where
     acquire = SMT.makeContextWithSEnv cfg file env defns
     release = SMT.cleanupContext

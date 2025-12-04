@@ -538,22 +538,24 @@ symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
 dataDeclarations :: SymEnv -> [[DataDecl]]
 dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
+-- | See 'F.seApplsCur' for explanation.
 funcSortVars :: Bool -> F.SymEnv -> [(T.Text, ([F.SmtSort], F.SmtSort))]
 funcSortVars lams env =
-  -- TODO It would probably be even faster (if slightly) to convert `seApplsCur`
-  -- to a key-value list and iterate over it, at least this way we can get rid of
-  -- the unreachable `error` below.
-                  [(var applyName  t       , appSort t) | t <- ts]
-  ++              [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
-  ++              [(var lambdaName t       , lamSort t) | t <- ts]
-  ++ if lams then [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ] else []
+    concatMap symbolsForTag $ M.toList $ F.seApplsCur env
   where
-    var :: F.Symbol -> F.FuncSort -> T.Text
-    var n t       =
-      case M.lookup t (F.seApplsCur env) of
-        Just i  -> symbolAtSortIndex n i
-        Nothing -> error "funcSortVars: no index for sort in seApplsCur"
-    ts            = M.keys $ F.seApplsCur env
+    symbolsForTag (t, i) =
+      let applySym  = symbolAtSortIndex applyName i
+          coerceSym = symbolAtSortIndex coerceName i
+          lamSym    = symbolAtSortIndex lambdaName i
+          argSyms   = if lams && snd t == F.SInt
+                        then [ (symbolAtSortIndex (lamArgSymbol j) i, argSort t)
+                             | j <- [1..Thy.maxLamArg] ]
+                        else []
+      in  (applySym, appSort t)
+        : (coerceSym, ([fst t], snd t))
+        : (lamSym, lamSort t)
+        : argSyms
+
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)
     argSort (s,_) = ([]    , s)

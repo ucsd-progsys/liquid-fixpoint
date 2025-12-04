@@ -79,13 +79,17 @@ type Raw = Text
 -- | 'SymEnv' is used to resolve the 'Sort' and 'Sem' of each 'Symbol'
 --------------------------------------------------------------------------------
 
--- | This is a type of "apply tags", i.e. a stack of lookup maps relating a
---   function sort to a numeric tag. Every time we issue a `push` a new level
---   is added to the stack, and correspondingly, a `pop` removes a level. This
---   way we can emit new tag "lazily", i.e. only the first time they are
---   encountered in an expression during SMT serialization. This means we
---   can repeatedly re-emit same definitions in new push/pop brackets, but
---   this doesn't seem to incur any significant performance penalties.
+-- | Apply tags already used to declare @apply@ symbols in the SMT solver.
+--
+-- The tags are organized in a stack because every time we pop the SMT solver
+-- state, it forgets the tags declared since the last push.
+--
+-- Each entry in the stack describes the integer tag corresponding to a
+-- particular function sort. Every time we issue a `push` a new level
+-- is added to the stack, and correspondingly, a `pop` removes a level.
+--
+-- See 'seApplsCur' in 'SymEnv' for details about actually declaring the
+-- tags to the SMT solver.
 type Appls = [M.HashMap FuncSort Int]
 
 lookupAppls :: FuncSort -> Appls -> Maybe Int
@@ -106,18 +110,28 @@ peekAppls :: Appls -> Maybe (M.HashMap FuncSort Int)
 peekAppls [] = Nothing
 peekAppls (x:_) = Just x
 
--- | In addition to the tag map stack, we also maintain a "workplace" or "current"
---   map that holds the tags that have been created but not yet emitted at the
---   current bracket level. After emitting, the contents of the current map are
---   moved to the top of the map stack, this way we ensure that there are no
---   duplicate definitions (which crash the SMT solver).
 data SymEnv = SymEnv
   { seSort     :: !(SEnv Sort)              -- ^ Sorts of *all* defined symbols
   , seTheory   :: !(SEnv TheorySymbol)      -- ^ Information about theory-specific Symbols
   , seData     :: !(SEnv DataDecl)          -- ^ User-defined data-declarations
   , seLits     :: !(SEnv Sort)              -- ^ Distinct Constant symbols
-  , seAppls    :: !Appls                    -- ^ Stack of function sort maps
-  , seApplsCur :: !(M.HashMap FuncSort Int) -- ^ Current function sort map
+
+    -- | Apply tags already declared in the SMT solver.
+    --
+    -- This is inspected when serializing applications of functions to determine
+    -- if a new tag needs to be created for a given function sort
+    -- (@funcSortIndex@).
+  , seAppls    :: !Appls
+
+    -- | Apply tags that have been created while serializing expressions for the
+    -- SMT solver, but which have not been used to declare apply symbols yet in
+    -- the SMT solver.
+    --
+    -- The apply symbols using the tags are declared whenever we need to send
+    -- the serialized expressions to the SMT solver (using @funcSortVars@). At
+    -- this point, the contents of this map are merged into the top of the
+    -- 'seAppls' stack, and @seApplsCur@ is cleared.
+  , seApplsCur :: !(M.HashMap FuncSort Int)
   , seIx       :: !Int                      -- ^ Largest unused index for sorts
   }
   deriving (Eq, Show, Data, Typeable, Generic)
@@ -189,6 +203,7 @@ symbolAtName mkSym s =
      pure $ symbolAtSortIndex mkSym fsi
 {-# SCC symbolAtName #-}
 
+-- See 'seAppls' and 'seApplsCur' in 'SymEnv' for explanation.
 funcSortIndex :: FuncSort -> SymM Int
 funcSortIndex fs =
   do env <- get
