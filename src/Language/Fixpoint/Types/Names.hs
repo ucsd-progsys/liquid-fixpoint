@@ -521,26 +521,42 @@ hvarPrefix  = "nnf_arg$"
 unKArgSymbol :: Symbol -> Symbol
 unKArgSymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
 
--- | 'tidySymbol' is used to prettify the names of parameters of kvars appearing in solutions.(*)
---   For example, if you have a kvar $k0 with two parameters, you may have a solution that looks like
---       0 <  lq_karg$nnf_arg$##k0##0##k0
+-- | @tidySymbol@ is used to prettify the names of parameters of kvars appearing
+-- in solutions.  For example, if you have a kvar $k0 with two parameters, you
+-- may have a solution that looks like
+--
+-- > 0 <  lq_karg$nnf_arg$##k0##0##k0
+--
 --   where we know it is a kvar-arg because of the
---      - `kArgPrefix` (`lq_arg`)
---      - `hvarArgPrefix` (`nnf_arg`)
---      - `k0` the name of the kvar
---      - `0`  the parameter index
---      - `k0` again (IDK why?!)
---    all of which are separated by `##`
---   So `tidySymbol` tests if indeed it is a `kArgPrefix`-ed symbol and if so converts
---      `lq_karg$nnf_arg$##k0##0##k0` ----> `$k0##0`
+--      - @kArgPrefix@ (@lq_arg@)
+--      - @hvarArgPrefix@ (@nnf_arg@)
+--      - @k0@ the name of the kvar
+--      - @0@  the parameter index
+--      - @k0@ again (IDK why?!)
+--    all of which are separated by @##@
+--
+--   So @tidySymbol@ tests if indeed it is a @kArgPrefix@-ed symbol and if so
+--   converts
+--
+-- > lq_karg$nnf_arg$##k0##0##k0 ----> $k0##0
+--
+--  KArgs from Liquid Haskell come in the form @k_##0@ instead, and parameters
+--  are like @lq_karg$param_name##0##k_##0@. In this case, tidySymbol will
+--  convert
+--
+--  > lq_karg$param_name##0##k_##0  ----> $param_name##0##k_
 
 tidySymbol :: Symbol -> Symbol
 tidySymbol s
   | s == s'   = s
   | otherwise = s''
   where
-    s'        = unPrefixSymbol kArgPrefix s
-    s''       = consSym '$' . unPrefixSymbol symSepName . unSuffixSymbol . unPrefixSymbol hvarPrefix $ s'
+    s' = unPrefixSymbol kArgPrefix s
+    s'' =
+      consSym '$' $
+      unPrefixSymbol symSepName $
+      unSuffixSymbol $
+      unPrefixSymbol hvarPrefix s'
 
 unPrefixSymbol :: Symbol -> Symbol -> Symbol
 unPrefixSymbol p s = fromMaybe s (stripPrefix p s)

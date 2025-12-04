@@ -106,6 +106,7 @@ import qualified SMTLIB.Backends
 import qualified SMTLIB.Backends.Process as Process
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Control.Concurrent.Async (async)
+import GHC.Stack (HasCallStack)
 
 {-
 runFile f
@@ -121,19 +122,22 @@ runCommands cmds
        return zs
 -}
 
-checkValidWithContext :: [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
+checkValidWithContext
+  :: HasCallStack => [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
 checkValidWithContext xts p q =
   smtBracket "checkValidWithContext" $
     checkValid' xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
+checkValid
+  :: HasCallStack
+  => Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValid cfg f xts p q = do
   me <- makeContext cfg f
   evalStateT (checkValid' xts p q) me
 
-checkValid' :: [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
+checkValid' :: HasCallStack => [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
 checkValid' xts p q = do
   smtDecls xts
   smtAssertDecl $ pAnd [p, PNot q]
@@ -180,7 +184,7 @@ commandRaw ctxLog ctxSolver ctxVerbose cmdBS = do
 
 --------------------------------------------------------------------------------
 {-# SCC command #-}
-command  :: Command -> SmtM Response
+command  :: HasCallStack => Command -> SmtM Response
 --------------------------------------------------------------------------------
 command !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
@@ -429,7 +433,7 @@ smtAssert p = interact' (Assert Nothing p)
 
 -- the following three functions will emit additional `apply`,
 -- `coerce`, and `lambda` symbols for fresh function sorts as needed
-smtAssertDecl :: Expr -> SmtM ()
+smtAssertDecl :: HasCallStack => Expr -> SmtM ()
 smtAssertDecl p = interactDecl' (Assert Nothing p)
 
 smtDefineEqn :: Equation -> SmtM ()
@@ -453,7 +457,7 @@ smtAssertAxiom p  = interact' (AssertAx p)
 smtDistinct :: [Expr] -> SmtM ()
 smtDistinct az = interact' (Distinct az)
 
-smtCheckUnsat :: SmtM Bool
+smtCheckUnsat :: HasCallStack => SmtM Bool
 smtCheckUnsat = respSat <$> command CheckSat
 
 smtBracketAt :: SrcSpan -> String -> SmtM a -> SmtM a
@@ -479,7 +483,7 @@ smtBracket _msg a = do
         , ctxIxs = is}
   return r
 
-respSat :: Response -> Bool
+respSat :: HasCallStack => Response -> Bool
 respSat Unsat   = True
 respSat Sat     = False
 respSat Unknown = False
@@ -490,7 +494,7 @@ interact' cmd  = void $ command cmd
 
 -- | a variant of `interact'` which also emits fresh
 --   `apply`, `coerce`, and `lambda` symbols
-interactDecl' :: Command -> SmtM ()
+interactDecl' :: HasCallStack => Command -> SmtM ()
 interactDecl' cmd  = do
   cmdBS <- liftSym $ runSmt2 cmd
   ctx <- get
