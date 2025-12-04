@@ -149,7 +149,7 @@ solve_ cfg fi s2 wkl = do
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
     Unsafe _ bads2 | rewriteAxioms cfg -> do
-      bs <- liftIO $ PLE.instantiate cfg fi1 (Just s3) (Just $ map fst bads2)
+      bs <- liftSMT $ PLE.instantiate cfg fi1 (Just s3) (Just $ map fst bads2)
       -- Check the constraints one last time after PLE
       let fi2 = fi { F.bs = bs }
           badsCs2 = lookupCMap (F.cm fi) <$> map fst bads2

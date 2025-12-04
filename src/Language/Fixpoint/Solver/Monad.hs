@@ -90,7 +90,6 @@ runSolverM cfg sI act =
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.cfgHoInfo cfg }
 
-
 --------------------------------------------------------------------------------
 getIter :: SolveM ann Int
 --------------------------------------------------------------------------------
