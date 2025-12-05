@@ -54,7 +54,6 @@ import Language.REST.ExploredTerms as ExploredTerms
 import Language.REST.RuntimeTerm as RT
 import Language.REST.SMT (withZ3, SolverHandle)
 
-import           Control.Exception.Base (bracket)
 import           Control.Monad (filterM, foldM, forM_, when, replicateM, zipWithM)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
@@ -80,25 +79,26 @@ mytracepp = notracepp
 -- unfoldings discovered by PLE on the constraints in @subcIds@ (or all
 -- constraints if @subcIds == Nothing@).
 {-# SCC instantiate #-}
-instantiate :: (Loc a) => Config -> SInfo a -> Maybe Solution -> Maybe [SubcId] -> IO (BindEnv a)
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe Solution -> Maybe [SubcId] -> SmtM (BindEnv a)
 instantiate cfg fi' mSol subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm info)
     let t  = mkCTrie (M.toList cs)                                          -- 1. BUILD the Trie
-    res   <- withRESTSolver $ \solver ->
-               withProgress (1 + M.size cs) $
-               withCtx cfg file sEnv (defns fi') $
-               do env <- instEnv cfg info mSol cs solver
-                  pleTrie t env                                             -- 2. TRAVERSE Trie to compute InstRes
+    res   <- withRESTSolver $ \solver -> do
+               ctx <- get
+               (res, ctx') <- liftIO $ withProgressM (`runStateT` ctx) (1 + M.size cs) $ do
+                 env <- instEnv cfg info mSol cs solver
+                 pleTrie t env                                              -- 2. TRAVERSE Trie to compute InstRes
+               put ctx'
+               return res
     liftIO $ savePLEEqualities cfg info sEnv res
     return $ resSInfo cfg sEnv info res                                     -- 3. STRENGTHEN SInfo using InstRes
   where
-    withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
+    withRESTSolver :: (Maybe SolverHandle -> SmtM a) -> SmtM a
     withRESTSolver f | all null (M.elems $ aenvAutoRW aEnv) = f Nothing
     withRESTSolver f = withZ3 (f . Just)
 
-    file = srcFile cfg ++ ".evals"
     sEnv = symbolEnv cfg info
     aEnv = ae info
     info = normalize fi'
@@ -541,7 +541,7 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
     cands     = rhs:es
     anfBinds  = bs : icANFs ictx
     econsts   = M.fromList $ findConstants ieKnowl es
-    ctxEqs    = fmap (toSMT "updCtx" ieCfg ieSMT []) $ L.nub $ filter (null . Vis.kvarsExpr)
+    ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
                   [ c | xr <- bs, c <- conjuncts (expr xr), not (isTautoPred c) ]
     bs        = second unApplySortedReft <$> binds
     rhs       = unApply eRhs
@@ -1441,14 +1441,6 @@ partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
-
-withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
-withCtx cfg file env defns k =
-  bracket acquire release $
-    evalStateT $ SMT.smtBracket "withCtx" k
-  where
-    acquire = SMT.makeContextWithSEnv cfg file env defns
-    release = SMT.cleanupContext
 
 -- (sel_i, D, i), meaning sel_i (D x1 .. xn) = xi,
 -- i.e., sel_i selects the ith value for the data constructor D

@@ -112,7 +112,6 @@ data Config = Config
   , rwTermination    :: Bool        -- ^ Enable termination checking for rewriting
   , stdin               :: Bool        -- ^ Read input query from stdin
   , json                :: Bool        -- ^ Render output in JSON format
-  , noLazyPLE           :: Bool
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
   , restOrdering        :: String      -- ^ Term ordering for use in REST
   , noSmtHorn           :: Bool        -- ^ Do not use (new) SMTLIB horn parser
@@ -280,7 +279,6 @@ defConfig = Config {
   , rwTermination       = False   &= help "Enable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"
   , json                     = False   &= help "Render result in JSON"
-  , noLazyPLE                = False   &= help "Don't use lazy PLE"
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
   , restOrdering             = "rpo"   &= help "Ordering Constraint Algebra to use for REST"
   , noSmtHorn                = False &= help "Do not use SMTLIB horn format"

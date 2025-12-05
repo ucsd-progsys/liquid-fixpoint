@@ -2,6 +2,7 @@
 -- | Progress Bar API
 module Language.Fixpoint.Utils.Progress (
       withProgress
+    , withProgressM
     , progressInit
     , progressTick
     , progressClose
@@ -22,7 +23,10 @@ pbRef :: IORef (Maybe ProgressBar)
 pbRef = unsafePerformIO (newIORef Nothing)
 
 withProgress :: Int -> IO a -> IO a
-withProgress n act = do
+withProgress = withProgressM id
+
+withProgressM :: (m a -> IO b) -> Int -> m a -> IO b
+withProgressM mToIO n act = do
   showBar <- (Quiet /=) <$> getVerbosity
   -- We don't show the progress bar if the output is not a terminal.
   -- Besides improving the output, this also avoids a concurrency
@@ -33,10 +37,10 @@ withProgress n act = do
     then displayConsoleRegions $ do
       -- putStrLn $ "withProgress: " ++ show n
       progressInit n
-      r <- act
+      r <- mToIO act
       progressClose
       return r
-    else act
+    else mToIO act
 
 progressInit :: Int -> IO ()
 progressInit n = do

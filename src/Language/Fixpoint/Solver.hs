@@ -65,7 +65,6 @@ import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types hiding (GInfo(..), fi)
 import qualified Language.Fixpoint.Types as Types (GInfo(..))
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
-import           Language.Fixpoint.Solver.PLE as PLE (instantiate)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
 import Data.Maybe (catMaybes, isJust)
@@ -266,11 +265,7 @@ simplifyFInfo !cfg !fi0 = do
   -- writeLoud $ "fq file after elaborate: \n" ++ render (toFixpoint cfg si5)
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5
-  if rewriteAxioms cfg && noLazyPLE cfg
-    then do
-      bs <- PLE.instantiate cfg si6 Nothing Nothing
-      return si6 { Types.bs = bs }
-    else return si6
+  return si6
 
 reduceFInfo :: Fixpoint a => Config -> FInfo a -> IO (FInfo a)
 reduceFInfo cfg fi = do
