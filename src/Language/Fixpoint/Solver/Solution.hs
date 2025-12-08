@@ -1,6 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wwarn #-}
 
 module Language.Fixpoint.Solver.Solution
   ( -- * Create Initial Solution
@@ -17,13 +19,18 @@ module Language.Fixpoint.Solver.Solution
   , lhsPred
 
   , nonCutsResult
+
+    -- * Exported for Testing
+  , simplifyKVar
+  , alphaEq
   ) where
 
 import           Control.Arrow (second, (***))
-import           Control.Monad                  (guard)
+import           Control.Monad                  (guard, mplus)
 import           Control.Monad.Reader
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
+import qualified Data.List                      as List
 import           Data.Maybe                     (maybeToList, isJust, isNothing)
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
@@ -487,3 +494,135 @@ appendTags ts ts' = Misc.sortNub (ts ++ ts')
 extendKInfo :: KInfo -> F.Tag -> KInfo
 extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
                       , kiDepth = 1  +            kiDepth ki }
+
+-- | Simplifies existential expressions with unused or inconsequential bindings.
+--
+-- Simplification is helpful for human readability of solutions. It makes easier
+-- reporting errors. Sometimes it can be useful for debugging if run on queries
+-- sent to the SMT solver. We don't do that by default because some benchmarks
+-- show a slowdown in some cases.
+--
+-- For instance, in the following example, "x" is not used at all.
+--
+-- > simplifyKVar "exists x y. y == z && y == C"
+-- >   ==
+-- > "exists y. y == z && y == C"
+--
+-- And in the following example, @x@ is used but in a way that doesn't
+-- contribute any useful knowledge.
+--
+-- > simplifyKVar "exists x y. x == C && y == z && y == C"
+-- >   ==
+-- > "exists y. y == z && y == C"
+--
+-- Therefore we eliminate variables that appear in equalities via substitutions.
+--
+-- > simplifyKVar "exists x y. x == C && P && Q y"
+-- >   ==
+-- > "exists y. (P && Q y)[x:=C]"
+--
+simplifyKVar :: F.Expr -> F.Expr
+simplifyKVar = F.conj . dedupByAlphaEq . floatPExistConjuncts . go
+  where
+    go (F.POr es) = disj $ map (F.conj . floatPExistConjuncts . go) es
+    go (F.PAnd es) = F.conj $ dedupByAlphaEq $ concatMap (floatPExistConjuncts . go) es
+    go (F.PExist bs e0) =
+      let es = concatMap (floatPExistConjuncts . go) (F.conjuncts e0)
+       in elimExistentialBinds (F.PExist bs (F.conj es))
+    go e = e
+
+    dedupByAlphaEq :: [F.Expr] -> [F.Expr]
+    dedupByAlphaEq = List.nubBy (\e1 e2 -> alphaEq e1 e2)
+
+    disj :: [F.Expr] -> F.Expr
+    disj [] = F.PFalse
+    disj [e] = e
+    disj es = F.POr es
+
+    elimExistentialBinds (F.PExist bs0 (F.PExist bs1 p)) =
+      let bs0' = filter (\(x,_) -> x `notElem` map fst bs1) bs0
+       in elimExistentialBinds (F.PExist (bs0' ++ bs1) p)
+    elimExistentialBinds (F.PExist bs e0) =
+      let es = F.conjuncts e0
+          esv = map (isVarEq (map fst bs)) es
+          -- Eliminating multiple variables at once can be difficult if the
+          -- equalities define cyclic dependencies, so we only eliminate one
+          -- variable at a time.
+          esvElim = take 1 [ (x, v) | (Just (x, v), _) <- esv ]
+          esvKeep =
+            let (xs, ys) = break (isJust . fst) esv
+             in map snd (xs ++ drop 1 ys)
+          su = F.mkSubst esvElim
+          e' = F.rapierSubstExpr (F.substSymbolsSet su) su $ F.conj esvKeep
+          bs' = filter ((`S.member` F.exprSymbolsSet e') . fst) bs
+          e'' = F.pExist bs' e'
+       in
+          if null esvElim then e'' else elimExistentialBinds e''
+    elimExistentialBinds e = e
+
+    -- | Float out conjuncts from an existential expression that does not
+    -- depend on the existentially bound variables.
+    floatPExistConjuncts :: F.Expr -> [F.Expr]
+    floatPExistConjuncts e0@(F.PExist bs es0) =
+      let es = F.conjuncts es0
+          (floatable, nonFloatable) =
+           List.partition (isFloatableConjunct (S.fromList (map fst bs))) es
+       in
+          if null floatable then
+            [e0]
+          else
+            elimExistentialBinds (F.pExist bs (F.conj nonFloatable)) : floatable
+      where
+        isFloatableConjunct :: S.HashSet F.Symbol -> F.Expr -> Bool
+        isFloatableConjunct s e = S.null $ S.intersection (F.exprSymbolsSet e) s
+    floatPExistConjuncts e = [e]
+
+-- | Determine if two expressions are alpha-equivalent.
+--
+-- Doesn't handle all cases, just enough for simplifying KVars which requires
+-- alpha-equivalence checking of existentially quantified expressions.
+alphaEq :: F.Expr -> F.Expr -> Bool
+alphaEq = go (F.mkSubst [])
+  where
+    go :: F.Subst -> F.Expr -> F.Expr -> Bool
+    go su (F.PExist bs1 x1) (F.PExist bs2 x2) =
+      let su' = List.foldl' (\s (v1, v2) -> F.extendSubst s v1 (F.EVar v2)) su (zip (map fst bs1) (map fst bs2))
+       in go su' x1 x2
+    go su (F.PAnd es1) (F.PAnd es2) =
+      length es1 == length es2 && and (zipWith (go su) es1 es2)
+    go su (F.POr es1) (F.POr es2) =
+      length es1 == length es2 && and (zipWith (go su) es1 es2)
+    go su e1 e2 =
+      F.subst su e1 == e2
+
+-- | Determine if the expression is an equality that sets the value of
+-- a variable in the given set.
+--
+-- @isVarEq fvs e@ yields @(Just (v, e'), e)@ if @v@ is in @fvs@, and @e@ has
+-- the form @v == e'@.
+isVarEq :: [F.Symbol] -> F.Expr -> (Maybe (F.Symbol, F.Expr), F.Expr)
+isVarEq fvs ei0 = case ei0 of
+  F.PAtom brel e0 e1
+    | isEqRel brel ->
+      let m :: Maybe (F.Symbol, F.Expr)
+          m = do
+            (v, ei) <- ((,e1) <$> isVarIn e0 fvs) `mplus`
+                       ((,e0) <$> isVarIn e1 fvs)
+            () <- guard (not (S.member v (F.exprSymbolsSet ei)))
+            return (v, ei)
+       in (m, ei0)
+  _ ->
+    (Nothing, ei0)
+  where
+    -- | Tells if the binary relation is an equality.
+    isEqRel :: F.Brel -> Bool
+    isEqRel F.Eq = True
+    isEqRel F.Ueq = True
+    isEqRel _ = False
+
+    -- | @isVarIn s fvs@ yields @Just s@ if @s@ is a variable and it is in
+    -- @fvs@.
+    isVarIn :: F.Expr -> [F.Symbol] -> Maybe F.Symbol
+    isVarIn (F.EVar s) vs
+      | elem s vs = Just s
+    isVarIn _ _vs = Nothing

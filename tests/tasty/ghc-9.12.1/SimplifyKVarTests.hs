@@ -5,7 +5,7 @@ module SimplifyKVarTests (tests) where
 import Control.Monad (when)
 import Language.Fixpoint.Parse
 import qualified Language.Fixpoint.Types as F
-import qualified Language.Fixpoint.Solver as F
+import qualified Language.Fixpoint.Solver.Solution as F
 import Test.Tasty
 import Test.Tasty.HUnit
 

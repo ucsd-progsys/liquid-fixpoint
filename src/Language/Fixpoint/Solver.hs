@@ -5,7 +5,6 @@
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
@@ -23,25 +22,17 @@ module Language.Fixpoint.Solver (
 
     -- * Simplified Info
   , simplifyFInfo
-
-    -- * Simplify KVar solutions
-  , simplifyKVar
-
-    -- * Exported for testing
-  , alphaEq
 ) where
 
 import           Control.Concurrent                 (setNumCapabilities)
 import qualified Data.HashMap.Strict              as HashMap
-import qualified Data.HashSet                     as S
-import qualified Data.List                        as List
 import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
 import qualified Data.Text.Lazy.IO                as LT
 import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
-import           Control.Monad                      (guard, mplus, when)
+import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 import           Control.Exception.Compat
     (ExceptionWithContext(..), displayExceptionContext, wrapExceptionWithContext)
@@ -55,6 +46,7 @@ import           Language.Fixpoint.Solver.Extensionality (expand)
 import           Language.Fixpoint.Solver.Prettify (savePrettifiedQuery)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
+import qualified Language.Fixpoint.Solver.Solution  as Sol
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
@@ -67,7 +59,7 @@ import qualified Language.Fixpoint.Types as Types (GInfo(..))
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
 import qualified Data.ByteString as B
-import Data.Maybe (catMaybes, isJust)
+import Data.Maybe (catMaybes)
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 ---------------------------------------------------------------------------
@@ -334,129 +326,7 @@ simplifyResult cfg res =
       , resNonCutsSolution = HashMap.map (fmap simplifyKVar') (resNonCutsSolution res)
       }
   where
-    simplifyKVar' = unElabSets . unElab . simplifyKVar
+    simplifyKVar' = unElabSets . unElab . Sol.simplifyKVar
     sets          = elabSetBag . solverFlags . solver $ cfg
     unElabSets    = if sets then unElabFSetBagZ3 else id
 
-
--- | Simplifies existential expressions with unused or inconsequential bindings.
---
--- For instance, in the following example, "x" is not used at all.
---
--- > simplifyKVar "exists x y. y == z && y == C"
--- >   ==
--- > "exists y. y == z && y == C"
---
--- And in the following example, @x@ is used but in a way that doesn't
--- contribute any useful knowledge.
---
--- > simplifyKVar "exists x y. x == C && y == z && y == C"
--- >   ==
--- > "exists y. y == z && y == C"
---
--- Therefore we eliminate variables that appear in equalities via substitutions.
---
--- > simplifyKVar "exists x y. x == C && P && Q y"
--- >   ==
--- > "exists y. (P && Q y)[x:=C]"
---
-simplifyKVar :: Expr -> Expr
-simplifyKVar =
-   pAnd . dedupByAlphaEq . floatPExistConjuncts . go
-  where
-    go (POr es) = pOr $ map (pAnd . floatPExistConjuncts . go) es
-    go (PAnd es) = pAnd $ dedupByAlphaEq $ concatMap (floatPExistConjuncts . go) es
-    go (PExist bs e0) =
-      let es = concatMap (floatPExistConjuncts . go) (conjuncts e0)
-       in elimExistentialBinds (PExist bs (pAnd es))
-    go e = e
-
-    dedupByAlphaEq :: [Expr] -> [Expr]
-    dedupByAlphaEq = List.nubBy (\e1 e2 -> alphaEq e1 e2)
-
-    elimExistentialBinds (PExist bs0 (PExist bs1 p)) =
-      let bs0' = filter (\(x,_) -> x `notElem` map fst bs1) bs0
-       in elimExistentialBinds (PExist (bs0' ++ bs1) p)
-    elimExistentialBinds (PExist bs e0) =
-      let es = conjuncts e0
-          esv = map (isVarEq (map fst bs)) es
-          -- Eliminating multiple variables at once can be difficult if the
-          -- equalities define cyclic dependencies, so we only eliminate one
-          -- variable at a time.
-          esvElim = take 1 [ (x, v) | (Just (x, v), _) <- esv ]
-          esvKeep =
-            let (xs, ys) = break (isJust . fst) esv
-             in map snd (xs ++ drop 1 ys)
-          su = mkSubst esvElim
-          e' = rapierSubstExpr (substSymbolsSet su) su $ pAnd esvKeep
-          bs' = filter ((`S.member` exprSymbolsSet e') . fst) bs
-          e'' = pExist bs' e'
-       in
-          if null esvElim then e'' else elimExistentialBinds e''
-    elimExistentialBinds e = e
-
-    -- | Float out conjuncts from an existential expression that does not
-    -- depend on the existentially bound variables.
-    floatPExistConjuncts :: Expr -> [Expr]
-    floatPExistConjuncts e0@(PExist bs es0) =
-      let es = conjuncts es0
-          (floatable, nonFloatable) =
-           List.partition (isFloatableConjunct (S.fromList (map fst bs))) es
-       in
-          if null floatable then
-            [e0]
-          else
-            elimExistentialBinds (pExist bs (pAndNoDedup nonFloatable)) : floatable
-      where
-        isFloatableConjunct :: S.HashSet Symbol -> Expr -> Bool
-        isFloatableConjunct s e = S.null $ S.intersection (exprSymbolsSet e) s
-    floatPExistConjuncts e = [e]
-
--- | Determine if two expressions are alpha-equivalent.
---
--- Doesn't handle all cases, just enough for simplifying KVars which requires
--- alpha-equivalence checking of existentially quantified expressions.
-alphaEq :: Expr -> Expr -> Bool
-alphaEq = go (mkSubst [])
-  where
-    go :: Subst -> Expr -> Expr -> Bool
-    go su (PExist bs1 x1) (PExist bs2 x2) =
-      let su' = List.foldl' (\s (v1, v2) -> extendSubst s v1 (EVar v2)) su (zip (map fst bs1) (map fst bs2))
-       in go su' x1 x2
-    go su (PAnd es1) (PAnd es2) =
-      length es1 == length es2 && and (zipWith (go su) es1 es2)
-    go su (POr es1) (POr es2) =
-      length es1 == length es2 && and (zipWith (go su) es1 es2)
-    go su e1 e2 =
-      subst su e1 == e2
-
--- | Determine if the expression is an equality that sets the value of
--- a variable in the given set.
---
--- @isVarEq fvs e@ yields @(Just (v, e'), e)@ if @v@ is in @fvs@, and @e@ has
--- the form @v == e'@.
-isVarEq :: [Symbol] -> Expr -> (Maybe (Symbol, Expr), Expr)
-isVarEq fvs ei0 = case ei0 of
-  PAtom brel e0 e1
-    | isEqRel brel ->
-      let m = do
-            (v, ei) <- ((,e1) <$> isVarIn e0 fvs) `mplus`
-                       ((,e0) <$> isVarIn e1 fvs)
-            () <- guard (not (S.member v (exprSymbolsSet ei)))
-            return (v, ei)
-       in (m, ei0)
-  _ ->
-    (Nothing, ei0)
-  where
-    -- | Tells if the binary relation is an equality.
-    isEqRel :: Brel -> Bool
-    isEqRel Eq = True
-    isEqRel Ueq = True
-    isEqRel _ = False
-
-    -- | @isVarIn s fvs@ yields @Just s@ if @s@ is a variable and it is in
-    -- @fvs@.
-    isVarIn :: Expr -> [Symbol] -> Maybe Symbol
-    isVarIn (EVar s) vs
-      | elem s vs = Just s
-    isVarIn _ _vs = Nothing
