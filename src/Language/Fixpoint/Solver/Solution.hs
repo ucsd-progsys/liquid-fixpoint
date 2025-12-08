@@ -475,11 +475,11 @@ instance Monoid KInfo where
   mempty  = KI [] 0 1
   mappend = (<>)
 
-mplus :: KInfo -> KInfo -> KInfo
-mplus ki ki' = (mappend ki ki') { kiCubes = kiCubes ki + kiCubes ki'}
+mplusKInfo :: KInfo -> KInfo -> KInfo
+mplusKInfo ki ki' = (mappend ki ki') { kiCubes = kiCubes ki + kiCubes ki'}
 
 mconcatPlus :: [KInfo] -> KInfo
-mconcatPlus = foldr mplus mempty
+mconcatPlus = foldr mplusKInfo mempty
 
 appendTags :: [Tag] -> [Tag] -> [Tag]
 appendTags ts ts' = Misc.sortNub (ts ++ ts')
