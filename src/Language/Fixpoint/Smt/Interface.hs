@@ -52,6 +52,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
+    , smtComment
 
     -- * Check Validity
     , checkValid
@@ -403,6 +404,9 @@ smtPush, smtPop :: SmtM ()
 smtPush = interact' Push
 smtPop  = interact' Pop
 
+smtComment :: T.Text -> SmtM ()
+smtComment t = interact' (Comment t)
+
 smtDecls :: [(Symbol, Sort)] -> SmtM ()
 smtDecls = mapM_ $ uncurry smtDecl
 
@@ -467,7 +471,8 @@ smtBracketAt sp _msg a =
 -- | `smtBracket` adds a new level to the apply stack and saves the last fresh index
 --   on the index stack before the action, and reverts these changes after the action.
 smtBracket :: String -> SmtM a -> SmtM a
-smtBracket _msg a = do
+smtBracket msg a = do
+  smtComment (T.pack $ "smtBracket - start: " ++ msg)
   smtPush
   modify $ \ctx ->
     let env = ctxSymEnv ctx in
@@ -475,6 +480,7 @@ smtBracket _msg a = do
         , ctxIxs = seIx env : ctxIxs ctx}
   r <- a
   smtPop
+  smtComment (T.pack $ "smtBracket - end: " ++ msg)
   modify $ \ctx ->
     let env = ctxSymEnv ctx
         (i , is) = fromMaybe (0, []) (uncons $ ctxIxs ctx)
