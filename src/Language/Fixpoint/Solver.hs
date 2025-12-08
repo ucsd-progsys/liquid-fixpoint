@@ -436,7 +436,7 @@ alphaEq = go (mkSubst [])
 -- @isVarEq fvs e@ yields @(Just (v, e'), e)@ if @v@ is in @fvs@, and @e@ has
 -- the form @v == e'@.
 isVarEq :: [Symbol] -> Expr -> (Maybe (Symbol, Expr), Expr)
-isVarEq fvs ei0 = case unElab ei0 of
+isVarEq fvs ei0 = case ei0 of
   PAtom brel e0 e1
     | isEqRel brel ->
       let m = do
@@ -456,13 +456,7 @@ isVarEq fvs ei0 = case unElab ei0 of
 
     -- | @isVarIn s fvs@ yields @Just s@ if @s@ is a variable and it is in
     -- @fvs@.
-    --
-    -- It also ignores @cast_as_int@ coercions, so that
-    --
-    -- > isVarIn (cast_as_int s) fvs == isVarIn s fvs
-    --
     isVarIn :: Expr -> [Symbol] -> Maybe Symbol
-    isVarIn (EApp (EVar "cast_as_int") ei) vs = isVarIn ei vs
     isVarIn (EVar s) vs
       | elem s vs = Just s
     isVarIn _ _vs = Nothing
