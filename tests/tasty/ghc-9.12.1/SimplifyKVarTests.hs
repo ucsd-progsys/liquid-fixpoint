@@ -36,8 +36,8 @@ tests =
     , SimplificationTest
         { name = "alpha equivalence"
         , expected = """
-            (exists [w : int, z : int] . P w z) &&
-            (exists [w : int, z : int] . Q w z)
+            (exists [w : int, z : int] . Q w z) &&
+            (exists [w : int, z : int] . P w z)
           """
         , input = """
             (exists [w : int, z : int] . Q w z) &&
@@ -49,7 +49,7 @@ tests =
     , SimplificationTest
         { name = "floating"
         , expected = """
-            A == C && (exists [x : int, y : int] . P x y)
+            (exists [x : int, y : int] . P x y) && A == C
           """
         , input = """
             exists [x : int, y : int] . A == C && P x y

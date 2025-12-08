@@ -957,7 +957,7 @@ bops cmpFun = List.foldl' (flip addOperator) initOpTable builtinOps
                  , FInfix  (Just 4) ">"   (Just $ const $ PAtom Gt)  AssocNone
                  , FInfix  (Just 4) ">="  (Just $ const $ PAtom Ge)  AssocNone
 
-                 , FInfix  (Just 3) "&&"  (Just $ const $ \x y -> pAnd [x,y]) AssocRight
+                 , FInfix  (Just 3) "&&"  (Just $ const $ \x y -> PAnd [x,y]) AssocRight
                  , FInfix  (Just 2) "||"  (Just $ const $ \x y -> POr [x,y]) AssocRight
                  , FInfix  (Just 1) "=>"  (Just $ const PImp) AssocRight
                  , FInfix  (Just 1) "==>" (Just $ const PImp) AssocRight
