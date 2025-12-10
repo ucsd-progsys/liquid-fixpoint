@@ -49,7 +49,6 @@ module Language.Fixpoint.Smt.Interface (
     , smtFuncDecl
     , smtAssertAxiom
     , smtCheckUnsat
-    , smtCheckSat
     , smtBracket, smtBracketAt
     , smtDistinct
     , smtPush, smtPop
@@ -65,7 +64,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config ( SMTSolver (..), solverFlags
-                                                , Config (solver, smtTimeout, gradual, stringTheory, save, allowHO))
+                                                , Config (solver, smtTimeout, noStringTheory, save, allowHO))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -107,6 +106,7 @@ import qualified SMTLIB.Backends
 import qualified SMTLIB.Backends.Process as Process
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Control.Concurrent.Async (async)
+import GHC.Stack (HasCallStack)
 
 {-
 runFile f
@@ -122,19 +122,22 @@ runCommands cmds
        return zs
 -}
 
-checkValidWithContext :: [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
+checkValidWithContext
+  :: HasCallStack => [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
 checkValidWithContext xts p q =
   smtBracket "checkValidWithContext" $
     checkValid' xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
+checkValid
+  :: HasCallStack
+  => Config -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValid cfg f xts p q = do
   me <- makeContext cfg f
   evalStateT (checkValid' xts p q) me
 
-checkValid' :: [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
+checkValid' :: HasCallStack => [(Symbol, Sort)] -> Expr -> Expr -> SmtM Bool
 checkValid' xts p q = do
   smtDecls xts
   smtAssertDecl $ pAnd [p, PNot q]
@@ -181,7 +184,7 @@ commandRaw ctxLog ctxSolver ctxVerbose cmdBS = do
 
 --------------------------------------------------------------------------------
 {-# SCC command #-}
-command  :: Command -> SmtM Response
+command  :: HasCallStack => Command -> SmtM Response
 --------------------------------------------------------------------------------
 command !cmd       = do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
@@ -328,7 +331,7 @@ makeContext' cfg ctxLog
          Cvc5    -> makeProcess ctxLog $
                       Process.defaultConfig
                              { Process.exe = "cvc5"
-                             , Process.args = ["-L", "smtlib2"] }
+                             , Process.args = ["-L", "smtlib2", "--arrays-exp"] }
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver    = solver
@@ -343,6 +346,7 @@ makeContext' cfg ctxLog
                   -- when there's no higher-order reasoning. It might require some tuning on larger codebases
                   -- if `unknown function/constant lam_arg$XXX` errors are encountered.
                   , ctxLams      = allowHO cfg
+                  , config       = cfg
                   }
 
 -- | Close file handles and release the solver backend's resources.
@@ -359,9 +363,11 @@ smtPreamble cfg s me
   | s == Z3 || s == Z3mem
     = do v <- getZ3Version me
          checkValidStringFlag Z3 v cfg
-         return $ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
+         return $ makeMbqi ++ makeTimeout cfg ++ Thy.preamble cfg Z3
   | otherwise
     = checkValidStringFlag s [] cfg >> return (Thy.preamble cfg s)
+  where
+    makeMbqi = ["\n(set-option :smt.mbqi false)"]
 
 getZ3Version :: Context -> IO [Int]
 getZ3Version me
@@ -387,9 +393,8 @@ checkValidStringFlag smt v cfg
 
 noString :: SMTSolver -> [Int] -> Config -> Bool
 noString smt v cfg
-  =  stringTheory cfg
-  && not (smt == Z3 && (v >= [4, 4, 2]))
-
+  =  not (noStringTheory cfg)
+  && not (smt == Cvc5 || (smt == Z3 && (v >= [4, 4, 2])))
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
@@ -423,20 +428,12 @@ deconSort t = case functionSort t of
                 Just (_, ins, out) -> (ins, out)
                 Nothing            -> ([], t)
 
--- hack now this is used only for checking gradual condition.
-smtCheckSat :: Expr -> SmtM Bool
-smtCheckSat p
- = smtAssert p >> (ans <$> command CheckSat)
- where
-   ans Sat = True
-   ans _   = False
-
 smtAssert :: Expr -> SmtM ()
 smtAssert p = interact' (Assert Nothing p)
 
 -- the following three functions will emit additional `apply`,
 -- `coerce`, and `lambda` symbols for fresh function sorts as needed
-smtAssertDecl :: Expr -> SmtM ()
+smtAssertDecl :: HasCallStack => Expr -> SmtM ()
 smtAssertDecl p = interactDecl' (Assert Nothing p)
 
 smtDefineEqn :: Equation -> SmtM ()
@@ -460,7 +457,7 @@ smtAssertAxiom p  = interact' (AssertAx p)
 smtDistinct :: [Expr] -> SmtM ()
 smtDistinct az = interact' (Distinct az)
 
-smtCheckUnsat :: SmtM Bool
+smtCheckUnsat :: HasCallStack => SmtM Bool
 smtCheckUnsat = respSat <$> command CheckSat
 
 smtBracketAt :: SrcSpan -> String -> SmtM a -> SmtM a
@@ -486,7 +483,7 @@ smtBracket _msg a = do
         , ctxIxs = is}
   return r
 
-respSat :: Response -> Bool
+respSat :: HasCallStack => Response -> Bool
 respSat Unsat   = True
 respSat Sat     = False
 respSat Unknown = False
@@ -497,7 +494,7 @@ interact' cmd  = void $ command cmd
 
 -- | a variant of `interact'` which also emits fresh
 --   `apply`, `coerce`, and `lambda` symbols
-interactDecl' :: Command -> SmtM ()
+interactDecl' :: HasCallStack => Command -> SmtM ()
 interactDecl' cmd  = do
   cmdBS <- liftSym $ runSmt2 cmd
   ctx <- get
@@ -511,12 +508,6 @@ makeTimeout :: Config -> [Builder]
 makeTimeout cfg
   | Just i <- smtTimeout cfg = [ "\n(set-option :timeout " <> fromString (show i) <> ")\n"]
   | otherwise                = [""]
-
-
-makeMbqi :: Config -> [Builder]
-makeMbqi cfg
-  | gradual cfg = [""]
-  | otherwise   = ["\n(set-option :smt.mbqi false)"]
 
 
 --------------------------------------------------------------------------------
@@ -534,7 +525,7 @@ declare = do
   -- let isKind n   = (n ==)  . symKind env . fst
   let MkDefinedFuns defs = ctxDefines me
   let ess        = distinctLiterals  lts
-  let axs        = Thy.axiomLiterals lts
+  let axs        = Thy.axiomLiterals (config me) lts
   forM_ dss              smtDataDecl
   forM_ thyXTs $ uncurry smtDecl
   forM_ qryXTs $ uncurry smtDecl
@@ -551,22 +542,24 @@ symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
 dataDeclarations :: SymEnv -> [[DataDecl]]
 dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
+-- | See 'F.seApplsCur' for explanation.
 funcSortVars :: Bool -> F.SymEnv -> [(T.Text, ([F.SmtSort], F.SmtSort))]
 funcSortVars lams env =
-  -- TODO It would probably be even faster (if slightly) to convert `seApplsCur`
-  -- to a key-value list and iterate over it, at least this way we can get rid of
-  -- the unreachable `error` below.
-                  [(var applyName  t       , appSort t) | t <- ts]
-  ++              [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
-  ++              [(var lambdaName t       , lamSort t) | t <- ts]
-  ++ if lams then [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ] else []
+    concatMap symbolsForTag $ M.toList $ F.seApplsCur env
   where
-    var :: F.Symbol -> F.FuncSort -> T.Text
-    var n t       =
-      case M.lookup t (F.seApplsCur env) of
-        Just i  -> symbolAtSortIndex n i
-        Nothing -> error "funcSortVars: no index for sort in seApplsCur"
-    ts            = M.keys $ F.seApplsCur env
+    symbolsForTag (t, i) =
+      let applySym  = symbolAtSortIndex applyName i
+          coerceSym = symbolAtSortIndex coerceName i
+          lamSym    = symbolAtSortIndex lambdaName i
+          argSyms   = if lams && snd t == F.SInt
+                        then [ (symbolAtSortIndex (lamArgSymbol j) i, argSort t)
+                             | j <- [1..Thy.maxLamArg] ]
+                        else []
+      in  (applySym, appSort t)
+        : (coerceSym, ([fst t], snd t))
+        : (lamSym, lamSort t)
+        : argSyms
+
     appSort (s,t) = ([F.SInt, s], t)
     lamSort (s,t) = ([s, t], F.SInt)
     argSort (s,_) = ([]    , s)

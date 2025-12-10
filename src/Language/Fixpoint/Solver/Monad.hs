@@ -10,15 +10,11 @@ module Language.Fixpoint.Solver.Monad
          -- * Execution
        , runSolverM
 
-         -- * Get Binds
-       , getBinds
        , getContext
 
          -- * SMT Query
        , filterRequired
        , filterValid
-       , filterValidGradual
-       , checkSat
        , smtEnablembqi
        , sendConcreteBindingsToSMT
 
@@ -30,11 +26,10 @@ module Language.Fixpoint.Solver.Monad
        , SolverState(..)
 
        , modifyContext
-       , clearApplys
        )
        where
 
-import           Control.Monad (foldM, forM, forM_, when)
+import           Control.Monad (forM, forM_, when)
 import           Language.Fixpoint.Utils.Progress
 import qualified Language.Fixpoint.Types.Config  as C
 import           Language.Fixpoint.Types.Config  (Config)
@@ -54,7 +49,6 @@ import           Language.Fixpoint.Solver.Stats
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
 -- import           Data.Maybe           (catMaybes)
-import           Data.List            (partition)
 -- import           Data.Char            (isUpper)
 import qualified Control.Monad.State as ST
 import           Control.Monad.State.Strict
@@ -70,7 +64,6 @@ type SolveM ann = StateT (SolverState ann) IO
 
 data SolverState ann = SS
   { ssCtx     :: !Context         -- ^ SMT Solver Context
-  , ssBinds   :: !(F.BindEnv ann) -- ^ All variables and types
   , ssStats   :: !Stats           -- ^ Solver Statistics
   }
 
@@ -80,29 +73,22 @@ stats0 fi = Stats nCs 0 0 0 0
     nCs   = M.size $ F.cm fi
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo ann c -> SolveM ann a -> IO a
+runSolverM :: Config -> SolverInfo ann -> SolveM ann a -> IO a
 --------------------------------------------------------------------------------
 runSolverM cfg sI act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
     return (fst res)
   where
-    s0 ctx   = SS ctx be (stats0 fi)
+    s0 ctx   = SS ctx (stats0 fi)
     act'     = assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv (F.defns fi)
     initEnv  = symbolEnv cfg fi
-    be       = F.bs fi
     file     = C.srcFile cfg
     -- only linear arithmetic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
     fi       = (siQuery sI) {F.hoInfo = F.cfgHoInfo cfg }
-
-
---------------------------------------------------------------------------------
-getBinds :: SolveM ann (F.BindEnv ann)
---------------------------------------------------------------------------------
-getBinds = ssBinds <$> get
 
 --------------------------------------------------------------------------------
 getIter :: SolveM ann Int
@@ -138,9 +124,6 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 modifyContext :: (Context -> Context) -> SolveM ann ()
 modifyContext f = modify $ \s -> s { ssCtx = f (ssCtx s) }
 
-clearApplys :: SolveM ann ()
-clearApplys = modifyContext $ \c -> c { ctxSymEnv = (ctxSymEnv c) { F.seAppls = mempty , F.seApplsCur = mempty , F.seIx = 0 } }
-
 --------------------------------------------------------------------------------
 -- | SMT Interface -------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -150,9 +133,8 @@ clearApplys = modifyContext $ \c -> c { ctxSymEnv = (ctxSymEnv c) { F.seAppls = 
 --
 -- Yields the ids of bindings known to the SMT
 sendConcreteBindingsToSMT
-  :: F.IBindEnv -> (F.IBindEnv -> SolveM ann a) -> SolveM ann a
-sendConcreteBindingsToSMT known act = do
-  be <- getBinds
+  :: F.IBindEnv -> F.BindEnv ann -> (F.IBindEnv -> SolveM ann a) -> SolveM ann a
+sendConcreteBindingsToSMT known be act = do
   let concretePreds =
         [ (i, F.subst1 p (v, F.EVar s))
         | (i, (s, F.RR _ (F.Reft (v, p)),_)) <- F.bindEnvToList be
@@ -167,8 +149,10 @@ sendConcreteBindingsToSMT known act = do
         smtDefineFunc (F.bindSymbol (fromIntegral i)) [] F.boolSort e
       ctx <- get
       let st' = st { ssCtx = ctx }
-      liftIO $ flip runStateT st' $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
-  put st''
+      (a, st'') <- liftIO $ flip runStateT st' $ act $ F.unionIBindEnv known $ F.fromListIBindEnv $ map fst concretePreds
+      put (ssCtx st'')
+      return (a, st'')
+  modify $ \st''' -> st'' { ssCtx = ssCtx st''' }
   return a
   where
     isShortExpr F.PTrue = True
@@ -208,52 +192,9 @@ filterValid_ sp p qs = catMaybes <$> do
       valid <- smtCheckUnsat
       return $ if valid then Just x else Nothing
 
---------------------------------------------------------------------------------
--- | `filterValidGradual ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
--- | for some p in the list ps
---------------------------------------------------------------------------------
-filterValidGradual :: [F.Expr] -> F.Cand a -> SolveM ann [a]
---------------------------------------------------------------------------------
-filterValidGradual p qs = do
-  qs' <- liftSMT $
-           smtBracket "filterValidGradualLHS" $
-             filterValidGradual_ p qs
-  -- stats
-  incBrkt
-  incChck (length qs)
-  incVald (length qs')
-  return qs'
-
-filterValidGradual_ :: [F.Expr] -> F.Cand a -> SmtM [a]
-filterValidGradual_ ps qs
-  = map snd . fst <$> foldM partitionCandidates ([], qs) ps
-  where
-    partitionCandidates :: (F.Cand a, F.Cand a) -> F.Expr -> SmtM (F.Cand a, F.Cand a)
-    partitionCandidates (ok, candidates) p = do
-      (valids', invalids')  <- partition snd <$> filterValidOne_ p candidates
-      let (valids, invalids) = (fst <$> valids', fst <$> invalids')
-      return (ok ++ valids, invalids)
-
-filterValidOne_ :: F.Expr -> F.Cand a -> SmtM [((F.Expr, a), Bool)]
-filterValidOne_ p qs = do
-  smtAssert p
-  forM qs $ \(q, x) ->
-    smtBracket "filterValidRHS" $ do
-      smtAssert (F.PNot q)
-      valid <- smtCheckUnsat
-      return ((q, x), valid)
-
 smtEnablembqi :: SolveM ann ()
 smtEnablembqi
   = liftSMT smtSetMbqi
-
---------------------------------------------------------------------------------
-checkSat :: F.Expr -> SolveM ann Bool
---------------------------------------------------------------------------------
-checkSat p
-  = liftSMT $
-      smtBracket "checkSat" $
-        smtCheckSat p
 
 --------------------------------------------------------------------------------
 assumesAxioms :: [F.Triggered F.Expr] -> SolveM ann ()

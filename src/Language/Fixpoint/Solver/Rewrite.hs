@@ -314,8 +314,6 @@ unify freeVars template seenExpr = case (dropECst template, seenExpr) of
       unify freeVars rw seen
     (PExist _ rw, PExist _ seen) ->
       unify freeVars rw seen
-    (PGrad _ _ _ rw, PGrad _ _ _ seen) ->
-      unify freeVars rw seen
     (ECoerc _ _ rw, ECoerc _ _ seen) ->
       unify freeVars rw seen
     (ELet _ rw1 rw2, ELet _ seen1 seen2) ->

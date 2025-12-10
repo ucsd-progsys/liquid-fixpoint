@@ -31,14 +31,14 @@ import qualified Language.Fixpoint.Misc as Misc
 --------------------------------------------------------------------------------
 -- | Compute the domain of a kvar
 --------------------------------------------------------------------------------
-kvarDomain :: SInfo a -> KVar -> [Symbol]
+kvarDomain :: GInfo c a -> KVar -> [Symbol]
 --------------------------------------------------------------------------------
 kvarDomain si k = domain (bs si) (getWfC si k)
 
 domain :: BindEnv a -> WfC a -> [Symbol]
 domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
 
-getWfC :: SInfo a -> KVar -> WfC a
+getWfC :: GInfo c a -> KVar -> WfC a
 getWfC si k = ws si M.! k
 
 --------------------------------------------------------------------------------
@@ -49,19 +49,20 @@ reftFreeVars :: Reft -> S.HashSet Symbol
 reftFreeVars r@(Reft (v, _)) = S.delete v $ S.fromList $ syms r
 
 --------------------------------------------------------------------------------
--- | Split a SortedReft into its concrete and KVar components
+-- | Split a SortedReft into its concrete and KVar conjuncts
+--
+-- Produces @(concrete conjunts, normal kvars)@
 --------------------------------------------------------------------------------
-sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub], [KVSub])
-sortedReftConcKVars x sr = go [] [] [] ves
+sortedReftConcKVars :: Symbol -> SortedReft -> ([Pred], [KVSub])
+sortedReftConcKVars x sr = go [] [] ves
   where
     ves                  = [(v, p `subst1` (v, eVar x)) | Reft (v, p) <- rs ]
     rs                   = reftConjuncts (sr_reft sr)
     t                    = sr_sort sr
 
-    go ps ks gs ((v, PKVar k su    ):xs) = go ps (KVS v t k su:ks) gs xs
-    go ps ks gs ((v, PGrad k su _ _):xs) = go ps ks (KVS v t k su:gs) xs
-    go ps ks gs ((_, p):xs)              = go (p:ps) ks gs xs
-    go ps ks gs []                       = (ps, ks, gs)
+    go ps ks ((v, PKVar k su    ):xs) = go ps (KVS v t k su:ks) xs
+    go ps ks ((_, p):xs)              = go (p:ps) ks xs
+    go ps ks []                       = (ps, ks)
 
 
 -------------------------------------------------------------------------------

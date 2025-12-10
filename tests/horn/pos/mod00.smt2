@@ -17,7 +17,7 @@
     )
     (forall ((a2 int) (true))
     ; sprinkle sprinkle
-      (forall ((_ int) (and ($k0 a2) ((>= a2 4)) ((>= a2 10))))
+      (forall ((_ int) ($k0 a2))
         (tag ((= ((mod a2 2)) 0)) "0")  ; lets stick a comment here too!
       )
     )

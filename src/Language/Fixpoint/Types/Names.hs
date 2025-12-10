@@ -72,7 +72,6 @@ module Language.Fixpoint.Types.Names (
   , dummySymbol
   , intSymbol
   , tempSymbol
-  , gradIntSymbol
   , appendSymbolText
   , hvarArgSymbol
 
@@ -81,6 +80,7 @@ module Language.Fixpoint.Types.Names (
   , bindSymbol
   , testSymbol
   , renameSymbol
+  , renameSubstSymbol
   , kArgSymbol
   , existSymbol
   , suffixSymbol
@@ -109,8 +109,8 @@ module Language.Fixpoint.Types.Names (
   , vvName
   , sizeName
   , bitVecName
-  -- , bvAndName, bvOrName, bvSubName, bvAddName
   , intbv32Name, intbv64Name, bv32intName, bv64intName
+  , intbv8Name, intbv16Name, bv8intName, bv16intName
   , propConName
 
   -- HKT , tyAppName
@@ -408,9 +408,6 @@ consSym c (symbolText -> s) = symbol $ T.cons c s
 unconsSym :: Symbol -> Maybe (Char, Symbol)
 unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
--- singletonSym :: Char -> Symbol -- Yuck
--- singletonSym = (`consSym` "")
-
 lengthSym :: Symbol -> Int
 lengthSym (symbolText -> t) = T.length t
 
@@ -444,7 +441,6 @@ suffixSymbolText :: T.Text -> T.Text -> T.Text
 suffixSymbolText  x y = x <> symSepName <> y
 
 vv                  :: Maybe Integer -> Symbol
--- vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
 vv (Just i)         = intSymbol vvName i
 vv Nothing          = vvName
 
@@ -454,12 +450,6 @@ isNontrivialVV      = (vv Nothing /=)
 vvCon, dummySymbol :: Symbol
 vvCon       = vvName `suffixSymbol` "F"
 dummySymbol = dummyName
-
--- ctorSymbol :: Symbol -> Symbol
--- ctorSymbol s = ctorPrefix `mappendSym` s
-
--- isCtorSymbol :: Symbol -> Bool
--- isCtorSymbol = isPrefixOfSym ctorPrefix
 
 -- | 'testSymbol c' creates the `is-c` symbol for the adt-constructor named 'c'.
 testSymbol :: Symbol -> Symbol
@@ -486,6 +476,9 @@ appendSymbolText s t = encode (symbolText s <> symSepName <> t)
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
 
+renameSubstSymbol :: Symbol -> Int -> Symbol
+renameSubstSymbol prefix = intSymbol (substPrefix `mappendSym` prefix)
+
 renameSymbol :: Symbol -> Int -> Symbol
 renameSymbol prefix = intSymbol (renamePrefix `mappendSym` prefix)
 
@@ -494,9 +487,6 @@ kArgSymbol x k = (kArgPrefix `mappendSym` x) `suffixSymbol` k
 
 existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
-
-gradIntSymbol :: Integer -> Symbol
-gradIntSymbol = intSymbol gradPrefix
 
 hvarArgSymbol :: Symbol -> Int -> Symbol
 hvarArgSymbol s i = intSymbol (suffixSymbol hvarPrefix s) i
@@ -508,19 +498,16 @@ hvarArgSymbol s i = intSymbol (suffixSymbol hvarPrefix s) i
 bindSymbol :: Integer -> Symbol
 bindSymbol = intSymbol bindPrefix
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, gradPrefix, bindPrefix :: Symbol
+tempPrefix, anfPrefix, renamePrefix, substPrefix, litPrefix, bindPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
 anfPrefix    = "lq_anf$"
 renamePrefix = "lq_rnm$"
+substPrefix = "subst$"
 litPrefix    = "lit$"
-gradPrefix   = "grad$"
 bindPrefix   = "b$"
 
 testPrefix  :: Symbol
 testPrefix   = "is$"
-
--- ctorPrefix  :: Symbol
--- ctorPrefix   = "mk$"
 
 kArgPrefix, existPrefix, hvarPrefix :: Symbol
 kArgPrefix  = "lq_karg$"
@@ -535,26 +522,42 @@ hvarPrefix  = "nnf_arg$"
 unKArgSymbol :: Symbol -> Symbol
 unKArgSymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
 
--- | 'tidySymbol' is used to prettify the names of parameters of kvars appearing in solutions.(*)
---   For example, if you have a kvar $k0 with two parameters, you may have a solution that looks like
---       0 <  lq_karg$nnf_arg$##k0##0##k0
+-- | @tidySymbol@ is used to prettify the names of parameters of kvars appearing
+-- in solutions.  For example, if you have a kvar $k0 with two parameters, you
+-- may have a solution that looks like
+--
+-- > 0 <  lq_karg$nnf_arg$##k0##0##k0
+--
 --   where we know it is a kvar-arg because of the
---      - `kArgPrefix` (`lq_arg`)
---      - `hvarArgPrefix` (`nnf_arg`)
---      - `k0` the name of the kvar
---      - `0`  the parameter index
---      - `k0` again (IDK why?!)
---    all of which are separated by `##`
---   So `tidySymbol` tests if indeed it is a `kArgPrefix`-ed symbol and if so converts
---      `lq_karg$nnf_arg$##k0##0##k0` ----> `$k0##0`
+--      - @kArgPrefix@ (@lq_arg@)
+--      - @hvarArgPrefix@ (@nnf_arg@)
+--      - @k0@ the name of the kvar
+--      - @0@  the parameter index
+--      - @k0@ again (IDK why?!)
+--    all of which are separated by @##@
+--
+--   So @tidySymbol@ tests if indeed it is a @kArgPrefix@-ed symbol and if so
+--   converts
+--
+-- > lq_karg$nnf_arg$##k0##0##k0 ----> $k0##0
+--
+--  KArgs from Liquid Haskell come in the form @k_##0@ instead, and parameters
+--  are like @lq_karg$param_name##0##k_##0@. In this case, tidySymbol will
+--  convert
+--
+--  > lq_karg$param_name##0##k_##0  ----> $param_name##0##k_
 
 tidySymbol :: Symbol -> Symbol
 tidySymbol s
   | s == s'   = s
   | otherwise = s''
   where
-    s'        = unPrefixSymbol kArgPrefix s
-    s''       = consSym '$' . unPrefixSymbol symSepName . unSuffixSymbol . unPrefixSymbol hvarPrefix $ s'
+    s' = unPrefixSymbol kArgPrefix s
+    s'' =
+      consSym '$' $
+      unPrefixSymbol symSepName $
+      unSuffixSymbol $
+      unPrefixSymbol hvarPrefix s'
 
 unPrefixSymbol :: Symbol -> Symbol -> Symbol
 unPrefixSymbol p s = fromMaybe s (stripPrefix p s)
@@ -562,10 +565,6 @@ unPrefixSymbol p s = fromMaybe s (stripPrefix p s)
 unSuffixSymbol :: Symbol -> Symbol
 unSuffixSymbol s@(symbolText -> t)
   = maybe s symbol $ T.stripSuffix symSepName $ fst $ T.breakOnEnd symSepName t
-
--- takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
--- takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
-
 
 nonSymbol :: Symbol
 nonSymbol = ""
@@ -672,29 +671,21 @@ _hpropConName = "HProp"
 strConName, charConName :: (IsString a) => a
 strConName   = "Str"
 charConName  = "Char"
--- symSepName   :: Char
--- symSepName   = '#' -- DO NOT EVER CHANGE THIS
 
 symSepName   :: (IsString a) => a
 symSepName   = "##"
 
--- nilName, consName, size32Name, size64Name, bitVecName :: Symbol
--- nilName      = "nil"
--- consName     = "cons"
--- size32Name   = "Size32"
--- size64Name   = "Size64"
--- bitVecName   = "BitVec"
-
--- bvOrName, bvAndName, bvSubName, bvAddName,
 intbv32Name, intbv64Name, bv32intName, bv64intName :: Symbol
--- bvOrName    = "bvor"
--- bvAndName   = "bvand"
--- bvSubName   = "bvsub"
--- bvAddName   = "bvadd"
 intbv32Name = "int_to_bv32"
 intbv64Name = "int_to_bv64"
 bv32intName = "bv32_to_int"
 bv64intName = "bv64_to_int"
+
+intbv8Name, intbv16Name, bv8intName, bv16intName :: Symbol
+intbv8Name  = "int_to_bv8"
+intbv16Name = "int_to_bv16"
+bv8intName  = "bv8_to_int"
+bv16intName = "bv16_to_int"
 
 nilName, consName, sizeName, bitVecName :: Symbol
 nilName       = "nil"
@@ -719,8 +710,6 @@ prims = S.fromList
   , "List"
   , "[]"
   , "bool"
-  -- , "int"
-  -- , "real"
   , setConName
   , charConName
   , "Set_sng"

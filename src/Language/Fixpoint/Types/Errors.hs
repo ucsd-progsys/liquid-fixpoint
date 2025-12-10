@@ -62,6 +62,7 @@ import           Control.DeepSeq
 -- import           Data.Hashable
 import qualified Data.Store                   as S
 import           GHC.Generics                  (Generic)
+import           GHC.Stack                     (HasCallStack)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
@@ -137,7 +138,7 @@ err :: SrcSpan -> Doc -> Error
 err sp d = Error [Error1 sp d]
 
 ---------------------------------------------------------------------
-panic :: String -> a
+panic :: HasCallStack => String -> a
 ---------------------------------------------------------------------
 panic = die . err dummySpan . text . (panicMsg ++)
 
@@ -145,7 +146,7 @@ panicMsg :: String
 panicMsg = "PANIC: Please file an issue at https://github.com/ucsd-progsys/liquid-fixpoint \n"
 
 ---------------------------------------------------------------------
-die :: Error -> a
+die :: HasCallStack => Error -> a
 ---------------------------------------------------------------------
 die = throw
 

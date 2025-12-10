@@ -16,39 +16,61 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvarsExpr, isConcC)
 import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Misc            (safeLookup, group, errorstar)
-import           Language.Fixpoint.Solver.Sanitize
 
 --------------------------------------------------------------------------------
 -- | `solverInfo` constructs a `SolverInfo` comprising the Solution and various
 --   indices needed by the worklist-based refinement loop
+--
+-- Computes the set of cut and non-cut kvars, computes the hypotheses common
+-- to all of the usage sites of each kvar, then initializes the solutions of
+-- the non-cut KVars (in the sHyp field).
+--
+-- This is part of the implementation of the FUSION algorithm described in:
+--
+-- "Local Refinement Typing", ICFP 2017, https://ranjitjhala.github.io/static/local_refinement_typing.pdf
+--
 --------------------------------------------------------------------------------
 {-# SCC solverInfo #-}
-solverInfo :: Config -> SInfo a -> SolverInfo a b
+solverInfo :: Config -> SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg sI = SI sHyp sI' cD cKs
   where
-    cD             = elimDeps     sI es nKs ebs
+    cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList sE mempty mempty kHyps kS [] sEnv
-    sEnv           = fromListSEnv [ (x, (i, sr_sort sr)) | (i, (x,sr, _)) <- bindEnvToList (bs sI)]
+    sHyp = Sol.Sol
+      { Sol.sMap = mempty
+      , Sol.sHyp = M.fromList kHyps
+      , Sol.sScp = kS
+      }
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
     kS             = kvScopes     sI es
-    sE             = symbolEnv   cfg sI
-    ebs            = S.fromList [x | i <- ebinds sI, let (x, _, _) = lookupBindEnv i (bs sI) ]
-
 
 --------------------------------------------------------------------------------
+-- | For each KVar, provide the intersection of the binding environments
+--   of all the constraints in which it appears.
+--
+-- See Section 2.4 of "Local Refinement Typing", ICFP 2017, for the motivation
+-- to collect these.
 kvScopes :: SInfo a -> [CEdge] -> M.HashMap KVar IBindEnv
-kvScopes sI es = is2env <$> kiM
+kvScopes sI es = commonBindingsOfConstraints <$> kvarUses
   where
-    is2env = foldr1 intersectionIBindEnv . fmap (senv . getSubC sI)
-    kiM    = group $ [(k, i) | (Cstr i, KVar k) <- es ] ++
-                     [(k, i) | (KVar k, Cstr i) <- es ]
+    -- | The common bindings of a list of constraints
+    commonBindingsOfConstraints :: [Integer] -> IBindEnv
+    commonBindingsOfConstraints =
+      foldr1 intersectionIBindEnv . fmap (senv . getSubC sI)
+
+    -- | The constraints in which each KVar appears
+    kvarUses :: M.HashMap KVar [Integer]
+    kvarUses =
+      group $ [(k, i) | (Cstr i, KVar k) <- es ] ++
+              [(k, i) | (KVar k, Cstr i) <- es ]
 
 --------------------------------------------------------------------------------
-
+-- | @cutSInfo si kI cKs@ drops well-formed constraints that don't refer to the
+-- KVars in @cKs@. Also drops subtyping constraints that don't refer in their
+-- RHS to any of the KVars in @cKs@ or which aren't concrete.
 cutSInfo :: SInfo a -> KIndex -> S.HashSet KVar -> SInfo a
 cutSInfo si kI cKs = si { ws = ws', cm = cm' }
   where
@@ -57,13 +79,17 @@ cutSInfo si kI cKs = si { ws = ws', cm = cm' }
     cs    = S.fromList      (concatMap kCs cKs)
     kCs k = M.lookupDefault [] k kI
 
+-- | Compute Dependencies and Cuts
+--
+-- Yields the edges of the dependency graph, then the set of KVars whose removal
+-- makes the graph acyclic (cuts), and finally the rest of the KVars.
 kutVars :: Config -> SInfo a -> ([CEdge], S.HashSet KVar, S.HashSet KVar)
 kutVars cfg si   = (es, depCuts ds, depNonCuts ds)
   where
     (es, ds)     = elimVars cfg si
 
 --------------------------------------------------------------------------------
--- | Map each `KVar` to the list of constraints on which it appears on RHS
+-- | Map each 'KVar' to the list of constraints on which it appears on RHS
 --------------------------------------------------------------------------------
 type KIndex = M.HashMap KVar [Integer]
 

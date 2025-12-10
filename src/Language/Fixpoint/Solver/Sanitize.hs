@@ -2,7 +2,6 @@
 --   1. Each binder must be associated with a UNIQUE sort
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternGuards     #-}
 
 module Language.Fixpoint.Solver.Sanitize
   ( -- * Transform FInfo to enforce invariants
@@ -17,7 +16,7 @@ module Language.Fixpoint.Solver.Sanitize
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor
-import           Language.Fixpoint.SortCheck     (ElabParam(..), elaborate, applySorts, isFirstOrder)
+import           Language.Fixpoint.SortCheck     (ElabParam(..), theoryEnv, elaborate, applySorts, isFirstOrder)
 -- import           Language.Fixpoint.Defunctionalize
 import           Language.Fixpoint.Misc ((==>))
 import qualified Language.Fixpoint.Misc                            as Misc
@@ -34,7 +33,9 @@ import qualified Data.List                                         as L
 import qualified Data.Text                                         as T
 import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
+import           GHC.Stack           (HasCallStack)
 import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import qualified Language.Fixpoint.SortCheck as SortCheck
 
 type SanitizeM a = Either E.Error a
 
@@ -47,7 +48,7 @@ sanitize cfg =       banIrregularData
          >=> Misc.fM replaceDeadKvars
          >=> Misc.fM (dropDeadSubsts . restrictKVarDomain)
          >=>         banMixedRhs
-         >=>         banQualifFreeVars
+         >=>         banQualifFreeVars cfg
          >=>         banConstraintFreeVars cfg
          >=> Misc.fM addLiterals
          >=> Misc.fM (eliminateEta cfg)
@@ -88,42 +89,12 @@ eliminateEta :: Config -> F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
 eliminateEta cfg si
   | Cfg.etaElim cfg
-  , Cfg.oldPLE  cfg
-  = si { F.ae = ae' }
-  | Cfg.etaElim cfg
   = si { F.ae = (ae {F.aenvEqs = etaElimNEW `fmap` F.aenvEqs ae }) }
   | otherwise
   = si
   where
-    ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
-    eqs = fmap etaElim (F.aenvEqs ae)
 
-    etaElim eq = F.notracepp "Eliminating" $
-                 case body of
-                   F.PAtom F.Eq e0 e1 ->
-                     let (f0, args0) = fapp e0
-                         (f1, args1) = F.notracepp "f1" $ fapp e1 in
-                     if reverse args0 == args
-                     then let commonArgs = F.notracepp "commonArgs" .
-                                           fmap fst .
-                                           takeWhile (uncurry (==)) $
-                                           zip args0 args1
-                              commonLength = length commonArgs
-                              (newArgsAndSorts, elimedArgsAndSorts) =
-                                splitAt (length args - commonLength) argsAndSorts
-                              args0' = F.eVar <$> reverse (drop commonLength args0)
-                              args1' = F.eVar <$> reverse (drop commonLength args1) in
-                       eq { F.eqArgs = newArgsAndSorts
-                          , F.eqSort = foldr F.FFunc sort
-                                       (snd <$> elimedArgsAndSorts)
-                          , F.eqBody = F.PAtom F.Eq (F.eApps f0 args0') (F.eApps f1 args1')}
-                     else eq
-                   _ -> eq
-      where argsAndSorts = F.eqArgs eq
-            args = fst <$> argsAndSorts
-            body = F.eqBody eq
-            sort = F.eqSort eq
     etaElimNEW eq = F.notracepp "Eliminating" $
                   let (f1, args1) = fapp (F.eqBody eq) in
                   let commonArgs = F.notracepp "commonArgs" .
@@ -160,11 +131,6 @@ eliminateEta cfg si
       | otherwise
       = Nothing
 
-theoryEnv :: Config -> F.GInfo c a -> F.SEnv F.TheorySymbol
-theoryEnv cfg si
-  =  Thy.theorySymbols (Cfg.solver cfg)
-  <> Thy.theorySymbols (F.defns si)
-  <> Thy.theorySymbols (F.ddecls si)
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
@@ -353,15 +319,13 @@ badDataDecl ds = E.catErrors [ E.errBadDataDecl d | d <- ds ]
 --------------------------------------------------------------------------------
 -- | check that no qualifier has free variables
 --------------------------------------------------------------------------------
-banQualifFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
+banQualifFreeVars :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
-banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
+banQualifFreeVars cfg fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
     bads    = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
-    free q  = filter (not . isLit) (F.syms q)
-    isLit x = F.memberSEnv x (F.gLits fi)
-    -- lits    = fst <$> F.toListSEnv (F.gLits fi)
-    -- free q  = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (F.qpSym <$> F.qParams q))
+    free q  = filter (not . isGlobal) (F.syms q)
+    isGlobal x = F.memberSEnv x (SortCheck.globalEnv cfg fi)
 
 badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error
 badQuals bqs = E.catErrors [ E.errFreeVarInQual q xs | (q, xs) <- bqs]
@@ -393,7 +357,7 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   function definitions inside the `AxiomEnv` which cannot be elaborated as
 --   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
-symbolEnv :: Config -> F.SInfo a -> F.SymEnv
+symbolEnv :: HasCallStack => Config -> F.SInfo a -> F.SymEnv
 symbolEnv cfg si = F.symEnv sEnv thyEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae'
@@ -412,7 +376,7 @@ symbolEnv cfg si = F.symEnv sEnv thyEnv ds lits (ts ++ ts')
 litsAEnv :: F.AxiomEnv -> [(F.Symbol, F.Sort)]
 litsAEnv ae = zip (F.symbol <$> symConsts ae) (repeat F.strSort)
 
-symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
+symbolSorts :: HasCallStack => Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
 
 symbolSorts' :: Config -> F.GInfo c a -> SanitizeM [(F.Symbol, F.Sort)]

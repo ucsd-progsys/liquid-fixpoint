@@ -14,11 +14,11 @@ define even (x:Peano) : bool = {
 }
 
 
-match is$Zero Zero = (true)
-match is$Zero S x = (false)
-match is$S Zero = (false)
-match is$S S x = (true)
-match prev S x = (x)
+match is$Zero Zero  { true }
+match is$Zero S x  { false }
+match is$S Zero  { false }
+match is$S S x  { true }
+match prev S x  { x }
 
 bind 0 n : {v: Peano | even v && is$S v && prev v == d } 
 bind 1 d : {v: Peano | true  } 

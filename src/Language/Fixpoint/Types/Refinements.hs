@@ -28,7 +28,6 @@ module Language.Fixpoint.Types.Refinements (
   , Brel (..)
   , ExprV (..), Pred
   , Expr
-  , GradInfo (..)
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , pattern ETimes, pattern ERTimes, pattern EDiv, pattern ERDiv
   , pattern EEq
@@ -104,11 +103,6 @@ module Language.Fixpoint.Types.Refinements (
 
   , debruijnIndex
 
-  -- * Gradual Type Manipulation
-  , pGAnds, pGAnd
-  , HasGradual (..)
-  , srcGradInfo
-
   ) where
 
 import           Prelude hiding ((<>))
@@ -148,7 +142,6 @@ import           Data.Aeson
 
 instance NFData KVar
 instance NFData v => NFData (SubstV v)
-instance NFData GradInfo
 instance NFData Constant
 instance NFData SymConst
 instance NFData Brel
@@ -163,7 +156,6 @@ instance NFData SortedReft
 
 instance S.Store KVar
 instance S.Store Subst
-instance S.Store GradInfo
 instance S.Store Constant
 instance S.Store SymConst
 instance S.Store Brel
@@ -175,7 +167,6 @@ instance S.Store SortedReft
 instance B.Binary SymConst
 instance B.Binary Constant
 instance B.Binary Bop
-instance B.Binary GradInfo
 instance B.Binary Brel
 instance B.Binary KVar
 instance (Hashable a, Eq a, B.Binary a) => B.Binary (HashSet a) where
@@ -194,53 +185,17 @@ reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
   where
     ras'                     = if null ps then ks else conj ps : ks  -- see [NOTE:pAnd-SLOW]
-    (ps, ks)                 = partition isConc (refaConjuncts ra)
+    (ps, ks)                 = partition isConc (conjuncts ra)
 
 isConc :: Expr -> Bool
-isConc p = not (isKvar p || isGradual p)
+isConc p = not (isKvar p)
 
 concConjuncts :: Expr -> [Expr]
-concConjuncts e = filter isConc (refaConjuncts e)
+concConjuncts e = filter isConc (conjuncts e)
 
 isKvar :: Expr -> Bool
 isKvar (PKVar _ _) = True
 isKvar _           = False
-
-class HasGradual a where
-  isGradual :: a -> Bool
-  gVars     :: a -> [KVar]
-  gVars _ = []
-  ungrad    :: a -> a
-  ungrad x = x
-
-instance HasGradual Expr where
-  isGradual PGrad{} = True
-  isGradual (PAnd xs)  = any isGradual xs
-  isGradual _          = False
-
-  gVars (PGrad k _ _ _) = [k]
-  gVars (PAnd xs)       = concatMap gVars xs
-  gVars _               = []
-
-  ungrad PGrad{} = PTrue
-  ungrad (PAnd xs)  = PAnd (ungrad <$> xs )
-  ungrad e          = e
-
-
-instance HasGradual Reft where
-  isGradual (Reft (_,r)) = isGradual r
-  gVars (Reft (_,r))     = gVars r
-  ungrad (Reft (x,r))    = Reft(x, ungrad r)
-
-instance HasGradual SortedReft where
-  isGradual = isGradual . sr_reft
-  gVars     = gVars . sr_reft
-  ungrad r  = r {sr_reft = ungrad (sr_reft r)}
-
-refaConjuncts :: Expr -> [Expr]
-refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
-
-
 
 --------------------------------------------------------------------------------
 -- | Kvars ---------------------------------------------------------------------
@@ -248,6 +203,8 @@ refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 
 newtype KVar = KV { kv :: Symbol }
                deriving (Eq, Ord, Data, Typeable, Generic, IsString, ToJSON, FromJSON)
+
+instance ToJSONKey KVar
 
 intKvar :: Integer -> KVar
 intKvar = KV . intSymbol "k_"
@@ -260,7 +217,6 @@ instance Hashable Brel
 instance Hashable Bop
 instance Hashable SymConst
 instance Hashable Constant
-instance Hashable GradInfo
 instance Hashable v => Hashable (SubstV v)
 instance Hashable v => Hashable (ExprV v)
 instance Hashable v => Hashable (ReftV v)
@@ -352,7 +308,6 @@ data ExprV v
           | PKVar  !KVar !(SubstV v)
           | PAll   ![(Symbol, Sort)] !(ExprV v)
           | PExist ![(Symbol, Sort)] !(ExprV v)
-          | PGrad  !KVar !(SubstV v) !GradInfo !(ExprV v)
           | ECoerc !Sort !Sort !(ExprV v)
           deriving (Eq, Show, Ord, Data, Typeable, Generic, Functor, Foldable, Traversable)
 
@@ -468,15 +423,6 @@ exprKVars = go
     go (PExist _xts p)     = go p
     go _                  = HashMap.empty
 
-data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
-          deriving (Eq, Ord, Show, Data, Typeable, Generic)
-
-instance ToJSON   GradInfo
-instance FromJSON GradInfo
-
-srcGradInfo :: SourcePos -> GradInfo
-srcGradInfo src = GradInfo (SS src src) Nothing
-
 mkEApp :: LocSymbol -> [Expr] -> Expr
 mkEApp = eApps . EVar . val
 
@@ -536,7 +482,6 @@ debruijnIndex = go
     go (PAll _ e)      = go e
     go (PExist _ e)    = go e
     go (PKVar _ _)     = 1
-    go (PGrad _ _ _ e) = go e
     go (ECoerc _ _ e)  = go e
 
 type Reft = ReftV Symbol
@@ -577,9 +522,6 @@ instance Symbolic SymConst where
 
 encodeSymConst        :: SymConst -> Symbol
 encodeSymConst (SL s) = litSymbol $ symbol s
-
--- _decodeSymConst :: Symbol -> Maybe SymConst
--- _decodeSymConst = fmap (SL . symbolText) . unLitSymbol
 
 instance Fixpoint SymConst where
   toFix (SL t) = text (show t)
@@ -628,13 +570,12 @@ instance (Ord v, Fixpoint v) => Fixpoint (ExprV v) where
   toFix (POr  ps)      = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ sep [ toFix e1 <+> toFix r, nest 2 (toFix e2)]
   toFix (PKVar k su)     = toFix k <-> toFix su
-  toFix (PAll xts p)     = "forall" <+> (toFix xts
+  toFix (PAll xts p)     = parens $ "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
-  toFix (PExist xts p)   = "exists" <+> (toFix xts
+  toFix (PExist xts p)   = parens $ "exists" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
-  toFix (PGrad k _ _ e)  = toFix e <+> text "&&" <+> toFix k -- text "??" -- <+> toFix k <+> toFix su
   toFix (ECoerc a t e)   = parens (text "coerce" <+> toFix a <+> text "~" <+> toFix t <+> text "in" <+> toFix e)
   toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
 
@@ -668,10 +609,6 @@ simplifyExpr dedup = go
           else if sp == PFalse then PNot sq
           else if sq == PFalse then PNot sp
           else PIff sp sq
-
-    go (PGrad k su i e)
-      | isContraPred e      = PFalse
-      | otherwise           = PGrad k su i (go e)
 
     go (PAnd ps)
       | any isContraPred ps = PFalse
@@ -833,19 +770,18 @@ instance (Ord v, Fixpoint v, PPrint v) => PPrint (ExprV v) where
                                    pprintTidy k r         <+>
                                    pprintPrec (za+1) k e2
     where za = 4
-  pprintPrec _ k (PAll xts p)    = pprintQuant k "forall" xts p
-  pprintPrec _ k (PExist xts p)  = pprintQuant k "exists" xts p
+  pprintPrec z k (PAll xts p)    = parensIf (z > 0) $ pprintQuant k "forall" xts p
+  pprintPrec z k (PExist xts p)  = parensIf (z > 0) $ pprintQuant k "exists" xts p
   pprintPrec _ k (ELam (x,t) e)  = "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprintTidy k e
   pprintPrec _ k (ECoerc a t e)  = parens $ "coerce" <+> toFix a <+> "~" <+> toFix t <+> text "in" <+> pprintTidy k e
   pprintPrec _ _ p@PKVar{}    = toFix p
   pprintPrec _ _ (ETApp e s)     = "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ _ (ETAbs e s)     = "ETAbs" <+> toFix e <+> toFix s
-  pprintPrec z k (PGrad x _ _ e) = pprintPrec z k e <+> "&&" <+> toFix x -- "??"
 
 pprintQuant
   :: (Ord v, Fixpoint v, PPrint v)
   => Tidy -> Doc -> [(Symbol, Sort)] -> ExprV v -> Doc
-pprintQuant k d xts p = (d <+> toFix xts)
+pprintQuant k d xts p = (d <+> pprintTidy k xts)
                         $+$
                         ("  ." <+> pprintTidy k p)
 
@@ -939,7 +875,7 @@ isSingletonExpr _ _        = Nothing
 
 -- | 'conj' is a fast version of 'pAnd' needed for the ebind tests
 conj :: [Pred] -> Pred
-conj []  = PFalse
+conj []  = PTrue
 conj [p] = p
 conj ps  = PAnd ps
 
@@ -1018,17 +954,6 @@ reftPred (Reft (_, p)) = p
 
 reftBind :: ReftV v -> Symbol
 reftBind (Reft (x, _)) = x
-
-------------------------------------------------------------
--- | Gradual Type Manipulation  ----------------------------
-------------------------------------------------------------
-pGAnds :: (Fixpoint v, Ord v) => [ExprV v] -> ExprV v
-pGAnds = foldl' pGAnd PTrue
-
-pGAnd :: (Fixpoint v, Ord v) => ExprV v -> ExprV v -> ExprV v
-pGAnd (PGrad k su i p) q = PGrad k su i (pAnd [p, q])
-pGAnd p (PGrad k su i q) = PGrad k su i (pAnd [p, q])
-pGAnd p q              = pAnd [p,q]
 
 ------------------------------------------------------------
 -- | Generally Useful Refinements --------------------------

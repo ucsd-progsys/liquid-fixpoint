@@ -2,7 +2,7 @@ Liquid Fixpoint
 ===============
 
 
-[![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint) 
+[![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint)
 [![CircleCI](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint.svg?style=svg)](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint)
 [![hlint](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/hlint.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/hlint.yml)
 [![cabal](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/cabal.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/cabal.yml)
@@ -14,6 +14,12 @@ for various Liquid Types. The solver uses SMTLIB2 to implement an algorithm simi
 
 + [Houdini](https://users.soe.ucsc.edu/~cormac/papers/fme01.pdf)
 + [Cartesian predicate abstraction](http://swt.informatik.uni-freiburg.de/berit/papers/boolean-and-cartesian-....pdf)
+
+Algorithms implemented in liquid-fixpoint:
+
++ [FUSION](https://ranjitjhala.github.io/static/local_refinement_typing.pdf) Local refinement typing
++ [PLE](https://ranjitjhala.github.io/static/refinement_reflection.pdf) Refinement Reflection: Complete Verification with SMT
++ [REST](https://drops.dagstuhl.de/entities/document/10.4230/DARTS.8.2.12) REST: Integrating Term Rewriting with Program Verification
 
 
 Requirements
@@ -62,7 +68,7 @@ Currently, we support
     * CVC4
     * MathSat
 
-"Horn" Format 
+"Horn" Format
 -------------
 
 See the examples in `tests/horn/{pos, neg}` eg
@@ -73,8 +79,8 @@ See the examples in `tests/horn/{pos, neg}` eg
 
 For how to write VCs "by hand".
 
-See [this tutorial](https://arxiv.org/abs/2010.07763) 
-with [accompanying code](https://github.com/ranjitjhala/sprite-lang) 
+See [this tutorial](https://arxiv.org/abs/2010.07763)
+with [accompanying code](https://github.com/ranjitjhala/sprite-lang)
 for an example of how to generate Horn queries.
 
 The main datatypes are described in [src/Language/Fixpoint/Horn/Types.hs](src/Language/Fixpoint/Horn/Types.hs)
@@ -145,7 +151,7 @@ Use `--stdin` to read files from `stdin`
 ```
 $ more tests/horn/pos/test01.smt2 | fixpoint --stdin
 
-Liquid-Fixpoint Copyright 2013-21 Regents of the University of California.
+Liquid-Fixpoint Copyright 2009-25 Regents of the University of California.
 All Rights Reserved.
 
 Working 166% [===============================================================]
@@ -226,15 +232,20 @@ bind 2 y : ...
   Then a single `IBindEnv` should only mention _at most_
   one of `1` or `12`.
 
-* There is also a "tree-shape" property that its a bit hard
-  to describe ... TODO     
+* [NOTE:TREE-LIKE] There is also a "tree-shape" property required by PLE:
+
+```
+  forall constraints c, c'.
+    if i in c and i in c' then
+      forall 0 <= j < i, j in c and j in c'
+```
 
 ### LHS
 
 Each `slhs` of a constraint is a `SortedReft`.
 
 - Each `SortredReft` is basically a `Reft` -- a logical predicate.
-  The important bit is that a `KVar` i.e. terms of the formalized
+  The important bit is that a `KVar` i.e. terms of the form
 
 ```
      $k1[x1:=y1][x2:=y2]...[xn:=yn]
@@ -271,16 +282,35 @@ Each `slhs` of a constraint is a `SortedReft`.
 
   is not. The exact definition is formalized in `Language.Fixpoint.SortCheck`
 
-
 ### RHS
 
 Similarly each `rhs` of a `SubC` must either be a single `$k[...]` or an plain `$k`-free `Expr`.
+
+### KVar occurrences
+
+* Each `KVar` that appears in any binding or constraint must have exactly one
+  associated wf constraint.
+
+* Each `KVar` that appears in any binding or constraint must have an
+  accompanying substitution whose domain has the same symbols as the environment
+  of the corresponding wf constraint plus the symbol of its refinement type.
+
+For example, if the wf constraint is
+```
+    x:int, y: int |- {v:int | $k_##42 }
+```
+
+any occurrence of `$k_##42` must be of the form
+
+```
+    $k_##42 [x:=e1][y:=e2][v:=e3]
+```
 
 ### Global vs. Distinct Literals
 
 ```
      , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
-     , dLits    :: !(SEnv Sort)       
+     , dLits    :: !(SEnv Sort)
 ```
 
 The _global_ literals `gLits` are symbols that
@@ -326,15 +356,15 @@ from the `[(Symbol, Sort)]`.
 
 > What's the difference between an FTC and an FObj?
 
-In early versions of fixpoint, there was support for 
-three sorts for expressions (`Expr`) that were sent 
+In early versions of fixpoint, there was support for
+three sorts for expressions (`Expr`) that were sent
 to the SMT solver:
 
 1. `int`
 2. `bool`
 3. "other"
 
-The `FObj` sort was introduced to represent essentially _all_ 
+The `FObj` sort was introduced to represent essentially _all_
 non-int and non-bool values (e.g. tuples, lists, trees, pointers...)
 
 However, we later realized that it is valuable to keep _more_
@@ -351,17 +381,17 @@ respectively as:
 > Does that then make FTC types that the SMT solver does
 > know about (bools, ints, lists, sets, etc.)?
 
-The SMT solver knows about `bool`, `int` and `set` (also `bitvector` 
-and `map`) but _all_ other types are _currently_ represented as plain 
-`Int` inside the SMT solver. However, we _will be_ changing this 
+The SMT solver knows about `bool`, `int` and `set` (also `bitvector`
+and `map`) but _all_ other types are _currently_ represented as plain
+`Int` inside the SMT solver. However, we _will be_ changing this
 to make use of SMT support for ADTs ...
 
-To sum up: the `FObj` is there for historical reasons; it has been 
-subsumed by `FTC` which is what I recomend you use. However `FObj` 
-is there if you want a simple "unitype" / "any" type for terms 
+To sum up: the `FObj` is there for historical reasons; it has been
+subsumed by `FTC` which is what I recomend you use. However `FObj`
+is there if you want a simple "unitype" / "any" type for terms
 that are not "interpreted".
 
-## Qualifier Patterns 
+## Qualifier Patterns
 
 ```haskell
 λ> doParse' (qualParamP sortP) "" "z as (mon . $1) : int"

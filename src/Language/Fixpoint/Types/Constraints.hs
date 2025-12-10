@@ -13,6 +13,7 @@
 {-# LANGUAGE PatternGuards              #-}
 
 {-# OPTIONS_GHC -Wno-name-shadowing     #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
@@ -22,18 +23,18 @@ module Language.Fixpoint.Types.Constraints (
     FInfo, SInfo, GInfo (..), FInfoWithOpts(..)
   , convertFormat
   , sinfoToFInfo
-  , Solver
 
    -- * Serializing
   , toFixpoint
   , writeFInfo
   , saveQuery
+  , saveSInfo
 
    -- * Constructing Queries
   , fi
 
   -- * Constraints
-  , WfC (..), isGWfc, updateWfCExpr
+  , WfC (..)
   , SubC, SubcId
   , mkSubC, subcId, sid, senv, updateSEnv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
@@ -47,7 +48,6 @@ module Language.Fixpoint.Types.Constraints (
   , addIds
   , sinfo
   , shiftVV
-  , gwInfo, GWInfo (..)
 
   -- * Qualifiers
   , Qualifier
@@ -63,8 +63,9 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Results
   , FixSolution
-  , GFixSolution, toGFixSol
-  , Result (..)
+  , FixDelayedSolution
+  , Delayed (..)
+  , Result (..), ResultSorts
   , unsafe, isUnsafe, isSafe ,safe
 
   -- * Cut KVars
@@ -91,11 +92,13 @@ module Language.Fixpoint.Types.Constraints (
   , lookupRewrite
   , lookupLocalRewrites
   , insertRewrites
+  , eqnToHornSMT
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
   , sortVars
   , gSorts
+
   ) where
 
 import qualified Data.Store as S
@@ -110,6 +113,7 @@ import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Control.Monad             (when, void)
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.SMTPrint
 import qualified Language.Fixpoint.Types.Config as C
 import           Language.Fixpoint.Types.Triggers
 import           Language.Fixpoint.Types.Names
@@ -143,37 +147,7 @@ data WfC a  =  WfC  { wenv  :: !IBindEnv
                     , wrft  :: (Symbol, Sort, KVar)
                     , winfo :: !a
                     }
-             | GWfC { wenv  :: !IBindEnv
-                    , wrft  :: !(Symbol, Sort, KVar)
-                    , winfo :: !a
-                    , wexpr :: !Expr
-                    , wloc  :: !GradInfo
-                    }
               deriving (Eq, Generic, Functor)
-
-data GWInfo = GWInfo { gsym  :: Symbol
-                     , gsort :: Sort
-                     , gexpr :: Expr
-                     , ginfo :: GradInfo
-                     }
-              deriving (Eq, Generic)
-
-gwInfo :: WfC a -> GWInfo
-gwInfo (GWfC _ (x,s,_) _ e i)
-  = GWInfo x s e i
-gwInfo _
-  = errorstar "gwInfo"
-
-updateWfCExpr :: (Expr -> Expr) -> WfC a -> WfC a
-updateWfCExpr _ w@WfC{}  = w
-updateWfCExpr f w@GWfC{} = w{wexpr = f (wexpr w)}
-
-isGWfc :: WfC a -> Bool
-isGWfc GWfC{} = True
-isGWfc WfC{}  = False
-
-instance HasGradual (WfC a) where
-  isGradual = isGWfc
 
 type SubcId = Integer
 
@@ -200,7 +174,7 @@ data SimpC a = SimpC
 instance Loc a => Loc (SimpC a) where
   srcSpan = srcSpan . _cinfo
 
-strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
+strengthenHyp :: SInfo a -> [(Integer, Expr)] -> BindEnv a
 strengthenHyp si ies = strengthenBinds si bindExprs
   where
     bindExprs        = safeFromList "strengthenHyp" [ (subcBind si i, e) | (i, e) <- ies ]
@@ -213,8 +187,8 @@ subcBind si i
   = errorstar $ "Unknown subcId in subcBind: " ++ show i
 
 
-strengthenBinds :: SInfo a -> M.HashMap BindId Expr -> SInfo a
-strengthenBinds si m = si { bs = mapBindEnv f (bs si) }
+strengthenBinds :: SInfo a -> M.HashMap BindId Expr -> BindEnv a
+strengthenBinds si m = mapBindEnv f (bs si)
   where
     f i (x, sr, l)   = case M.lookup i m of
                          Nothing -> (x, sr, l)
@@ -273,37 +247,87 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
-type GFixSolution = GFixSol Expr
+-- | Since some solutions are expensive to compute, we wrap them in a
+-- "Delayed" type to compute them only if needed.
+{- HLINT ignore Delayed "Use newtype instead of data" -}
+data Delayed a = Delayed
+  { forceDelayed  :: a
+  }
+  deriving (Generic, Show, Functor)
+
+instance (NFData a) => NFData (Delayed a)
+
 
 type FixSolution  = M.HashMap KVar Expr
-
-newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
-  deriving (Generic, Semigroup, Monoid, Functor)
-
-toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
-toGFixSol = GSol
-
+type FixDelayedSolution  = M.HashMap KVar (Delayed Expr)
 
 data Result a = Result
   { resStatus    :: !(FixResult a)
   , resSolution  :: !FixSolution
-  , resNonCutsSolution :: !FixSolution
-  , gresSolution :: !GFixSolution
+  , resNonCutsSolution :: !FixDelayedSolution
+  , resSorts     :: !ResultSorts
   }
   deriving (Generic, Show, Functor)
 
+type ResultSorts = M.HashMap KVar [(Symbol, Sort)]
 
+data ScopedResult = MkScopedResult
+  { scCuts    :: KVarMap ScopedExpr
+  , scNonCuts :: KVarMap ScopedExpr
+  }
+  deriving (Generic, Show)
+
+newtype KVarMap a = MkKVarMap { unKVarMap :: M.HashMap KVar a }
+  deriving (Generic, Show)
+
+newtype KVarBind a = MkKVarBind { unKVarBind :: (KVar, a) }
+  deriving (Generic, Show)
+data ScopedExpr = MkScopedExpr
+  { seParams :: [(Symbol, Sort)]
+  , seBody :: !Expr
+  }
+  deriving (Generic, Show)
+
+instance ToHornSMT ScopedExpr where
+  toHornSMT (MkScopedExpr xts p) = toHornWithBinders "lambda" xts p
+
+
+scopedResult :: Result a -> ScopedResult
+scopedResult res = MkScopedResult cuts  nonCuts
+  where
+    cuts = scoped $ resSolution res
+    nonCuts = scoped $ M.map forceDelayed $ resNonCutsSolution res
+    scoped sol = MkKVarMap $ M.fromList [ (k, MkScopedExpr (scope k) e) | (k, e) <- M.toList sol]
+    scope k = M.lookupDefault [] k $ resSorts res
 
 instance ToJSON a => ToJSON (Result a) where
-  toJSON = toJSON . resStatus
+  toJSON r@(Result {..}) = object
+    [ "status"            .= resStatus
+    , "solution"          .= scCuts scopedSolution
+    , "nonCutsSolution"   .= scNonCuts scopedSolution
+    ]
+    where
+      scopedSolution = scopedResult r
+
+instance ToJSON a => ToJSON (KVarBind a) where
+  toJSON (MkKVarBind (k, v)) = object
+    [ "kvar" .= k
+    , "val"  .= v
+    ]
+
+instance ToJSON a => ToJSON (KVarMap a) where
+  toJSON = toJSON . map MkKVarBind . M.toList . unKVarMap
+
+instance ToJSON ScopedExpr where
+  toJSON = toJSON . render . toHornSMT
 
 instance Semigroup (Result a) where
-  r1 <> r2  = Result stat soln nonCutsSoln gsoln
+  r1 <> r2  = Result stat soln nonCutsSoln sorts
     where
       stat  = resStatus r1    <> resStatus r2
       soln  = resSolution r1  <> resSolution r2
       nonCutsSoln = resNonCutsSolution r1 <> resNonCutsSolution r2
-      gsoln = gresSolution r1 <> gresSolution r2
+      sorts = M.unionWith L.union (resSorts r1) (resSorts r2)
 
 instance Monoid (Result a) where
   mempty        = Result mempty mempty mempty mempty
@@ -371,7 +395,6 @@ instance Fixpoint a => Fixpoint (WfC a) where
               -- NOTE: this next line is printed this way for compatability with the OCAML solver
               $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k mempty)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
-              $+$ if isGWfc w then toFixMeta (text "expr") (toFix (wexpr w)) else mempty
           (v, t, k) = wrft w
 
 toFixMeta :: Doc -> Doc -> Doc
@@ -381,31 +404,12 @@ pprId :: Show a => Maybe a -> Doc
 pprId (Just i)  = "id" <+> tshow i
 pprId _         = ""
 
-instance PPrint GFixSolution where
-  pprintTidy k (GSol xs) = vcat $ punctuate "\n\n" (pprintTidyGradual k <$> M.toList xs)
-
-pprintTidyGradual :: Tidy -> (KVar, (Expr, [Expr])) -> Doc
-pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <-> pprint es)
-
-ppLocOfKVar :: KVar -> Doc
-ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv
-
-ppNonTauto :: Doc -> Expr -> Doc
-ppNonTauto d e
-  | isTautoPred e = mempty
-  | otherwise     = pprint e <-> d
-
-instance Show   GFixSolution where
-  show = showpp
-
 ----------------------------------------------------------------
 instance S.Store QualPattern
 instance S.Store QualParam
 instance S.Store Qualifier
 instance S.Store Kuts
 instance S.Store HOInfo
-instance S.Store GWInfo
-instance S.Store GFixSolution
 instance (S.Store a) => S.Store (SubC a)
 instance (S.Store a) => S.Store (WfC a)
 instance (S.Store a) => S.Store (SimpC a)
@@ -416,8 +420,6 @@ instance NFData QualParam
 instance NFData v => NFData (QualifierV v)
 instance NFData Kuts
 instance NFData HOInfo
-instance NFData GFixSolution
-instance NFData GWInfo
 
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
@@ -444,21 +446,15 @@ wfC be sr x = if all isEmptySubst sus -- ++ gsus)
                  -- NV TO RJ This tests fails with [LT:=GHC.Types.LT][EQ:=GHC.Types.EQ][GT:=GHC.Types.GT]]
                  -- NV TO RJ looks like a resolution issue
                 then [WfC be (v, sr_sort sr, k) x      | k         <- ks ]
-                  ++ [GWfC be (v, sr_sort sr, k) x e i | (k, e, i) <- gs ]
                 else errorstar msg
   where
-    msg             = "wfKvar: malformed wfC " ++ show sr ++ "\n" ++ show (sus ++ gsus)
+    msg             = "wfKvar: malformed wfC " ++ show sr ++ "\n" ++ show sus
     Reft (v, ras)   = sr_reft sr
     (ks, sus)       = unzip $ go ras
-    (gs, gsus)      = unzip $ go' ras
 
     go (PKVar k su) = [(k, su)]
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
-
-    go' (PGrad k su i e) = [((k, e, i), su)]
-    go' (PAnd es)      = concatMap go' es
-    go' _              = []
 
 mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
 mkSubC = SubC
@@ -509,6 +505,10 @@ data QualParam = QP
   }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance ToHornSMT QualParam where
+  toHornSMT qp = toHornSMT (qpSym qp, qpSort qp)
+
+
 data QualPattern
   = PatNone                 -- ^ match everything
   | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
@@ -527,6 +527,11 @@ instance FromJSON Equation    where
 instance ToJSON   Rewrite     where
 instance FromJSON Rewrite     where
 
+instance ToHornSMT Qualifier where
+  toHornSMT (Q n qps p _) =  toHornWithBinders name xts p
+    where
+      name = "qualif" <+> pprint n
+      xts =  [(qpSym qp, qpSort qp) | qp <- qps]
 
 trueQual :: Qualifier
 trueQual = Q (symbol ("QTrue" :: String)) [] PTrue (dummyPos "trueQual")
@@ -565,11 +570,15 @@ instance PPrint QualPattern where
 instance Fixpoint Qualifier where
   toFix = pprQual
 
-instance PPrint (QualifierV v) where
-  pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
+instance (Ord v, Fixpoint v, PPrint v) => PPrint (QualifierV v) where
+  pprintTidy k q =
+    "qualif" <+> pprintTidy k (qName q) <+>
+     parens (hsep $ punctuate comma (pprintTidy k <$> qParams q)) <+>
+     braces (pprintTidy k (qBody q)) <+> "//defined at" <+> pprintTidy k (qPos q)
+
 
 pprQual :: Qualifier -> Doc
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <-> parens args <-> colon <+> parens (toFix p) <+> text "//" <+> toFix l
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <-> parens args <-> braces (toFix p) <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
 
@@ -682,12 +691,11 @@ fi :: [SubC a]
    -> [Triggered Expr]
    -> AxiomEnv
    -> [DataDecl]
-   -> [BindId]
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
+fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
-       , bs       = foldr (adjustBindEnv stripReft) binds ebs
+       , bs       = binds
        , gLits    = ls
        , dLits    = ds
        , kuts     = ks
@@ -697,14 +705,12 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
        , asserts  = es
        , ae       = axe
        , ddecls   = adts
-       , ebinds   = ebs
        , lrws     = mempty
        , defns    = mempty
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
     err = errorstar "multiple WfCs with same kvar"
-    stripReft (sym, reft) = (sym, reft { sr_reft = trueReft })
 
 ------------------------------------------------------------------------
 -- | Top-level Queries
@@ -734,8 +740,7 @@ allowHOquals = hoQuals . hoInfo
 data GInfo c a = FI
   { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
   , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
-  , bs       :: !(BindEnv a)               -- ^ Bind  |-> (Symbol, SortedReft)
-  , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
+  , bs       :: !(BindEnv a)               -- ^ BindId  |-> (Symbol, SortedReft)
   , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
   , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
   , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
@@ -750,9 +755,6 @@ data GInfo c a = FI
   }
   deriving (Eq, Show, Functor, Generic)
 
-instance HasGradual (GInfo c a) where
-  isGradual info = any isGradual (M.elems $ ws info)
-
 instance Semigroup HOInfo where
   i1 <> i2 = HOI { hoBinds = hoBinds i1 || hoBinds i2
                  , hoQuals = hoQuals i1 || hoQuals i2
@@ -765,7 +767,6 @@ instance Semigroup (GInfo c a) where
   i1 <> i2 = FI { cm       = cm i1       <> cm i2
                 , ws       = ws i1       <> ws i2
                 , bs       = bs i1       <> bs i2
-                , ebinds   = ebinds i1   <> ebinds i2
                 , gLits    = gLits i1    <> gLits i2
                 , dLits    = dLits i1    <> dLits i2
                 , kuts     = kuts i1     <> kuts i2
@@ -784,7 +785,6 @@ instance Monoid (GInfo c a) where
   mempty        = FI { cm       = M.empty
                      , ws       = mempty
                      , bs       = mempty
-                     , ebinds   = mempty
                      , gLits    = mempty
                      , dLits    = mempty
                      , kuts     = mempty
@@ -831,9 +831,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     kutsDoc       = toFix    . kuts
     -- packsDoc      = toFix    . packs
     declsDoc      = vcat     . map ((text "data" <+>) . toFix) . L.sort . ddecls
-    (ubs, ebs)    = splitByQuantifiers (bs x') (ebinds x')
-    bindsDoc      = toFix    ubs
-               $++$ toFix    ebs
+    bindsDoc      = toFix (bs x')
     qualsDoc      = vcat     . map toFix . L.sort . quals
     aeDoc         = toFix    . ae
     lrwsDoc       = toFix    . lrws
@@ -910,11 +908,6 @@ simpcToSubc env s = SubC
   where
     (b, sr, _) = lookupBindEnv (cbind s) env
 
----------------------------------------------------------------------------
--- | Top level Solvers ----------------------------------------------------
----------------------------------------------------------------------------
-type Solver a = C.Config -> FInfo a -> IO (Result (Integer, a))
-
 --------------------------------------------------------------------------------
 saveQuery :: (Fixpoint a) => C.Config -> FInfo a -> IO ()
 --------------------------------------------------------------------------------
@@ -936,6 +929,26 @@ saveTextQuery cfg fi = do
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
   ensurePath fq
   T.writeFile fq $ T.pack $ render (toFixpoint cfg fi)
+
+-- | Used for debugging to inspect intermediate 'SInfo' files.
+--
+-- Takes a suffix to put in the name of the written file, whose name
+-- is still derived from the input file name in `cfg`.
+--
+-- Usage example:
+--
+-- > when (save cfg) $
+-- >   saveSInfo cfg ".sinfo" si
+--
+-- This will write a file like `.liquid/Test.hs.sinfo.fq` when the
+-- `--save` flag is used.
+--
+saveSInfo :: Fixpoint a => C.Config -> String -> SInfo a -> IO ()
+saveSInfo cfg sfx si = do
+  let fq = Files.tempFileName (C.srcFile cfg ++ sfx ++ ".fq")
+  putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
+  ensurePath fq
+  T.writeFile fq $ T.pack $ render (toFixpoint cfg si)
 
 ---------------------------------------------------------------------------
 -- | Axiom Instantiation Information --------------------------------------
@@ -1015,6 +1028,10 @@ data EquationV v = Equ
   }
   deriving (Data, Eq, Ord, Show, Generic, Functor)
 
+eqnToHornSMT :: Doc -> Equation -> Doc
+eqnToHornSMT keyword (Equ f xs e s _) = parens (keyword <+> pprint f <+> toHornSMT xs <+> toHornSMT s <+> toHornSMT e)
+
+
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
 mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
@@ -1078,6 +1095,11 @@ data Rewrite  = SMeasure
   }
   deriving (Data, Eq, Ord, Show, Generic)
 
+instance ToHornSMT Rewrite where
+  toHornSMT (SMeasure f d xs e) =  parens ("match" <+> toHornSMT f <+> toHornSMT (d:xs) <+> toHornSMT e)
+
+
+
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> L.sort (aenvEqs axe)) ++ (toFix <$> L.sort (aenvSimpl axe)))
               $+$ renderExpand (pairdoc <$> L.sort (M.toList $ aenvExpand axe))
@@ -1102,8 +1124,7 @@ instance Fixpoint Rewrite where
     = text "match"
    <+> toFix f
    <+> toFix d <+> hsep (toFix <$> xs)
-   <+> text " = "
-   <+> parens (toFix e)
+   <+> braces (toFix e)
 
 instance PPrint Rewrite where
   pprintTidy _ = toFix

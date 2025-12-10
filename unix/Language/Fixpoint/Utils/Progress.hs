@@ -1,6 +1,8 @@
+{-# LANGUAGE ForeignFunctionInterface #-}
 -- | Progress Bar API
 module Language.Fixpoint.Utils.Progress (
       withProgress
+    , withProgressM
     , progressInit
     , progressTick
     , progressClose
@@ -13,21 +15,32 @@ import           Data.IORef
 import           System.Console.AsciiProgress
 -- import           Language.Fixpoint.Misc (traceShow)
 
+foreign import ccall unsafe "unistd.h isatty"
+  c_isatty :: Int -> IO Int
+
 {-# NOINLINE pbRef #-}
 pbRef :: IORef (Maybe ProgressBar)
 pbRef = unsafePerformIO (newIORef Nothing)
 
 withProgress :: Int -> IO a -> IO a
-withProgress n act = do
+withProgress = withProgressM id
+
+withProgressM :: (m a -> IO b) -> Int -> m a -> IO b
+withProgressM mToIO n act = do
   showBar <- (Quiet /=) <$> getVerbosity
-  if showBar
+  -- We don't show the progress bar if the output is not a terminal.
+  -- Besides improving the output, this also avoids a concurrency
+  -- issue:
+  -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/782
+  isTTY <- (== 1) <$> c_isatty 1
+  if showBar && isTTY
     then displayConsoleRegions $ do
       -- putStrLn $ "withProgress: " ++ show n
       progressInit n
-      r <- act
+      r <- mToIO act
       progressClose
       return r
-    else act
+    else mToIO act
 
 progressInit :: Int -> IO ()
 progressInit n = do

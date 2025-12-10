@@ -66,13 +66,11 @@ import GHC.Stack
 
 data CVertex = KVar  !KVar    -- ^ real kvar vertex
              | DKVar !KVar    -- ^ dummy to ensure each kvar has a successor
-             | EBind !F.Symbol  -- ^ existentially bound "ghost paramter" to solve for
              | Cstr  !Integer -- ^ constraint-id which creates a dependency
                deriving (Eq, Ord, Show, Generic)
 
 instance PPrint CVertex where
   pprintTidy _ (KVar k)  = doubleQuotes $ pprint $ kv k
-  pprintTidy _ (EBind s)  = doubleQuotes $ pprint s
   pprintTidy _ (Cstr i)  = text "id_" <-> pprint i
   pprintTidy _ (DKVar k) = pprint k   <-> text "*"
 
@@ -192,8 +190,8 @@ instance PPrint Rank where
 -- | `SolverInfo` contains all the stuff needed to produce a result, and is the
 --   the essential ingredient of the state needed by solve_
 --------------------------------------------------------------------------------
-data SolverInfo a b = SI
-  { siSol     :: !(F.Sol b F.QBind)             -- ^ the initial solution
+data SolverInfo a = SI
+  { siSol     :: !(F.Sol F.QBind)             -- ^ the initial solution
   , siQuery   :: !(F.SInfo a)                   -- ^ the whole input query
   , siDeps    :: !CDeps                         -- ^ dependencies between constraints/ranks etc.
   , siVars    :: !(S.HashSet F.KVar)            -- ^ set of KVars to actually solve for

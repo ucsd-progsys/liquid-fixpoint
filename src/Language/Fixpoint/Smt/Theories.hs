@@ -31,7 +31,7 @@ module Language.Fixpoint.Smt.Theories
      , dataDeclSymbols
 
        -- * Theories
-     , setEmpty, setEmp, setSng, setAdd, setMem
+     , setEmpty, setEmp, setSng, setAdd, setMem, setCard
      , setCom, setCap, setCup, setDif, setSub
 
      , mapDef, mapSel, mapSto
@@ -142,7 +142,8 @@ mapDef   = "Map_default"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a
+setCard, setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: (IsString a) => a
+setCard  = "Set_card"
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -204,20 +205,28 @@ ffVal = "FF_val"
 ffAdd = "FF_add"
 ffMul = "FF_mul"
 
-strLen, strSubstr, strConcat :: (IsString a) => a -- Symbol
+strLen, strSubstr, strConcat, strConcat', strPrefixOf, strSuffixOf, strContains :: (IsString a) => a -- Symbol
 strLen    = "strLen"
 strSubstr = "subString"
 strConcat = "concatString"
+strConcat' = "strConcat"
+strPrefixOf  = "strPrefixOf"
+strSuffixOf = "strSuffixOf"
+strContains = "strContains"
 
-smtlibStrLen, smtlibStrSubstr, smtlibStrConcat :: Raw
+smtlibStrLen, smtlibStrSubstr, smtlibStrConcat, smtlibStrPrefixOf, smtlibStrSuffixOf, smtlibStrContains :: Raw
 smtlibStrLen    = "str.len"
 smtlibStrSubstr = "str.substr"
 smtlibStrConcat = "str.++"
+smtlibStrPrefixOf = "str.prefixof"
+smtlibStrSuffixOf = "str.suffixof"
+smtlibStrContains = "str.contains"
 
-strLenSort, substrSort, concatstrSort :: Sort
+strLenSort, substrSort, concatstrSort, strCompareSort :: Sort
 strLenSort    = FFunc strSort intSort
 substrSort    = mkFFunc 0 [strSort, intSort, intSort, strSort]
 concatstrSort = mkFFunc 0 [strSort, strSort, strSort]
+strCompareSort = mkFFunc 0 [strSort, strSort, boolSort]
 
 string :: Raw
 string = strConName
@@ -265,6 +274,7 @@ solverPreamble cfg
      , (SOnly [Cvc5],       "(set-logic ALL)")
      , (SOnly [Cvc4, Cvc5], "(set-option :incremental true)")
      ]
+  ++ setPreamble cfg
   ++ boolPreamble cfg
   ++ arithPreamble cfg
   ++ stringPreamble cfg
@@ -274,6 +284,10 @@ type Preamble = (PreambleCondition, Builder)
 data PreambleCondition = SAll | SOnly [SMTSolver]
   deriving (Eq, Show)
 
+setPreamble :: Config -> [Preamble]
+-- Z3 does not support cardinality on sets, which is defined to be uninterpreted function
+setPreamble _
+  = [ (SOnly [Z3, Z3mem],  bFun' "set.card" ["(Array Int Bool)"] "Int") ]
 
 boolPreamble :: Config -> [Preamble]
 boolPreamble _
@@ -286,7 +300,7 @@ arithPreamble cfg = (SAll,) <$>
  ]
 
 stringPreamble :: Config -> [Preamble]
-stringPreamble cfg | stringTheory cfg
+stringPreamble cfg | not (noStringTheory cfg)
   = [ (SAll, bSort string "String")
     , (SAll, bFun strLen [("s", fromText string)] "Int" (key (fromText smtlibStrLen) "s"))
     , (SAll, bFun strSubstr [("s", fromText string), ("i", "Int"), ("j", "Int")] (fromText string) (key (fromText smtlibStrSubstr) "s i j"))
@@ -435,6 +449,7 @@ interpSymbols cfg =
 
   -- CVC5 sets
 
+  , interpSym setCard  "set.card"       (FAbs 0 $ FFunc (setSort $ FVar 0) intSort)
   , interpSym setEmp   "set.is_empty"   (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty "set.empty"      (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
   , interpSym setSng   "set.singleton"  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
@@ -456,14 +471,15 @@ interpSymbols cfg =
   , interpSym bagMin   "bag.inter_min"      bagBopSort
   , interpSym bagSub   "bag.subbag"         (FAbs 0 $ FFunc (bagSort $ FVar 0) $ FFunc (bagSort $ FVar 0) boolSort)
 
-  -- , interpSym bvOrName  "bvor"  bvBopSort
-  -- , interpSym bvAndName "bvand" bvBopSort
-  -- , interpSym bvAddName "bvadd" bvBopSort
-  -- , interpSym bvSubName "bvsub" bvBopSort
+  -- Strings
+  , interpSym strLen     strLen    strLenSort
+  , interpSym strSubstr  strSubstr substrSort
+  , interpSym strConcat  strConcat concatstrSort
+  , interpSym strConcat' smtlibStrConcat concatstrSort
+  , interpSym strPrefixOf smtlibStrPrefixOf strCompareSort
+  , interpSym strSuffixOf smtlibStrSuffixOf strCompareSort
+  , interpSym strContains smtlibStrContains strCompareSort
 
-  , interpSym strLen    strLen    strLenSort
-  , interpSym strSubstr strSubstr substrSort
-  , interpSym strConcat strConcat concatstrSort
   , interpSym boolInt   boolInt   (FFunc boolSort intSort)
 
   -- Function mappings for indexed identifier functions
@@ -510,12 +526,18 @@ interpSymbols cfg =
   , interpBvCmp bvSLeName
   , interpBvCmp bvSGtName
   , interpBvCmp bvSGeName
+
+  -- int to bv Conversions
+
   , interpSym intbv32Name   "(_ int2bv 32)" (FFunc intSort bv32)
   , interpSym intbv64Name   "(_ int2bv 64)" (FFunc intSort bv64)
-  , interpSym bv32intName   (bv2i cfg 32) (FFunc bv32    intSort)
-  , interpSym bv64intName   (bv2i cfg 64) (FFunc bv64    intSort)
-  -- , interpSym bv32intName   "(_ bv2int 32)" (FFunc bv32    intSort)
-  -- , interpSym bv64intName   "(_ bv2int 64)" (FFunc bv64    intSort)
+  , interpSym bv32intName   (bv2i cfg 32)   (FFunc bv32    intSort)
+  , interpSym bv64intName   (bv2i cfg 64)   (FFunc bv64    intSort)
+
+  , interpSym intbv8Name    "(_ int2bv 8)"  (FFunc intSort bv8)
+  , interpSym intbv16Name   "(_ int2bv 16)" (FFunc intSort bv16)
+  , interpSym bv8intName    (bv2i cfg 32)   (FFunc bv8    intSort)
+  , interpSym bv16intName   (bv2i cfg 64)   (FFunc bv16    intSort)
   ]
   ++
   if cfg == Z3 || cfg == Z3mem
@@ -556,7 +578,8 @@ interpSymbols cfg =
     mapArrSort = arraySort (FVar 0) (FVar 1)
     setArrSort = arraySort (FVar 0) boolSort
     bagArrSort = arraySort (FVar 0) intSort
-    -- (sizedBitVecSort "Size1")
+    bv8        = sizedBitVecSort "Size8"
+    bv16       = sizedBitVecSort "Size16"
     bv32       = sizedBitVecSort "Size32"
     bv64       = sizedBitVecSort "Size64"
     boolInt    = boolToIntName
@@ -668,8 +691,20 @@ interpSym x n t = (x, Thy x n t Theory)
 maxLamArg :: Int
 maxLamArg = 20
 
-axiomLiterals :: [(Symbol, Sort)] -> [Expr]
-axiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
+axiomLiterals :: Config -> [(Symbol, Sort)] -> [Expr]
+axiomLiterals cfg
+  | noStringTheory cfg = lenAxiomLiterals
+  | otherwise          = strAxiomLiterals
+
+strAxiomLiterals :: [(Symbol, Sort)] -> [Expr]
+strAxiomLiterals lts = catMaybes [ strAxiom l | (l, t) <- lts, isString t ]
+  where
+    strAxiom l = do
+      sym <- unLitSymbol l
+      pure (EEq (expr l) (ECon $ L (symbolText sym) strSort))
+
+lenAxiomLiterals :: [(Symbol, Sort)] -> [Expr]
+lenAxiomLiterals lts = catMaybes [ lenAxiom l <$> litLen l | (l, t) <- lts, isString t ]
   where
     lenAxiom l n  = EEq (EApp (expr (strLen :: Symbol)) (expr l)) (expr n `ECst` intSort)
     litLen        = fmap (Data.Text.length .  symbolText) . unLitSymbol

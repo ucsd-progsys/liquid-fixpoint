@@ -74,8 +74,6 @@ matchesTemplate (xs, PAll s t) (PAll s' e)
   = s == s' && matchesTemplate (xs, t) e
 matchesTemplate (xs, PExist s t) (PExist s' e)
   = s == s' && matchesTemplate (xs, t) e
-matchesTemplate (xs, PGrad s1 s2 s3 t) (PGrad s1' s2' s3' e)
-  = s1 == s1' && s2 == s2' && s3 == s3' && matchesTemplate (xs, t) e
 matchesTemplate (xs, ECoerc s1 s2 t) (ECoerc s1' s2' e)
   = s1 == s1' && s2 == s2' && matchesTemplate (xs, t) e
 matchesTemplate (_, t) e

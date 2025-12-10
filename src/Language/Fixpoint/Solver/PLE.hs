@@ -8,6 +8,7 @@
 --     2. "Reasoning about Functions", VMCAI 2018, https://ranjitjhala.github.io/static/reasoning-about-functions.pdf
 --------------------------------------------------------------------------------
 
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
@@ -30,7 +31,7 @@ module Language.Fixpoint.Solver.PLE
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
-import           Language.Fixpoint.Types.Solutions (CMap)
+import           Language.Fixpoint.Types.Solutions (CMap, Solution)
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc
 import qualified Language.Fixpoint.Smt.Interface as SMT
@@ -45,6 +46,7 @@ import           Language.Fixpoint.Graph.Deps             (isTarget)
 import           Language.Fixpoint.Solver.Common          (askSMT, toSMT)
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Simplify
+import           Language.Fixpoint.Solver.Solution (CombinedEnv(..), applyInSortedReft)
 import           Language.Fixpoint.Solver.Rewrite as Rewrite
 
 import Language.REST.OCAlgebra as OC
@@ -52,8 +54,7 @@ import Language.REST.ExploredTerms as ExploredTerms
 import Language.REST.RuntimeTerm as RT
 import Language.REST.SMT (withZ3, SolverHandle)
 
-import           Control.Exception.Base (bracket)
-import           Control.Monad (filterM, foldM, forM_, when, replicateM)
+import           Control.Monad (filterM, foldM, forM_, when, replicateM, zipWithM)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Bifunctor (second)
@@ -73,27 +74,31 @@ mytracepp = notracepp
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE
---------------------------------------------------------------------------------
+--
+-- @instantiate cfg fi subcIds@ yields @F.bs fi@ strengthened with the
+-- unfoldings discovered by PLE on the constraints in @subcIds@ (or all
+-- constraints if @subcIds == Nothing@).
 {-# SCC instantiate #-}
-instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
-instantiate cfg fi' subcIds = do
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe Solution -> Maybe [SubcId] -> SmtM (BindEnv a)
+instantiate cfg fi' mSol subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm info)
     let t  = mkCTrie (M.toList cs)                                          -- 1. BUILD the Trie
-    res   <- withRESTSolver $ \solver ->
-               withProgress (1 + M.size cs) $
-               withCtx cfg file sEnv (defns fi') $
-               do env <- instEnv cfg info cs solver
-                  pleTrie t env                                             -- 2. TRAVERSE Trie to compute InstRes
+    res   <- withRESTSolver $ \solver -> do
+               ctx <- get
+               (res, ctx') <- liftIO $ withProgressM (`runStateT` ctx) (1 + M.size cs) $ do
+                 env <- instEnv cfg info mSol cs solver
+                 pleTrie t env                                              -- 2. TRAVERSE Trie to compute InstRes
+               put ctx'
+               return res
     liftIO $ savePLEEqualities cfg info sEnv res
     return $ resSInfo cfg sEnv info res                                     -- 3. STRENGTHEN SInfo using InstRes
   where
-    withRESTSolver :: (Maybe SolverHandle -> IO a) -> IO a
+    withRESTSolver :: (Maybe SolverHandle -> SmtM a) -> SmtM a
     withRESTSolver f | all null (M.elems $ aenvAutoRW aEnv) = f Nothing
     withRESTSolver f = withZ3 (f . Just)
 
-    file = srcFile cfg ++ ".evals"
     sEnv = symbolEnv cfg info
     aEnv = ae info
     info = normalize fi'
@@ -125,8 +130,15 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
 
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
-instEnv :: (Loc a) => Config -> SInfo a -> CMap (SimpC a) -> Maybe SolverHandle -> SmtM (InstEnv a)
-instEnv cfg info cs restSolver = do
+instEnv
+  :: Loc a
+  => Config
+  -> SInfo a
+  -> Maybe Solution
+  -> CMap (SimpC a)
+  -> Maybe SolverHandle
+  -> SmtM (InstEnv a)
+instEnv cfg info s cs restSolver = do
     ctx <- get
     refRESTCache <- liftIO $ newIORef mempty
     refRESTSatCache <- liftIO $ newIORef mempty
@@ -150,6 +162,7 @@ instEnv cfg info cs restSolver = do
               { evEnv = SMT.ctxSymEnv ctx
               , evElabF = ef
               , evKCtx = ctx
+              , evExScope = []
               , evPendingUnfoldings = mempty
               , evNewEqualities = mempty
               , evSMTCache = mempty
@@ -162,12 +175,13 @@ instEnv cfg info cs restSolver = do
               }
     return $ InstEnv
        { ieCfg = cfg
-       , ieBEnv = coerceBindEnv ef (bs info)
+       , ieBEnv = bs info
        , ieAenv = ae info
        , ieCstrs = cs
        , ieKnowl = knowledge cfg info
        , ieEvEnv = s0
        , ieLRWs  = lrws info
+       , ieSol  = s
        }
   where
     ef = solverFlags $ solver cfg
@@ -216,7 +230,7 @@ mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
 
 ----------------------------------------------------------------------------------------------
 -- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
-pleTrie :: CTrie -> InstEnv a -> SmtM InstRes
+pleTrie :: Loc a => CTrie -> InstEnv a -> SmtM InstRes
 pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where
     diff0        = []
@@ -229,13 +243,17 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
       , icSubcId             = Nothing
       , icANFs               = []
       , icLRWs               = mempty
+      , icBindIds            = mempty
       , icEtaBetaFlag        = etabeta        $ ieCfg env
       , icExtensionalityFlag = extensionality $ ieCfg env
       , icLocalRewritesFlag  = localRewrites  $ ieCfg env
+      , icFreshExistentialCounter = 0
+      , icInitialLHSs  = mempty
       }
 
 loopT
-  :: InstEnv a
+  :: Loc a
+  => InstEnv a
   -> ICtx
   -> Diff         -- ^ The longest path suffix without forks in reverse order
   -> Maybe BindId -- ^ bind id of the branch ancestor of the trie if any.
@@ -246,12 +264,13 @@ loopT
 loopT env ictx delta i res t = case t of
   T.Node []  -> return res
   T.Node [b] -> loopB env ictx delta i res b
-  T.Node bs  -> withAssms env ictx delta Nothing $ \ictx' -> do
+  T.Node bs  -> withAssms env ictx delta Nothing (Just t) $ \ictx' -> do
                   (ictx'', env'', res') <- ple1 env ictx' i res
                   foldM (loopB env'' ictx'' [] i) res' bs
 
 loopB
-  :: InstEnv a
+  :: Loc a
+  => InstEnv a
   -> ICtx
   -> Diff         -- ^ The longest path suffix without forks in reverse order
   -> Maybe BindId -- ^ bind id of the branch ancestor of the branch if any.
@@ -261,9 +280,16 @@ loopB
   -> SmtM InstRes
 loopB env ictx delta iMb res b = case b of
   T.Bind i t -> loopT env ictx (i:delta) (Just i) res t
-  T.Val cid  -> withAssms env ictx delta (Just cid) $ \ictx' -> do
+  T.Val cid  -> withAssms env ictx delta (Just cid) Nothing $ \ictx' -> do
                   liftIO progressTick
                   (\(_, _, r) -> r) <$> ple1 env ictx' iMb res
+
+collectConstraints :: CTrie -> [SubcId]
+collectConstraints = go
+  where
+    go (T.Node bs) = concatMap goB bs
+    goB (T.Bind _ t) = go t
+    goB (T.Val cid)  = [cid]
 
 -- | Adds to @ctx@ candidate expressions to unfold from the bindings in @delta@
 -- and the rhs of @cidMb@.
@@ -275,15 +301,29 @@ loopB env ictx delta iMb res b = case b of
 -- Pushes assumptions from the modified context to the SMT solver, runs @act@,
 -- and then pops the assumptions.
 --
-withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> SmtM b) -> SmtM b
-withAssms env ctx delta cidMb act = do
+withAssms
+  :: Loc a
+  => InstEnv a
+  -> ICtx
+  -> Diff
+  -> Maybe SubcId
+  -> Maybe CTrie
+  -> (ICtx -> SmtM b)
+  -> SmtM b
+withAssms env ctx delta cidMb mCTrie act = do
   sctx <- get
-  let ictx' = updCtx env sctx ctx delta cidMb
+  let (ictx', bs) = updCtx env sctx ctx delta cidMb mCTrie
   let assms = icAssms ictx'
 
   SMT.smtBracket "PLE.withAssms" $ do
-    forM_ assms SMT.smtAssertDecl
+    -- See Note [Existential quantification when unfolding]
+    SMT.smtDecls $ elabBindings (ieEvEnv env) bs
+    forM_ (S.toList assms) SMT.smtAssertDecl
     act $ ictx' { icAssms = mempty }
+
+  where
+    elabBindings eenv bs =
+      elaborate (ElabParam (evElabF eenv) "withAssms: PExist Args" (evEnv eenv)) bs
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie
 --
@@ -296,17 +336,23 @@ ple1 ie@InstEnv{..} ictx i res = do
   (ictx', env) <- liftIO $ runStateT (evalCandsLoop ieCfg ictx ieKnowl) (ieEvEnv { evKCtx = ctx })
   put $ evKCtx env
   let pendings = collectPendingUnfoldings env (icSubcId ictx)
-      newEqs = pendings ++ S.toList (S.difference (icEquals ictx') (icEquals ictx))
+      newEqs =
+        reconstructExistentials
+          (M.intersectionWith S.union (icInitialLHSs ictx) $         -- add original predicates
+           M.map (S.map equalitiesPred) $                            -- construct equalities
+           M.unionWith S.union pendings $                            -- pending unfoldings if any
+           M.unionWith S.difference (icEquals ictx') (icEquals ictx) -- new equalities only
+          )
   return (ictx', ie { ieEvEnv = env }, updCtxRes res i newEqs)
   where
     -- Pending unfoldings (i.e. with undecided guards) are collected only
     -- when we reach a leaf in the Trie, and only if the user asked for them.
-    collectPendingUnfoldings env (Just _) | pleWithUndecidedGuards ieCfg =
-      M.toList (evPendingUnfoldings env)
-    collectPendingUnfoldings _ _ = []
+    collectPendingUnfoldings env (Just _) | pleUndecGuards ieCfg =
+      M.map (S.fromList . M.toList) (evPendingUnfoldings env)
+    collectPendingUnfoldings _ _ = mempty
 
-evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
-evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
+evalToSMT :: String -> Config -> SMT.Context -> [(Symbol, Sort)] -> (Expr, Expr) -> Pred
+evalToSMT msg cfg ctx bs (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx bs (EEq e1 e2)
 
 -- | Generate equalities for all function invocations in the candidates
 -- in @ctx@ for which definitions are known. The function definitions are in
@@ -327,39 +373,64 @@ evalCandsLoop :: Config -> ICtx -> Knowledge -> EvalST ICtx
 evalCandsLoop cfg ictx0 γ = go ictx0 0
   where
     go :: ICtx -> Int -> EvalST ICtx
-    go ictx _ | S.null (icCands ictx) = return ictx
+    go ictx _ | all null (icCands ictx) = return ictx
     go ictx i = do
       inconsistentEnv <- testForInconsistentEnvironment
       if inconsistentEnv
         then return ictx
-        else do liftSMT $ SMT.smtAssertDecl (pAndNoDedup (S.toList $ icAssms ictx))
+        else do liftSMT $ SMT.smtAssertDecl $ pAndNoDedup $ S.toList $ icAssms ictx
                 let ictx' = ictx { icAssms = mempty }
-                    cands = S.toList $ icCands ictx
-                candss <- mapM (evalOne γ ictx' i) cands
-                us <- gets evNewEqualities
-                modify $ \st -> st { evNewEqualities = mempty }
-                let noCandidateChanged = and (zipWith eqCand candss cands)
-                    unknownEqs = us `S.difference` icEquals ictx
-                if S.null unknownEqs && noCandidateChanged
-                      then return ictx
-                      else do ctx' <- gets evKCtx
-                              let eqsSMT = evalToSMT "evalCandsLoop" cfg ctx' `S.map` unknownEqs
-                                  ictx'' = ictx { icEquals = icEquals ictx <> unknownEqs
-                                                 , icAssms  = S.filter (not . isTautoPred) eqsSMT }
-                              go (ictx'' { icCands = S.fromList (concat candss) }) (i + 1)
+                    (scopes, candSets) = unzip $ M.toList $ icCands ictx
+                    cands = map S.toList candSets
+                (candss, uss) <- unzip <$> zipWithM (evalCand ictx' i) scopes cands
+                let noCandidateChanged = all and $ zipWith (zipWith eqCand) candss cands
+                    unknownEqs = M.unionWith S.difference (M.fromList (zip scopes uss)) (icEquals ictx)
+                if all null unknownEqs && noCandidateChanged then
+                  return ictx
+                else do
+                  ctx' <- gets evKCtx
+                  let eqsSMT =
+                        S.unions $ M.elems $
+                          M.mapWithKey
+                            (\scope -> S.map $ evalToSMT "evalCandsLoop" cfg ctx' scope)
+                            unknownEqs
+                      ictx'' = ictx
+                        { icEquals = M.unionWith S.union (icEquals ictx) unknownEqs
+                        , icAssms  = S.filter (not . isTautoPred) eqsSMT
+                        }
+                  go (ictx'' { icCands = M.fromList $ zip scopes (map (S.fromList . concat) candss) }) (i + 1)
 
     testForInconsistentEnvironment :: EvalST Bool
     testForInconsistentEnvironment =
-      liftSMT $ knPreds γ (knLams γ) PFalse
+      knPredsEvalST γ PFalse
 
     eqCand [e0] e1 = e0 == e1
     eqCand _ _ = False
+
+    evalCand :: ICtx -> Int -> ExScope -> [Expr] -> EvalST ([[Expr]], S.HashSet (Expr, Expr))
+    evalCand ictx i scope es = withExScope scope $ mapM (evalOne γ ictx i) es >>= collectEqs
+
+    collectEqs :: [[Expr]] -> EvalST ([[Expr]], S.HashSet (Expr, Expr))
+    collectEqs es = do
+      env <- get
+      let newEqs = evNewEqualities env
+      modify $ \st -> st { evNewEqualities = mempty }
+      return (es, newEqs)
+
+    withExScope :: ExScope -> EvalST a -> EvalST a
+    withExScope s m = do
+      env <- get
+      put $ env { evExScope = s }
+      r <- m
+      modify $ \st -> st { evExScope = evExScope env }
+      return r
+
 
 ----------------------------------------------------------------------------------------------
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo
 ----------------------------------------------------------------------------------------------
 
-resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
+resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> BindEnv a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
@@ -379,6 +450,7 @@ data InstEnv a = InstEnv
   , ieKnowl :: !Knowledge
   , ieEvEnv :: !EvalEnv
   , ieLRWs  :: LocalRewritesEnv
+  , ieSol :: Maybe Solution
   }
 
 ----------------------------------------------------------------------------------------------
@@ -387,18 +459,22 @@ data InstEnv a = InstEnv
 
 data ICtx    = ICtx
   { icAssms              :: S.HashSet Pred           -- ^ Equalities converted to SMT format
-  , icCands              :: S.HashSet Expr           -- ^ "Candidates" for unfolding
-  , icEquals             :: EvEqualities             -- ^ Accumulated equalities
+  , icCands              :: M.HashMap ExScope (S.HashSet Expr)  -- ^ "Candidates" for unfolding
+  , icEquals             :: M.HashMap ExScope EvEqualities      -- ^ Accumulated equalities
   , icSimpl              :: !ConstMap                -- ^ Map of expressions to constants
   , icSubcId             :: Maybe SubcId             -- ^ Current subconstraint ID
   , icANFs               :: [[(Symbol, SortedReft)]] -- Hopefully contain only ANF things
   , icLRWs               :: LocalRewrites            -- ^ Local rewrites
+  , icBindIds            :: IBindEnv                 -- ^ Bind Ids in the current context
   , icEtaBetaFlag        :: Bool                     -- ^ True if the etabeta flag is turned on, needed
                                                      -- for the eta expansion reasoning as its going to
                                                      -- generate ho constraints
                                                      -- See Note [Eta expansion].
   , icExtensionalityFlag :: Bool                     -- ^ True if the extensionality flag is turned on
   , icLocalRewritesFlag  :: Bool                     -- ^ True if the local rewrites flag is turned on
+  , icFreshExistentialCounter :: Int                 -- ^ Counter to generate fresh names for existentials
+  , icInitialLHSs :: M.HashMap ExScope (S.HashSet Expr)
+                                                     -- ^ LHS candidates before any unfoldings
   }
 
 ----------------------------------------------------------------------------------------------
@@ -417,11 +493,13 @@ type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
 
-equalitiesPred :: [(Expr, Expr)] -> [Expr]
-equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
+equalitiesPred :: (Expr, Expr) -> Expr
+equalitiesPred (e1, e2)
+  | e1 /= e2 = EEq e1 e2
+  | otherwise = PTrue
 
-updCtxRes :: InstRes -> Maybe BindId -> [(Expr, Expr)] -> InstRes
-updCtxRes res iMb = updRes res iMb . pAndNoDedup . equalitiesPred
+updCtxRes :: InstRes -> Maybe BindId -> [Expr] -> InstRes
+updCtxRes res iMb = updRes res iMb . pAndNoDedup
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
@@ -431,32 +509,58 @@ updRes res  Nothing _ = res
 ----------------------------------------------------------------------------------------------
 -- | @updCtx env ctx delta cidMb@ adds the assumptions and candidates from @delta@ and @cidMb@
 --   to the context.
+--
+-- Yields the new context and a list of existential binders found in @delta@.
+-- See Note [Existential quantification when unfolding].
 ----------------------------------------------------------------------------------------------
 
-updCtx :: InstEnv a -> SMT.Context -> ICtx -> Diff -> Maybe SubcId -> ICtx
-updCtx InstEnv{..} ieSMT ictx delta cidMb =
-  ictx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)
-       , icCands  = S.fromList deANFedCands <> icCands ictx
-       , icSimpl  = icSimpl ictx <> econsts
-       , icSubcId = cidMb
-       , icANFs   = anfBinds
-       , icLRWs   = mconcat $ icLRWs ictx : newLRWs
-       }
+updCtx
+  :: Loc a
+  => InstEnv a
+  -> SMT.Context
+  -> ICtx
+  -> Diff
+  -> Maybe SubcId
+  -> Maybe CTrie
+  -> (ICtx, [(Symbol, Sort)])
+updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
+    ( ictx { icAssms  = S.fromList ctxEqs
+           , icCands  = M.unionWith S.union candsPerExScope (icCands ictx)
+           , icSimpl  = icSimpl ictx <> econsts
+           , icSubcId = cidMb
+           , icANFs   = anfBinds
+           , icLRWs   = mconcat $ icLRWs ictx : newLRWs
+           , icBindIds = ibinds
+           , icFreshExistentialCounter = existentialCounter
+           , icInitialLHSs = M.unionWith S.union candsPerExScopeNoRHS (icInitialLHSs ictx)
+           }
+    , S.toList $ S.fromList $ concat $ M.keys candsPerExScope
+    )
   where
+    ibinds = insertsIBindEnv delta (icBindIds ictx)
     cands     = rhs:es
     anfBinds  = bs : icANFs ictx
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
-                  [ c | xr <- bs, c <- conjuncts (expr xr), null (Vis.kvarsExpr c) ]
+                  [ c | xr <- bs, c <- conjuncts (expr xr), not (isTautoPred c) ]
     bs        = second unApplySortedReft <$> binds
     rhs       = unApply eRhs
     es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
-    binds     = [ (x, y) | i <- delta, let (x, y, _) = lookupBindEnv i ieBEnv]
+
+    (binds, existentialCounter) = renameExistentialsInSortedRefts binds0 (icFreshExistentialCounter ictx)
+
+    binds0    = [ maybeApplyKVarSolutions (x, y)
+                | i <- delta
+                , let (x, y, _) = lookupBindEnv i ieBEnv
+                ]
     subMb     = getCstr ieCstrs <$> cidMb
     newLRWs   = Mb.mapMaybe (`lookupLocalRewrites` ieLRWs) delta
 
-    deANFedCands =
+    candsPerExScopeNoRHS = M.fromListWith S.union $ ([], S.empty) : drop 1 deANFedCands
+    candsPerExScope = M.unionWith S.union candsPerExScopeNoRHS $ M.fromListWith S.union (take 1 deANFedCands)
+
+    deANFedCands = map (second S.singleton . prenexExistentials) $
       -- We only call 'deANF' if necessary.
       if not (null (getAutoRws ieKnowl cidMb))
          || icExtensionalityFlag ictx
@@ -464,6 +568,22 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb =
         deANF anfBinds cands
       else
         cands
+
+    maybeApplyKVarSolutions xsr =
+      case ieSol of
+        Just sol -> applyInSortedReft g sol xsr
+        Nothing  -> xsr
+      where
+        gCid = case collectConstraints <$> mCTrie of
+          Just (c:_) -> Just c
+          _ -> Nothing
+        g = CEnv
+          { ceCid = gCid
+          , ceBEnv = ieBEnv
+          , ceIEnv = ibinds
+          , ceSpan = maybe dummySpan srcSpan $ gCid >>= (`M.lookup` ieCstrs)
+          , ceBindingsInSmt = emptyIBindEnv
+          }
 
 
 findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
@@ -491,8 +611,14 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evElabF    :: ElabFlags
   , evKCtx     :: SMT.Context
-    -- | Equalities where we couldn't evaluate the guards
-  , evPendingUnfoldings :: M.HashMap Expr Expr
+    -- | The current scope of existential variables.
+    -- See Note [Existential quantification when unfolding].
+  , evExScope  :: ExScope
+    -- | Equalities where we couldn't evaluate the guards, in a map which
+    -- uses their existential scope as key.
+    --
+    -- See Note [Existential quantification when unfolding].
+  , evPendingUnfoldings :: M.HashMap ExScope (M.HashMap Expr Expr)
   , evNewEqualities :: EvEqualities -- ^ Equalities discovered during a traversal of
                                     -- an expression
   , evSMTCache :: M.HashMap Expr Bool -- ^ Whether an expression is valid or its negation
@@ -544,7 +670,7 @@ getAutoRws γ mSubcId =
 -- way.
 evalOne :: Knowledge -> ICtx -> Int -> Expr -> EvalST [Expr]
 evalOne γ ctx i e
-  | i > 0 || null (getAutoRws γ (icSubcId ctx)) = (:[]) . fst <$> eval γ ctx NoRW e
+  | i > 0 || null (getAutoRws γ (icSubcId ctx)) = (:[]) <$> eval γ ctx NoRW e
 evalOne γ ctx _ e | isExprRewritable e = do
     env <- get
     let oc :: OCAlgebra OCType RuntimeTerm IO
@@ -574,36 +700,6 @@ data EvalType =
   | RWNormal   -- REST: Fully Expand Defs in the context of rewriting (similar to NoRW)
   deriving (Eq)
 
--- Indicates whether or not the evaluation has expanded a function statement
--- into a conditional branch.
--- In this case, rewriting should stop
--- It's unclear whether or not rewriting in either branch makes sense,
--- since one branch could be an ill-formed expression.
-newtype FinalExpand = FE Bool deriving (Show)
-
-noExpand :: FinalExpand
-noExpand = FE False
-
-expand :: FinalExpand
-expand = FE True
-
-mapFE :: (Expr -> Expr) -> (Expr, FinalExpand) -> (Expr, FinalExpand)
-mapFE f (e, fe) = (f e, fe)
-
-feVal :: FinalExpand -> Bool
-feVal (FE f) = f
-
-feAny :: [FinalExpand] -> FinalExpand
-feAny xs = FE $ any feVal xs
-
-infixl 9 <|>
-(<|>) :: FinalExpand -> FinalExpand -> FinalExpand
-(<|>) (FE True) _ = expand
-(<|>) _         f = f
-
-
-feSeq :: [(Expr, FinalExpand)] -> ([Expr], FinalExpand)
-feSeq xs = (map fst xs, feAny (map snd xs))
 
 -- | Unfolds function invocations in expressions.
 --
@@ -613,74 +709,55 @@ feSeq xs = (map fst xs, feAny (map snd xs))
 --
 -- Also adds to the monad state all the unfolding equalities that have been
 -- discovered as necessary.
-eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
+eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST Expr
 eval γ ctx et = go
   where
     go (ELam (x,s) e)   = evalELam γ ctx et (x, s) e
     go e@EIte{}         = evalIte γ ctx et e
-    go (ECoerc s t e)   = mapFE (ECoerc s t)  <$> go e
+    go (ECoerc s t e)   = ECoerc s t <$> go e
     go e@(EApp _ _)     =
       case splitEAppThroughECst e of
        (f, es) | et == RWNormal ->
           -- Just evaluate the arguments first, to give rewriting a chance to step in
           -- if necessary
           do
-            (es', finalExpand) <- feSeq <$> mapM (eval γ ctx et) es
+            es' <- mapM (eval γ ctx et) es
             if es /= es'
-              then return (eApps f es', finalExpand)
+              then return (eApps f es')
               else do
-                (f', fe) <- case dropECst f of
-                  EVar _ -> pure (f, noExpand)
+                f' <- case dropECst f of
+                  EVar _ -> pure f
                   _      -> go f
-                (me', fe') <- evalApp γ ctx f' es et
-                return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
+                Mb.fromMaybe (eApps f' es') <$> evalApp γ ctx f' es et
        (f, es) ->
           do
-            (f', fe1) <- case dropECst f of
-              EVar _ -> pure (f, noExpand)
+            f' <- case dropECst f of
+              EVar _ -> pure f
               _      -> go f
-            (es', fe2) <- feSeq <$> mapM (eval γ ctx et) es
-            let fe = fe1 <|> fe2
-            (me', fe') <- evalApp γ ctx f' es' et
-            return (Mb.fromMaybe (eApps f' es') me', fe <|> fe')
+            es' <- mapM (eval γ ctx et) es
+            Mb.fromMaybe (eApps f' es') <$> evalApp γ ctx f' es' et
 
-    go (PAtom r e1 e2) = binOp (PAtom r) e1 e2
-    go (ENeg e)         = do (e', fe)  <- go e
-                             return (ENeg e', fe)
-    go (EBin o e1 e2)   = do (e1', fe1) <- go e1
-                             (e2', fe2) <- go e2
-                             return (EBin o e1' e2', fe1 <|> fe2)
-    go (ETApp e t)      = mapFE (`ETApp` t) <$> go e
-    go (ETAbs e s)      = mapFE (`ETAbs` s) <$> go e
-    go (PNot e')        = mapFE PNot <$> go e'
-    go (PImp e1 e2)     = binOp PImp e1 e2
-    go (PIff e1 e2)     = binOp PIff e1 e2
-    go (PAnd es)        = efAll PAnd (go `traverse` es)
-    go (POr es)         = efAll POr (go `traverse` es)
+    go (PAtom r e1 e2) = PAtom r <$> go e1 <*> go e2
+    go (ENeg e)         = ENeg <$> go e
+    go (EBin o e1 e2)   = EBin o <$> go e1 <*> go e2
+    go (ETApp e t)      = (`ETApp` t) <$> go e
+    go (ETAbs e s)      = (`ETAbs` s) <$> go e
+    go (PNot e')        = PNot <$> go e'
+    go (PImp e1 e2)     = PImp <$> go e1 <*> go e2
+    go (PIff e1 e2)     = PIff <$> go e1 <*> go e2
+    go (PAnd es)        = PAnd <$> traverse go es
+    go (POr es)         = POr <$> traverse go es
     go e | EVar _ <- dropECst e = do
-      (me', fe) <- evalApp γ ctx e [] et
-      return (Mb.fromMaybe e me', fe)
-    go (ECst e t)       = do (e', fe) <- go e
-                             return (ECst e' t, fe)
-    go (ELet x e1 e2)   = do (e1', fe1) <- go e1
-                             (e2', fe2) <- go e2
-                             return (ELet x e1' e2', fe1 <|> fe2)
+      Mb.fromMaybe e <$> evalApp γ ctx e [] et
+    go (ECst e t)       = (`ECst` t) <$> go e
+    go (ELet x e1 e2)   = ELet x <$> go e1 <*> go e2
 
-    go e                = return (e, noExpand)
+    go e                = return e
 
-    binOp f e1 e2 = do
-      (e1', fe1) <- go e1
-      (e2', fe2) <- go e2
-      return (f e1' e2', fe1 <|> fe2)
-
-    efAll f mes = do
-      xs <- mes
-      let (xs', fe) = feSeq xs
-      return (f xs', fe)
 
 -- | 'evalELam' produces equations that preserve the context of a rewrite
 -- so equations include any necessary lambda bindings.
-evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST (Expr, FinalExpand)
+evalELam :: Knowledge -> ICtx -> EvalType -> (Symbol, Sort) -> Expr -> EvalST Expr
 evalELam γ ctx et (x, s) e
   | not $ isEtaSymbol x = do
     -- We need to refresh it as for some reason names bound by lambdas
@@ -709,7 +786,7 @@ evalELam γ ctx et (x, s) e = do
     modify $ \st -> st
       { evEnv = insertSymEnv x s $ evEnv st }
 
-    (e', fe) <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
+    e' <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
     let e2' = simplify γ ctx e'
         elam = ELam (x, s) e
     -- Discard the old equalities which miss the lambda binding
@@ -719,7 +796,7 @@ evalELam γ ctx et (x, s) e = do
       -- Leaving the scope thus we need to get rid of it
       , evEnv = deleteSymEnv x $ evEnv st
       }
-    return (ELam (x, s) e', fe)
+    return (ELam (x, s) e')
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
@@ -818,21 +895,22 @@ evalRESTWithCache cacheRef _ ctx acc rp
 evalRESTWithCache cacheRef γ ctx acc rp =
   do
     mexploredTerms <- gets explored
+    ebs <- gets evExScope
     case mexploredTerms of
       Nothing -> return acc
       Just exploredTerms -> do
-        se <- liftIO (shouldExploreTerm exploredTerms exprs)
+        se <- liftIO (shouldExploreTerm ebs exploredTerms exprs)
         if se then do
-          possibleRWs <- liftSMT getRWs
-          rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
+          possibleRWs <- liftSMT (getRWs ebs)
+          rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed ebs) possibleRWs
           oldEqualities <- gets evNewEqualities
           modify $ \st -> st { evNewEqualities = mempty }
 
           -- liftIO $ putStrLn $ (show $ length possibleRWs) ++ " rewrites allowed at path length " ++ (show $ (map snd $ path rp))
-          (e', FE fe) <- do
-            r@(ec, _) <- eval γ ctx FuncNormal exprs
+          e' <- do
+            ec <- eval γ ctx FuncNormal exprs
             if ec /= exprs
-              then return r
+              then return ec
               else eval γ ctx RWNormal exprs
 
           let evalIsNewExpr = e' `L.notElem` pathExprs
@@ -857,8 +935,8 @@ evalRESTWithCache cacheRef γ ctx acc rp =
             }
 
           acc'' <- if evalIsNewExpr
-            then if fe && any isRW (path rp)
-              then (:[]) . fst <$> eval γ (addConst (exprs, e')) NoRW e'
+            then if e' /= exprs && any isRW (path rp)
+              then (:[]) <$> eval γ (addConst (exprs, e')) NoRW e'
               else evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' (rpEval newEqualities e')
             else return acc'
 
@@ -866,17 +944,17 @@ evalRESTWithCache cacheRef γ ctx acc rp =
         else
           return acc
   where
-    shouldExploreTerm exploredTerms e | Vis.isConc e =
-      case rwTerminationOpts rwArgs of
+    shouldExploreTerm ebs exploredTerms e | Vis.isConc e =
+      case rwTerminationOpts (rwArgs ebs) of
         RWTerminationCheckDisabled ->
           return $ not $ ExploredTerms.visited (Rewrite.convert e) exploredTerms
         RWTerminationCheckEnabled  ->
           ExploredTerms.shouldExplore (Rewrite.convert e) (c rp) exploredTerms
-    shouldExploreTerm _ _ = return False
+    shouldExploreTerm _ _ _ = return False
 
-    allowed (_, rwE, _) | rwE `elem` pathExprs = return False
-    allowed (_, _, c)   = termCheck c
-    termCheck c = Rewrite.passesTerminationCheck (oc rp) rwArgs c
+    allowed _ebs (_, rwE, _) | rwE `elem` pathExprs = return False
+    allowed ebs (_, _, c)   = termCheck ebs c
+    termCheck ebs c = Rewrite.passesTerminationCheck (oc rp) (rwArgs ebs) c
 
     notVisitedFirst exploredTerms rws =
       let
@@ -902,20 +980,20 @@ evalRESTWithCache cacheRef γ ctx acc rp =
     exprs           = last pathExprs
     autorws         = getAutoRws γ (icSubcId ctx)
 
-    rwArgs = RWArgs (isValid cacheRef γ) $ knRWTerminationOpts γ
+    rwArgs ebs = RWArgs (isValid cacheRef ebs γ) $ knRWTerminationOpts γ
 
-    getRWs =
+    getRWs ebs =
       do
         -- Optimization: If we got here via rewriting, then the current constraints
         -- are satisfiable; otherwise double-check that rewriting is still allowed
         ok <-
           if isRW $ last (path rp)
             then return True
-            else liftIO $ termCheck (c rp)
+            else liftIO $ termCheck ebs (c rp)
         if ok
           then
             do
-              let getRW e ar = Rewrite.getRewrite (oc rp) rwArgs (c rp) e ar
+              let getRW e ar = Rewrite.getRewrite (oc rp) (rwArgs ebs) (c rp) e ar
               let getRWs' s  = Mb.catMaybes <$> mapM (runMaybeT . getRW s) autorws
               concat <$> mapM getRWs' (subExprs exprs)
           else return []
@@ -969,7 +1047,7 @@ evalRESTWithCache cacheRef γ ctx acc rp =
 
 -- | @evalApp kn ctx e es@ unfolds expressions in @eApps e es@ using rewrites
 -- and equations
-evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Maybe Expr, FinalExpand)
+evalApp :: Knowledge -> ICtx -> Expr -> [Expr] -> EvalType -> EvalST (Maybe Expr)
 evalApp γ ctx e0 es et
   | EVar f <- dropECst e0
   , Just eq <- Map.lookup f (knAms γ)
@@ -985,7 +1063,7 @@ evalApp γ ctx e0 es et
                     then elaborateExpr "EvalApp unfold full: " newE
                     else pure newE
 
-         (e', fe) <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+         e' <- evalIte γ ctx et newE'        -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          let e2' = stripPLEUnfold e'
          let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
 
@@ -995,17 +1073,18 @@ evalApp γ ctx e0 es et
            -- If evalIte does any modifications, though, we do unfold in order
            -- to allow analysis of the resulting expression
            modify $ \st -> st
-             { evPendingUnfoldings = M.insert (eApps e0 es) e3' (evPendingUnfoldings st)
+             { evPendingUnfoldings =
+                 M.insertWith M.union (evExScope st) (M.singleton (eApps e0 es) e3') (evPendingUnfoldings st)
              }
-           return (Nothing, noExpand)
+           return Nothing
          else do
            useFuel f
            modify $ \st -> st
              { evNewEqualities = S.insert (eApps e0 es, e3') (evNewEqualities st)
-             , evPendingUnfoldings = M.delete (eApps e0 es) (evPendingUnfoldings st)
+             , evPendingUnfoldings = M.adjust (M.delete (eApps e0 es)) (evExScope st) (evPendingUnfoldings st)
              }
-           return (Just $ eApps e2' es2, fe)
-       else return (Nothing, noExpand)
+           return (Just $ eApps e2' es2)
+       else return Nothing
   where
     -- At the time of writing, any function application wrapping an
     -- if-statement would have the effect of unfolding the invocation.
@@ -1039,7 +1118,7 @@ evalApp γ ctx e0 args@(e:es) _
     when (isUserDataSMeasure == NoUserDataSMeasure) $
       modify $ \st -> st
         { evNewEqualities = S.insert (eApps e0 args, simplify γ ctx newE) (evNewEqualities st) }
-    return (Just newE, noExpand)
+    return (Just newE)
 
 evalApp γ ctx e0 es _et
   | eqs@(_:_) <- noUserDataMeasureEqs γ (eApps e0 es)
@@ -1047,7 +1126,7 @@ evalApp γ ctx e0 es _et
        let eqs' = map (second $ simplify γ ctx) eqs
        modify $ \st ->
          st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs' }
-       return (Nothing, noExpand)
+       return Nothing
 
 evalApp γ ctx e0 es et
   | ELam (argName, _) body <- dropECst e0
@@ -1060,13 +1139,13 @@ evalApp γ ctx e0 es et
           useFuel argName
           let argSubst = mkSubst [(argName, lambdaArg)]
           let body' = subst argSubst body
-          (body'', fe) <- evalIte γ ctx et body'
+          body'' <- evalIte γ ctx et body'
           let simpBody = simplify γ ctx (eApps body'' remArgs)
           modify $ \st ->
             st { evNewEqualities = S.insert (eApps e0 es, simpBody) (evNewEqualities st) }
-          return (Just $ eApps body'' remArgs, fe)
+          return (Just $ eApps body'' remArgs)
         else do
-          return (Nothing, noExpand)
+          return Nothing
 
 evalApp _ ctx e0 es _
   | icLocalRewritesFlag ctx
@@ -1077,7 +1156,7 @@ evalApp _ ctx e0 es _
       let expandedTerm = eApps rw es
       modify $ \st -> st
         { evNewEqualities = S.insert (eApps e0 es, expandedTerm) (evNewEqualities st) }
-      return (Just expandedTerm, expand)
+      return (Just expandedTerm)
 
 evalApp _γ ctx e0 es _et
   -- We check the annotation instead of the equations in γ for two reasons.
@@ -1114,7 +1193,7 @@ evalApp _γ ctx e0 es _et
     -- is already handled by the previous case of evalApp
     modify $ \st -> st
       { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
-    return (Just etaExpandedTerm, expand)
+    return (Just etaExpandedTerm)
   where
     unpackFFuncs (FFunc t ts) = t : unpackFFuncs ts
     unpackFFuncs _ = []
@@ -1122,22 +1201,21 @@ evalApp _γ ctx e0 es _et
     mkLams subject binds = foldr ELam subject binds
 
 evalApp _ _ctx _e0 _es _ = do
-  return (Nothing, noExpand)
+  return Nothing
 
 -- | Evaluates if-then-else statements until they can't be evaluated anymore
 -- or some other expression is found.
-evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST (Expr, FinalExpand)
+evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST Expr
 evalIte γ ctx et (ECst e t) = do
-  (e', fe) <- evalIte γ ctx et e
-  return (ECst e' t, fe)
+  (`ECst` t) <$> evalIte γ ctx et e
 evalIte γ ctx et (EIte i e1 e2) = do
-      (b, _) <- eval γ ctx et i
+      b <- eval γ ctx et i
       b'  <- mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValidCached γ b
       case b' of
         Just True -> evalIte γ ctx et e1
         Just False -> evalIte γ ctx et e2
-        _ -> return (EIte b e1 e2, expand)
-evalIte _ _ _ e' = return (e', noExpand)
+        _ -> return (EIte b e1 e2)
+evalIte _ _ _ e' = return e'
 
 -- | Creates equations that explain how to rewrite a given constructor
 -- application with all measures that aren't user data measures
@@ -1203,14 +1281,14 @@ isValidCached γ e = do
   case M.lookup e (evSMTCache env) of
     Nothing -> do
       let isFreeInE (s, _) = not (S.member s (exprSymbolsSet e))
-      b <- liftSMT $ knPreds γ (knLams γ) e
+      b <- knPredsEvalST γ e
       if b
         then do
           when (all isFreeInE (knLams γ)) $
             put (env { evSMTCache = M.insert e True (evSMTCache env) })
           return (Just True)
         else do
-          b2 <- liftSMT $ knPreds γ (knLams γ) (PNot e)
+          b2 <- knPredsEvalST γ (PNot e)
           if b2
             then do
               when (all isFreeInE (knLams γ)) $
@@ -1232,7 +1310,10 @@ data Knowledge = KN
     -- user data declaration.
     knSims              :: Map Symbol [(Rewrite, IsUserDataSMeasure)]
   , knAms               :: Map Symbol Equation -- ^ All function definitions
-  , knPreds             :: [(Symbol, Sort)] -> Expr -> SmtM Bool
+    -- | @knPreds γ bsInSMT xs e@ checks whether @e@ is valid under the
+    -- assumptions that all variables in @bsInSMT@ are in the SMT solver,
+    -- and that all variables in @xs@ need tp be declared in the SMT solver.
+  , knPreds             :: [(Symbol, Sort)] -> [(Symbol, Sort)] -> Expr -> SmtM Bool
   , knLams              :: ![(Symbol, Sort)]
   , knSummary           :: ![(Symbol, Int)]     -- ^ summary of functions to be evaluates (knSims and knAsms) with their arity
   , knDCs               :: !(S.HashSet Symbol)  -- ^ data constructors drawn from Rewrite
@@ -1248,12 +1329,17 @@ data Knowledge = KN
 data IsUserDataSMeasure = NoUserDataSMeasure | UserDataSMeasure
   deriving (Eq, Show)
 
-isValid :: IORef (M.HashMap Expr Bool) -> Knowledge -> Expr -> SmtM Bool
-isValid cacheRef γ e = do
+knPredsEvalST :: Knowledge -> Expr -> EvalST Bool
+knPredsEvalST γ e = do
+    env <- get
+    liftSMT $ knPreds γ (evExScope env) (knLams γ) e
+
+isValid :: IORef (M.HashMap Expr Bool) -> [(Symbol, Sort)] -> Knowledge -> Expr -> SmtM Bool
+isValid cacheRef bs γ e = do
     smtCache <- liftIO $ readIORef cacheRef
     case M.lookup e smtCache of
       Nothing -> do
-        b <- knPreds γ (knLams γ) e
+        b <- knPreds γ bs (knLams γ) e
         when b $
           liftIO $ writeIORef cacheRef (M.insert e True smtCache)
         return b
@@ -1276,7 +1362,7 @@ knowledge cfg si = KN
   , knConsts                   = Mb.mapMaybe makeCons sims
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
-      if rwTerminationCheck cfg
+      if rwTermination cfg
       then RWTerminationCheckEnabled
       else RWTerminationCheckDisabled
   }
@@ -1355,14 +1441,6 @@ partitionUserDataConstructorSelectors dds rws = L.partition isSelector rws
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
-
-withCtx :: Config -> FilePath -> SymEnv -> DefinedFuns -> SmtM a -> IO a
-withCtx cfg file env defns k =
-  bracket acquire release $
-    evalStateT $ SMT.smtPush >> k   -- TODO why is there no pop?
-  where
-    acquire = SMT.makeContextWithSEnv cfg file env defns
-    release = SMT.cleanupContext
 
 -- (sel_i, D, i), meaning sel_i (D x1 .. xn) = xi,
 -- i.e., sel_i selects the ith value for the data constructor D
@@ -1486,7 +1564,8 @@ makeFreshEtaNames n = replicateM n makeFreshName
 elaborateExpr :: String -> Expr -> EvalST Expr
 elaborateExpr msg e = do
   let elabSpan = atLoc dummySpan msg
-  symEnv' <- gets evEnv
+  env <- get
+  let symEnv' = insertsSymEnv (evEnv env) (evExScope env)
   ef <- gets evElabF
   pure $ unApply $ elaborate (ElabParam ef elabSpan symEnv') e
 
@@ -1498,3 +1577,128 @@ checkFuel f = do
   case (M.lookup f (fcMap fc), fcMax fc) of
     (Just fk, Just n) -> pure (fk <= n)
     _                 -> pure True
+
+
+-- Note [Existential quantification when unfolding]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- After FUSION is performed, some predicates, which previously used kvars, may
+-- contain existential quantifications.
+--
+-- When the unfoldings are searched by PLE in expressions with existentials,
+-- we make sure that the produced unfoldings still have the existential
+-- bindings in scope.
+--
+-- The procedure is as follows:
+-- 1. First, we rename the existential variables in the predicates of the bindings
+--    to make them unique ('renameExistentialsInSortedRefts').
+--
+--    @exists x y. f x y || (exists x. g x y)@
+--
+--    becomes
+--
+--    @exists v0 v1. f v0 v1 || (exists v2. g v2 v1)@
+--
+-- 2. We extract the nested existentials to prenex form, and we store the bodies of
+--    the existentials in a map with the existential binders as keys
+--    ('prenexExistentials' and 'updCtx').
+--
+--    @exists v0 v1. f v0 v1 || (exists v2. g v2 v1)@
+--
+--    produces the map
+--
+--    @[v0, v1, v2] -> f v0 v1 || g v2 v1@
+--
+-- 3. We declare to the SMT solver the existential variables in every scope
+--    (in 'withAssms').
+--
+-- 4. We then look for unfoldings in each of the subexpressions. Whenever
+--    we find an unfolding, we record the scope in which it was found.
+--
+--    @[v0, v1, v3] -> (f v0 v1 = v0 < v1) && (g v2 = v2 > v1)@
+--
+-- 5. When PLE is finished, we create for every scope an existential
+--    quantification whose body contains all the corresponding unfoldings
+--    and the original subexpressions in the scope ('reconstructExistentials').
+--
+--    @exists v0 v1 v0.
+--       (f v0 v 1 = v0 < v1) && (g v2 = v2 > v1) &&
+--       (f v0 v1 || g v2 v1)@
+--
+--    This is the expression that PLE returns.
+
+
+-- | Renames existential variables in the predicates of the given bindings to
+-- make them unique.
+--
+-- Rather than looking for all existential bindings, this function only renames
+-- the superficial existentials which can be introduced by KVar solutions.
+--
+-- These superficial existentials appear in conjunctions, disjunctions and in the
+-- body of other existentials only.
+renameExistentialsInSortedRefts
+  :: [(Symbol, SortedReft)]
+  -> Int
+  -> ([(Symbol, SortedReft)], Int)
+renameExistentialsInSortedRefts binds0 existentialCounter =
+    let
+        binds = [ (x, sr { sr_reft = mapPredReft (const p) (sr_reft sr) }) | ((x, sr), p) <- zip binds0 preds ]
+        (preds, existentialCounter') =
+          renameKVarExistentials (map (reftPred . sr_reft . snd) binds0) existentialCounter
+     in
+        (binds, existentialCounter')
+
+renameKVarExistentials :: [Expr] -> Int -> ([Expr], Int)
+renameKVarExistentials = runState . mapM go
+  where
+    go (POr es) = POr <$> mapM go es
+    go (PAnd es) = PAnd <$> mapM go es
+    go (PExist bs e0) = do
+      i1 <- get
+      let i2 = i1 + length bs
+      put i2
+      let vs = map fst bs
+          vs' = [ existSymbol v (fromIntegral i) | (v, i) <- zip vs [i1..] ]
+          bs' = zip vs' (map snd bs)
+          su = mkSubst $ zip vs (map EVar vs')
+      PExist bs' <$> go (rapierSubstExpr (S.fromList vs') su e0)
+    go e = pure e
+
+-- ^ Scopes of existential binders identifying the location of sub-expressions
+type ExScope = [(Symbol, Sort)]
+
+
+-- | Extracts nested existentials from an expression.
+--
+-- For example, the expression
+--
+-- > exists [x1 : t1]. e1 == e2 &&
+-- > exists [x2 : t2]. e3 == 2 &&
+-- > exists [x3 : t3]. e3 < e4
+--
+-- would be flattened into
+--
+-- > (e1 == e2 && e3 == 2 && e3 < e4, [x1 : t1, x2 : t2, x3 : t3])
+--
+-- Precondition: the existential binding names are unique.
+--
+prenexExistentials :: Expr -> (ExScope, Expr)
+prenexExistentials = go
+  where
+    go :: Expr -> (ExScope, Expr)
+    go (PExist bs e) =
+      let (bs', e') = go e
+      in (bs ++ bs', e')
+    go (PAnd es) =
+      let (bss, es') = unzip (map go es)
+      in (concat bss, PAnd es')
+    go (POr es) =
+      let (bss, es') = unzip (map go es)
+      in (concat bss, POr es')
+    go e = ([], e)
+
+
+-- | Reconstructs expressions with existentials from a map
+-- of existential scopes to their bodies.
+reconstructExistentials :: M.HashMap ExScope (S.HashSet Expr) -> [Expr]
+reconstructExistentials m = [ pExist s (pAndNoDedup $ S.toList es) | (s, es) <- M.toList m, not (null es) ]

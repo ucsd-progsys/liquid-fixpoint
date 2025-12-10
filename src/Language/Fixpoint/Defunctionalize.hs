@@ -155,11 +155,6 @@ instance Defunc (WfC a) where
     let (x, t, k) = wrft wf
     t' <- defunc t
     return $ wf { wrft = (x, t', k) }
-  defunc wf@GWfC{} = do
-    let (x, t, k) = wrft wf
-    t' <- defunc t
-    e' <- defunc $ wexpr wf
-    return $ wf { wrft = (x, t', k), wexpr = e' }
 
 instance Defunc SortedReft where
   defunc (RR s r) = RR s <$> defunc r

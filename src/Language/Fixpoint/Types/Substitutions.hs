@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans   #-}
+{-# LANGUAGE InstanceSigs #-}
 
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
@@ -12,14 +13,18 @@ module Language.Fixpoint.Types.Substitutions (
   , substExcept
   , substfExcept
   , subst1Except
+  , substSymbolsSet
+  , rapierSubstExpr
   , targetSubstSyms
   , filterSubst
   , catSubst
   , exprSymbolsSet
+  , extendSubst
   , meetReft
   , pprReft
   ) where
 
+import           Data.List                 as List
 import           Data.Maybe
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
@@ -61,7 +66,8 @@ isEmptySubst (Su xes) = M.null xes
 targetSubstSyms :: Subst -> [Symbol]
 targetSubstSyms (Su ms) = syms $ M.elems ms
 
-
+substSymbolsSet :: Subst -> S.HashSet Symbol
+substSymbolsSet (Su m) = S.unions $ map exprSymbolsSet (M.elems m)
 
 instance Subable () where
   syms _      = []
@@ -126,6 +132,7 @@ captureAvoiding x f y = if y == x then EVar x else f y
 instance Subable Expr where
   syms                     = exprSymbols
   substa f                 = substf (EVar . f)
+  substf :: (Symbol -> Expr) -> Expr -> Expr
   substf f (EApp s e)      = EApp (substf f s) (substf f e)
   substf f (ELam (x,t) e)  = ELam (x, t) (substf (captureAvoiding x f) e)
   substf f (ECoerc a t e)  = ECoerc a t (substf f e)
@@ -143,12 +150,13 @@ instance Subable Expr where
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
   substf f (PKVar k (Su su)) = PKVar k (Su $ M.map (substf f) su)
   substf _ (PAll _ _)      = errorstar "substf: FORALL"
-  substf f (PGrad k su i e)= PGrad k su i (substf f e)
+  substf f (PExist xts e)  = PExist xts (substf f e)
   substf _  p              = p
 
 
   subst su (EApp f e)      = EApp (subst su f) (subst su e)
-  subst su (ELam x e)      = ELam x (subst (removeSubst su (fst x)) e)
+  subst su (ELam x e)      = ELam x (subst su' e) where su' = removeSubst su (fst x)
+  subst su (ELet x e1 e2)  = ELet x (subst su e1) (subst su' e2) where su' = removeSubst su x
   subst su (ECoerc a t e)  = ECoerc a t (subst su e)
   subst su (ENeg e)        = ENeg (subst su e)
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
@@ -162,7 +170,6 @@ instance Subable Expr where
   subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
   subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
-  subst su (PGrad k su' i e) = PGrad k (su' `catSubst` su) i (subst su e)
   subst su (PAll bs p)
           | disjoint su bs = PAll bs $ subst su p --(substExcept su (fst <$> bs)) p
           | otherwise      = errorstar "subst: PAll (without disjoint binds)"
@@ -173,6 +180,80 @@ instance Subable Expr where
 
 removeSubst :: Subst -> Symbol -> Subst
 removeSubst (Su su) x = Su $ M.delete x su
+
+-- | Rapier style capture-avoiding substitution
+--
+-- The scope set parameter must contain any symbols that are expected
+-- to appear free in the result expression. Typically, this is the set of
+-- symbols that are free in the range of the substitution, plus any symbols
+-- that are already free in the input expression.
+rapierSubstExpr :: S.HashSet Symbol -> Subst -> Expr -> Expr
+rapierSubstExpr s su e0 =
+  let go = rapierSubstExpr
+   in case e0 of
+    EApp f e -> EApp (go s su f) (go s su e)
+    ELam (x, t) e ->
+      if x `S.member` s then
+        let x' = fresh x
+            su' = extendSubst su x (EVar x')
+         in ELam (x', t) (go (S.insert x' s) su' e)
+      else
+        ELam (x, t) (go (S.insert x s) (removeSubst su x) e)
+    ELet x e1 e2 ->
+      if x `S.member` s then
+        let x' = fresh x
+            su' = extendSubst su x (EVar x')
+         in ELet x' (go s su e1) (go (S.insert x' s) su' e2)
+      else
+        let su' = removeSubst su x
+         in ELet x (go s su e1) (go (S.insert x s) su' e2)
+
+    ECoerc a t e -> ECoerc a t (go s su e)
+    ENeg e -> ENeg (go s su e)
+    EBin op e1 e2 -> EBin op (go s su e1) (go s su e2)
+    EIte p e1 e2 -> EIte (go s su p) (go s su e1) (go s su e2)
+    ECst e so -> ECst (go s su e) so
+    EVar x -> appSubst su x
+    PAnd ps -> PAnd $ map (go s su) ps
+    POr ps -> POr $ map (go s su) ps
+    PNot p -> PNot $ go s su p
+    PImp p1 p2 -> PImp (go s su p1) (go s su p2)
+    PIff p1 p2 -> PIff (go s su p1) (go s su p2)
+    PAtom r e1 e2 -> PAtom r (go s su e1) (go s su e2)
+    PKVar k su' -> PKVar k $ catSubstGo su' su
+    PAll bs p ->
+      let mfs = map (maybeFresh . fst) bs
+          fs = map (either (\x -> (x, x)) id) mfs
+          su' = List.foldl' (\su1 (x, x') -> extendSubst su1 x (EVar x')) su fs
+          bs' = zip (map (either id snd) mfs) (map snd bs)
+          s' = foldr (S.insert . fst) s bs'
+       in
+          PAll bs' $ go s' su' p
+    PExist bs p ->
+      let mfs = map (maybeFresh . fst) bs
+          fs = map (either (\x -> (x, x)) id) mfs
+          su' = List.foldl' (\su1 (x, x') -> extendSubst su1 x (EVar x')) su fs
+          bs' = zip (map (either id snd) mfs) (map snd bs)
+          s' = foldr (S.insert . fst) s bs'
+       in
+          PExist bs' $ go s' su' p
+    p -> p
+  where
+    fresh :: Symbol -> Symbol
+    fresh x = head $ dropWhile (`S.member` s) candidates
+      where
+        candidates = [ renameSubstSymbol x i | i <- [0..] ]
+
+    maybeFresh x =
+      if x `S.member` s then Right (x, fresh x) else Left x
+
+    catSubstGo :: Subst -> Subst -> Subst
+    catSubstGo (Su s1) su2@(Su s2) = Su $ M.union s1' s2
+      where
+        s1' = rapierSubstExpr s su2 <$> s1
+
+extendSubst :: Subst -> Symbol -> Expr -> Subst
+extendSubst (Su m) x e = Su $ M.insert x e m
 
 disjoint :: Subst -> [(Symbol, Sort)] -> Bool
 disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms

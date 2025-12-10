@@ -5,12 +5,10 @@ module Language.Fixpoint.Horn.Info (
     hornFInfo
   ) where
 
-import           Control.Monad (forM)
 import           Data.Ord (Down(..), comparing)
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import qualified Data.Tuple                     as Tuple
-import           Data.Either                    (partitionEithers)
 import           GHC.Generics                   (Generic)
 import qualified Language.Fixpoint.Misc         as Misc
 import qualified Language.Fixpoint.Types        as F
@@ -22,7 +20,6 @@ hornFInfo :: (F.Fixpoint a, F.PPrint a) => F.Config -> H.Query a -> F.FInfo a
 hornFInfo cfg q = mempty
   { F.cm        = cs
   , F.bs        = be2
-  , F.ebinds    = ebs
   , F.ws        = kvEnvWfCs kve
   , F.quals     = H.qQuals q ++ scrapeCstr (F.scrape cfg) hCst
   , F.gLits     = F.fromMapSEnv $ H.qCon q
@@ -35,7 +32,7 @@ hornFInfo cfg q = mempty
   where
     be0         = F.emptyBindEnv
     (be1, kve)  = hornWfs   be0     (H.qVars q)
-    (be2, ebs, cs) = hornSubCs be1 kve hCst
+    (be2, cs) = hornSubCs be1 kve hCst
     hCst           = H.qCstr q
 
 
@@ -48,27 +45,26 @@ axEnv cfg q cs = mempty
 
 ----------------------------------------------------------------------------------
 hornSubCs :: F.BindEnv a -> KVEnv a -> H.Cstr a
-          -> (F.BindEnv a, [F.BindId], M.HashMap F.SubcId (F.SubC a))
+          -> (F.BindEnv a, M.HashMap F.SubcId (F.SubC a))
 ----------------------------------------------------------------------------------
-hornSubCs be kve c = (be', ebs, M.fromList (F.addIds cs))
+hornSubCs be kve c = (be', M.fromList (F.addIds cs))
   where
-    (be', ebs, cs) = goS kve F.emptyIBindEnv be c
+    (be', cs) = goS kve F.emptyIBindEnv be c
     -- lhs0           = bindSortedReft kve H.dummyBind
 
 -- | @goS@ recursively traverses the NNF constraint to build up a list
 --   of the vanilla @SubC@ constraints.
 
 goS :: KVEnv a -> F.IBindEnv ->  F.BindEnv a -> H.Cstr a
-    -> (F.BindEnv a, [F.BindId], [F.SubC a])
+    -> (F.BindEnv a, [F.SubC a])
 
-goS kve env be c = (be', mEbs, subcs)
+goS kve env be c = (be', subcs)
   where
-    (be', ecs) = goS' kve env Nothing be c
-    (mEbs, subcs) = partitionEithers ecs
+    (be', subcs) = goS' kve env Nothing be c
 
 goS' :: KVEnv a -> F.IBindEnv -> Maybe F.SortedReft -> F.BindEnv a -> H.Cstr a
-    -> (F.BindEnv a, [Either F.BindId (F.SubC a)])
-goS' kve env lhs be (H.Head p l) = (be, [Right subc])
+    -> (F.BindEnv a, [F.SubC a])
+goS' kve env lhs be (H.Head p l) = (be, [subc])
   where
     subc                        = myMkSubC env lhs rhs Nothing [] l
     rhs                         = updSortedReft kve lhs p
@@ -78,13 +74,6 @@ goS' kve env lhs be (H.CAnd cs)  = (be', concat subcss)
     (be', subcss)               = L.mapAccumL (goS' kve env lhs) be cs
 
 goS' kve env _   be (H.All b c)  = (be'', subcs)
-  where
-    (be'', subcs)               = goS' kve env' (Just bSR) be' c
-    (bId, be')                  = F.insertBindEnv (H.bSym b) bSR (H.bMeta b) be
-    bSR                         = bindSortedReft kve b
-    env'                        = F.insertsIBindEnv [bId] env
-
-goS' kve env _   be (H.Any b c)  = (be'', Left bId : subcs)
   where
     (be'', subcs)               = goS' kve env' (Just bSR) be' c
     (bId, be')                  = F.insertBindEnv (H.bSym b) bSR (H.bMeta b) be
@@ -176,7 +165,6 @@ scrapeCstr m    cstr = Misc.sortNub $ go emptyBindEnv cstr
     go senv (H.Head p _) = scrapePred senv p
     go senv (H.CAnd cs)  = concatMap (go senv) cs
     go senv (H.All b c)  = scrapeBind m senv' b <> go senv' c where senv' = insertBindEnv b senv
-    go senv (H.Any b c)  = scrapeBind m senv' b <> go senv' c where senv' = insertBindEnv b senv
 
 scrapeBind :: F.Scrape -> BindEnv -> H.Bind a -> [F.Qualifier]
 scrapeBind F.Both senv b = scrapePred senv (H.bPred b)
@@ -189,16 +177,17 @@ scrapePred senv (H.Reft e)  = concatMap (mkQual senv) (F.concConjuncts e)
 
 -- NOTE: Constraints.mkQual will do extra stuff like generalizing the sorts...
 mkQual :: BindEnv -> F.Expr -> [ F.Qualifier ]
-mkQual env e = case qualParams env e of
-  Nothing  -> []
-  Just xts -> [ mkScrapeQual xts' e | xts' <- shiftCycle xts ]
+mkQual env e = [ mkScrapeQual xts' e | xts' <- shiftCycle xts ]
+  where
+    xts = qualParams env e
 
 mkScrapeQual :: [(F.Symbol, F.Sort)] -> F.Expr -> F.Qualifier
-mkScrapeQual xts e = F.mkQual (F.symbol "AUTO") qParams (F.subst su e) (F.dummyPos "")
+mkScrapeQual xts e = F.mkQual (F.symbol "AUTO") qParams body (F.dummyPos "")
   where
     qParams = [ F.QP {F.qpSym = y, F.qpPat = F.PatNone, F.qpSort = t} | (_, y, t) <- xyts ]
     xyts    = zipWith (\i (x, t) -> (x, F.bindSymbol i, t)) [0..] xts
     su      = F.mkSubst [ (x, F.expr y) | (x, y, _) <- xyts ]
+    body    = F.subst su e
 
 
 shiftCycle :: [(F.Symbol, F.Sort)] -> [[(F.Symbol, F.Sort)]]
@@ -221,15 +210,11 @@ maxQualifierParams = 3
   2. Permute the args?
  -}
 
-qualParams :: BindEnv -> F.Expr -> Maybe [(F.Symbol, F.Sort)]
-qualParams env e = do
-    let xs = Misc.nubOrd (F.syms e)
-    ixts <- forM xs $ \x -> do
-              (t, i) <- lookupBindEnv x env
-              return (i, x, t)
-    return [ (x, t) | (_, x, t) <- L.sortBy (comparing Down) ixts ]
-
-    -- ixts = [ (i, x, t) | x <- xs, (i, t) <- lookupBindEnv x env ]
+qualParams :: BindEnv -> F.Expr -> [(F.Symbol, F.Sort)]
+qualParams env e = [ (x, t) | (_, x, t) <- L.sortBy (comparing Down) ixts ]
+  where
+    xs = Misc.nubOrd (F.syms e)
+    ixts = [ (i, x, t) | x <- xs, (t, i) <- Mb.maybeToList (lookupBindEnv x env) ]
 
 -------------------------------------------------------------------------------
 

@@ -67,12 +67,12 @@ saveHornQuery cfg q = do
   saveHornSMT2 cfg q
   saveHornJSON cfg q
 
-saveHornSMT2 :: H.ToHornSMT a => F.Config -> a -> IO ()
+saveHornSMT2 :: F.ToHornSMT a => F.Config -> a -> IO ()
 saveHornSMT2 cfg q = do
   let hq   = F.queryFile Files.HSmt2 cfg
   putStrLn $ "Saving Horn Query: " ++ hq ++ "\n"
   Misc.ensurePath hq
-  writeFile hq $ render ({- F.pprint -} H.toHornSMT q)
+  writeFile hq $ render (F.toHornSMT q)
 
 saveHornJSON :: F.Config -> H.Query H.Tag -> IO ()
 saveHornJSON cfg q = do

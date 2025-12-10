@@ -1,0 +1,32 @@
+// test that PLE can unfold in the solution of kvars (#780)
+fixpoint "--rewrite"
+
+constant adder: (func(0, [int; int; int]))
+
+define adder(x : int, y : int) : int = { x + y }
+
+expand [1 : True; 2 : True; 3 : True]
+
+bind 0 a : {v: int | $k0}
+
+constraint:
+  env [ ]
+  lhs {v : int | adder v 1 = 11}
+  rhs {v : int | $k0}
+  id 1 tag []
+
+constraint:
+  env [ ]
+  lhs {v : int | adder v 1 = 21}
+  rhs {v : int | $k0}
+  id 2 tag []
+
+constraint:
+  env [ 0 ]
+  lhs {v : int | v = a}
+  rhs {v : int | 10 <= v}
+  id 3 tag []
+
+wf:
+  env [ ]
+  reft {v: int | $k0}

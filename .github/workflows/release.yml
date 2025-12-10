@@ -1,0 +1,125 @@
+name: release
+
+on:
+  # We trigger the workflow in PRs to build the binaries as a sanity check, but we only publish
+  # the release when pushing to `develop`.
+  pull_request:
+    branches:
+      - develop
+  push:
+    branches:
+      - develop
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    env:
+      GHC_VERSION: "9.12.2"
+      CABAL_VERSION: "3.12.1.0"
+    strategy:
+      matrix:
+        include:
+          # I couldn't find a minimum supported glibc version for ghc, but ubuntu 22.04
+          # has 2.35 which is oldish and has been tested to work, so we use this as the
+          # minimum supported version.
+          - os: ubuntu-22.04
+            artifact: fixpoint-x86_64-linux-gnu
+          # deprecated
+          # - os: macos-13
+          #  artifact: fixpoint-x86_64-apple-darwin
+          - os: macos-14
+            artifact: fixpoint-aarch64-apple-darwin
+          - os: windows-2025
+            artifact: fixpoint-x86_64-pc-windows
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Haskell
+        id: setup
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ env.GHC_VERSION }}
+          cabal-version: ${{ env.CABAL_VERSION }}
+          cabal-update: true
+
+      # Cache dependencies based on dist-newstyle/cache/plan.json. This follows the example in
+      # https://github.com/haskell-actions/setup/blob/main/docs/examples.md#model-cabal-workflow-with-caching
+      - name: Generate plan.json
+        run: cabal build all --dry-run
+
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v4
+        id: cache
+        env:
+          key:
+            ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{
+            steps.setup.outputs.cabal-version }}
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: ${{ env.key }}-
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cabal build all --only-dependencies
+
+      - name: Save cached dependencies
+        uses: actions/cache/save@v4
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      - name: Build
+        run: cabal build all
+
+      - name: Compress
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == Windows ]]; then
+            cp $(cabal list-bin exe:fixpoint) fixpoint.exe
+            powershell Compress-Archive -Path fixpoint.exe -DestinationPath ${{ matrix.artifact }}.zip
+          else
+            cp $(cabal list-bin exe:fixpoint) fixpoint
+            tar -czvf ${{ matrix.artifact }}.tar.gz fixpoint
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.tar.gz
+
+  publish:
+    # Only publish a release when pushing to `develop`, i.e, after merging the PR
+    if: github.event_name == 'push'
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: fixpoint*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish Nightly Release
+        uses: ./.github/actions/github-release
+        with:
+          files: "dist/*"
+          name: Nightly Release
+          tag_name: nightly
+          tag_message: nightly release
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            Automated nightly release of liquid-fixpoint.
+            - Darwin aarch64 (built on macOS 14)
+            - Linux x86_64 (built on Ubuntu 22.04)
+              - glibc (2.35)
+              - gmp (6.2)
+            - Windows x86_64 (built on Windows 2025)
