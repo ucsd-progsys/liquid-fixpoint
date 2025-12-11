@@ -39,6 +39,7 @@ import qualified Data.HashSet        as S
 -- import qualified Data.Maybe          as Mb
 import qualified Data.List           as L
 import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
+import Language.Fixpoint.Smt.Interface (smtComment)
 import Language.Fixpoint.Solver.Interpreter (instInterpreter)
 import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import Data.Maybe (maybeToList)
@@ -132,6 +133,7 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> SolveM a (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s2 wkl = do
+  liftSMT $ smtComment "solve: start"
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv (F.bs fi) $ \bindingsInSmt -> do
     -- let s3   = solveEbinds fi s2
     s3       <- {- SCC "sol-refine" -} refine bindingsInSmt (F.bs fi) s2 wkl
@@ -140,23 +142,28 @@ solve_ cfg fi s2 wkl = do
 
   (fi1, res1) <- case resStatus res0 of  {- first run the interpreter -}
     Unsafe _ bads | rewriteAxioms cfg && interpreter cfg -> do
+      liftSMT $ smtComment "solve: interpreter"
       bs <- doInterpret cfg fi (map fst $ mytrace ("before the Interpreter " ++ show (length bads) ++ " constraints remain") bads)
       let fi1 = fi { F.bs = bs }
           badCs = lookupCMap (F.cm fi) <$> map fst bads
+      liftSMT $ smtComment "solve: pos-interpreter check"
       fmap (fi1,) $ sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
         result bindingsInSmt cfg fi1 badCs s3
     _ -> return  (fi, mytrace "all checked before interpreter" res0)
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
     Unsafe _ bads2 | rewriteAxioms cfg -> do
+      liftSMT $ smtComment "solve: ple"
       bs <- liftSMT $ PLE.instantiate cfg fi1 (Just s3) (Just $ map fst bads2)
       -- Check the constraints one last time after PLE
       let fi2 = fi { F.bs = bs }
           badsCs2 = lookupCMap (F.cm fi) <$> map fst bads2
+      liftSMT $ smtComment "solve: pos-ple check"
       sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
         result bindingsInSmt cfg fi2 badsCs2 s3
     _ -> return $ mytrace "all checked with interpreter" res1
 
+  liftSMT $ smtComment "solve: finished"
   st      <- stats
   let res3 = {- SCC "sol-tidy" -} tidyResult cfg res2
   return $!! (res3, st)

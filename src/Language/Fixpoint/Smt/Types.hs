@@ -67,6 +67,7 @@ data Command      = Push
                   | Distinct [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue [Symbol]
                   | CMany    [Command]
+                  | Comment T.Text
                   deriving (Eq, Show)
 
 instance PPrint Command where
@@ -89,6 +90,7 @@ ppCmd (AssertAx _)  = text "AssertAxiom ..."
 ppCmd Distinct {} = text "Distinct ..."
 ppCmd GetValue {} = text "GetValue ..."
 ppCmd CMany {}    = text "CMany ..."
+ppCmd (Comment t) = text ("; " ++ T.unpack t)
 
 -- | Responses received from SMT engine
 data Response     = Ok

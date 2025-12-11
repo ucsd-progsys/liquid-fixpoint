@@ -534,15 +534,21 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
            , icFreshExistentialCounter = existentialCounter
            , icInitialLHSs = M.unionWith S.union candsPerExScopeNoRHS (icInitialLHSs ictx)
            }
-    , S.toList $ S.fromList $ concat $ M.keys candsPerExScope
+    , ebs
     )
   where
+    ebs = concat (M.keys candsPerExScope)
     ibinds = insertsIBindEnv delta (icBindIds ictx)
     cands     = rhs:es
     anfBinds  = bs : icANFs ictx
     econsts   = M.fromList $ findConstants ieKnowl es
-    ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
-                  [ c | xr <- bs, c <- conjuncts (expr xr), not (isTautoPred c) ]
+    ctxEqs    = toSMT "updCtx" ieCfg ieSMT ebs <$> L.nub
+                  [ c
+                  | (_, s) <- drop 1 deANFedCands
+                  , e <- S.toList s
+                  , c <- conjuncts e
+                  , not (isTautoPred c)
+                  ]
     bs        = second unApplySortedReft <$> binds
     rhs       = unApply eRhs
     es        = expr <$> bs
@@ -558,6 +564,7 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
     newLRWs   = Mb.mapMaybe (`lookupLocalRewrites` ieLRWs) delta
 
     candsPerExScopeNoRHS = M.fromListWith S.union $ ([], S.empty) : drop 1 deANFedCands
+    -- ebs expects all keys to contain disjoint sets of bindings
     candsPerExScope = M.unionWith S.union candsPerExScopeNoRHS $ M.fromListWith S.union (take 1 deANFedCands)
 
     deANFedCands = map (second S.singleton . prenexExistentials) $

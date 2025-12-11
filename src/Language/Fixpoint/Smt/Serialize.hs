@@ -318,6 +318,7 @@ instance SMTLIB2 Command where
   smt2     (CMany cmds)        = smt2s cmds
   smt2     Exit                = pure "(exit)"
   smt2     SetMbqi             = pure "(set-option :smt.mbqi true)"
+  smt2     (Comment t)         = pure $ fromText ("; " <> t <> "\n")
 
 instance SMTLIB2 (Triggered Expr) where
   smt2 (TR NoTrigger e)       = smt2 e
