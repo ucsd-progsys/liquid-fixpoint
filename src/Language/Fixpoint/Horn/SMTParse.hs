@@ -294,7 +294,7 @@ sortP =  (string "@" >> (F.FVar <$> parens fIntP))
      <|> try (parens (reserved "func" >> (mkFunc <$> fIntP <*> sMany sortP <*> sortP)))
      <|> try (parens (reserved "list" >> (mkList <$> sortP)))
      <|> parens (F.fAppTC <$> fTyConP <*> many sortP)
-     <|> (string "'" >> F.FNatNum <$> natural)
+     <|> (F.FNatNum <$> natural)
 
 mkFunc :: Int -> [F.Sort] -> F.Sort -> F.Sort
 mkFunc n ss s = F.mkFFunc n (ss ++ [s])

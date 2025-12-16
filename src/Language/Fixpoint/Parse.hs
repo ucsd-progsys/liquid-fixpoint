@@ -1056,7 +1056,7 @@ sortP' appArgsP
   <|> (fAppTC listFTyCon . pure <$> brackets sortP)
   <|> (fAppTC <$> fTyConP <*> appArgsP)
   <|> (fApp   <$> tvarP   <*> appArgsP)
-  <|> (string "'" >> FNatNum <$> natural)
+  <|> (FNatNum <$> natural)
 
 tvarP :: ParserV v Sort
 tvarP
