@@ -29,6 +29,7 @@ In addition to the .cabal dependencies you require an SMTLIB2 compatible solver 
 
 - [Z3](https://github.com/Z3Prover/z3)
 - [CVC4](https://cvc4.github.io/)
+- [CVC5](https://cvc5.github.io/)
 - [MathSat](http://mathsat.fbk.eu/download.html)
 
 If on Windows, please make sure to place the binary and any associated DLLs somewhere
@@ -66,6 +67,7 @@ Currently, we support
 
     * Z3
     * CVC4
+    * CVC5
     * MathSat
 
 "Horn" Format
@@ -358,13 +360,8 @@ from the `[(Symbol, Sort)]`.
 
 In early versions of fixpoint, there was support for
 three sorts for expressions (`Expr`) that were sent
-to the SMT solver:
-
-1. `int`
-2. `bool`
-3. "other"
-
-The `FObj` sort was introduced to represent essentially _all_
+to the SMT solver: `int`, `bool` and "other". The
+`FObj` sort was introduced to represent essentially _all_
 non-int and non-bool values (e.g. tuples, lists, trees, pointers...)
 
 However, we later realized that it is valuable to keep _more_
@@ -381,8 +378,18 @@ respectively as:
 > Does that then make FTC types that the SMT solver does
 > know about (bools, ints, lists, sets, etc.)?
 
-The SMT solver knows about `bool`, `int` and `set` (also `bitvector`
-and `map`) but _all_ other types are _currently_ represented as plain
+The SMT solvers we currently use know about following sorts:
+
+* `bool`
+* `int`
+* `real`
+* `string`
+* `array` (aka `map`)
+* `bitvector`
+* `set` and `bag` (in Z3, they are both also represented internally as `array`s)
+* `finitefield` (CVC5 only)
+
+_All_ other types are _currently_ represented as plain
 `Int` inside the SMT solver. However, we _will be_ changing this
 to make use of SMT support for ADTs ...
 

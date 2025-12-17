@@ -48,6 +48,9 @@ module Language.Fixpoint.Smt.Theories
      , arrConstB, arrStoreB, arrSelectB
      , arrMapPlusB, arrMapLeB, arrMapGtB, arrMapIteB
 
+     -- * CVC5 finite fields
+     , ffVal, ffAdd, ffMul
+
       -- * Query Theories
      , isSmt2App
      , axiomLiterals
@@ -196,6 +199,12 @@ arrMapLeB   = "arr_map_le"
 arrMapGtB   = "arr_map_gt"
 arrMapIteB   = "arr_map_ite"
 
+-- Finite field operations
+ffVal, ffAdd, ffMul :: (IsString a) => a -- Symbol
+ffVal = "FF_val"
+ffAdd = "FF_add"
+ffMul = "FF_mul"
+
 strLen, strSubstr, strConcat, strConcat', strPrefixOf, strSuffixOf, strContains :: (IsString a) => a -- Symbol
 strLen    = "strLen"
 strSubstr = "subString"
@@ -322,6 +331,7 @@ smt2SmtSort SString      = fromText string
 smt2SmtSort (SSet a)     = key "Set" (smt2SmtSort a)
 smt2SmtSort (SBag a)     = key "Bag" (smt2SmtSort a)
 smt2SmtSort (SArray a b) = key2 "Array" (smt2SmtSort a) (smt2SmtSort b)
+smt2SmtSort (SFFld n)    = key "_ FiniteField" (bShow n)
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
 smt2SmtSort (SVar n)     = "T" <> bShow n
 smt2SmtSort (SData c []) = symbolBuilder c
@@ -346,6 +356,9 @@ smt2App _ ex@(dropECst -> EVar f) [d]
   | f == bagEmpty  =
       do env <- get
          pure $ Just $ key "as bag.empty" (getTarget env ex)
+  | f == ffVal  =
+      do env <- get
+         pure $ Just $ key ("as ff" <> d) (getTarget env ex)
   where
     getTarget :: SymEnv -> Expr -> Builder
     -- const is a function, but SMT expects only the output sort
@@ -551,6 +564,14 @@ interpSymbols cfg =
   , interpSym arrMapLeB   "(_ map (<= (Int Int) Bool))"      (FAbs 0 $ FFunc bagArrSort $ FFunc bagArrSort setArrSort)
   , interpSym arrMapGtB   "(_ map (> (Int Int) Bool))"       (FAbs 0 $ FFunc bagArrSort $ FFunc bagArrSort setArrSort)
   , interpSym arrMapIteB  "(_ map (ite (Bool Int Int) Int))" (FAbs 0 $ FFunc setArrSort $ FFunc bagArrSort $ FFunc bagArrSort bagArrSort)
+  ] else if cfg == Cvc5
+  then
+  [
+    -- CVC5 finite fields
+
+    interpSym ffVal ffVal     (FAbs 0 $ FFunc intSort (finfieldSort (FVar 0)))
+  , interpSym ffAdd "ff.add" (FAbs 0 $ FFunc (finfieldSort (FVar 0)) $ FFunc (finfieldSort (FVar 0)) (finfieldSort (FVar 0)))
+  , interpSym ffMul "ff.mul" (FAbs 0 $ FFunc (finfieldSort (FVar 0)) $ FFunc (finfieldSort (FVar 0)) (finfieldSort (FVar 0)))
   ] else []
   where
 
