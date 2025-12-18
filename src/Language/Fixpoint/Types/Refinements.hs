@@ -116,6 +116,7 @@ import qualified Data.HashMap.Strict       as HashMap
 import           Data.HashSet              (HashSet)
 import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
+import           GHC.Stack                 (HasCallStack)
 #if MIN_VERSION_base(4,20,0)
 import           Data.List                 (partition)
 #else
@@ -1013,7 +1014,7 @@ class Subable a where
   -- substa f  = substf (EVar . f)
 
   substf :: (Symbol -> Expr) -> a -> a
-  subst  :: Subst -> a -> a
+  subst  :: HasCallStack => Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
 
