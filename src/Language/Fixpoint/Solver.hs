@@ -33,7 +33,7 @@ import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Control.Monad                      (when)
-import           Control.Exception                  (catch)
+import           Control.Exception                  (SomeException, catch)
 import           Control.Exception.Compat
     (ExceptionWithContext(..), displayExceptionContext, wrapExceptionWithContext)
 import           Language.Fixpoint.Solver.EnvironmentReduction
@@ -184,7 +184,9 @@ solveNative, solveNative'
 --------------------------------------------------------------------------------
 solveNative !cfg !fi0 = solveNative' cfg fi0
                           `catch`
-                             (return . crashResult (errorMap fi0). wrapExceptionWithContext)
+                             (return . crashResult (errorMap fi0) . wrapExceptionWithContext)
+                          `catch`
+                             (return . crashResultOther . wrapExceptionWithContext)
 
 crashResult :: (PPrint a) => ErrorMap a -> ExceptionWithContext Error -> Result (Integer, a)
 crashResult m (ExceptionWithContext ectx ex) = Result res mempty mempty mempty
@@ -196,6 +198,15 @@ crashResult m (ExceptionWithContext ectx ex) = Result res mempty mempty mempty
     msg0 | null ers = "Sorry, unexpected panic in liquid-fixpoint!\n"
                        ++ showpp ex
          | otherwise = showpp ex
+
+crashResultOther
+  :: ExceptionWithContext SomeException -> Result (Integer, a)
+crashResultOther (ExceptionWithContext ectx ex) =
+    Result res mempty mempty mempty
+  where
+    res = Crash [] msg
+    msg = displayExceptionContext ectx ++ "\n" ++ msg0
+    msg0 = "Sorry, unexpected panic in liquid-fixpoint!\n" ++ show ex
 
 -- | Unpleasant hack to save meta-data that can be recovered from SrcSpan
 type ErrorMap a = HashMap.HashMap SrcSpan a
