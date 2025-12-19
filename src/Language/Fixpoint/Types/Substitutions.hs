@@ -198,12 +198,20 @@ instance Subable Expr where
           | disjoint su bs ->
             PAll bs $ go su p --(substExcept su (fst <$> bs)) p
           | otherwise ->
-            errorstar "subst: PAll (without disjoint binds)"
+            errorstar $ unlines
+              [ "subst: FORALL without disjoint binds"
+              , "su: " ++ showpp su
+              , "expr: " ++ showpp e0
+              ]
         PExist bs p
           | disjoint su bs ->
             PExist bs $ go su p --(substExcept su (fst <$> bs)) p
           | otherwise ->
-            errorstar ("subst: EXISTS (without disjoint binds)" ++ show (bs, su, p))
+            errorstar $ unlines
+              [ "subst: EXISTS without disjoint binds"
+              , "su: " ++ showpp su
+              , "expr: " ++ showpp e0
+              ]
         p ->
           p
 
