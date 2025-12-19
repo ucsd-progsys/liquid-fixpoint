@@ -199,7 +199,7 @@ hPredP :: FParser H.Pred
 -------------------------------------------------------------------------------
 hPredP = parens body
   where
-    body =  H.Var  <$> kvSymP <*> some symbolP
+    body =  H.Var  <$> kvSymP <*> some exprP
         <|> H.PAnd <$> (reserved "and" *> some hPredP)
         <|> H.Reft <$> exprP
 

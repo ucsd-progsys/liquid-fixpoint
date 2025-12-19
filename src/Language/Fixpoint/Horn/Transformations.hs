@@ -150,7 +150,7 @@ piDefConstr k c = ((head syms, head formalSyms), defCStr)
     go :: Cstr a -> ([F.Symbol], [[F.Symbol]], Maybe (Cstr a))
     go (CAnd cs) = (\(as, bs, mcs) -> (concat as, concat bs, cAndMaybes mcs)) $ unzip3 $ go <$> cs
     go (All b@(Bind n _ (Var k' xs) _) c')
-      | k == k' = ([n], [S.toList $ S.fromList xs `S.difference` S.singleton n], Just c')
+      | k == k' = ([n], [S.toList $ S.fromList (expectVar <$> xs) `S.difference` S.singleton n], Just c')
       | otherwise = map3 (fmap (All b)) (go c')
     go (All b c') = map3 (fmap (All b)) (go c')
     go _ = ([], [], Nothing)
@@ -159,6 +159,10 @@ piDefConstr k c = ((head syms, head formalSyms), defCStr)
     cAndMaybes maybeCs = case catMaybes maybeCs of
       [] -> Nothing
       cs -> Just $ CAnd cs
+
+expectVar :: F.Expr -> F.Symbol
+expectVar (F.EVar s) = s
+expectVar _ = error "expectVar: expected variable"
 
 map3 :: (c -> d) -> (a, b, c) -> (a, b, d)
 map3 f (x, y, z) = (x, y, f z)
@@ -471,7 +475,7 @@ cstrToExpr (All (Bind x t p _) c) = F.PAll [(x,t)] $ F.PImp (predToExpr p) $ cst
 predToExpr :: Pred -> F.Expr
 predToExpr (Reft e) = e
 predToExpr (Var k xs) = F.PKVar (F.KV k) (F.Su $ M.fromList su)
-  where su = zip (kargs k) (F.EVar <$> xs)
+  where su = zip (kargs k) xs
 predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
 
 ------------------------------------------------------------------------------
@@ -723,18 +727,17 @@ uVariable x = do
 
 rename :: Pred -> RenameMap -> Pred
 rename e m = substPred (M.mapMaybeWithKey (\k v -> case v of
-                                              (_, n:_) -> Just $ numSym k n
+                                              (_, n:_) -> Just $ F.EVar $ numSym k n
                                               _ -> Nothing) m) e
 
 numSym :: IsString a => F.Symbol -> Integer -> a
 numSym s 0 = fromString $ F.symbolString s
 numSym s i = fromString $ F.symbolString s ++ "#" ++ show i
 
-substPred :: M.HashMap F.Symbol F.Symbol -> Pred -> Pred
-substPred su (Reft e) = Reft $ F.subst (F.Su $ F.EVar <$> su) e
+substPred :: M.HashMap F.Symbol F.Expr -> Pred -> Pred
+substPred su (Reft e) = Reft $ F.subst (F.Su su) e
 substPred su (PAnd ps) = PAnd $ substPred su <$> ps
-substPred su (Var k xs) = Var k $ upd <$> xs
-  where upd x = M.lookupDefault x x su
+substPred su (Var k xs) = Var k $ F.subst (F.Su su) <$> xs
 
 ------------------------------------------------------------------------------
 -- | elim solves all of the KVars in a Cstr (assuming no cycles...)
@@ -807,7 +810,7 @@ sol1 :: F.Symbol -> Cstr a -> [([Bind a], [F.Expr])]
 sol1 k (CAnd cs) = sol1 k =<< cs
 sol1 k (All b c) = first (b :) <$> sol1 k c
 sol1 k (Head (Var k' ys) _) | k == k'
-  = [([], zipWith (F.PAtom F.Eq) (F.EVar <$> xs) (F.EVar <$> ys))]
+  = [([], zipWith (F.PAtom F.Eq) (F.EVar <$> xs) ys)]
   where xs = zipWith const (kargs k) ys
 sol1 _ (Head _ _) = []
 
@@ -827,9 +830,9 @@ doelim sym bss (All (Bind sym' sort' p l) cstr) =
     Right _ -> All (Bind sym' sort' p l) (doelim sym bss cstr)
     Left (kvars, preds) -> demorgan sym' sort' l kvars preds (doelim sym bss cstr) bss
   where
-    demorgan :: F.Symbol -> F.Sort -> a -> [(F.Symbol, [F.Symbol])] -> [Pred] -> Cstr a -> [([Bind a], [F.Expr])] -> Cstr a
+    demorgan :: F.Symbol -> F.Sort -> a -> [(F.Symbol, [F.Expr])] -> [Pred] -> Cstr a -> [([Bind a], [F.Expr])] -> Cstr a
     demorgan x t ann kvars preds cstr' bindExprs = mkAnd $ cubeSol <$> bindExprs
-      where su = F.Su $ M.fromList $ concatMap (\(k, xs) -> zip (kargs k) (F.EVar <$> xs)) kvars
+      where su = F.Su $ M.fromList $ concatMap (\(k, xs) -> zip (kargs k) xs) kvars
             mkAnd [c] = c
             mkAnd cs = CAnd cs
             cubeSol (b:bs, eqs) = All b $ cubeSol (bs, eqs)
@@ -841,7 +844,7 @@ doelim _ _ (Head p a) = Head p a
 
 -- If k is in the guard then returns a Left list of that k and the remaining preds in the guard
 -- If k is not in the guard returns a Right of the pred
-findKVarInGuard :: F.Symbol -> Pred -> Either ([(F.Symbol, [F.Symbol])], [Pred]) Pred
+findKVarInGuard :: F.Symbol -> Pred -> Either ([(F.Symbol, [F.Expr])], [Pred]) Pred
 findKVarInGuard k (PAnd ps) =
   if null lefts
     then Right (PAnd ps) -- kvar not found
