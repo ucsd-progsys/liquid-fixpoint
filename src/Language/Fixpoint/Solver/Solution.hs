@@ -528,18 +528,22 @@ extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
 -- >   ==
 -- > "exists y. (P && Q y)[x:=C]"
 --
-simplifyKVar :: F.Expr -> F.Expr
-simplifyKVar = F.conj . dedupByAlphaEq . floatPExistConjuncts . go
+-- The first parameter is the set of symbols that can appear free in the input
+-- expression. At the moment, this only needs to include the free variables that
+-- start with the @subst$@ prefix.
+--
+simplifyKVar :: S.HashSet F.Symbol -> F.Expr -> F.Expr
+simplifyKVar s0 = F.conj . dedupByAlphaEq s0 . floatPExistConjuncts . go s0
   where
-    go (F.POr es) = disj $ map (F.conj . floatPExistConjuncts . go) es
-    go (F.PAnd es) = F.conj $ dedupByAlphaEq $ concatMap (floatPExistConjuncts . go) es
-    go (F.PExist bs e0) =
-      let es = concatMap (floatPExistConjuncts . go) (F.conjuncts e0)
+    go s (F.POr es) = disj $ map (F.conj . floatPExistConjuncts . go s) es
+    go s (F.PAnd es) = F.conj $ dedupByAlphaEq S.empty $ concatMap (floatPExistConjuncts . go s) es
+    go s (F.PExist bs e0) =
+      let es = concatMap (floatPExistConjuncts . go (S.union s $ S.fromList $ map fst bs)) (F.conjuncts e0)
        in elimExistentialBinds (F.PExist bs (F.conj es))
-    go e = e
+    go _ e = e
 
-    dedupByAlphaEq :: [F.Expr] -> [F.Expr]
-    dedupByAlphaEq = List.nubBy (\e1 e2 -> alphaEq e1 e2)
+    dedupByAlphaEq :: S.HashSet F.Symbol -> [F.Expr] -> [F.Expr]
+    dedupByAlphaEq s = List.nubBy (\e1 e2 -> alphaEq s e1 e2)
 
     disj :: [F.Expr] -> F.Expr
     disj [] = F.PFalse
@@ -586,21 +590,28 @@ simplifyKVar = F.conj . dedupByAlphaEq . floatPExistConjuncts . go
 
 -- | Determine if two expressions are alpha-equivalent.
 --
+-- Takes as first parameter the set of variables that might appear free
+-- in the expressions to compare.
+--
 -- Doesn't handle all cases, just enough for simplifying KVars which requires
 -- alpha-equivalence checking of existentially quantified expressions.
-alphaEq :: F.Expr -> F.Expr -> Bool
-alphaEq = go (F.mkSubst [])
+alphaEq :: S.HashSet F.Symbol -> F.Expr -> F.Expr -> Bool
+alphaEq s0 = go s0 (F.mkSubst [])
   where
-    go :: F.Subst -> F.Expr -> F.Expr -> Bool
-    go su (F.PExist bs1 x1) (F.PExist bs2 x2) =
-      let su' = List.foldl' (\s (v1, v2) -> F.extendSubst s v1 (F.EVar v2)) su (zip (map fst bs1) (map fst bs2))
-       in go su' x1 x2
-    go su (F.PAnd es1) (F.PAnd es2) =
-      length es1 == length es2 && and (zipWith (go su) es1 es2)
-    go su (F.POr es1) (F.POr es2) =
-      length es1 == length es2 && and (zipWith (go su) es1 es2)
-    go su e1 e2 =
-      F.subst su e1 == e2
+    go :: S.HashSet F.Symbol -> F.Subst -> F.Expr -> F.Expr -> Bool
+    go s su (F.PExist bs1 x1) (F.PExist bs2 x2) =
+      let su' =
+            List.foldl'
+              (\su1 (v1, v2) -> F.extendSubst su1 v1 (F.EVar v2))
+              su
+              (zip (map fst bs1) (map fst bs2))
+       in go (S.union s (S.fromList $ map fst bs2)) su' x1 x2
+    go s su (F.PAnd es1) (F.PAnd es2) =
+      length es1 == length es2 && and (zipWith (go s su) es1 es2)
+    go s su (F.POr es1) (F.POr es2) =
+      length es1 == length es2 && and (zipWith (go s su) es1 es2)
+    go s su e1 e2 =
+      F.rapierSubstExpr s su e1 == e2
 
 -- | Determine if the expression is an equality that sets the value of
 -- a variable in the given set.
