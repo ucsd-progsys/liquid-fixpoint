@@ -295,8 +295,8 @@ extendSubst (Su m) x e = Su $ M.insert x e m
 disjoint :: Subst -> [(Symbol, Sort)] -> Bool
 disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
   where
-    suSyms = S.fromList $ syms (M.elems su) ++ syms (M.keys su)
-    bsSyms = S.fromList $ syms $ fst <$> bs
+    suSyms = S.fromList $ syms (M.elems su) ++ M.keys su
+    bsSyms = S.fromList $ fst <$> bs
 
 meetReft :: Reft -> Reft -> Reft
 meetReft (Reft (v, ra)) (Reft (v', ra'))
