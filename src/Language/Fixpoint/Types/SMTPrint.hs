@@ -38,7 +38,7 @@ instance ToHornSMT a => ToHornSMT [a] where
   toHornSMT = toHornMany . fmap toHornSMT
 
 toHornMany :: [P.Doc] -> P.Doc
-toHornMany = P.parens . P.sep 
+toHornMany = P.parens . P.sep
 
 toHornAnd :: (a -> P.Doc) -> [a] -> P.Doc
 toHornAnd f xs = P.parens (P.vcat ("and" : (P.nest 1 . f <$> xs)))
@@ -79,6 +79,7 @@ toHornSort t@(F.FAbs _ _) = toHornAbsApp t
 toHornSort t@(F.FFunc _ _)= toHornAbsApp t
 toHornSort (F.FTC c)      = toHornSMT c
 toHornSort t@(F.FApp _ _) = toHornFApp (F.unFApp t)
+toHornSort (F.FNatNum x)  = P.integer x
 
 toHornAbsApp :: F.Sort -> P.Doc
 toHornAbsApp (F.functionSort -> Just (vs, ss, s)) = P.parens ("func" P.<+> P.int (length vs) P.<+> toHornSMT ss P.<+> toHornSMT s )

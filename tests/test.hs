@@ -87,26 +87,27 @@ combineReporters _ _ = error "combineReporters needs TestReporters"
 unitTests :: FilePath -> IO TestTree
 unitTests lfDir
   = group "Unit" [
-      testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
-    , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"    ["float.fq"]   (ExitFailure 1)
-    , testGroup "elim-crash" <$> dirTests nativeCmd "tests/crash"  []             (ExitFailure 1)
-    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"    []             ExitSuccess
-    , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
-    , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
-    , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
-    , testGroup "cvc5-pos"   <$> dirTests cvc5Cmd   "tests/pos"    skipNativePos  ExitSuccess
-    , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
-    , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
-    , testGroup "horn-pos-el"      <$> dirTests elimSaveCmd   "tests/horn/pos"  []          ExitSuccess
-    , testGroup "horn-pos-cvc5"    <$> dirTests cvc5Cmd       "tests/horn/pos"  []          ExitSuccess
-    , testGroup "horn-neg-el"      <$> dirTests elimSaveCmd   "tests/horn/neg"  []          (ExitFailure 1)
-    , testGroup "horn-neg-cvc5"    <$> dirTests cvc5Cmd       "tests/horn/neg"  []          (ExitFailure 1)
-    , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd   "tests/horn/pos/.liquid"  []  ExitSuccess
-    , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd   "tests/horn/neg/.liquid"  []  (ExitFailure 1)
-    , testGroup "horn-smt2-pos-el" <$> dirHornTests elimCmd  "tests/horn/pos/.liquid"  []  ExitSuccess
-    , testGroup "horn-smt2-neg-el" <$> dirHornTests elimCmd  "tests/horn/neg/.liquid"  []  (ExitFailure 1)
-    , testGroup "horn-pos-na"      <$> dirTests nativeCmd     "tests/horn/pos"  []          ExitSuccess
-    , testGroup "horn-neg-na"      <$> dirTests nativeCmd     "tests/horn/neg"  []          (ExitFailure 1)
+      testGroup "native-pos"       <$> dirTests     nativeCmd   "tests/pos"              skipNativePos  ExitSuccess
+    , testGroup "native-neg"       <$> dirTests     nativeCmd   "tests/neg"              ["float.fq"]  (ExitFailure 1)
+    , testGroup "elim-crash"       <$> dirTests     nativeCmd   "tests/crash"            []            (ExitFailure 1)
+    , testGroup "elim-pos1"        <$> dirTests     elimCmd     "tests/pos"              []             ExitSuccess
+    , testGroup "elim-pos2"        <$> dirTests     elimCmd     "tests/elim"             []             ExitSuccess
+    , testGroup "elim-neg"         <$> dirTests     elimCmd     "tests/neg"              ["float.fq"]  (ExitFailure 1)
+    , testGroup "elim-crash"       <$> dirTests     elimCmd     "tests/crash"            []            (ExitFailure 1)
+    , testGroup "cvc5-pos"         <$> dirTests     cvc5Cmd     "tests/pos"              skipNativePos  ExitSuccess
+    , testGroup "cvc5-spec"        <$> dirTests     cvc5Cmd     "tests/cvc5"             skipNativePos  ExitSuccess
+    , testGroup "proof"            <$> dirTests     elimCmd     "tests/proof"            []             ExitSuccess
+    , testGroup "rankN"            <$> dirTests     elimCmd     "tests/rankNTypes"       []             ExitSuccess
+    , testGroup "horn-pos-el"      <$> dirTests     elimSaveCmd "tests/horn/pos"         []             ExitSuccess
+    , testGroup "horn-pos-cvc5"    <$> dirTests     cvc5Cmd     "tests/horn/pos"         []             ExitSuccess
+    , testGroup "horn-neg-el"      <$> dirTests     elimSaveCmd "tests/horn/neg"         []            (ExitFailure 1)
+    , testGroup "horn-neg-cvc5"    <$> dirTests     cvc5Cmd     "tests/horn/neg"         []            (ExitFailure 1)
+    , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd     "tests/horn/pos/.liquid" []             ExitSuccess
+    , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd     "tests/horn/neg/.liquid" []            (ExitFailure 1)
+    , testGroup "horn-smt2-pos-el" <$> dirHornTests elimCmd     "tests/horn/pos/.liquid" []             ExitSuccess
+    , testGroup "horn-smt2-neg-el" <$> dirHornTests elimCmd     "tests/horn/neg/.liquid" []            (ExitFailure 1)
+    , testGroup "horn-pos-na"      <$> dirTests     nativeCmd   "tests/horn/pos"         []             ExitSuccess
+    , testGroup "horn-neg-na"      <$> dirTests     nativeCmd   "tests/horn/neg"         []            (ExitFailure 1)
    ]
    where
     dirTests     = dirTests' isTest
