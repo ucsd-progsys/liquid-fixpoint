@@ -46,7 +46,7 @@ sanitize cfg =       banIrregularData
          >=> Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
-         >=> Misc.fM (dropDeadSubsts . restrictKVarDomain)
+         >=> Misc.fM (dropDeadSubsts . restrictKVarDomain cfg)
          >=>         banMixedRhs
          >=>         banQualifFreeVars cfg
          >=>         banConstraintFreeVars cfg
@@ -201,8 +201,10 @@ dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
 --   `x` which appear in substitutions of the form `K[x := y]` where `y`
 --   is not in the env.
 --------------------------------------------------------------------------------
-restrictKVarDomain :: F.SInfo a -> F.SInfo a
-restrictKVarDomain si = si { F.ws = M.mapWithKey (restrictWf kvm) (F.ws si) }
+restrictKVarDomain :: Config -> F.SInfo a -> F.SInfo a
+restrictKVarDomain cfg si
+  | Cfg.explicitKvars cfg = si
+  | otherwise         = si { F.ws = M.mapWithKey (restrictWf kvm) (F.ws si) }
   where
     kvm               = safeKvarEnv si
 
