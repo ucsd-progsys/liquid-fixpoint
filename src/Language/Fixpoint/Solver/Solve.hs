@@ -255,10 +255,11 @@ refineC
 ---------------------------------------------------------------------------
 refineC bindingsInSmt be _i s c =
   do let krhs = rhsCands s
+     cfg <- T.config <$> getContext
      if all (null . snd) krhs
         then return (False, s)
         else do
-          let lhs = S.lhsPred bindingsInSmt be s c
+          let lhs = S.lhsPred cfg bindingsInSmt be s c
           kqs <- forM krhs $ \(k, rhs) ->
             (,) k . Sol.QB <$> filterValid (cstrSpan c) lhs rhs
           return $ S.update s kqs
@@ -294,7 +295,7 @@ result bindingsInSmt cfg fi cs s =
     stat      <- result_ bindingsInSmt2 be cfg cs s
     lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     resCut    <- solResult cfg s
-    let resNonCut = S.nonCutsResult be s
+    let resNonCut = S.nonCutsResult cfg be s
         resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
     return     $ F.Result (ci <$> stat) resCut resNonCut resSorts
   where
@@ -377,7 +378,8 @@ isUnsat
 isUnsat bindingsInSmt be s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
-  let lp = S.lhsPred bindingsInSmt be s c
+  cfg <- T.config <$> getContext
+  let lp = S.lhsPred cfg bindingsInSmt be s c
       rp = rhsPred c
   res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp

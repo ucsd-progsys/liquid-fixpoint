@@ -116,6 +116,7 @@ data Config = Config
   , restOrdering        :: String      -- ^ Term ordering for use in REST
   , noSmtHorn           :: Bool        -- ^ Do not use (new) SMTLIB horn parser
   , noStringTheory :: Bool             -- ^ disable interpretation of string theory by SMT
+  , explicitKvars  :: Bool             -- ^ use explicitly declared kvars (horn style) which disables several "defensive simplifications"
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -282,6 +283,7 @@ defConfig = Config {
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
   , restOrdering             = "rpo"   &= help "Ordering Constraint Algebra to use for REST"
   , noSmtHorn                = False &= help "Do not use SMTLIB horn format"
+  , explicitKvars            = False &= help "Use explicitly declared kvars (horn style) which disables several defensive simplifications"
   }
   &= verbosity
   &= program "fixpoint"

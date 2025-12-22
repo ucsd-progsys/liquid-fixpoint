@@ -312,7 +312,8 @@ withAssms
   -> SmtM b
 withAssms env ctx delta cidMb mCTrie act = do
   sctx <- get
-  let (ictx', bs) = updCtx env sctx ctx delta cidMb mCTrie
+  let cfg = SMT.config sctx
+  let (ictx', bs) = updCtx cfg env sctx ctx delta cidMb mCTrie
   let assms = icAssms ictx'
 
   SMT.smtBracket "PLE.withAssms" $ do
@@ -516,14 +517,15 @@ updRes res  Nothing _ = res
 
 updCtx
   :: Loc a
-  => InstEnv a
+  => Config
+  ->InstEnv a
   -> SMT.Context
   -> ICtx
   -> Diff
   -> Maybe SubcId
   -> Maybe CTrie
   -> (ICtx, [(Symbol, Sort)])
-updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
+updCtx cfg InstEnv{..} ieSMT ictx delta cidMb mCTrie =
     ( ictx { icAssms  = S.fromList ctxEqs
            , icCands  = M.unionWith S.union candsPerExScope (icCands ictx)
            , icSimpl  = icSimpl ictx <> econsts
@@ -578,7 +580,7 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
 
     maybeApplyKVarSolutions xsr =
       case ieSol of
-        Just sol -> applyInSortedReft g sol xsr
+        Just sol -> applyInSortedReft cfg g sol xsr
         Nothing  -> xsr
       where
         gCid = case collectConstraints <$> mCTrie of
