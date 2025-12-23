@@ -147,6 +147,8 @@ piDefConstr k c = ((head syms, head formalSyms), defCStr)
       (ns, formals, Just defC) -> (ns, formals, defC)
       (_, _, Nothing) -> error $ "pi variable " <> F.showpp k <> " has no defining constraint."
 
+    -- TODO: generalize the `expectVar` business below to handle arbitrary expressions
+    -- https://github.com/ucsd-progsys/liquid-fixpoint/pull/818#discussion_r2643206366
     go :: Cstr a -> ([F.Symbol], [[F.Symbol]], Maybe (Cstr a))
     go (CAnd cs) = (\(as, bs, mcs) -> (concat as, concat bs, cAndMaybes mcs)) $ unzip3 $ go <$> cs
     go (All b@(Bind n _ (Var k' xs) _) c')
