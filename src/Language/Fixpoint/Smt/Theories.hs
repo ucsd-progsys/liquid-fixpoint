@@ -363,7 +363,7 @@ smt2App _ ex@(dropECst -> EVar f) [d]
     getTarget :: SymEnv -> Expr -> Builder
     -- const is a function, but SMT expects only the output sort
     getTarget env (ECst _ t) = smt2SmtSort $ sortSmtSort True (seData env) (ffuncOut t)
-    getTarget _ e = bShow (tracepp "getTarget" e)
+    getTarget _ e = bShow e
 
 smt2App k ex (builder:builders) =
   do a <- smt2AppArg k ex
@@ -373,7 +373,7 @@ smt2App _ _ [] = pure Nothing
 smt2AppArg :: VarAs -> Expr -> SymM (Maybe Builder)
 smt2AppArg k (ECst (dropECst -> EVar f) t)
   = do env <- get
-       case notracepp ("smt2AppArg: " ++ showpp f) $ symEnvTheory f env of
+       case symEnvTheory f env of
          Just fThy -> if isPolyCtor fThy t
                            then Just <$> k f (ffuncOut t)
                            else pure $ Just $ fromText (tsRaw fThy)

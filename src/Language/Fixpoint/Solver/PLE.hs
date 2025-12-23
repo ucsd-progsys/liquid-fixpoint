@@ -518,7 +518,7 @@ updRes res  Nothing _ = res
 updCtx
   :: Loc a
   => Config
-  ->InstEnv a
+  -> InstEnv a
   -> SMT.Context
   -> ICtx
   -> Diff

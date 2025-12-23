@@ -756,6 +756,9 @@ elab !_ e@(ECon (R _)) =
 elab !_ e@(ECon (L _ !s)) =
   return (e, s)
 
+-- TODO: the guard below is because some LH tests generate PKVar with ill-sorted substitutions.
+-- However, a cleaner solution could be to modify `Sanitize.restrictKVarDomain` to simply
+-- those ill-sorted substitutions right up at the outset.
 elab !f e@(PKVar k (Su m)) = do
   expKvars <- asks (elabExplicitKvars . chElabF)
   if expKvars

@@ -14,7 +14,7 @@ module Language.Fixpoint.Types.Config (
 
   -- * SMT Solver options
   , SMTSolver (..)
-  , solverFlags
+  , solverFlags, mkElabFlags
   , ElabFlags (..)
 
   -- REST Options
@@ -152,13 +152,15 @@ data SMTSolver = Z3 | Z3mem | Cvc4 | Cvc5 | Mathsat
 
 data ElabFlags = ElabFlags { elabSetBag :: Bool, elabExplicitKvars :: Bool }
 
-solverFlags :: Config -> ElabFlags
-solverFlags cfg = ElabFlags setBag (explicitKvars cfg)
+mkElabFlags :: SMTSolver -> Bool -> ElabFlags
+mkElabFlags slv expKvars = ElabFlags (setBag slv) expKvars
   where
-    setBag = case solver cfg of
-                 Z3    -> True
-                 Z3mem -> True
-                 _     -> False
+    setBag Z3    = True
+    setBag Z3mem = True
+    setBag _     = False
+
+solverFlags :: Config -> ElabFlags
+solverFlags cfg = mkElabFlags (solver cfg) (explicitKvars cfg)
 
 instance Default SMTSolver where
   def = if Conditional.Z3.builtWithZ3AsALibrary then Z3mem else Z3
