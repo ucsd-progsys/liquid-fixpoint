@@ -246,7 +246,7 @@ simplifyFInfo !cfg !fi0 = do
   -- writeLoud $ "fq file after defunc: \n" ++ render (toFixpoint cfg si4)
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
-  let ef = solverFlags (solver cfg)
+  let ef = solverFlags cfg
       elabParam = ElabParam
                      ef
                      (atLoc dummySpan "solver")
@@ -325,5 +325,5 @@ simplifyResult cfg res =
       }
   where
     simplifyKVar' = unElabSets . unElab . Sol.simplifyKVar
-    sets          = elabSetBag . solverFlags . solver $ cfg
+    sets          = elabSetBag . solverFlags $ cfg
     unElabSets    = if sets then unElabFSetBagZ3 else id

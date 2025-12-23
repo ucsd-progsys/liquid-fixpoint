@@ -312,7 +312,7 @@ makeProcess ctxLog cfg
 
 makeContext' :: Config -> Maybe Handle -> IO Context
 makeContext' cfg ctxLog
-  = do let slv = Misc.traceShow "makeContext'" $ solver cfg
+  = do let slv = solver cfg
        (backend, closeIO) <- case slv of
          Z3      ->
            {- "z3 -smt2 -in"                   -}
@@ -336,7 +336,7 @@ makeContext' cfg ctxLog
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver    = solver
-                  , ctxElabF     = solverFlags slv
+                  , ctxElabF     = solverFlags cfg
                   , ctxClose     = closeIO
                   , ctxLog       = ctxLog
                   , ctxVerbose   = loud

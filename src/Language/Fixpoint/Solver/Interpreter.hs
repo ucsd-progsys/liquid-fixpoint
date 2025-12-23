@@ -182,7 +182,7 @@ resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> BindEnv a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
-    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
+    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 

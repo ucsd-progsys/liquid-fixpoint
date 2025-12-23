@@ -115,7 +115,7 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
   where
     equalitiesPerConstraint (cid, c) =
       (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i res] ])
-    elabParam = ElabParam (solverFlags $ solver cfg) "savePLEEqualities" sEnv
+    elabParam = ElabParam (solverFlags cfg) "savePLEEqualities" sEnv
     renderConstraintRewrite (cid, eqs) =
       "constraint id" <+> text (show cid ++ ":")
       $+$ nest 2
@@ -184,7 +184,7 @@ instEnv cfg info s cs restSolver = do
        , ieSol  = s
        }
   where
-    ef = solverFlags $ solver cfg
+    ef = solverFlags cfg
 
     cachedNotStrongerThan refRESTCache oc a b = do
       m <- readIORef refRESTCache
@@ -435,7 +435,7 @@ resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> BindEnv a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
-    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
+    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 

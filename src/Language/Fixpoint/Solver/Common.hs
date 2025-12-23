@@ -3,7 +3,7 @@
 module Language.Fixpoint.Solver.Common (askSMT, toSMT) where
 
 import Control.Monad.State
-import Language.Fixpoint.Types.Config (Config, solver, solverFlags)
+import Language.Fixpoint.Types.Config (Config, solverFlags)
 import Language.Fixpoint.Smt.Interface (Context(..), checkValidWithContext)
 import Language.Fixpoint.Smt.Types (SmtM)
 import Language.Fixpoint.Types
@@ -33,7 +33,7 @@ askSMT cfg bsInSMT xs e
 toSMT :: HasCallStack => String -> Config -> Context -> [(Symbol, Sort)] -> Expr -> Pred
 toSMT msg cfg ctx xs e =
     defuncAny cfg symenv .
-        elaborate (ElabParam (solverFlags $ solver cfg) (dummyLoc msg) (elabEnv xs)) .
+        elaborate (ElabParam (solverFlags cfg) (dummyLoc msg) (elabEnv xs)) .
             mytracepp ("toSMT from " ++ msg ++ " > " ++ showpp e) $
                 e
   where

@@ -95,6 +95,7 @@ import           Text.Printf
 import           GHC.Stack
 import qualified Language.Fixpoint.Types as F
 import           System.IO.Unsafe (unsafePerformIO)
+import Language.Fixpoint.Types.Config (ElabFlags(elabExplicitKvars))
 
 --import Debug.Trace as Debug
 
@@ -593,7 +594,7 @@ varCounterRef = unsafePerformIO $ newIORef 42
 runCM0 :: SrcSpan -> Maybe Cfg.ElabFlags -> CheckM a -> Either ChError a
 runCM0 sp mef act = unsafePerformIO $ do
   ref <- newIORef Nothing
-  try (runReaderT act (ChS varCounterRef sp (fromMaybe (Cfg.ElabFlags False) mef) ref))
+  try (runReaderT act (ChS varCounterRef sp (fromMaybe (Cfg.ElabFlags False False) mef) ref))
 
 fresh :: CheckM Int
 fresh = do
@@ -755,12 +756,16 @@ elab !_ e@(ECon (R _)) =
 elab !_ e@(ECon (L _ !s)) =
   return (e, s)
 
-elab !f (PKVar k (Su m)) = do
-  xargs' <- forM (HashMap.toList m) $ \(x, arg) -> do
-    (arg', _) <- elab f arg
-    return (x, arg')
-
-  return (PKVar k (Su (HashMap.fromList xargs')), boolSort)
+elab !f e@(PKVar k (Su m)) = do
+  expKvars <- asks (elabExplicitKvars . chElabF)
+  if expKvars
+    then do
+      xargs' <- forM (HashMap.toList m) $ \(x, arg) -> do
+        (arg', _) <- elab f arg
+        return (x, arg')
+      return (PKVar k (Su (HashMap.fromList xargs')), boolSort)
+    else
+      return (e, boolSort)
 
 elab (!_, !f) e@(EVar !x) = do
   !cs <- checkSym f x

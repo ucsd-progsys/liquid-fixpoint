@@ -50,7 +50,7 @@ import           Prelude                              hiding (init, lookup)
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> M.HashMap F.KVar Sol.QBind
 --------------------------------------------------------------------------------
 init cfg si ks =
-    runReader (traverse (refine si qcs genv) ws) (solverFlags $ solver cfg)
+    runReader (traverse (refine si qcs genv) ws) (solverFlags cfg)
   where
     qcs = mkQCluster (F.quals si)
     ws = M.intersection (F.ws si) (S.toMap ks)
