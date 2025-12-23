@@ -264,7 +264,7 @@ lhsPred cfg bindingsInSmt be s c =
     g          = CEnv ci be bs (F.srcSpan c) bindingsInSmt
     bs         = F.senv c
     ci         = sid c
-    _msg       = "LhsPred for id = " ++ show (sid c) ++ " with SOLUTION = " ++ F.showpp s
+    _msg       = "LhsPred for id = " ++ show (sid c) -- ++ " with SOLUTION = " ++ F.showpp s
 
 data CombinedEnv a = CEnv
   { ceCid  :: !Cid
@@ -364,8 +364,8 @@ nonCutsResult cfg be s = M.mapWithKey (\k -> Delayed . mkNonCutsExpr cfg g s k) 
 
 bareCubePred :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Cube -> F.Expr
 bareCubePred cfg g s k c =
-    let psu = F.pAnd [ F.EEq (F.expr x) e | (x, e) <- M.toList m ]
-        (p, _kI) = apply cfg g' s bs'
+    let psu = F.pAnd [ F.EEq (F.expr x) (F.notracepp "bareCubePred" e) | (x, e) <- M.toList m ]
+        (p, _kI) = apply cfg g' s bs
      in F.pExist yts (p F.&.& psu)
   where
     bs = Sol.cuBinds c
@@ -377,6 +377,9 @@ bareCubePred cfg g s k c =
 -- | At the moment, the liquid-fixpoint implementation allows for unsorted
 -- expressions in substitutions. See the discussion in
 -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/800
+-- The `explicitKvars` flag is meant for Horn-style constraints, which must
+-- have well-formed (expressions) as arguments, and so we *disable* the
+-- filtering of unsorted expressions when that flag is set.
 dropUnsortedExprs :: Config -> CombinedEnv ann -> F.Subst -> F.Subst
 dropUnsortedExprs cfg g su@(F.Su m)
   | explicitKvars cfg = su

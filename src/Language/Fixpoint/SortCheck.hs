@@ -82,7 +82,7 @@ import qualified Data.HashSet              as S
 import           Data.IORef
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe, isJust)
-
+import qualified Data.HashMap.Strict       as HashMap
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst, GInfo(..), senv)
@@ -285,6 +285,7 @@ elabFMap (PAtom r e1 e2)   = PAtom r (elabFMap e1) (elabFMap e2)
 elabFMap (PAll   bs e)     = PAll bs (elabFMap e)
 elabFMap (PExist bs e)     = PExist bs (elabFMap e)
 elabFMap (ECoerc a t e)    = ECoerc a t (elabFMap e)
+elabFMap (PKVar k (Su m))  = PKVar k (Su (elabFMap <$> m))
 elabFMap e                 = e
 
 
@@ -331,6 +332,7 @@ elabFSetBagZ3 = go
     go (PAll   bs e)      = PAll bs (go e)
     go (PExist bs e)      = PExist bs (go e)
     go (ECoerc a t e)     = ECoerc a t (go e)
+    go (PKVar k (Su m))   = PKVar k (Su (go <$> m))
     go e                  = e
 
 -- | Reverse transformation of elabFSetBagZ3: converts array representations back to set/bag operations
@@ -409,6 +411,7 @@ unElabFSetBagZ3 = go
     go (PAll   bs e)      = PAll bs (go e)
     go (PExist bs e)      = PExist bs (go e)
     go (ECoerc a t e)     = ECoerc a t (go e)
+    go (PKVar k (Su m))   = PKVar k (Su (go <$> m))
     go e                  = e
 
 
@@ -431,6 +434,7 @@ elabSorts ef (PAtom r e1 e2)   = PAtom r (elabSorts ef e1) (elabSorts ef e2)
 elabSorts ef (PAll   bs e)     = PAll bs (elabSorts ef e)
 elabSorts ef (PExist bs e)     = PExist bs (elabSorts ef e)
 elabSorts ef (ECoerc s1 s2 e)  = ECoerc (coerceSort ef s1) (coerceSort ef s2) (elabSorts ef e)
+elabSorts ef (PKVar k (Su m))  = PKVar k (Su (elabSorts ef <$> m))
 elabSorts _ e                 = e
 
 --------------------------------------------------------------------------------
@@ -497,7 +501,7 @@ elabApply env = go
     step e@EApp {}        = go e
     step (ELam b e)       = ELam b       (go e)
     step (ECoerc a t e)   = ECoerc a t   (go e)
-    step e@PKVar{}        = e
+    step (PKVar k (Su m)) = PKVar k (Su (go <$> m))
     step e@ESym{}         = e
     step e@ECon{}         = e
     step e@EVar{}         = e
@@ -751,8 +755,12 @@ elab !_ e@(ECon (R _)) =
 elab !_ e@(ECon (L _ !s)) =
   return (e, s)
 
-elab !_ e@(PKVar _ _) =
-  return (e, boolSort)
+elab !f (PKVar k (Su m)) = do
+  xargs' <- forM (HashMap.toList m) $ \(x, arg) -> do
+    (arg', _) <- elab f arg
+    return (x, arg')
+
+  return (PKVar k (Su (HashMap.fromList xargs')), boolSort)
 
 elab (!_, !f) e@(EVar !x) = do
   !cs <- checkSym f x

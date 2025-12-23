@@ -221,7 +221,7 @@ loudDump i cfg si = when False (writeLoud $ msg ++ PJ.render (toFixpoint cfg si)
 
 {-# SCC simplifyFInfo #-}
 simplifyFInfo :: (NFData a, Fixpoint a, Show a, Loc a)
-               => Config -> FInfo a -> IO (SInfo a)
+               => Config -> FInfo a -> IO (ElabParam, SInfo a)
 simplifyFInfo !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
@@ -247,17 +247,15 @@ simplifyFInfo !cfg !fi0 = do
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
   let ef = solverFlags (solver cfg)
-      si5  = {- SCC "elaborate" -}
-             elaborate
-               (ElabParam
-                  ef
-                  (atLoc dummySpan "solver")
-                  (coerceEnv ef (symbolEnv cfg si4)))
-               si4
+      elabParam = ElabParam
+                     ef
+                     (atLoc dummySpan "solver")
+                     (coerceEnv ef (symbolEnv cfg si4))
+      si5  = elaborate elabParam si4
   -- writeLoud $ "fq file after elaborate: \n" ++ render (toFixpoint cfg si5)
   loudDump 3 cfg si5
   let si6 = if extensionality cfg then {- SCC "expand" -} expand cfg si5 else si5
-  return si6
+  return (elabParam, si6){- SCC "elaborate" -}
 
 reduceFInfo :: Fixpoint a => Config -> FInfo a -> IO (FInfo a)
 reduceFInfo cfg fi = do
@@ -271,8 +269,8 @@ reduceFInfo cfg fi = do
     return reducedFi
 
 solveNative' !cfg !fi0 = do
-  si6 <- simplifyFInfo cfg fi0
-  res0 <- {- SCC "Sol.solve" -} Sol.solve cfg $!! si6
+  (elabParam, si6) <- simplifyFInfo cfg fi0
+  res0 <- {- SCC "Sol.solve" -} Sol.solve cfg elabParam $!! si6
   let res = simplifyResult cfg res0
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
@@ -329,4 +327,3 @@ simplifyResult cfg res =
     simplifyKVar' = unElabSets . unElab . Sol.simplifyKVar
     sets          = elabSetBag . solverFlags . solver $ cfg
     unElabSets    = if sets then unElabFSetBagZ3 else id
-

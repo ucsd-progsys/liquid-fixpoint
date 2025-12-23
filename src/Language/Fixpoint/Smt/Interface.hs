@@ -312,7 +312,7 @@ makeProcess ctxLog cfg
 
 makeContext' :: Config -> Maybe Handle -> IO Context
 makeContext' cfg ctxLog
-  = do let slv = solver cfg
+  = do let slv = Misc.traceShow "makeContext'" $ solver cfg
        (backend, closeIO) <- case slv of
          Z3      ->
            {- "z3 -smt2 -in"                   -}

@@ -55,6 +55,7 @@ import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
 import           Data.Maybe (catMaybes)
 import           Control.Exception.Base (bracket)
+import Language.Fixpoint.SortCheck (ElabParam)
 
 --------------------------------------------------------------------------------
 -- | Solver Monadic API --------------------------------------------------------
@@ -65,6 +66,7 @@ type SolveM ann = StateT (SolverState ann) IO
 data SolverState ann = SS
   { ssCtx     :: !Context         -- ^ SMT Solver Context
   , ssStats   :: !Stats           -- ^ Solver Statistics
+  , ssElabParam :: !ElabParam      -- ^ Elaboration Parameters
   }
 
 stats0    :: F.GInfo c b -> Stats
@@ -73,14 +75,14 @@ stats0 fi = Stats nCs 0 0 0 0
     nCs   = M.size $ F.cm fi
 
 --------------------------------------------------------------------------------
-runSolverM :: Config -> SolverInfo ann -> SolveM ann a -> IO a
+runSolverM :: Config -> SolverInfo ann -> ElabParam -> SolveM ann a -> IO a
 --------------------------------------------------------------------------------
-runSolverM cfg sI act =
+runSolverM cfg sI elabParam act =
   bracket acquire release $ \ctx -> do
     res <- runStateT act' (s0 ctx)
     return (fst res)
   where
-    s0 ctx   = SS ctx (stats0 fi)
+    s0 ctx   = SS ctx (stats0 fi) elabParam
     act'     = assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv (F.defns fi)
