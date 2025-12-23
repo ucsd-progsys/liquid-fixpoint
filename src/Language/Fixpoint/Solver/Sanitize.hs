@@ -204,9 +204,9 @@ dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
 restrictKVarDomain :: Config -> F.SInfo a -> F.SInfo a
 restrictKVarDomain cfg si
   | Cfg.explicitKvars cfg = si
-  | otherwise         = si { F.ws = M.mapWithKey (restrictWf kvm) (F.ws si) }
+  | otherwise             = si { F.ws = M.mapWithKey (restrictWf kvm) (F.ws si) }
   where
-    kvm               = safeKvarEnv si
+    kvm                   = safeKvarEnv si
 
 -- | `restrictWf kve k w` restricts the env of `w` to the parameters in `kve k`.
 restrictWf :: KvDom -> F.KVar -> F.WfC a -> F.WfC a
@@ -216,19 +216,20 @@ restrictWf kve k w = w { F.wenv = F.filterIBindEnv f (F.wenv w) }
     kis            = S.fromList [ i | (_, i) <- F.toListSEnv kEnv ]
     kEnv           = M.lookupDefault mempty k kve
 
+type KvDom     = M.HashMap F.KVar (F.SEnv F.BindId)
+type KvBads    = M.HashMap F.KVar [F.Symbol]
+
 -- | `safeKvarEnv` computes the "real" domain of each kvar, which is
 --   a SUBSET of the input domain, in which we KILL the parameters
 --   `x` which appear in substitutions of the form `K[x := y]`
 --   where `y` is not in the env.
-
-type KvDom     = M.HashMap F.KVar (F.SEnv F.BindId)
-type KvBads    = M.HashMap F.KVar [F.Symbol]
 
 safeKvarEnv :: F.SInfo a -> KvDom
 safeKvarEnv si = L.foldl' (dropKvarEnv si) env0 cs
   where
     cs         = M.elems  (F.cm si)
     env0       = initKvarEnv si
+
 
 dropKvarEnv :: F.SInfo a -> KvDom -> F.SimpC a -> KvDom
 dropKvarEnv si kve c = M.mapWithKey (dropBadParams kBads) kve
