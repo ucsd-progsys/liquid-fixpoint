@@ -67,7 +67,7 @@ data Var a = HVar
 -------------------------------------------------------------------------------
 data Pred
   = Reft  !F.Expr                               -- ^ r
-  | Var   !F.Symbol ![F.Symbol]                 -- ^ $k(y1..yn)
+  | Var   !F.Symbol ![F.Expr]                   -- ^ $k(y1..yn)
   | PAnd  ![Pred]                               -- ^ p1 /\ .../\ pn
   deriving (Data, Typeable, Generic, Eq, ToJSON, FromJSON)
 
@@ -80,7 +80,7 @@ instance F.ToHornSMT Pred where
 
 instance F.Subable Pred where
   syms (Reft e)   = F.syms e
-  syms (Var _ xs) = xs
+  syms (Var _ xs) = concatMap F.syms xs
   syms (PAnd ps)  = concatMap F.syms ps
 
   substa f (Reft e)   = Reft  (F.substa f      e)
@@ -299,7 +299,7 @@ instance Show (Var a) where
 
 instance Show Pred where
   show (Reft p)   = parens $ F.showpp p
-  show (Var x xs) = parens $ "$" ++ unwords (F.symbolString <$> x:xs)
+  show (Var x xs) = parens $ "$" ++ unwords (F.symbolString x : (parens . F.showpp <$> xs))
   show (PAnd ps)  = parens $ unwords $ "and": map show ps
 
 instance Show (Cstr a) where
@@ -315,7 +315,7 @@ instance F.PPrint (Var a) where
 
 instance F.PPrint Pred where
   pprintPrec k t (Reft p)   = P.parens $ F.pprintPrec k t p
-  pprintPrec _ _ (Var x xs) = P.parens $ P.ptext "$" <> P.hsep (P.ptext . F.symbolString <$> x:xs)
+  pprintPrec k t (Var x xs) = P.parens $ P.ptext "$" <> P.hsep (P.ptext (F.symbolString x) : (P.parens. F.pprintPrec k t <$> xs))
   pprintPrec k t (PAnd ps)  = P.parens $ P.vcat $ P.ptext "and" : map (F.pprintPrec (k+2) t) ps
 
 instance F.PPrint (Cstr a) where

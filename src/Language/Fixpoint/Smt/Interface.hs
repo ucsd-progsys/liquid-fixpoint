@@ -336,7 +336,7 @@ makeContext' cfg ctxLog
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
        return Ctx { ctxSolver    = solver
-                  , ctxElabF     = solverFlags slv
+                  , ctxElabF     = solverFlags cfg
                   , ctxClose     = closeIO
                   , ctxLog       = ctxLog
                   , ctxVerbose   = loud

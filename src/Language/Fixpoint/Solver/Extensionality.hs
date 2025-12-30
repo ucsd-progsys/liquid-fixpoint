@@ -24,7 +24,7 @@ mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
 expand :: Config -> SInfo a -> SInfo a
-expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si) (solverFlags $ solver cfg)
+expand cfg si = evalState (ext si) $ initST (symbolEnv cfg si) (ddecls si) (solverFlags cfg)
   where
     ext :: SInfo a -> Ex a (SInfo a)
     ext = extend

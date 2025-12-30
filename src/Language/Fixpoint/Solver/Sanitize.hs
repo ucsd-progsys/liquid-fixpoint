@@ -46,7 +46,7 @@ sanitize cfg =       banIrregularData
          >=> Misc.fM dropFuncSortedShadowedBinders
          >=> Misc.fM sanitizeWfC
          >=> Misc.fM replaceDeadKvars
-         >=> Misc.fM (dropDeadSubsts . restrictKVarDomain)
+         >=> Misc.fM (dropDeadSubsts . restrictKVarDomain cfg)
          >=>         banMixedRhs
          >=>         banQualifFreeVars cfg
          >=>         banConstraintFreeVars cfg
@@ -201,10 +201,12 @@ dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
 --   `x` which appear in substitutions of the form `K[x := y]` where `y`
 --   is not in the env.
 --------------------------------------------------------------------------------
-restrictKVarDomain :: F.SInfo a -> F.SInfo a
-restrictKVarDomain si = si { F.ws = M.mapWithKey (restrictWf kvm) (F.ws si) }
+restrictKVarDomain :: Config -> F.SInfo a -> F.SInfo a
+restrictKVarDomain cfg si
+  | Cfg.explicitKvars cfg = si
+  | otherwise             = si { F.ws = M.mapWithKey (restrictWf kvm) (F.ws si) }
   where
-    kvm               = safeKvarEnv si
+    kvm                   = safeKvarEnv si
 
 -- | `restrictWf kve k w` restricts the env of `w` to the parameters in `kve k`.
 restrictWf :: KvDom -> F.KVar -> F.WfC a -> F.WfC a
@@ -214,19 +216,20 @@ restrictWf kve k w = w { F.wenv = F.filterIBindEnv f (F.wenv w) }
     kis            = S.fromList [ i | (_, i) <- F.toListSEnv kEnv ]
     kEnv           = M.lookupDefault mempty k kve
 
+type KvDom     = M.HashMap F.KVar (F.SEnv F.BindId)
+type KvBads    = M.HashMap F.KVar [F.Symbol]
+
 -- | `safeKvarEnv` computes the "real" domain of each kvar, which is
 --   a SUBSET of the input domain, in which we KILL the parameters
 --   `x` which appear in substitutions of the form `K[x := y]`
 --   where `y` is not in the env.
-
-type KvDom     = M.HashMap F.KVar (F.SEnv F.BindId)
-type KvBads    = M.HashMap F.KVar [F.Symbol]
 
 safeKvarEnv :: F.SInfo a -> KvDom
 safeKvarEnv si = L.foldl' (dropKvarEnv si) env0 cs
   where
     cs         = M.elems  (F.cm si)
     env0       = initKvarEnv si
+
 
 dropKvarEnv :: F.SInfo a -> KvDom -> F.SimpC a -> KvDom
 dropKvarEnv si kve c = M.mapWithKey (dropBadParams kBads) kve
@@ -367,8 +370,7 @@ symbolEnv cfg si = F.symEnv sEnv thyEnv ds lits (ts ++ ts')
     ds           = F.ddecls si
     ts           = Misc.setNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
     sEnv         = F.coerceSortEnv ef $ (F.tsSort <$> thyEnv) `mappend` F.fromListSEnv xts
-    slv          = Cfg.solver cfg
-    ef           = solverFlags slv
+    ef           = solverFlags cfg
     xts          = symbolSorts cfg si ++ alits
     lits         = F.dLits si `F.unionSEnv'` F.fromListSEnv alits
     alits        = litsAEnv $ F.ae si

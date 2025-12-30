@@ -97,7 +97,7 @@ hPredP :: Parser H.Pred
 -------------------------------------------------------------------------------
 hPredP = parens body
   where
-    body =  H.Var  <$> kvSymP                           <*> some symbolP
+    body =  H.Var  <$> kvSymP                           <*> some predP
         <|> H.PAnd <$> (reserved "and" *> some hPredP)
         <|> H.Reft <$> predP
 

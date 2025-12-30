@@ -359,7 +359,7 @@ mapExprOnExpr f = go
       ETAbs e s ->
         let !e' = go e
         in ETAbs e' s
-      e@PKVar{} -> e
+      PKVar k (Su m) -> PKVar k (Su (go <$>m))
       e@EVar{} -> e
       e@ESym{} -> e
       e@ECon{} -> e

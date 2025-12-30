@@ -30,9 +30,9 @@ import qualified Data.Aeson as Aeson
 ----------------------------------------------------------------------------------
 solveHorn :: F.Config -> IO ExitCode
 ----------------------------------------------------------------------------------
-solveHorn baseCfg = do
-  q <- parseQuery baseCfg
-
+solveHorn baseCfg0 = do
+  q <- parseQuery baseCfg0
+  let baseCfg = baseCfg0 { F.explicitKvars = True }
   -- If you want to set --eliminate=none, you better make it a pragma
   let cfgElim = if F.eliminate baseCfg == F.None
                   then baseCfg { F.eliminate =  F.Some }

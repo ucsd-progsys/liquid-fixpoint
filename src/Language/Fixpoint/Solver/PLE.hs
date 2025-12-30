@@ -115,7 +115,7 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
   where
     equalitiesPerConstraint (cid, c) =
       (cid, L.sort [ e | i <- elemsIBindEnv (senv c), Just e <- [M.lookup i res] ])
-    elabParam = ElabParam (solverFlags $ solver cfg) "savePLEEqualities" sEnv
+    elabParam = ElabParam (solverFlags cfg) "savePLEEqualities" sEnv
     renderConstraintRewrite (cid, eqs) =
       "constraint id" <+> text (show cid ++ ":")
       $+$ nest 2
@@ -184,7 +184,7 @@ instEnv cfg info s cs restSolver = do
        , ieSol  = s
        }
   where
-    ef = solverFlags $ solver cfg
+    ef = solverFlags cfg
 
     cachedNotStrongerThan refRESTCache oc a b = do
       m <- readIORef refRESTCache
@@ -312,7 +312,8 @@ withAssms
   -> SmtM b
 withAssms env ctx delta cidMb mCTrie act = do
   sctx <- get
-  let (ictx', bs) = updCtx env sctx ctx delta cidMb mCTrie
+  let cfg = SMT.config sctx
+  let (ictx', bs) = updCtx cfg env sctx ctx delta cidMb mCTrie
   let assms = icAssms ictx'
 
   SMT.smtBracket "PLE.withAssms" $ do
@@ -434,7 +435,7 @@ resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> BindEnv a
 resSInfo cfg env info res = strengthenBinds info res'
   where
     res'     = M.fromList $ zip is ps''
-    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags $ solver cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
+    ps''     = zipWith (\i -> elaborate (ElabParam (solverFlags cfg) (atLoc dummySpan ("PLE1 " ++ show i)) env)) is ps'
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 
@@ -516,14 +517,15 @@ updRes res  Nothing _ = res
 
 updCtx
   :: Loc a
-  => InstEnv a
+  => Config
+  -> InstEnv a
   -> SMT.Context
   -> ICtx
   -> Diff
   -> Maybe SubcId
   -> Maybe CTrie
   -> (ICtx, [(Symbol, Sort)])
-updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
+updCtx cfg InstEnv{..} ieSMT ictx delta cidMb mCTrie =
     ( ictx { icAssms  = S.fromList ctxEqs
            , icCands  = M.unionWith S.union candsPerExScope (icCands ictx)
            , icSimpl  = icSimpl ictx <> econsts
@@ -578,7 +580,7 @@ updCtx InstEnv{..} ieSMT ictx delta cidMb mCTrie =
 
     maybeApplyKVarSolutions xsr =
       case ieSol of
-        Just sol -> applyInSortedReft g sol xsr
+        Just sol -> applyInSortedReft cfg g sol xsr
         Nothing  -> xsr
       where
         gCid = case collectConstraints <$> mCTrie of
