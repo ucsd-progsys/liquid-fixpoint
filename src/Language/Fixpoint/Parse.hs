@@ -1019,6 +1019,7 @@ lamP
        t <- sortP
        reservedOp "->"
        ELam (x, t) <$> exprP
+      <?> "lambda abstraction"
 
 varSortP :: ParserV v Sort
 varSortP  = FVar  <$> parens (fromInteger <$> integerP)
