@@ -1021,7 +1021,7 @@ lamP
        ELam (x, t) <$> exprP
 
 varSortP :: ParserV v Sort
-varSortP  = FVar  <$> parens intP
+varSortP  = FVar  <$> parens (fromInteger <$> integerP)
 
 -- | Parser for function sorts without the "func" keyword.
 funcSortP :: ParserV v Sort
@@ -1372,6 +1372,11 @@ envP  = do binds <- brackets $ sepBy (intP <* spaces) semi
 
 intP :: ParserV v Int
 intP = fromInteger <$> natural
+
+integerP :: ParserV v Integer
+integerP =
+        (try (char '-') >> negate <$> natural)
+    <|> natural
 
 boolP :: Parser Bool
 boolP = (reserved "True" >> return True)
