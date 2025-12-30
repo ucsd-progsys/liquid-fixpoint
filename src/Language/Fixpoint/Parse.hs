@@ -798,7 +798,7 @@ expr0P =
     <|> try (coerceP exprP) -- coercion, starts with "coerce"
     <|> litP
     <|> lamP -- lambda abstraction, starts with backslash
-    <|> (reservedOp "&&" >> pAnd <$> predsP) -- built-in prefix and
+    <|> (reservedOp "&&" >> PAnd <$> predsP) -- built-in prefix and
     <|> (reservedOp "||" >> POr  <$> predsP) -- built-in prefix or
 
 emptyListP :: Located () -> ParserV v (ExprV v)
@@ -1134,7 +1134,7 @@ existP = do
 
 -- | Refa
 refaP :: ParseableV v => ParserV v (ExprV v)
-refaP =  try (pAnd <$> brackets (sepBy exprP semi))
+refaP =  try (PAnd <$> brackets (sepBy exprP semi))
      <|> exprP
 
 
