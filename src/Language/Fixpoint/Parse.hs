@@ -798,7 +798,7 @@ expr0P =
     <|> try (coerceP exprP) -- coercion, starts with "coerce"
     <|> litP
     <|> lamP -- lambda abstraction, starts with backslash
-    <|> (reservedOp "&&" >> pAnd <$> predsP) -- built-in prefix and
+    <|> (reservedOp "&&" >> PAnd <$> predsP) -- built-in prefix and
     <|> (reservedOp "||" >> POr  <$> predsP) -- built-in prefix or
 
 emptyListP :: Located () -> ParserV v (ExprV v)
@@ -1019,9 +1019,10 @@ lamP
        t <- sortP
        reservedOp "->"
        ELam (x, t) <$> exprP
+      <?> "lambda abstraction"
 
 varSortP :: ParserV v Sort
-varSortP  = FVar  <$> parens intP
+varSortP  = FVar  <$> parens (fromInteger <$> integerP)
 
 -- | Parser for function sorts without the "func" keyword.
 funcSortP :: ParserV v Sort
@@ -1134,7 +1135,7 @@ existP = do
 
 -- | Refa
 refaP :: ParseableV v => ParserV v (ExprV v)
-refaP =  try (pAnd <$> brackets (sepBy exprP semi))
+refaP =  try (PAnd <$> brackets (sepBy exprP semi))
      <|> exprP
 
 
@@ -1372,6 +1373,11 @@ envP  = do binds <- brackets $ sepBy (intP <* spaces) semi
 
 intP :: ParserV v Int
 intP = fromInteger <$> natural
+
+integerP :: ParserV v Integer
+integerP =
+        (try (char '-') >> negate <$> natural)
+    <|> natural
 
 boolP :: Parser Bool
 boolP = (reserved "True" >> return True)

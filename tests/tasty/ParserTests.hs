@@ -254,7 +254,7 @@ testPredP =
         show (doParse' predP "test" "&& []") @?= "PAnd []"
 
     , testCase "&& 1" $
-        show (doParse' predP "test" "&& [x]") @?= "EVar \"x\""
+        show (doParse' predP "test" "&& [x]") @?= "PAnd [EVar \"x\"]"
 
     , testCase "&& 2" $
         show (doParse' predP "test" "&& [x;y]") @?= "PAnd [EVar \"x\",EVar \"y\"]"

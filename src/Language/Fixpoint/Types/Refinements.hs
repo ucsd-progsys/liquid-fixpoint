@@ -116,6 +116,7 @@ import qualified Data.HashMap.Strict       as HashMap
 import           Data.HashSet              (HashSet)
 import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
+import           GHC.Stack                 (HasCallStack)
 #if MIN_VERSION_base(4,20,0)
 import           Data.List                 (partition)
 #else
@@ -577,7 +578,7 @@ instance (Ord v, Fixpoint v) => Fixpoint (ExprV v) where
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
   toFix (ECoerc a t e)   = parens (text "coerce" <+> toFix a <+> text "~" <+> toFix t <+> text "in" <+> toFix e)
-  toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e
+  toFix (ELam (x,s) e)   = parens (char '\\' <+> toFix x <+> ":" <+> toFix s <+> "->" <+> toFix e)
 
   simplify = simplifyExpr dedup
     where
@@ -1013,7 +1014,7 @@ class Subable a where
   -- substa f  = substf (EVar . f)
 
   substf :: (Symbol -> Expr) -> a -> a
-  subst  :: Subst -> a -> a
+  subst  :: HasCallStack => Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
   subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
 

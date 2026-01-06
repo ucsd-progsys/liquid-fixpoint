@@ -154,29 +154,66 @@ instance Subable Expr where
   substf _  p              = p
 
 
-  subst su (EApp f e)      = EApp (subst su f) (subst su e)
-  subst su (ELam x e)      = ELam x (subst su' e) where su' = removeSubst su (fst x)
-  subst su (ELet x e1 e2)  = ELet x (subst su e1) (subst su' e2) where su' = removeSubst su x
-  subst su (ECoerc a t e)  = ECoerc a t (subst su e)
-  subst su (ENeg e)        = ENeg (subst su e)
-  subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
-  subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst su e2)
-  subst su (ECst e so)     = ECst (subst su e) so
-  subst su (EVar x)        = appSubst su x
-  subst su (PAnd ps)       = PAnd $ map (subst su) ps
-  subst su (POr  ps)       = POr  $ map (subst su) ps
-  subst su (PNot p)        = PNot $ subst su p
-  subst su (PImp p1 p2)    = PImp (subst su p1) (subst su p2)
-  subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
-  subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
-  subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
-  subst su (PAll bs p)
-          | disjoint su bs = PAll bs $ subst su p --(substExcept su (fst <$> bs)) p
-          | otherwise      = errorstar "subst: PAll (without disjoint binds)"
-  subst su (PExist bs p)
-          | disjoint su bs = PExist bs $ subst su p --(substExcept su (fst <$> bs)) p
-          | otherwise      = errorstar ("subst: EXISTS (without disjoint binds)" ++ show (bs, su, p))
-  subst _  p               = p
+  subst = go
+    where
+      -- The auxiliary go function skips the HasCallStack constraint on every
+      -- recursive call. In case of error, the call stack only contains the
+      -- point at which subst was first called.
+      go su e0 = case e0 of
+        EApp f e ->
+          EApp (go su f) (go su e)
+        ELam x e ->
+          let su' = removeSubst su (fst x)
+           in ELam x (go su' e)
+        ELet x e1 e2 ->
+          let su' = removeSubst su x
+           in ELet x (go su e1) (go su' e2)
+        ECoerc a t e ->
+          ECoerc a t (go su e)
+        ENeg e ->
+          ENeg (go su e)
+        EBin op e1 e2 ->
+          EBin op (go su e1) (go su e2)
+        EIte p e1 e2 ->
+          EIte (go su p) (go su e1) (go su e2)
+        ECst e so ->
+          ECst (go su e) so
+        EVar x ->
+          appSubst su x
+        PAnd ps ->
+          PAnd $ map (go su) ps
+        POr  ps ->
+          POr  $ map (go su) ps
+        PNot p ->
+          PNot $ go su p
+        PImp p1 p2 ->
+          PImp (go su p1) (go su p2)
+        PIff p1 p2 ->
+          PIff (go su p1) (go su p2)
+        PAtom r e1 e2 ->
+          PAtom r (go su e1) (go su e2)
+        PKVar k su' ->
+          PKVar k $ su' `catSubst` su
+        PAll bs p
+          | disjoint su bs ->
+            PAll bs $ go su p --(substExcept su (fst <$> bs)) p
+          | otherwise ->
+            errorstar $ unlines
+              [ "subst: FORALL without disjoint binds"
+              , "su: " ++ showpp su
+              , "expr: " ++ showpp e0
+              ]
+        PExist bs p
+          | disjoint su bs ->
+            PExist bs $ go su p --(substExcept su (fst <$> bs)) p
+          | otherwise ->
+            errorstar $ unlines
+              [ "subst: EXISTS without disjoint binds"
+              , "su: " ++ showpp su
+              , "expr: " ++ showpp e0
+              ]
+        p ->
+          p
 
 removeSubst :: Subst -> Symbol -> Subst
 removeSubst (Su su) x = Su $ M.delete x su
@@ -258,8 +295,8 @@ extendSubst (Su m) x e = Su $ M.insert x e m
 disjoint :: Subst -> [(Symbol, Sort)] -> Bool
 disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
   where
-    suSyms = S.fromList $ syms (M.elems su) ++ syms (M.keys su)
-    bsSyms = S.fromList $ syms $ fst <$> bs
+    suSyms = S.fromList $ syms (M.elems su) ++ M.keys su
+    bsSyms = S.fromList $ fst <$> bs
 
 meetReft :: Reft -> Reft -> Reft
 meetReft (Reft (v, ra)) (Reft (v', ra'))
