@@ -114,7 +114,6 @@ data Config = Config
   , json                :: Bool        -- ^ Render output in JSON format
   , fuel                :: Maybe Int   -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite)
   , restOrdering        :: String      -- ^ Term ordering for use in REST
-  , noSmtHorn           :: Bool        -- ^ Do not use (new) SMTLIB horn parser
   , noStringTheory :: Bool             -- ^ disable interpretation of string theory by SMT
   , explicitKvars  :: Bool             -- ^ use explicitly declared kvars (horn style) which disables several "defensive simplifications"
   } deriving (Eq,Data,Typeable,Show,Generic)
@@ -287,7 +286,6 @@ defConfig = Config {
   , json                     = False   &= help "Render result in JSON"
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
   , restOrdering             = "rpo"   &= help "Ordering Constraint Algebra to use for REST"
-  , noSmtHorn                = False &= help "Do not use SMTLIB horn format"
   , explicitKvars            = False &= help "Use explicitly declared kvars (horn style) which disables several defensive simplifications"
   }
   &= verbosity
