@@ -1,7 +1,7 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 
-module Language.Fixpoint.Horn.SMTParse (
+module Language.Fixpoint.Horn.Parse (
     hornP
   , hCstrP
   , hPredP
