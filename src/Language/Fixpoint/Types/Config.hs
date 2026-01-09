@@ -117,6 +117,7 @@ data Config = Config
   , noSmtHorn           :: Bool        -- ^ Do not use (new) SMTLIB horn parser
   , noStringTheory :: Bool             -- ^ disable interpretation of string theory by SMT
   , explicitKvars  :: Bool             -- ^ use explicitly declared kvars (horn style) which disables several "defensive simplifications"
+  , sortedSolution :: Bool             -- ^ leave sorts in the solution
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -289,6 +290,7 @@ defConfig = Config {
   , restOrdering             = "rpo"   &= help "Ordering Constraint Algebra to use for REST"
   , noSmtHorn                = False &= help "Do not use SMTLIB horn format"
   , explicitKvars            = False &= help "Use explicitly declared kvars (horn style) which disables several defensive simplifications"
+  , sortedSolution           = False &= help "Leave elaborated sorts in the solution (only for machine consumption)"
   }
   &= verbosity
   &= program "fixpoint"
