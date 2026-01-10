@@ -116,6 +116,7 @@ data Config = Config
   , restOrdering        :: String      -- ^ Term ordering for use in REST
   , noStringTheory :: Bool             -- ^ disable interpretation of string theory by SMT
   , explicitKvars  :: Bool             -- ^ use explicitly declared kvars (horn style) which disables several "defensive simplifications"
+  , sortedSolution :: Bool             -- ^ leave sorts in the solution
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -287,6 +288,7 @@ defConfig = Config {
   , fuel                     = Nothing &= help "Maximum fuel (per-function unfoldings) for PLE"
   , restOrdering             = "rpo"   &= help "Ordering Constraint Algebra to use for REST"
   , explicitKvars            = False &= help "Use explicitly declared kvars (horn style) which disables several defensive simplifications"
+  , sortedSolution           = False &= help "Leave elaborated sorts in the solution (only for machine consumption)"
   }
   &= verbosity
   &= program "fixpoint"

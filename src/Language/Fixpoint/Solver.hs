@@ -336,6 +336,7 @@ simplifyResult cfg res =
       , resNonCutsSolution = HashMap.map (fmap simplifyKVar') (resNonCutsSolution res)
       }
   where
-    simplifyKVar' = unElabSets . unElab . Sol.simplifyKVar HashSet.empty
+    simplifyKVar' = unElabSets . unElab' . Sol.simplifyKVar HashSet.empty
     sets          = elabSetBag . solverFlags $ cfg
     unElabSets    = if sets then unElabFSetBagZ3 else id
+    unElab'       = if sortedSolution cfg then id else unElab
