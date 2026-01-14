@@ -2,6 +2,8 @@
 
 ## NEXT
 
+## 0.9.6.3.5 (2026-01-14)
+
 - Implement `--sortedsolution` to keep elaborated sorts in fqout/solution [#821](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/821)
 - Retire old parser for horn queries [#820](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/820)
 - Stop the parser from simplifying expressions during parsing [#819](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/819)
