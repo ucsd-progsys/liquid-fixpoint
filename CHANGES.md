@@ -2,6 +2,33 @@
 
 ## NEXT
 
+- Implement `--sortedsolution` to keep elaborated sorts in fqout/solution [#821](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/821)
+- Retire old parser for horn queries [#820](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/820)
+- Stop the parser from simplifying expressions during parsing [#819](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/819)
+- Add `--explicitKvars` option and generalize horn syntax to accept expressions for kvars arguments [#818](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/818)
+- Provide more comments in the SMT queries to relate them to the source code [#814](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/814)
+- Remove `--no-lazy-ple` [#813](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/813)
+- Allow PLE to unfold in kvar solutions  [#811](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/811)
+- Remove redundant question marks from expression [#807](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/807)
+- Remove distinction of predicates and expressions in the parser [#805](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/805)
+- Shrink kvar solutions [#799](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/799) [#809](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/809) [#821](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/821)
+- Disable the progress bar when not on a terminal [#798](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/798)
+- Retire existential binds [#797](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/797)
+- Provide stack traces for more crashes [#794](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/794)
+- Support string operators [#793](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/793)
+- Apply kvar solutions to constraints before PLE [#792](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/792)
+- Retire implementation of gradual refinement types [#789](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/789)
+- Retire old PLE variations [#788](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/788)
+- Add set cardinality support when using cvc5 [#774](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/774)
+- Have `--scrape` consider global constants and ADTs [#772](https://github.com/ucsd-progsys/liquid-fixpoint/pull/772)
+- Shorten flags of a few flags and add git-version [#762](https://github.com/ucsd-progsys/liquid-fixpoint/pull/762)
+- Add support/conversions for Bitv8 and Bitv16 [#759](https://github.com/ucsd-progsys/liquid-fixpoint/pull/759)
+- Support the finite field theory of CVC5 [#755](https://github.com/ucsd-progsys/liquid-fixpoint/pull/755)
+- Fix SMT crashes on reflected functions on polymorphic data types [#753](https://github.com/ucsd-progsys/liquid-fixpoint/pull/753)
+- Allow function names to start with prefix mod [#751](https://github.com/ucsd-progsys/liquid-fixpoint/pull/751)
+- Implement let bindings for Horn queries [#748](https://github.com/ucsd-progsys/liquid-fixpoint/pull/748)
+- Fix elaboration of `define_fun` declarations [#747](https://github.com/ucsd-progsys/liquid-fixpoint/pull/747) [#749](https://github.com/ucsd-progsys/liquid-fixpoint/pull/749)
+
 ## 0.9.6.3.3 (2025-03-22)
 
 - Add support for GHC HEAD (9.13) [#745](https://github.com/ucsd-progsys/liquid-fixpoint/pull/745).
