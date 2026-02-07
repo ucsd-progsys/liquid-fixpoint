@@ -53,7 +53,7 @@ module Language.Fixpoint.Types.Solutions (
 
 
   -- * Conversion for client
-  , result 
+  , result
 
   -- * "Fast" Solver (DEPRECATED as unsound)
   , Index  (..)
