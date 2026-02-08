@@ -256,7 +256,7 @@ instance Fixpoint T.Text where
   toFix = text . T.unpack
 
 {- | [NOTE: SymbolText]
-	Use `symbolSafeText` if you want it to machine-readable,
+        Use `symbolSafeText` if you want it to machine-readable,
         but `symbolText`     if you want it to be human-readable.
  -}
 

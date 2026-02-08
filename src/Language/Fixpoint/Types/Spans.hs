@@ -163,11 +163,11 @@ instance Fixpoint SourcePos where
   toFix = text . show
 
 
-data Located a = Loc 
+data Located a = Loc
   { loc  :: !SourcePos -- ^ Start Position
   , locE :: !SourcePos -- ^ End Position
   , val  :: !a
-  } 
+  }
   deriving (Data, Typeable, Generic, ToJSON, FromJSON)
 
 instance ToJSON SourcePos where
@@ -223,7 +223,7 @@ instance B.Binary SourcePos
 instance (B.Binary a) => B.Binary (Located a)
 
 
-instance ToJSON Pos where 
+instance ToJSON Pos where
 
 instance FromJSON Pos where
 
