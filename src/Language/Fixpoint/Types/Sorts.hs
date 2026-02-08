@@ -31,6 +31,7 @@ module Language.Fixpoint.Types.Sorts (
   , boolFTyCon
   , realFTyCon
   , numFTyCon
+  , fracFTyCon
   , strFTyCon
   , setFTyCon
   , mapFTyCon -- TODO: hide these
@@ -153,12 +154,13 @@ defNumInfo  = False
 defRealInfo = False
 defStrInfo  = False
 
-charFTyCon, intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon :: FTycon
+charFTyCon, intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, fracFTyCon :: FTycon
 strFTyCon, listFTyCon, mapFTyCon, bagFTyCon, setFTyCon, ffldFTyCon :: FTycon
 intFTyCon  = TC (dummyLoc "int"       ) numTcInfo
 boolFTyCon = TC (dummyLoc boolLConName) defTcInfo
 realFTyCon = TC (dummyLoc "real"      ) realTcInfo
 numFTyCon  = TC (dummyLoc "num"       ) numTcInfo
+fracFTyCon = TC (dummyLoc "frac"      ) realTcInfo
 funcFTyCon = TC (dummyLoc "function"  ) defTcInfo
 strFTyCon  = TC (dummyLoc strConName  ) strTcInfo
 listFTyCon = TC (dummyLoc listConName ) defTcInfo
@@ -268,6 +270,7 @@ fObj = fTyconSort . (`TC` defTcInfo)
 sortFTycon :: Sort -> Maybe FTycon
 sortFTycon FInt    = Just intFTyCon
 sortFTycon FReal   = Just realFTyCon
+sortFTycon FFrac   = Just fracFTyCon
 sortFTycon FNum    = Just numFTyCon
 sortFTycon (FTC c) = Just c
 sortFTycon _       = Nothing
@@ -600,6 +603,7 @@ fTyconSort :: FTycon -> Sort
 fTyconSort c
   | c == intFTyCon  = FInt
   | c == realFTyCon = FReal
+  | c == fracFTyCon = FFrac
   | c == numFTyCon  = FNum
   | otherwise       = FTC c
 

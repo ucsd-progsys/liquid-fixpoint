@@ -206,14 +206,14 @@ instance Elaborate Expr where
 
 elaborateExpr :: HasCallStack => ElabParam -> Expr -> Maybe Sort -> Expr
 elaborateExpr (ElabParam ef msg env) e t =
-  elabNumeric . elabApply env' . elabExpr (ElabParam ef msg env') t .  elabSorts ef . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id) $ e
+  elabNumeric env' . elabApply env' . elabExpr (ElabParam ef msg env') t .  elabSorts ef . elabFMap . (if Cfg.elabSetBag ef then elabFSetBagZ3 else id) $ e
     where
       env' = coerceEnv ef env
 
 skipElabExpr :: ElabParam -> Expr -> Expr
 skipElabExpr ep e = case elabExprE ep Nothing e of
   Left _   -> e
-  Right e' -> elabNumeric . elabApply (epEnv ep) $ e'
+  Right e' -> elabNumeric (epEnv ep) . elabApply (epEnv ep) $ e'
 
 instance Elaborate (Symbol, Sort) where
   elaborate ep (x, s) = (x, elaborate ep s)
@@ -221,17 +221,17 @@ instance Elaborate (Symbol, Sort) where
 instance Elaborate a => Elaborate [a]  where
   elaborate ep xs = elaborate ep <$> xs
 
-elabNumeric :: Expr -> Expr
-elabNumeric = Vis.mapExprOnExpr go
+elabNumeric :: SymEnv -> Expr -> Expr
+elabNumeric env = Vis.mapExprOnExpr go
   where
     go (ETimes e1 e2)
-      | exprSort "txn1" e1 == FReal
-      , exprSort "txn2" e2 == FReal
+      | isFractional env (exprSort ("txn3: " ++ showpp e1) e1)
+      , isFractional env (exprSort "txn4" e2)
       = ERTimes e1 e2
     go (EDiv   e1 e2)
-      | exprSort ("txn3: " ++ showpp e1) e1 == FReal
-      , exprSort "txn4" e2 == FReal
-      = ERDiv   e1 e2
+      | isFractional env (exprSort ("txn3: " ++ showpp e1) e1)
+      , isFractional env (exprSort "txn4" e2)
+      = ERDiv e1 e2
     go e
       = e
 
@@ -972,6 +972,13 @@ isNum env s = case sortSmtSort False (seData env) s of
   SReal   -> True
   _       -> False
 
+isFractional :: SymEnv -> Sort -> Bool 
+isFractional env (FObj l)
+  = lookupSEnv l (seSort env) `elem` [Just FFrac, Just realSort]
+isFractional _ s = isReal s
+
+
+
 toIntAt :: Sort -> Expr
 toIntAt s = ECst (EVar toIntName) (FFunc s FInt)
 
@@ -1299,7 +1306,7 @@ checkOpTy _ e t t'
 checkFractional :: Env -> Sort -> CheckM ()
 checkFractional f s@(FObj l)
   = do t <- checkSym f l
-       unless (t == FFrac) $ throwErrorAt (errNonFractional s)
+       unless (t `elem` [FFrac, realSort]) (throwErrorAt $ errNonFractional s)
 checkFractional _ s
   = unless (isReal s) $ throwErrorAt (errNonFractional s)
 
@@ -1497,6 +1504,14 @@ unify1 f e !θ !t FInt = do
 
 unify1 f e !θ FInt !t = do
   checkNumeric f t `withError` errUnify e FInt t
+  return θ
+
+unify1 f e !θ !t FReal = do
+  checkFractional f t `withError` errUnify e t FReal
+  return θ
+
+unify1 f e !θ FReal !t = do
+  checkFractional f t `withError` errUnify e FReal t
   return θ
 
 unify1 f e !θ (FFunc !t1 !t2) (FFunc !t1' !t2') =

@@ -1,0 +1,18 @@
+bind 0 alpha : {v : frac | true}
+bind 1 x : {VV : alpha | []}
+bind 2 y : {VV : alpha | [(VV != 0.0)]}
+
+
+
+constraint:
+  env [0]
+  lhs {v : alpha | (v = 10.0)}
+  rhs {v : alpha | (v < 11.0)}
+  id 1 tag []
+
+
+constraint:
+  env [0;1;2]
+  lhs {v : int | []}
+  rhs {v : int | [(((x / y) * y) = x)]}
+  id 2 tag []

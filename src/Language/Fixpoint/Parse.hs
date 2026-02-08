@@ -1073,6 +1073,7 @@ fTyConP
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (reserved "num"     >> return numFTyCon)
+  <|> (reserved "frac"    >> return fracFTyCon)
   <|> (reserved "Str"     >> return strFTyCon)
   <|> (mkFTycon          =<<  locUpperIdP)
 
