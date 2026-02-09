@@ -972,7 +972,7 @@ isNum env s = case sortSmtSort False (seData env) s of
   SReal   -> True
   _       -> False
 
-isFractional :: SymEnv -> Sort -> Bool 
+isFractional :: SymEnv -> Sort -> Bool
 isFractional env (FObj l)
   = lookupSEnv l (seSort env) `elem` [Just FFrac, Just realSort]
 isFractional _ s = isReal s
