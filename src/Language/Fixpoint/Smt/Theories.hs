@@ -255,6 +255,15 @@ uifDef cfg f op
   | otherwise
   = bFun f [("x", "Int"), ("y", "Int")] "Int" (key2 (fromText op) "x" "y")
 
+uifDefR :: Config -> Data.Text.Text -> Data.Text.Text -> Builder
+uifDefR cfg f op
+  | onlyLinearArith cfg -- linear cfg || Z3 /= solver cfg
+  = bFun' f ["Real", "Real"] "Real"
+  | otherwise
+  = bFun f [("x", "Real"), ("y", "Real")] "Real" (key2 (fromText op) "x" "y")
+
+
+
 onlyLinearArith :: Config -> Bool
 onlyLinearArith cfg = linear cfg || solver cfg `notElem` [Z3, Z3mem, Cvc5]
 
@@ -295,8 +304,10 @@ boolPreamble _
 
 arithPreamble :: Config -> [Preamble]
 arithPreamble cfg = (SAll,) <$>
- [ uifDef cfg (symbolText mulFuncName) "*"
- , uifDef cfg (symbolText divFuncName) "div"
+ [ uifDef  cfg (symbolText mulFuncName) "*"
+ , uifDef  cfg (symbolText divFuncName) "div"
+ , uifDefR cfg (symbolText mulRFuncName) "*"
+ , uifDefR cfg (symbolText divRFuncName) "/"
  ]
 
 stringPreamble :: Config -> [Preamble]
