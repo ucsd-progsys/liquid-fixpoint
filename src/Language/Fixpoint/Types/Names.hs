@@ -148,6 +148,8 @@ import           Data.Typeable               (Typeable)
 import qualified GHC.Arr                     as Arr
 import           GHC.Generics                (Generic)
 import           Text.PrettyPrint.HughesPJ   (text)
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types.Binders
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Utils.Builder as Builder (fromText)
@@ -208,6 +210,10 @@ instance Hashable (Description Symbol) where
 instance Hashable Symbol where
   -- NOTE: hash based on original text rather than id
   hashWithSalt s (S _ t _) = hashWithSalt s t
+
+instance Binder Symbol where
+  wildcard = vv Nothing
+  editDistance s1 s2 = levenshteinDistance (symbolString s1) (symbolString s2)
 
 instance NFData Symbol where
   rnf S {} = ()

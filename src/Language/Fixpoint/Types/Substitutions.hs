@@ -35,6 +35,7 @@ import           Data.Maybe
 import           Data.Hashable             (Hashable)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import           Language.Fixpoint.Types.Binders
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
@@ -322,13 +323,14 @@ disjointRange (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
     suSyms = S.fromList $ syms (M.elems su)
     bsSyms = S.fromList $ fst <$> bs
 
-meetReft :: Reft -> Reft -> Reft
+meetReft :: Binder v => ReftBV v v -> ReftBV v v -> ReftBV v v
 meetReft (Reft (v, ra)) (Reft (v', ra'))
   | v == v'          = Reft (v , pAnd [ra, ra'])
-  | v == dummySymbol = Reft (v', pAnd [ra', ra `subst1`  (v , EVar v')])
+  | v == wildcard    = Reft (v', pAnd [ra', ra `subst1`  (v , EVar v')])
   | otherwise        = Reft (v , pAnd [ra, ra' `subst1` (v', EVar v )])
 
-instance Subable Reft where
+instance (Eq v, Hashable v) => Subable (ReftBV v v) where
+  type Variable (ReftBV v v) = v
   syms (Reft (v, ras))      = v : syms ras
   substa f (Reft (v, ras))  = Reft (f v, substa f ras)
   subst su (Reft (v, ras))  =

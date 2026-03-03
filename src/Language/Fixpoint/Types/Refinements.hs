@@ -39,7 +39,8 @@ module Language.Fixpoint.Types.Refinements (
   , KVarSubst
   , KVSub (..)
   , Reft
-  , ReftV (..)
+  , ReftV
+  , ReftBV (..)
   , SortedReft (..)
 
   -- * Constructing Terms
@@ -105,15 +106,18 @@ module Language.Fixpoint.Types.Refinements (
   -- * Transforming
   , mapPredReft
   , onEverySubexpr
+  , mapBindExpr
   , pprintReft
   , mapKVarSubst
+  , mapBindKVarSubst
+  , mapBindReft
 
   , debruijnIndex
 
   ) where
 
 import           Prelude hiding ((<>))
-import           Data.Bifunctor (second)
+import           Data.Bifunctor (first, second)
 import qualified Data.Store as S
 import           Data.Generics             (Data, gmapT, mkT, extT)
 import           Data.Typeable             (Typeable)
@@ -137,6 +141,7 @@ import qualified Data.HashMap.Strict       as M
 import           Control.DeepSeq
 import           Data.Maybe                (isJust)
 import           Language.Fixpoint.Types.Names
+import           Language.Fixpoint.Types.Binders
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
@@ -264,6 +269,9 @@ toKVarSubst = KSu . M.toList
 mapKVarSubst :: (ExprBV b v -> ExprBV b v) -> KVarSubst b v -> KVarSubst b v
 mapKVarSubst f (KSu su) = KSu $ fmap (fmap f) su
 
+mapBindKVarSubst :: (Hashable b, Hashable b') => (b -> b') -> KVarSubst b v -> KVarSubst b' v
+mapBindKVarSubst f = toKVarSubst . fmap (mapBindExpr f) . M.mapKeys f . fromKVarSubst
+
 isEmptyKVarSubst :: KVarSubst b v -> Bool
 isEmptyKVarSubst (KSu su) = null su
 
@@ -388,6 +396,32 @@ pattern EDiv e1 e2 = EBin Div    e1 e2
 pattern ERDiv :: ExprBV b v -> ExprBV b v -> ExprBV b v
 pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
+mapBindExpr :: (Hashable b, Hashable b') => (b -> b') -> ExprBV b v -> ExprBV b' v
+mapBindExpr f = go
+  where
+    go (ESym c) = ESym c
+    go (ECon c) = ECon c
+    go (EVar v) = EVar v
+    go (EApp e1 e2) = EApp (go e1) (go e2)
+    go (ENeg e) = ENeg (go e)
+    go (EBin op e1 e2) = EBin op (go e1) (go e2)
+    go (ELet b e1 e2) = ELet (f b) (go e1) (go e2)
+    go (EIte e1 e2 e3) = EIte (go e1) (go e2) (go e3)
+    go (ECst e s) = ECst (go e) s
+    go (ELam (b, s) e) = ELam (f b, s) (go e)
+    go (ETApp e s) = ETApp (go e) s
+    go (ETAbs e b) = ETAbs (go e) (f b)
+    go (PAnd es) = PAnd (go <$> es)
+    go (POr es) = POr (go <$> es)
+    go (PNot e) = PNot (go e)
+    go (PImp e1 e2) = PImp (go e1) (go e2)
+    go (PIff e1 e2) = PIff (go e1) (go e2)
+    go (PAtom rel e1 e2) = PAtom rel (go e1) (go e2)
+    go (PKVar k su) = PKVar k (mapBindKVarSubst f su)
+    go (PAll bs e) = PAll (first f <$> bs) (go e)
+    go (PExist bs e) = PExist (first f <$> bs) (go e)
+    go (ECoerc s1 s2 e) = ECoerc s1 s2 (go e)
+
 exprSymbolsSet :: (Eq v, Hashable v) => ExprBV v v -> HashSet v
 exprSymbolsSet = go
   where
@@ -460,7 +494,7 @@ exprKVars = go
     go (PExist _xts p)     = go p
     go _                  = HashMap.empty
 
-mkEApp :: LocSymbol -> [Expr] -> Expr
+mkEApp :: Located v -> [ExprBV b v] -> ExprBV b v
 mkEApp = eApps . EVar . val
 
 eApps :: ExprBV b v -> [ExprBV b v] -> ExprBV b v
@@ -522,11 +556,15 @@ debruijnIndex = go
     go (ECoerc _ _ e)  = go e
 
 type Reft = ReftV Symbol
+type ReftV v = ReftBV Symbol v
 
 -- | Refinement of @v@ satisfying a predicate
 --   e.g. in '{x: _ | e }' x is the @Symbol@ and e the @ExprV v@
-newtype ReftV v = Reft (Symbol, ExprV v)
+newtype ReftBV b v = Reft (b, ExprBV b v)
     deriving (Eq, Ord, Data, Typeable, Generic, Functor, Foldable, Traversable)
+
+mapBindReft :: (Hashable b, Hashable b') => (b -> b') -> ReftBV b v -> ReftBV b' v
+mapBindReft f (Reft (b, e)) = Reft (f b, mapBindExpr f e)
 
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Ord, Data, Typeable, Generic)
@@ -616,9 +654,10 @@ instance (Ord b, Fixpoint b, Hashable b, Ord v, Fixpoint v) => Fixpoint (ExprBV 
   toFix (ECoerc a t e)   = parens (text "coerce" <+> toFix a <+> text "~" <+> toFix t <+> text "in" <+> toFix e)
   toFix (ELam (x,s) e)   = parens (char '\\' <+> toFix x <+> ":" <+> toFix s <+> "->" <+> toFix e)
 
-  simplify = simplifyExpr dedup
-    where
-      dedup = Set.toList . Set.fromList
+  simplify = simplifyExprDefault
+
+simplifyExprDefault :: (Ord b, Ord v) => ExprBV b v -> ExprBV b v
+simplifyExprDefault = simplifyExpr (Set.toList . Set.fromList)
 
 simplifyExpr :: (Eq b, Eq v) => ([ExprBV b v] -> [ExprBV b v]) -> ExprBV b v -> ExprBV b v
 simplifyExpr dedup = go
@@ -920,13 +959,13 @@ conj ps  = PAnd ps
 --   so they SHOULD NOT be used inside the solver loop. Instead, use 'conj' which ensures
 --   some basic things but is faster.
 
-pAnd, pOr     :: (Fixpoint b, Ord b, Hashable b, Fixpoint v, Ord v) => ListNE (ExprBV b v) -> ExprBV b v
-pAnd          = simplify . PAnd
+pAnd, pOr     :: (Ord b, Hashable b, Ord v) => ListNE (ExprBV b v) -> ExprBV b v
+pAnd          = simplifyExprDefault . PAnd
 
 pAndNoDedup :: ListNE Pred -> Pred
 pAndNoDedup = simplifyExpr id . PAnd
 
-pOr           = simplify . POr
+pOr           = simplifyExprDefault . POr
 
 infixl 9 &.&
 (&.&) :: Pred -> Pred -> Pred
@@ -983,13 +1022,13 @@ isFunctionSortedReft = isJust . functionSort . sr_sort
 isNonTrivial :: SortedReft -> Bool
 isNonTrivial = not . isTautoReft . sr_reft
 
-isTautoReft :: Eq v => ReftV v -> Bool
+isTautoReft :: (Eq b, Eq v) => ReftBV b v -> Bool
 isTautoReft = all isTautoPred . conjuncts . reftPred
 
-reftPred :: ReftV v -> ExprV v
+reftPred :: ReftBV b v -> ExprBV b v
 reftPred (Reft (_, p)) = p
 
-reftBind :: ReftV v -> Symbol
+reftBind :: ReftBV b v -> b
 reftBind (Reft (x, _)) = x
 
 ------------------------------------------------------------
@@ -1008,9 +1047,9 @@ vv_ = vv Nothing
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft)
 
-trueReft, falseReft :: ReftV v
-trueReft  = Reft (vv_, PTrue)
-falseReft = Reft (vv_, PFalse)
+trueReft, falseReft :: Binder b => ReftBV b v
+trueReft  = Reft (wildcard, PTrue)
+falseReft = Reft (wildcard, PFalse)
 
 flattenRefas :: [ExprBV b v] -> [ExprBV b v]
 flattenRefas        = flatP []
@@ -1033,11 +1072,11 @@ conjuncts p
 class Falseable a where
   isFalse :: a -> Bool
 
-instance Falseable Expr where
+instance Falseable (ExprBV b v) where
   isFalse PFalse = True
   isFalse _      = False
 
-instance Falseable Reft where
+instance Falseable (ReftBV b v) where
   isFalse (Reft (_, ra)) = isFalse ra
 
 -------------------------------------------------------------------------

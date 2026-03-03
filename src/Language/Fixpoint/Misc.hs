@@ -85,9 +85,9 @@ getUniqueInt = do
 -- | Edit Distance --------------------------------------------
 ---------------------------------------------------------------
 
-{-# SCC editDistance #-}
-editDistance :: Eq a => [a] -> [a] -> Int
-editDistance xs ys = table ! (m, n)
+{-# SCC levenshteinDistance #-}
+levenshteinDistance :: Eq a => [a] -> [a] -> Int
+levenshteinDistance xs ys = table ! (m, n)
     where
     (m,n) = (length xs, length ys)
     x     = array (1,m) (zip [1..] xs)
