@@ -307,7 +307,10 @@ meetReft (Reft (v, ra)) (Reft (v', ra'))
 instance Subable Reft where
   syms (Reft (v, ras))      = v : syms ras
   substa f (Reft (v, ras))  = Reft (f v, substa f ras)
-  subst su (Reft (v, ras))  = Reft (v, subst (substExcept su [v]) ras)
+  subst su (Reft (v, ras))  =
+    let su' = substExcept su [v]
+        s = S.union (substSymbolsSet su') (exprSymbolsSet ras)
+     in Reft (v, rapierSubstExpr s su' ras)
   substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
   subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
 
