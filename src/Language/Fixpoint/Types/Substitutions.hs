@@ -195,8 +195,8 @@ instance Subable Expr where
         PKVar k su' ->
           PKVar k $ su' `catSubst` su
         PAll bs p
-          | disjoint su bs ->
-            PAll bs $ go su p --(substExcept su (fst <$> bs)) p
+          | disjointRange su bs ->
+            PAll bs $ go (substExcept su (map fst bs)) p
           | otherwise ->
             errorstar $ unlines
               [ "subst: FORALL without disjoint binds"
@@ -204,8 +204,8 @@ instance Subable Expr where
               , "expr: " ++ showpp e0
               ]
         PExist bs p
-          | disjoint su bs ->
-            PExist bs $ go su p --(substExcept su (fst <$> bs)) p
+          | disjointRange su bs ->
+            PExist bs $ go (substExcept su (map fst bs)) p
           | otherwise ->
             errorstar $ unlines
               [ "subst: EXISTS without disjoint binds"
@@ -292,10 +292,10 @@ rapierSubstExpr s su e0 =
 extendSubst :: Subst -> Symbol -> Expr -> Subst
 extendSubst (Su m) x e = Su $ M.insert x e m
 
-disjoint :: Subst -> [(Symbol, Sort)] -> Bool
-disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
+disjointRange :: Subst -> [(Symbol, Sort)] -> Bool
+disjointRange (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
   where
-    suSyms = S.fromList $ syms (M.elems su) ++ M.keys su
+    suSyms = S.fromList $ syms (M.elems su)
     bsSyms = S.fromList $ fst <$> bs
 
 meetReft :: Reft -> Reft -> Reft
