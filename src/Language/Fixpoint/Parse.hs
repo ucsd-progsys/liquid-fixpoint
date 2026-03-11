@@ -555,12 +555,12 @@ lexer = Token.makeTokenParser languageDef
 -- | Consumes a line comment.
 lhLineComment :: ParserV v ()
 lhLineComment =
-  L.skipLineComment "// "
+  L.skipLineComment "//"
 
 -- | Consumes a block comment.
 lhBlockComment :: ParserV v ()
 lhBlockComment =
-  L.skipBlockComment "/* " "*/"
+  L.skipBlockCommentNested "/*" "*/"
 
 -- | Parser that consumes a single char within an identifier (not start of identifier).
 identLetter :: ParserV v Char
