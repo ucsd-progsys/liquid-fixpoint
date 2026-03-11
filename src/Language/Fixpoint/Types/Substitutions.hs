@@ -195,23 +195,27 @@ instance Subable Expr where
         PKVar k su' ->
           PKVar k $ su' `catSubst` su
         PAll bs p
-          | disjointRange su bs ->
-            PAll bs $ go (substExcept su (map fst bs)) p
+          | disjointRange su' bs ->
+            PAll bs $ go su' p
           | otherwise ->
             errorstar $ unlines
               [ "subst: FORALL without disjoint binds"
-              , "su: " ++ showpp su
+              , "su: " ++ showpp su'
               , "expr: " ++ showpp e0
               ]
+          where
+            su' = substExcept su (map fst bs)
         PExist bs p
-          | disjointRange su bs ->
-            PExist bs $ go (substExcept su (map fst bs)) p
+          | disjointRange su' bs ->
+            PExist bs $ go su' p
           | otherwise ->
             errorstar $ unlines
               [ "subst: EXISTS without disjoint binds"
-              , "su: " ++ showpp su
+              , "su: " ++ showpp su'
               , "expr: " ++ showpp e0
               ]
+          where
+            su' = substExcept su (map fst bs)
         p ->
           p
 
