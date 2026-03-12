@@ -15,6 +15,6 @@
         (forall ((v Int) ((= v (+ x y))))
           ($k1 v))))
     (forall ((z Int) ($k1 z))
-      ((< 99 105)))
+      ((< 99 105))) ;; silly constraint to make sure $k1 doesn't get "sliced out"
   )
 )
