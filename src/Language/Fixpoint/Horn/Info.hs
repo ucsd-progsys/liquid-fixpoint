@@ -7,6 +7,7 @@ module Language.Fixpoint.Horn.Info (
 
 import           Data.Ord (Down(..), comparing)
 import qualified Data.HashMap.Strict            as M
+import qualified Data.HashSet                   as S
 import qualified Data.List                      as L
 import qualified Data.Tuple                     as Tuple
 import           GHC.Generics                   (Generic)
@@ -28,6 +29,7 @@ hornFInfo cfg q = mempty
   , F.ddecls    = H.qData q
   , F.hoInfo    = F.cfgHoInfo cfg
   , F.defns     = F.MkDefinedFuns (H.qDefs q)
+  , F.kuts      = F.KS (S.fromList (H.qKuts q))
   }
   where
     be0         = F.emptyBindEnv

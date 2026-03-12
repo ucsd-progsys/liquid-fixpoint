@@ -49,6 +49,7 @@ module Language.Fixpoint.Parse (
   , mkQual      -- constructing qualifiers
   , infixSymbolP -- parse infix symbols
   , locInfixSymbolP
+  , kvarP
 
   -- * Parsing recursive entities
   , exprP        -- Expressions
@@ -1559,4 +1560,3 @@ instance Inputable Command where
 
 instance Inputable [Command] where
   rr' = doParse' commandsP
-

@@ -217,6 +217,7 @@ data Query a = Query
   , qData  :: ![F.DataDecl]              -- ^ list of data-declarations
   , qOpts  :: ![String]                  -- ^ list of fixpoint options
   , qNums  :: ![F.Symbol]                -- ^ list of numeric TyCon (?)
+  , qKuts  :: ![F.KVar]                  -- ^ list of cut variables
   }
   deriving (Data, Typeable, Generic, Functor, ToJSON, FromJSON)
 
