@@ -195,23 +195,27 @@ instance Subable Expr where
         PKVar k su' ->
           PKVar k $ su' `catSubst` su
         PAll bs p
-          | disjoint su bs ->
-            PAll bs $ go su p --(substExcept su (fst <$> bs)) p
+          | disjointRange su' bs ->
+            PAll bs $ go su' p
           | otherwise ->
             errorstar $ unlines
               [ "subst: FORALL without disjoint binds"
-              , "su: " ++ showpp su
+              , "su: " ++ showpp su'
               , "expr: " ++ showpp e0
               ]
+          where
+            su' = substExcept su (map fst bs)
         PExist bs p
-          | disjoint su bs ->
-            PExist bs $ go su p --(substExcept su (fst <$> bs)) p
+          | disjointRange su' bs ->
+            PExist bs $ go su' p
           | otherwise ->
             errorstar $ unlines
               [ "subst: EXISTS without disjoint binds"
-              , "su: " ++ showpp su
+              , "su: " ++ showpp su'
               , "expr: " ++ showpp e0
               ]
+          where
+            su' = substExcept su (map fst bs)
         p ->
           p
 
@@ -292,10 +296,10 @@ rapierSubstExpr s su e0 =
 extendSubst :: Subst -> Symbol -> Expr -> Subst
 extendSubst (Su m) x e = Su $ M.insert x e m
 
-disjoint :: Subst -> [(Symbol, Sort)] -> Bool
-disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
+disjointRange :: Subst -> [(Symbol, Sort)] -> Bool
+disjointRange (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
   where
-    suSyms = S.fromList $ syms (M.elems su) ++ M.keys su
+    suSyms = S.fromList $ syms (M.elems su)
     bsSyms = S.fromList $ fst <$> bs
 
 meetReft :: Reft -> Reft -> Reft
@@ -307,7 +311,10 @@ meetReft (Reft (v, ra)) (Reft (v', ra'))
 instance Subable Reft where
   syms (Reft (v, ras))      = v : syms ras
   substa f (Reft (v, ras))  = Reft (f v, substa f ras)
-  subst su (Reft (v, ras))  = Reft (v, subst (substExcept su [v]) ras)
+  subst su (Reft (v, ras))  =
+    let su' = substExcept su [v]
+        s = S.union (substSymbolsSet su') (exprSymbolsSet ras)
+     in Reft (v, rapierSubstExpr s su' ras)
   substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
   subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
 
