@@ -11,7 +11,7 @@ module Language.Fixpoint.Horn.Parse (
   , sortP
 ) where
 
-import qualified Language.Fixpoint.Parse        as FP (Parser, addNumTyCon, lexeme', locLexeme', reserved', reservedOp', symbolR, upperIdR, lowerIdR, stringR, naturalR, mkFTycon)
+import qualified Language.Fixpoint.Parse        as FP (Parser, addNumTyCon, lexeme', locLexeme', reserved', reservedOp', symbolR, upperIdR, lowerIdR, stringR, naturalR, mkFTycon, kvarP)
 import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Horn.Types   as H
 import           Text.Megaparsec                hiding (State)
@@ -137,6 +137,7 @@ mkQuery things = H.Query
   , H.qData  =              [ dd    | HDat dd  <- things ]
   , H.qOpts  =              [ o     | HOpt o   <- things ]
   , H.qNums  =              [ s     | HNum s   <- things ]
+  , H.qKuts  =              [ k     | HKut k   <- things ]
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
@@ -156,6 +157,7 @@ data HThing a
   | HDat !F.DataDecl
   | HOpt !String
   | HNum  F.Symbol
+  | HKut  F.KVar
   deriving (Functor)
 
 hThingP :: FParser (HThing H.Tag)
@@ -172,6 +174,7 @@ hThingP  = spaces >> parens body
         <|> HMat  <$> (reserved "match"      *> matchP)
         <|> HDat  <$> (reserved "datatype"   *> dataDeclP)
         <|> HNum  <$> (reserved "numeric"    *> numericDeclP)
+        <|> HKut  <$> (reserved "cut"        *> FP.kvarP)
 
 numericDeclP :: FParser F.Symbol
 numericDeclP = do
