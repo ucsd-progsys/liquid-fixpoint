@@ -125,7 +125,7 @@ instance SMTLIB2 LocSymbol where
   smt2 = smt2 . val
 
 instance SMTLIB2 SymConst where
-  smt2 = smt2 . symbol
+  smt2 (SL t) = pure $ quotes $ fromText t  -- emit "hello" not lit$36$hello
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = pure $ bShow n

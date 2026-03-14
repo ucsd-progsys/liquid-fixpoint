@@ -352,11 +352,12 @@ sMapMaybe f = S.fromList . mapMaybe f . S.toList
 --------------------------------------------------------------------------------
 type EdgeRank = M.HashMap F.KVar Integer
 --------------------------------------------------------------------------------
+-- | Builds a map from KVar to the _smallest_ ConstraintID that KVar appears in LHS of
 edgeRank :: [CEdge] -> EdgeRank
 edgeRank es = minimum . (n :) <$> kiM
   where
-    n       = 1 + maximum [ i | (Cstr i, _)     <- es ]
-    kiM     = group [ (k, i) | (KVar k, Cstr i) <- es ]
+    n       = 1 + maximum [ i | (Cstr i, _)     <- es ] -- number larger than maximum constraint id
+    kiM     = group [ (k, i) | (KVar k, Cstr i) <- es ] -- map each `k` to cstrs in which it appears on LHS
 
 edgeRankCut :: EdgeRank -> Cutter CVertex
 edgeRankCut km vs = case ks of
