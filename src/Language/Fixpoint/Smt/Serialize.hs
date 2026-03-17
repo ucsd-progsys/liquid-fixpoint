@@ -6,6 +6,7 @@
 {-# LANGUAGE DoAndIfThenElse      #-}
 
 {-# OPTIONS_GHC -Wno-orphans        #-}
+{-# LANGUAGE InstanceSigs #-}
 
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
@@ -127,7 +128,12 @@ instance SMTLIB2 LocSymbol where
   smt2 = smt2 . val
 
 instance SMTLIB2 SymConst where
-  smt2 (SL t) = pure $ quotes $ fromText $ smtEscape t  -- emit "hello" not lit$36$hello
+  smt2 :: SymConst -> SymM Builder
+  smt2 c@(SL t) = do
+    seStr <- gets seString
+    if seStr
+      then pure $ quotes $ fromText $ smtEscape t  -- emit "hello" not lit$36$hello
+      else smt2 (symbol c)
 
 -- | Per https://smt-lib.org/theories-UnicodeStrings.shtml
 -- "SMT-LIB 2.6 has one escape sequence of its own for string literals. Two
