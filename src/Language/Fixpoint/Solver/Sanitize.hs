@@ -361,11 +361,11 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
 symbolEnv :: HasCallStack => Config -> F.SInfo a -> F.SymEnv
-symbolEnv cfg si = F.symEnv sEnv thyEnv ds lits (ts ++ ts')
+symbolEnv cfg si = F.symEnv cfg sEnv thyEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae'
     ae'          = elaborate (ElabParam ef (F.atLoc E.dummySpan "symbolEnv") env0) (F.ae si)
-    env0         = F.symEnv sEnv thyEnv ds lits ts
+    env0         = F.symEnv cfg sEnv thyEnv ds lits ts
     thyEnv       = theoryEnv cfg si
     ds           = F.ddecls si
     ts           = Misc.setNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])

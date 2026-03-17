@@ -133,6 +133,7 @@ data SymEnv = SymEnv
     -- 'seAppls' stack, and @seApplsCur@ is cleared.
   , seApplsCur :: !(M.HashMap FuncSort Int)
   , seIx       :: !Int                      -- ^ Largest unused index for sorts
+  , seString   :: !Bool                     -- ^ Use string literals
   }
   deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -157,17 +158,19 @@ instance Semigroup SymEnv where
                     , seAppls    = zipWith (<>) (seAppls e1) (seAppls e2)
                     , seApplsCur = seApplsCur e1 <> seApplsCur e2
                     , seIx       = seIx       e1 `max` seIx    e2
+                    , seString   = seString e1 && seString e2
                     }
 
 instance Monoid SymEnv where
-  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv [] mempty 0
+  mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv [] mempty 0 True
   mappend       = (<>)
 
-symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
-symEnv xEnv fEnv ds ls _ = SymEnv xEnv' fEnv dEnv ls [] mempty 0
+symEnv :: Config -> SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
+symEnv cfg xEnv fEnv ds ls _ = SymEnv xEnv' fEnv dEnv ls [] mempty 0 seStr
   where
     xEnv'   = unionSEnv xEnv wiredInEnv
     dEnv    = fromListSEnv [(symbol d, d) | d <- ds]
+    seStr   = not (noStringTheory cfg)
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNINTERPRETED but POLYMORPHIC, hence need to go through
@@ -389,4 +392,5 @@ coerceEnv slv env =
          , seAppls    = seAppls  env
          , seApplsCur = seApplsCur env
          , seIx       = seIx     env
+         , seString   = seString env
          }
