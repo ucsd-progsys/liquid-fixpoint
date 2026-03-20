@@ -20,6 +20,7 @@ module Language.Fixpoint.Types.Substitutions (
   , substfExcept
   , subst1Except
   , substSymbolsSet
+  , Refreshable(..)
   , rapierSubstExpr
   , targetSubstSyms
   , filterSubst
@@ -93,7 +94,7 @@ isEmptySubst (Su xes) = M.null xes
 targetSubstSyms :: (Eq v, Hashable v) => SubstV v -> [v]
 targetSubstSyms (Su ms) = syms $ M.elems ms
 
-substSymbolsSet :: Subst -> S.HashSet Symbol
+substSymbolsSet :: (Eq v, Hashable v) => SubstV v -> S.HashSet v
 substSymbolsSet (Su m) = S.unions $ map exprSymbolsSet (M.elems m)
 
 instance Subable () where
@@ -231,17 +232,27 @@ instance (Eq v, Hashable v) => Subable (ExprBV v v) where
             PAll bs $ go su' p
           | otherwise ->
             errorstar "subst: PAll (without disjoint binds)"
+          where
+            su' = substExcept su (map fst bs)
 
         PExist bs p
           | disjointRange su' bs ->
             PExist bs $ go su' p
           | otherwise ->
             errorstar "subst: EXISTS without disjoint binds"
+          where
+            su' = substExcept su (map fst bs)
         p ->
           p
 
 removeSubst :: (Eq v, Hashable v) => SubstV v -> v -> SubstV v
 removeSubst (Su su) x = Su $ M.delete x su
+
+class Refreshable v where
+  candidates :: v -> [v]
+
+instance Refreshable Symbol where
+  candidates x = [ renameSubstSymbol x i | i <- [0..] ]
 
 -- | Rapier style capture-avoiding substitution
 --
@@ -249,7 +260,7 @@ removeSubst (Su su) x = Su $ M.delete x su
 -- to appear free in the result expression. Typically, this is the set of
 -- symbols that are free in the range of the substitution, plus any symbols
 -- that are already free in the input expression.
-rapierSubstExpr :: S.HashSet Symbol -> Subst -> Expr -> Expr
+rapierSubstExpr :: (Hashable v, Refreshable v) => S.HashSet v -> SubstV v -> ExprBV v v -> ExprBV v v
 rapierSubstExpr s su e0 =
   let go = rapierSubstExpr
    in case e0 of
@@ -301,20 +312,16 @@ rapierSubstExpr s su e0 =
           PExist bs' $ go s' su' p
     p -> p
   where
-    fresh :: Symbol -> Symbol
-    fresh x = head $ dropWhile (`S.member` s) candidates
-      where
-        candidates = [ renameSubstSymbol x i | i <- [0..] ]
+    fresh x = head $ dropWhile (`S.member` s) (candidates x)
 
     maybeFresh x =
       if x `S.member` s then Right (x, fresh x) else Left x
 
-    catSubstGo :: KVarSubst Symbol Symbol -> Subst -> KVarSubst Symbol Symbol
     catSubstGo su1 su2@(Su s2) = toKVarSubst $ M.union s1 s2
       where
         s1 = rapierSubstExpr s su2 <$> fromKVarSubst su1
 
-extendSubst :: Subst -> Symbol -> Expr -> Subst
+extendSubst :: Hashable v => SubstV v -> v -> ExprBV v v -> SubstV v
 extendSubst (Su m) x e = Su $ M.insert x e m
 
 disjointRange :: (Eq v, Hashable v) => SubstV v -> [(v, Sort)] -> Bool
@@ -329,7 +336,7 @@ meetReft (Reft (v, ra)) (Reft (v', ra'))
   | v == wildcard    = Reft (v', pAnd [ra', ra `subst1`  (v , EVar v')])
   | otherwise        = Reft (v , pAnd [ra, ra' `subst1` (v', EVar v )])
 
-instance (Eq v, Hashable v) => Subable (ReftBV v v) where
+instance (Eq v, Hashable v, Refreshable v) => Subable (ReftBV v v) where
   type Variable (ReftBV v v) = v
   syms (Reft (v, ras))      = v : syms ras
   substa f (Reft (v, ras))  = Reft (f v, substa f ras)
