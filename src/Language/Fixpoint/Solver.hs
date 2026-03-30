@@ -59,6 +59,7 @@ import           Language.Fixpoint.Types hiding (GInfo(..), fi)
 import qualified Language.Fixpoint.Types as Types (GInfo(..))
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
+import           Data.Functor                        (void)
 import qualified Data.ByteString as B
 import Data.Maybe (catMaybes)
 import qualified Text.PrettyPrint.HughesPJ as PJ
@@ -115,12 +116,14 @@ solve cfg q
 solve'
   :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a)
   => Config -> FInfo a -> IO (Result (Integer, a))
-solve' cfg q = do
-  when (save cfg) $ saveQuery   cfg q
-  if multicore cfg then
-    solvePar cfg q
-  else
-    solveNative cfg (slice cfg q)
+solve' cfg q = do 
+    when (save cfg) $ saveQuery cfg q
+    res <- if multicore cfg then
+             solvePar cfg q
+           else
+             solveNative cfg (slice cfg q)
+    when (saveBfq cfg && isUnsafe res) $ saveBinaryQuery cfg (void q)
+    return res
 
 --------------------------------------------------------------------------------
 readFInfo :: FilePath -> IO (FInfo (), [String])
