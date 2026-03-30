@@ -174,7 +174,7 @@ lookupSEnvWithDistance :: Binder b => b -> SEnvB b a -> SESearchB b a
 lookupSEnvWithDistance x (SE env)
   = case M.lookup x env of
      Just z  -> Found z
-     Nothing -> Alts $ alts
+     Nothing -> Alts alts
   where
     alts       = takeMin $ zip (editDistance x <$> ss) ss
     ss         = fst <$> M.toList env

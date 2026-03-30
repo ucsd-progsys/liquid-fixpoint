@@ -359,7 +359,7 @@ mapExprOnExpr f = go
       ETAbs e s ->
         let !e' = go e
         in ETAbs e' s
-      PKVar k su -> PKVar k (toKVarSubst (go <$> fromKVarSubst su))
+      PKVar k su -> PKVar k (mapKVarSubst go su)
       e@EVar{} -> e
       e@ESym{} -> e
       e@ECon{} -> e

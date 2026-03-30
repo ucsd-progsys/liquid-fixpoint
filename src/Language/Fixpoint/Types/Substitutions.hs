@@ -248,7 +248,10 @@ instance (Eq v, Hashable v) => Subable (ExprBV v v) where
 removeSubst :: (Eq v, Hashable v) => SubstV v -> v -> SubstV v
 removeSubst (Su su) x = Su $ M.delete x su
 
+-- | Variable names for which we can propose variations to avoid name captures
 class Refreshable v where
+  -- | Variations of a variable name. They must contain at least a fresh name in
+  -- the contexts where @candidates@ is used.
   candidates :: v -> [v]
 
 instance Refreshable Symbol where
