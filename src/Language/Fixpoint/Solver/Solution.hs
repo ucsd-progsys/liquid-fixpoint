@@ -112,9 +112,61 @@ instK :: Bool
 instK ho env v t qc = Sol.qb . unique $
   [ Sol.eQual q xs
       | (sig, qs) <- M.toList qc
-      , xs        <- instKSig ho env v t sig
+      , not (hasUnconstrainedVar sig)
+      , xs        <- take instLimit (instKSig ho env v t sig)
       , q         <- qs
   ]
+
+-- | Upper bound on the number of instantiations produced per qualifier
+-- signature.  Signatures involving higher-order or polymorphic sorts can
+-- generate a combinatorial number of candidates (e.g. papp qualifiers whose
+-- @Pred@ parameter matches many groups).  The 'unique' pass downstream
+-- deduplicates by predicate, so capping early only discards redundant work.
+instLimit :: Int
+instLimit = 5000
+
+-- | A 'QCSig' has an unconstrained variable if some non-first parameter's sort
+-- is a bare type variable (@FVar i@) and that variable is not constrained by
+-- any earlier parameter.
+--
+-- The first parameter is always matched against the KVar's own sort (a single
+-- candidate), so any variable appearing in it is implicitly bound by that
+-- unification.  'matchP' processes the remaining parameters left-to-right,
+-- threading substitutions forward.  A bare-variable parameter therefore only
+-- benefits from constraints that appear /before/ it:
+--
+--   (a) the variable appears anywhere in the first parameter's sort, or
+--   (b) the variable appears under a type constructor in some /preceding/
+--       non-first parameter (i.e., one that 'matchP' will process earlier).
+--
+-- Unconstrained bare variables cause combinatorial explosion during
+-- instantiation with @--higherorder@ because they unify with every candidate
+-- sort in the environment.
+hasUnconstrainedVar :: QCSig -> Bool
+hasUnconstrainedVar []         = False
+hasUnconstrainedVar (qp0:qps)  = any bareAndUnconstrained indexed
+  where
+    firstSort = F.qpSort qp0
+    indexed   = zip [0 :: Int ..] (map F.qpSort qps)
+
+    bareAndUnconstrained (idx, F.FVar i) =
+      not (mentions i firstSort)
+      && not (any (\(j, s) -> j < idx && nestedIn i s) indexed)
+    bareAndUnconstrained _ = False
+
+    -- Does variable i appear nested inside a type constructor in sort s?
+    -- A bare @FVar i@ at the top level does not count.
+    nestedIn i (F.FApp t1 t2)  = mentions i t1 || mentions i t2
+    nestedIn i (F.FFunc t1 t2) = mentions i t1 || mentions i t2
+    nestedIn i (F.FAbs _ t)    = mentions i t
+    nestedIn _ _               = False
+
+    -- Does variable i appear anywhere in sort s?
+    mentions i (F.FVar j)      = i == j
+    mentions i (F.FApp t1 t2)  = mentions i t1 || mentions i t2
+    mentions i (F.FFunc t1 t2) = mentions i t1 || mentions i t2
+    mentions i (F.FAbs _ t)    = mentions i t
+    mentions _ _               = False
 
 unique :: [Sol.EQual] -> [Sol.EQual]
 unique qs = M.elems $ M.fromList [ (Sol.eqPred q, q) | q <- qs ]
