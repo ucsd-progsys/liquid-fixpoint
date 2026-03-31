@@ -91,7 +91,6 @@ data Config = Config
   , stats       :: Bool                -- ^ compute constraint statistics
   , parts       :: Bool                -- ^ partition FInfo into separate fq files
   , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
-  , saveBfq     :: Bool                -- ^ save FInfo as .bfq only on verification failure
   , minimize    :: Bool                -- ^ min .fq by delta debug (unsat with min constraints)
   , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
   , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
@@ -104,6 +103,7 @@ data Config = Config
   , pleUndecGuards   :: Bool           -- ^ Unfold invocations with undecided guards in PLE
   , etabeta          :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
   , localRewrites    :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
+  , saveBfqOnError   :: Bool           -- ^ save FInfo as .bfq only on verification failure
   , interpreter      :: Bool           -- ^ Do not use the interpreter to assist PLE
   , noEnvReduction   :: Bool     -- ^ Don't use environment reduction
   , inlineANFBinds   :: Bool          -- ^ Inline ANF bindings.
@@ -249,7 +249,9 @@ defConfig = Config {
   , elimStats                = False   &= help "(alpha) Print eliminate stats"
   , solverStats              = False   &= help "Print solver stats"
   , save                     = False   &= help "Save Query as .fq and .bfq files"
-  , saveBfq                  = False   &= help "Save Query as .bfq file only when verification fails" 
+  , saveBfqOnError           = False   &= help "Save Query as .bfq file only when verification fails" 
+                                       &= name "--save-bfq-on-error"
+                                       &= explicit
   , metadata                 = False   &= help "Print meta-data associated with constraints"
   , stats                    = False   &= help "Compute constraint statistics"
   , etaElim                  = False   &= help "Eta elimination in function definition"

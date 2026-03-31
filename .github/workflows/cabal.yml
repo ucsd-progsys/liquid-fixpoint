@@ -69,4 +69,10 @@ jobs:
         run: cabal build all --enable-tests
 
       - name: Test
-        run: cabal test all --test-show-details=direct --test-option="--color=always"
+        run: cabal test all --test-show-details=direct --test-option="--color=always" --test-option="--save-bfq-on-error"
+      - name: Upload bfq artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bfq-files
+          path: '**/*.bfq'

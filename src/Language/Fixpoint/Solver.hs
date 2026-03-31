@@ -122,7 +122,7 @@ solve' cfg q = do
              solvePar cfg q
            else
              solveNative cfg (slice cfg q)
-    when (saveBfq cfg && isUnsafe res) $ saveBinaryQuery cfg (void q)
+    when (saveBfqOnError cfg && isUnsafe res) $ saveBinaryQuery cfg (void q)
     return res
 
 --------------------------------------------------------------------------------
