@@ -87,39 +87,41 @@ combineReporters _ _ = error "combineReporters needs TestReporters"
 unitTests :: FilePath -> IO TestTree
 unitTests lfDir
   = group "Unit" [
-      dirTests "native-pos"           nativeCmd   "tests/pos"              skipNativePos  ExitSuccess
-    , dirTests "native-neg"           nativeCmd   "tests/neg"              ["float.fq"]  (ExitFailure 1)
-    , dirTests "elim-crash"           nativeCmd   "tests/crash"            []            (ExitFailure 1)
-    , dirTests "elim-pos1"            elimCmd     "tests/pos"              []             ExitSuccess
-    , dirTests "elim-pos2"            elimCmd     "tests/elim"             []             ExitSuccess
-    , dirTests "elim-neg"             elimCmd     "tests/neg"              ["float.fq"]  (ExitFailure 1)
-    , dirTests "elim-crash"           elimCmd     "tests/crash"            []            (ExitFailure 1)
-    , dirTests "cvc5-pos"             cvc5Cmd     "tests/pos"              skipNativePos  ExitSuccess
-    , dirTests "cvc5-spec"            cvc5Cmd     "tests/cvc5"             skipNativePos  ExitSuccess
-    , dirTests "proof"                elimCmd     "tests/proof"            []             ExitSuccess
-    , dirTests "rankN"                elimCmd     "tests/rankNTypes"       []             ExitSuccess
-    , dirTests "horn-pos-el"          elimSaveCmd "tests/horn/pos"         []             ExitSuccess
-    , dirTests "horn-pos-cvc5"        cvc5Cmd     "tests/horn/pos"         []             ExitSuccess
-    , dirTests "horn-neg-el"          elimSaveCmd "tests/horn/neg"         []            (ExitFailure 1)
-    , dirTests "horn-neg-cvc5"        cvc5Cmd     "tests/horn/neg"         []            (ExitFailure 1)
-    , dirJsonTests "horn-json-pos-el" elimCmd     "tests/horn/pos/.liquid" []             ExitSuccess
-    , dirJsonTests "horn-json-neg-el" elimCmd     "tests/horn/neg/.liquid" []            (ExitFailure 1)
-    , dirHornTests "horn-smt2-pos-el" elimCmd     "tests/horn/pos/.liquid" []             ExitSuccess
-    , dirHornTests "horn-smt2-neg-el" elimCmd     "tests/horn/neg/.liquid" []            (ExitFailure 1)
-    , dirTests "horn-pos-na"          nativeCmd   "tests/horn/pos"         []             ExitSuccess
-    , dirTests "horn-neg-na"          nativeCmd   "tests/horn/neg"         []            (ExitFailure 1)
+      dirTests "native-pos"           nativeCmd   "tests/pos"              posOptions skipNativePos  ExitSuccess
+    , dirTests "native-neg"           nativeCmd   "tests/neg"              [] ["float.fq"]  (ExitFailure 1)
+    , dirTests "elim-crash"           nativeCmd   "tests/crash"            posOptions []            (ExitFailure 1)
+    , dirTests "elim-pos1"            elimCmd     "tests/pos"              posOptions []             ExitSuccess
+    , dirTests "elim-pos2"            elimCmd     "tests/elim"             posOptions []             ExitSuccess
+    , dirTests "elim-neg"             elimCmd     "tests/neg"              [] ["float.fq"]  (ExitFailure 1)
+    , dirTests "elim-crash"           elimCmd     "tests/crash"            []                      []            (ExitFailure 1)
+    , dirTests "cvc5-pos"             cvc5Cmd     "tests/pos"              posOptions skipNativePos  ExitSuccess
+    , dirTests "cvc5-spec"            cvc5Cmd     "tests/cvc5"             posOptions skipNativePos  ExitSuccess
+    , dirTests "proof"                elimCmd     "tests/proof"            posOptions []             ExitSuccess
+    , dirTests "rankN"                elimCmd     "tests/rankNTypes"       posOptions []             ExitSuccess
+    , dirTests "horn-pos-el"          elimSaveCmd "tests/horn/pos"         posOptions []             ExitSuccess
+    , dirTests "horn-pos-cvc5"        cvc5Cmd     "tests/horn/pos"         posOptions []             ExitSuccess
+    , dirTests "horn-neg-el"          elimSaveCmd "tests/horn/neg"         []         []            (ExitFailure 1)
+    , dirTests "horn-neg-cvc5"        cvc5Cmd     "tests/horn/neg"         []         []            (ExitFailure 1)
+    , dirJsonTests "horn-json-pos-el" elimCmd     "tests/horn/pos/.liquid" []         []             ExitSuccess
+    , dirJsonTests "horn-json-neg-el" elimCmd     "tests/horn/neg/.liquid" []         []            (ExitFailure 1)
+    , dirHornTests "horn-smt2-pos-el" elimCmd     "tests/horn/pos/.liquid" []         []             ExitSuccess
+    , dirHornTests "horn-smt2-neg-el" elimCmd     "tests/horn/neg/.liquid" []         []            (ExitFailure 1)
+    , dirTests "horn-pos-na"          nativeCmd   "tests/horn/pos"         posOptions []             ExitSuccess
+    , dirTests "horn-neg-na"          nativeCmd   "tests/horn/neg"         []         []            (ExitFailure 1)
    ]
    where
-    dirTests     n a b c d = testGroup n <$> dirTests' n isTest a b c d
-    dirJsonTests n a b c d = testGroup n <$> dirTests' n ("horn.json" `isSuffixOf`) a b c d
-    dirHornTests n a b c d = testGroup n <$> dirTests' n ("horn.smt2" `isSuffixOf`) a b c d
+    posOptions = ["--save-bfq-on-error"]
 
-    dirTests' :: String -> (FilePath -> Bool) -> TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
-    dirTests' testName isT testCmd root ignored code = do
+    dirTests     n a b c d e = testGroup n <$> dirTests' n isTest a b c d e
+    dirJsonTests n a b c d e = testGroup n <$> dirTests' n ("horn.json" `isSuffixOf`) a b c d e
+    dirHornTests n a b c d e = testGroup n <$> dirTests' n ("horn.smt2" `isSuffixOf`) a b c d e
+
+    dirTests' :: String -> (FilePath -> Bool) -> TestCmd -> FilePath -> [String] -> [FilePath] -> ExitCode -> IO [TestTree]
+    dirTests' testName isT testCmd root extraOpts ignored code = do
       let absRoot = lfDir </> root
       files    <- walkDirectory absRoot
       let tests = [ rel | f <- files, isT f, let rel = makeRelative absRoot f, rel `notElem` ignored ]
-      return    $ mkTest testName testCmd code absRoot <$> tests
+      return    $ mkTest testName testCmd code extraOpts absRoot <$> tests
 
 isTest   :: FilePath -> Bool
 isTest f = takeExtension f `elem` [".fq", ".smt2"]
@@ -150,9 +152,9 @@ instance IsOption FixpointOpts where
       )
 
 ---------------------------------------------------------------------------
-mkTest :: String -> TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree
+mkTest :: String -> TestCmd -> ExitCode -> [String] -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
-mkTest testName testCmd code dir file
+mkTest testName testCmd code extraOpts dir file
   =
     askOption $ \opts ->
     testCase file $
@@ -163,7 +165,7 @@ mkTest testName testCmd code dir file
       else do
         createDirectoryIfMissing True $ takeDirectory log
         c <- withFile log WriteMode $ \h -> do
-          let cmd     = testCmd opts "fixpoint" dir file
+          let cmd     = testCmd (LO (unwords extraOpts) <> opts) "fixpoint" dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           waitForProcess ph
         when (code /= c) $
