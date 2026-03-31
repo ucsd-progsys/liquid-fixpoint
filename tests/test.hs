@@ -87,39 +87,39 @@ combineReporters _ _ = error "combineReporters needs TestReporters"
 unitTests :: FilePath -> IO TestTree
 unitTests lfDir
   = group "Unit" [
-      testGroup "native-pos"       <$> dirTests     nativeCmd   "tests/pos"              skipNativePos  ExitSuccess
-    , testGroup "native-neg"       <$> dirTests     nativeCmd   "tests/neg"              ["float.fq"]  (ExitFailure 1)
-    , testGroup "elim-crash"       <$> dirTests     nativeCmd   "tests/crash"            []            (ExitFailure 1)
-    , testGroup "elim-pos1"        <$> dirTests     elimCmd     "tests/pos"              []             ExitSuccess
-    , testGroup "elim-pos2"        <$> dirTests     elimCmd     "tests/elim"             []             ExitSuccess
-    , testGroup "elim-neg"         <$> dirTests     elimCmd     "tests/neg"              ["float.fq"]  (ExitFailure 1)
-    , testGroup "elim-crash"       <$> dirTests     elimCmd     "tests/crash"            []            (ExitFailure 1)
-    , testGroup "cvc5-pos"         <$> dirTests     cvc5Cmd     "tests/pos"              skipNativePos  ExitSuccess
-    , testGroup "cvc5-spec"        <$> dirTests     cvc5Cmd     "tests/cvc5"             skipNativePos  ExitSuccess
-    , testGroup "proof"            <$> dirTests     elimCmd     "tests/proof"            []             ExitSuccess
-    , testGroup "rankN"            <$> dirTests     elimCmd     "tests/rankNTypes"       []             ExitSuccess
-    , testGroup "horn-pos-el"      <$> dirTests     elimSaveCmd "tests/horn/pos"         []             ExitSuccess
-    , testGroup "horn-pos-cvc5"    <$> dirTests     cvc5Cmd     "tests/horn/pos"         []             ExitSuccess
-    , testGroup "horn-neg-el"      <$> dirTests     elimSaveCmd "tests/horn/neg"         []            (ExitFailure 1)
-    , testGroup "horn-neg-cvc5"    <$> dirTests     cvc5Cmd     "tests/horn/neg"         []            (ExitFailure 1)
-    , testGroup "horn-json-pos-el" <$> dirJsonTests elimCmd     "tests/horn/pos/.liquid" []             ExitSuccess
-    , testGroup "horn-json-neg-el" <$> dirJsonTests elimCmd     "tests/horn/neg/.liquid" []            (ExitFailure 1)
-    , testGroup "horn-smt2-pos-el" <$> dirHornTests elimCmd     "tests/horn/pos/.liquid" []             ExitSuccess
-    , testGroup "horn-smt2-neg-el" <$> dirHornTests elimCmd     "tests/horn/neg/.liquid" []            (ExitFailure 1)
-    , testGroup "horn-pos-na"      <$> dirTests     nativeCmd   "tests/horn/pos"         []             ExitSuccess
-    , testGroup "horn-neg-na"      <$> dirTests     nativeCmd   "tests/horn/neg"         []            (ExitFailure 1)
+      dirTests "native-pos"           nativeCmd   "tests/pos"              skipNativePos  ExitSuccess
+    , dirTests "native-neg"           nativeCmd   "tests/neg"              ["float.fq"]  (ExitFailure 1)
+    , dirTests "elim-crash"           nativeCmd   "tests/crash"            []            (ExitFailure 1)
+    , dirTests "elim-pos1"            elimCmd     "tests/pos"              []             ExitSuccess
+    , dirTests "elim-pos2"            elimCmd     "tests/elim"             []             ExitSuccess
+    , dirTests "elim-neg"             elimCmd     "tests/neg"              ["float.fq"]  (ExitFailure 1)
+    , dirTests "elim-crash"           elimCmd     "tests/crash"            []            (ExitFailure 1)
+    , dirTests "cvc5-pos"             cvc5Cmd     "tests/pos"              skipNativePos  ExitSuccess
+    , dirTests "cvc5-spec"            cvc5Cmd     "tests/cvc5"             skipNativePos  ExitSuccess
+    , dirTests "proof"                elimCmd     "tests/proof"            []             ExitSuccess
+    , dirTests "rankN"                elimCmd     "tests/rankNTypes"       []             ExitSuccess
+    , dirTests "horn-pos-el"          elimSaveCmd "tests/horn/pos"         []             ExitSuccess
+    , dirTests "horn-pos-cvc5"        cvc5Cmd     "tests/horn/pos"         []             ExitSuccess
+    , dirTests "horn-neg-el"          elimSaveCmd "tests/horn/neg"         []            (ExitFailure 1)
+    , dirTests "horn-neg-cvc5"        cvc5Cmd     "tests/horn/neg"         []            (ExitFailure 1)
+    , dirJsonTests "horn-json-pos-el" elimCmd     "tests/horn/pos/.liquid" []             ExitSuccess
+    , dirJsonTests "horn-json-neg-el" elimCmd     "tests/horn/neg/.liquid" []            (ExitFailure 1)
+    , dirHornTests "horn-smt2-pos-el" elimCmd     "tests/horn/pos/.liquid" []             ExitSuccess
+    , dirHornTests "horn-smt2-neg-el" elimCmd     "tests/horn/neg/.liquid" []            (ExitFailure 1)
+    , dirTests "horn-pos-na"          nativeCmd   "tests/horn/pos"         []             ExitSuccess
+    , dirTests "horn-neg-na"          nativeCmd   "tests/horn/neg"         []            (ExitFailure 1)
    ]
    where
-    dirTests     = dirTests' isTest
-    dirJsonTests = dirTests' ("horn.json" `isSuffixOf`)
-    dirHornTests = dirTests' ("horn.smt2" `isSuffixOf`)
+    dirTests     n a b c d = testGroup n <$> dirTests' n isTest a b c d
+    dirJsonTests n a b c d = testGroup n <$> dirTests' n ("horn.json" `isSuffixOf`) a b c d
+    dirHornTests n a b c d = testGroup n <$> dirTests' n ("horn.smt2" `isSuffixOf`) a b c d
 
-    dirTests' :: (FilePath -> Bool) -> TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
-    dirTests' isT testCmd root ignored code = do
+    dirTests' :: String -> (FilePath -> Bool) -> TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
+    dirTests' testName isT testCmd root ignored code = do
       let absRoot = lfDir </> root
       files    <- walkDirectory absRoot
       let tests = [ rel | f <- files, isT f, let rel = makeRelative absRoot f, rel `notElem` ignored ]
-      return    $ mkTest testCmd code absRoot <$> tests
+      return    $ mkTest testName testCmd code absRoot <$> tests
 
 isTest   :: FilePath -> Bool
 isTest f = takeExtension f `elem` [".fq", ".smt2"]
@@ -150,9 +150,9 @@ instance IsOption FixpointOpts where
       )
 
 ---------------------------------------------------------------------------
-mkTest :: TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree
+mkTest :: String -> TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
-mkTest testCmd code dir file
+mkTest testName testCmd code dir file
   =
     askOption $ \opts ->
     testCase file $
@@ -172,7 +172,9 @@ mkTest testCmd code dir file
 
   where
     test = dir </> file
-    log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
+    -- select a file name that is unique to the test, as the tests might run
+    -- in parallel.
+    log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> testName </> f <.> "harness.log"
 
 knownToFail :: [a]
 knownToFail = []
