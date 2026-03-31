@@ -250,7 +250,7 @@ defConfig = Config {
   , solverStats              = False   &= help "Print solver stats"
   , save                     = False   &= help "Save Query as .fq and .bfq files"
   , saveBfqOnError           = False   &= help "Save Query as .bfq file only when verification fails" 
-                                       &= name "--save-bfq-on-error"
+                                       &= name "save-bfq-on-error"
                                        &= explicit
   , metadata                 = False   &= help "Print meta-data associated with constraints"
   , stats                    = False   &= help "Compute constraint statistics"
