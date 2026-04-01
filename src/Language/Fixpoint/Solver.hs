@@ -116,7 +116,7 @@ solve cfg q
 solve'
   :: (PPrint a, NFData a, Fixpoint a, Show a, Loc a)
   => Config -> FInfo a -> IO (Result (Integer, a))
-solve' cfg q = do 
+solve' cfg q = do
     when (save cfg) $ saveQuery cfg q
     res <- if multicore cfg then
              solvePar cfg q
