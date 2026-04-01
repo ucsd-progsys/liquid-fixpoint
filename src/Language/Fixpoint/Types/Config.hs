@@ -118,6 +118,7 @@ data Config = Config
   , noStringTheory :: Bool             -- ^ disable interpretation of string theory by SMT
   , explicitKvars  :: Bool             -- ^ use explicitly declared kvars (horn style) which disables several "defensive simplifications"
   , sortedSolution :: Bool             -- ^ leave sorts in the solution
+  , saveDir        :: Maybe FilePath    -- ^ output directory for --save generated files (default: .liquid/ next to source)
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -252,6 +253,12 @@ defConfig = Config {
   , saveBfqOnError           = False   &= help "Save Query as .bfq file only when verification fails"
                                        &= name "save-bfq-on-error"
                                        &= explicit
+  , saveDir                  = Nothing
+      &= name "save-dir"
+      &= help "Output directory for --save generated files (default: .liquid/ next to source)"
+      &= opt (Nothing :: Maybe FilePath)
+      &= explicit
+      &= typDir
   , metadata                 = False   &= help "Print meta-data associated with constraints"
   , stats                    = False   &= help "Compute constraint statistics"
   , etaElim                  = False   &= help "Eta elimination in function definition"
@@ -326,4 +333,4 @@ multicore :: Config -> Bool
 multicore cfg = cores cfg /= Just 1
 
 queryFile :: Ext -> Config -> FilePath
-queryFile e = extFileName e . srcFile
+queryFile e cfg = extFileNameR' (saveDir cfg) e (srcFile cfg)

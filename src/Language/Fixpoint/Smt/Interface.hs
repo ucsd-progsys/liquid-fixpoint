@@ -65,7 +65,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config ( SMTSolver (..), solverFlags
-                                                , Config (solver, smtTimeout, noStringTheory, save, allowHO))
+                                                , Config (solver, smtTimeout, noStringTheory, save, saveDir, allowHO))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -278,7 +278,7 @@ makeContext cfg f
                LBS.hPutStr hLog "\n"
        return me
     where
-       smtFile = extFileName Smt2 f
+       smtFile = extFileNameR' (saveDir cfg) Smt2 f
 
 makeContextWithSEnv :: Config -> FilePath -> SymEnv -> DefinedFuns -> IO Context
 makeContextWithSEnv cfg f env defns = do
