@@ -28,6 +28,7 @@ module Language.Fixpoint.Types.Constraints (
   , toFixpoint
   , writeFInfo
   , saveQuery
+  , saveBinaryQuery
   , saveSInfo
 
    -- * Constructing Queries
