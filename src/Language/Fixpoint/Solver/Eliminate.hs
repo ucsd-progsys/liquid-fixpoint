@@ -111,9 +111,9 @@ nonCutHyp kI si k = nonCutCube <$> cs
     cs            = getSubC   si <$> M.lookupDefault [] k kI
 
 nonCutCube :: SimpC a -> Sol.Cube
-nonCutCube c = Sol.Cube (senv c) (rhsSubst c) (subcId c) (stag c)
+nonCutCube c = Sol.Cube (senv c) (substFromKSubst $ rhsSubst c) (subcId c) (stag c)
 
-rhsSubst :: SimpC a -> Subst
+rhsSubst :: SimpC a -> KVarSubst Symbol Symbol
 rhsSubst             = rsu . crhs
   where
     rsu (PKVar _ su) = su

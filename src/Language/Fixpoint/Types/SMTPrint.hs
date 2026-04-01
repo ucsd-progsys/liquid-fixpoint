@@ -92,7 +92,8 @@ toHornFApp ts  = toHornSMT ts
 instance ToHornSMT F.Subst where
   toHornSMT (F.Su m) = toHornSMT (Misc.hashMapToAscList m)
 
-
+instance ToHornSMT (F.KVarSubst F.Symbol F.Symbol) where
+  toHornSMT = toHornSMT . Misc.hashMapToAscList . F.fromKVarSubst
 
 instance ToHornSMT F.KVar where
   toHornSMT (F.KV k) = "$" P.<-> toHornSMT k

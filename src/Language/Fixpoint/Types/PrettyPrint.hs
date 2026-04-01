@@ -31,6 +31,12 @@ instance (Ord a, Hashable a, Fixpoint a) => Fixpoint (S.HashSet a) where
   toFix xs = brackets $ sep $ punctuate ";" (toFix <$> L.sort (S.toList xs))
   simplify = S.fromList . map simplify . S.toList
 
+instance (Ord k, Hashable k, Fixpoint k, Fixpoint v) => Fixpoint (M.HashMap k v) where
+  toFix m = case hashMapToAscList m of
+              []  -> empty
+              xys -> hcat $ map (\(x,y) -> brackets $ toFix x <-> text ":=" <-> toFix y) xys
+  simplify = M.map simplify . M.mapKeys simplify
+
 instance Fixpoint () where
   toFix _ = "()"
 

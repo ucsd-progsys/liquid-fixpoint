@@ -122,7 +122,7 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
-import           Language.Fixpoint.Types.Substitutions
+import           Language.Fixpoint.Types.Substitutions()
 import           Language.Fixpoint.Types.Environments
 import qualified Language.Fixpoint.Utils.Files as Files
 import qualified Language.Fixpoint.Solver.Stats as Solver
@@ -443,7 +443,7 @@ instance B.Binary v => B.Binary (EquationV v)
 ---------------------------------------------------------------------------
 
 wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x = if all isEmptySubst sus -- ++ gsus)
+wfC be sr x = if all isEmptyKVarSubst sus -- ++ gsus)
                  -- NV TO RJ This tests fails with [LT:=GHC.Types.LT][EQ:=GHC.Types.EQ][GT:=GHC.Types.GT]]
                  -- NV TO RJ looks like a resolution issue
                 then [WfC be (v, sr_sort sr, k) x      | k         <- ks ]
@@ -1060,29 +1060,28 @@ data AutoRewrite = AutoRewrite
 
 instance Hashable AutoRewrite
 
+autoRWToFix :: M.HashMap SubcId [AutoRewrite] -> Doc
+autoRWToFix autoRW =
+  vcat $
+  map fixRW rewrites ++
+  rwsMapping
+  where
+    rewrites = dedupAutoRewrites autoRW
 
-instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
-  toFix autoRW =
-    vcat $
-    map fixRW rewrites ++
-    rwsMapping
-    where
-      rewrites = dedupAutoRewrites autoRW
+    fixRW rw@(AutoRewrite args lhs rhs) =
+        text ("autorewrite " ++ show (hash rw))
+        <+> hsep (map toFix args)
+        <+> text "="
+        <+> text "{"
+        <+> toFix lhs
+        <+> text "="
+        <+> toFix rhs
+        <+> text "}"
 
-      fixRW rw@(AutoRewrite args lhs rhs) =
-          text ("autorewrite " ++ show (hash rw))
-          <+> hsep (map toFix args)
-          <+> text "="
-          <+> text "{"
-          <+> toFix lhs
-          <+> text "="
-          <+> toFix rhs
-          <+> text "}"
-
-      rwsMapping = do
-        (cid, rws) <- M.toList autoRW
-        rw         <-  rws
-        return $ "rewrite" <+> brackets (text $ show cid ++ " : " ++ show (hash rw))
+    rwsMapping = do
+      (cid, rws) <- M.toList autoRW
+      rw         <-  rws
+      return $ "rewrite" <+> brackets (text $ show cid ++ " : " ++ show (hash rw))
 
 
 
@@ -1104,7 +1103,7 @@ instance ToHornSMT Rewrite where
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> L.sort (aenvEqs axe)) ++ (toFix <$> L.sort (aenvSimpl axe)))
               $+$ renderExpand (pairdoc <$> L.sort (M.toList $ aenvExpand axe))
-              $+$ toFix (aenvAutoRW axe)
+              $+$ autoRWToFix (aenvAutoRW axe)
     where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
       renderExpand [] = empty

@@ -139,6 +139,12 @@ instance Arbitrary Subst where
     return $ Su $ M.fromList l
   shrink _ = mempty
 
+instance Arbitrary (KVarSubst Symbol Symbol) where
+  arbitrary = do
+    n <- choose (0, 3)
+    l <- vectorOf n arbitrary
+    return $ toKVarSubst $ M.fromList l
+
 -- | This instance only creates `FVar` when they would be in scope from an
 -- enclosing `FAbs`, and does not create `FObj`s
 instance Arbitrary Sort where

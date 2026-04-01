@@ -189,7 +189,7 @@ kvarDefUses si = (Misc.group ins, Misc.group outs)
 -- | `dropDeadSubsts` removes dead `K[x := e]` where `x` NOT in the domain of K.
 --------------------------------------------------------------------------------
 dropDeadSubsts :: F.SInfo a -> F.SInfo a
-dropDeadSubsts si = mapKVarSubsts (F.filterSubst . f) si
+dropDeadSubsts si = mapKVarSubsts (\k su -> F.toKVarSubst $ M.filterWithKey (f k) $ F.fromKVarSubst su) si
   where
     kvsM          = M.mapWithKey (\k _ -> kvDom k) (F.ws si)
     kvDom         = S.fromList . F.kvarDomain si
@@ -244,9 +244,9 @@ dropBadParams kBads k kEnv = L.foldl' (flip F.deleteSEnv) kEnv xs
 badParams :: F.SInfo a -> F.SimpC a -> M.HashMap F.KVar [F.Symbol]
 badParams si c = Misc.group bads
   where
-    bads       = [ (k, x) | (v, k, F.Su su) <- subcKSubs xsrs c
+    bads       = [ (k, x) | (v, k, su) <- subcKSubs xsrs c
                           , let vEnv = maybe sEnv (`S.insert` sEnv) v
-                          , (x, e)          <- M.toList su
+                          , (x, e)          <- M.toList (F.fromKVarSubst su)
                           , badArg vEnv e
                  ]
     sEnv       = S.fromList (fst <$> xsrs)
@@ -256,7 +256,7 @@ badArg :: S.HashSet F.Symbol -> F.Expr -> Bool
 badArg sEnv (F.EVar y) = not (y `S.member` sEnv)
 badArg _    _          = True
 
-type KSub = (Maybe F.Symbol, F.KVar, F.Subst)
+type KSub = (Maybe F.Symbol, F.KVar, F.KVarSubst F.Symbol F.Symbol)
 
 subcKSubs :: [(F.Symbol, F.SortedReft)] -> F.SimpC a -> [KSub]
 subcKSubs xsrs c = rhs ++ lhs

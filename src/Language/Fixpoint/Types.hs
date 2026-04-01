@@ -5,7 +5,7 @@
 
 module Language.Fixpoint.Types (module X) where
 
-import Language.Fixpoint.Types.SMTPrint      as X
+import Language.Fixpoint.Types.SMTPrint         as X
 import Language.Fixpoint.Types.PrettyPrint      as X
 import Language.Fixpoint.Types.Names            as X
 import Language.Fixpoint.Types.Errors           as X
@@ -19,3 +19,4 @@ import Language.Fixpoint.Types.Utils            as X
 import Language.Fixpoint.Types.Triggers         as X
 import Language.Fixpoint.Types.Theories         as X
 import Language.Fixpoint.Types.Templates        as X
+import Language.Fixpoint.Types.Binders          as X

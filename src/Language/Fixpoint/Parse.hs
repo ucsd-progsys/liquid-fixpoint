@@ -777,12 +777,12 @@ symconstP = SL . T.pack <$> stringLiteral
 -- parse names as LocSymbol as well, this class can be eliminated.
 class (Fixpoint v, Ord v) => ParseableV v where
   parseV :: ParserV v v
-  mkSu :: [(Symbol, ExprV v)] -> SubstV v
+  mkSu :: [(Symbol, ExprV v)] -> KVarSubst Symbol v
   vFromString :: Located String -> v
 
 instance ParseableV Symbol where
   parseV = symbolP
-  mkSu = mkSubst
+  mkSu = mkKVarSubst
   vFromString = symbol
 
 -- | Parser for "atomic" expressions.
@@ -1102,7 +1102,7 @@ kvarPredP = PKVar <$> kvarP <*> substP
 kvarP :: ParserV v KVar
 kvarP = KV <$> lexeme (char '$' *> symbolR)
 
-substP :: ParseableV v => ParserV v (SubstV v)
+substP :: ParseableV v => ParserV v (KVarSubst Symbol v)
 substP = mkSu <$> many (brackets $ pairP symbolP aP exprP)
   where
     aP = reservedOp ":="
