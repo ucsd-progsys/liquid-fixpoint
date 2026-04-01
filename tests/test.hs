@@ -85,31 +85,35 @@ combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
 combineReporters _ _ = error "combineReporters needs TestReporters"
 
 unitTests :: FilePath -> IO TestTree
-unitTests lfDir
-  = group "Unit" [
-      dirTests "native-pos"           nativeCmd   "tests/pos"              posOptions skipNativePos  ExitSuccess
-    , dirTests "native-neg"           nativeCmd   "tests/neg"              [] ["float.fq"]  (ExitFailure 1)
-    , dirTests "elim-crash"           nativeCmd   "tests/crash"            posOptions []            (ExitFailure 1)
-    , dirTests "elim-pos1"            elimCmd     "tests/pos"              posOptions []             ExitSuccess
-    , dirTests "elim-pos2"            elimCmd     "tests/elim"             posOptions []             ExitSuccess
-    , dirTests "elim-neg"             elimCmd     "tests/neg"              [] ["float.fq"]  (ExitFailure 1)
-    , dirTests "elim-crash"           elimCmd     "tests/crash"            []                      []            (ExitFailure 1)
-    , dirTests "cvc5-pos"             cvc5Cmd     "tests/pos"              posOptions skipNativePos  ExitSuccess
-    , dirTests "cvc5-spec"            cvc5Cmd     "tests/cvc5"             posOptions skipNativePos  ExitSuccess
-    , dirTests "proof"                elimCmd     "tests/proof"            posOptions []             ExitSuccess
-    , dirTests "rankN"                elimCmd     "tests/rankNTypes"       posOptions []             ExitSuccess
-    , dirTests "horn-pos-el"          elimSaveCmd "tests/horn/pos"         posOptions []             ExitSuccess
-    , dirTests "horn-pos-cvc5"        cvc5Cmd     "tests/horn/pos"         posOptions []             ExitSuccess
-    , dirTests "horn-neg-el"          elimSaveCmd "tests/horn/neg"         []         []            (ExitFailure 1)
-    , dirTests "horn-neg-cvc5"        cvc5Cmd     "tests/horn/neg"         []         []            (ExitFailure 1)
-    , dirJsonTests "horn-json-pos-el" elimCmd     "tests/horn/pos/.liquid" []         []             ExitSuccess
-    , dirJsonTests "horn-json-neg-el" elimCmd     "tests/horn/neg/.liquid" []         []            (ExitFailure 1)
-    , dirHornTests "horn-smt2-pos-el" elimCmd     "tests/horn/pos/.liquid" []         []             ExitSuccess
-    , dirHornTests "horn-smt2-neg-el" elimCmd     "tests/horn/neg/.liquid" []         []            (ExitFailure 1)
-    , dirTests "horn-pos-na"          nativeCmd   "tests/horn/pos"         posOptions []             ExitSuccess
-    , dirTests "horn-neg-na"          nativeCmd   "tests/horn/neg"         []         []            (ExitFailure 1)
-   ]
-   where
+unitTests lfDir =
+    group "All"
+      [ group "original"
+        [ dirTests "native-pos"           nativeCmd   "tests/pos"              posOptions skipNativePos  ExitSuccess
+        , dirTests "native-neg"           nativeCmd   "tests/neg"              [] ["float.fq"]  (ExitFailure 1)
+        , dirTests "elim-crash"           nativeCmd   "tests/crash"            posOptions []            (ExitFailure 1)
+        , dirTests "elim-pos1"            elimCmd     "tests/pos"              posOptions []             ExitSuccess
+        , dirTests "elim-pos2"            elimCmd     "tests/elim"             posOptions []             ExitSuccess
+        , dirTests "elim-neg"             elimCmd     "tests/neg"              [] ["float.fq"]  (ExitFailure 1)
+        , dirTests "elim-crash"           elimCmd     "tests/crash"            []                      []            (ExitFailure 1)
+        , dirTests "cvc5-pos"             cvc5Cmd     "tests/pos"              posOptions skipNativePos  ExitSuccess
+        , dirTests "cvc5-spec"            cvc5Cmd     "tests/cvc5"             posOptions skipNativePos  ExitSuccess
+        , dirTests "proof"                elimCmd     "tests/proof"            posOptions []             ExitSuccess
+        , dirTests "rankN"                elimCmd     "tests/rankNTypes"       posOptions []             ExitSuccess
+        , dirTests "horn-pos-el"          elimSaveCmd "tests/horn/pos"         posOptions []             ExitSuccess
+        , dirTests "horn-pos-cvc5"        cvc5Cmd     "tests/horn/pos"         posOptions []             ExitSuccess
+        , dirTests "horn-neg-el"          elimSaveCmd "tests/horn/neg"         []         []            (ExitFailure 1)
+        , dirTests "horn-neg-cvc5"        cvc5Cmd     "tests/horn/neg"         []         []            (ExitFailure 1)
+        , dirTests "horn-pos-na"          nativeCmd   "tests/horn/pos"         posOptions []             ExitSuccess
+        , dirTests "horn-neg-na"          nativeCmd   "tests/horn/neg"         []         []            (ExitFailure 1)
+        ]
+      , after AllSucceed "original" <$> group "saved"
+        [ dirJsonTests "horn-json-pos-el" elimCmd     "tests/logs/cur/horn-pos-el" []         []             ExitSuccess
+        , dirJsonTests "horn-json-neg-el" elimCmd     "tests/logs/cur/horn-neg-el" []         []            (ExitFailure 1)
+        , dirHornTests "horn-smt2-pos-el" elimCmd     "tests/logs/cur/horn-pos-el" []         []             ExitSuccess
+        , dirHornTests "horn-smt2-neg-el" elimCmd     "tests/logs/cur/horn-neg-el" []         []            (ExitFailure 1)
+        ]
+      ]
+  where
     posOptions = ["--save-bfq-on-error"]
 
     dirTests     n a b c d e = testGroup n <$> dirTests' n isTest a b c d e
@@ -121,7 +125,8 @@ unitTests lfDir
       let absRoot = lfDir </> root
       files    <- walkDirectory absRoot
       let tests = [ rel | f <- files, isT f, let rel = makeRelative absRoot f, rel `notElem` ignored ]
-      return    $ mkTest testName testCmd code extraOpts absRoot <$> tests
+          saveDir = "--save-dir=" ++ lfDir </> "tests" </> "logs" </> "cur" </> testName
+      return $ mkTest testName testCmd code (saveDir : extraOpts) absRoot <$> tests
 
 isTest   :: FilePath -> Bool
 isTest f = takeExtension f `elem` [".fq", ".smt2"]
@@ -198,10 +203,6 @@ elimSaveCmd (LO opts) bin dir file =
 cvc5Cmd :: TestCmd
 cvc5Cmd (LO opts) bin dir file =
   printf "cd %s && %s --solver=cvc5 %s %s" dir bin opts file
-
-cvc5SaveCmd :: TestCmd
-cvc5SaveCmd (LO opts) bin dir file =
-  printf "cd %s && %s --save --solver=cvc5 %s %s" dir bin opts file
 
 ----------------------------------------------------------------------------------------
 -- Generic Helpers

@@ -1,5 +1,4 @@
 (fixpoint "--rewrite")
-(fixpoint "--save")
 
 (constant len (func 1 ((Vec @(0))) Int))
 

@@ -13,6 +13,7 @@ module Language.Fixpoint.Utils.Files (
     Ext (..)
   , extFileName
   , extFileNameR
+  , extFileNameR'
   , tempDirectory
   , tempFileName
   , extModuleName
@@ -158,6 +159,12 @@ tmpDirName      = ".liquid"
 
 extFileNameR     :: Ext -> FilePath -> FilePath
 extFileNameR ext = (`addExtension` extMap ext)
+
+-- | Like 'extFileName' but uses a custom output directory when provided.
+-- When 'Nothing', falls back to the default @.liquid/@ directory behavior.
+extFileNameR' :: Maybe FilePath -> Ext -> FilePath -> FilePath
+extFileNameR' Nothing  e f = extFileName e f
+extFileNameR' (Just d) e f = d </> takeFileName (addExtension f (extMap e))
 
 isExtFile ::  Ext -> FilePath -> Bool
 isExtFile ext = (extMap ext ==) . takeExtension
