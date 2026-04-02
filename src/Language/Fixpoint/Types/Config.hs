@@ -103,6 +103,7 @@ data Config = Config
   , pleUndecGuards   :: Bool           -- ^ Unfold invocations with undecided guards in PLE
   , etabeta          :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
   , localRewrites    :: Bool           -- ^ Eta expand and beta reduce terms to aid PLE
+  , saveBfqOnError   :: Bool           -- ^ save FInfo as .bfq only on verification failure
   , interpreter      :: Bool           -- ^ Do not use the interpreter to assist PLE
   , noEnvReduction   :: Bool     -- ^ Don't use environment reduction
   , inlineANFBinds   :: Bool          -- ^ Inline ANF bindings.
@@ -117,6 +118,7 @@ data Config = Config
   , noStringTheory :: Bool             -- ^ disable interpretation of string theory by SMT
   , explicitKvars  :: Bool             -- ^ use explicitly declared kvars (horn style) which disables several "defensive simplifications"
   , sortedSolution :: Bool             -- ^ leave sorts in the solution
+  , saveDir        :: Maybe FilePath    -- ^ output directory for --save generated files (default: .liquid/ next to source)
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -248,6 +250,15 @@ defConfig = Config {
   , elimStats                = False   &= help "(alpha) Print eliminate stats"
   , solverStats              = False   &= help "Print solver stats"
   , save                     = False   &= help "Save Query as .fq and .bfq files"
+  , saveBfqOnError           = False   &= help "Save Query as .bfq file only when verification fails"
+                                       &= name "save-bfq-on-error"
+                                       &= explicit
+  , saveDir                  = Nothing
+      &= name "save-dir"
+      &= help "Output directory for --save generated files (default: .liquid/ next to source)"
+      &= opt (Nothing :: Maybe FilePath)
+      &= explicit
+      &= typDir
   , metadata                 = False   &= help "Print meta-data associated with constraints"
   , stats                    = False   &= help "Compute constraint statistics"
   , etaElim                  = False   &= help "Eta elimination in function definition"
@@ -322,4 +333,4 @@ multicore :: Config -> Bool
 multicore cfg = cores cfg /= Just 1
 
 queryFile :: Ext -> Config -> FilePath
-queryFile e = extFileName e . srcFile
+queryFile e cfg = extFileNameR' (saveDir cfg) e (srcFile cfg)

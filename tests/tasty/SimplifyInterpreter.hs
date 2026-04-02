@@ -4,7 +4,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import Language.Fixpoint.Solver.Interpreter (ICtx (..), Knowledge (..))
 import qualified Language.Fixpoint.Solver.Interpreter as Interpreter
-import Language.Fixpoint.Types.Environments (SEnv (..))
+import Language.Fixpoint.Types.Environments (SEnvB (..))
 import Language.Fixpoint.Types.Refinements (Expr)
 
 interpret' :: Expr -> Expr

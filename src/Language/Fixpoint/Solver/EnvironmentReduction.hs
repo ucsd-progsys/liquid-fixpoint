@@ -72,12 +72,11 @@ import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
   ( Brel(..)
-  , ExprV(..)
+  , ExprBV(..)
   , Expr
   , KVar(..)
   , SortedReft(..)
-  , Subst
-  , SubstV(..)
+  , KVarSubst
   , pattern PTrue
   , pattern PFalse
   , dropECst
@@ -91,6 +90,7 @@ import           Language.Fixpoint.Types.Refinements
   , reftPred
   , sortedReftSymbols
   , subst1
+  , fromKVarSubst
   )
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
 import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
@@ -399,7 +399,7 @@ relatedKVarBinds bindEnv cs =
    in
       (bindIdsByKVar, substsByKVar, kvarsBySubC)
   where
-    kvarsByBindId :: HashMap BindId (HashMap KVar [Subst])
+    kvarsByBindId :: HashMap BindId (HashMap KVar [KVarSubst Symbol Symbol])
     kvarsByBindId =
       HashMap.map (exprKVars . reftPred . sr_reft . snd3) $ beBinds bindEnv
 
@@ -408,9 +408,8 @@ relatedKVarBinds bindEnv cs =
     kvarBindsFromSubC :: ReducedConstraint a -> HashMap KVar (HashSet Symbol)
     kvarBindsFromSubC sc =
       let c = originalConstraint sc
-          unSubst (Su su) = su
           substsToHashSet =
-            HashSet.fromMap . HashMap.map (const ()) . HashMap.unions . map unSubst
+            HashSet.fromMap . HashMap.map (const ()) . HashMap.unions . map fromKVarSubst
        in foldl' (HashMap.unionWith HashSet.union) HashMap.empty $
           map (HashMap.map substsToHashSet) $
           (exprKVars (reftPred $ sr_reft $ srhs c) :) $

@@ -25,6 +25,8 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 -- import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)
 import           Language.Fixpoint.Utils.Builder as Builder
+import qualified Data.Text as T
+import Data.Text (Text)
 -- import Debug.Trace (trace)
 
 instance SMTLIB2 (Symbol, Sort) where
@@ -125,7 +127,19 @@ instance SMTLIB2 LocSymbol where
   smt2 = smt2 . val
 
 instance SMTLIB2 SymConst where
-  smt2 = smt2 . symbol
+  smt2 c@(SL t) = do
+    seStr <- gets seString
+    if seStr
+      then pure $ quotes $ fromText $ smtEscape t  -- emit "hello" not lit$36$hello
+      else smt2 (symbol c)
+
+-- | Per https://smt-lib.org/theories-UnicodeStrings.shtml
+-- "SMT-LIB 2.6 has one escape sequence of its own for string literals. Two
+--  double quotes ("") are used to represent the double-quote character within
+--  a string literal"
+
+smtEscape :: Text -> Text
+smtEscape = T.replace "\"" "\"\""
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = pure $ bShow n

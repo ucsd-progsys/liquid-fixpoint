@@ -328,7 +328,7 @@ applyKVars cfg g s ks =
 applyKVar :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> ExprInfo
 applyKVar cfg  g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Left cs   -> hypPred cfg g s ksu cs
-  Right eqs -> let qbp = Sol.qbPreds (F.ksuSubst ksu) eqs
+  Right eqs -> let qbp = Sol.qbPreds (F.substFromKSubst $ F.ksuSubst ksu) eqs
                 in (F.pAndNoDedup $ fst <$> qbp, mempty) -- TODO: don't initialize kvars that have a hyp solution
 
 mkNonCutsExpr :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Hyp -> F.Expr
@@ -422,7 +422,7 @@ cubePred cfg g s ksu c    =
     bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
     bs  = Sol.cuBinds c
     k   = F.ksuKVar ksu
-    su = dropUnsortedExprs cfg g (F.ksuSubst  ksu)
+    su = dropUnsortedExprs cfg g (F.substFromKSubst $ F.ksuSubst  ksu)
 
 -- | @cubePredExc@ computes the predicate for the subset of binders bs'.
 --

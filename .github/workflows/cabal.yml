@@ -70,3 +70,9 @@ jobs:
 
       - name: Test
         run: cabal test all --test-show-details=direct --test-option="--color=always"
+      - name: Upload bfq artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bfq-files
+          path: '**/*.bfq'
