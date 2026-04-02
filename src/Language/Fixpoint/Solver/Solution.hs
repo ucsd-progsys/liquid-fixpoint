@@ -49,6 +49,7 @@ import qualified Language.Fixpoint.Types              as F
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
 import           Prelude                              hiding (init, lookup)
+import Text.Printf (printf)
 
 
 --------------------------------------------------------------------------------
@@ -244,12 +245,11 @@ okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> ElabM Bool
 --------------------------------------------------------------------------------
 okInst env v t eq =
   do tc <- So.checkSorted (F.srcSpan eq) env sr
-     pure $ isNothing tc
+     pure $ F.tracepp msg (isNothing tc)
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-
-    -- _msg          = printf "okInst: t = %s, eq = %s, env = %s" (F.showpp t) (F.showpp eq) (F.showpp env)
+    msg           = printf "okInst: t = %s, eq = %s, env = %s" (F.showpp t) (F.showpp eq) (F.showpp env)
 
 
 --------------------------------------------------------------------------------
