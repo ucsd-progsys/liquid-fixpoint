@@ -31,7 +31,7 @@ module Language.Fixpoint.Solver.PLE
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
-import           Language.Fixpoint.Types.Solutions (CMap, Solution)
+import           Language.Fixpoint.Types.Solutions (CMap, EQual(..), QBind(..), Sol(..), Solution)
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc
 import qualified Language.Fixpoint.Smt.Interface as SMT
@@ -84,11 +84,14 @@ instantiate cfg fi' mSol subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm info)
+        -- To motivate unelaborating the solution here,
+        -- see https://github.com/ucsd-progsys/liquidhaskell/issues/2649
+        mSol' = unElabSolution <$> mSol
     let t  = mkCTrie (M.toList cs)                                          -- 1. BUILD the Trie
     res   <- withRESTSolver $ \solver -> do
                ctx <- get
                (res, ctx') <- liftIO $ withProgressM (`runStateT` ctx) (1 + M.size cs) $ do
-                 env <- instEnv cfg info mSol cs solver
+                 env <- instEnv cfg info mSol' cs solver
                  pleTrie t env                                              -- 2. TRAVERSE Trie to compute InstRes
                put ctx'
                return res
@@ -127,6 +130,18 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
             concatMap conjuncts eqs
            )
       $+$ ""
+
+-- | unElab instantiated qualifiers in the given solution
+unElabSolution :: Solution -> Solution
+unElabSolution s = s
+    { sMap = M.map unElabQBind (sMap s)
+    }
+  where
+    unElabQBind :: QBind -> QBind
+    unElabQBind (QB eqs) = QB (map unElabEQual eqs)
+
+    unElabEQual :: EQual -> EQual
+    unElabEQual eq = eq { eqPred = unElab $ eqPred eq }
 
 -------------------------------------------------------------------------------
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment
