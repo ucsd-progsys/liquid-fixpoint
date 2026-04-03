@@ -247,11 +247,11 @@ eQual :: Qualifier -> [Symbol] -> [Constant] -> EQual
 eQual q xs ls = {- tracepp "eQual" $ -} EQL q p es
   where
     p      = subst su $  qBody q
-    su     = mkSubst  $  safeZip "eQual" qxs es
+    su     = mkSubst  $  safeZip "eQual" qxs (reverse es)
     (es, _, _) = L.foldl' go ([], xs, ls) (qParams q)
-    go (acc, x:xs', cs   ) qp | qpPat qp /= PatLit = (acc ++ [eVar x], xs', cs)
-    go (acc, xs',   c:cs') qp | qpPat qp == PatLit  = (acc ++ [ECon c], xs', cs')
-    go _                   _                         = error "eQual: mismatched params"
+    go (acc, x:xs', cs   ) qp | qpPat qp /= PatLit = (eVar x : acc, xs', cs)
+    go (acc, xs',   c:cs') qp | qpPat qp == PatLit = (ECon c : acc, xs', cs')
+    go _                   _                       = error "eQual: mismatched params"
     qxs    = qpSym   <$> qParams q
 
 --------------------------------------------------------------------------------
