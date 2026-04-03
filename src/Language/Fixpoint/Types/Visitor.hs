@@ -16,6 +16,7 @@ module Language.Fixpoint.Types.Visitor (
 
   -- * Extracting Symbolic Constants (String Literals)
   ,  SymConsts (..)
+  ,  getConstants
 
   -- * Default Visitor
   , defaultFolder
@@ -63,6 +64,7 @@ import Control.Monad.Reader
 import GHC.IO (unsafePerformIO)
 import Data.IORef (newIORef, readIORef, IORef, modifyIORef')
 import Prelude hiding (Foldable)
+import Data.Containers.ListUtils (nubOrd)
 
 
 
@@ -663,3 +665,14 @@ getSymConsts         = fold scVis () []
     scVis            = (defaultFolder :: Folder [SymConst] t)  { accExpr = sc }
     sc _ (ESym c)    = [c]
     sc _ _           = []
+
+getConstants' :: Foldable t => t -> [Constant]
+getConstants' = nubOrd . fold cVis () []
+  where
+    cVis           = (defaultFolder :: Folder [Constant] t) { accExpr = ac }
+    ac _ (ECon c)  = [c]
+    ac _ _         = []
+
+-- | getConstants returns both the vanilla constants AND the sym-constants as str-literals
+getConstants :: Foldable t => t -> [Constant]
+getConstants z = getConstants' z ++ [ L t strSort | SL t <- getSymConsts z]
