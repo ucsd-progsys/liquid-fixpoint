@@ -673,6 +673,6 @@ saveSolution cfg sfx res = when (save cfg) $ do
     ]
     where
       scopedRender = PJ.render . PJ.vcat . map ncDoc . scoped
-      scoped sol = [ (k, scope k, e) | (k, e) <- M.toList sol]
+      scoped sol = [ (k, scope k, So.unApply e) | (k, e) <- M.toList sol]
       scope k = M.lookupDefault [] k $ resSorts res
       ncDoc (k, xts, e) = PJ.hsep [ F.pprint k PJ.<> F.pprint xts, PJ.text ":=", F.pprint e ]
