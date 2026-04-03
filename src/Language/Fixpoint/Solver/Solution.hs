@@ -20,23 +20,29 @@ module Language.Fixpoint.Solver.Solution
 
   , nonCutsResult
 
+    -- * Save Solution
+  , saveSolution
+
     -- * Exported for Testing
   , simplifyKVar
   , alphaEq
   ) where
 
 import           Control.Arrow (second, (***))
-import           Control.Monad                  (guard, mplus)
+import           Control.Monad                  (guard, mplus, when)
 import           Control.Monad.Reader
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as List
 import           Data.Maybe                     (maybeToList, isJust, isNothing)
+import qualified Text.PrettyPrint.HughesPJ      as PJ
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import           Language.Fixpoint.SortCheck          (ElabM)
 import qualified Language.Fixpoint.SortCheck          as So
+import           Language.Fixpoint.Misc               (ensurePath)
 import qualified Language.Fixpoint.Misc               as Misc
+import qualified Language.Fixpoint.Utils.Files        as Files
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types              as F
 import qualified Language.Fixpoint.Types.Solutions    as Sol
@@ -644,3 +650,29 @@ isVarEq fvs ei0 = case ei0 of
     isVarIn (F.EVar s) vs
       | elem s vs = Just s
     isVarIn _ _vs = Nothing
+
+--------------------------------------------------------------------------------
+-- | Save Solution to File -----------------------------------------------------
+--------------------------------------------------------------------------------
+
+saveSolution :: Config -> String -> Result a -> IO ()
+saveSolution cfg sfx res = when (save cfg) $ do
+  let f = Files.tempFileName (srcFile cfg ++ sfx ++ ".fqout")
+  putStrLn $ "Saving Solution: " ++ f ++ "\n"
+  ensurePath f
+  writeFile f $ unlines $
+    [ ""
+    , "Solution:"
+    , scopedRender (resSolution  res)
+    ] ++
+    [ ""
+    , ""
+    , "Non-cut kvars:"
+    , ""
+    , scopedRender (M.map forceDelayed $ resNonCutsSolution res)
+    ]
+    where
+      scopedRender = PJ.render . PJ.vcat . map ncDoc . scoped
+      scoped sol = [ (k, scope k, e) | (k, e) <- M.toList sol]
+      scope k = M.lookupDefault [] k $ resSorts res
+      ncDoc (k, xts, e) = PJ.hsep [ F.pprint k PJ.<> F.pprint xts, PJ.text ":=", F.pprint e ]

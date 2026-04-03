@@ -290,7 +290,7 @@ solveNative' !cfg !fi0 = do
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   -- saveSolution cfg res
-  when (save cfg) $ saveSolution cfg res
+  when (save cfg) $ Sol.saveSolution cfg "" res
   -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
@@ -309,28 +309,6 @@ parseFI f = do
   return $ mempty { Types.quals = Types.quals  fi
                   , Types.gLits = Types.gLits  fi
                   , Types.dLits = Types.dLits  fi }
-
-saveSolution :: Config -> Result a -> IO ()
-saveSolution cfg res = when (save cfg) $ do
-  let f = queryFile Out cfg
-  putStrLn $ "Saving Solution: " ++ f ++ "\n"
-  ensurePath f
-  writeFile f $ unlines $
-    [ ""
-    , "Solution:"
-    , scopedRender (resSolution  res)
-    ] ++
-    [ ""
-    , ""
-    , "Non-cut kvars:"
-    , ""
-    , scopedRender (HashMap.map forceDelayed $ resNonCutsSolution res)
-    ]
-    where
-      scopedRender = PJ.render . PJ.vcat . map ncDoc . scoped
-      scoped sol = [ (k, scope k, e) | (k, e) <- HashMap.toList sol]
-      scope k = HashMap.lookupDefault [] k $ resSorts res
-      ncDoc (k, xts, e) = PJ.hsep [ pprint k PJ.<> pprint xts, ":=", pprint e ]
 
 simplifyResult :: Config -> Result a -> Result a
 simplifyResult cfg res =
