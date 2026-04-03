@@ -89,8 +89,7 @@ refine info qs genv w = refineK hoqs env lits qs (F.wrft w)
   where
     env             = wenvSort <> genv
     wenvSort        = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs info) (F.wenv w))
-    hoqs            = F.tracepp msg (allowHOquals info)
-    msg             = "CONSTANTS = " ++ F.showpp lits
+    hoqs            = allowHOquals info
     lits            = getConstants info
 
 instConstants :: F.SInfo a -> F.SEnv F.Sort
