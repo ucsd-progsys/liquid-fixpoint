@@ -226,7 +226,7 @@ instance (Eq v, Hashable v) => Subable (ExprBV v v) where
         PAtom r e1 e2 ->
           PAtom r (go su e1) (go su e2)
         PKVar k su' ->
-          PKVar k $ kSubstFromSubst $ substFromKSubst su' `catSubst` su
+          PKVar k (kSubstFromSubst $ substFromKSubst su' `catSubst` su)
         PAll bs p
           | disjointRange su' bs ->
             PAll bs $ go su' p
@@ -296,7 +296,7 @@ rapierSubstExpr s su e0 =
     PImp p1 p2 -> PImp (go s su p1) (go s su p2)
     PIff p1 p2 -> PIff (go s su p1) (go s su p2)
     PAtom r e1 e2 -> PAtom r (go s su e1) (go s su e2)
-    PKVar k su' -> PKVar k $ catSubstGo su' su
+    PKVar k su' -> PKVar k (catSubstGo su' su)
     PAll bs p ->
       let mfs = map (maybeFresh . fst) bs
           fs = map (either (\x -> (x, x)) id) mfs

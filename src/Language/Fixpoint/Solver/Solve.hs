@@ -113,9 +113,10 @@ solverInfo :: Config -> F.SInfo a -> SolverInfo a
 --------------------------------------------------------------------------------
 solverInfo cfg fI
   | useElim cfg = E.solverInfo cfg fI
-  | otherwise   = SI mempty fI cD (siKvars fI)
+  | otherwise   = SI s0 fI cD (siKvars fI)
   where
     cD          = elimDeps fI (kvEdges fI) mempty
+    s0          = mempty { Sol.sWfs = M.fromList [ (k, (t, F.wtvs w)) | w <- M.elems (F.ws fI), let (_v, t, k) = F.wrft w ] }
 
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws

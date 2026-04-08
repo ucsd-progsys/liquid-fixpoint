@@ -41,6 +41,7 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
       { Sol.sMap = mempty
       , Sol.sHyp = M.fromList kHyps
       , Sol.sScp = kS
+      , Sol.sWfs = M.fromList [ (k, (t, wtvs w)) | w <- M.elems (ws sI), let (_v, t, k) = wrft w ]
       }
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI

@@ -125,7 +125,7 @@ kvInfo :: (F.PPrint a) => F.BindEnv a -> H.Var a -> (F.BindEnv a, KVInfo a)
 kvInfo be k       = (be', KVInfo k (Misc.fst3 <$> xts) wfc)
   where
     -- make the WfC
-    wfc           = F.WfC wenv wrft  (H.hvMeta k)
+    wfc           = F.WfC wenv wrft [] (H.hvMeta k)
     wenv          = F.fromListIBindEnv ids
     wrft          = (x, t, F.KV (H.hvName k))
     -- add the binders

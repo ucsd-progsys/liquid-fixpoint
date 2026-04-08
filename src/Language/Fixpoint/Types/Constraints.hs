@@ -146,6 +146,7 @@ type Tag           = [Int]
 
 data WfC a  =  WfC  { wenv  :: !IBindEnv
                     , wrft  :: (Symbol, Sort, KVar)
+                    , wtvs  :: ![Symbol]  -- ^ Type variables that can be instantiated
                     , winfo :: !a
                     }
               deriving (Eq, Generic, Functor)
@@ -446,16 +447,19 @@ wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
 wfC be sr x = if all isEmptyKVarSubst sus -- ++ gsus)
                  -- NV TO RJ This tests fails with [LT:=GHC.Types.LT][EQ:=GHC.Types.EQ][GT:=GHC.Types.GT]]
                  -- NV TO RJ looks like a resolution issue
-                then [WfC be (v, sr_sort sr, k) x      | k         <- ks ]
+                then [WfC be (v, sr_sort sr, k) tvs x      | k         <- ks ]
                 else errorstar msg
   where
     msg             = "wfKvar: malformed wfC " ++ show sr ++ "\n" ++ show sus
     Reft (v, ras)   = sr_reft sr
     (ks, sus)       = unzip $ go ras
+    -- Extract type variables (FObj symbols) from the sort
+    tvs             = S.toList $ sortSymbols (sr_sort sr)
 
     go (PKVar k su) = [(k, su)]
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
     go _            = []
+
 
 mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
 mkSubC = SubC

@@ -286,6 +286,7 @@ mapKVars' f = trans txK
   where
     txK (PKVar k su)
       | Just p' <- f (k, su) = ksubst su p'
+      | otherwise = PKVar k su
     txK p = p
 
 
