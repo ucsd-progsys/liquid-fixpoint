@@ -41,6 +41,7 @@ module Language.Fixpoint.Types.Visitor (
   , applyCoSub
   , CoSubV
   , applyCoSubV
+  , applyCoercion
 
   -- * Predicates on Constraints
   , isConcC , isConc, isKvarC
@@ -558,6 +559,13 @@ applyCoSubV coSub = mapExprOnExpr fE
     txS               = mapSortOnlyOnce fS
 
     fS t              = M.lookupDefault t t coSub
+
+applyCoercion :: Symbol -> Sort -> Sort -> Sort
+applyCoercion a t = mapSortOnlyOnce f
+  where
+    f (FObj b)
+      | a == b    = t
+    f s           = s
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@
