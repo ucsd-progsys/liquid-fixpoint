@@ -263,9 +263,9 @@ subcKSubs xsrs c = rhs ++ lhs
   where
     lhs          = [ (Just v, k, su) | (_, sr) <- xsrs
                                      , let rs   = F.reftConjuncts (F.sr_reft sr)
-                                     , F.Reft (v, F.PKVar k su) <- rs
+                                     , F.Reft (v, F.PKVar k su _) <- rs
                    ]
-    rhs          = [(Nothing, k, su) | F.PKVar k su <- [F.crhs c]]
+    rhs          = [(Nothing, k, su) | F.PKVar k su _ <- [F.crhs c]]
 
 
 initKvarEnv :: F.SInfo a -> KvDom

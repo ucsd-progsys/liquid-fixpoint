@@ -106,7 +106,7 @@ predExpr kve        = go
     go (H.PAnd  ps) = F.PAnd (go <$> ps)
 
 kvApp :: KVEnv a -> F.Symbol -> [F.Expr] -> F.Expr
-kvApp kve k ys = F.PKVar (F.KV k) su
+kvApp kve k ys = F.PKVar (F.KV k) su M.empty
   where
     su         = F.mkKVarSubst (zip params ys)
     params     = maybe err1 kvParams (M.lookup k kve)
@@ -125,7 +125,7 @@ kvInfo :: (F.PPrint a) => F.BindEnv a -> H.Var a -> (F.BindEnv a, KVInfo a)
 kvInfo be k       = (be', KVInfo k (Misc.fst3 <$> xts) wfc)
   where
     -- make the WfC
-    wfc           = F.WfC wenv wrft  (H.hvMeta k)
+    wfc           = F.WfC wenv wrft (H.hvMeta k)
     wenv          = F.fromListIBindEnv ids
     wrft          = (x, t, F.KV (H.hvName k))
     -- add the binders

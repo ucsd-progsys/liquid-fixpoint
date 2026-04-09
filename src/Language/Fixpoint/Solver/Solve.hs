@@ -275,7 +275,7 @@ refineC bindingsInSmt be _i s c =
 
 predKs :: F.ExprBV b v -> [(F.KVar, F.KVarSubst b v)]
 predKs (F.PAnd ps)    = concatMap predKs ps
-predKs (F.PKVar k su) = [(k, su)]
+predKs (F.PKVar k su _) = [(k, su)]
 predKs _              = []
 
 --------------------------------------------------------------------------------

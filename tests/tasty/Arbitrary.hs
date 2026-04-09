@@ -72,7 +72,7 @@ subexprs (T.PNot e)      = [e]
 subexprs (PImp e0 e1)    = [e0, e1]
 subexprs (PIff e0 e1)    = [e0, e1]
 subexprs (PAtom _ e0 e1) = [e0, e1]
-subexprs (PKVar _ _)     = []
+subexprs (PKVar _ _ _)   = []
 subexprs (PAll _ e)      = [e]
 subexprs (PExist _ e)    = [e]
 subexprs (ECoerc _ _ e)  = [e]
@@ -101,7 +101,7 @@ arbitraryFiniteExpr zeroExprGen n = frequency
   , (1, PImp <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, PIff <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, PAtom <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
-  , (1, PKVar <$> arbitrary <*> arbitrary)
+  , (1, PKVar <$> arbitrary <*> arbitrary <*> pure mempty)
   , (1, PAll <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, PExist <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, ECoerc <$> arbitrary <*> arbitrary <*> arbitraryExpr')

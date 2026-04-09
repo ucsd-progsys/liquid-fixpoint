@@ -137,7 +137,7 @@ mapMPosExpr pos f = go pos
     go p e@(ESym _)      = f p e
     go p e@(ECon _)      = f p e
     go p e@(EVar _)      = f p e
-    go p e@(PKVar _ _)   = f p e
+    go p e@(PKVar _ _ _)   = f p e
     go p (ENeg e)        = f p . ENeg =<< go p e
     go p (ECst e t)      = f p . (`ECst` t) =<< go p e
     go p (ECoerc a t e)  = f p . ECoerc a t =<< go p e
@@ -169,7 +169,7 @@ normalize expr' = mytracepp ("normalize: " ++ showpp expr') $ go expr'
     go e@(ESym _)        = e
     go e@(ECon _)        = e
     go e@(EVar _)        = e
-    go e@(PKVar _ _)     = e
+    go e@(PKVar _ _ _)     = e
     go e@(ENeg _)        = e
     go (PNot e)          = PImp e PFalse
     go e@(ECst _ _)      = e

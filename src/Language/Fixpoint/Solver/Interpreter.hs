@@ -365,7 +365,7 @@ notGuardedApps = flip go []
       ELam _ _ -> acc
       ETApp _ _ -> acc
       ETAbs _ _ -> acc
-      PKVar _ _ -> acc
+      PKVar _ _ _ -> acc
       PAll _ _ -> acc
       PExist _ _ -> acc
 
@@ -392,7 +392,7 @@ largestApps = flip go []
       ELam _ _ -> acc
       ETApp _ _ -> acc
       ETAbs _ _ -> acc
-      PKVar _ _ -> acc
+      PKVar _ _ _ -> acc
       PAll _ _ -> acc
       PExist _ _ -> acc
 
@@ -547,7 +547,7 @@ interpret ie γ ctx env (PIff e1 e2)     = let e1' = interpret' ie γ ctx env e1
 interpret ie γ ctx env (PAtom o e1 e2)  = let e1' = interpret' ie γ ctx env e1
                                               e2' = interpret' ie γ ctx env e2 in
                                             applyBooleanFolding o e1' e2'
-interpret _  _ _   _   e@(PKVar _ _)    = e
+interpret _  _ _   _   e@(PKVar _ _ _)    = e
 interpret ie γ ctx env e@(PAll xss e1)  = case xss of
   [] -> interpret' ie γ ctx env e1
   _  -> e

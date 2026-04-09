@@ -116,7 +116,7 @@ nonCutCube c = Sol.Cube (senv c) (substFromKSubst $ rhsSubst c) (subcId c) (stag
 rhsSubst :: SimpC a -> KVarSubst Symbol Symbol
 rhsSubst             = rsu . crhs
   where
-    rsu (PKVar _ su) = su
+    rsu (PKVar _ su _) = su
     rsu _            = errorstar "Eliminate.rhsSubst called on bad input"
 
 getSubC :: SInfo a -> Integer -> SimpC a

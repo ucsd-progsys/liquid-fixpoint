@@ -476,7 +476,7 @@ cstrToExpr (All (Bind x t p _) c) = F.PAll [(x,t)] $ F.PImp (predToExpr p) $ cst
 
 predToExpr :: Pred -> F.Expr
 predToExpr (Reft e) = e
-predToExpr (Var k xs) = F.PKVar (F.KV k) (F.toKVarSubst $ M.fromList su)
+predToExpr (Var k xs) = F.PKVar (F.KV k) (F.toKVarSubst $ M.fromList su) M.empty
   where su = zip (kargs k) xs
 predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
 

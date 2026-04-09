@@ -68,6 +68,7 @@ module Language.Fixpoint.Types.Sorts (
   , mkPoly
   , sortSymbols
   , substSort
+  , matchSortsTyVars
 
   , isBool, isNumeric, isReal, isString, isSet, isMap, isBag, isArray, isFinfield, isPolyInst
 
@@ -343,6 +344,25 @@ substSort f = \case
   FApp t0 t1 -> FApp (substSort f t0) (substSort f t1)
   FAbs i t -> FAbs i (substSort f t)
   t -> t
+
+-- | @matchSortsTyVars tvs wfSort useSiteSort@ structurally matches two sorts and
+-- extracts a mapping from type variable symbols (in @tvs@) to their
+-- instantiation at the use site. For example:
+--
+-- > matchSortsTyVars ["a"] (FApp listTC (FObj "a")) (FApp listTC (FObj "b"))
+-- >   == HashMap.fromList [("a", FObj "b")]
+matchSortsTyVars :: [Symbol] -> Sort -> Sort -> M.HashMap Symbol Sort
+matchSortsTyVars tvs wfSort useSiteSort
+  | null tvs  = M.empty
+  | otherwise = go M.empty wfSort useSiteSort
+  where
+    tvSet = HashSet.fromList tvs
+    go acc (FObj s) t
+      | HashSet.member s tvSet = if FObj s /= t then M.insert s t acc else acc
+    go acc (FFunc a1 a2) (FFunc b1 b2) = go (go acc a1 b1) a2 b2
+    go acc (FApp a1 a2) (FApp b1 b2) = go (go acc a1 b1) a2 b2
+    go acc (FAbs _ a) (FAbs _ b) = go acc a b
+    go acc _ _ = acc
 
 data DataField = DField
   { dfName :: !LocSymbol          -- ^ Field Name

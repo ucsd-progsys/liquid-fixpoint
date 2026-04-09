@@ -127,7 +127,7 @@ instance Visitable Expr where
       step (PExist xts p)   = PExist xts (vE p)
       step (ETApp e s)      = ETApp (vE e) s
       step (ETAbs e s)      = ETAbs (vE e) s
-      step p@(PKVar _ _)    = p
+      step p@(PKVar _ _ _)    = p
 
 instance Visitable Reft where
   transE v (Reft (x, ra)) = Reft (x, transE v ra)
@@ -274,7 +274,7 @@ foldExpr !v    = vE
     step !c (PExist xts p)  = PExist xts  <$> vE c p
     step !c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step !c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
-    step _  p@(PKVar _ _)   = return p
+    step _  p@(PKVar _ _ _)   = return p
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -284,8 +284,9 @@ mapKVars f = mapKVars' f'
 mapKVars' :: Visitable t => ((KVar, KVarSubst Symbol Symbol) -> Maybe Expr) -> t -> t
 mapKVars' f = trans txK
   where
-    txK (PKVar k su)
+    txK (PKVar k su tsu)
       | Just p' <- f (k, su) = ksubst su p'
+      | otherwise = PKVar k su tsu
     txK p = p
 
 
@@ -359,7 +360,7 @@ mapExprOnExpr f = go
       ETAbs e s ->
         let !e' = go e
         in ETAbs e' s
-      PKVar k su -> PKVar k (mapKVarSubst go su)
+      PKVar k su tsu -> PKVar k (mapKVarSubst go su) tsu
       e@EVar{} -> e
       e@ESym{} -> e
       e@ECon{} -> e
@@ -398,7 +399,7 @@ mapMExpr f = go
     go e@(ESym _)      = f e
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
-    go e@(PKVar _ _)   = f e
+    go e@(PKVar _ _ _)   = f e
     go (ENeg e)        = f . ENeg =<< go e
     go (PNot p)        = f . PNot =<< go p
     go (ECst e t)      = f . (`ECst` t) =<< go e
@@ -421,7 +422,7 @@ mapMExpr f = go
 mapKVarSubsts :: Visitable t => (KVar -> KVarSubst Symbol Symbol -> KVarSubst Symbol Symbol) -> t -> t
 mapKVarSubsts f          = trans txK
   where
-    txK (PKVar k su)   = PKVar k (f k su)
+    txK (PKVar k su tsu)   = PKVar k (f k su) tsu
     txK p              = p
 
 newtype MInt = MInt Integer -- deriving (Eq, NFData)
@@ -464,7 +465,7 @@ kvarsExpr = go []
       ESym _ -> acc
       ECon _ -> acc
       EVar _ -> acc
-      PKVar k _ -> k : acc
+      PKVar k _ _ -> k : acc
       ENeg e -> go acc e
       PNot p -> go acc p
       ECst e _t -> go acc e

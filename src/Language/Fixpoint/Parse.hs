@@ -1097,7 +1097,7 @@ falseP :: ParserV v (ExprV v)
 falseP = reserved "false" >> return PFalse
 
 kvarPredP :: ParseableV v => ParserV v (ExprV v)
-kvarPredP = PKVar <$> kvarP <*> substP
+kvarPredP = PKVar <$> kvarP <*> substP <*> pure M.empty
 
 kvarP :: ParserV v KVar
 kvarP = KV <$> lexeme (char '$' *> symbolR)
