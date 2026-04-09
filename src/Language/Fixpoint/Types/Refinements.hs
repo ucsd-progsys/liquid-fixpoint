@@ -211,7 +211,7 @@ concConjuncts :: Expr -> [Expr]
 concConjuncts e = filter isConc (conjuncts e)
 
 isKvar :: Expr -> Bool
-isKvar (PKVar _ _ _) = True
+isKvar (PKVar {}) = True
 isKvar _           = False
 
 --------------------------------------------------------------------------------
@@ -558,7 +558,7 @@ debruijnIndex = go
     go (PAtom _ e1 e2) = go e1 + go e2
     go (PAll _ e)      = go e
     go (PExist _ e)    = go e
-    go (PKVar _ _ _)     = 1
+    go (PKVar {})        = 1
     go (ECoerc _ _ e)  = go e
 
 type Reft = ReftV Symbol
