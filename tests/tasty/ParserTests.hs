@@ -214,13 +214,13 @@ testPredP =
    --   "PGrad $\"\\\"test\\\" (line 1, column 3)\"  (GradInfo {gsrc = SS {sp_start = \"test\" (line 1, column 3), sp_stop = \"test\" (line 1, column 3)}, gused = Nothing}) (PAnd [])"
 
     , testCase "kvarPred empty" $
-        show (doParse' predP "test" "$foo") @?= "PKVar $\"foo\" "
+        show (doParse' predP "test" "$foo") @?= "PKVar $\"foo\"  (fromList [])"
 
     , testCase "kvarPred one" $
-        show (doParse' predP "test" "$foo  [x := 1]") @?= "PKVar $\"foo\" [x:=1]"
+        show (doParse' predP "test" "$foo  [x := 1]") @?= "PKVar $\"foo\" [x:=1] (fromList [])"
 
     , testCase "kvarPred two" $
-        show (doParse' predP "test" "$foo  [x := 1] [ y := true ]") @?= "PKVar $\"foo\" [x:=1][y:=true]"
+        show (doParse' predP "test" "$foo  [x := 1] [ y := true ]") @?= "PKVar $\"foo\" [x:=1][y:=true] (fromList [])"
 
     , testCase "fastIf" $
         show (doParse' predP "test" "if true then true else false" ) @?=

@@ -145,6 +145,10 @@ instance Arbitrary (KVarSubst Symbol Symbol) where
     l <- vectorOf n arbitrary
     return $ toKVarSubst $ M.fromList l
 
+instance Arbitrary (M.HashMap Symbol Sort) where
+  arbitrary = M.fromList <$> arbitrary
+  shrink = map M.fromList . shrink . M.toList
+
 -- | This instance only creates `FVar` when they would be in scope from an
 -- enclosing `FAbs`, and does not create `FObj`s
 instance Arbitrary Sort where
