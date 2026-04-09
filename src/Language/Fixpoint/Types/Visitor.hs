@@ -534,7 +534,9 @@ stripCasts = mapExprOnExpr go
 type CoSub = M.HashMap Symbol Sort
 
 applyCoSub :: CoSub -> Expr -> Expr
-applyCoSub coSub = mapExprOnExpr fE
+applyCoSub coSub
+   | M.null coSub = id
+   | otherwise = mapExprOnExpr fE
   where
     fE (ECoerc s t e) = ECoerc  (txS s) (txS t) e
     fE (ELam (x,t) e) = ELam (x, txS t)         e
