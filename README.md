@@ -256,11 +256,14 @@ Each `slhs` of a constraint is a `SortedReft`.
   That is represented in the `Expr` type as
 
 ```
-  | PKVar  !KVar !Subst
+  | PKVar  KVar Subst TyVarSubst
 ```
 
   must appear _only_ at the **top-level** that is not under _any_
   other operators, i.e. not as a sub-`Expr` of other expressions.
+
+  The `TyVarSubst` field is used to indicate how to instantiate polimorphic
+  type variables in the KVar solution.
 
 
 - This is basically a predicate that needs to be "well sorted"

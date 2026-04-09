@@ -42,6 +42,7 @@ module Language.Fixpoint.Types.Refinements (
   , ReftV
   , ReftBV (..)
   , SortedReft (..)
+  , TyVarSubst
 
   -- * Constructing Terms
   , eVar, elit
@@ -331,6 +332,7 @@ instance FromJSON Expr      where
 
 type Expr = ExprV Symbol
 type ExprV v = ExprBV Symbol v
+type TyVarSubst = M.HashMap Symbol Sort
 
 data ExprBV b v
           = ESym !SymConst
@@ -351,7 +353,10 @@ data ExprBV b v
           | PImp   !(ExprBV b v) !(ExprBV b v)
           | PIff   !(ExprBV b v) !(ExprBV b v)
           | PAtom  !Brel  !(ExprBV b v) !(ExprBV b v)
-          | PKVar  !KVar !(KVarSubst b v) !(M.HashMap Symbol Sort)
+            -- | In @PKVar k su tsu@, @k@ is the KVar, @su@ is the substitution
+            -- for that KVar, and @tsu@ indicates how to instantiate type
+            -- variables that could appear in the KVar solution.
+          | PKVar  !KVar !(KVarSubst b v) !TyVarSubst
           | PAll   ![(b, Sort)] !(ExprBV b v)
           | PExist ![(b, Sort)] !(ExprBV b v)
           | ECoerc !Sort !Sort !(ExprBV b v)
