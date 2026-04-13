@@ -106,7 +106,7 @@ predExpr kve        = go
     go (H.PAnd  ps) = F.PAnd (go <$> ps)
 
 kvApp :: KVEnv a -> F.Symbol -> [F.Expr] -> F.Expr
-kvApp kve k ys = F.PKVar (F.KV k) su M.empty
+kvApp kve k ys = F.PKVar (F.KV k) M.empty su
   where
     su         = F.mkKVarSubst (zip params ys)
     params     = maybe err1 kvParams (M.lookup k kve)

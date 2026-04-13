@@ -394,7 +394,7 @@ instance Fixpoint a => Fixpoint (WfC a) where
   toFix w     = hang (text "\n\nwf:") 2 bd
     where bd  =   toFix (wenv w)
               -- NOTE: this next line is printed this way for compatability with the OCAML solver
-              $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k mempty M.empty)))
+              $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k M.empty mempty)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
           (v, t, k) = wrft w
 
@@ -453,8 +453,8 @@ wfC be sr x = if all isEmptyKVarSubst sus -- ++ gsus)
     Reft (v, ras)   = sr_reft sr
     (ks, sus)       = unzip $ go ras
 
-    go (PKVar k su _) = [(k, su)]
-    go (PAnd es)    = [(k, su) | PKVar k su _ <- es]
+    go (PKVar k _ su) = [(k, su)]
+    go (PAnd es)    = [(k, su) | PKVar k _ su <- es]
     go _            = []
 
 

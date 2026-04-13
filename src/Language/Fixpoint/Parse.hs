@@ -1101,7 +1101,7 @@ kvarPredP = do
   k   <- kvarP
   tsu <- tySubP
   su  <- substP
-  return (PKVar k su tsu)
+  return (PKVar k tsu su)
 
 kvarP :: ParserV v KVar
 kvarP = KV <$> lexeme (char '$' *> symbolR)

@@ -356,7 +356,7 @@ data ExprBV b v
             -- | In @PKVar k su tsu@, @k@ is the KVar, @su@ is the substitution
             -- for that KVar, and @tsu@ indicates how to instantiate type
             -- variables that could appear in the KVar solution.
-          | PKVar  !KVar !(KVarSubst b v) !TyVarSubst
+          | PKVar  !KVar !TyVarSubst !(KVarSubst b v)
           | PAll   ![(b, Sort)] !(ExprBV b v)
           | PExist ![(b, Sort)] !(ExprBV b v)
           | ECoerc !Sort !Sort !(ExprBV b v)
@@ -423,7 +423,7 @@ mapBindExpr f = go
     go (PImp e1 e2) = PImp (go e1) (go e2)
     go (PIff e1 e2) = PIff (go e1) (go e2)
     go (PAtom rel e1 e2) = PAtom rel (go e1) (go e2)
-    go (PKVar k su tsu) = PKVar k (mapBindKVarSubst f su) tsu
+    go (PKVar k tsu su) = PKVar k tsu (mapBindKVarSubst f su)
     go (PAll bs e) = PAll (first f <$> bs) (go e)
     go (PExist bs e) = PExist (first f <$> bs) (go e)
     go (ECoerc s1 s2 e) = ECoerc s1 s2 (go e)
@@ -447,7 +447,7 @@ exprSymbolsSet = go
     go (PIff p1 p2)       = gos [p1, p2]
     go (PImp p1 p2)       = gos [p1, p2]
     go (PAtom _ e1 e2)    = gos [e1, e2]
-    go (PKVar _ su _)       = HashSet.unions $ map exprSymbolsSet (M.elems $ fromKVarSubst su)
+    go (PKVar _ _ su)       = HashSet.unions $ map exprSymbolsSet (M.elems $ fromKVarSubst su)
     go (PAll xts p)       = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go _                  = HashSet.empty
@@ -494,7 +494,7 @@ exprKVars = go
     go (PIff p1 p2)       = gos [p1, p2]
     go (PImp p1 p2)       = gos [p1, p2]
     go (PAtom _ e1 e2)    = gos [e1, e2]
-    go (PKVar k su _) =
+    go (PKVar k _ su) =
       HashMap.insertWith (++) k [su] $ HashMap.unions $ map exprKVars (M.elems $ fromKVarSubst su)
     go (PAll _xts p)       = go p
     go (PExist _xts p)     = go p
@@ -650,7 +650,7 @@ instance (Ord b, Fixpoint b, Hashable b, Ord v, Fixpoint v) => Fixpoint (ExprBV 
   toFix (PAnd ps)      = text "&&" <+> toFix ps
   toFix (POr  ps)      = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ sep [ toFix e1 <+> toFix r, nest 2 (toFix e2)]
-  toFix (PKVar k su tsu)   = toFix k <-> toFixTySub tsu <-> toFix su
+  toFix (PKVar k tsu su)   = toFix k <-> toFixTySub tsu <-> toFix su
   toFix (PAll xts p)     = parens $ "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
   toFix (PExist xts p)   = parens $ "exists" <+> (toFix xts

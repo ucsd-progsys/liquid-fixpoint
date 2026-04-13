@@ -285,9 +285,9 @@ mapKVars f = mapKVars' f'
 mapKVars' :: Visitable t => ((KVar, KVarSubst Symbol Symbol) -> Maybe Expr) -> t -> t
 mapKVars' f = trans txK
   where
-    txK (PKVar k su tsu)
+    txK (PKVar k tsu su)
       | Just p' <- f (k, su) = ksubst su p'
-      | otherwise = PKVar k su tsu
+      | otherwise = PKVar k tsu su
     txK p = p
 
 
@@ -361,7 +361,7 @@ mapExprOnExpr f = go
       ETAbs e s ->
         let !e' = go e
         in ETAbs e' s
-      PKVar k su tsu -> PKVar k (mapKVarSubst go su) tsu
+      PKVar k tsu su -> PKVar k tsu (mapKVarSubst go su)
       e@EVar{} -> e
       e@ESym{} -> e
       e@ECon{} -> e
@@ -423,7 +423,7 @@ mapMExpr f = go
 mapKVarSubsts :: Visitable t => (KVar -> KVarSubst Symbol Symbol -> KVarSubst Symbol Symbol) -> t -> t
 mapKVarSubsts f          = trans txK
   where
-    txK (PKVar k su tsu)   = PKVar k (f k su) tsu
+    txK (PKVar k tsu su)   = PKVar k tsu (f k su)
     txK p              = p
 
 newtype MInt = MInt Integer -- deriving (Eq, NFData)

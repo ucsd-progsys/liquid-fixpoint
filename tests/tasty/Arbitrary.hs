@@ -101,7 +101,7 @@ arbitraryFiniteExpr zeroExprGen n = frequency
   , (1, PImp <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, PIff <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, PAtom <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
-  , (1, PKVar <$> arbitrary <*> arbitrary <*> pure mempty)
+  , (1, PKVar <$> arbitrary <*> pure mempty <*> arbitrary)
   , (1, PAll <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, PExist <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, ECoerc <$> arbitrary <*> arbitrary <*> arbitraryExpr')

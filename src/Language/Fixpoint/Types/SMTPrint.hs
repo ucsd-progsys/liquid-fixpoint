@@ -123,7 +123,7 @@ toHornExpr (F.PAll xts p)    = toHornMany ["forall", toHornSMT xts, toHornSMT p]
 toHornExpr (F.PExist xts p)  = toHornMany ["exists", toHornSMT xts, toHornSMT p]
 toHornExpr (F.ELam b e)      = toHornMany ["lam", toHornSMT b, toHornSMT e]
 toHornExpr (F.ECoerc a t e)  = toHornMany ["coerce", toHornSMT a, toHornSMT t, toHornSMT e]
-toHornExpr (F.PKVar k su _)    = toHornMany [toHornSMT k, toHornSMT su]
+toHornExpr (F.PKVar k _ su)    = toHornMany [toHornSMT k, toHornSMT su]
 toHornExpr (F.ETApp e s)     = toHornMany ["ETApp" , toHornSMT e, toHornSMT s]
 toHornExpr (F.ETAbs e s)     = toHornMany ["ETAbs" , toHornSMT e, toHornSMT s]
 

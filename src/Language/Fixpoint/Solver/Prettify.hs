@@ -156,7 +156,7 @@ prettyWfConstraint bindEnv wfc =
    in hang (text "\n\nwf:") 2 $
           hang (text "env:") 2
             (vcat $ map prettyBind prettyEnv)
-      $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k mempty M.empty)))
+      $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k M.empty mempty)))
       $+$ toFixMeta (text "wf") (toFix (winfo wfc))
   where
     prettyBind (s, srt) = toFix s <+> ":" <+> toFix srt
