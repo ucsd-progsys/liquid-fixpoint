@@ -181,7 +181,7 @@ instance (Eq v, Hashable v) => Subable (ExprBV v v) where
   substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
   substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
-  substf f (PKVar k su)    = PKVar k (mapKVarSubst (substf f) su)
+  substf f (PKVar k tsu su)    = PKVar k tsu (mapKVarSubst (substf f) su)
   substf _ (PAll _ _)      = errorstar "substf: FORALL"
   substf f (PExist xts e)  = PExist xts (substf f e)
   substf _  p              = p
@@ -225,8 +225,8 @@ instance (Eq v, Hashable v) => Subable (ExprBV v v) where
           PIff (go su p1) (go su p2)
         PAtom r e1 e2 ->
           PAtom r (go su e1) (go su e2)
-        PKVar k su' ->
-          PKVar k $ kSubstFromSubst $ substFromKSubst su' `catSubst` su
+        PKVar k tsu su' ->
+          PKVar k tsu (kSubstFromSubst $ substFromKSubst su' `catSubst` su)
         PAll bs p
           | disjointRange su' bs ->
             PAll bs $ go su' p
@@ -296,7 +296,7 @@ rapierSubstExpr s su e0 =
     PImp p1 p2 -> PImp (go s su p1) (go s su p2)
     PIff p1 p2 -> PIff (go s su p1) (go s su p2)
     PAtom r e1 e2 -> PAtom r (go s su e1) (go s su e2)
-    PKVar k su' -> PKVar k $ catSubstGo su' su
+    PKVar k tsu su' -> PKVar k tsu (catSubstGo su' su)
     PAll bs p ->
       let mfs = map (maybeFresh . fst) bs
           fs = map (either (\x -> (x, x)) id) mfs

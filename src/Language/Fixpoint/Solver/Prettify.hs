@@ -9,6 +9,7 @@ module Language.Fixpoint.Solver.Prettify (savePrettifiedQuery) where
 import           Data.Bifunctor (first)
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HashMap
+import qualified Data.HashMap.Strict as M
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
 import           Data.List (group, intersperse, sortOn)
@@ -155,7 +156,7 @@ prettyWfConstraint bindEnv wfc =
    in hang (text "\n\nwf:") 2 $
           hang (text "env:") 2
             (vcat $ map prettyBind prettyEnv)
-      $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k mempty)))
+      $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k M.empty mempty)))
       $+$ toFixMeta (text "wf") (toFix (winfo wfc))
   where
     prettyBind (s, srt) = toFix s <+> ":" <+> toFix srt

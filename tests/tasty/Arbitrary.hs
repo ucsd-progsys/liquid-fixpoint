@@ -72,7 +72,7 @@ subexprs (T.PNot e)      = [e]
 subexprs (PImp e0 e1)    = [e0, e1]
 subexprs (PIff e0 e1)    = [e0, e1]
 subexprs (PAtom _ e0 e1) = [e0, e1]
-subexprs (PKVar _ _)     = []
+subexprs (PKVar _ _ _)   = []
 subexprs (PAll _ e)      = [e]
 subexprs (PExist _ e)    = [e]
 subexprs (ECoerc _ _ e)  = [e]
@@ -101,7 +101,7 @@ arbitraryFiniteExpr zeroExprGen n = frequency
   , (1, PImp <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, PIff <$> arbitraryExpr' <*> arbitraryExpr')
   , (1, PAtom <$> arbitrary <*> arbitraryExpr' <*> arbitraryExpr')
-  , (1, PKVar <$> arbitrary <*> arbitrary)
+  , (1, PKVar <$> arbitrary <*> pure mempty <*> arbitrary)
   , (1, PAll <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, PExist <$> arbitraryList arbitrary <*> arbitraryExpr')
   , (1, ECoerc <$> arbitrary <*> arbitrary <*> arbitraryExpr')
@@ -144,6 +144,10 @@ instance Arbitrary (KVarSubst Symbol Symbol) where
     n <- choose (0, 3)
     l <- vectorOf n arbitrary
     return $ toKVarSubst $ M.fromList l
+
+instance Arbitrary (M.HashMap Symbol Sort) where
+  arbitrary = M.fromList <$> arbitrary
+  shrink = map M.fromList . shrink . M.toList
 
 -- | This instance only creates `FVar` when they would be in scope from an
 -- enclosing `FAbs`, and does not create `FObj`s
