@@ -650,7 +650,7 @@ instance (Ord b, Fixpoint b, Hashable b, Ord v, Fixpoint v) => Fixpoint (ExprBV 
   toFix (PAnd ps)      = text "&&" <+> toFix ps
   toFix (POr  ps)      = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ sep [ toFix e1 <+> toFix r, nest 2 (toFix e2)]
-  toFix (PKVar k su _)     = toFix k <-> toFix su
+  toFix (PKVar k su tsu)   = toFix k <-> toFixTySub tsu <-> toFix su
   toFix (PAll xts p)     = parens $ "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
   toFix (PExist xts p)   = parens $ "exists" <+> (toFix xts
@@ -661,6 +661,17 @@ instance (Ord b, Fixpoint b, Hashable b, Ord v, Fixpoint v) => Fixpoint (ExprBV 
   toFix (ELam (x,s) e)   = parens (char '\\' <+> toFix x <+> ":" <+> toFix s <+> "->" <+> toFix e)
 
   simplify = simplifyExprDefault
+
+-- | Serialize a type-variable substitution for PKVar in .fq files.
+-- An empty substitution is rendered as @[@]@, and a non-empty one as
+-- @[\@sym:=sort;...]@.
+toFixTySub :: M.HashMap Symbol Sort -> Doc
+toFixTySub tsu
+  | M.null tsu = empty
+  | otherwise  = brackets (text "@" <->  tyPairs)
+  where
+    tyPairs = hcat $ punctuate (text ";") (toFixTyPair <$> hashMapToAscList tsu)
+    toFixTyPair (s, srt) = toFix s <-> text ":=" <-> toFix srt
 
 simplifyExprDefault :: (Ord b, Ord v) => ExprBV b v -> ExprBV b v
 simplifyExprDefault = simplifyExpr (Set.toList . Set.fromList)
