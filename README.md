@@ -250,21 +250,17 @@ Each `slhs` of a constraint is a `SortedReft`.
   The important bit is that a `KVar` i.e. terms of the form
 
 ```
-     $k1[x1:=y1][x2:=y2]...[xn:=yn]
+    $k1[@a:=b;a2:=b2][x1:=y1][x2:=y2]...[xn:=yn]
 ```
 
-  That is represented in the `Expr` type as
+  that is represented in the `Expr` type as
 
 ```
-  | PKVar  KVar Subst TyVarSubst
+  | PKVar  KVar TyVarSubst Subst
 ```
 
   must appear _only_ at the **top-level** that is not under _any_
   other operators, i.e. not as a sub-`Expr` of other expressions.
-
-  The `TyVarSubst` field is used to indicate how to instantiate polimorphic
-  type variables in the KVar solution.
-
 
 - This is basically a predicate that needs to be "well sorted"
   with respect to the `BindId`, intuitively
@@ -309,6 +305,14 @@ any occurrence of `$k_##42` must be of the form
 
 ```
     $k_##42 [x:=e1][y:=e2][v:=e3]
+```
+
+Additionally the `KVar` could have a substitution of type variables if it appears
+in the return type of a type application (e.g. `f @b` with
+`f : forall a. {v1:[a] | $k_##42[v:=v1]}`).
+
+```
+  f @b : {v1:[b] | $k_##42[@a:=b][v:=v1] }
 ```
 
 ### Global vs. Distinct Literals
