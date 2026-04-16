@@ -705,6 +705,8 @@ evalOne _ _ _ _ = return []
 
 data EvalType =
     NoRW       -- Normal PLE
+  | NoRWEta    -- Like Normal PLE but we keep track that we are in an eta
+               -- expansion context
   | FuncNormal -- REST: Expand function definitions only when the branch can be decided
   | RWNormal   -- REST: Fully Expand Defs in the context of rewriting (similar to NoRW)
   deriving (Eq)
@@ -788,24 +790,30 @@ evalELam γ ctx et (x, s) e
     isEtaSymbol = isPrefixOfSym "eta"
 
 evalELam γ ctx et (x, s) e = do
-    oldPendingUnfoldings <- gets evPendingUnfoldings
-    oldEqs <- gets evNewEqualities
+  e' <- evalInExtendedEnv [(x, s)] γ ctx et e
+  let elam = ELam (x, s) e
+  modify $ \st -> st
+    { evNewEqualities = S.insert (elam, ELam (x, s) e') (evNewEqualities st) }
+  return (ELam (x, s) e')
 
-    -- We need to declare the variable in the environment
-    modify $ \st -> st
-      { evEnv = insertSymEnv x s $ evEnv st }
+evalInExtendedEnv :: [(Symbol, Sort)] -> Knowledge -> ICtx -> EvalType -> Expr -> EvalST Expr
+evalInExtendedEnv binds γ ctx et e = do
+  oldPendingUnfoldings <- gets evPendingUnfoldings
+  oldEqs               <- gets evNewEqualities
+  -- We need to declare the variables in the environment
+  modify $ \st -> st
+    { evEnv = insertsSymEnv (evEnv st) binds }
+  e' <- eval (γ { knLams = binds ++ knLams γ }) ctx et e
+  let e'' = simplify γ ctx e'
+  -- Discard the old equalities which miss the lambda binding
+  modify $ \st -> st
+    { evPendingUnfoldings = oldPendingUnfoldings
+    , evNewEqualities = oldEqs
+    -- Leaving the scope thus we need to get rid of it
+    , evEnv = deletesSymEnv (evEnv st) (map fst binds)
+    }
+  pure e''
 
-    e' <- eval (γ { knLams = (x, s) : knLams γ }) ctx et e
-    let e2' = simplify γ ctx e'
-        elam = ELam (x, s) e
-    -- Discard the old equalities which miss the lambda binding
-    modify $ \st -> st
-      { evPendingUnfoldings = oldPendingUnfoldings
-      , evNewEqualities = S.insert (elam, ELam (x, s) e2') oldEqs
-      -- Leaving the scope thus we need to get rid of it
-      , evEnv = deleteSymEnv x $ evEnv st
-      }
-    return (ELam (x, s) e')
 
 data RESTParams oc = RP
   { oc   :: OCAlgebra oc Expr IO
@@ -1076,11 +1084,15 @@ evalApp γ ctx e0 es et
          let e2' = stripPLEUnfold e'
          let e3' = simplify γ ctx (eApps e2' es2)  -- reduces a bit the equations
 
-         if hasUndecidedGuard e' && guardOf e' == guardOf newE' then do
+         if hasUndecidedGuard e' && guardOf e' == guardOf newE' && et /= NoRWEta then do
            -- Don't unfold the expression if there is an if-then-else guarding
            -- it, just to preserve the size of further rewrites.
            -- If evalIte does any modifications, though, we do unfold in order
            -- to allow analysis of the resulting expression
+           -- Note(Alessio): this optimization make sense only if the
+           -- function is already fully applied in the original
+           -- program and note from eta expansion, otherwise we might
+           -- miss redexes.
            modify $ \st -> st
              { evPendingUnfoldings =
                  M.insertWith M.union (evExScope st) (M.singleton (eApps e0 es) e3') (evPendingUnfoldings st)
@@ -1167,7 +1179,7 @@ evalApp _ ctx e0 es _
         { evNewEqualities = S.insert (eApps e0 es, expandedTerm) (evNewEqualities st) }
       return (Just expandedTerm)
 
-evalApp _γ ctx e0 es _et
+evalApp γ ctx e0 es _et
   -- We check the annotation instead of the equations in γ for two reasons.
   --
   -- First, we want to eta expand functions that might not be reflected. Suppose
@@ -1202,6 +1214,15 @@ evalApp _γ ctx e0 es _et
     -- is already handled by the previous case of evalApp
     modify $ \st -> st
       { evNewEqualities = S.insert (eApps e0 es, etaExpandedTerm) (evNewEqualities st) }
+
+    -- We also try to unfold the definition of the function in the eta
+    -- expanded body, as it might give us more information to generate
+    -- better equalities. Note that we pass NoRWKeepIte to skip the optimization
+    redBody <- evalInExtendedEnv (zip etaNames etaArgsType) γ ctx NoRWEta fullBody
+    let etaExpandedRedBody = mkLams redBody (zip etaNames etaArgsType)
+    modify $ \st -> st
+      { evNewEqualities = S.insert (eApps e0 es, etaExpandedRedBody) (evNewEqualities st) }
+
     return (Just etaExpandedTerm)
   where
     unpackFFuncs (FFunc t ts) = t : unpackFFuncs ts
