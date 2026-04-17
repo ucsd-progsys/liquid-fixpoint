@@ -1091,8 +1091,8 @@ evalApp γ ctx e0 es et
            -- to allow analysis of the resulting expression
            -- Note(Alessio): this optimization make sense only if the
            -- function is already fully applied in the original
-           -- program and note from eta expansion, otherwise we might
-           -- miss redexes.
+           -- program and not because of eta expansion, otherwise we might
+           -- miss redexes. See https://github.com/ucsd-progsys/liquidhaskell/issues/2652
            modify $ \st -> st
              { evPendingUnfoldings =
                  M.insertWith M.union (evExScope st) (M.singleton (eApps e0 es) e3') (evPendingUnfoldings st)
@@ -1217,7 +1217,7 @@ evalApp γ ctx e0 es _et
 
     -- We also try to unfold the definition of the function in the eta
     -- expanded body, as it might give us more information to generate
-    -- better equalities. Note that we pass NoRWKeepIte to skip the optimization
+    -- better equalities. Note that we pass NoRWEta to skip the optimization
     redBody <- evalInExtendedEnv (zip etaNames etaArgsType) γ ctx NoRWEta fullBody
     let etaExpandedRedBody = mkLams redBody (zip etaNames etaArgsType)
     modify $ \st -> st
