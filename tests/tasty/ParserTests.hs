@@ -2,7 +2,7 @@
 
 module ParserTests (tests) where
 
-import Language.Fixpoint.Types (showFix)
+import Language.Fixpoint.Types (showpp, showFix)
 import Language.Fixpoint.Parse
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -214,13 +214,16 @@ testPredP =
    --   "PGrad $\"\\\"test\\\" (line 1, column 3)\"  (GradInfo {gsrc = SS {sp_start = \"test\" (line 1, column 3), sp_stop = \"test\" (line 1, column 3)}, gused = Nothing}) (PAnd [])"
 
     , testCase "kvarPred empty" $
-        show (doParse' predP "test" "$foo") @?= "PKVar $\"foo\" "
+        show (doParse' predP "test" "$foo") @?= "PKVar $\"foo\" (fromList []) "
 
     , testCase "kvarPred one" $
-        show (doParse' predP "test" "$foo  [x := 1]") @?= "PKVar $\"foo\" [x:=1]"
+        show (doParse' predP "test" "$foo  [x := 1]") @?= "PKVar $\"foo\" (fromList []) [x:=1]"
 
     , testCase "kvarPred two" $
-        show (doParse' predP "test" "$foo  [x := 1] [ y := true ]") @?= "PKVar $\"foo\" [x:=1][y:=true]"
+        show (doParse' predP "test" "$foo  [x := 1] [ y := true ]") @?= "PKVar $\"foo\" (fromList []) [x:=1][y:=true]"
+
+    , testCase "kvarPred tyvar subst" $
+        showpp (doParse' predP "test" "$foo[@a:=b;c:=d] [x := 1] [ y := true ]") @?= "$foo[@a:=b;c:=d][x:=1][y:=true]"
 
     , testCase "fastIf" $
         show (doParse' predP "test" "if true then true else false" ) @?=

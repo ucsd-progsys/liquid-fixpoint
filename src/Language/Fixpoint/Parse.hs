@@ -1097,7 +1097,10 @@ falseP :: ParserV v (ExprV v)
 falseP = reserved "false" >> return PFalse
 
 kvarPredP :: ParseableV v => ParserV v (ExprV v)
-kvarPredP = PKVar <$> kvarP <*> substP
+kvarPredP = do
+  k   <- kvarP
+  tsu <- tySubP
+  PKVar k tsu <$> substP
 
 kvarP :: ParserV v KVar
 kvarP = KV <$> lexeme (char '$' *> symbolR)
@@ -1106,6 +1109,19 @@ substP :: ParseableV v => ParserV v (KVarSubst Symbol v)
 substP = mkSu <$> many (brackets $ pairP symbolP aP exprP)
   where
     aP = reservedOp ":="
+
+-- | Parses the type-variable substitution section of a PKVar expression.
+-- An empty section looks like @[@]@; a non-empty one like @[\@sym:=sort;...]@.
+-- Returns an empty map if neither form is found (backward compat).
+tySubP :: ParserV v (M.HashMap Symbol Sort)
+tySubP = try tySub <|> pure M.empty
+  where
+    tySub = brackets (char '@' >> (M.fromList <$> sepBy1 tyPairP (sym ";")))
+    tyPairP = do
+      s <- symbolP
+      _ <- reservedOp ":="
+      t <- sortP
+      return (s, t)
 
 -- | Parses a semicolon-separated bracketed list of predicates.
 --

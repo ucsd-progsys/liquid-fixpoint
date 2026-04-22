@@ -47,7 +47,6 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Manipulating QBind
   , qb
-  , qbPreds
   , qbFilter
   , qbFilterM
 
@@ -185,12 +184,6 @@ instance Show Cube where
 result :: Sol QBind -> M.HashMap KVar Expr
 --------------------------------------------------------------------------------
 result s = pAnd . fmap eqPred . qbEQuals <$> sMap s
-
-
---------------------------------------------------------------------------------
-qbPreds :: Subst -> QBind -> [(Pred, EQual)]
---------------------------------------------------------------------------------
-qbPreds su (QB eqs) =  [ (subst su $ eqPred eq, eq) | eq <- eqs ]
 
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------

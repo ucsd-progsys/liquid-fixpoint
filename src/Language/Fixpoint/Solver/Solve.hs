@@ -153,6 +153,8 @@ solve_ cfg fi s2 wkl = do
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
     Unsafe _ bads2 | rewriteAxioms cfg -> do
+      when (save cfg) $
+        liftIO $ S.saveSolution cfg ".pre-ple" res1
       liftSMT $ smtComment "solve: ple"
       bs <- liftSMT $ PLE.instantiate cfg fi1 (Just s3) (Just $ map fst bads2)
       -- Check the constraints one last time after PLE
@@ -268,12 +270,12 @@ refineC bindingsInSmt be _i s c =
     rhsCands s = M.toList $ M.fromList $ map cnd ks
       where
         ks          = predKs . F.crhs $ c
-        cnd :: (F.KVar, F.KVarSubst F.Symbol F.Symbol) -> (F.KVar , Sol.Cand Sol.EQual)
-        cnd (k, su) = (k, Sol.qbPreds (F.substFromKSubst su) (Sol.lookupQBind s k))
+        cnd :: (F.KVar, F.Subst, F.TyVarSubst) -> (F.KVar , Sol.Cand Sol.EQual)
+        cnd (k, su, tvsu) = (k, S.qbPreds su tvsu (Sol.lookupQBind s k))
 
-predKs :: F.ExprBV b v -> [(F.KVar, F.KVarSubst b v)]
+predKs :: F.Expr -> [(F.KVar, F.Subst, F.TyVarSubst)]
 predKs (F.PAnd ps)    = concatMap predKs ps
-predKs (F.PKVar k su) = [(k, su)]
+predKs (F.PKVar k tvsu su) = [(k, F.substFromKSubst su, tvsu)]
 predKs _              = []
 
 --------------------------------------------------------------------------------
