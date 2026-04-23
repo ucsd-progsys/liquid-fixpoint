@@ -42,6 +42,7 @@ module Language.Fixpoint.Types.Refinements (
   , ReftV
   , ReftBV (..)
   , SortedReft (..)
+  , TyVarSubst
 
   -- * Constructing Terms
   , eVar, elit
@@ -210,7 +211,7 @@ concConjuncts :: Expr -> [Expr]
 concConjuncts e = filter isConc (conjuncts e)
 
 isKvar :: Expr -> Bool
-isKvar (PKVar _ _) = True
+isKvar (PKVar {}) = True
 isKvar _           = False
 
 --------------------------------------------------------------------------------
@@ -289,6 +290,7 @@ data KVSub = KVS
   , ksuSort  :: Sort
   , ksuKVar  :: KVar
   , ksuSubst :: KVarSubst Symbol Symbol
+  , ksuTySub :: M.HashMap Symbol Sort  -- ^ Type variable substitution
   } deriving (Eq, Data, Typeable, Generic, Show)
 
 instance PPrint KVSub where
@@ -330,6 +332,7 @@ instance FromJSON Expr      where
 
 type Expr = ExprV Symbol
 type ExprV v = ExprBV Symbol v
+type TyVarSubst = M.HashMap Symbol Sort
 
 data ExprBV b v
           = ESym !SymConst
@@ -350,7 +353,10 @@ data ExprBV b v
           | PImp   !(ExprBV b v) !(ExprBV b v)
           | PIff   !(ExprBV b v) !(ExprBV b v)
           | PAtom  !Brel  !(ExprBV b v) !(ExprBV b v)
-          | PKVar  !KVar !(KVarSubst b v)
+            -- | In @PKVar k su tsu@, @k@ is the KVar, @su@ is the substitution
+            -- for that KVar, and @tsu@ indicates how to instantiate type
+            -- variables that could appear in the KVar solution.
+          | PKVar  !KVar !TyVarSubst !(KVarSubst b v)
           | PAll   ![(b, Sort)] !(ExprBV b v)
           | PExist ![(b, Sort)] !(ExprBV b v)
           | ECoerc !Sort !Sort !(ExprBV b v)
@@ -417,7 +423,7 @@ mapBindExpr f = go
     go (PImp e1 e2) = PImp (go e1) (go e2)
     go (PIff e1 e2) = PIff (go e1) (go e2)
     go (PAtom rel e1 e2) = PAtom rel (go e1) (go e2)
-    go (PKVar k su) = PKVar k (mapBindKVarSubst f su)
+    go (PKVar k tsu su) = PKVar k tsu (mapBindKVarSubst f su)
     go (PAll bs e) = PAll (first f <$> bs) (go e)
     go (PExist bs e) = PExist (first f <$> bs) (go e)
     go (ECoerc s1 s2 e) = ECoerc s1 s2 (go e)
@@ -441,7 +447,7 @@ exprSymbolsSet = go
     go (PIff p1 p2)       = gos [p1, p2]
     go (PImp p1 p2)       = gos [p1, p2]
     go (PAtom _ e1 e2)    = gos [e1, e2]
-    go (PKVar _ su)       = HashSet.unions $ map exprSymbolsSet (M.elems $ fromKVarSubst su)
+    go (PKVar _ _ su)       = HashSet.unions $ map exprSymbolsSet (M.elems $ fromKVarSubst su)
     go (PAll xts p)       = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go (PExist xts p)     = go p `HashSet.difference` HashSet.fromList (fst <$> xts)
     go _                  = HashSet.empty
@@ -488,7 +494,7 @@ exprKVars = go
     go (PIff p1 p2)       = gos [p1, p2]
     go (PImp p1 p2)       = gos [p1, p2]
     go (PAtom _ e1 e2)    = gos [e1, e2]
-    go (PKVar k su) =
+    go (PKVar k _ su) =
       HashMap.insertWith (++) k [su] $ HashMap.unions $ map exprKVars (M.elems $ fromKVarSubst su)
     go (PAll _xts p)       = go p
     go (PExist _xts p)     = go p
@@ -552,7 +558,7 @@ debruijnIndex = go
     go (PAtom _ e1 e2) = go e1 + go e2
     go (PAll _ e)      = go e
     go (PExist _ e)    = go e
-    go (PKVar _ _)     = 1
+    go (PKVar {})        = 1
     go (ECoerc _ _ e)  = go e
 
 type Reft = ReftV Symbol
@@ -644,7 +650,7 @@ instance (Ord b, Fixpoint b, Hashable b, Ord v, Fixpoint v) => Fixpoint (ExprBV 
   toFix (PAnd ps)      = text "&&" <+> toFix ps
   toFix (POr  ps)      = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ sep [ toFix e1 <+> toFix r, nest 2 (toFix e2)]
-  toFix (PKVar k su)     = toFix k <-> toFix su
+  toFix (PKVar k tsu su)   = toFix k <-> toFixTySub tsu <-> toFix su
   toFix (PAll xts p)     = parens $ "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
   toFix (PExist xts p)   = parens $ "exists" <+> (toFix xts
@@ -655,6 +661,17 @@ instance (Ord b, Fixpoint b, Hashable b, Ord v, Fixpoint v) => Fixpoint (ExprBV 
   toFix (ELam (x,s) e)   = parens (char '\\' <+> toFix x <+> ":" <+> toFix s <+> "->" <+> toFix e)
 
   simplify = simplifyExprDefault
+
+-- | Serialize a type-variable substitution for PKVar in .fq files.
+-- An empty substitution is rendered as @[@]@, and a non-empty one as
+-- @[\@sym:=sort;...]@.
+toFixTySub :: M.HashMap Symbol Sort -> Doc
+toFixTySub tsu
+  | M.null tsu = empty
+  | otherwise  = brackets (text "@" <->  tyPairs)
+  where
+    tyPairs = hcat $ punctuate (text ";") (toFixTyPair <$> hashMapToAscList tsu)
+    toFixTyPair (s, srt) = toFix s <-> text ":=" <-> toFix srt
 
 simplifyExprDefault :: (Ord b, Ord v) => ExprBV b v -> ExprBV b v
 simplifyExprDefault = simplifyExpr (Set.toList . Set.fromList)

@@ -9,9 +9,10 @@ module Language.Fixpoint.Solver.Prettify (savePrettifiedQuery) where
 import           Data.Bifunctor (first)
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as HashMap
+import qualified Data.HashMap.Strict as M
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HashSet
-import           Data.List (intersperse, sortOn)
+import           Data.List (group, intersperse, sortOn)
 import           Data.Maybe (fromMaybe)
 import           Data.Text (Text)
 import qualified Data.Text as Text
@@ -40,7 +41,9 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Refinements
   ( ExprBV(..)
   , pattern PFalse
+  , pattern PKVar
   , Reft
+  , ReftBV(..)
   , SortedReft(..)
   , conjuncts
   , expr
@@ -72,6 +75,10 @@ prettyConstraints info =
   map
     (prettyConstraint (bs info) . snd)
     (sortOn fst $ HashMap.toList (cm info))
+  ++
+  map
+    (prettyWfConstraint (bs info) . snd)
+    (sortOn fst $ HashMap.toList (ws info))
 
 prettyConstraint
   :: Fixpoint a
@@ -130,6 +137,29 @@ prettyConstraint bindEnv c =
       , sr_sort sr
       , reftPred $ sr_reft sr
       )
+
+prettyWfConstraint
+  :: Fixpoint a
+  => BindEnv a
+  -> WfC a
+  -> Doc
+prettyWfConstraint bindEnv wfc =
+  let prettyEnv =
+        concatMap (take 1) $
+        group $   -- eliminate duplicates
+        sortOn fst
+          [ (s, sr_sort sr)
+          | bId <- elemsIBindEnv $ wenv wfc
+          , let (s, sr, _a) = lookupBindEnv bId bindEnv
+          ]
+      (v, t, k) = wrft wfc
+   in hang (text "\n\nwf:") 2 $
+          hang (text "env:") 2
+            (vcat $ map prettyBind prettyEnv)
+      $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k M.empty mempty)))
+      $+$ toFixMeta (text "wf") (toFix (winfo wfc))
+  where
+    prettyBind (s, srt) = toFix s <+> ":" <+> toFix srt
 
 pprId :: Show a => Maybe a -> Doc
 pprId (Just i)  = "id" <+> text (show i)

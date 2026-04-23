@@ -42,6 +42,7 @@ module Language.Fixpoint.Types.Visitor (
   , applyCoSub
   , CoSubV
   , applyCoSubV
+  , applyCoercion
 
   -- * Predicates on Constraints
   , isConcC , isConc, isKvarC
@@ -129,7 +130,7 @@ instance Visitable Expr where
       step (PExist xts p)   = PExist xts (vE p)
       step (ETApp e s)      = ETApp (vE e) s
       step (ETAbs e s)      = ETAbs (vE e) s
-      step p@(PKVar _ _)    = p
+      step p@(PKVar {})       = p
 
 instance Visitable Reft where
   transE v (Reft (x, ra)) = Reft (x, transE v ra)
@@ -276,7 +277,7 @@ foldExpr !v    = vE
     step !c (PExist xts p)  = PExist xts  <$> vE c p
     step !c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step !c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
-    step _  p@(PKVar _ _)   = return p
+    step _  p@(PKVar {})    = return p
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -286,8 +287,9 @@ mapKVars f = mapKVars' f'
 mapKVars' :: Visitable t => ((KVar, KVarSubst Symbol Symbol) -> Maybe Expr) -> t -> t
 mapKVars' f = trans txK
   where
-    txK (PKVar k su)
+    txK (PKVar k tsu su)
       | Just p' <- f (k, su) = ksubst su p'
+      | otherwise = PKVar k tsu su
     txK p = p
 
 
@@ -361,7 +363,7 @@ mapExprOnExpr f = go
       ETAbs e s ->
         let !e' = go e
         in ETAbs e' s
-      PKVar k su -> PKVar k (mapKVarSubst go su)
+      PKVar k tsu su -> PKVar k tsu (mapKVarSubst go su)
       e@EVar{} -> e
       e@ESym{} -> e
       e@ECon{} -> e
@@ -400,7 +402,7 @@ mapMExpr f = go
     go e@(ESym _)      = f e
     go e@(ECon _)      = f e
     go e@(EVar _)      = f e
-    go e@(PKVar _ _)   = f e
+    go e@(PKVar {})      = f e
     go (ENeg e)        = f . ENeg =<< go e
     go (PNot p)        = f . PNot =<< go p
     go (ECst e t)      = f . (`ECst` t) =<< go e
@@ -423,7 +425,7 @@ mapMExpr f = go
 mapKVarSubsts :: Visitable t => (KVar -> KVarSubst Symbol Symbol -> KVarSubst Symbol Symbol) -> t -> t
 mapKVarSubsts f          = trans txK
   where
-    txK (PKVar k su)   = PKVar k (f k su)
+    txK (PKVar k tsu su)   = PKVar k tsu (f k su)
     txK p              = p
 
 newtype MInt = MInt Integer -- deriving (Eq, NFData)
@@ -466,7 +468,7 @@ kvarsExpr = go []
       ESym _ -> acc
       ECon _ -> acc
       EVar _ -> acc
-      PKVar k _ -> k : acc
+      PKVar k _ _ -> k : acc
       ENeg e -> go acc e
       PNot p -> go acc p
       ECst e _t -> go acc e
@@ -534,11 +536,15 @@ stripCasts = mapExprOnExpr go
 type CoSub = M.HashMap Symbol Sort
 
 applyCoSub :: CoSub -> Expr -> Expr
-applyCoSub coSub = mapExprOnExpr fE
+applyCoSub coSub
+   | M.null coSub = id
+   | otherwise = mapExprOnExpr fE
   where
     fE (ECoerc s t e) = ECoerc  (txS s) (txS t) e
     fE (ELam (x,t) e) = ELam (x, txS t)         e
     fE (ECst e t)     = ECst e (txS t)
+    fE (PExist xts p) = PExist (map (fmap txS) xts) (fE p)
+    fE (PAll xts p) = PAll (map (fmap txS) xts) (fE p)
     fE e              = e
     txS               = mapSortOnlyOnce fS
     fS (FObj a)       = {- FObj -} txV a
@@ -559,6 +565,13 @@ applyCoSubV coSub = mapExprOnExpr fE
     txS               = mapSortOnlyOnce fS
 
     fS t              = M.lookupDefault t t coSub
+
+applyCoercion :: Symbol -> Sort -> Sort -> Sort
+applyCoercion a t = mapSortOnlyOnce f
+  where
+    f (FObj b)
+      | a == b    = t
+    f s           = s
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@
