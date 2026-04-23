@@ -675,4 +675,4 @@ getConstants' = nubOrd . fold cVis () []
 
 -- | getConstants returns both the vanilla constants AND the sym-constants as str-literals
 getConstants :: Foldable t => t -> [Constant]
-getConstants z = getConstants' z ++ [ L t strSort | SL t <- getSymConsts z]
+getConstants z = nubOrd $ getConstants' z ++ [ L t strSort | SL t <- getSymConsts z]
