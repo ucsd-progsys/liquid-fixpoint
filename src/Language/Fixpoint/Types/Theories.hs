@@ -333,13 +333,13 @@ fappSmtSort poly m env = go
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
 
     go (FTC c) [a]
-      | setConName == symbol c   = SSet (sortSmtSort poly env a)
+      | setConName == symbol c   = SSet (sortSmtSort poly env (FAbs m a))
     go (FTC c) [a]
-      | bagConName == symbol c   = SBag (sortSmtSort poly env a)
+      | bagConName == symbol c   = SBag (sortSmtSort poly env (FAbs m a))
     go (FTC c) [FNatNum n]
       | ffldConName == symbol c  = SFFld n
     go (FTC c) [a, b]
-      | arrayConName == symbol c = SArray (sortSmtSort poly env a) (sortSmtSort poly env b)
+      | arrayConName == symbol c = SArray (sortSmtSort poly env (FAbs m a)) (sortSmtSort poly env (FAbs m b))
     go (FTC bv) [FTC s]
       | bitVecName == symbol bv
       , Just n <- sizeBv s      = SBitVec n
