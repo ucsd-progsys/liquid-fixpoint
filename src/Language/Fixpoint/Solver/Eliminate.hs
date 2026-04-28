@@ -84,7 +84,7 @@ cutSInfo si kI cKs = si { ws = ws', cm = cm' }
 -- Yields the edges of the dependency graph, then the set of KVars whose removal
 -- makes the graph acyclic (cuts), and finally the rest of the KVars.
 kutVars :: Config -> SInfo a -> ([CEdge], S.HashSet KVar, S.HashSet KVar)
-kutVars cfg si   = (es, depCuts ds, depNonCuts ds)
+kutVars cfg si   = (es, tracepp "kutVars-middle" $ depCuts ds, depNonCuts ds)
   where
     (es, ds)     = elimVars cfg si
 

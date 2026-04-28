@@ -97,7 +97,7 @@ refine info qs genv w = refineK hoqs env lits qs (F.wrft w)
     env             = wenvSort <> genv
     wenvSort        = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs info) (F.wenv w))
     hoqs            = allowHOquals info
-    lits            = getConstants info
+    lits            = F.tracepp "CONSTANTS" $ getConstants info
 
 instConstants :: F.SInfo a -> F.SEnv F.Sort
 instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
@@ -368,7 +368,7 @@ qbPreds su tvsu (Sol.QB eqs) =
 mkNonCutsExpr :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Hyp -> F.Expr
 mkNonCutsExpr cfg ce s k cs =
   let bcps = map (bareCubePred cfg ce s k) cs
-   in F.pOr bcps
+   in F.tracepp ("mkNonCuts " ++ show k) $ F.pOr bcps
 
 nonCutsResult :: Config -> F.BindEnv ann -> Sol.Sol Sol.QBind -> FixDelayedSolution
 nonCutsResult cfg be s = M.mapWithKey (\k -> Delayed . mkNonCutsExpr cfg g s k) $ Sol.sHyp s
@@ -402,8 +402,9 @@ bareCubePred cfg g s k c =
         (p, _kI) = apply cfg g' s bs
      in F.pExist yts (p F.&.& psu)
   where
-    bs = Sol.cuBinds c
-    F.Su m = dropUnsortedExprs cfg g' (Sol.cuSubst c)
+    msg = "TRACE: bareCubePred " ++ show k
+    bs = F.tracepp msg $ Sol.cuBinds c
+    F.Su m = dropUnsortedExprs cfg g' (F.tracepp msg $ Sol.cuSubst c)
     g' = addCEnv  g bs
     bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
     yts = symSorts g bs'
