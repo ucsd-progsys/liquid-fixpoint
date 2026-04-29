@@ -334,8 +334,6 @@ sortSmtSort poly env t = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unAb
 fappSmtSort :: Bool -> Int -> SEnv DataDecl -> Sort -> [Sort] -> SmtSort
 fappSmtSort poly m env = go
   where
--- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
-
     -- See https://github.com/ucsd-progsys/liquid-fixpoint/pull/839 for why
     -- @FAbs m@ is re-added.
     go (FTC c) [a]
