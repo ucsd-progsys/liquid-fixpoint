@@ -336,6 +336,8 @@ fappSmtSort poly m env = go
   where
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
 
+    -- See https://github.com/ucsd-progsys/liquid-fixpoint/pull/839 for why
+    -- @FAbs m@ is re-added.
     go (FTC c) [a]
       | setConName == symbol c   = SSet (sortSmtSort poly env (FAbs m a))
     go (FTC c) [a]
