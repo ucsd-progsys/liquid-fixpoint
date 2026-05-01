@@ -92,10 +92,11 @@ qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ]
 --------------------------------------------------------------------------------
 
 refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> ElabM Sol.QBind
-refine info qs genv w = refineK (allowHOquals info) env qs (F.wrft w)
+refine info qs genv w = refineK (allowHOquals info) env lits qs (F.wrft w)
   where
     env             = wenvSort <> genv
     wenvSort        = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs info) (F.wenv w))
+    lits            = getConstants info
 
 instConstants :: F.SInfo a -> F.SEnv F.Sort
 instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
@@ -103,25 +104,42 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
     notLit    = not . F.isLitSymbol . fst
 
 
-refineK :: Bool -> F.SEnv F.Sort -> QCluster -> (F.Symbol, F.Sort, F.KVar) -> ElabM Sol.QBind
-refineK ho env qs (v, t, _k) = Sol.qbFilterM (okInst env v t) eqs
+refineK :: Bool -> F.SEnv F.Sort -> [F.Constant] -> QCluster -> (F.Symbol, F.Sort, F.KVar) -> ElabM Sol.QBind
+refineK ho env lits qs (v, t, _k) = Sol.qbFilterM (okInst env v t) eqs
    where
-    eqs = instK ho env v t qs
+    eqs = instK ho env lits v t qs
 
 --------------------------------------------------------------------------------
 instK :: Bool
       -> F.SEnv F.Sort
+      -> [F.Constant]
       -> F.Symbol
       -> F.Sort
       -> QCluster
       -> Sol.QBind
 --------------------------------------------------------------------------------
-instK ho env v t qc = Sol.qb . unique $
-  [ Sol.eQual q xs
+instK ho env lits v t qc = Sol.qb . unique $
+  [ Sol.eQual q xs ls
       | (sig, qs) <- M.toList qc
-      , xs        <- instKSig ho env v t sig
+      , let (varSig, litSig) =  splitSig sig
+      , xs        <- instKSig ho env v t varSig
+      , ls        <- instLitSig lits litSig
       , q         <- qs
   ]
+
+-- split the QCSig into the parts that are for regular variables vs for wildcard-literals that are defined as `a#`, `b#` etc.
+-- e.g. see tests/horn/pos/wild_lits*.smt2
+splitSig :: QCSig -> (QCSig, QCSig)
+splitSig = List.partition (\qp -> qpPat qp /= PatLit)
+
+instLitSig :: [F.Constant] -> QCSig -> [[F.Constant]]
+instLitSig lits sig = sequence [ filter (matchSort (qpSort qp)) lits | qp <- sig ]
+
+matchSort :: F.Sort -> F.Constant -> Bool
+matchSort F.FInt  (F.I _)    = True
+matchSort F.FReal (F.R _)    = True
+matchSort s       (F.L _ s') = s == s'
+matchSort _       _          = False
 
 unique :: [Sol.EQual] -> [Sol.EQual]
 unique qs = M.elems $ M.fromList [ (Sol.eqPred q, q) | q <- qs ]
@@ -226,6 +244,7 @@ matchSym qp y' = case qp of
   F.PatSuffix i s -> JustSub i <$> F.stripSuffix s y
   F.PatNone       -> Just NoSub
   F.PatExact s    -> if s == y then Just NoSub else Nothing
+  F.PatLit        -> Nothing
   where
     y             =  F.unKArgSymbol y'
 
@@ -248,8 +267,7 @@ okInst env v t eq =
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-
-    -- _msg          = printf "okInst: t = %s, eq = %s, env = %s" (F.showpp t) (F.showpp eq) (F.showpp env)
+    -- _msg          = printf "okInst: t = %s, eq = %s" (F.showpp t) (F.showpp eq)
 
 
 --------------------------------------------------------------------------------
@@ -347,9 +365,7 @@ qbPreds su tvsu (Sol.QB eqs) =
   [ (F.subst su $ V.applyCoSub tvsu $ Sol.eqPred eq, eq) | eq <- eqs ]
 
 mkNonCutsExpr :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Hyp -> F.Expr
-mkNonCutsExpr cfg ce s k cs =
-  let bcps = map (bareCubePred cfg ce s k) cs
-   in F.pOr bcps
+mkNonCutsExpr cfg ce s k cs = F.pOr (bareCubePred cfg ce s k <$> cs)
 
 nonCutsResult :: Config -> F.BindEnv ann -> Sol.Sol Sol.QBind -> FixDelayedSolution
 nonCutsResult cfg be s = M.mapWithKey (\k -> Delayed . mkNonCutsExpr cfg g s k) $ Sol.sHyp s
@@ -383,11 +399,11 @@ bareCubePred cfg g s k c =
         (p, _kI) = apply cfg g' s bs
      in F.pExist yts (p F.&.& psu)
   where
-    bs = Sol.cuBinds c
+    bs     = Sol.cuBinds c
     F.Su m = dropUnsortedExprs cfg g' (Sol.cuSubst c)
-    g' = addCEnv  g bs
-    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
-    yts = symSorts g bs'
+    g'     = addCEnv  g bs
+    bs'    = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
+    yts    = symSorts g bs'
 
 -- | At the moment, the liquid-fixpoint implementation allows for unsorted
 -- expressions in substitutions. See the discussion in

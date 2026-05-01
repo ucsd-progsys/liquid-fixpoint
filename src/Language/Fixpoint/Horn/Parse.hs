@@ -221,7 +221,9 @@ hQualifierP = do
   return  $ F.mkQual n (mkParam <$> params) body pos
 
 mkParam :: (F.Symbol, F.Sort) -> F.QualParam
-mkParam (x, t) = F.QP x F.PatNone t
+mkParam (x, t) = case F.stripSuffix (F.symbol (T.pack "#")) x of
+  Just x' -> F.QP x' F.PatLit  t
+  Nothing -> F.QP x  F.PatNone t
 
 -------------------------------------------------------------------------------
 -- | Horn Variables

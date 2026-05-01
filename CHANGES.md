@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- wildcard literals in qualifiers in horn constraints. #834
+
 ## 0.9.6.3.5 (2026-01-14)
 
 - Implement `--sortedsolution` to keep elaborated sorts in fqout/solution [#821](https:://github.com/ucsd-progsys/liquid-fixpoint/pull/821)

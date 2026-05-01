@@ -516,6 +516,7 @@ data QualPattern
   | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
   | PatSuffix !Int !Symbol  -- ^ $i . str  i.e. match suffix 'str' with prefix bound to $i
   | PatExact  !Symbol       -- ^ str       i.e. exactly match 'str'
+  | PatLit                  -- ^ match literals of the given sort
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance ToJSON   Qualifier   where
@@ -568,6 +569,7 @@ instance PPrint QualPattern where
   pprintTidy k (PatPrefix s i) = "as" <+> pprintTidy k s <+> ("$" <-> pprint i)
   pprintTidy k (PatSuffix s i) = "as" <+> ("$" <-> pprint i) <+> pprintTidy k s
   pprintTidy k (PatExact  s  ) = "~"  <+> pprintTidy k s
+  pprintTidy _ PatLit          = "as lit"
 
 instance Fixpoint Qualifier where
   toFix = pprQual

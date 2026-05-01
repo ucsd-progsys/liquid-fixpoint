@@ -242,13 +242,16 @@ instance PPrint EQual where
 
 instance NFData EQual
 
--- | @eQual q xs@ instantiates @q@ with the arguments in @xs@
-eQual :: Qualifier -> [Symbol] -> EQual
-eQual q xs = {- tracepp "eQual" $ -} EQL q p es
+-- | @eQual q xs ls@ instantiates @q@ with variable arguments @xs@ and literal arguments @ls@
+eQual :: Qualifier -> [Symbol] -> [Constant] -> EQual
+eQual q xs ls = {- tracepp "eQual" $ -} EQL q p es
   where
     p      = subst su $  qBody q
-    su     = mkSubst  $  safeZip "eQual" qxs es
-    es     = eVar    <$> xs
+    su     = mkSubst  $  safeZip "eQual" qxs (reverse es)
+    (es, _, _) = L.foldl' go ([], xs, ls) (qParams q)
+    go (acc, x:xs', cs   ) qp | qpPat qp /= PatLit = (eVar x : acc, xs', cs)
+    go (acc, xs',   c:cs') qp | qpPat qp == PatLit = (ECon c : acc, xs', cs')
+    go _                   _                       = error "eQual: mismatched params"
     qxs    = qpSym   <$> qParams q
 
 --------------------------------------------------------------------------------
