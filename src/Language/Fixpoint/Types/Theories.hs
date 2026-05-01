@@ -38,6 +38,7 @@ module Language.Fixpoint.Types.Theories (
     , insertSymEnv
     , deleteSymEnv
     , insertsSymEnv
+    , deletesSymEnv
     , symbolAtName
     , symbolAtSortIndex
 
@@ -196,6 +197,9 @@ deleteSymEnv x env = env { seSort = deleteSEnv x (seSort env) }
 insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
 insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env)
 
+deletesSymEnv :: SymEnv -> [Symbol] -> SymEnv
+deletesSymEnv = L.foldl' (\env x -> deleteSymEnv x env)
+
 symbolAtSortIndex :: Symbol -> Int -> Text
 symbolAtSortIndex mkSym si = appendSymbolText mkSym . Text.pack . show $ si
 
@@ -311,9 +315,17 @@ instance S.Store SmtSort
 --   'smtSort True  msg t' serializes a sort 't' using type variables,
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
+<<<<<<< HEAD
 sortSmtSort poly env t = go . unAbs $ t
+=======
+sortSmtSort poly env t = sortSmtSort' poly env m t
+>>>>>>> develop
   where
     m = sortAbs t
+
+sortSmtSort' :: Bool -> SEnv DataDecl -> Int -> Sort -> SmtSort
+sortSmtSort' poly env m t = go . unAbs $ t
+  where
     go (FFunc _ _)    = SInt
     go FInt           = SInt
     go FReal          = SReal
@@ -330,9 +342,10 @@ sortSmtSort poly env t = go . unAbs $ t
 fappSmtSort :: Bool -> Int -> SEnv DataDecl -> Sort -> [Sort] -> SmtSort
 fappSmtSort poly m env = go
   where
--- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
-
+    -- See https://github.com/ucsd-progsys/liquid-fixpoint/pull/839 for why
+    -- @FAbs m@ is re-added.
     go (FTC c) [a]
+<<<<<<< HEAD
       | setConName == symbol c   = SSet (sortSmtSort poly env (FAbs m a))
     go (FTC c) [a]
       | bagConName == symbol c   = SBag (sortSmtSort poly env (FAbs m a))
@@ -340,6 +353,15 @@ fappSmtSort poly m env = go
       | ffldConName == symbol c  = SFFld n
     go (FTC c) [a, b]
       | arrayConName == symbol c = SArray (sortSmtSort poly env (FAbs m a)) (sortSmtSort poly env (FAbs m b))
+=======
+      | setConName == symbol c   = SSet (sortSmtSort' poly env m a)
+    go (FTC c) [a]
+      | bagConName == symbol c   = SBag (sortSmtSort' poly env m a)
+    go (FTC c) [FNatNum n]
+      | ffldConName == symbol c  = SFFld n
+    go (FTC c) [a, b]
+      | arrayConName == symbol c = SArray (sortSmtSort' poly env m a) (sortSmtSort' poly env m b)
+>>>>>>> develop
     go (FTC bv) [FTC s]
       | bitVecName == symbol bv
       , Just n <- sizeBv s      = SBitVec n
@@ -347,7 +369,7 @@ fappSmtSort poly m env = go
       | isString s              = SString
     go (FTC c) ts
       | Just n <- tyArgs c env
-      , let i = n - length ts   = SData c ((sortSmtSort poly env . FAbs m <$> ts) ++ pad i)
+      , let i = n - length ts   = SData c ((sortSmtSort' poly env m <$> ts) ++ pad i)
     go _ _                      = SInt
 
     pad i | poly                = []
