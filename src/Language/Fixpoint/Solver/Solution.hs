@@ -68,7 +68,7 @@ initQualifierEnv cfg si
   | scraping  = So.globalEnv cfg si <> instConstants si
   | otherwise = instConstants si
   where
-    scraping = scrape cfg /= No || allowHOqs cfg
+    scraping = scrape cfg /= No
 
 --------------------------------------------------------------------------------
 -- | [NOTE:qual-cluster] It is wasteful to perform instantiation *individually*
@@ -92,12 +92,11 @@ qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ]
 --------------------------------------------------------------------------------
 
 refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> ElabM Sol.QBind
-refine info qs genv w = refineK hoqs env lits qs (F.wrft w)
+refine info qs genv w = refineK (allowHOquals info) env lits qs (F.wrft w)
   where
     env             = wenvSort <> genv
     wenvSort        = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs info) (F.wenv w))
-    hoqs            = allowHOquals info
-    lits            = F.tracepp "CONSTANTS" $ getConstants info
+    lits            = getConstants info
 
 instConstants :: F.SInfo a -> F.SEnv F.Sort
 instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
