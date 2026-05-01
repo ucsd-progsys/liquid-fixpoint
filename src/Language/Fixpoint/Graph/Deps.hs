@@ -305,7 +305,7 @@ elimVars :: (F.TaggedC c a) => Config -> F.GInfo c a -> ([CEdge], Elims F.KVar)
 elimVars cfg si = (es, ds)
   where
     ds          = edgeDeps cfg si es
-    es          = tracepp "KV-EDGES" $ kvEdges si
+    es          = kvEdges si
 
 removeKutEdges ::  S.HashSet F.KVar -> [CEdge] -> [CEdge]
 removeKutEdges ks = filter (not . isKut . snd)
