@@ -1,5 +1,6 @@
 
 (fixpoint "--allowhoqs")
+(fixpoint "--scrape=both")
 
 ;; use wild-literal pattern `a1` will get instantiated with any `Int` literals in this constraint,
 ;; and `a2` with any str literals.
