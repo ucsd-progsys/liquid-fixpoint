@@ -311,7 +311,7 @@ instance S.Store SmtSort
 --   'smtSort True  msg t' serializes a sort 't' using type variables,
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
-sortSmtSort poly env t = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unAbs $ t
+sortSmtSort poly env t = go . unAbs $ t
   where
     m = sortAbs t
     go (FFunc _ _)    = SInt

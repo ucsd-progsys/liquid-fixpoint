@@ -365,9 +365,7 @@ qbPreds su tvsu (Sol.QB eqs) =
   [ (F.subst su $ V.applyCoSub tvsu $ Sol.eqPred eq, eq) | eq <- eqs ]
 
 mkNonCutsExpr :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Hyp -> F.Expr
-mkNonCutsExpr cfg ce s k cs =
-  let bcps = map (bareCubePred cfg ce s k) cs
-   in F.tracepp ("mkNonCuts " ++ show k) $ F.pOr bcps
+mkNonCutsExpr cfg ce s k cs = F.pOr (bareCubePred cfg ce s k <$> cs)
 
 nonCutsResult :: Config -> F.BindEnv ann -> Sol.Sol Sol.QBind -> FixDelayedSolution
 nonCutsResult cfg be s = M.mapWithKey (\k -> Delayed . mkNonCutsExpr cfg g s k) $ Sol.sHyp s
@@ -401,12 +399,11 @@ bareCubePred cfg g s k c =
         (p, _kI) = apply cfg g' s bs
      in F.pExist yts (p F.&.& psu)
   where
-    msg = "TRACE: bareCubePred " ++ show k
-    bs = F.tracepp msg $ Sol.cuBinds c
-    F.Su m = dropUnsortedExprs cfg g' (F.tracepp msg $ Sol.cuSubst c)
-    g' = addCEnv  g bs
-    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
-    yts = symSorts g bs'
+    bs     = Sol.cuBinds c
+    F.Su m = dropUnsortedExprs cfg g' (Sol.cuSubst c)
+    g'     = addCEnv  g bs
+    bs'    = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
+    yts    = symSorts g bs'
 
 -- | At the moment, the liquid-fixpoint implementation allows for unsorted
 -- expressions in substitutions. See the discussion in
