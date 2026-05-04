@@ -136,7 +136,8 @@ evalCandsLoop ie ictx0 γ env = go ictx0
   where
     withRewrites exprs =
       let
-        rws = [rewrite e rw | rw <- snd <$> M.toList (knSims γ)
+        sortEnv = seSort (evEnv env)
+        rws = [rewrite sortEnv e rw | rw <- snd <$> M.toList (knSims γ)
                             ,  e <- S.toList (snd `S.map` exprs)]
       in
         exprs <> S.fromList (concat rws)
@@ -162,8 +163,8 @@ evalOneCandStep env γ env' (ictx, acc) e = do
   res <- evalOne env γ env' ictx e
   return (ictx, res : acc)
 
-rewrite :: Expr -> Rewrite -> [(Expr,Expr)]
-rewrite e rw = Mb.mapMaybe (`rewriteTop` rw) (notGuardedApps e)
+rewrite :: SEnv Sort -> Expr -> Rewrite -> [(Expr,Expr)]
+rewrite env e rw = filter (wellSorted env . fst) $ Mb.mapMaybe (`rewriteTop` rw) (notGuardedApps e)
 
 rewriteTop :: Expr -> Rewrite -> Maybe (Expr,Expr)
 rewriteTop e rw
@@ -173,6 +174,10 @@ rewriteTop e rw
   = Just (EApp (EVar $ smName rw) e, subst (mkSubst $ zip (smArgs rw) es) (smBody rw))
   | otherwise
   = Nothing
+
+-- | Check that an expression is well-sorted
+wellSorted :: SEnv Sort -> Expr -> Bool
+wellSorted env = Mb.isJust . checkSortExpr dummySpan env
 
 ----------------------------------------------------------------------------------------------
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo
@@ -262,8 +267,9 @@ updCtx InstEnv{..} ctx delta cidMb
           , icSubcId = cidMb -- fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
           }                  -- eliminate above if nothing broken
   where
-    initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
+    initEqs   = S.fromList $ concat [rewrite sortEnv e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
                                                   , rw <- snd <$> M.toList (knSims ieKnowl)]
+    sortEnv   = seSort (evEnv ieEvEnv)
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es

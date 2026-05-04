@@ -1144,10 +1144,17 @@ evalApp γ ctx e0 args@(e:es) _
 evalApp γ ctx e0 es _et
   | eqs@(_:_) <- noUserDataMeasureEqs γ (eApps e0 es)
   = do
-       let eqs' = map (second $ simplify γ ctx) eqs
-       modify $ \st ->
-         st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs' }
-       return Nothing
+       env <- gets (seSort . evEnv)
+       -- Only well-sorted LHSs should be considered. For instance, a measure
+       -- expecting an argument of type [[Int]] should not be applied to a value
+       -- of type [Int].
+       let eqs' = map (second $ simplify γ ctx) $
+                    filter (wellSorted env . fst) eqs
+       if null eqs' then return Nothing
+       else do
+         modify $ \st ->
+           st { evNewEqualities = foldr S.insert (evNewEqualities st) eqs' }
+         return Nothing
 
 evalApp γ ctx e0 es et
   | ELam (argName, _) body <- dropECst e0
@@ -1258,6 +1265,10 @@ noUserDataMeasureEqs γ e =
   , (rw, NoUserDataSMeasure) <- rws
   , length es == length (smArgs rw)
   ]
+
+-- | Check that an expression is well-sorted
+wellSorted :: SEnv Sort -> Expr -> Bool
+wellSorted env = Mb.isJust . checkSortExpr dummySpan env
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of

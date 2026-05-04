@@ -1,23 +1,23 @@
 ---
-version: 2.0
+version: 2.1
 
+# This CircleCI job is the only one testing liquid-fixpoint with the
+# --interpreter flag.
 jobs:
-  build:
+  test-interpreter-flag:
     machine:
       image: default
     steps:
       - run: sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq curl git ssh unzip wget libtinfo-dev gcc make
       - add_ssh_keys
       - run:
-          name: Install z3
+          name: Install z3-4.10.2
           command: |
-            wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-ubuntu-16.04.zip
-            unzip z3-4.8.7-x64-ubuntu-16.04.zip
-            rm -f z3-4.8.7-x64-ubuntu-16.04.zip
-            sudo cp z3-4.8.7-x64-ubuntu-16.04/bin/libz3.a /usr/local/lib
-            sudo cp z3-4.8.7-x64-ubuntu-16.04/bin/z3 /usr/local/bin
-            sudo cp z3-4.8.7-x64-ubuntu-16.04/include/* /usr/local/include
-            rm -rf z3-4.8.7-x64-ubuntu-16.04
+            wget https://github.com/Z3Prover/z3/releases/download/z3-4.10.2/z3-4.10.2-x64-glibc-2.31.zip
+            unzip z3-4.10.2-x64-glibc-2.31.zip
+            rm -f z3-4.10.2-x64-glibc-2.31.zip
+            sudo cp z3-4.10.2-x64-glibc-2.31/bin/z3 /usr/local/bin
+            rm -rf z3-4.10.2-x64-glibc-2.31
             z3 --version
       - run:
           name: Install cvc5
@@ -29,18 +29,23 @@ jobs:
             rm -rf cvc5-Linux-x86_64-static
             cvc5 --version
       - checkout
+
+      - run:
+          name: List dependencies
+          command: |
+            wget -qO- https://get.haskellstack.org/ | sudo sh
+            stack ls dependencies json | jq > stack-deps.json
+
       - restore_cache:
           keys:
-            - stack-cache-v1-{{ checksum "stack.yaml" }}-{{ checksum "liquid-fixpoint.cabal" }}
-            - stack-cache-v1-{{ checksum "stack.yaml" }}
+            - stack-cache-v1-{{ checksum "stack-deps.json" }}
       - run:
           name: Dependencies
           command: |
-            wget -qO- https://get.haskellstack.org/ | sudo sh
             stack --no-terminal setup
             stack --no-terminal build -j2 liquid-fixpoint --only-dependencies --test --no-run-tests
       - save_cache:
-          key: stack-cache-v1-{{ checksum "stack.yaml" }}-{{ checksum "liquid-fixpoint.cabal" }}
+          key: stack-cache-v1-{{ checksum "stack-deps.json" }}
           paths:
             - ~/.stack
             - ./.stack-work
@@ -60,3 +65,8 @@ jobs:
       - run:
           name: Dist
           command: stack --no-terminal sdist
+
+workflows:
+   build:
+     jobs:
+      - test-interpreter-flag
