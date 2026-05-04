@@ -1,0 +1,35 @@
+fixpoint "--rewrite"
+
+// Regression test: PLE should not apply a measure defined on [int]
+// to a [[int]] constructor application. Both share the (:) constructor
+// but have incompatible sorts.
+
+data List 1 = [
+  | Nil  { }
+  | Cons { hd : @(0), tl : List @(0) }
+]
+
+// measure m works on List int (i.e., [int])
+constant m : (func(0, [(List int); int]))
+
+// measure ms works on List (List int) (i.e., [[int]])
+constant ms : (func(0, [(List (List int)); int]))
+
+match m Nil       { 0 }
+match m Cons x xs { 1 + m xs }
+
+match ms Nil       { 0 }
+match ms Cons x xs { 1 + m x + ms xs }
+
+bind 0 a : {v : (List int) | true }
+bind 1 b : {v : (List (List int)) | true }
+
+// This constraint requires PLE to unfold ms on a [[int]] expression
+// without spuriously applying m to it.
+constraint:
+  env [0; 1]
+  lhs {v : int | true }
+  rhs {v : int | ms (Cons a (Cons a Nil)) = (1 + m a) + (1 + m a) + 0 }
+  id 1 tag []
+
+expand [1 : True]
