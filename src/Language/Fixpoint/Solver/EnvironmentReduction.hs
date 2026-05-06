@@ -37,6 +37,8 @@ import           Data.List (partition)
 #else
 import           Data.List (foldl', partition)
 #endif
+import           Data.Functor.Const (Const(..))
+import           Data.Functor.Identity (Identity(..))
 import           Data.Maybe (fromMaybe)
 import           Data.ShareMap (ShareMap)
 import qualified Data.ShareMap as ShareMap
@@ -94,8 +96,6 @@ import           Language.Fixpoint.Types.Refinements
   )
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
 import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
-import           Lens.Family2 (Lens', view, (%~))
-import           Lens.Family2.Stock (_2)
 import Language.Fixpoint.Misc (snd3)
 
 -- | Strips from all the constraint environments the bindings that are
@@ -571,6 +571,23 @@ mergeDuplicatedBindings xs =
           ]
         )
 
+-- lens
+--
+-- We use internally the following lens to modify the SortedReft in the
+-- environment. This was imported from lens-family, but we don't want to depend
+-- on the whole library for just these few definitions.
+
+type Lens' s a = forall f. Functor f => (a -> f a) -> s -> f s
+
+_2 :: Lens' (a, b) b
+_2 f (a, b) = fmap (a,) (f b)
+
+view :: Lens' s a -> s -> a
+view l s = getConst (l Const s)
+
+(%~) :: Lens' s a -> (a -> a) -> s -> s
+(%~) l f s = runIdentity (l (Identity . f) s)
+
 -- | Inlines some of the bindings whose symbol satisfies a given predicate.
 --
 -- Only works if the bindings don't form cycles.
@@ -583,7 +600,7 @@ substBindingsSimplifyingWith
 substBindingsSimplifyingWith simplifier vLens p env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (vLens %~ simplifier . inlineInSortedReft (srLookup filteredEnv)) env
+    let env' = HashMap.map (vLens %~ (simplifier . inlineInSortedReft (srLookup filteredEnv))) env
         filteredEnv = HashMap.filterWithKey (\sym _v -> p sym) env'
      in env'
   where
