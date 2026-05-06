@@ -2,7 +2,24 @@
 
 ## NEXT
 
-- wildcard literals in qualifiers in horn constraints. #834
+## 0.9.6.3.6 (2026-05-06)
+
+- Drop dependency on lens-family [#841](http://github.com/ucsd-progsys/liquid-fixpoint/pull/841)
+- Add sort-compatibility check for measure application in PLE [#840](https://github.com/ucsd-progsys/liquid-fixpoint/pull/840)
+- Eagerly expand the body of eta-expanded terms [#838](https://github.com/ucsd-progsys/liquid-fixpoint/pull/838)
+- Add polymorphic kvar type variable substitution [#837](https://github.com/ucsd-progsys/liquid-fixpoint/pull/837)
+- Show wf constraints in prettified fixpoint queries [#836](https://github.com/ucsd-progsys/liquid-fixpoint/pull/836)
+- Unapply solutions in fqout files for readability [#835](https://github.com/ucsd-progsys/liquid-fixpoint/pull/835)
+- Wildcard literals in qualifiers in horn constraints. [#834](https://github.com/ucsd-progsys/liquid-fixpoint/pull/834)
+- Produce a fqout file before PLE [#835](https://github.com/ucsd-progsys/liquid-fixpoint/pull/835)
+- Add `--save-dir` flag to specify output directory for generated files [#832](https://github.com/ucsd-progsys/liquid-fixpoint/pull/832)
+- Add `--save-bfq-on-error` flag to collect .bfq files on verification failure [#831](https://github.com/ucsd-progsys/liquid-fixpoint/pull/831)
+- Escape SMT string literals [#828](https://github.com/ucsd-progsys/liquid-fixpoint/pull/828)
+- Add `cut` support to Horn query parser [#827](https://github.com/ucsd-progsys/liquid-fixpoint/pull/827)
+- Fix name captures in substitution of PExist and PAll [#826](https://github.com/ucsd-progsys/liquid-fixpoint/pull/826)
+- Don't require a space after the comment start [#825](https://github.com/ucsd-progsys/liquid-fixpoint/pull/825)
+- Add support for fractional literals [#822](https://github.com/ucsd-progsys/liquid-fixpoint/pull/822) [#824](https://github.com/ucsd-progsys/liquid-fixpoint/pull/824)
+- Generalize expressions and substitutions over binding types [#763](https://github.com/ucsd-progsys/liquid-fixpoint/pull/763)
 
 ## 0.9.6.3.5 (2026-01-14)
 
