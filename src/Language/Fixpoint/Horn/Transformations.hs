@@ -34,7 +34,7 @@ import qualified Data.Graph                   as DG
 import           Control.Monad.State
 import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
-import           System.Console.CmdArgs.Verbosity
+import           Language.Fixpoint.Verbosity
 import           Data.Bifunctor (first, second)
 import System.IO (hFlush, stdout)
 -- import qualified Debug.Trace as DBG
