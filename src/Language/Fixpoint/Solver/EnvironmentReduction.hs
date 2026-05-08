@@ -585,6 +585,8 @@ _2 f (a, b) = fmap (a,) (f b)
 view :: Lens' s a -> s -> a
 view l s = getConst (l Const s)
 
+infixr 4 %~
+
 (%~) :: Lens' s a -> (a -> a) -> s -> s
 (%~) l f s = runIdentity (l (Identity . f) s)
 
@@ -600,7 +602,7 @@ substBindingsSimplifyingWith
 substBindingsSimplifyingWith simplifier vLens p env =
     -- Circular program here. This should terminate as long as the
     -- bindings introduced by ANF don't form cycles.
-    let env' = HashMap.map (vLens %~ (simplifier . inlineInSortedReft (srLookup filteredEnv))) env
+    let env' = HashMap.map (vLens %~ simplifier . inlineInSortedReft (srLookup filteredEnv)) env
         filteredEnv = HashMap.filterWithKey (\sym _v -> p sym) env'
      in env'
   where
