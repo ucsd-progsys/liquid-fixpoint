@@ -22,7 +22,7 @@ import qualified Language.Fixpoint.Horn.Transformations as Tx
 import Text.PrettyPrint.HughesPJ.Compat ( render )
 import Language.Fixpoint.Horn.Info ( hornFInfo )
 
-import System.Console.CmdArgs.Verbosity ( whenLoud )
+import Language.Fixpoint.Verbosity ( whenLoud )
 import qualified Data.Aeson as Aeson
 -- import Debug.Trace (traceM)
 

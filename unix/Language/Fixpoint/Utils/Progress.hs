@@ -10,7 +10,7 @@ module Language.Fixpoint.Utils.Progress (
 
 import           Control.Monad                    (when)
 import           System.IO.Unsafe                 (unsafePerformIO)
-import           System.Console.CmdArgs.Verbosity (isNormal, getVerbosity, Verbosity(..))
+import           Language.Fixpoint.Verbosity      (isNormal, getVerbosity, Verbosity(..))
 import           Data.IORef
 import           System.Console.AsciiProgress
 -- import           Language.Fixpoint.Misc (traceShow)

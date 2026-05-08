@@ -92,7 +92,7 @@ import qualified Data.Text.IO
 -- import           Data.Text.Format
 import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
-import           System.Console.CmdArgs.Verbosity
+import           Language.Fixpoint.Verbosity
 import           System.FilePath
 import           System.IO
 import qualified Data.Attoparsec.Text     as A

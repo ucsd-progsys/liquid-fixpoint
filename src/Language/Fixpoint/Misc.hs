@@ -31,7 +31,7 @@ import qualified Data.Tree                        as T
 import           Data.Unique
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
-import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           Language.Fixpoint.Verbosity (whenLoud)
 import           System.Process                   (system)
 import           System.Directory                 (createDirectoryIfMissing)
 import           System.FilePath                  (takeDirectory)

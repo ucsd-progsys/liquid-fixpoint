@@ -32,7 +32,7 @@ import           Data.Aeson                         (ToJSON, encode)
 import qualified Data.Text.Lazy.IO                as LT
 import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
-import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
+import           Language.Fixpoint.Verbosity   (whenNormal, whenLoud)
 import           Control.Monad                      (when)
 import           Control.Exception                  (SomeException, catch)
 import           Control.Exception.Compat
