@@ -1,6 +1,4 @@
-Liquid Fixpoint
-===============
-
+# Liquid Fixpoint
 
 [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint)
 [![CircleCI](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint.svg?style=svg)](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint)
@@ -8,22 +6,19 @@ Liquid Fixpoint
 [![cabal](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/cabal.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/cabal.yml)
 [![stack](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/stack.yml/badge.svg)](https://github.com/ucsd-progsys/liquid-fixpoint/actions/workflows/stack.yml)
 
-
 This package implements a Horn-Clause/Logical Implication constraint solver used
 for various Liquid Types. The solver uses SMTLIB2 to implement an algorithm similar to:
 
-+ [Houdini](https://users.soe.ucsc.edu/~cormac/papers/fme01.pdf)
-+ [Cartesian predicate abstraction](http://swt.informatik.uni-freiburg.de/berit/papers/boolean-and-cartesian-....pdf)
+- [Houdini](https://users.soe.ucsc.edu/~cormac/papers/fme01.pdf)
+- [Cartesian predicate abstraction](http://swt.informatik.uni-freiburg.de/berit/papers/boolean-and-cartesian-....pdf)
 
 Algorithms implemented in liquid-fixpoint:
 
-+ [FUSION](https://ranjitjhala.github.io/static/local_refinement_typing.pdf) Local refinement typing
-+ [PLE](https://ranjitjhala.github.io/static/refinement_reflection.pdf) Refinement Reflection: Complete Verification with SMT
-+ [REST](https://drops.dagstuhl.de/entities/document/10.4230/DARTS.8.2.12) REST: Integrating Term Rewriting with Program Verification
+- [FUSION](https://ranjitjhala.github.io/static/local_refinement_typing.pdf) Local refinement typing
+- [PLE](https://ranjitjhala.github.io/static/refinement_reflection.pdf) Refinement Reflection: Complete Verification with SMT
+- [REST](https://drops.dagstuhl.de/entities/document/10.4230/DARTS.8.2.12) REST: Integrating Term Rewriting with Program Verification
 
-
-Requirements
-------------
+## Requirements
 
 In addition to the .cabal dependencies you require an SMTLIB2 compatible solver binary:
 
@@ -35,8 +30,7 @@ In addition to the .cabal dependencies you require an SMTLIB2 compatible solver 
 If on Windows, please make sure to place the binary and any associated DLLs somewhere
 in your path.
 
-How To Build and Install
-------------------------
+## How To Build and Install
 
 ```
 $ git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
@@ -56,8 +50,7 @@ Run with
 $ stack exec fixpoint -- tests/pos/adt.fq
 ```
 
-Using SMTLIB-based SMT Solvers
-------------------------------
+## Using SMTLIB-based SMT Solvers
 
 You can use one of several SMTLIB2 compliant solvers, by:
 
@@ -70,8 +63,7 @@ Currently, we support
     * CVC5
     * MathSat
 
-"Horn" Format
--------------
+## "Horn" Format
 
 See the examples in `tests/horn/{pos, neg}` eg
 
@@ -87,21 +79,19 @@ for an example of how to generate Horn queries.
 
 The main datatypes are described in [src/Language/Fixpoint/Horn/Types.hs](src/Language/Fixpoint/Horn/Types.hs)
 
-
-Configuration Management
-------------------------
+## Configuration Management
 
 It is very important that the version of Liquid Fixpoint be maintained properly.
 
 Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 
-+ After a release to hackage is made, if any of the components `B`, `C`, or `D` are missing, they shall be added and set to `0`. Then the `D` component of Liquid Fixpoint shall be incremented by `1`. The version of Liquid Fixpoint is now `A.B.C.(D + 1)`
+- After a release to hackage is made, if any of the components `B`, `C`, or `D` are missing, they shall be added and set to `0`. Then the `D` component of Liquid Fixpoint shall be incremented by `1`. The version of Liquid Fixpoint is now `A.B.C.(D + 1)`
 
-+ The first time a new function or type is exported from Liquid Fixpoint, if any of the components `B`, or `C` are missing, they shall be added and set to `0`. Then the `C` component shall be incremented by `1`, and the `D` component shall stripped. The version of Liquid Fixpoint is now `A.B.(C + 1)`
+- The first time a new function or type is exported from Liquid Fixpoint, if any of the components `B`, or `C` are missing, they shall be added and set to `0`. Then the `C` component shall be incremented by `1`, and the `D` component shall stripped. The version of Liquid Fixpoint is now `A.B.(C + 1)`
 
-+ The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Fixpoint re-exports from its own dependencies), if the `B` component is missing, it shall be added and set to `0`. Then the `B` component shall be incremented by `1`, and the `C` and `D` components shall be stripped. The version of Liquid Fixpoint is now `A.(B + 1)`
+- The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Fixpoint re-exports from its own dependencies), if the `B` component is missing, it shall be added and set to `0`. Then the `B` component shall be incremented by `1`, and the `C` and `D` components shall be stripped. The version of Liquid Fixpoint is now `A.(B + 1)`
 
-+ The `A` component shall be updated at the sole discretion of the project owners.
+- The `A` component shall be updated at the sole discretion of the project owners.
 
 It is recommended to use the [Bumper](https://hackage.haskell.org/package/bumper) utility to manage the versioning of Liquid Fixpoint. Bumper will automatically do the correct update to the cabal file. Additionally, it will update any packages that you have the source for that depend on Liquid Fixpoint.
 
@@ -140,7 +130,7 @@ As before, this will update Liquid Fixpoint and, if necessary, Liquid Haskell
 
 There is a new SMTLIB2 interface directly from Haskell:
 
-+ Language.Fixpoint.SmtLib2
+- Language.Fixpoint.SmtLib2
 
 See `tests/smt2/{Smt.hs, foo.smt2}` for an example of how to use it.
 
@@ -173,7 +163,6 @@ $ more tests/horn/pos/abs02-re.smt2 | stack exec -- fixpoint -q --json --stdin
 {"contents":{"numIter":3,"numCstr":3,"numChck":3,"numBrkt":3,"numVald":3},"tag":"Safe"}
 ```
 
-
 ## Options
 
 `--higherorder` allows higher order binders into the environment
@@ -195,7 +184,6 @@ and also a dot file with the constraint dependency graph:
 
     path/to/.liquid/foo.fq.dot
 
-
 ## FInfo Invariants
 
 ### Binders
@@ -213,17 +201,17 @@ bind 1 x : ...
 bind 2 y : ...
 ```
 
-* Each `BindId` must be a distinct `Int`,
-* Each `BindId` that appears in a constraint
+- Each `BindId` must be a distinct `Int`,
+- Each `BindId` that appears in a constraint
   environment i.e. inside _any_ `IBindEnv`
   must appear inside the `bs`
 
 ### Environments
 
-* Each constraint's environment is a set of `BindId`
+- Each constraint's environment is a set of `BindId`
   which must be defined in the `bindInfo`. Furthermore
 
-* Each constraint should not have _duplicate_ names in its
+- Each constraint should not have _duplicate_ names in its
   environment, that is if you have two binders
 
 ```
@@ -231,10 +219,10 @@ bind 2 y : ...
   bind 12 x : ...
 ```
 
-  Then a single `IBindEnv` should only mention _at most_
-  one of `1` or `12`.
+Then a single `IBindEnv` should only mention _at most_
+one of `1` or `12`.
 
-* [NOTE:TREE-LIKE] There is also a "tree-shape" property required by PLE:
+- [NOTE:TREE-LIKE] There is also a "tree-shape" property required by PLE:
 
 ```
   forall constraints c, c'.
@@ -253,14 +241,14 @@ Each `slhs` of a constraint is a `SortedReft`.
     $k1[@a:=b;a2:=b2][x1:=y1][x2:=y2]...[xn:=yn]
 ```
 
-  that is represented in the `Expr` type as
+that is represented in the `Expr` type as
 
 ```
   | PKVar  KVar TyVarSubst Subst
 ```
 
-  must appear _only_ at the **top-level** that is not under _any_
-  other operators, i.e. not as a sub-`Expr` of other expressions.
+must appear _only_ at the **top-level** that is not under _any_
+other operators, i.e. not as a sub-`Expr` of other expressions.
 
 - This is basically a predicate that needs to be "well sorted"
   with respect to the `BindId`, intuitively
@@ -269,19 +257,19 @@ Each `slhs` of a constraint is a `SortedReft`.
     x:int, y:int |- x + y : int
 ```
 
-  is well sorted. but
+is well sorted. but
 
 ```
     x:int  |- x + y : int
 ```
 
-  is not, and
+is not, and
 
 ```
     x:int, y: list |- x + y : int
 ```
 
-  is not. The exact definition is formalized in `Language.Fixpoint.SortCheck`
+is not. The exact definition is formalized in `Language.Fixpoint.SortCheck`
 
 ### RHS
 
@@ -289,14 +277,15 @@ Similarly each `rhs` of a `SubC` must either be a single `$k[...]` or an plain `
 
 ### KVar occurrences
 
-* Each `KVar` that appears in any binding or constraint must have exactly one
+- Each `KVar` that appears in any binding or constraint must have exactly one
   associated wf constraint.
 
-* Each `KVar` that appears in any binding or constraint must have an
+- Each `KVar` that appears in any binding or constraint must have an
   accompanying substitution whose domain has the same symbols as the environment
   of the corresponding wf constraint plus the symbol of its refinement type.
 
 For example, if the wf constraint is
+
 ```
     x:int, y: int |- {v:int | $k_##42 }
 ```
@@ -345,7 +334,7 @@ constant lit#Wed : Day
 ```
 
 The _distinct_ literals are a subset of the above where we
-want to tell the SMT solver that the values are *distinct*
+want to tell the SMT solver that the values are _distinct_
 i.e. **not equal** to each other, for example, you can
 **additionally** specify this as:
 
@@ -357,7 +346,7 @@ distinct lit#Wed : Day
 ```
 
 The above two are represented programmatically by generating
-suitable `Symbol` values (for the literals  see `litSymbol`)
+suitable `Symbol` values (for the literals see `litSymbol`)
 and `Sort` values as `FTC FTycon` and then making an `SEnv`
 from the `[(Symbol, Sort)]`.
 
@@ -376,9 +365,9 @@ precise information for `Expr`s and so we introduced the `FTC`
 (fixpoint type constructor), which lets us represent the above
 respectively as:
 
-- `FTC "String" []`                   -- in Haskell `String`
-- `FTC "Tuple"  [FInt, Bool]`         -- in Haskell `(Int, Bool)`
-- `FTC "List" [FTC "List" [FInt]]`    -- in Haskell `[[Int]]`
+- `FTC "String" []` -- in Haskell `String`
+- `FTC "Tuple"  [FInt, Bool]` -- in Haskell `(Int, Bool)`
+- `FTC "List" [FTC "List" [FInt]]` -- in Haskell `[[Int]]`
 
 > There is a comment that says FObj's are uninterpretted types;
 > so probably a type the SMT solver doesn't know about?
@@ -387,14 +376,14 @@ respectively as:
 
 The SMT solvers we currently use know about following sorts:
 
-* `bool`
-* `int`
-* `real`
-* `string`
-* `array` (aka `map`)
-* `bitvector`
-* `set` and `bag` (in Z3, they are both also represented internally as `array`s)
-* `finitefield` (CVC5 only)
+- `bool`
+- `int`
+- `real`
+- `string`
+- `array` (aka `map`)
+- `bitvector`
+- `set` and `bag` (in Z3, they are both also represented internally as `array`s)
+- `finitefield` (CVC5 only)
 
 _All_ other types are _currently_ represented as plain
 `Int` inside the SMT solver. However, we _will be_ changing this
@@ -417,3 +406,8 @@ QP {qpSym = "z", qpPat = PatExact "mon", qpSort = FInt}
 λ> doParse' (qualParamP sortP) "" "z : int"
 QP {qpSym = "z", qpPat = PatNone, qpSort = FInt}
 ```
+
+summaryInfo :: String
+summaryInfo = "fixpoint " ++ showVersion version ++ " " ++ "(" ++ $(gitHash) ++ ")"
+config :: Mode (CmdArgs Config)
+config = cmdArgsMode defConfig
