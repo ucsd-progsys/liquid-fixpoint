@@ -50,7 +50,6 @@ import Language.Fixpoint.Utils.Files
 import Development.GitRev (gitHash)
 import Data.Version (showVersion)
 import Paths_liquid_fixpoint (version)
-import Language.Fixpoint.Types.Version (numericVersionInfo)
 
 --------------------------------------------------------------------------------
 -- | Configuration Options -----------------------------------------------------
@@ -475,7 +474,7 @@ handleExits flags helpText ver = mapM_ go flags
   where
     go FxHelp           = putStr helpText >> exitSuccess
     go FxVersion        = putStrLn ver      >> exitSuccess
-    go FxNumericVersion = putStrLn numericVersionInfo >> exitSuccess
+    go FxNumericVersion = putStrLn (showVersion version) >> exitSuccess
     go _                = return ()
 
 formatHelp :: [OptDescr a] -> String
