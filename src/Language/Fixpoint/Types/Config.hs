@@ -50,6 +50,7 @@ import Language.Fixpoint.Utils.Files
 import Development.GitRev (gitHash)
 import Data.Version (showVersion)
 import Paths_liquid_fixpoint (version)
+import Language.Fixpoint.Types.Version (numericVersionInfo)
 
 --------------------------------------------------------------------------------
 -- | Configuration Options -----------------------------------------------------
@@ -266,6 +267,7 @@ data FxFlag
   | FxVerbosity Verbosity
   | FxHelp
   | FxVersion
+  | FxNumericVersion
 
 -- | All command-line options for fixpoint.
 fxOptions :: [OptDescr FxFlag]
@@ -385,6 +387,8 @@ fxOptions =
       "Show this help message"
   , Option "V" ["version"]         (NoArg FxVersion)
       "Show version"
+  , Option [] ["numeric-version"]  (NoArg FxNumericVersion)
+      "Print numeric version and exit"
   ]
   where
     opt0 name f desc =
@@ -469,9 +473,10 @@ getOpts = do
 handleExits :: [FxFlag] -> String -> String -> IO ()
 handleExits flags helpText ver = mapM_ go flags
   where
-    go FxHelp    = putStr helpText >> exitSuccess
-    go FxVersion = putStrLn ver      >> exitSuccess
-    go _         = return ()
+    go FxHelp           = putStr helpText >> exitSuccess
+    go FxVersion        = putStrLn ver      >> exitSuccess
+    go FxNumericVersion = putStrLn numericVersionInfo >> exitSuccess
+    go _                = return ()
 
 formatHelp :: [OptDescr a] -> String
 formatHelp opts =
