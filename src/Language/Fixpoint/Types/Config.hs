@@ -463,11 +463,16 @@ getOpts = do
       cfg <- applyFxFlags defConfig flags
       let srcF = case files of { (f:_) -> f; [] -> srcFile defConfig }
           cfg' = cfg { srcFile = srcF }
-      whenNormal (putStrLn banner)
+      whenBanner flags $ whenNormal (putStrLn banner)
       handleExits flags (formatHelp fxOptions) summaryInfo
       return cfg'
     (_, _, optErrs)    -> ioError $ userError $
         concat optErrs ++ "\nUse --help for usage information."
+
+whenBanner :: [FxFlag] -> IO () -> IO ()
+whenBanner (FxVersion:_) _ = return ()
+whenBanner (_:flags)   act = whenBanner flags act
+whenBanner [] act          = act
 
 handleExits :: [FxFlag] -> String -> String -> IO ()
 handleExits flags helpText ver = mapM_ go flags
