@@ -224,7 +224,9 @@ splitOn :: Char -> String -> [String]
 splitOn _ [] = [""]
 splitOn d (c:cs)
   | c == d    = "" : splitOn d cs
-  | otherwise = let (w:ws) = splitOn d cs in (c:w) : ws
+  | otherwise = case splitOn d cs of
+      (w:ws) -> (c:w) : ws
+      []     -> [c:""]
 
 -- | A numeric version segment is a non-empty string of digits.
 isNumericSegment :: String -> Bool
