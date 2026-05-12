@@ -266,6 +266,7 @@ data FxFlag
   | FxVerbosity Verbosity
   | FxHelp
   | FxVersion
+  | FxNumericVersion
 
 -- | All command-line options for fixpoint.
 fxOptions :: [OptDescr FxFlag]
@@ -385,6 +386,8 @@ fxOptions =
       "Show this help message"
   , Option "V" ["version"]         (NoArg FxVersion)
       "Show version"
+  , Option [] ["numeric-version"]  (NoArg FxNumericVersion)
+      "Print numeric version and exit"
   ]
   where
     opt0 name f desc =
@@ -460,18 +463,24 @@ getOpts = do
       cfg <- applyFxFlags defConfig flags
       let srcF = case files of { (f:_) -> f; [] -> srcFile defConfig }
           cfg' = cfg { srcFile = srcF }
-      whenNormal (putStrLn banner)
+      whenBanner flags $ whenNormal (putStrLn banner)
       handleExits flags (formatHelp fxOptions) summaryInfo
       return cfg'
     (_, _, optErrs)    -> ioError $ userError $
         concat optErrs ++ "\nUse --help for usage information."
 
+whenBanner :: [FxFlag] -> IO () -> IO ()
+whenBanner (FxNumericVersion:_) _ = return ()
+whenBanner (_:flags)   act = whenBanner flags act
+whenBanner [] act          = act
+
 handleExits :: [FxFlag] -> String -> String -> IO ()
 handleExits flags helpText ver = mapM_ go flags
   where
-    go FxHelp    = putStr helpText >> exitSuccess
-    go FxVersion = putStrLn ver      >> exitSuccess
-    go _         = return ()
+    go FxHelp           = putStr helpText >> exitSuccess
+    go FxVersion        = putStrLn ver      >> exitSuccess
+    go FxNumericVersion = putStrLn (showVersion version) >> exitSuccess
+    go _                = return ()
 
 formatHelp :: [OptDescr a] -> String
 formatHelp opts =
