@@ -10,7 +10,7 @@ import qualified Data.IntMap            as IntMap
 import Control.Monad (when)
 import qualified Control.Monad.State    as State
 import Control.Monad.Trans.Class (lift)
-import Data.List (isSuffixOf)
+import Data.List (dropWhileEnd, isSuffixOf)
 import Prelude hiding (log)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
@@ -112,6 +112,14 @@ unitTests lfDir =
         , dirHornTests "horn-smt2-pos-el" elimCmd     "tests/logs/cur/horn-pos-el" []         []             ExitSuccess
         , dirHornTests "horn-smt2-neg-el" elimCmd     "tests/logs/cur/horn-neg-el" []         []            (ExitFailure 1)
         ]
+      , return $ testGroup "flags"
+        [ testCase "--numeric-version" $ do
+            (code, out, _) <- readProcessWithExitCode "fixpoint" ["--numeric-version"] ""
+            assertEqual "Wrong exit code" ExitSuccess code
+            let ver = dropWhileEnd (== '\n') out
+            assertBool ("Expected a version number like X.Y.Z, got: " ++ show ver)
+                       (not (null ver) && all isNumericSegment (splitOn '.' ver))
+        ]
       ]
   where
     posOptions = ["--save-bfq-on-error"]
@@ -210,6 +218,17 @@ cvc5Cmd (LO opts) bin dir file =
 
 group :: Monad f => TestName -> [f TestTree] -> f TestTree
 group n xs = testGroup n <$> sequence xs
+
+-- | Split a string on a delimiter character.
+splitOn :: Char -> String -> [String]
+splitOn _ [] = [""]
+splitOn d (c:cs)
+  | c == d    = "" : splitOn d cs
+  | otherwise = let (w:ws) = splitOn d cs in (c:w) : ws
+
+-- | A numeric version segment is a non-empty string of digits.
+isNumericSegment :: String -> Bool
+isNumericSegment s = not (null s) && all (\c -> c >= '0' && c <= '9') s
 
 ----------------------------------------------------------------------------------------
 walkDirectory :: FilePath -> IO [FilePath]
