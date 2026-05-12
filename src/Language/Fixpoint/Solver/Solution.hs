@@ -49,6 +49,8 @@ import qualified Language.Fixpoint.Types              as F
 import qualified Language.Fixpoint.Types.Solutions    as Sol
 import           Language.Fixpoint.Types.Constraints  hiding (ws, bs)
 import           Prelude                              hiding (init, lookup)
+import Language.Fixpoint.Smt.Types (SmtM)
+import Language.Fixpoint.Smt.Interface (checkValidWithContext)
 
 
 --------------------------------------------------------------------------------
@@ -364,14 +366,17 @@ qbPreds :: F.Subst -> F.TyVarSubst -> Sol.QBind -> [(F.Pred, Sol.EQual)]
 qbPreds su tvsu (Sol.QB eqs) =
   [ (F.subst su $ V.applyCoSub tvsu $ Sol.eqPred eq, eq) | eq <- eqs ]
 
-mkNonCutsExpr :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Hyp -> F.Expr
-mkNonCutsExpr cfg ce s k cs = F.pOr (bareCubePred cfg ce s k <$> cs)
+mkNonCutsExpr :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Hyp -> SmtM F.Expr
+mkNonCutsExpr cfg ce s k cs = do
+  results <- mapM (bareCubePred cfg ce s k) cs
+  if any isNothing results
+      then return F.PTrue
+      else return $ F.pOr [e | Just e <- results]
 
-nonCutsResult :: Config -> F.BindEnv ann -> Sol.Sol Sol.QBind -> FixDelayedSolution
-nonCutsResult cfg be s = M.mapWithKey (\k -> Delayed . mkNonCutsExpr cfg g s k) $ Sol.sHyp s
+nonCutsResult :: Config -> F.BindEnv ann -> Sol.Sol Sol.QBind -> SmtM FixDelayedSolution
+nonCutsResult cfg be s = M.traverseWithKey (\k hyp -> Delayed <$> mkNonCutsExpr cfg g s k hyp) $ Sol.sHyp s
   where
     g = CEnv Nothing be F.emptyIBindEnv F.dummySpan F.emptyIBindEnv
-
 
 -- | Produces a predicate from a constraint defining a kvar.
 --
@@ -393,17 +398,31 @@ nonCutsResult cfg be s = M.mapWithKey (\k -> Delayed . mkNonCutsExpr cfg g s k) 
 -- Issue https://github.com/ucsd-progsys/liquid-fixpoint/issues/808 discusses
 -- an example where the equalities are essential to keep.
 
-bareCubePred :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Cube -> F.Expr
-bareCubePred cfg g s k c =
-    let psu = F.pAnd [ F.EEq (F.expr x) e | (x, e) <- M.toList m ]
-        (p, _kI) = apply cfg g' s bs
-     in F.pExist yts (p F.&.& psu)
+bareCubePred :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVar -> Sol.Cube -> SmtM (Maybe F.Expr)
+bareCubePred cfg g s k c = do
+  let psu = F.pAnd [F.EEq (F.expr x) e | (x, e) <- M.toList m]
+      (p, _kI) = apply cfg g' s bs
+      body = p F.&.& psu
+  -- filter trivially true clauses and simplify contradictions 
+  -- before existentially quantifying the local variables
+  -- Note that we are passing [] as (symbol, sort) declarations
+  -- since we are **reusing** the SMT context from result (solve.hs)
+  -- which has already declared them
+  isTriv <- checkValidWithContext [] F.PTrue body
+  if isTriv
+    then return Nothing -- trivially true so return nothing
+    else do
+      -- check that the clause isn't a contradiction
+      isUnsat <- checkValidWithContext [] body F.PFalse
+      if isUnsat
+          then return (Just F.PFalse)
+          else return $ Just (F.pExist yts body)
   where
-    bs     = Sol.cuBinds c
+    bs = Sol.cuBinds c
     F.Su m = dropUnsortedExprs cfg g' (Sol.cuSubst c)
-    g'     = addCEnv  g bs
-    bs'    = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
-    yts    = symSorts g bs'
+    g' = addCEnv g bs
+    bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
+    yts = symSorts g bs'
 
 -- | At the moment, the liquid-fixpoint implementation allows for unsorted
 -- expressions in substitutions. See the discussion in

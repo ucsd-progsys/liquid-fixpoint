@@ -297,8 +297,8 @@ result bindingsInSmt cfg fi cs s =
     stat      <- result_ bindingsInSmt2 be cfg cs s
     lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     resCut    <- solResult cfg s
-    let resNonCut = S.nonCutsResult cfg be s
-        resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
+    resNonCut <- liftSMT $ S.nonCutsResult cfg be s
+    let resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
     return     $ F.Result (ci <$> stat) resCut resNonCut resSorts
   where
     ci c = (F.subcId c, F.sinfo c)
