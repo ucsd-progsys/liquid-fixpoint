@@ -470,7 +470,7 @@ getOpts = do
         concat optErrs ++ "\nUse --help for usage information."
 
 whenBanner :: [FxFlag] -> IO () -> IO ()
-whenBanner (FxVersion:_) _ = return ()
+whenBanner (FxNumericVersion:_) _ = return ()
 whenBanner (_:flags)   act = whenBanner flags act
 whenBanner [] act          = act
 
