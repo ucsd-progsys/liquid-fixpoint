@@ -43,7 +43,7 @@ import GHC.Generics
 import System.Console.GetOpt
 import Language.Fixpoint.Verbosity   (Verbosity (..), setVerbosity, whenNormal)
 import System.Environment            (getArgs)
-import System.Exit                   (exitSuccess)
+import System.Exit                   (exitFailure, exitSuccess)
 
 import qualified Language.Fixpoint.Conditional.Z3 as Conditional.Z3
 import Language.Fixpoint.Utils.Files
@@ -446,7 +446,11 @@ withPragmas :: Config -> [String] -> IO Config
 --------------------------------------------------------------------------------
 withPragmas base tokens =
   case getOpt Permute fxOptions tokens of
-    (flags, _, [])   -> applyFxFlags base flags
+    (flags, _, [])   -> do
+      -- We make fixpoint fail when given --version of --help pragmas to make
+      -- it harder to miss that a file is not being checked.
+      handleExits flags exitFailure (formatHelp fxOptions) summaryInfo
+      applyFxFlags base flags
     (_, _, optErrs)  -> ioError $ userError $
         concat optErrs ++ "\nUse --help for usage information."
 
@@ -464,7 +468,7 @@ getOpts = do
       let srcF = case files of { (f:_) -> f; [] -> srcFile defConfig }
           cfg' = cfg { srcFile = srcF }
       whenBanner flags $ whenNormal (putStrLn banner)
-      handleExits flags (formatHelp fxOptions) summaryInfo
+      handleExits flags exitSuccess (formatHelp fxOptions) summaryInfo
       return cfg'
     (_, _, optErrs)    -> ioError $ userError $
         concat optErrs ++ "\nUse --help for usage information."
@@ -474,12 +478,12 @@ whenBanner (FxNumericVersion:_) _ = return ()
 whenBanner (_:flags)   act = whenBanner flags act
 whenBanner [] act          = act
 
-handleExits :: [FxFlag] -> String -> String -> IO ()
-handleExits flags helpText ver = mapM_ go flags
+handleExits :: [FxFlag] -> IO () -> String -> String -> IO ()
+handleExits flags termination helpText ver = mapM_ go flags
   where
-    go FxHelp           = putStr helpText >> exitSuccess
-    go FxVersion        = putStrLn ver      >> exitSuccess
-    go FxNumericVersion = putStrLn (showVersion version) >> exitSuccess
+    go FxHelp           = putStr helpText >> termination
+    go FxVersion        = putStrLn ver      >> termination
+    go FxNumericVersion = putStrLn (showVersion version) >> termination
     go _                = return ()
 
 formatHelp :: [OptDescr a] -> String
