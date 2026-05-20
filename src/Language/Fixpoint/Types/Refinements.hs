@@ -58,8 +58,6 @@ module Language.Fixpoint.Types.Refinements (
   -- * Generalizing Embedding with Typeclasses
   , Expression (..)
   , Predicate (..)
-  , Subable (..)
-
   -- * Constructors
   , reft                    -- "smart
   , trueSortedReft          -- trivial reft
@@ -128,7 +126,7 @@ import qualified Data.HashMap.Strict       as HashMap
 import           Data.HashSet              (HashSet)
 import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
-import           GHC.Stack                 (HasCallStack)
+
 #if MIN_VERSION_base(4,20,0)
 import           Data.List                 (partition)
 #else
@@ -1096,29 +1094,6 @@ instance Falseable (ExprBV b v) where
 instance Falseable (ReftBV b v) where
   isFalse (Reft (_, ra)) = isFalse ra
 
--------------------------------------------------------------------------
--- | Class Predicates for Valid Refinements -----------------------------
--------------------------------------------------------------------------
-
-class (Eq (Variable a), Hashable (Variable a)) => Subable a where
-  type Variable a
-  type Variable a = Symbol
-
-  syms   :: a -> [Variable a]                   -- ^ free symbols of a
-  substa :: (Variable a -> Variable a) -> a -> a
-  -- substa f  = substf (EVar . f)
-
-  substf :: (Variable a -> ExprBV (Variable a) (Variable a)) -> a -> a
-  subst  :: HasCallStack => SubstV (Variable a) -> a -> a
-  subst1 :: a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
-  subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
-
-instance Subable a => Subable (Located a) where
-  type Variable (Located a) = Variable a
-  syms (Loc _ _ x)   = syms x
-  substa f (Loc l l' x) = Loc l l' (substa f x)
-  substf f (Loc l l' x) = Loc l l' (substf f x)
-  subst su (Loc l l' x) = Loc l l' (subst su x)
 
 instance Fixpoint Doc where
   toFix = id

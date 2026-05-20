@@ -1,5 +1,8 @@
 {-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE TypeOperators     #-}
 
@@ -21,8 +24,8 @@ module Language.Fixpoint.Types.Substitutions (
   , subst1Except
   , substSymbolsSet
   , Refreshable(..)
+  , Subable(..)
   , rapierSubstExpr
-  , targetSubstSyms
   , filterSubst
   , catSubst
   , exprSymbolsSet
@@ -36,10 +39,12 @@ import           Data.Maybe
 import           Data.Hashable             (Hashable)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import           GHC.Stack                 (HasCallStack)
 import           Language.Fixpoint.Types.Binders
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
+import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
@@ -91,11 +96,28 @@ mkKVarSubst = kSubstFromSubst . mkSubst
 isEmptySubst :: SubstV v -> Bool
 isEmptySubst (Su xes) = M.null xes
 
-targetSubstSyms :: (Eq v, Hashable v) => SubstV v -> [v]
-targetSubstSyms (Su ms) = syms $ M.elems ms
-
 substSymbolsSet :: (Eq v, Hashable v) => SubstV v -> S.HashSet v
 substSymbolsSet (Su m) = S.unions $ map exprSymbolsSet (M.elems m)
+
+class (Eq (Variable a), Hashable (Variable a)) => Subable a where
+  type Variable a
+  type Variable a = Symbol
+
+  syms   :: a -> [Variable a]                   -- ^ free symbols of a
+  substa :: (Variable a -> Variable a) -> a -> a
+  -- substa f  = substf (EVar . f)
+
+  substf :: (Variable a -> ExprBV (Variable a) (Variable a)) -> a -> a
+  subst  :: HasCallStack => SubstV (Variable a) -> a -> a
+  subst1 :: a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
+  subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
+
+instance Subable a => Subable (Located a) where
+  type Variable (Located a) = Variable a
+  syms (Loc _ _ x)   = syms x
+  substa f (Loc l l' x) = Loc l l' (substa f x)
+  substf f (Loc l l' x) = Loc l l' (substf f x)
+  subst su (Loc l l' x) = Loc l l' (subst su x)
 
 instance Subable () where
   syms _      = []

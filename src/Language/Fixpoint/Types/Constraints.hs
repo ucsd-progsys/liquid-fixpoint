@@ -122,7 +122,7 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
-import           Language.Fixpoint.Types.Substitutions()
+import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 import qualified Language.Fixpoint.Utils.Files as Files
 import qualified Language.Fixpoint.Solver.Stats as Solver

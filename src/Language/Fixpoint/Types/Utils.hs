@@ -23,6 +23,7 @@ import qualified Data.HashSet                         as S
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Refinements
+import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Sorts
