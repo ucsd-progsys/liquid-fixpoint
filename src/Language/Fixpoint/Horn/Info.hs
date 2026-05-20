@@ -215,7 +215,7 @@ maxQualifierParams = 3
 qualParams :: BindEnv -> F.Expr -> [(F.Symbol, F.Sort)]
 qualParams env e = [ (x, t) | (_, x, t) <- L.sortBy (comparing Down) ixts ]
   where
-    xs = Misc.nubOrd (F.syms e)
+    xs = S.toList (F.syms e)
     ixts = [ (i, x, t) | x <- xs, (t, i) <- Mb.maybeToList (lookupBindEnv x env) ]
 
 -------------------------------------------------------------------------------

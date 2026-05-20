@@ -35,7 +35,6 @@ module Language.Fixpoint.Types.Substitutions (
   ) where
 
 import           Data.List                 as List
-import           Data.Maybe
 import           Data.Hashable             (Hashable)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
@@ -48,7 +47,6 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
-import           Text.Printf               (printf)
 
 instance (Eq v, Hashable v) => Semigroup (SubstV v) where
   (<>) = catSubst
@@ -103,7 +101,7 @@ class (Eq (Variable a), Hashable (Variable a)) => Subable a where
   type Variable a
   type Variable a = Symbol
 
-  syms   :: a -> [Variable a]                   -- ^ free symbols of a
+  syms   :: a -> S.HashSet (Variable a)           -- ^ free symbols of a
   substa :: (Variable a -> Variable a) -> a -> a
   -- substa f  = substf (EVar . f)
 
@@ -120,28 +118,28 @@ instance Subable a => Subable (Located a) where
   subst su (Loc l l' x) = Loc l l' (subst su x)
 
 instance Subable () where
-  syms _      = []
+  syms _      = S.empty
   subst _ ()  = ()
   substf _ () = ()
   substa _ () = ()
 
 instance (Subable a, Subable b, Variable a ~ Variable b) => Subable (a,b) where
   type Variable (a, b) = Variable a
-  syms  (x, y)   = syms x ++ syms y
+  syms  (x, y)   = S.union (syms x) (syms y)
   subst su (x,y) = (subst su x, subst su y)
   substf f (x,y) = (substf f x, substf f y)
   substa f (x,y) = (substa f x, substa f y)
 
 instance Subable a => Subable [a] where
   type Variable [a] = Variable a
-  syms   = concatMap syms
+  syms   = S.unions . map syms
   subst  = fmap . subst
   substf = fmap . substf
   substa = fmap . substa
 
 instance Subable a => Subable (Maybe a) where
   type Variable (Maybe a) = Variable a
-  syms   = concatMap syms . maybeToList
+  syms = maybe S.empty syms
   subst  = fmap . subst
   substf = fmap . substf
   substa = fmap . substa
@@ -170,22 +168,22 @@ instance Subable Symbol where
   substa f                 = f
   substf f x               = subSymbol (Just (f x)) x
   subst su x               = subSymbol (Just $ appSubst su x) x -- subSymbol (M.lookup x s) x
-  syms x                   = [x]
+  syms x                   = S.singleton x
 
 appSubst :: (Eq v, Hashable v) => SubstV v -> v -> ExprBV v v
-appSubst (Su s) x = fromMaybe (EVar x) (M.lookup x s)
+appSubst (Su s) x = M.findWithDefault (EVar x) x s
 
 subSymbol :: (Ord v, Hashable v, Fixpoint v) => Maybe (ExprBV v v) -> v -> v
 subSymbol (Just (EVar y)) _ = y
 subSymbol Nothing         x = x
-subSymbol a               b = errorstar (printf "Cannot substitute symbol %s with expression %s" (showFix b) (showFix a))
+subSymbol _               x = x
 
 captureAvoiding :: Eq v => v -> (v -> ExprBV b v) -> v -> ExprBV b v
 captureAvoiding x f y = if y == x then EVar x else f y
 
 instance (Eq v, Hashable v) => Subable (ExprBV v v) where
   type Variable (ExprBV v v) = v
-  syms                     = exprSymbols
+  syms                     = exprSymbolsSet
   substa f                 = substf (EVar . f)
   substf :: (v -> ExprBV v v) -> ExprBV v v -> ExprBV v v
   substf f (EApp s e)      = EApp (substf f s) (substf f e)
@@ -352,7 +350,7 @@ extendSubst (Su m) x e = Su $ M.insert x e m
 disjointRange :: (Eq v, Hashable v) => SubstV v -> [(v, Sort)] -> Bool
 disjointRange (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
   where
-    suSyms = S.fromList $ syms (M.elems su)
+    suSyms = syms (M.elems su)
     bsSyms = S.fromList $ fst <$> bs
 
 meetReft :: Binder v => ReftBV v v -> ReftBV v v -> ReftBV v v
@@ -363,7 +361,7 @@ meetReft (Reft (v, ra)) (Reft (v', ra'))
 
 instance (Eq v, Hashable v, Refreshable v) => Subable (ReftBV v v) where
   type Variable (ReftBV v v) = v
-  syms (Reft (v, ras))      = v : syms ras
+  syms = reftSymbolsSet
   substa f (Reft (v, ras))  = Reft (f v, substa f ras)
   subst su (Reft (v, ras))  =
     let su' = substExcept su [v]
@@ -371,6 +369,9 @@ instance (Eq v, Hashable v, Refreshable v) => Subable (ReftBV v v) where
      in Reft (v, rapierSubstExpr s su' ras)
   substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
   subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
+
+reftSymbolsSet :: (Eq v, Hashable v) => ReftBV v v -> S.HashSet v
+reftSymbolsSet (Reft (v, ras)) = S.delete v $ exprSymbolsSet ras
 
 instance Subable SortedReft where
   syms               = syms . sr_reft
@@ -420,34 +421,6 @@ pprReftPred (Reft (_, p))
 
 ppRas :: [Expr] -> Doc
 ppRas = cat . punctuate comma . map toFix . flattenRefas
-
---------------------------------------------------------------------------------
--- | TODO: Rewrite using visitor -----------------------------------------------
---------------------------------------------------------------------------------
--- exprSymbols :: Expr -> [Symbol]
--- exprSymbols = go
-  -- where
-    -- go (EVar x)           = [x]
-    -- go (EApp f e)         = go f ++ go e
-    -- go (ELam (x,_) e)     = filter (/= x) (go e)
-    -- go (ECoerc _ _ e)     = go e
-    -- go (ENeg e)           = go e
-    -- go (EBin _ e1 e2)     = go e1 ++ go e2
-    -- go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2
-    -- go (ECst e _)         = go e
-    -- go (PAnd ps)          = concatMap go ps
-    -- go (POr ps)           = concatMap go ps
-    -- go (PNot p)           = go p
-    -- go (PIff p1 p2)       = go p1 ++ go p2
-    -- go (PImp p1 p2)       = go p1 ++ go p2
-    -- go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    -- go (PKVar _ (Su su))  = syms (M.elems su)
-    -- go (PAll xts p)       = (fst <$> xts) ++ go p
-    -- go _                  = []
-
-
-exprSymbols :: (Eq v, Hashable v) => ExprBV v v -> [v]
-exprSymbols = S.toList . exprSymbolsSet
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)

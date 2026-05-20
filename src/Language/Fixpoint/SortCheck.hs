@@ -24,7 +24,6 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Checking Well-Formedness
   , checkSorted
-  , checkSortedReft
   , checkSortedReftFull
   , checkSortFull
   , pruneUnsortedReft
@@ -539,7 +538,7 @@ checkSortExpr sp γ e = case runCM0 sp Nothing (checkExpr f e) of
 subEnv :: (Subable e, Variable e ~ Symbol) => SEnv a -> e -> SEnv a
 subEnv g e = intersectWithSEnv const g g'
   where
-    g' = fromListSEnv $ (, ()) <$> syms e
+    g' = fromSetSEnv (syms e)
 
 
 --------------------------------------------------------------------------------
@@ -605,13 +604,6 @@ fresh = do
 --------------------------------------------------------------------------------
 -- | Checking Refinements ------------------------------------------------------
 --------------------------------------------------------------------------------
-checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
-checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
-  where
-    oops                  = Just . (text "Unknown symbols:" <+>) . toFix
-    unknowns              = [ x | x <- syms sr, x `notElem` v : xs, not (x `memberSEnv` env)]
-    Reft (v,_)            = sr_reft sr
-
 checkSortedReftFull :: Checkable a => SrcSpan -> SEnv SortedReft -> a -> ElabM (Maybe Doc)
 checkSortedReftFull sp γ t =
   do ef <- ask

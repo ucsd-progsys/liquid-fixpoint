@@ -81,14 +81,14 @@ updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
     ids                 = elemsIBindEnv (senv s)
     nameMap             = M.fromList [(fst3 $ lookupBindEnv i be, i) | i <- ids]
     m'                  = foldl' (insertIdIdLinks be nameMap) m ids
-    symSet              = S.fromList $ syms $ crhs s
+    symSet              = syms $ crhs s
     refSet              = namesToIds symSet nameMap
 
 insertIdIdLinks :: BindEnv a -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
 insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
   where
     sr     = snd3 $ lookupBindEnv i be
-    symSet = reftFreeVars $ sr_reft sr
+    symSet = syms $ sr_reft sr
     refSet = namesToIds symSet nameMap
 
 namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId

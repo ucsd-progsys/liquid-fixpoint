@@ -18,7 +18,6 @@ import           Control.Arrow                    (second)
 import           Control.Monad                    (when, forM_, filterM)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
-import qualified Data.HashSet                     as S
 import qualified Data.Map                         as Map
 import qualified Data.Set                         as Set
 import           Data.Tuple                       (swap)
@@ -395,14 +394,6 @@ allCombinations xs = assert (all ((length xs == ) . length)) $ go xs
 
 powerset :: [a] -> [[a]]
 powerset xs = filterM (const [False, True]) xs
-
--- Null if first is a subset of second
-nubDiff :: (Eq a, Hashable a) => [a] -> [a] -> S.HashSet a
-nubDiff a b = a' `S.difference` b'
-  where
-    a' = S.fromList a
-    b' = S.fromList b
-
 
 fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a
 fold1M _ []         = errorstar "fold1M with empty list"
