@@ -1037,7 +1037,7 @@ eqnToHornSMT keyword (Equ f xs e s _) = parens (keyword <+> pprint f <+> toHornS
 
 
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
-mkEquation f xts e out = Equ f xts e out (f `S.member` syms e)
+mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
 instance Subable Equation where
   syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)

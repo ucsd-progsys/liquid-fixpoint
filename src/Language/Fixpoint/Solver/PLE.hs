@@ -1437,7 +1437,7 @@ knowledge cfg si = KN
 
 
     makeCons rw
-      | S.null (syms $ smBody rw)
+      | null (syms $ smBody rw)
       = Just (smName rw, (smDC rw, smBody rw))
       | otherwise
       = Nothing
@@ -1564,7 +1564,7 @@ instance Normalizable Equation where
 
 -- | Normalize the given named expression if it is recursive.
 normalizeBody :: Symbol -> Expr -> Expr
-normalizeBody f exprs | f `S.member` syms exprs = go exprs
+normalizeBody f exprs | f `elem` syms exprs = go exprs
   where
     -- @go@ performs this simplification:
     --     (c => e1) /\ ((not c) => e2) --> if c then e1 else e2

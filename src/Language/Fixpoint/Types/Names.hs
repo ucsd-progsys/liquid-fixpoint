@@ -49,6 +49,7 @@ module Language.Fixpoint.Types.Names (
   , suffixOfSym
   , stripPrefix
   , stripSuffix
+  , unSuffixSymbol
   , consSym
   , unconsSym
   , dropSym
@@ -74,6 +75,7 @@ module Language.Fixpoint.Types.Names (
   , tempSymbol
   , appendSymbolText
   , hvarArgSymbol
+  , symSepName
 
   -- * Wrapping Symbols
   , litSymbol
