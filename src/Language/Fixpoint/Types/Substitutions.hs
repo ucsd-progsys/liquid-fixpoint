@@ -22,6 +22,7 @@ module Language.Fixpoint.Types.Substitutions (
   , substfExcept
   , subst1Except
   , subst1
+  , substa
   , substSymbolsSet
   , Refreshable(..)
   , Subable(..)
@@ -108,8 +109,6 @@ class (Eq (Variable a), Hashable (Variable a)) => Subable a where
 
   syms   :: a -> S.HashSet (Variable a)           -- ^ free symbols of a
   substr :: S.HashSet (Variable a) -> SubstV (Variable a) -> a -> a
-  substa :: (Variable a -> Variable a) -> a -> a
-  -- substa f  = substf (EVar . f)
 
   substf :: (Variable a -> ExprBV (Variable a) (Variable a)) -> a -> a
   subst  :: HasCallStack => SubstV (Variable a) -> a -> a
@@ -121,7 +120,6 @@ instance Subable a => Subable (Located a) where
   type Variable (Located a) = Variable a
   syms (Loc _ _ x)   = syms x
   substr ns m (Loc l l' x) = Loc l l' (substr ns m x)
-  substa f (Loc l l' x) = Loc l l' (substa f x)
   substf f (Loc l l' x) = Loc l l' (substf f x)
   subst su (Loc l l' x) = Loc l l' (subst su x)
 
@@ -130,7 +128,6 @@ instance Subable () where
   subst _ ()  = ()
   substr _ _ ()  = ()
   substf _ () = ()
-  substa _ () = ()
 
 instance (Subable a, Subable b, Variable a ~ Variable b) => Subable (a,b) where
   type Variable (a, b) = Variable a
@@ -139,14 +136,12 @@ instance (Subable a, Subable b, Variable a ~ Variable b) => Subable (a,b) where
   substr ns su (x,y) = (substr ns su x, substr ns su y)
   subst su (x,y) = (subst su x, subst su y)
   substf f (x,y) = (substf f x, substf f y)
-  substa f (x,y) = (substa f x, substa f y)
 
 instance Subable a => Subable [a] where
   type Variable [a] = Variable a
   syms   = S.unions . map syms
   subst  = fmap . subst
   substf = fmap . substf
-  substa = fmap . substa
 
 instance Subable a => Subable (Maybe a) where
   type Variable (Maybe a) = Variable a
@@ -154,7 +149,6 @@ instance Subable a => Subable (Maybe a) where
   subst  = fmap . subst
   substr ns m  = fmap (substr ns m)
   substf = fmap . substf
-  substa = fmap . substa
 
 
 instance Subable a => Subable (M.HashMap k a) where
@@ -163,10 +157,12 @@ instance Subable a => Subable (M.HashMap k a) where
   subst  = M.map . subst
   substr ns su = M.map (substr ns su)
   substf = M.map . substf
-  substa = M.map . substa
 
 subst1 :: Subable a => a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
 subst1 y (x, e) = subst (Su $ M.fromList [(x, e)]) y
+
+substa :: Subable a => (Variable a -> Variable a) -> a -> a
+substa f = substf (EVar . f)
 
 subst1Except :: Subable a => [Variable a] -> a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
 subst1Except xs z su@(x, _)
@@ -190,7 +186,6 @@ instance (Eq v, Hashable v, Refreshable v) => Subable (ExprBV v v) where
   type Variable (ExprBV v v) = v
   syms                     = exprSymbolsSet
   substr = rapierSubstExpr
-  substa f                 = substf (EVar . f)
   substf :: (v -> ExprBV v v) -> ExprBV v v -> ExprBV v v
   substf f (EApp s e)      = EApp (substf f s) (substf f e)
   substf f (ELam (x,t) e)  = ELam (x, t) (substf (captureAvoiding x f) e)
@@ -308,7 +303,6 @@ freshInNSL xs s = mapAccumL (flip freshInNS) s xs
 instance (Eq v, Hashable v, Refreshable v) => Subable (ReftBV v v) where
   type Variable (ReftBV v v) = v
   syms = reftSymbolsSet
-  substa f (Reft (v, ras))  = Reft (f v, substa f ras)
   substr ns su (Reft (v, ras)) =
      let (ns', v') = freshInNS v ns
          su' = extendSubst su v (EVar v')
@@ -323,7 +317,6 @@ instance Subable SortedReft where
   syms               = syms . sr_reft
   subst su (RR so r) = RR so $ subst su r
   substf f (RR so r) = RR so $ substf f r
-  substa f (RR so r) = RR so $ substa f r
 
 pprReft :: Reft -> Doc -> Doc
 pprReft (Reft (v, p)) d

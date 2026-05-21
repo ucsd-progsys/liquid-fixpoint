@@ -548,7 +548,6 @@ instance Subable Qualifier where
   syms   = qualFreeSymbols
   subst  = mapQualBody . subst
   substf = mapQualBody . substf
-  substa = mapQualBody . substa
 
 mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
 mapQualBody f q = q { qBody = f (qBody q) }
@@ -1043,7 +1042,6 @@ instance Subable Equation where
   syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)
   subst su = mapEqBody (subst su)
   substf f = mapEqBody (substf f)
-  substa f = mapEqBody (substa f)
 
 mapEqBody :: (Expr -> Expr) -> Equation -> Equation
 mapEqBody f a = a { eqBody = f (eqBody a) }

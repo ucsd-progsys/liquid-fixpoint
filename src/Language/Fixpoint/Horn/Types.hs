@@ -83,10 +83,6 @@ instance F.Subable Pred where
   syms (Var _ xs) = F.syms xs
   syms (PAnd ps)  = F.syms ps
 
-  substa f (Reft e)   = Reft  (F.substa f      e)
-  substa f (Var k xs) = Var k (F.substa f <$> xs)
-  substa f (PAnd ps)  = PAnd  (F.substa f <$> ps)
-
   subst su (Reft  e)  = Reft  (F.subst su      e)
   subst su (PAnd  ps) = PAnd  (F.subst su <$> ps)
   subst su (Var k xs) = Var k (F.subst su <$> xs)
@@ -160,7 +156,6 @@ instance F.ToHornSMT (Bind a) where
 
 instance F.Subable (Bind a) where
     syms     (Bind x _ p _) = S.insert x $ F.syms p
-    substa f (Bind v t p a) = Bind (f v) t (F.substa f p) a
     substf f (Bind v t p a) = Bind v t (F.substf (F.substfExcept f [v]) p) a
     subst su (Bind v t p a)  = Bind v t (F.subst (F.substExcept su [v]) p) a
 
