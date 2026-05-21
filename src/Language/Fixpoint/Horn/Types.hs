@@ -87,10 +87,6 @@ instance F.Subable Pred where
   substr ns su (PAnd  ps) = PAnd  (F.substr ns su <$> ps)
   substr ns su (Var k xs) = Var k (F.substr ns su <$> xs)
 
-  subst su (Reft  e)  = Reft  (F.subst su      e)
-  subst su (PAnd  ps) = PAnd  (F.subst su <$> ps)
-  subst su (Var k xs) = Var k (F.subst su <$> xs)
-
 -------------------------------------------------------------------------------
 quals :: Cstr a -> [F.Qualifier]
 -------------------------------------------------------------------------------
@@ -160,7 +156,6 @@ instance F.Subable (Bind a) where
       let (ns', v') = F.freshInNS v ns
        in
           Bind v t (F.substr ns' (F.extendSubst su v (F.EVar v')) p) a
-    subst su (Bind v t p a)  = Bind v t (F.subst (F.substExcept su [v]) p) a
 
 -- Can we enforce the invariant that CAnd has len > 1?
 data Cstr a

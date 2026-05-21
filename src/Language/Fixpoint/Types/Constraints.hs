@@ -552,10 +552,6 @@ instance Subable Qualifier where
         su' = L.foldl' (\acc (x, x') -> extendSubst acc x (EVar x')) su (zip xs xs')
         ps' = zipWith (\qp x' -> qp { qpSym = x' }) (qParams q) xs'
     in  q { qParams = ps', qBody = substr ns' su' (qBody q) }
-  subst  = mapQualBody . subst
-
-mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
-mapQualBody f q = q { qBody = f (qBody q) }
 
 qualFreeSymbols :: Qualifier -> S.HashSet Symbol
 qualFreeSymbols q = S.filter (not . isPrim) xs
@@ -1050,10 +1046,6 @@ instance Subable Equation where
         (ns', xs')  = freshInNSL xs ns
         su'  = L.foldl' (\acc (x, x') -> extendSubst acc x (EVar x')) su (zip xs xs')
     in  eq { eqArgs = zip xs' sorts, eqBody = substr ns' su' (eqBody eq) }
-  subst su = mapEqBody (subst su)
-
-mapEqBody :: (Expr -> Expr) -> Equation -> Equation
-mapEqBody f a = a { eqBody = f (eqBody a) }
 
 instance PPrint Equation where
   pprintTidy _ = toFix

@@ -27,6 +27,7 @@ module Language.Fixpoint.Types.Substitutions (
   , substSymbolsSet
   , Refreshable(..)
   , Subable(..)
+  , subst
   , rapierSubstExpr
   , filterSubst
   , catSubst
@@ -110,46 +111,41 @@ class (Eq (Variable a), Hashable (Variable a)) => Subable a where
   syms   :: a -> S.HashSet (Variable a)           -- ^ free symbols of a
   substr :: S.HashSet (Variable a) -> SubstV (Variable a) -> a -> a
 
-  subst  :: HasCallStack => SubstV (Variable a) -> a -> a
-  subst su e = substr ns su e
-    where
-      ns = substSymbolsSet su `S.union` syms e
+subst :: (HasCallStack, Subable a) => SubstV (Variable a) -> a -> a
+subst su e = substr ns su e
+  where
+    ns = substSymbolsSet su `S.union` syms e
 
 instance Subable a => Subable (Located a) where
   type Variable (Located a) = Variable a
   syms (Loc _ _ x)   = syms x
   substr ns m (Loc l l' x) = Loc l l' (substr ns m x)
-  subst su (Loc l l' x) = Loc l l' (subst su x)
 
 instance Subable () where
-  syms _      = S.empty
-  subst _ ()  = ()
+  syms _         = S.empty
   substr _ _ ()  = ()
 
 instance (Subable a, Subable b, Variable a ~ Variable b) => Subable (a,b) where
   type Variable (a, b) = Variable a
 
-  syms  (x, y)   = S.union (syms x) (syms y)
+  syms  (x, y)      = S.union (syms x) (syms y)
   substr ns su (x,y) = (substr ns su x, substr ns su y)
-  subst su (x,y) = (subst su x, subst su y)
 
 instance Subable a => Subable [a] where
   type Variable [a] = Variable a
-  syms   = S.unions . map syms
-  subst  = fmap . subst
+  syms             = S.unions . map syms
+  substr ns su     = fmap (substr ns su)
 
 instance Subable a => Subable (Maybe a) where
   type Variable (Maybe a) = Variable a
-  syms = maybe S.empty syms
-  subst  = fmap . subst
-  substr ns m  = fmap (substr ns m)
+  syms             = maybe S.empty syms
+  substr ns m      = fmap (substr ns m)
 
 
 instance Subable a => Subable (M.HashMap k a) where
   type Variable (M.HashMap k a) = Variable a
-  syms   = syms . M.elems
-  subst  = M.map . subst
-  substr ns su = M.map (substr ns su)
+  syms             = syms . M.elems
+  substr ns su     = M.map (substr ns su)
 
 subst1 :: Subable a => a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
 subst1 y (x, e) = subst (Su $ M.fromList [(x, e)]) y
@@ -288,7 +284,6 @@ reftSymbolsSet (Reft (v, ras)) = S.delete v $ exprSymbolsSet ras
 instance Subable SortedReft where
   syms               = syms . sr_reft
   substr ns su (RR so r) = RR so $ substr ns su r
-  subst su (RR so r) = RR so $ subst su r
 
 pprReft :: Reft -> Doc -> Doc
 pprReft (Reft (v, p)) d
