@@ -95,10 +95,6 @@ instance F.Subable Pred where
   substf f (PAnd  ps) = PAnd  (F.substf f <$> ps)
   substf f (Var k xs) = Var k (F.substf f <$> xs)
 
-  subst1 (Reft  e)  su = Reft  (F.subst1 e su)
-  subst1 (PAnd  ps) su = PAnd  [F.subst1 p su | p <- ps]
-  subst1 (Var k xs) su = Var k [F.subst1 x su | x <- xs]
-
 -------------------------------------------------------------------------------
 quals :: Cstr a -> [F.Qualifier]
 -------------------------------------------------------------------------------
@@ -167,7 +163,6 @@ instance F.Subable (Bind a) where
     substa f (Bind v t p a) = Bind (f v) t (F.substa f p) a
     substf f (Bind v t p a) = Bind v t (F.substf (F.substfExcept f [v]) p) a
     subst su (Bind v t p a)  = Bind v t (F.subst (F.substExcept su [v]) p) a
-    subst1 (Bind v t p a) su = Bind v t (F.subst1Except [v] p su) a
 
 -- Can we enforce the invariant that CAnd has len > 1?
 data Cstr a

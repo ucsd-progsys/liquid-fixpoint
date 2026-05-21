@@ -21,6 +21,7 @@ module Language.Fixpoint.Types.Substitutions (
   , substExcept
   , substfExcept
   , subst1Except
+  , subst1
   , substSymbolsSet
   , Refreshable(..)
   , Subable(..)
@@ -115,8 +116,6 @@ class (Eq (Variable a), Hashable (Variable a)) => Subable a where
   subst su e = substr ns su e
     where
       ns = substSymbolsSet su `S.union` syms e
-  subst1 :: a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
-  subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
 
 instance Subable a => Subable (Located a) where
   type Variable (Located a) = Variable a
@@ -165,6 +164,9 @@ instance Subable a => Subable (M.HashMap k a) where
   substr ns su = M.map (substr ns su)
   substf = M.map . substf
   substa = M.map . substa
+
+subst1 :: Subable a => a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
+subst1 y (x, e) = subst (Su $ M.fromList [(x, e)]) y
 
 subst1Except :: Subable a => [Variable a] -> a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
 subst1Except xs z su@(x, _)
@@ -313,7 +315,6 @@ instance (Eq v, Hashable v, Refreshable v) => Subable (ReftBV v v) where
       in
          Reft (v', substr ns' su' ras)
   substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
-  subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
 
 reftSymbolsSet :: (Eq v, Hashable v) => ReftBV v v -> S.HashSet v
 reftSymbolsSet (Reft (v, ras)) = S.delete v $ exprSymbolsSet ras
