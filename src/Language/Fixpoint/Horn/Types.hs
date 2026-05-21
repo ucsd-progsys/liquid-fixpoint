@@ -83,13 +83,13 @@ instance F.Subable Pred where
   syms (Var _ xs) = F.syms xs
   syms (PAnd ps)  = F.syms ps
 
+  substr ns su (Reft  e)  = Reft  (F.substr ns su      e)
+  substr ns su (PAnd  ps) = PAnd  (F.substr ns su <$> ps)
+  substr ns su (Var k xs) = Var k (F.substr ns su <$> xs)
+
   subst su (Reft  e)  = Reft  (F.subst su      e)
   subst su (PAnd  ps) = PAnd  (F.subst su <$> ps)
   subst su (Var k xs) = Var k (F.subst su <$> xs)
-
-  substf f (Reft  e)  = Reft  (F.substf f      e)
-  substf f (PAnd  ps) = PAnd  (F.substf f <$> ps)
-  substf f (Var k xs) = Var k (F.substf f <$> xs)
 
 -------------------------------------------------------------------------------
 quals :: Cstr a -> [F.Qualifier]
@@ -156,7 +156,10 @@ instance F.ToHornSMT (Bind a) where
 
 instance F.Subable (Bind a) where
     syms     (Bind x _ p _) = S.insert x $ F.syms p
-    substf f (Bind v t p a) = Bind v t (F.substf (F.substfExcept f [v]) p) a
+    substr ns su (Bind v t p a) =
+      let (ns', v') = F.freshInNS v ns
+       in
+          Bind v t (F.substr ns' (F.extendSubst su v (F.EVar v')) p) a
     subst su (Bind v t p a)  = Bind v t (F.subst (F.substExcept su [v]) p) a
 
 -- Can we enforce the invariant that CAnd has len > 1?

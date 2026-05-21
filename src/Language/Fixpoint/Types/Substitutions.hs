@@ -23,6 +23,7 @@ module Language.Fixpoint.Types.Substitutions (
   , subst1Except
   , subst1
   , substa
+  , substf
   , substSymbolsSet
   , Refreshable(..)
   , Subable(..)
@@ -48,7 +49,6 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Refinements
-import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 
 instance (Eq v, Hashable v, Refreshable v) => Semigroup (SubstV v) where
@@ -110,7 +110,6 @@ class (Eq (Variable a), Hashable (Variable a)) => Subable a where
   syms   :: a -> S.HashSet (Variable a)           -- ^ free symbols of a
   substr :: S.HashSet (Variable a) -> SubstV (Variable a) -> a -> a
 
-  substf :: (Variable a -> ExprBV (Variable a) (Variable a)) -> a -> a
   subst  :: HasCallStack => SubstV (Variable a) -> a -> a
   subst su e = substr ns su e
     where
@@ -120,14 +119,12 @@ instance Subable a => Subable (Located a) where
   type Variable (Located a) = Variable a
   syms (Loc _ _ x)   = syms x
   substr ns m (Loc l l' x) = Loc l l' (substr ns m x)
-  substf f (Loc l l' x) = Loc l l' (substf f x)
   subst su (Loc l l' x) = Loc l l' (subst su x)
 
 instance Subable () where
   syms _      = S.empty
   subst _ ()  = ()
   substr _ _ ()  = ()
-  substf _ () = ()
 
 instance (Subable a, Subable b, Variable a ~ Variable b) => Subable (a,b) where
   type Variable (a, b) = Variable a
@@ -135,20 +132,17 @@ instance (Subable a, Subable b, Variable a ~ Variable b) => Subable (a,b) where
   syms  (x, y)   = S.union (syms x) (syms y)
   substr ns su (x,y) = (substr ns su x, substr ns su y)
   subst su (x,y) = (subst su x, subst su y)
-  substf f (x,y) = (substf f x, substf f y)
 
 instance Subable a => Subable [a] where
   type Variable [a] = Variable a
   syms   = S.unions . map syms
   subst  = fmap . subst
-  substf = fmap . substf
 
 instance Subable a => Subable (Maybe a) where
   type Variable (Maybe a) = Variable a
   syms = maybe S.empty syms
   subst  = fmap . subst
   substr ns m  = fmap (substr ns m)
-  substf = fmap . substf
 
 
 instance Subable a => Subable (M.HashMap k a) where
@@ -156,13 +150,15 @@ instance Subable a => Subable (M.HashMap k a) where
   syms   = syms . M.elems
   subst  = M.map . subst
   substr ns su = M.map (substr ns su)
-  substf = M.map . substf
 
 subst1 :: Subable a => a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
 subst1 y (x, e) = subst (Su $ M.fromList [(x, e)]) y
 
 substa :: Subable a => (Variable a -> Variable a) -> a -> a
 substa f = substf (EVar . f)
+
+substf :: Subable a => (Variable a -> ExprBV (Variable a) (Variable a)) -> a -> a
+substf f e = subst (Su $ M.mapWithKey (const . f) $ S.toMap $ syms e) e
 
 subst1Except :: Subable a => [Variable a] -> a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
 subst1Except xs z su@(x, _)
@@ -179,33 +175,10 @@ substExcept (Su xes) xs = Su $ M.filterWithKey (const . not . (`elem` xs)) xes
 appSubst :: (Eq v, Hashable v) => SubstV v -> v -> ExprBV v v
 appSubst (Su s) x = M.findWithDefault (EVar x) x s
 
-captureAvoiding :: Eq v => v -> (v -> ExprBV b v) -> v -> ExprBV b v
-captureAvoiding x f y = if y == x then EVar x else f y
-
 instance (Eq v, Hashable v, Refreshable v) => Subable (ExprBV v v) where
   type Variable (ExprBV v v) = v
-  syms                     = exprSymbolsSet
+  syms  = exprSymbolsSet
   substr = rapierSubstExpr
-  substf :: (v -> ExprBV v v) -> ExprBV v v -> ExprBV v v
-  substf f (EApp s e)      = EApp (substf f s) (substf f e)
-  substf f (ELam (x,t) e)  = ELam (x, t) (substf (captureAvoiding x f) e)
-  substf f (ECoerc a t e)  = ECoerc a t (substf f e)
-  substf f (ENeg e)        = ENeg (substf f e)
-  substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
-  substf f (ELet x e1 e2)  = ELet x (substf f e1) (substf (captureAvoiding x f) e2)
-  substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
-  substf f (ECst e so)     = ECst (substf f e) so
-  substf f (EVar x)        = f x
-  substf f (PAnd ps)       = PAnd $ map (substf f) ps
-  substf f (POr  ps)       = POr  $ map (substf f) ps
-  substf f (PNot p)        = PNot $ substf f p
-  substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
-  substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
-  substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
-  substf f (PKVar k tsu su)    = PKVar k tsu (mapKVarSubst (substf f) su)
-  substf _ (PAll _ _)      = errorstar "substf: FORALL"
-  substf f (PExist xts e)  = PExist xts (substf f e)
-  substf _  p              = p
 
 --- | Variable names for which we can propose variations to avoid name captures
 class Refreshable v where
@@ -308,15 +281,14 @@ instance (Eq v, Hashable v, Refreshable v) => Subable (ReftBV v v) where
          su' = extendSubst su v (EVar v')
       in
          Reft (v', substr ns' su' ras)
-  substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
 
 reftSymbolsSet :: (Eq v, Hashable v) => ReftBV v v -> S.HashSet v
 reftSymbolsSet (Reft (v, ras)) = S.delete v $ exprSymbolsSet ras
 
 instance Subable SortedReft where
   syms               = syms . sr_reft
+  substr ns su (RR so r) = RR so $ substr ns su r
   subst su (RR so r) = RR so $ subst su r
-  substf f (RR so r) = RR so $ substf f r
 
 pprReft :: Reft -> Doc -> Doc
 pprReft (Reft (v, p)) d

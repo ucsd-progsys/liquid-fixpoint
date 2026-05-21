@@ -546,8 +546,13 @@ instance Loc Qualifier where
 
 instance Subable Qualifier where
   syms   = qualFreeSymbols
+  substr ns su q =
+    let xs  = qpSym <$> qParams q
+        (ns', xs') = freshInNSL xs ns
+        su' = L.foldl' (\acc (x, x') -> extendSubst acc x (EVar x')) su (zip xs xs')
+        ps' = zipWith (\qp x' -> qp { qpSym = x' }) (qParams q) xs'
+    in  q { qParams = ps', qBody = substr ns' su' (qBody q) }
   subst  = mapQualBody . subst
-  substf = mapQualBody . substf
 
 mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
 mapQualBody f q = q { qBody = f (qBody q) }
@@ -1040,8 +1045,12 @@ mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
 instance Subable Equation where
   syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)
+  substr ns su eq =
+    let (xs, sorts) = unzip (eqArgs eq)
+        (ns', xs')  = freshInNSL xs ns
+        su'  = L.foldl' (\acc (x, x') -> extendSubst acc x (EVar x')) su (zip xs xs')
+    in  eq { eqArgs = zip xs' sorts, eqBody = substr ns' su' (eqBody eq) }
   subst su = mapEqBody (subst su)
-  substf f = mapEqBody (substf f)
 
 mapEqBody :: (Expr -> Expr) -> Equation -> Equation
 mapEqBody f a = a { eqBody = f (eqBody a) }
