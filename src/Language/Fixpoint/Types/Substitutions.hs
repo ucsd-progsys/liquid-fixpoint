@@ -163,19 +163,8 @@ substExcept  :: Eq v => SubstV v -> [v] -> SubstV v
 -- substExcept  (Su m) xs = Su (foldr M.delete m xs)
 substExcept (Su xes) xs = Su $ M.filterWithKey (const . not . (`elem` xs)) xes
 
-instance Subable Symbol where
-  substa f                 = f
-  substf f x               = subSymbol (Just (f x)) x
-  subst su x               = subSymbol (Just $ appSubst su x) x -- subSymbol (M.lookup x s) x
-  syms x                   = S.singleton x
-
 appSubst :: (Eq v, Hashable v) => SubstV v -> v -> ExprBV v v
 appSubst (Su s) x = M.findWithDefault (EVar x) x s
-
-subSymbol :: (Ord v, Hashable v, Fixpoint v) => Maybe (ExprBV v v) -> v -> v
-subSymbol (Just (EVar y)) _ = y
-subSymbol Nothing         x = x
-subSymbol _               x = x
 
 captureAvoiding :: Eq v => v -> (v -> ExprBV b v) -> v -> ExprBV b v
 captureAvoiding x f y = if y == x then EVar x else f y
