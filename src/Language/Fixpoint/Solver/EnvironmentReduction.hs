@@ -91,9 +91,9 @@ import           Language.Fixpoint.Types.Refinements
   , reftBind
   , reftPred
   , sortedReftSymbols
-  , subst1
   , fromKVarSubst
   )
+import           Language.Fixpoint.Types.Substitutions (subst1)
 import           Language.Fixpoint.Types.Sorts (boolSort, sortSymbols)
 import           Language.Fixpoint.Types.Visitor (mapExprOnExpr)
 import Language.Fixpoint.Misc (snd3)

@@ -18,7 +18,7 @@ module Language.Fixpoint.Types.Environments (
   , SEnvB(..)
   , SESearch
   , SESearchB(..)
-  , emptySEnv, toListSEnv, fromListSEnv, fromMapSEnv
+  , emptySEnv, toListSEnv, fromListSEnv, fromMapSEnv, fromSetSEnv
   , mapSEnvWithKey, mapSEnv, mapMSEnv
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv, unionSEnv, unionSEnv'
   , intersectWithSEnv
@@ -128,6 +128,9 @@ fromListSEnv            = SE . M.fromList
 
 fromMapSEnv             ::  M.HashMap b a -> SEnvB b a
 fromMapSEnv             = SE
+
+fromSetSEnv             ::  S.HashSet b -> SEnvB b ()
+fromSetSEnv             = SE . S.toMap
 
 mapSEnv                 :: (a₁ -> a₂) -> SEnvB b a₁ -> SEnvB b a₂
 mapSEnv f (SE env)      = SE (fmap f env)

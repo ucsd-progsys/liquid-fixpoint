@@ -43,10 +43,10 @@ import           Control.DeepSeq ( NFData )
 import qualified Data.Text               as T
 import           Data.Maybe (fromMaybe)
 import qualified Data.List               as L
-import qualified Language.Fixpoint.Misc  as Misc
 import qualified Language.Fixpoint.Types as F
 import qualified Text.PrettyPrint.HughesPJ.Compat as P
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet as S
 import           Data.Aeson
 import           Data.Aeson.Types
 
@@ -80,8 +80,8 @@ instance F.ToHornSMT Pred where
 
 instance F.Subable Pred where
   syms (Reft e)   = F.syms e
-  syms (Var _ xs) = concatMap F.syms xs
-  syms (PAnd ps)  = concatMap F.syms ps
+  syms (Var _ xs) = F.syms xs
+  syms (PAnd ps)  = F.syms ps
 
   substa f (Reft e)   = Reft  (F.substa f      e)
   substa f (Var k xs) = Var k (F.substa f <$> xs)
@@ -131,7 +131,7 @@ mkQual env v p = case envSort env <$> (v:xs) of
                    (_,so):xts -> F.mkQ "Auto" ((v, so) : xts) p junk
                    _          -> F.panic "impossible"
   where
-    xs         = L.delete v $ Misc.setNub (F.syms p)
+    xs         = S.toList $ S.delete v $ F.syms p
     junk       = F.dummyPos "mkQual"
 
 envSort :: F.SEnv F.Sort -> F.Symbol -> (F.Symbol, F.Sort)
@@ -163,7 +163,7 @@ instance F.ToHornSMT (Bind a) where
   toHornSMT (Bind x t p _) = P.parens (F.toHornSMT (x, t) P.<+> F.toHornSMT p)
 
 instance F.Subable (Bind a) where
-    syms     (Bind x _ p _) = x : F.syms p
+    syms     (Bind x _ p _) = S.insert x $ F.syms p
     substa f (Bind v t p a) = Bind (f v) t (F.substa f p) a
     substf f (Bind v t p a) = Bind v t (F.substf (F.substfExcept f [v]) p) a
     subst su (Bind v t p a)  = Bind v t (F.subst (F.substExcept su [v]) p) a

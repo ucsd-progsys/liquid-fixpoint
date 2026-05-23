@@ -51,11 +51,10 @@ import           Language.Fixpoint.Types.Refinements
   , reftBind
   , reftPred
   , sortedReftSymbols
-  , substf
   , substSortInExpr
   )
 import           Language.Fixpoint.Types.Sorts (Sort(..), substSort)
-import           Language.Fixpoint.Types.Substitutions (exprSymbolsSet)
+import           Language.Fixpoint.Types.Substitutions (exprSymbolsSet, substf)
 import qualified Language.Fixpoint.Utils.Files as Files
 import           System.FilePath (addExtension)
 import           Text.PrettyPrint.HughesPJ.Compat

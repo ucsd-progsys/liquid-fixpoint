@@ -598,7 +598,7 @@ knowledge info = KN
     aenv = ae info
 
     makeCons rw
-      | null (syms $ smBody rw)
+      | S.null (syms $ smBody rw)
       = Just (smName rw, (smDC rw, smBody rw))
       | otherwise
       = Nothing
@@ -731,7 +731,7 @@ normalizeBody :: Symbol -> Expr -> Expr
 normalizeBody f = go
   where
     go e
-      | elem f (syms e)
+      | S.member f (syms e)
       = go' e
     go e
       = e

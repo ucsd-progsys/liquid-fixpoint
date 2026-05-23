@@ -641,7 +641,7 @@ rewriteWithEqualities cfg measures n args equalities = preds
     thySyms = F.theorySymbols (F.solver cfg)
 
     isWellFormed :: F.Expr -> Bool
-    isWellFormed e = S.fromList (F.syms e) `S.isSubsetOf` argsAndPrims
+    isWellFormed e = S.fromList (HS.toList $ F.syms e) `S.isSubsetOf` argsAndPrims
 
     makeWellFormed :: Int -> [F.Expr] -> [F.Expr]
     makeWellFormed 0 exprs = filter isWellFormed exprs -- We solved it. Maybe.
@@ -649,7 +649,7 @@ rewriteWithEqualities cfg measures n args equalities = preds
       where
         go expr = if isWellFormed expr then [expr] else rewrite rewrites [expr]
           where
-            needSolving = S.fromList (F.syms expr) `S.difference` argsAndPrims
+            needSolving = S.fromList (HS.toList $ F.syms expr) `S.difference` argsAndPrims
             rewrites = (\x -> (x, filter (/= F.EVar x) $ sols x)) <$> S.toList needSolving
             rewrite [] es = es
             rewrite ((x, rewriteExprs):rewriteExprs') es = rewrite rewriteExprs' $ [F.subst (F.mkSubst [(x, e')]) e | e' <- rewriteExprs, e <- es]

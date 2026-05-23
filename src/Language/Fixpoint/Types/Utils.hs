@@ -5,9 +5,6 @@ module Language.Fixpoint.Types.Utils (
   -- * Domain of a kvar
     kvarDomain
 
-  -- * Free variables in a refinement
-  , reftFreeVars
-
   -- * Deconstruct a SortedReft
   , sortedReftConcKVars
 
@@ -23,6 +20,7 @@ import qualified Data.HashSet                         as S
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Refinements
+import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Sorts
@@ -40,13 +38,6 @@ domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
 
 getWfC :: GInfo c a -> KVar -> WfC a
 getWfC si k = ws si M.! k
-
---------------------------------------------------------------------------------
--- | Free variables of a refinement
---------------------------------------------------------------------------------
---TODO deduplicate (also in Solver/UniqifyBinds)
-reftFreeVars :: Reft -> S.HashSet Symbol
-reftFreeVars r@(Reft (v, _)) = S.delete v $ S.fromList $ syms r
 
 --------------------------------------------------------------------------------
 -- | Split a SortedReft into its concrete and KVar conjuncts

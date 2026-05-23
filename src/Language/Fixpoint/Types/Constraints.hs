@@ -122,7 +122,7 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
-import           Language.Fixpoint.Types.Substitutions()
+import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 import qualified Language.Fixpoint.Utils.Files as Files
 import qualified Language.Fixpoint.Solver.Stats as Solver
@@ -553,10 +553,10 @@ instance Subable Qualifier where
 mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
 mapQualBody f q = q { qBody = f (qBody q) }
 
-qualFreeSymbols :: Qualifier -> [Symbol]
-qualFreeSymbols q = filter (not . isPrim) xs
+qualFreeSymbols :: Qualifier -> S.HashSet Symbol
+qualFreeSymbols q = S.filter (not . isPrim) xs
   where
-    xs            = syms (qBody q) L.\\ syms (qpSym <$> qParams q)
+    xs            = syms (qBody q) `S.difference` S.fromList (qpSym <$> qParams q)
 
 instance Fixpoint QualParam where
   toFix (QP x _ t) = toFix (x, t)
@@ -589,8 +589,8 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <-> parens args 
 qualifier :: SEnv Sort -> SourcePos -> SEnv Sort -> Symbol -> Sort -> Expr -> Qualifier
 qualifier lEnv l γ v so p   = mkQ "Auto" ((v, so) : xts) p l
   where
-    xs  = L.delete v $ L.nub $ syms p
-    xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
+    xs  = S.delete v $ syms p
+    xts = catMaybes $ zipWith (envSort l lEnv γ) (S.toList xs) [0..]
 
 mkQ :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
 mkQ n = Q n . qualParams
@@ -1037,7 +1037,7 @@ eqnToHornSMT keyword (Equ f xs e s _) = parens (keyword <+> pprint f <+> toHornS
 
 
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
-mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
+mkEquation f xts e out = Equ f xts e out (f `S.member` syms e)
 
 instance Subable Equation where
   syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)

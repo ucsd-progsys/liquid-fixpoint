@@ -300,10 +300,10 @@ cNoFreeVars fi knownSym c = if S.null fv then Nothing else Just (S.toList fv)
   where
     be   = F.bs fi
     ids  = F.elemsIBindEnv $ F.senv c
-    cDom = [Misc.fst3 $ F.lookupBindEnv i be | i <- ids]
-    cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . Misc.snd3 $ F.lookupBindEnv i be | i <- ids]
-        ++ F.syms (F.crhs c)
-    fv   = (`Misc.nubDiff` cDom) . filter (not . knownSym) $ cRng
+    cDom = S.fromList [Misc.fst3 $ F.lookupBindEnv i be | i <- ids]
+    cRng = S.unions [F.syms . F.sr_reft . Misc.snd3 $ F.lookupBindEnv i be | i <- ids]
+        `S.union` F.syms (F.crhs c)
+    fv   = S.filter (not . knownSym) $ cRng `S.difference` cDom
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . Bifunctor.first F.subcId)
@@ -326,12 +326,12 @@ banQualifFreeVars :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 banQualifFreeVars cfg fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
-    bads    = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
-    free q  = filter (not . isGlobal) (F.syms q)
+    bads    = [ (q, xs) | q <- F.quals fi, let xs = free q, not (S.null xs) ]
+    free q  = S.filter (not . isGlobal) (F.syms q)
     isGlobal x = F.memberSEnv x (SortCheck.globalEnv cfg fi)
 
-badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error
-badQuals bqs = E.catErrors [ E.errFreeVarInQual q xs | (q, xs) <- bqs]
+badQuals     :: Misc.ListNE (F.Qualifier, S.HashSet F.Symbol) -> E.Error
+badQuals bqs = E.catErrors [ E.errFreeVarInQual q (S.toList xs) | (q, xs) <- bqs]
 
 
 --------------------------------------------------------------------------------
