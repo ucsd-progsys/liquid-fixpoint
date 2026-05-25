@@ -193,7 +193,7 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
 instance (B.Binary v, Hashable v) => B.Binary (SubstV v)
 instance (B.Binary b, B.Binary v) => B.Binary (KVarSubst b v)
 instance (B.Binary b, B.Binary v) => B.Binary (ExprBV b v)
-instance B.Binary v => B.Binary (ReftV v)
+instance (B.Binary b, B.Binary v) => B.Binary (ReftBV b v)
 
 
 reftConjuncts :: Reft -> [Reft]
@@ -235,7 +235,7 @@ instance Hashable Constant
 instance Hashable v => Hashable (SubstV v)
 instance (Hashable b, Hashable v) => Hashable (KVarSubst b v)
 instance (Hashable b, Hashable v) => Hashable (ExprBV b v)
-instance Hashable v => Hashable (ReftV v)
+instance (Hashable b, Hashable v) => Hashable (ReftBV b v)
 
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------
