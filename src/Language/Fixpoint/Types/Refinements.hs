@@ -258,8 +258,7 @@ instance (Ord v, Hashable v, Fixpoint v) => PPrint (SubstV v) where
   pprintTidy _ = toFix
 
 newtype KVarSubst b v =
-    KSu [(b, ExprBV b v)] -- When entries in the list share the same binder, the
-                          -- last one is used and the rest are ignored.
+    KSu [(b, ExprBV b v)] -- ^ No duplicate entries are allowed in the list.
   deriving (Eq, Ord, Data, Typeable, Generic, Functor, Foldable, Traversable)
 
 fromKVarSubst :: Hashable b => KVarSubst b v -> M.HashMap b (ExprBV b v)
@@ -277,9 +276,13 @@ mapBindKVarSubst f = toKVarSubst . fmap (mapBindExpr f) . M.mapKeys f . fromKVar
 isEmptyKVarSubst :: KVarSubst b v -> Bool
 isEmptyKVarSubst (KSu su) = null su
 
--- | @t [catKVarSubst su kvs] = t [su] [kvs]@
-catKVarSubst :: KVarSubst b v -> [(b, ExprBV b v)] -> KVarSubst b v
-catKVarSubst (KSu su) kvs = KSu $ kvs ++ su
+-- | @t [catKVarSubst su kvs] = t [su, kvs]@
+--
+-- No substitions are made in expressions of @su@.
+catKVarSubst :: Eq b => KVarSubst b v -> [(b, ExprBV b v)] -> KVarSubst b v
+catKVarSubst (KSu su) kvs = KSu $ filter (not . inSu . fst) kvs ++ su
+  where
+    inSu b = any ((== b) . fst) su
 
 instance (Ord v, Fixpoint v, Ord b, Fixpoint b, Hashable b) => Show (KVarSubst b v) where
   show = showFix
