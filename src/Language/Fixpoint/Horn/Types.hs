@@ -155,7 +155,7 @@ instance F.Subable (Bind a) where
     substr ns su (Bind v t p a) =
       let (ns', v') = F.freshInNS v ns
        in
-          Bind v t (F.substr ns' (F.extendSubst su v (F.EVar v')) p) a
+          Bind v t (F.substr ns' (F.extendSubstWithVar su v v') p) a
 
 -- Can we enforce the invariant that CAnd has len > 1?
 data Cstr a

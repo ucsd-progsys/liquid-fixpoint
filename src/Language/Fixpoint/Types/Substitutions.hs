@@ -33,6 +33,7 @@ module Language.Fixpoint.Types.Substitutions (
   , catSubst
   , exprSymbolsSet
   , extendSubst
+  , extendSubstWithVar
   , freshInNS
   , freshInNSL
   , meetReft
@@ -210,11 +211,11 @@ rapierSubstExpr s su e0 =
     EApp f e -> EApp (go s su f) (go s su e)
     ELam (x, t) e ->
       let (s', x') = freshInNS x s
-          su' = extendSubst su x (EVar x')
+          su' = extendSubstWithVar su x x'
        in ELam (x', t) (go s' su' e)
     ELet x e1 e2 ->
       let (s', x') = freshInNS x s
-          su' = extendSubst su x (EVar x')
+          su' = extendSubstWithVar su x x'
        in ELet x' (go s su e1) (go s' su' e2)
 
     ECoerc a t e -> ECoerc a t (go s su e)
@@ -233,14 +234,14 @@ rapierSubstExpr s su e0 =
     PAll bs p ->
       let xs = map fst bs
           (s', fs) = freshInNSL xs s
-          su' = List.foldl' (\su1 (x, x') -> extendSubst su1 x (EVar x')) su (zip xs fs)
+          su' = List.foldl' (\su1 (x, x') -> extendSubstWithVar su1 x x') su (zip xs fs)
           bs' = zip fs (map snd bs)
        in
           PAll bs' $ go s' su' p
     PExist bs p ->
       let xs = map fst bs
           (s', fs) = freshInNSL xs s
-          su' = List.foldl' (\su1 (x, x') -> extendSubst su1 x (EVar x')) su (zip xs fs)
+          su' = List.foldl' (\su1 (x, x') -> extendSubstWithVar su1 x x') su (zip xs fs)
           bs' = zip fs (map snd bs)
        in
           PExist bs' $ go s' su' p
@@ -253,6 +254,14 @@ rapierSubstExpr s su e0 =
 
 extendSubst :: Hashable v => SubstV v -> v -> ExprBV v v -> SubstV v
 extendSubst (Su m) x e = Su $ M.insert x e m
+
+-- | Like 'extendSubst', but a no-op when @x' == x@ and @x@ is not already in
+-- the substitution domain. Use when extending with a binder rename @x → EVar x'@
+-- that may be trivial.
+extendSubstWithVar :: (Eq v, Hashable v) => SubstV v -> v -> v -> SubstV v
+extendSubstWithVar su@(Su m) x x'
+  | x' == x && not (M.member x m) = su
+  | otherwise = extendSubst su x (EVar x')
 
 meetReft :: (Refreshable v, Binder v) => ReftBV v v -> ReftBV v v -> ReftBV v v
 meetReft (Reft (v, ra)) (Reft (v', ra'))
@@ -274,7 +283,7 @@ instance (Eq v, Hashable v, Refreshable v) => Subable (ReftBV v v) where
   syms = reftSymbolsSet
   substr ns su (Reft (v, ras)) =
      let (ns', v') = freshInNS v ns
-         su' = extendSubst su v (EVar v')
+         su' = extendSubstWithVar su v v'
       in
          Reft (v', substr ns' su' ras)
 

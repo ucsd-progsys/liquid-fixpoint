@@ -635,7 +635,7 @@ alphaEq s0 = go s0 (F.mkSubst [])
     go s su (F.PExist bs1 x1) (F.PExist bs2 x2) =
       let su' =
             List.foldl'
-              (\su1 (v1, v2) -> F.extendSubst su1 v1 (F.EVar v2))
+              (\su1 (v1, v2) -> F.extendSubstWithVar su1 v1 v2)
               su
               (zip (map fst bs1) (map fst bs2))
        in go (S.union s (S.fromList $ map fst bs2)) su' x1 x2

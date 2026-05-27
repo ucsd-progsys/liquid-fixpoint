@@ -549,7 +549,7 @@ instance Subable Qualifier where
   substr ns su q =
     let xs  = qpSym <$> qParams q
         (ns', xs') = freshInNSL xs ns
-        su' = L.foldl' (\acc (x, x') -> extendSubst acc x (EVar x')) su (zip xs xs')
+        su' = L.foldl' (\acc (x, x') -> extendSubstWithVar acc x x') su (zip xs xs')
         ps' = zipWith (\qp x' -> qp { qpSym = x' }) (qParams q) xs'
     in  q { qParams = ps', qBody = substr ns' su' (qBody q) }
 
@@ -1044,7 +1044,7 @@ instance Subable Equation where
   substr ns su eq =
     let (xs, sorts) = unzip (eqArgs eq)
         (ns', xs')  = freshInNSL xs ns
-        su'  = L.foldl' (\acc (x, x') -> extendSubst acc x (EVar x')) su (zip xs xs')
+        su'  = L.foldl' (\acc (x, x') -> extendSubstWithVar acc x x') su (zip xs xs')
     in  eq { eqArgs = zip xs' sorts, eqBody = substr ns' su' (eqBody eq) }
 
 instance PPrint Equation where
