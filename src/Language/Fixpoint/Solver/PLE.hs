@@ -559,7 +559,7 @@ updCtx cfg InstEnv{..} ieSMT ictx delta cidMb mCTrie =
     es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
 
-    (binds, existentialCounter) = renameExistentialsInSortedRefts binds0 (icFreshExistentialCounter ictx)
+    (binds, existentialCounter) = renameExistentialsInSortedRefts ieScope binds0 (icFreshExistentialCounter ictx)
 
     binds0    = [ maybeApplyKVarSolutions (x, y)
                 | i <- delta
@@ -1682,23 +1682,24 @@ checkFuel f = do
 -- These superficial existentials appear in conjunctions, disjunctions and in the
 -- body of other existentials only.
 renameExistentialsInSortedRefts
-  :: [(Symbol, SortedReft)]
+  :: S.HashSet Symbol
+  -> [(Symbol, SortedReft)]
   -> Int
   -> ([(Symbol, SortedReft)], Int)
-renameExistentialsInSortedRefts binds0 existentialCounter =
+renameExistentialsInSortedRefts scope binds0 existentialCounter =
     let
         binds = [ (x, sr { sr_reft = mapPredReft (const p) (sr_reft sr) }) | ((x, sr), p) <- zip binds0 preds ]
         (preds, existentialCounter') =
-          renameKVarExistentials (map (reftPred . sr_reft . snd) binds0) existentialCounter
+          renameKVarExistentials scope (map (reftPred . sr_reft . snd) binds0) existentialCounter
      in
         (binds, existentialCounter')
 
-renameKVarExistentials :: [Expr] -> Int -> ([Expr], Int)
-renameKVarExistentials = runState . mapM go
+renameKVarExistentials :: S.HashSet Symbol -> [Expr] -> Int -> ([Expr], Int)
+renameKVarExistentials scope0 = runState . mapM (go scope0)
   where
-    go (POr es) = POr <$> mapM go es
-    go (PAnd es) = PAnd <$> mapM go es
-    go (PExist bs e0) = do
+    go scope (POr es) = POr <$> mapM (go scope) es
+    go scope (PAnd es) = PAnd <$> mapM (go scope) es
+    go scope (PExist bs e0) = do
       i1 <- get
       let i2 = i1 + length bs
       put i2
@@ -1706,8 +1707,9 @@ renameKVarExistentials = runState . mapM go
           vs' = [ existSymbol v (fromIntegral i) | (v, i) <- zip vs [i1..] ]
           bs' = zip vs' (map snd bs)
           su = mkSubst $ zip vs (map EVar vs')
-      PExist bs' <$> go (substr (S.fromList vs' `S.union` syms e0) su e0)
-    go e = pure e
+          scope' = S.fromList vs `S.union` S.fromList vs' `S.union` scope
+      PExist bs' <$> go scope' (substr scope' su e0)
+    go _ e = pure e
 
 -- ^ Scopes of existential binders identifying the location of sub-expressions
 type ExScope = [(Symbol, Sort)]
