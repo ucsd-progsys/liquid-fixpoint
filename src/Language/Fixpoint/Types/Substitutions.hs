@@ -213,10 +213,7 @@ instance Refreshable Symbol where
 
 -- | Rapier style capture-avoiding substitution
 --
--- The scope set parameter must contain any symbols that are expected
--- to appear free in the result expression. Typically, this is the set of
--- symbols that are free in the range of the substitution, plus any symbols
--- that are already free in the input expression.
+-- See the documentation of 'Subable' for more details.
 rapierSubstExpr
   :: (HasCallStack, Eq v, Hashable v, Refreshable v)
   => S.HashSet v -> SubstV v -> ExprBV v v -> ExprBV v v
