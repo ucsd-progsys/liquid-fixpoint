@@ -566,13 +566,14 @@ extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
 -- start with the @subst$@ prefix.
 --
 simplifyKVar :: S.HashSet F.Symbol -> F.Expr -> F.Expr
-simplifyKVar s0 = F.conj . dedupByAlphaEq s0 . floatPExistConjuncts . go s0
+simplifyKVar s0 = F.conj . dedupByAlphaEq s0 . floatPExistConjuncts s0 . go s0
   where
-    go s (F.POr es) = disj $ map (F.conj . floatPExistConjuncts . go s) es
-    go s (F.PAnd es) = F.conj $ dedupByAlphaEq S.empty $ concatMap (floatPExistConjuncts . go s) es
+    go s (F.POr es) = disj $ map (F.conj . floatPExistConjuncts s . go s) es
+    go s (F.PAnd es) = F.conj $ dedupByAlphaEq s $ concatMap (floatPExistConjuncts s . go s) es
     go s (F.PExist bs e0) =
-      let es = concatMap (floatPExistConjuncts . go (S.union s $ S.fromList $ map fst bs)) (F.conjuncts e0)
-       in elimExistentialBinds (F.PExist bs (F.conj es))
+      let s' = S.union s $ S.fromList $ map fst bs
+          es = concatMap (floatPExistConjuncts s' . go s') (F.conjuncts e0)
+       in elimExistentialBinds s (F.PExist bs (F.conj es))
     go _ e = e
 
     dedupByAlphaEq :: S.HashSet F.Symbol -> [F.Expr] -> [F.Expr]
@@ -583,10 +584,10 @@ simplifyKVar s0 = F.conj . dedupByAlphaEq s0 . floatPExistConjuncts . go s0
     disj [e] = e
     disj es = F.POr es
 
-    elimExistentialBinds (F.PExist bs0 (F.PExist bs1 p)) =
+    elimExistentialBinds s (F.PExist bs0 (F.PExist bs1 p)) =
       let bs0' = filter (\(x,_) -> x `notElem` map fst bs1) bs0
-       in elimExistentialBinds (F.PExist (bs0' ++ bs1) p)
-    elimExistentialBinds (F.PExist bs e0) =
+       in elimExistentialBinds s (F.PExist (bs0' ++ bs1) p)
+    elimExistentialBinds s (F.PExist bs e0) =
       let es = F.conjuncts e0
           esv = map (isVarEq (map fst bs)) es
           -- Eliminating multiple variables at once can be difficult if the
@@ -597,17 +598,18 @@ simplifyKVar s0 = F.conj . dedupByAlphaEq s0 . floatPExistConjuncts . go s0
             let (xs, ys) = break (isJust . fst) esv
              in map snd (xs ++ drop 1 ys)
           su = F.mkSubst esvElim
-          e' = F.rapierSubstExpr (F.substSymbolsSet su) su $ F.conj esvKeep
+          esvKeepExpr = F.conj esvKeep
+          e' = F.rapierSubstExpr (S.fromList (map fst bs) `S.union` s) su esvKeepExpr
           bs' = filter ((`S.member` F.exprSymbolsSet e') . fst) bs
           e'' = F.pExist bs' e'
        in
-          if null esvElim then e'' else elimExistentialBinds e''
-    elimExistentialBinds e = e
+          if null esvElim then e'' else elimExistentialBinds s e''
+    elimExistentialBinds _ e = e
 
     -- | Float out conjuncts from an existential expression that does not
     -- depend on the existentially bound variables.
-    floatPExistConjuncts :: F.Expr -> [F.Expr]
-    floatPExistConjuncts e0@(F.PExist bs es0) =
+    floatPExistConjuncts :: S.HashSet F.Symbol -> F.Expr -> [F.Expr]
+    floatPExistConjuncts s e0@(F.PExist bs es0) =
       let es = F.conjuncts es0
           (floatable, nonFloatable) =
            List.partition (isFloatableConjunct (S.fromList (map fst bs))) es
@@ -615,11 +617,11 @@ simplifyKVar s0 = F.conj . dedupByAlphaEq s0 . floatPExistConjuncts . go s0
           if null floatable then
             [e0]
           else
-            elimExistentialBinds (F.pExist bs (F.conj nonFloatable)) : floatable
+            elimExistentialBinds s (F.pExist bs (F.conj nonFloatable)) : floatable
       where
         isFloatableConjunct :: S.HashSet F.Symbol -> F.Expr -> Bool
-        isFloatableConjunct s e = S.null $ S.intersection (F.exprSymbolsSet e) s
-    floatPExistConjuncts e = [e]
+        isFloatableConjunct ebs e = S.null $ S.intersection (F.exprSymbolsSet e) ebs
+    floatPExistConjuncts _ e = [e]
 
 -- | Determine if two expressions are alpha-equivalent.
 --
@@ -638,7 +640,11 @@ alphaEq s0 = go s0 (F.mkSubst [])
               (\su1 (v1, v2) -> F.extendSubstWithVar su1 v1 v2)
               su
               (zip (map fst bs1) (map fst bs2))
-       in go (S.union s (S.fromList $ map fst bs2)) su' x1 x2
+       in go
+             (S.unions [s, S.fromList (map fst bs1), S.fromList (map fst bs2)])
+             su'
+             x1
+             x2
     go s su (F.PAnd es1) (F.PAnd es2) =
       length es1 == length es2 && and (zipWith (go s su) es1 es2)
     go s su (F.POr es1) (F.POr es2) =

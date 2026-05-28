@@ -26,7 +26,6 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent                 (setNumCapabilities)
 import qualified Data.HashMap.Strict              as HashMap
-import qualified Data.HashSet                     as HashSet
 import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
 import qualified Data.Text.Lazy.IO                as LT
@@ -317,7 +316,7 @@ simplifyResult cfg res =
       , resNonCutsSolution = HashMap.map (fmap simplifyKVar') (resNonCutsSolution res)
       }
   where
-    simplifyKVar' = unElabSets . unElab' . Sol.simplifyKVar HashSet.empty
+    simplifyKVar' e = unElabSets $ unElab' $ Sol.simplifyKVar (syms e) e
     sets          = elabSetBag . solverFlags $ cfg
     unElabSets    = if sets then unElabFSetBagZ3 else id
     unElab'       = if sortedSolution cfg then id else unElab

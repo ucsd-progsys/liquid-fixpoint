@@ -79,12 +79,10 @@ data SimplificationTest = SimplificationTest
 simplificationTest :: SimplificationTest -> TestTree
 simplificationTest test =
   testCase (name test) $ do
-    let actual =
-          F.simplifyKVar
-            HashSet.empty
-            (doParse'' True predP (name test) (input test))
+    let actual0 = doParse'' True predP (name test) (input test)
+        actual = F.simplifyKVar (F.syms actual0) actual0
         expectedE = doParse'' True predP (name test) (expected test)
-    when (not (F.alphaEq HashSet.empty actual expectedE)) $ do
+    when (not $ F.alphaEq $ F.syms [actual, expectedE]) $ do
       assertFailure $ unlines
         [ "output is not as expected"
         , "Expected:"
