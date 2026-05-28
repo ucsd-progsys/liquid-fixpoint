@@ -79,8 +79,8 @@ mytracepp = notracepp
 -- unfoldings discovered by PLE on the constraints in @subcIds@ (or all
 -- constraints if @subcIds == Nothing@).
 {-# SCC instantiate #-}
-instantiate :: (Loc a) => Config -> SInfo a -> Maybe Solution -> Maybe [SubcId] -> SmtM (BindEnv a)
-instantiate cfg fi' mSol subcIds = do
+instantiate :: (Loc a) => Config -> S.HashSet Symbol -> SInfo a -> Maybe Solution -> Maybe [SubcId] -> SmtM (BindEnv a)
+instantiate cfg scope fi' mSol subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm info)
@@ -88,7 +88,7 @@ instantiate cfg fi' mSol subcIds = do
     res   <- withRESTSolver $ \solver -> do
                ctx <- get
                (res, ctx') <- liftIO $ withProgressM (`runStateT` ctx) (1 + M.size cs) $ do
-                 env <- instEnv cfg info mSol cs solver
+                 env <- instEnv cfg scope info mSol cs solver
                  pleTrie t env                                              -- 2. TRAVERSE Trie to compute InstRes
                put ctx'
                return res
@@ -133,12 +133,13 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
 instEnv
   :: Loc a
   => Config
+  -> S.HashSet Symbol
   -> SInfo a
   -> Maybe Solution
   -> CMap (SimpC a)
   -> Maybe SolverHandle
   -> SmtM (InstEnv a)
-instEnv cfg info s cs restSolver = do
+instEnv cfg scope info s cs restSolver = do
     ctx <- get
     refRESTCache <- liftIO $ newIORef mempty
     refRESTSatCache <- liftIO $ newIORef mempty
@@ -176,6 +177,7 @@ instEnv cfg info s cs restSolver = do
     return $ InstEnv
        { ieCfg = cfg
        , ieBEnv = bs info
+       , ieScope = scope
        , ieAenv = ae info
        , ieCstrs = cs
        , ieKnowl = knowledge cfg info
@@ -446,6 +448,7 @@ resSInfo cfg env info res = strengthenBinds info res'
 data InstEnv a = InstEnv
   { ieCfg   :: !Config
   , ieBEnv  :: !(BindEnv a)
+  , ieScope :: !(S.HashSet Symbol)
   , ieAenv  :: !AxiomEnv
   , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
@@ -589,6 +592,7 @@ updCtx cfg InstEnv{..} ieSMT ictx delta cidMb mCTrie =
         g = CEnv
           { ceCid = gCid
           , ceBEnv = ieBEnv
+          , ceInScope = ieScope
           , ceIEnv = ibinds
           , ceSpan = maybe dummySpan srcSpan $ gCid >>= (`M.lookup` ieCstrs)
           , ceBindingsInSmt = emptyIBindEnv
@@ -1702,7 +1706,7 @@ renameKVarExistentials = runState . mapM go
           vs' = [ existSymbol v (fromIntegral i) | (v, i) <- zip vs [i1..] ]
           bs' = zip vs' (map snd bs)
           su = mkSubst $ zip vs (map EVar vs')
-      PExist bs' <$> go (rapierSubstExpr (S.fromList vs') su e0)
+      PExist bs' <$> go (rapierSubstExpr (S.fromList vs' `S.union` syms e0) su e0)
     go e = pure e
 
 -- ^ Scopes of existential binders identifying the location of sub-expressions
