@@ -1706,7 +1706,7 @@ renameKVarExistentials = runState . mapM go
           vs' = [ existSymbol v (fromIntegral i) | (v, i) <- zip vs [i1..] ]
           bs' = zip vs' (map snd bs)
           su = mkSubst $ zip vs (map EVar vs')
-      PExist bs' <$> go (rapierSubstExpr (S.fromList vs' `S.union` syms e0) su e0)
+      PExist bs' <$> go (substr (S.fromList vs' `S.union` syms e0) su e0)
     go e = pure e
 
 -- ^ Scopes of existential binders identifying the location of sub-expressions

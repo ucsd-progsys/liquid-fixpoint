@@ -447,7 +447,7 @@ cubePred :: Config -> CombinedEnv ann -> Sol.Sol Sol.QBind -> F.KVSub -> Sol.Cub
 cubePred cfg g s ksu c    =
     let (p, kI) = cubePredExc cfg g s c bs'
         p' = let pExpr = V.applyCoSub (F.ksuTySub ksu) p
-              in F.rapierSubstExpr (ceInScope g) su pExpr
+              in F.substr (ceInScope g) su pExpr
      in (p', kI)
   where
     bs' = F.diffIBindEnv bs (Misc.safeLookup "sScp" k (Sol.sScp s))
@@ -597,7 +597,7 @@ simplifyKVar s0 = F.conj . dedupByAlphaEq s0 . floatPExistConjuncts s0 . go s0
              in map snd (xs ++ drop 1 ys)
           su = F.mkSubst esvElim
           esvKeepExpr = F.conj esvKeep
-          e' = F.rapierSubstExpr (S.fromList (map fst bs) `S.union` s) su esvKeepExpr
+          e' = F.substr (S.fromList (map fst bs) `S.union` s) su esvKeepExpr
           bs' = filter ((`S.member` F.exprSymbolsSet e') . fst) bs
           e'' = F.pExist bs' e'
        in
@@ -648,7 +648,7 @@ alphaEq s0 = go s0 (F.mkSubst [])
     go s su (F.POr es1) (F.POr es2) =
       length es1 == length es2 && and (zipWith (go s su) es1 es2)
     go s su e1 e2 =
-      F.rapierSubstExpr s su e1 == e2
+      F.substr s su e1 == e2
 
 -- | Determine if the expression is an equality that sets the value of
 -- a variable in the given set.
