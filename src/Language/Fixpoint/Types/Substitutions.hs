@@ -110,7 +110,7 @@ class (Eq (Variable a), Hashable (Variable a)) => Subable a where
   type Variable a = Symbol
 
   syms   :: a -> S.HashSet (Variable a)           -- ^ free symbols of a
-  substr :: S.HashSet (Variable a) -> SubstV (Variable a) -> a -> a
+  substr :: HasCallStack => S.HashSet (Variable a) -> SubstV (Variable a) -> a -> a
 
 subst :: (HasCallStack, Subable a) => SubstV (Variable a) -> a -> a
 subst su e = substr ns su e
@@ -203,52 +203,53 @@ instance Refreshable Symbol where
 -- symbols that are free in the range of the substitution, plus any symbols
 -- that are already free in the input expression.
 rapierSubstExpr
-  :: (Eq v, Hashable v, Refreshable v)
+  :: (HasCallStack, Eq v, Hashable v, Refreshable v)
   => S.HashSet v -> SubstV v -> ExprBV v v -> ExprBV v v
-rapierSubstExpr s su e0 =
-  let go = rapierSubstExpr
-   in case e0 of
-    EApp f e -> EApp (go s su f) (go s su e)
-    ELam (x, t) e ->
-      let (s', x') = freshInNS x s
-          su' = extendSubstWithVar su x x'
-       in ELam (x', t) (go s' su' e)
-    ELet x e1 e2 ->
-      let (s', x') = freshInNS x s
-          su' = extendSubstWithVar su x x'
-       in ELet x' (go s su e1) (go s' su' e2)
-
-    ECoerc a t e -> ECoerc a t (go s su e)
-    ENeg e -> ENeg (go s su e)
-    EBin op e1 e2 -> EBin op (go s su e1) (go s su e2)
-    EIte p e1 e2 -> EIte (go s su p) (go s su e1) (go s su e2)
-    ECst e so -> ECst (go s su e) so
-    EVar x -> appSubst su x
-    PAnd ps -> PAnd $ map (go s su) ps
-    POr ps -> POr $ map (go s su) ps
-    PNot p -> PNot $ go s su p
-    PImp p1 p2 -> PImp (go s su p1) (go s su p2)
-    PIff p1 p2 -> PIff (go s su p1) (go s su p2)
-    PAtom r e1 e2 -> PAtom r (go s su e1) (go s su e2)
-    PKVar k tsu su' -> PKVar k tsu (catSubstGo su' su)
-    PAll bs p ->
-      let xs = map fst bs
-          (s', fs) = freshInNSL xs s
-          su' = List.foldl' (\su1 (x, x') -> extendSubstWithVar su1 x x') su (zip xs fs)
-          bs' = zip fs (map snd bs)
-       in
-          PAll bs' $ go s' su' p
-    PExist bs p ->
-      let xs = map fst bs
-          (s', fs) = freshInNSL xs s
-          su' = List.foldl' (\su1 (x, x') -> extendSubstWithVar su1 x x') su (zip xs fs)
-          bs' = zip fs (map snd bs)
-       in
-          PExist bs' $ go s' su' p
-    p -> p
-
+rapierSubstExpr = go
   where
-    catSubstGo su1 su2 = catKVarSubst su1' (toListSubst su2)
+    go s su e0 = case e0 of
+        EApp f e -> EApp (go s su f) (go s su e)
+        ELam (x, t) e ->
+          let (s', x') = freshInNS x s
+              su' = extendSubstWithVar su x x'
+           in ELam (x', t) (go s' su' e)
+        ELet x e1 e2 ->
+          let (s', x') = freshInNS x s
+              su' = extendSubstWithVar su x x'
+           in ELet x' (go s su e1) (go s' su' e2)
+
+        ECoerc a t e -> ECoerc a t (go s su e)
+        ENeg e -> ENeg (go s su e)
+        EBin op e1 e2 -> EBin op (go s su e1) (go s su e2)
+        EIte p e1 e2 -> EIte (go s su p) (go s su e1) (go s su e2)
+        ECst e so -> ECst (go s su e) so
+        EVar x
+          | S.member x s -> appSubst su x
+          | otherwise -> error $ "rapierSubstExpr: variable not in scope set"
+        PAnd ps -> PAnd $ map (go s su) ps
+        POr ps -> POr $ map (go s su) ps
+        PNot p -> PNot $ go s su p
+        PImp p1 p2 -> PImp (go s su p1) (go s su p2)
+        PIff p1 p2 -> PIff (go s su p1) (go s su p2)
+        PAtom r e1 e2 -> PAtom r (go s su e1) (go s su e2)
+        PKVar k tsu su' -> PKVar k tsu (catSubstGo su' su s)
+        PAll bs p ->
+          let xs = map fst bs
+              (s', fs) = freshInNSL xs s
+              su' = List.foldl' (\su1 (x, x') -> extendSubstWithVar su1 x x') su (zip xs fs)
+              bs' = zip fs (map snd bs)
+           in
+              PAll bs' $ go s' su' p
+        PExist bs p ->
+          let xs = map fst bs
+              (s', fs) = freshInNSL xs s
+              su' = List.foldl' (\su1 (x, x') -> extendSubstWithVar su1 x x') su (zip xs fs)
+              bs' = zip fs (map snd bs)
+           in
+              PExist bs' $ go s' su' p
+        p -> p
+
+    catSubstGo su1 su2 s = catKVarSubst su1' (toListSubst su2)
       where
         su1' = mapKVarSubst (rapierSubstExpr s su2) su1
 
