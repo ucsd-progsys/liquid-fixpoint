@@ -105,11 +105,27 @@ substSymbolsSet (Su m) = S.unions $ map exprSymbolsSet (M.elems m)
 toListSubst :: SubstV v -> [(v, ExprBV v v)]
 toListSubst (Su m) = M.toList m
 
+-- | The Subable class provides overloaded names to compute the free symbols of
+-- a value, and to perform capture-avoiding substitution on it.
 class (Eq (Variable a), Hashable (Variable a)) => Subable a where
   type Variable a
   type Variable a = Symbol
 
-  syms   :: a -> S.HashSet (Variable a)           -- ^ free symbols of a
+  -- | Free symbols of a value
+  syms   :: a -> S.HashSet (Variable a)
+
+  -- | Capture-avoiding substitution of a value, given a scope set of symbols
+  -- that are allowed to appear free in the result.
+  --
+  -- When a binder's name is in the scope set, it is renamed to a fresh name.
+  -- In this way, it cannot capture free variables in the range of the
+  -- substitution as these free variables need to be necessarily in scope.
+  --
+  -- The fresh name is chosen so it does not appear in the scope set, and
+  -- therefore the scope set must really contain all names in scope so the new
+  -- "fresh" name does not accidentally capture free variables in the term
+  -- on which the substitution is applied.
+  --
   substr :: HasCallStack => S.HashSet (Variable a) -> SubstV (Variable a) -> a -> a
 
 subst :: (HasCallStack, Subable a) => SubstV (Variable a) -> a -> a
