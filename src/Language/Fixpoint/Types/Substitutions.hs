@@ -6,7 +6,6 @@
 {-# LANGUAGE TypeOperators     #-}
 
 {-# OPTIONS_GHC -Wno-orphans   #-}
-{-# LANGUAGE InstanceSigs #-}
 
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
@@ -202,7 +201,7 @@ class Refreshable v where
 instance Refreshable Symbol where
   candidates x =
      let (x', i) = splitIntSuffix x
-      in x : zipWith intSymbol (repeat x') [i..]
+      in x : map (intSymbol x') [i..]
     where
       splitIntSuffix sx =
         case T.breakOnEnd symSepName (symbolText sx) of
@@ -241,7 +240,7 @@ rapierSubstExpr = go
         ECst e so -> ECst (go s su e) so
         EVar x
           | S.member x s -> appSubst su x
-          | otherwise -> error $ "rapierSubstExpr: variable not in scope set"
+          | otherwise -> error "rapierSubstExpr: variable not in scope set"
         PAnd ps -> PAnd $ map (go s su) ps
         POr ps -> POr $ map (go s su) ps
         PNot p -> PNot $ go s su p
