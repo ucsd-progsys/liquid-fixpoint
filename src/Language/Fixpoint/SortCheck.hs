@@ -603,6 +603,7 @@ fresh = do
 --------------------------------------------------------------------------------
 -- | Checking Refinements ------------------------------------------------------
 --------------------------------------------------------------------------------
+
 checkSortedReftFull :: Checkable a => SrcSpan -> SEnv SortedReft -> a -> ElabM (Maybe Doc)
 checkSortedReftFull sp γ t =
   do ef <- ask

@@ -26,7 +26,6 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent                 (setNumCapabilities)
 import qualified Data.HashMap.Strict              as HashMap
-import qualified Data.HashSet                     as HashSet
 import qualified Data.Store                       as S
 import           Data.Aeson                         (ToJSON, encode)
 import qualified Data.Text.Lazy.IO                as LT
@@ -42,7 +41,7 @@ import           Language.Fixpoint.Solver.EnvironmentReduction
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
-import           Language.Fixpoint.SortCheck            (ElabParam (..), Elaborate (..), unElab, unElabFSetBagZ3)
+import           Language.Fixpoint.SortCheck            (ElabParam (..), Elaborate (..), unElab, unElabFSetBagZ3, theoryEnv)
 import           Language.Fixpoint.Solver.Extensionality (expand)
 import           Language.Fixpoint.Solver.Prettify (savePrettifiedQuery)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
@@ -61,6 +60,7 @@ import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
 import           Control.DeepSeq
 import           Data.Functor                        (void)
 import qualified Data.ByteString as B
+import qualified Data.HashSet as HS
 import Data.Maybe (catMaybes)
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
@@ -285,8 +285,9 @@ reduceFInfo cfg fi = do
 
 solveNative' !cfg !fi0 = do
   (elabParam, si6) <- simplifyFInfo cfg fi0
-  res0 <- {- SCC "Sol.solve" -} Sol.solve cfg elabParam $!! si6
-  let res = simplifyResult cfg res0
+  let scope = sInfoScope cfg si6
+  res0 <- {- SCC "Sol.solve" -} Sol.solve cfg elabParam scope $!! si6
+  let res = simplifyResult cfg scope res0
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   -- saveSolution cfg res
@@ -294,6 +295,30 @@ solveNative' !cfg !fi0 = do
   -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
+
+--------------------------------------------------------------------------------
+-- | Scope ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- | Computes the set of all symbols that may appear free in expressions
+-- within the constraint system.
+sInfoScope :: Config -> SInfo a -> HS.HashSet Symbol
+sInfoScope cfg si = let base = HS.unions
+                          [ HS.fromList [ sym | (_, (sym, _, _)) <- bindEnvToList (Types.bs si) ]
+                          , HS.fromList $ map fst $ toListSEnv (Types.gLits si)
+                          , HS.fromList $ map fst $ toListSEnv (Types.dLits si)
+                          , HS.fromList [ val (dcName dc) | dd <- Types.ddecls si, dc <- ddCtors dd ]
+                          , HS.fromList [ val (dfName df) | dd <- Types.ddecls si, dc <- ddCtors dd, df <- dcFields dc ]
+                          -- Reflected equation names
+                          , HS.fromList [ eqName eq | eq <- aenvEqs (Types.ae si) ]
+                          -- WF constraints: the kvar self-binder symbol
+                          , HS.fromList [ v | w <- HashMap.elems (Types.ws si), let (v, _, _) = wrft w ]
+                          -- Theory symbols (arr_store_m, set operations, etc.)
+                          , HS.fromList $ map fst $ toListSEnv (theoryEnv cfg si)
+                          -- Wired-in symbols used by elaboration
+                          , HS.fromList [toIntName, tyCastName, applyName]
+                          ]
+                    in base `HS.union` HS.map tidySymbol base
 
 --------------------------------------------------------------------------------
 -- | Parse External Qualifiers -------------------------------------------------
@@ -310,14 +335,14 @@ parseFI f = do
                   , Types.gLits = Types.gLits  fi
                   , Types.dLits = Types.dLits  fi }
 
-simplifyResult :: Config -> Result a -> Result a
-simplifyResult cfg res =
+simplifyResult :: Config -> HS.HashSet Symbol -> Result a -> Result a
+simplifyResult cfg scope res =
     res
       { resSolution = HashMap.map simplifyKVar' (resSolution res)
       , resNonCutsSolution = HashMap.map (fmap simplifyKVar') (resNonCutsSolution res)
       }
   where
-    simplifyKVar' = unElabSets . unElab' . Sol.simplifyKVar HashSet.empty
+    simplifyKVar' e = unElabSets $ unElab' $ Sol.simplifyKVar scope e
     sets          = elabSetBag . solverFlags $ cfg
     unElabSets    = if sets then unElabFSetBagZ3 else id
     unElab'       = if sortedSolution cfg then id else unElab

@@ -6,7 +6,6 @@
 {-# LANGUAGE TypeOperators     #-}
 
 {-# OPTIONS_GHC -Wno-orphans   #-}
-{-# LANGUAGE InstanceSigs #-}
 
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
@@ -21,14 +20,21 @@ module Language.Fixpoint.Types.Substitutions (
   , substExcept
   , substfExcept
   , subst1Except
+  , subst1
+  , substa
+  , substf
   , substSymbolsSet
   , Refreshable(..)
   , Subable(..)
+  , subst
   , rapierSubstExpr
   , filterSubst
   , catSubst
   , exprSymbolsSet
   , extendSubst
+  , extendSubstWithVar
+  , freshInNS
+  , freshInNSL
   , meetReft
   , pprReft
   ) where
@@ -37,20 +43,19 @@ import           Data.List                 as List
 import           Data.Hashable             (Hashable)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import qualified Data.Text                 as T
 import           GHC.Stack                 (HasCallStack)
 import           Language.Fixpoint.Types.Binders
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
-import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Refinements
-import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 
-instance (Eq v, Hashable v) => Semigroup (SubstV v) where
+instance (Eq v, Hashable v, Refreshable v) => Semigroup (SubstV v) where
   (<>) = catSubst
 
-instance (Eq v, Hashable v) => Monoid (SubstV v) where
+instance (Eq v, Hashable v, Refreshable v) => Monoid (SubstV v) where
   mempty  = emptySubst
   mappend = (<>)
 
@@ -76,7 +81,7 @@ filterSubst f (Su m) = Su (M.filterWithKey f m)
 emptySubst :: SubstV v
 emptySubst = Su M.empty
 
-catSubst :: (Eq v, Hashable v) => SubstV v -> SubstV v -> SubstV v
+catSubst :: (Eq v, Hashable v, Refreshable v) => SubstV v -> SubstV v -> SubstV v
 catSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
   where
     s1'                     = subst θ2 <$> s1
@@ -96,60 +101,76 @@ isEmptySubst (Su xes) = M.null xes
 substSymbolsSet :: (Eq v, Hashable v) => SubstV v -> S.HashSet v
 substSymbolsSet (Su m) = S.unions $ map exprSymbolsSet (M.elems m)
 
+toListSubst :: SubstV v -> [(v, ExprBV v v)]
+toListSubst (Su m) = M.toList m
+
+-- | The Subable class provides overloaded names to compute the free symbols of
+-- a value, and to perform capture-avoiding substitution on it.
 class (Eq (Variable a), Hashable (Variable a)) => Subable a where
   type Variable a
   type Variable a = Symbol
 
-  syms   :: a -> S.HashSet (Variable a)           -- ^ free symbols of a
-  substa :: (Variable a -> Variable a) -> a -> a
-  -- substa f  = substf (EVar . f)
+  -- | Free symbols of a value
+  syms   :: a -> S.HashSet (Variable a)
 
-  substf :: (Variable a -> ExprBV (Variable a) (Variable a)) -> a -> a
-  subst  :: HasCallStack => SubstV (Variable a) -> a -> a
-  subst1 :: a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
-  subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
+  -- | Capture-avoiding substitution of a value, given a scope set of symbols
+  -- that are allowed to appear free in the result.
+  --
+  -- When a binder's name is in the scope set, it is renamed to a fresh name.
+  -- In this way, it cannot capture free variables in the range of the
+  -- substitution as these free variables need to be necessarily in scope.
+  --
+  -- The fresh name is chosen so it does not appear in the scope set, and
+  -- therefore the scope set must really contain all names in scope so the new
+  -- "fresh" name does not accidentally capture free variables in the term
+  -- on which the substitution is applied.
+  --
+  substr :: HasCallStack => S.HashSet (Variable a) -> SubstV (Variable a) -> a -> a
+
+subst :: (HasCallStack, Subable a) => SubstV (Variable a) -> a -> a
+subst su e = substr ns su e
+  where
+    ns = substSymbolsSet su `S.union` syms e
 
 instance Subable a => Subable (Located a) where
   type Variable (Located a) = Variable a
   syms (Loc _ _ x)   = syms x
-  substa f (Loc l l' x) = Loc l l' (substa f x)
-  substf f (Loc l l' x) = Loc l l' (substf f x)
-  subst su (Loc l l' x) = Loc l l' (subst su x)
+  substr ns m (Loc l l' x) = Loc l l' (substr ns m x)
 
 instance Subable () where
-  syms _      = S.empty
-  subst _ ()  = ()
-  substf _ () = ()
-  substa _ () = ()
+  syms _         = S.empty
+  substr _ _ ()  = ()
 
 instance (Subable a, Subable b, Variable a ~ Variable b) => Subable (a,b) where
   type Variable (a, b) = Variable a
-  syms  (x, y)   = S.union (syms x) (syms y)
-  subst su (x,y) = (subst su x, subst su y)
-  substf f (x,y) = (substf f x, substf f y)
-  substa f (x,y) = (substa f x, substa f y)
+
+  syms  (x, y)      = S.union (syms x) (syms y)
+  substr ns su (x,y) = (substr ns su x, substr ns su y)
 
 instance Subable a => Subable [a] where
   type Variable [a] = Variable a
-  syms   = S.unions . map syms
-  subst  = fmap . subst
-  substf = fmap . substf
-  substa = fmap . substa
+  syms             = S.unions . map syms
+  substr ns su     = fmap (substr ns su)
 
 instance Subable a => Subable (Maybe a) where
   type Variable (Maybe a) = Variable a
-  syms = maybe S.empty syms
-  subst  = fmap . subst
-  substf = fmap . substf
-  substa = fmap . substa
+  syms             = maybe S.empty syms
+  substr ns m      = fmap (substr ns m)
 
 
 instance Subable a => Subable (M.HashMap k a) where
   type Variable (M.HashMap k a) = Variable a
-  syms   = syms . M.elems
-  subst  = M.map . subst
-  substf = M.map . substf
-  substa = M.map . substa
+  syms             = syms . M.elems
+  substr ns su     = M.map (substr ns su)
+
+subst1 :: Subable a => a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
+subst1 y (x, e) = subst (Su $ M.fromList [(x, e)]) y
+
+substa :: Subable a => (Variable a -> Variable a) -> a -> a
+substa f = substf (EVar . f)
+
+substf :: Subable a => (Variable a -> ExprBV (Variable a) (Variable a)) -> a -> a
+substf f e = subst (Su $ M.mapWithKey (const . f) $ S.toMap $ syms e) e
 
 subst1Except :: Subable a => [Variable a] -> a -> (Variable a, ExprBV (Variable a) (Variable a)) -> a
 subst1Except xs z su@(x, _)
@@ -166,206 +187,125 @@ substExcept (Su xes) xs = Su $ M.filterWithKey (const . not . (`elem` xs)) xes
 appSubst :: (Eq v, Hashable v) => SubstV v -> v -> ExprBV v v
 appSubst (Su s) x = M.findWithDefault (EVar x) x s
 
-captureAvoiding :: Eq v => v -> (v -> ExprBV b v) -> v -> ExprBV b v
-captureAvoiding x f y = if y == x then EVar x else f y
-
-instance (Eq v, Hashable v) => Subable (ExprBV v v) where
+instance (Eq v, Hashable v, Refreshable v) => Subable (ExprBV v v) where
   type Variable (ExprBV v v) = v
-  syms                     = exprSymbolsSet
-  substa f                 = substf (EVar . f)
-  substf :: (v -> ExprBV v v) -> ExprBV v v -> ExprBV v v
-  substf f (EApp s e)      = EApp (substf f s) (substf f e)
-  substf f (ELam (x,t) e)  = ELam (x, t) (substf (captureAvoiding x f) e)
-  substf f (ECoerc a t e)  = ECoerc a t (substf f e)
-  substf f (ENeg e)        = ENeg (substf f e)
-  substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
-  substf f (ELet x e1 e2)  = ELet x (substf f e1) (substf (captureAvoiding x f) e2)
-  substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
-  substf f (ECst e so)     = ECst (substf f e) so
-  substf f (EVar x)        = f x
-  substf f (PAnd ps)       = PAnd $ map (substf f) ps
-  substf f (POr  ps)       = POr  $ map (substf f) ps
-  substf f (PNot p)        = PNot $ substf f p
-  substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
-  substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
-  substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
-  substf f (PKVar k tsu su)    = PKVar k tsu (mapKVarSubst (substf f) su)
-  substf _ (PAll _ _)      = errorstar "substf: FORALL"
-  substf f (PExist xts e)  = PExist xts (substf f e)
-  substf _  p              = p
+  syms  = exprSymbolsSet
+  substr = rapierSubstExpr
 
-
-  subst = go
-    where
-      -- The auxiliary go function skips the HasCallStack constraint on every
-      -- recursive call. In case of error, the call stack only contains the
-      -- point at which subst was first called.
-      go su e0 = case e0 of
-        EApp f e ->
-          EApp (go su f) (go su e)
-        ELam x e ->
-          let su' = removeSubst su (fst x)
-           in ELam x (go su' e)
-        ELet x e1 e2 ->
-          let su' = removeSubst su x
-           in ELet x (go su e1) (go su' e2)
-        ECoerc a t e ->
-          ECoerc a t (go su e)
-        ENeg e ->
-          ENeg (go su e)
-        EBin op e1 e2 ->
-          EBin op (go su e1) (go su e2)
-        EIte p e1 e2 ->
-          EIte (go su p) (go su e1) (go su e2)
-        ECst e so ->
-          ECst (go su e) so
-        EVar x ->
-          appSubst su x
-        PAnd ps ->
-          PAnd $ map (go su) ps
-        POr  ps ->
-          POr  $ map (go su) ps
-        PNot p ->
-          PNot $ go su p
-        PImp p1 p2 ->
-          PImp (go su p1) (go su p2)
-        PIff p1 p2 ->
-          PIff (go su p1) (go su p2)
-        PAtom r e1 e2 ->
-          PAtom r (go su e1) (go su e2)
-        PKVar k tsu su' ->
-          PKVar k tsu (kSubstFromSubst $ substFromKSubst su' `catSubst` su)
-        PAll bs p
-          | disjointRange su' bs ->
-            PAll bs $ go su' p
-          | otherwise ->
-            errorstar "subst: PAll (without disjoint binds)"
-          where
-            su' = substExcept su (map fst bs)
-
-        PExist bs p
-          | disjointRange su' bs ->
-            PExist bs $ go su' p
-          | otherwise ->
-            errorstar "subst: EXISTS without disjoint binds"
-          where
-            su' = substExcept su (map fst bs)
-        p ->
-          p
-
-removeSubst :: (Eq v, Hashable v) => SubstV v -> v -> SubstV v
-removeSubst (Su su) x = Su $ M.delete x su
-
--- | Variable names for which we can propose variations to avoid name captures
+--- | Variable names for which we can propose variations to avoid name captures
 class Refreshable v where
   -- | Variations of a variable name. They must contain at least a fresh name in
   -- the contexts where @candidates@ is used.
   candidates :: v -> [v]
 
 instance Refreshable Symbol where
-  candidates x = [ renameSubstSymbol x i | i <- [0..] ]
+  candidates x =
+     let (x', i) = splitIntSuffix x
+      in x : map (intSymbol x') [i..]
+    where
+      splitIntSuffix sx =
+        case T.breakOnEnd symSepName (symbolText sx) of
+          (pfx, sfx)
+            | T.null pfx -> (sx, 0 :: Int)
+            | otherwise  -> case reads (T.unpack sfx) of
+              ((i, []) : _) -> (unSuffixSymbol sx, i + 1 :: Int)
+              _ -> (sx, 0 :: Int)
 
 -- | Rapier style capture-avoiding substitution
 --
--- The scope set parameter must contain any symbols that are expected
--- to appear free in the result expression. Typically, this is the set of
--- symbols that are free in the range of the substitution, plus any symbols
--- that are already free in the input expression.
-rapierSubstExpr :: (Hashable v, Refreshable v) => S.HashSet v -> SubstV v -> ExprBV v v -> ExprBV v v
-rapierSubstExpr s su e0 =
-  let go = rapierSubstExpr
-   in case e0 of
-    EApp f e -> EApp (go s su f) (go s su e)
-    ELam (x, t) e ->
-      if x `S.member` s then
-        let x' = fresh x
-            su' = extendSubst su x (EVar x')
-         in ELam (x', t) (go (S.insert x' s) su' e)
-      else
-        ELam (x, t) (go (S.insert x s) (removeSubst su x) e)
-    ELet x e1 e2 ->
-      if x `S.member` s then
-        let x' = fresh x
-            su' = extendSubst su x (EVar x')
-         in ELet x' (go s su e1) (go (S.insert x' s) su' e2)
-      else
-        let su' = removeSubst su x
-         in ELet x (go s su e1) (go (S.insert x s) su' e2)
-
-    ECoerc a t e -> ECoerc a t (go s su e)
-    ENeg e -> ENeg (go s su e)
-    EBin op e1 e2 -> EBin op (go s su e1) (go s su e2)
-    EIte p e1 e2 -> EIte (go s su p) (go s su e1) (go s su e2)
-    ECst e so -> ECst (go s su e) so
-    EVar x -> appSubst su x
-    PAnd ps -> PAnd $ map (go s su) ps
-    POr ps -> POr $ map (go s su) ps
-    PNot p -> PNot $ go s su p
-    PImp p1 p2 -> PImp (go s su p1) (go s su p2)
-    PIff p1 p2 -> PIff (go s su p1) (go s su p2)
-    PAtom r e1 e2 -> PAtom r (go s su e1) (go s su e2)
-    PKVar k tsu su' -> PKVar k tsu (catSubstGo su' su)
-    PAll bs p ->
-      let mfs = map (maybeFresh . fst) bs
-          fs = map (either (\x -> (x, x)) id) mfs
-          su' = List.foldl' (\su1 (x, x') -> extendSubst su1 x (EVar x')) su fs
-          bs' = zip (map (either id snd) mfs) (map snd bs)
-          s' = foldr (S.insert . fst) s bs'
-       in
-          PAll bs' $ go s' su' p
-    PExist bs p ->
-      let mfs = map (maybeFresh . fst) bs
-          fs = map (either (\x -> (x, x)) id) mfs
-          su' = List.foldl' (\su1 (x, x') -> extendSubst su1 x (EVar x')) su fs
-          bs' = zip (map (either id snd) mfs) (map snd bs)
-          s' = foldr (S.insert . fst) s bs'
-       in
-          PExist bs' $ go s' su' p
-    p -> p
+-- See the documentation of 'Subable' for more details.
+rapierSubstExpr
+  :: (HasCallStack, Eq v, Hashable v, Refreshable v)
+  => S.HashSet v -> SubstV v -> ExprBV v v -> ExprBV v v
+rapierSubstExpr = go
   where
-    fresh x = head $ dropWhile (`S.member` s) (candidates x)
+    go s su e0 = case e0 of
+        EApp f e -> EApp (go s su f) (go s su e)
+        ELam (x, t) e ->
+          let (s', x') = freshInNS x s
+              su' = extendSubstWithVar su x x'
+           in ELam (x', t) (go s' su' e)
+        ELet x e1 e2 ->
+          let (s', x') = freshInNS x s
+              su' = extendSubstWithVar su x x'
+           in ELet x' (go s su e1) (go s' su' e2)
 
-    maybeFresh x =
-      if x `S.member` s then Right (x, fresh x) else Left x
+        ECoerc a t e -> ECoerc a t (go s su e)
+        ENeg e -> ENeg (go s su e)
+        EBin op e1 e2 -> EBin op (go s su e1) (go s su e2)
+        EIte p e1 e2 -> EIte (go s su p) (go s su e1) (go s su e2)
+        ECst e so -> ECst (go s su e) so
+        EVar x
+          | S.member x s -> appSubst su x
+          | otherwise -> error "rapierSubstExpr: variable not in scope set"
+        PAnd ps -> PAnd $ map (go s su) ps
+        POr ps -> POr $ map (go s su) ps
+        PNot p -> PNot $ go s su p
+        PImp p1 p2 -> PImp (go s su p1) (go s su p2)
+        PIff p1 p2 -> PIff (go s su p1) (go s su p2)
+        PAtom r e1 e2 -> PAtom r (go s su e1) (go s su e2)
+        PKVar k tsu su' -> PKVar k tsu (catSubstGo su' su s)
+        PAll bs p ->
+          let xs = map fst bs
+              (s', fs) = freshInNSL xs s
+              su' = List.foldl' (\su1 (x, x') -> extendSubstWithVar su1 x x') su (zip xs fs)
+              bs' = zip fs (map snd bs)
+           in
+              PAll bs' $ go s' su' p
+        PExist bs p ->
+          let xs = map fst bs
+              (s', fs) = freshInNSL xs s
+              su' = List.foldl' (\su1 (x, x') -> extendSubstWithVar su1 x x') su (zip xs fs)
+              bs' = zip fs (map snd bs)
+           in
+              PExist bs' $ go s' su' p
+        p -> p
 
-    catSubstGo su1 su2@(Su s2) = toKVarSubst $ M.union s1 s2
+    catSubstGo su1 su2 s = catKVarSubst su1' (toListSubst su2)
       where
-        s1 = rapierSubstExpr s su2 <$> fromKVarSubst su1
+        su1' = mapKVarSubst (rapierSubstExpr s su2) su1
 
 extendSubst :: Hashable v => SubstV v -> v -> ExprBV v v -> SubstV v
 extendSubst (Su m) x e = Su $ M.insert x e m
 
-disjointRange :: (Eq v, Hashable v) => SubstV v -> [(v, Sort)] -> Bool
-disjointRange (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
-  where
-    suSyms = syms (M.elems su)
-    bsSyms = S.fromList $ fst <$> bs
+-- | Like 'extendSubst', but a no-op when @x' == x@ and @x@ is not already in
+-- the substitution domain. Use when extending with a binder rename @x → EVar x'@
+-- that may be trivial.
+extendSubstWithVar :: (Eq v, Hashable v) => SubstV v -> v -> v -> SubstV v
+extendSubstWithVar su@(Su m) x x'
+  | x' == x && not (M.member x m) = su
+  | otherwise = extendSubst su x (EVar x')
 
-meetReft :: Binder v => ReftBV v v -> ReftBV v v -> ReftBV v v
+meetReft :: (Refreshable v, Binder v) => ReftBV v v -> ReftBV v v -> ReftBV v v
 meetReft (Reft (v, ra)) (Reft (v', ra'))
   | v == v'          = Reft (v , pAnd [ra, ra'])
   | v == wildcard    = Reft (v', pAnd [ra', ra `subst1`  (v , EVar v')])
   | otherwise        = Reft (v , pAnd [ra, ra' `subst1` (v', EVar v )])
 
+
+freshInNS :: (Refreshable v, Hashable v) => v -> S.HashSet v -> (S.HashSet v, v)
+freshInNS x s =
+    let x' = head $ filter (not . (`S.member` s)) (candidates x)
+    in (S.insert x' s, x')
+
+freshInNSL :: (Refreshable v, Hashable v) => [v] -> S.HashSet v -> (S.HashSet v, [v])
+freshInNSL xs s = mapAccumL (flip freshInNS) s xs
+
 instance (Eq v, Hashable v, Refreshable v) => Subable (ReftBV v v) where
   type Variable (ReftBV v v) = v
   syms = reftSymbolsSet
-  substa f (Reft (v, ras))  = Reft (f v, substa f ras)
-  subst su (Reft (v, ras))  =
-    let su' = substExcept su [v]
-        s = S.union (substSymbolsSet su') (exprSymbolsSet ras)
-     in Reft (v, rapierSubstExpr s su' ras)
-  substf f (Reft (v, ras))  = Reft (v, substf (substfExcept f [v]) ras)
-  subst1 (Reft (v, ras)) su = Reft (v, subst1Except [v] ras su)
+  substr ns su (Reft (v, ras)) =
+     let (ns', v') = freshInNS v ns
+         su' = extendSubstWithVar su v v'
+      in
+         Reft (v', substr ns' su' ras)
 
 reftSymbolsSet :: (Eq v, Hashable v) => ReftBV v v -> S.HashSet v
 reftSymbolsSet (Reft (v, ras)) = S.delete v $ exprSymbolsSet ras
 
 instance Subable SortedReft where
   syms               = syms . sr_reft
-  subst su (RR so r) = RR so $ subst su r
-  substf f (RR so r) = RR so $ substf f r
-  substa f (RR so r) = RR so $ substa f r
+  substr ns su (RR so r) = RR so $ substr ns su r
 
 pprReft :: Reft -> Doc -> Doc
 pprReft (Reft (v, p)) d

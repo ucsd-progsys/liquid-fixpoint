@@ -3,7 +3,6 @@
 module SimplifyKVarTests (tests) where
 
 import Control.Monad (when)
-import qualified Data.HashSet as HashSet
 import Language.Fixpoint.Parse
 import qualified Language.Fixpoint.Types as F
 import qualified Language.Fixpoint.Solver.Solution as F
@@ -79,12 +78,12 @@ data SimplificationTest = SimplificationTest
 simplificationTest :: SimplificationTest -> TestTree
 simplificationTest test =
   testCase (name test) $ do
-    let actual =
-          F.simplifyKVar
-            HashSet.empty
-            (doParse'' True predP (name test) (input test))
+    let actual0 = doParse'' True predP (name test) (input test)
+        scope = F.syms actual0
+        actual = F.simplifyKVar scope actual0
         expectedE = doParse'' True predP (name test) (expected test)
-    when (not (F.alphaEq HashSet.empty actual expectedE)) $ do
+        allScope = F.syms [actual, expectedE]
+    when (not $ F.alphaEq allScope actual expectedE) $ do
       assertFailure $ unlines
         [ "output is not as expected"
         , "Expected:"

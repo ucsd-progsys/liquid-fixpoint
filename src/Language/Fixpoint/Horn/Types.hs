@@ -83,21 +83,9 @@ instance F.Subable Pred where
   syms (Var _ xs) = F.syms xs
   syms (PAnd ps)  = F.syms ps
 
-  substa f (Reft e)   = Reft  (F.substa f      e)
-  substa f (Var k xs) = Var k (F.substa f <$> xs)
-  substa f (PAnd ps)  = PAnd  (F.substa f <$> ps)
-
-  subst su (Reft  e)  = Reft  (F.subst su      e)
-  subst su (PAnd  ps) = PAnd  (F.subst su <$> ps)
-  subst su (Var k xs) = Var k (F.subst su <$> xs)
-
-  substf f (Reft  e)  = Reft  (F.substf f      e)
-  substf f (PAnd  ps) = PAnd  (F.substf f <$> ps)
-  substf f (Var k xs) = Var k (F.substf f <$> xs)
-
-  subst1 (Reft  e)  su = Reft  (F.subst1 e su)
-  subst1 (PAnd  ps) su = PAnd  [F.subst1 p su | p <- ps]
-  subst1 (Var k xs) su = Var k [F.subst1 x su | x <- xs]
+  substr ns su (Reft  e)  = Reft  (F.substr ns su      e)
+  substr ns su (PAnd  ps) = PAnd  (F.substr ns su <$> ps)
+  substr ns su (Var k xs) = Var k (F.substr ns su <$> xs)
 
 -------------------------------------------------------------------------------
 quals :: Cstr a -> [F.Qualifier]
@@ -164,10 +152,10 @@ instance F.ToHornSMT (Bind a) where
 
 instance F.Subable (Bind a) where
     syms     (Bind x _ p _) = S.insert x $ F.syms p
-    substa f (Bind v t p a) = Bind (f v) t (F.substa f p) a
-    substf f (Bind v t p a) = Bind v t (F.substf (F.substfExcept f [v]) p) a
-    subst su (Bind v t p a)  = Bind v t (F.subst (F.substExcept su [v]) p) a
-    subst1 (Bind v t p a) su = Bind v t (F.subst1Except [v] p su) a
+    substr ns su (Bind v t p a) =
+      let (ns', v') = F.freshInNS v ns
+       in
+          Bind v t (F.substr ns' (F.extendSubstWithVar su v v') p) a
 
 -- Can we enforce the invariant that CAnd has len > 1?
 data Cstr a

@@ -61,10 +61,10 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
 --------------------------------------------------------------------------------
 solve
   :: forall a. (NFData a, F.Fixpoint a, Show a, F.Loc a)
-  => Config -> ElabParam -> F.SInfo a -> IO (F.Result (Integer, a))
+  => Config -> ElabParam -> S.HashSet F.Symbol -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 
-solve cfg elabParam fi = do
+solve cfg elabParam scope fi = do
     whenLoud $ donePhase Misc.Loud "Worklist Initialize"
     vb <- getVerbosity
     (res, stat) <- (if Quiet == vb then id else withProgressFI sI) $ runSolverM cfg sI elabParam act
@@ -77,7 +77,7 @@ solve cfg elabParam fi = do
       ctx <- getContext
       let sEnv = symbolEnv cfg fi
           s1 = s0{Sol.sMap = M.map (elabQBind ctx "solve" sEnv) (Sol.sMap s0)}
-      solve_ cfg fi s1 wkl
+      solve_ cfg scope fi s1 wkl
     -- solverInfo computes the set of cut and non-cut kvars, then initializes
     -- the solutions of the non-cut KVars (in the sHyp field)
     --
@@ -127,17 +127,18 @@ doInterpret cfg fi subcIds = liftIO $ instInterpreter cfg fi (Just subcIds)
 {-# SCC solve_ #-}
 solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        => Config
+       -> S.HashSet F.Symbol
        -> F.SInfo a
        -> Sol.Solution
        -> W.Worklist a
        -> SolveM a (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
-solve_ cfg fi s2 wkl = do
+solve_ cfg scope fi s2 wkl = do
   liftSMT $ smtComment "solve: start"
   (s3, res0) <- sendConcreteBindingsToSMT F.emptyIBindEnv (F.bs fi) $ \bindingsInSmt -> do
     -- let s3   = solveEbinds fi s2
-    s3       <- {- SCC "sol-refine" -} refine bindingsInSmt (F.bs fi) s2 wkl
-    res0     <- {- SCC "sol-result" -} result bindingsInSmt cfg fi (W.unsatCandidates wkl) s3
+    s3       <- {- SCC "sol-refine" -} refine scope bindingsInSmt (F.bs fi) s2 wkl
+    res0     <- {- SCC "sol-result" -} result scope bindingsInSmt cfg fi (W.unsatCandidates wkl) s3
     return (s3, res0)
 
   (fi1, res1) <- case resStatus res0 of  {- first run the interpreter -}
@@ -148,7 +149,7 @@ solve_ cfg fi s2 wkl = do
           badCs = lookupCMap (F.cm fi) <$> map fst bads
       liftSMT $ smtComment "solve: pos-interpreter check"
       fmap (fi1,) $ sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
-        result bindingsInSmt cfg fi1 badCs s3
+        result scope bindingsInSmt cfg fi1 badCs s3
     _ -> return  (fi, mytrace "all checked before interpreter" res0)
 
   res2  <- case resStatus res1 of  {- then run normal PLE on remaining unsolved constraints -}
@@ -156,13 +157,13 @@ solve_ cfg fi s2 wkl = do
       when (save cfg) $
         liftIO $ S.saveSolution cfg ".pre-ple" res1
       liftSMT $ smtComment "solve: ple"
-      bs <- liftSMT $ PLE.instantiate cfg fi1 (Just s3) (Just $ map fst bads2)
+      bs <- liftSMT $ PLE.instantiate cfg scope fi1 (Just s3) (Just $ map fst bads2)
       -- Check the constraints one last time after PLE
       let fi2 = fi { F.bs = bs }
           badsCs2 = lookupCMap (F.cm fi) <$> map fst bads2
       liftSMT $ smtComment "solve: pos-ple check"
       sendConcreteBindingsToSMT F.emptyIBindEnv bs $ \bindingsInSmt ->
-        result bindingsInSmt cfg fi2 badsCs2 s3
+        result scope bindingsInSmt cfg fi2 badsCs2 s3
     _ -> return $ mytrace "all checked with interpreter" res1
 
   liftSMT $ smtComment "solve: finished"
@@ -220,19 +221,20 @@ tidyPred =  go
 --
 refine
   :: forall a. F.Loc a
-  => F.IBindEnv
+  => S.HashSet F.Symbol
+  -> F.IBindEnv
   -> F.BindEnv a
   -> Sol.Solution
   -> W.Worklist a
   -> SolveM a Sol.Solution
 --------------------------------------------------------------------------------
-refine bindingsInSmt be0 s0 w0 = go be0 s0 w0
+refine scope bindingsInSmt be0 s0 w0 = go be0 s0 w0
   where
     go :: F.BindEnv a -> Sol.Solution -> W.Worklist a -> SolveM a Sol.Solution
     go be s w
       | Just (c, w', newScc, rnk) <- W.pop w = do
          i       <- tickIter newScc
-         (b, s') <- refineC bindingsInSmt be i s c
+         (b, s') <- refineC scope bindingsInSmt be i s c
          lift $ writeLoud $ refineMsg i c b rnk (showpp s')
          let w'' = if b then W.push c w' else w'
          go be s' w''
@@ -248,20 +250,21 @@ refine bindingsInSmt be0 s0 w0 = go be0 s0 w0
 {-# SCC refineC #-}
 refineC
   :: forall a. (F.Loc a)
-  => F.IBindEnv
+  => S.HashSet F.Symbol
+  -> F.IBindEnv
   -> F.BindEnv a
   -> Int
   -> Sol.Solution
   -> F.SimpC a
   -> SolveM a (Bool, Sol.Solution)
 ---------------------------------------------------------------------------
-refineC bindingsInSmt be _i s c =
+refineC scope bindingsInSmt be _i s c =
   do let krhs = rhsCands s
      cfg <- T.config <$> getContext
      if all (null . snd) krhs
         then return (False, s)
         else do
-          let lhs = S.lhsPred cfg bindingsInSmt be s c
+          let lhs = S.lhsPred cfg scope bindingsInSmt be s c
           kqs <- forM krhs $ \(k, rhs) ->
             (,) k . Sol.QB <$> filterValid (cstrSpan c) lhs rhs
           return $ S.update s kqs
@@ -284,20 +287,21 @@ predKs _              = []
 {-# SCC result #-}
 result
   :: (F.Fixpoint a, F.Loc a, NFData a)
-  => F.IBindEnv
+  => S.HashSet F.Symbol
+  -> F.IBindEnv
   -> Config
   -> F.SInfo a
   -> [F.SimpC a]
   -> Sol.Solution
   -> SolveM a (F.Result (Integer, a))
 --------------------------------------------------------------------------------
-result bindingsInSmt cfg fi cs s =
+result scope bindingsInSmt cfg fi cs s =
   sendConcreteBindingsToSMT bindingsInSmt be $ \bindingsInSmt2 -> do
     lift       $ writeLoud "Computing Result"
-    stat      <- result_ bindingsInSmt2 be cfg cs s
+    stat      <- result_ scope bindingsInSmt2 be cfg cs s
     lift       $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
     resCut    <- solResult cfg s
-    let resNonCut = S.nonCutsResult cfg be s
+    let resNonCut = S.nonCutsResult cfg scope be s
         resSorts = resultSorts fi (M.keys resCut ++ M.keys resNonCut) be
     return     $ F.Result (ci <$> stat) resCut resNonCut resSorts
   where
@@ -327,14 +331,15 @@ solResult cfg = minimizeResult cfg . Sol.result
 
 result_
   :: (F.Loc a, NFData a)
-  => F.IBindEnv
+  => S.HashSet F.Symbol
+  -> F.IBindEnv
   -> F.BindEnv a
   -> Config
   -> [F.SimpC a]
   -> Sol.Solution
   -> SolveM a (F.FixResult (F.SimpC a))
-result_ bindingsInSmt be cfg cs0 s = do
-  unsatisfiedConstraints <- filterM (isUnsat bindingsInSmt be s) cs
+result_ scope bindingsInSmt be cfg cs0 s = do
+  unsatisfiedConstraints <- filterM (isUnsat scope bindingsInSmt be s) cs
   sts      <- stats
   pure $ res sts unsatisfiedConstraints
   where
@@ -375,13 +380,13 @@ minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
 
 --------------------------------------------------------------------------------
 isUnsat
-  :: (F.Loc a, NFData a) => F.IBindEnv -> F.BindEnv a -> Sol.Solution -> F.SimpC a -> SolveM a Bool
+  :: (F.Loc a, NFData a) => S.HashSet F.Symbol -> F.IBindEnv -> F.BindEnv a -> Sol.Solution -> F.SimpC a -> SolveM a Bool
 --------------------------------------------------------------------------------
-isUnsat bindingsInSmt be s c = do
+isUnsat scope bindingsInSmt be s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
   _     <- tickIter True -- newScc
   cfg <- T.config <$> getContext
-  let lp = S.lhsPred cfg bindingsInSmt be s c
+  let lp = S.lhsPred cfg scope bindingsInSmt be s c
       rp = rhsPred c
   res   <- not <$> isValid (cstrSpan c) lp rp
   lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp

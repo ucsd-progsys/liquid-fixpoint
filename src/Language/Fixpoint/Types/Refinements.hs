@@ -58,6 +58,7 @@ module Language.Fixpoint.Types.Refinements (
   -- * Generalizing Embedding with Typeclasses
   , Expression (..)
   , Predicate (..)
+
   -- * Constructors
   , reft                    -- "smart
   , trueSortedReft          -- trivial reft
@@ -107,6 +108,7 @@ module Language.Fixpoint.Types.Refinements (
   , onEverySubexpr
   , mapBindExpr
   , pprintReft
+  , catKVarSubst
   , mapKVarSubst
   , mapBindKVarSubst
   , mapBindReft
@@ -126,7 +128,6 @@ import qualified Data.HashMap.Strict       as HashMap
 import           Data.HashSet              (HashSet)
 import qualified Data.HashSet              as HashSet
 import           GHC.Generics              (Generic)
-
 #if MIN_VERSION_base(4,20,0)
 import           Data.List                 (partition)
 #else
@@ -256,7 +257,8 @@ instance (Ord v, Hashable v, Fixpoint v) => Fixpoint (SubstV v) where
 instance (Ord v, Hashable v, Fixpoint v) => PPrint (SubstV v) where
   pprintTidy _ = toFix
 
-newtype KVarSubst b v = KSu [(b, ExprBV b v)]
+newtype KVarSubst b v =
+    KSu [(b, ExprBV b v)] -- ^ No duplicate entries are allowed in the list.
   deriving (Eq, Ord, Data, Typeable, Generic, Functor, Foldable, Traversable)
 
 fromKVarSubst :: Hashable b => KVarSubst b v -> M.HashMap b (ExprBV b v)
@@ -273,6 +275,14 @@ mapBindKVarSubst f = toKVarSubst . fmap (mapBindExpr f) . M.mapKeys f . fromKVar
 
 isEmptyKVarSubst :: KVarSubst b v -> Bool
 isEmptyKVarSubst (KSu su) = null su
+
+-- | @t [catKVarSubst su kvs] = t [su, kvs]@
+--
+-- No substitions are made in expressions of @su@.
+catKVarSubst :: Eq b => KVarSubst b v -> [(b, ExprBV b v)] -> KVarSubst b v
+catKVarSubst (KSu su) kvs = KSu $ filter (not . inSu . fst) kvs ++ su
+  where
+    inSu b = any ((== b) . fst) su
 
 instance (Ord v, Fixpoint v, Ord b, Fixpoint b, Hashable b) => Show (KVarSubst b v) where
   show = showFix
@@ -1093,7 +1103,6 @@ instance Falseable (ExprBV b v) where
 
 instance Falseable (ReftBV b v) where
   isFalse (Reft (_, ra)) = isFalse ra
-
 
 instance Fixpoint Doc where
   toFix = id

@@ -79,8 +79,8 @@ mytracepp = notracepp
 -- unfoldings discovered by PLE on the constraints in @subcIds@ (or all
 -- constraints if @subcIds == Nothing@).
 {-# SCC instantiate #-}
-instantiate :: (Loc a) => Config -> SInfo a -> Maybe Solution -> Maybe [SubcId] -> SmtM (BindEnv a)
-instantiate cfg fi' mSol subcIds = do
+instantiate :: (Loc a) => Config -> S.HashSet Symbol -> SInfo a -> Maybe Solution -> Maybe [SubcId] -> SmtM (BindEnv a)
+instantiate cfg scope fi' mSol subcIds = do
     let cs = M.filterWithKey
                (\i c -> isPleCstr aEnv i c && maybe True (i `L.elem`) subcIds)
                (cm info)
@@ -88,7 +88,7 @@ instantiate cfg fi' mSol subcIds = do
     res   <- withRESTSolver $ \solver -> do
                ctx <- get
                (res, ctx') <- liftIO $ withProgressM (`runStateT` ctx) (1 + M.size cs) $ do
-                 env <- instEnv cfg info mSol cs solver
+                 env <- instEnv cfg scope info mSol cs solver
                  pleTrie t env                                              -- 2. TRAVERSE Trie to compute InstRes
                put ctx'
                return res
@@ -133,12 +133,13 @@ savePLEEqualities cfg info sEnv res = when (save cfg) $ do
 instEnv
   :: Loc a
   => Config
+  -> S.HashSet Symbol
   -> SInfo a
   -> Maybe Solution
   -> CMap (SimpC a)
   -> Maybe SolverHandle
   -> SmtM (InstEnv a)
-instEnv cfg info s cs restSolver = do
+instEnv cfg scope info s cs restSolver = do
     ctx <- get
     refRESTCache <- liftIO $ newIORef mempty
     refRESTSatCache <- liftIO $ newIORef mempty
@@ -176,6 +177,7 @@ instEnv cfg info s cs restSolver = do
     return $ InstEnv
        { ieCfg = cfg
        , ieBEnv = bs info
+       , ieScope = scope
        , ieAenv = ae info
        , ieCstrs = cs
        , ieKnowl = knowledge cfg info
@@ -446,6 +448,7 @@ resSInfo cfg env info res = strengthenBinds info res'
 data InstEnv a = InstEnv
   { ieCfg   :: !Config
   , ieBEnv  :: !(BindEnv a)
+  , ieScope :: !(S.HashSet Symbol)
   , ieAenv  :: !AxiomEnv
   , ieCstrs :: !(CMap (SimpC a))
   , ieKnowl :: !Knowledge
@@ -556,7 +559,7 @@ updCtx cfg InstEnv{..} ieSMT ictx delta cidMb mCTrie =
     es        = expr <$> bs
     eRhs      = maybe PTrue crhs subMb
 
-    (binds, existentialCounter) = renameExistentialsInSortedRefts binds0 (icFreshExistentialCounter ictx)
+    (binds, existentialCounter) = renameExistentialsInSortedRefts ieScope binds0 (icFreshExistentialCounter ictx)
 
     binds0    = [ maybeApplyKVarSolutions (x, y)
                 | i <- delta
@@ -589,6 +592,7 @@ updCtx cfg InstEnv{..} ieSMT ictx delta cidMb mCTrie =
         g = CEnv
           { ceCid = gCid
           , ceBEnv = ieBEnv
+          , ceInScope = ieScope
           , ceIEnv = ibinds
           , ceSpan = maybe dummySpan srcSpan $ gCid >>= (`M.lookup` ieCstrs)
           , ceBindingsInSmt = emptyIBindEnv
@@ -1437,7 +1441,7 @@ knowledge cfg si = KN
 
 
     makeCons rw
-      | S.null (syms $ smBody rw)
+      | null (syms $ smBody rw)
       = Just (smName rw, (smDC rw, smBody rw))
       | otherwise
       = Nothing
@@ -1564,7 +1568,7 @@ instance Normalizable Equation where
 
 -- | Normalize the given named expression if it is recursive.
 normalizeBody :: Symbol -> Expr -> Expr
-normalizeBody f exprs | f `S.member` syms exprs = go exprs
+normalizeBody f exprs | f `elem` syms exprs = go exprs
   where
     -- @go@ performs this simplification:
     --     (c => e1) /\ ((not c) => e2) --> if c then e1 else e2
@@ -1678,23 +1682,24 @@ checkFuel f = do
 -- These superficial existentials appear in conjunctions, disjunctions and in the
 -- body of other existentials only.
 renameExistentialsInSortedRefts
-  :: [(Symbol, SortedReft)]
+  :: S.HashSet Symbol
+  -> [(Symbol, SortedReft)]
   -> Int
   -> ([(Symbol, SortedReft)], Int)
-renameExistentialsInSortedRefts binds0 existentialCounter =
+renameExistentialsInSortedRefts scope binds0 existentialCounter =
     let
         binds = [ (x, sr { sr_reft = mapPredReft (const p) (sr_reft sr) }) | ((x, sr), p) <- zip binds0 preds ]
         (preds, existentialCounter') =
-          renameKVarExistentials (map (reftPred . sr_reft . snd) binds0) existentialCounter
+          renameKVarExistentials scope (map (reftPred . sr_reft . snd) binds0) existentialCounter
      in
         (binds, existentialCounter')
 
-renameKVarExistentials :: [Expr] -> Int -> ([Expr], Int)
-renameKVarExistentials = runState . mapM go
+renameKVarExistentials :: S.HashSet Symbol -> [Expr] -> Int -> ([Expr], Int)
+renameKVarExistentials scope0 = runState . mapM (go scope0)
   where
-    go (POr es) = POr <$> mapM go es
-    go (PAnd es) = PAnd <$> mapM go es
-    go (PExist bs e0) = do
+    go scope (POr es) = POr <$> mapM (go scope) es
+    go scope (PAnd es) = PAnd <$> mapM (go scope) es
+    go scope (PExist bs e0) = do
       i1 <- get
       let i2 = i1 + length bs
       put i2
@@ -1702,8 +1707,9 @@ renameKVarExistentials = runState . mapM go
           vs' = [ existSymbol v (fromIntegral i) | (v, i) <- zip vs [i1..] ]
           bs' = zip vs' (map snd bs)
           su = mkSubst $ zip vs (map EVar vs')
-      PExist bs' <$> go (rapierSubstExpr (S.fromList vs') su e0)
-    go e = pure e
+          scope' = S.fromList vs `S.union` S.fromList vs' `S.union` scope
+      PExist bs' <$> go scope' (substr scope' su e0)
+    go _ e = pure e
 
 -- ^ Scopes of existential binders identifying the location of sub-expressions
 type ExScope = [(Symbol, Sort)]

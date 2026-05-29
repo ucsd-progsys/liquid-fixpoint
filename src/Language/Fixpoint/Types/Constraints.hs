@@ -546,12 +546,12 @@ instance Loc Qualifier where
 
 instance Subable Qualifier where
   syms   = qualFreeSymbols
-  subst  = mapQualBody . subst
-  substf = mapQualBody . substf
-  substa = mapQualBody . substa
-
-mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
-mapQualBody f q = q { qBody = f (qBody q) }
+  substr ns su q =
+    let xs  = qpSym <$> qParams q
+        (ns', xs') = freshInNSL xs ns
+        su' = L.foldl' (\acc (x, x') -> extendSubstWithVar acc x x') su (zip xs xs')
+        ps' = zipWith (\qp x' -> qp { qpSym = x' }) (qParams q) xs'
+    in  q { qParams = ps', qBody = substr ns' su' (qBody q) }
 
 qualFreeSymbols :: Qualifier -> S.HashSet Symbol
 qualFreeSymbols q = S.filter (not . isPrim) xs
@@ -1037,16 +1037,15 @@ eqnToHornSMT keyword (Equ f xs e s _) = parens (keyword <+> pprint f <+> toHornS
 
 
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
-mkEquation f xts e out = Equ f xts e out (f `S.member` syms e)
+mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
 
 instance Subable Equation where
   syms   a = syms (eqBody a) -- ++ F.syms (axiomEq a)
-  subst su = mapEqBody (subst su)
-  substf f = mapEqBody (substf f)
-  substa f = mapEqBody (substa f)
-
-mapEqBody :: (Expr -> Expr) -> Equation -> Equation
-mapEqBody f a = a { eqBody = f (eqBody a) }
+  substr ns su eq =
+    let (xs, sorts) = unzip (eqArgs eq)
+        (ns', xs')  = freshInNSL xs ns
+        su'  = L.foldl' (\acc (x, x') -> extendSubstWithVar acc x x') su (zip xs xs')
+    in  eq { eqArgs = zip xs' sorts, eqBody = substr ns' su' (eqBody eq) }
 
 instance PPrint Equation where
   pprintTidy _ = toFix
