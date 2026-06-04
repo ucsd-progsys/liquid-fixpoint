@@ -2,6 +2,13 @@
 
 ## NEXT
 
+## 0.9.6.3.7 (2026-06-04)
+
+- Migrate from cmdargs to base:System.Console.GetOpt
+  [#842](https://github.com/ucsd-progsys/liquid-fixpoint/pull/842)
+  [#843](https://github.com/ucsd-progsys/liquid-fixpoint/pull/843)
+  [#844](https://github.com/ucsd-progsys/liquid-fixpoint/pull/844)
+
 ## 0.9.6.3.6 (2026-05-06)
 
 - Drop dependency on lens-family [#841](http://github.com/ucsd-progsys/liquid-fixpoint/pull/841)
