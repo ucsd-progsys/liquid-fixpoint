@@ -270,11 +270,15 @@ smt2App e = do s0 <- traverse smt2 es
     (f, es) = splitEApp' e
 
 smt2Coerc :: Sort -> Sort -> Expr -> SymM Builder
-smt2Coerc t1 t2 e
-  | t1 == t2  = smt2 e
-  | otherwise = do coerceFn <- symbolAtName coerceName (FFunc t1 t2)
-                   s <- smt2 e
-                   pure $ parenSeqs [Builder.fromText coerceFn , s]
+smt2Coerc t1 t2 e = do
+  env <- get
+  let s1 = Thy.sortSmtSort False (seData env) t1
+      s2 = Thy.sortSmtSort False (seData env) t2
+  if s1 == s2 then smt2 e
+  else do
+    coerceFn <- symbolAtName coerceName (FFunc t1 t2)
+    s <- smt2 e
+    pure $ parenSeqs [Builder.fromText coerceFn , s]
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
