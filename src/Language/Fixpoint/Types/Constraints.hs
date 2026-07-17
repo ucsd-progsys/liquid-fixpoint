@@ -1125,7 +1125,9 @@ instance Fixpoint Rewrite where
   toFix (SMeasure f d xs e)
     = text "match"
    <+> toFix f
-   <+> toFix d <+> hsep (toFix <$> xs)
+   <+> (if null xs
+        then toFix d
+        else parens (toFix d <+> hsep (toFix <$> xs)))
    <+> braces (toFix e)
 
 instance PPrint Rewrite where
