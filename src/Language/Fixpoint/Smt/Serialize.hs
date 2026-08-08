@@ -155,7 +155,7 @@ instance SMTLIB2 Bop where
   smt2 Div    = pure $ symbolBuilder divFuncName
   smt2 RTimes = pure "*"
   smt2 RDiv   = pure "/"
-  smt2 Mod    = pure "mod"
+  smt2 Mod    = pure $ symbolBuilder modFuncName
 
 instance SMTLIB2 Brel where
   smt2 Eq  = pure "="

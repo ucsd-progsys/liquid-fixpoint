@@ -244,16 +244,19 @@ bFun' name ts out = key "declare-fun" (seqs [fromText name, args, out])
 bSort :: Raw -> Builder -> Builder
 bSort name def = key "define-sort" (fromText name <+> "()" <+> def)
 
-
+-- Generate division/modulo function that matches Haskell's rounding behavior
+-- Returns (ite (> y 0) (op x y) (- (op (- x) y)) where op can be 'div' or 'mod'
+mkHaskellDiv :: Builder -> Builder -> Builder -> Builder
+mkHaskellDiv op x y = key3 "ite" (key2 ">" y "0") (key2 op x y) (key "-" (key2 op (key "-" x) y))
 
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
 -- (2) have very different semantics. TODO: proper overloading, post genEApp
-uifDef :: Config -> Data.Text.Text -> Data.Text.Text -> Builder
+uifDef :: Config -> Data.Text.Text -> (Builder -> Builder -> Builder) -> Builder
 uifDef cfg f op
   | onlyLinearArith cfg -- linear cfg || Z3 /= solver cfg
   = bFun' f ["Int", "Int"] "Int"
   | otherwise
-  = bFun f [("x", "Int"), ("y", "Int")] "Int" (key2 (fromText op) "x" "y")
+  = bFun f [("x", "Int"), ("y", "Int")] "Int" (op "x" "y")
 
 onlyLinearArith :: Config -> Bool
 onlyLinearArith cfg = linear cfg || solver cfg `notElem` [Z3, Z3mem, Cvc5]
@@ -295,8 +298,9 @@ boolPreamble _
 
 arithPreamble :: Config -> [Preamble]
 arithPreamble cfg = (SAll,) <$>
- [ uifDef cfg (symbolText mulFuncName) "*"
- , uifDef cfg (symbolText divFuncName) "div"
+ [ uifDef cfg (symbolText mulFuncName) (key2 "*")
+ , uifDef cfg (symbolText divFuncName) (mkHaskellDiv "div")
+ , bFun (symbolText modFuncName) [("x", "Int"), ("y", "Int")] "Int" (mkHaskellDiv "mod" "x" "y")
  ]
 
 stringPreamble :: Config -> [Preamble]

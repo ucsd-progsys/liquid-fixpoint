@@ -120,6 +120,7 @@ module Language.Fixpoint.Types.Names (
   , prims
   , mulFuncName
   , divFuncName
+  , modFuncName
 
   -- * Casting function names
   , setToIntName, bitVecToIntName, mapToIntName, bagToIntName, boolToIntName, realToIntName, toIntName, tyCastName
@@ -702,9 +703,10 @@ sizeName      = "Size"
 bitVecName    = "BitVec"
 
 
-mulFuncName, divFuncName :: Symbol
+mulFuncName, divFuncName, modFuncName :: Symbol
 mulFuncName  = "SMTLIB_OP_MUL"
-divFuncName  = "SMTLIB_OP_DIV"
+divFuncName  = "HASKELL_DIV"
+modFuncName  = "HASKELL_MOD"
 
 isPrim :: Symbol -> Bool
 isPrim x = S.member x prims
