@@ -934,8 +934,8 @@ initOpTable :: OpTable v
 initOpTable = IM.empty
 
 -- | Built-in operator table, parameterised over the composition function.
-bops :: forall v. ParseableV v => Maybe (Located String -> ExprV v) -> OpTable v
-bops cmpFun = List.foldl' (flip addOperator) initOpTable builtinOps
+bops :: forall v. ParseableV v => OpTable v
+bops = List.foldl' (flip addOperator) initOpTable builtinOps
   where
     -- Built-in Haskell operators, see https://www.haskell.org/onlinereport/decls.html#fixity
     builtinOps :: [Fixity v]
@@ -945,7 +945,7 @@ bops cmpFun = List.foldl' (flip addOperator) initOpTable builtinOps
                  , FInfix  (Just 6) "-"   (Just $ const $ EBin Minus) AssocLeft
                  , FInfix  (Just 6) "+"   (Just $ const $ EBin Plus)  AssocLeft
                  , FInfix  (Just 5) "mod" (Just $ const $ EBin Mod)   AssocLeft -- Haskell gives mod 7
-                 , FInfix  (Just 9) "."   applyCompose        AssocRight
+                 , FInfix  (Just 9) "."   Nothing                     AssocRight
                 --  --
                  , FInfix  (Just 4) "=="  (Just $ const $ PAtom Eq)  AssocNone
                  , FInfix  (Just 4) "="   (Just $ const $ PAtom Eq)  AssocNone
@@ -965,9 +965,6 @@ bops cmpFun = List.foldl' (flip addOperator) initOpTable builtinOps
                  , FInfix  (Just 1) "<=>" (Just $ const PIff) AssocRight
                  , FPrefix (Just 9) "~"   (Just $ const PNot)
                  ]
-
-    applyCompose :: Maybe (Located String -> ExprV v -> ExprV v -> ExprV v)
-    applyCompose = (\f lop x y -> f lop `eApps` [x,y]) <$> cmpFun
 
 -- | Parser for function applications.
 funAppP :: ParseableV v => ParserV v (ExprV v)
@@ -1464,12 +1461,8 @@ remainderP p
 -- | Initial parser state.
 initPState
   :: ParseableV v
-  -- The expression to produce when the composition operator is parsed (@f . g@)
-  --
-  -- Receives the location of the composition operator.
-  => Maybe (Located String -> ExprV v)
-  -> PStateV v
-initPState cmpFun = PState { fixityTable = bops cmpFun
+  => PStateV v
+initPState = PState { fixityTable = bops
                            , empList     = Nothing
                            , singList    = Nothing
                            , fixityOps   = []
@@ -1489,7 +1482,7 @@ doParse' = doParse'' False
 
 doParse'' :: Bool -> Parser a -> SourceName -> String -> a
 doParse'' allowEx parser fileName input =
-  case runParser (evalStateT (spaces *> parser <* eof) ((initPState Nothing) { allowExists = allowEx})) fileName input of
+  case runParser (evalStateT (spaces *> parser <* eof) (initPState { allowExists = allowEx})) fileName input of
     Left peb@(ParseErrorBundle errors posState) -> -- parse errors; we extract the first error from the error bundle
       let
         ((_, pos) :| _, _) = attachSourcePos errorOffset errors posState
@@ -1504,7 +1497,7 @@ doParse'' allowEx parser fileName input =
 -- | Function to test parsers interactively.
 parseTest' :: Show a => Parser a -> String -> IO ()
 parseTest' parser input =
-  parseTest (evalStateT parser (initPState Nothing)) input
+  parseTest (evalStateT parser initPState) input
 
 -- errorSpan :: ParseError -> SrcSpan
 -- errorSpan e = SS l l where l = errorPos e
