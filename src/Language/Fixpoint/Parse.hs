@@ -546,6 +546,9 @@ _reservedOpNames =
   , "|-"
   , "::"
   , "."
+  -- unicode aliases
+  , "∷", "⇒", "→", "←", "⤚", "⤙", "⤜", "⤛"
+  , "★", "∀", "⦇", "⦈", "⟦", "⟧", "⊸"
   ]
 
 {-
@@ -602,12 +605,47 @@ locReserved x =
 --
 reservedOp :: String -> ParserV v ()
 reservedOp x =
-  void $ lexeme (try (string x <* notFollowedBy opLetter))
+  void $ lexeme (try (string x <* notFollowedBy opLetter)
+    <|> try (string (unicodeAlias x) <* notFollowedBy opLetter))
+  where
+    unicodeAlias "::"     = "∷"  -- U+2237
+    unicodeAlias "=>"     = "⇒"  -- U+21D2
+    unicodeAlias "->"     = "→"  -- U+2192
+    unicodeAlias "<-"     = "←"  -- U+2190
+    unicodeAlias ">-"     = "⤚"  -- U+291A
+    unicodeAlias "-<"     = "⤙"  -- U+2919
+    unicodeAlias ">>-"    = "⤜"  -- U+291C
+    unicodeAlias "-<<"    = "⤛"  -- U+291B
+    unicodeAlias "*"      = "★"  -- U+2605
+    unicodeAlias "forall" = "∀"  -- U+2200
+    unicodeAlias "(|"     = "⦇"  -- U+2987
+    unicodeAlias "|)"     = "⦈"  -- U+2988
+    unicodeAlias "[|"     = "⟦"  -- U+27E6
+    unicodeAlias "|]"     = "⟧"  -- U+27E7
+    unicodeAlias "%1->"   = "⊸"  -- U+2288
+    unicodeAlias op = op
 
 reservedOp' :: Parser () -> String -> Parser ()
 reservedOp' spacesP x =
-  void $ lexeme' spacesP (try (string x <* notFollowedBy opLetter))
-
+  void $ lexeme' spacesP (try (string x <* notFollowedBy opLetter)
+        <|> try (string (unicodeAlias x) <* notFollowedBy opLetter))
+  where
+    unicodeAlias "::"     = "∷"  -- U+2237
+    unicodeAlias "=>"     = "⇒"  -- U+21D2
+    unicodeAlias "->"     = "→"  -- U+2192
+    unicodeAlias "<-"     = "←"  -- U+2190
+    unicodeAlias ">-"     = "⤚"  -- U+291A
+    unicodeAlias "-<"     = "⤙"  -- U+2919
+    unicodeAlias ">>-"    = "⤜"  -- U+291C
+    unicodeAlias "-<<"    = "⤛"  -- U+291B
+    unicodeAlias "*"      = "★"  -- U+2605
+    unicodeAlias "forall" = "∀"  -- U+2200
+    unicodeAlias "(|"     = "⦇"  -- U+2987
+    unicodeAlias "|)"     = "⦈"  -- U+2988
+    unicodeAlias "[|"     = "⟦"  -- U+27E6
+    unicodeAlias "|]"     = "⟧"  -- U+27E7
+    unicodeAlias "%1->"   = "⊸"  -- U+2288
+    unicodeAlias op = op
 
 -- | Parser that consumes the given symbol.
 --
