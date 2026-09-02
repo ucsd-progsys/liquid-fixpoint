@@ -546,6 +546,8 @@ _reservedOpNames =
   , "|-"
   , "::"
   , "."
+  -- unicode aliases
+  , "∷", "⇒", "→"
   ]
 
 {-
@@ -602,12 +604,23 @@ locReserved x =
 --
 reservedOp :: String -> ParserV v ()
 reservedOp x =
-  void $ lexeme (try (string x <* notFollowedBy opLetter))
+  void $ lexeme (try (string x <* notFollowedBy opLetter)
+    <|> try (string (unicodeAlias x) <* notFollowedBy opLetter))
+  where
+    unicodeAlias "::"     = "∷"  -- U+2237
+    unicodeAlias "=>"     = "⇒" -- U+21D2
+    unicodeAlias "->"     = "→"  -- U+2192
+    unicodeAlias op = op
 
 reservedOp' :: Parser () -> String -> Parser ()
 reservedOp' spacesP x =
-  void $ lexeme' spacesP (try (string x <* notFollowedBy opLetter))
-
+  void $ lexeme' spacesP (try (string x <* notFollowedBy opLetter)
+        <|> try (string (unicodeAlias x) <* notFollowedBy opLetter))
+  where
+    unicodeAlias "::"     = "∷"  -- U+2237
+    unicodeAlias "=>"     = "⇒" -- U+21D2
+    unicodeAlias "->"     = "→"  -- U+2192
+    unicodeAlias op = op
 
 -- | Parser that consumes the given symbol.
 --
