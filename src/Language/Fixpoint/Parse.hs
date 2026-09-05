@@ -434,7 +434,7 @@ semi, comma, colon, dcolon, dot :: ParserV v String
 semi   = sym ";"
 comma  = sym ","
 colon  = sym ":" -- Note: not a reserved symbol; use with care
-dcolon = sym "::" -- Note: not a reserved symbol; use with care
+dcolon = sym "::"<|> sym (unicodeAlias "::") -- Note: not a reserved symbol; use with care
 dot    = sym "." -- Note: not a reserved symbol; use with care
 
 -- | Parses a block via layout or explicit braces and semicolons.
@@ -602,25 +602,22 @@ locReserved x =
 -- NOTE: we currently don't double-check that the reserved operator is in the
 -- list of reserved operators.
 --
+
+unicodeAlias :: String -> String
+unicodeAlias "::" = "∷" -- U+2237
+unicodeAlias "=>" = "⇒" -- U+21D2
+unicodeAlias "->" = "→" -- U+2192
+unicodeAlias op   = op
+
 reservedOp :: String -> ParserV v ()
 reservedOp x =
   void $ lexeme (try (string x <* notFollowedBy opLetter)
     <|> try (string (unicodeAlias x) <* notFollowedBy opLetter))
-  where
-    unicodeAlias "::"     = "∷"  -- U+2237
-    unicodeAlias "=>"     = "⇒" -- U+21D2
-    unicodeAlias "->"     = "→"  -- U+2192
-    unicodeAlias op = op
 
 reservedOp' :: Parser () -> String -> Parser ()
 reservedOp' spacesP x =
   void $ lexeme' spacesP (try (string x <* notFollowedBy opLetter)
         <|> try (string (unicodeAlias x) <* notFollowedBy opLetter))
-  where
-    unicodeAlias "::"     = "∷"  -- U+2237
-    unicodeAlias "=>"     = "⇒" -- U+21D2
-    unicodeAlias "->"     = "→"  -- U+2192
-    unicodeAlias op = op
 
 -- | Parser that consumes the given symbol.
 --

@@ -180,11 +180,23 @@ testExpr0P =
     , testCase "ELam" $
         show (doParse' expr0P "test" "\\ foo : Int -> true") @?= "ELam (\"foo\",FInt) (PAnd [])"
 
+    , testCase "ELam unicode arrow" $
+        show (doParse' expr0P "test" "\\ foo : Int → true") @?= "ELam (\"foo\",FInt) (PAnd [])"
+
+    , testCase "arrow unicode == ASCII" $
+        show (doParse' expr0P "test" "\\ foo : Int → true") @?= show (doParse' expr0P "test" "\\ foo : Int -> true")
+
     , testCase "Expr" $
         show (doParse' expr0P "test" "(1)") @?= "ECon (I 1)"
 
     , testCase "ECst dcolon" $
         show (doParse' expr0P "test" "(1 :: Int)") @?= "ECst (ECon (I 1)) FInt"
+
+    , testCase "ECst unicode dcolon" $
+        show (doParse' expr0P "test" "(1 ∷ Int)") @?= "ECst (ECon (I 1)) FInt"
+
+    , testCase "dcolon unicode == ASCII" $
+        show (doParse' expr0P "test" "(1 ∷ Int)") @?= show (doParse' expr0P "test" "(1 :: Int)")
 
     , testCase "ECst colon" $
         show (doParse' expr0P "test" "(1 : Int)") @?= "ECst (ECon (I 1)) FInt"
@@ -270,6 +282,16 @@ testPredP =
 
     , testCase "|| 2" $
         show (doParse' predP "test" "|| [x;y]") @?= "POr [EVar \"x\",EVar \"y\"]"
+
+    , testCase "=>" $
+        show (doParse' exprP "test" "true => false") @?= "PImp (PAnd []) (POr [])"
+
+    , testCase "=> unicode" $
+        show (doParse' exprP "test" "true ⇒ false") @?= "PImp (PAnd []) (POr [])"
+
+    , testCase "=> unicode == ASCII" $
+        show (doParse' exprP "test" "true ⇒ false") @?= show (doParse' exprP "test" "true => false")
+
     ]
 
 
