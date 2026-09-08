@@ -434,7 +434,7 @@ semi, comma, colon, dcolon, dot :: ParserV v String
 semi   = sym ";"
 comma  = sym ","
 colon  = sym ":" -- Note: not a reserved symbol; use with care
-dcolon = sym "::"<|> sym (unicodeAlias "::") -- Note: not a reserved symbol; use with care
+dcolon = sym "::"<|> maybe empty sym (unicodeAlias "::") -- Note: not a reserved symbol; use with care
 dot    = sym "." -- Note: not a reserved symbol; use with care
 
 -- | Parses a block via layout or explicit braces and semicolons.
@@ -602,22 +602,25 @@ locReserved x =
 -- NOTE: we currently don't double-check that the reserved operator is in the
 -- list of reserved operators.
 --
-
-unicodeAlias :: String -> String
-unicodeAlias "::" = "∷" -- U+2237
-unicodeAlias "=>" = "⇒" -- U+21D2
-unicodeAlias "->" = "→" -- U+2192
-unicodeAlias op   = op
-
 reservedOp :: String -> ParserV v ()
-reservedOp x =
-  void $ lexeme (try (string x <* notFollowedBy opLetter)
-    <|> try (string (unicodeAlias x) <* notFollowedBy opLetter))
+reservedOp x = lexeme $ case unicodeAlias x of
+  Nothing -> reservedOpSingle x
+  Just y  -> reservedOpSingle x <|> reservedOpSingle y
+
+reservedOpSingle :: String -> ParserV v ()
+reservedOpSingle x = void $ try (string x <* notFollowedBy opLetter)
 
 reservedOp' :: Parser () -> String -> Parser ()
-reservedOp' spacesP x =
-  void $ lexeme' spacesP (try (string x <* notFollowedBy opLetter)
-        <|> try (string (unicodeAlias x) <* notFollowedBy opLetter))
+reservedOp' spacesP x = lexeme' spacesP $ case unicodeAlias x of
+  Nothing -> reservedOpSingle x
+  Just y  -> reservedOpSingle x <|> reservedOpSingle y
+
+{-# INLINE unicodeAlias #-}
+unicodeAlias :: String -> Maybe String
+unicodeAlias "::" = Just "∷" -- U+2237
+unicodeAlias "=>" = Just "⇒" -- U+21D2
+unicodeAlias "->" = Just "→" -- U+2192
+unicodeAlias _   = Nothing
 
 -- | Parser that consumes the given symbol.
 --
