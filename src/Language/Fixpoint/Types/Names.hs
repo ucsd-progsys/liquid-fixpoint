@@ -112,6 +112,7 @@ module Language.Fixpoint.Types.Names (
   , sizeName
   , bitVecName
   , intbv32Name, intbv64Name, bv32intName, bv64intName
+  , intbv128Name, bv128intName
   , intbv8Name, intbv16Name, bv8intName, bv16intName
   , propConName
 
@@ -688,6 +689,10 @@ intbv32Name = "int_to_bv32"
 intbv64Name = "int_to_bv64"
 bv32intName = "bv32_to_int"
 bv64intName = "bv64_to_int"
+
+intbv128Name, bv128intName :: Symbol
+intbv128Name = "int_to_bv128"
+bv128intName = "bv128_to_int"
 
 intbv8Name, intbv16Name, bv8intName, bv16intName :: Symbol
 intbv8Name  = "int_to_bv8"
