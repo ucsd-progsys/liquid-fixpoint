@@ -531,8 +531,10 @@ interpSymbols cfg =
 
   , interpSym intbv32Name   "(_ int2bv 32)" (FFunc intSort bv32)
   , interpSym intbv64Name   "(_ int2bv 64)" (FFunc intSort bv64)
+  , interpSym intbv128Name  "(_ int2bv 128)" (FFunc intSort bv128)
   , interpSym bv32intName   (bv2i cfg 32)   (FFunc bv32    intSort)
   , interpSym bv64intName   (bv2i cfg 64)   (FFunc bv64    intSort)
+  , interpSym bv128intName  (bv2i cfg 128)  (FFunc bv128   intSort)
 
   , interpSym intbv8Name    "(_ int2bv 8)"  (FFunc intSort bv8)
   , interpSym intbv16Name   "(_ int2bv 16)" (FFunc intSort bv16)
@@ -582,6 +584,7 @@ interpSymbols cfg =
     bv16       = sizedBitVecSort "Size16"
     bv32       = sizedBitVecSort "Size32"
     bv64       = sizedBitVecSort "Size64"
+    bv128      = sizedBitVecSort "Size128"
     boolInt    = boolToIntName
 
     mapDefSort = FAbs 0 $ FAbs 1 $ FFunc (FVar 1)
