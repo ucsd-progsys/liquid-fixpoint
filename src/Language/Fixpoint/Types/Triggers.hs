@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
@@ -7,10 +8,12 @@ module Language.Fixpoint.Types.Triggers (
 
     noTrigger, defaultTrigger,
 
-    makeTriggers
+    makeTriggers, triggerPatterns
 
     ) where
 
+import           Data.Aeson                (FromJSON, ToJSON)
+import           Data.Data                 (Data)
 import qualified Data.Store as S
 import           Control.DeepSeq
 import           GHC.Generics              (Generic)
@@ -22,10 +25,13 @@ import Language.Fixpoint.Misc              (errorstar)
 
 
 data Triggered a = TR Trigger a
-  deriving (Eq, Show, Functor, Generic)
+  deriving (Eq, Show, Data, Functor, Generic)
 
-data Trigger = NoTrigger | LeftHandSide
-  deriving (Eq, Show, Generic)
+data Trigger
+  = NoTrigger
+  | LeftHandSide
+  | Patterns [[Expr]]   -- ^ explicit (multi-)patterns, one list per SMTLIB @:pattern@
+  deriving (Eq, Show, Data, Generic)
 
 instance PPrint Trigger where
   pprintTidy _ = text . show
@@ -40,8 +46,14 @@ defaultTrigger :: e -> Triggered e
 defaultTrigger = TR LeftHandSide
 
 makeTriggers :: Triggered Expr -> [Expr]
-makeTriggers (TR LeftHandSide e) = [getLeftHandSide e]
-makeTriggers (TR NoTrigger    _) = errorstar "makeTriggers on NoTrigger"
+makeTriggers (TR LeftHandSide  e) = [getLeftHandSide e]
+makeTriggers (TR (Patterns ps) _) = concat ps
+makeTriggers (TR NoTrigger     _) = errorstar "makeTriggers on NoTrigger"
+
+-- | The SMTLIB @:pattern@s of a triggered expression; each element is a multi-pattern.
+triggerPatterns :: Triggered Expr -> [[Expr]]
+triggerPatterns (TR (Patterns ps) _) = ps
+triggerPatterns t                    = [makeTriggers t]
 
 
 getLeftHandSide :: Expr -> Expr
@@ -65,6 +77,10 @@ defaltPatter = PFalse
 
 instance S.Store Trigger
 instance NFData   Trigger
+instance ToJSON   Trigger
+instance FromJSON Trigger
 
 instance (S.Store a) => S.Store (Triggered a)
 instance (NFData a)   => NFData   (Triggered a)
+instance (ToJSON a)   => ToJSON   (Triggered a)
+instance (FromJSON a) => FromJSON (Triggered a)

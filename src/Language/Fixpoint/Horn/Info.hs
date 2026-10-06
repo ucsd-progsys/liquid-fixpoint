@@ -30,6 +30,7 @@ hornFInfo cfg q = mempty
   , F.hoInfo    = F.cfgHoInfo cfg
   , F.defns     = F.MkDefinedFuns (H.qDefs q)
   , F.kuts      = F.KS (S.fromList (H.qKuts q))
+  , F.asserts   = H.qAxioms q
   }
   where
     be0         = F.emptyBindEnv

@@ -351,8 +351,8 @@ smtTr :: Builder -> [(Symbol, Sort)] -> Expr -> Triggered Expr -> SymM Builder
 smtTr q xs p t =
   do s <- smt2s xs
      s1 <- smt2 p
-     s2 <- smt2s (makeTriggers t)
-     pure $ key q (parens s <+> key "!" (s1 <+> ":pattern" <> parens s2))
+     s2 <- traverse smt2s (triggerPatterns t)
+     pure $ key q (parens s <+> key "!" (seqs (s1 : [":pattern" <> parens pat | pat <- s2])))
 
 {-# INLINE smt2s #-}
 smt2s :: SMTLIB2 a => [a] -> SymM Builder

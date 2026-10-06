@@ -206,6 +206,7 @@ data Query a = Query
   , qOpts  :: ![String]                  -- ^ list of fixpoint options
   , qNums  :: ![F.Symbol]                -- ^ list of numeric TyCon (?)
   , qKuts  :: ![F.KVar]                  -- ^ list of cut variables
+  , qAxioms :: ![F.Triggered F.Expr]     -- ^ list of axioms, to be asserted to the SMT solver
   }
   deriving (Data, Typeable, Generic, Functor, ToJSON, FromJSON)
 
@@ -328,9 +329,18 @@ instance F.ToHornSMT (Query a) where
     , P.vcat   (F.eqnToHornSMT "define_fun" <$> qDefs q)
     , P.vcat   (F.toHornSMT <$> qData q)
     , P.vcat   (F.toHornSMT <$> qMats q)
+    , P.vcat   (toHornAxiom <$> qAxioms q)
     , P.parens (P.vcat ["constraint", P.nest 1 (F.toHornSMT (qCstr q))])
     ]
     where
       toHornNum x   = F.toHornMany ["numeric", F.toHornSMT x]
       toHornOpt str = F.toHornMany ["fixpoint", P.text ("\"" ++ str ++ "\"")]
       toHornCon x t = F.toHornMany ["constant", F.toHornSMT x, F.toHornSMT t]
+
+toHornAxiom :: F.Triggered F.Expr -> P.Doc
+toHornAxiom (F.TR (F.Patterns ps) (F.PAll xts e))
+  = F.toHornMany ["axiom", F.toHornMany ["forall", F.toHornSMT xts, body]]
+  where
+    body = F.toHornMany ("!" : F.toHornSMT e : [":pattern" P.<+> F.toHornSMT p | p <- ps])
+toHornAxiom (F.TR _ e)
+  = F.toHornMany ["axiom", F.toHornSMT e]
