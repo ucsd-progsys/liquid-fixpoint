@@ -338,7 +338,7 @@ instance F.ToHornSMT (Query a) where
       toHornCon x t = F.toHornMany ["constant", F.toHornSMT x, F.toHornSMT t]
 
 toHornAxiom :: F.Triggered F.Expr -> P.Doc
-toHornAxiom (F.TR (F.Patterns ps) (F.PAll xts e))
+toHornAxiom (F.TR (F.Patterns ps@(_:_)) (F.PAll xts e))
   = F.toHornMany ["axiom", F.toHornMany ["forall", F.toHornSMT xts, body]]
   where
     body = F.toHornMany ("!" : F.toHornSMT e : [":pattern" P.<+> F.toHornSMT p | p <- ps])

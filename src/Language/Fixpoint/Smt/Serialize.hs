@@ -339,7 +339,7 @@ instance SMTLIB2 Command where
   smt2     (Comment t)         = pure $ fromText ("; " <> t <> "\n")
 
 instance SMTLIB2 (Triggered Expr) where
-  smt2 (TR NoTrigger e)       = smt2 e
+  smt2 (TR (Patterns []) e)   = smt2 e
   smt2 (TR _ (PExist [] p))   = smt2 p
   smt2 t@(TR _ (PExist xs p)) = smtTr "exists" xs p t
   smt2 (TR _ (PAll   [] p))   = smt2 p

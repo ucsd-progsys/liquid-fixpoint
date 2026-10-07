@@ -157,7 +157,6 @@ instance Elaborate (Triggered Expr) where
     where
       -- explicit patterns mention the variables bound by the quantifier
       elabTrigger (Patterns ps) = Patterns (fmap (elaborate ep') <$> ps)
-      elabTrigger tr            = tr
       ep'                       = ep { epEnv = insertsSymEnv (epEnv ep) (quantBinds e) }
       quantBinds (PAll   xts _) = xts
       quantBinds (PExist xts _) = xts
