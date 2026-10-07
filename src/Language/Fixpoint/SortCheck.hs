@@ -152,8 +152,15 @@ instance (Loc a) => Elaborate (SInfo a) where
     }
 
 
-instance (Elaborate e) => (Elaborate (Triggered e)) where
-  elaborate ep t = elaborate ep <$> t
+instance Elaborate (Triggered Expr) where
+  elaborate ep (TR t e) = TR (elabTrigger t) (elaborate ep e)
+    where
+      -- explicit patterns mention the variables bound by the quantifier
+      elabTrigger (Patterns ps) = Patterns (fmap (elaborate ep') <$> ps)
+      ep'                       = ep { epEnv = insertsSymEnv (epEnv ep) (quantBinds e) }
+      quantBinds (PAll   xts _) = xts
+      quantBinds (PExist xts _) = xts
+      quantBinds _              = []
 
 instance (Elaborate a) => (Elaborate (Maybe a)) where
   elaborate ep t = elaborate ep <$> t

@@ -138,6 +138,7 @@ mkQuery things = H.Query
   , H.qOpts  =              [ o     | HOpt o   <- things ]
   , H.qNums  =              [ s     | HNum s   <- things ]
   , H.qKuts  =              [ k     | HKut k   <- things ]
+  , H.qAxioms =             [ a     | HAxm a   <- things ]
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
@@ -158,6 +159,7 @@ data HThing a
   | HOpt !String
   | HNum  F.Symbol
   | HKut  F.KVar
+  | HAxm  (F.Triggered F.Expr)
   deriving (Functor)
 
 hThingP :: FParser (HThing H.Tag)
@@ -175,6 +177,20 @@ hThingP  = spaces >> parens body
         <|> HDat  <$> (reserved "datatype"   *> dataDeclP)
         <|> HNum  <$> (reserved "numeric"    *> numericDeclP)
         <|> HKut  <$> (reserved "cut"        *> FP.kvarP)
+        <|> HAxm  <$> (reserved "axiom"      *> axiomP)
+
+-- | An axiom is an expression that is sort-checked, elaborated and then
+--   asserted to the SMT solver. Quantified axioms may specify SMTLIB-style
+--   instantiation patterns:
+--
+--   > (axiom (forall ((x Int) (y Int)) (! (= (f x y) (+ x y)) :pattern ((f x y)))))
+axiomP :: FParser (F.Triggered F.Expr)
+axiomP =  try (parens (reserved "forall" *> (mkAxiom <$> bindsP <*> parens triggeredP)))
+      <|> F.noTrigger <$> exprP
+  where
+    triggeredP          = sym "!" *> ((,) <$> exprP <*> some patternP)
+    patternP            = sym ":pattern" *> parens (some exprP)
+    mkAxiom xts (e, ps) = F.TR (F.Patterns ps) (F.PAll xts e)
 
 numericDeclP :: FParser F.Symbol
 numericDeclP = do
