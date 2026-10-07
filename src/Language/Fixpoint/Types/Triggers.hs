@@ -26,7 +26,7 @@ import Language.Fixpoint.Types.PrettyPrint
 data Triggered a = TR Trigger a
   deriving (Eq, Show, Data, Functor, Generic)
 
-data Trigger
+newtype Trigger
   = Patterns [[Expr]]   -- ^ explicit (multi-)patterns, one list per SMTLIB @:pattern@;
                         --   empty means the expression is asserted without patterns
   deriving (Eq, Show, Data, Generic)
