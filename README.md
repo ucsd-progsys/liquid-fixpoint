@@ -326,8 +326,9 @@ This defines a `KVar` named `$k` over 5 "variables"  (in quotes because I'm maki
 - "self" variables: `v1:Int`, `v2:Int`, `v3:Bool`
 - "other" variables: `x:Int`, `y:Int`
 
-The self/other distinction is relevant for qualifiers: we use the "self" variables only to
-match the "self" variables in the qualifier. So given a qualifier
+The self/other distinction is relevant for qualifiers.
+
+We use the "self" variables only to match the _first_ parameter of a qualifier. So given a qualifier
 
 ```
 qualif Q(v:a, z:a): v <= z
@@ -346,8 +347,10 @@ with any of the _other_ variables, so the instantiations will be
 └─────────────────┴──────────────┴────────────────────┴─────────────────────────────────────────────┘
 ```
 
-where the `b` match is pruned because `v` and `z` must be distinct (?)
+where the `b` match is pruned because `v` and `z` must be distinct.
 
+NOTE: the "distinct" requirement and the special-casing of the "first" parameter is to minimize
+redundant or invalid instantiations of qualifiers.
 
 ### Global vs. Distinct Literals
 
