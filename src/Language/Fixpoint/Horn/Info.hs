@@ -126,12 +126,13 @@ kvInfo :: (F.PPrint a) => F.BindEnv a -> H.Var a -> (F.BindEnv a, KVInfo a)
 kvInfo be k       = (be', KVInfo k (Misc.fst3 <$> xts) wfc)
   where
     -- make the WfC
-    wfc           = F.WfC wenv wrft (H.hvMeta k)
+    wfc           = F.WfC wenv vvs (F.KV (H.hvName k)) (H.hvMeta k)
     wenv          = F.fromListIBindEnv ids
-    wrft          = (x, t, F.KV (H.hvName k))
+    -- the self parameters are the value variables, and the rest are binders
+    vvs           = [ (x, t) | (x, t, _) <- selfs ]
+    (selfs, xts') = splitAt (H.hvSelf k) xts
     -- add the binders
     (be', ids)    = L.mapAccumL insertBE be xts'
-    ((x,t,_), xts') = Misc.safeUncons "Horn var with no args" xts
     -- make the parameters
     xts           = [ (hvarArg k i, t', a) | (t', i) <- zip (H.hvArgs k) [0..] ]
     a             = H.hvMeta k
