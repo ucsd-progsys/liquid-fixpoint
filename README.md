@@ -315,6 +315,40 @@ in the return type of a type application (e.g. `f @b` with
   f @b : {v1:[b] | $k_##42[@a:=b][v:=v1] }
 ```
 
+* Additionally, the Horn format allows specifying kvars as follows
+
+```
+(var $k (Int Int Bool Int Int) :self 2)
+```
+
+This defines a `KVar` named `$k` over 5 "variables"  (in quotes because I'm making up the names)
+
+- "self" variables: `v1:Int`, `v2:Int`, `v3:Bool`
+- "other" variables: `x:Int`, `y:Int`
+
+The self/other distinction is relevant for qualifiers: we use the "self" variables only to
+match the "self" variables in the qualifier. So given a qualifier
+
+```
+qualif Q(v:a, z:a): v <= z
+```
+
+will "match" `v` with any of the _self_ variables  `v1`, `v2`, `v3` and match `z`
+with any of the _other_ variables, so the instantiations will be
+
+```
+┌─────────────────┬──────────────┬────────────────────┬─────────────────────────────────────────────┐
+│ First slot sort │ First slot x │ Later slot ys from │                   Results                   │
+├─────────────────┼──────────────┼────────────────────┼─────────────────────────────────────────────┤
+│ a := int        │ v1, v2       │ {x, y, v1, v2}     │ [v1,x] [v1,y] [v1,v2] [v2,x] [v2,y] [v2,v1] │
+├─────────────────┼──────────────┼────────────────────┼─────────────────────────────────────────────┤
+│ a := bool       │ b            │ {b}                │ none ([b,b] is removed by the guard)        │
+└─────────────────┴──────────────┴────────────────────┴─────────────────────────────────────────────┘
+```
+
+where the `b` match is pruned because `v` and `z` must be distinct (?)
+
+
 ### Global vs. Distinct Literals
 
 ```
