@@ -318,7 +318,7 @@ in the return type of a type application (e.g. `f @b` with
 * Additionally, the Horn format allows specifying kvars as follows
 
 ```
-(var $k (Int Int Bool Int Int) :self 2)
+(var $k (Int Int Bool Int Int) :self 3)
 ```
 
 This defines a `KVar` named `$k` over 5 "variables"  (in quotes because I'm making up the names)
@@ -343,11 +343,11 @@ with any of the _other_ variables, so the instantiations will be
 ├─────────────────┼──────────────┼────────────────────┼─────────────────────────────────────────────┤
 │ a := int        │ v1, v2       │ {x, y, v1, v2}     │ [v1,x] [v1,y] [v1,v2] [v2,x] [v2,y] [v2,v1] │
 ├─────────────────┼──────────────┼────────────────────┼─────────────────────────────────────────────┤
-│ a := bool       │ b            │ {b}                │ none ([b,b] is removed by the guard)        │
+│ a := bool       │ v3           │ {v3}               │ none ([v3,v3] is removed by the guard)      │
 └─────────────────┴──────────────┴────────────────────┴─────────────────────────────────────────────┘
 ```
 
-where the `b` match is pruned because `v` and `z` must be distinct.
+where the `v3` match is pruned because `v` and `z` must be distinct.
 
 NOTE: the "distinct" requirement and the special-casing of the "first" parameter is to minimize
 redundant or invalid instantiations of qualifiers.
