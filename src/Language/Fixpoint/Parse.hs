@@ -1417,7 +1417,7 @@ defsFInfo defs = {- SCC "defsFI" -} Types.FI cm ws bs lts dts kts qs binfo adts 
     cm         = Misc.safeFromList
                    "defs-cm"        [(cid c, c)         | Cst c       <- defs]
     ws         = Misc.safeFromList
-                   "defs-ws"        [(i, w)              | Wfc w    <- defs, let i = Misc.thd3 (wrft w)]
+                   "defs-ws"        [(wkvar w, w)        | Wfc w    <- defs]
     bs         = bindEnvFromList    [(n,(x,r,a)) | IBind n x r a <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]

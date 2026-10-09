@@ -17,7 +17,6 @@ module Language.Fixpoint.Types.Utils (
 import qualified Data.HashMap.Strict                  as M
 import qualified Data.HashSet                         as S
 
-import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions
@@ -34,7 +33,7 @@ kvarDomain :: GInfo c a -> KVar -> [Symbol]
 kvarDomain si k = domain (bs si) (getWfC si k)
 
 domain :: BindEnv a -> WfC a -> [Symbol]
-domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
+domain be wfc = map fst (wvvs wfc) ++ map fst (envCs be $ wenv wfc)
 
 getWfC :: GInfo c a -> KVar -> WfC a
 getWfC si k = ws si M.! k

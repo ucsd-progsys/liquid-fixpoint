@@ -19,6 +19,7 @@ import           Text.Megaparsec.Char           (space1, string, char)
 import qualified Data.HashMap.Strict            as M
 import qualified Data.Text as T
 import qualified Text.Megaparsec.Char.Lexer  as L
+import           Control.Monad                  (when)
 
 type FParser = FP.Parser
 
@@ -246,7 +247,18 @@ mkParam (x, t) = case F.stripSuffix (F.symbol (T.pack "#")) x of
 -------------------------------------------------------------------------------
 
 hVarP :: FParser (H.Var H.Tag)
-hVarP = H.HVar <$> kvSymP <*> parens (some sortP) <*> pure H.NoTag
+hVarP = do
+  k    <- kvSymP
+  ts   <- parens (some sortP)
+  self <- selfP 1
+  when (self < 0 || self > length ts) $
+    fail $ "variable $" ++ F.symbolString k ++ " has " ++ show (length ts)
+        ++ " parameters, so :self must be between 0 and " ++ show (length ts)
+  return $ H.HVar k ts self H.NoTag
+
+-- | Parses an optional @:self n@ annotation, returning the given default when absent.
+selfP :: Int -> FParser Int
+selfP def = option def (reserved ":self" *> fIntP)
 
 -------------------------------------------------------------------------------
 -- | Helpers

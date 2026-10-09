@@ -152,9 +152,8 @@ instance Defunc (SimpC a) where
 
 instance Defunc (WfC a) where
   defunc wf@WfC{} = do
-    let (x, t, k) = wrft wf
-    t' <- defunc t
-    return $ wf { wrft = (x, t', k) }
+    vvs' <- mapM (traverse defunc) (wvvs wf)
+    return $ wf { wvvs = vvs' }
 
 instance Defunc SortedReft where
   defunc (RR s r) = RR s <$> defunc r
