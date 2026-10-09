@@ -152,8 +152,8 @@ unique qs = M.elems $ M.fromList [ (Sol.eqPred q, q) | q <- qs ]
 
 -- | @instKSig ho env vvs sig@ instantiates the first parameter of @sig@ with a
 --   value variable in @vvs@, and the remaining parameters with symbols in @env@
---   other than the one chosen for the first parameter. The name pattern of the
---   first parameter is ignored.
+--   and value variables other than the one chosen for the first parameter. The
+--   name pattern of the first parameter is ignored.
 instKSig :: Bool
          -> F.SEnv F.Sort
          -> [(F.Symbol, F.Sort)]
