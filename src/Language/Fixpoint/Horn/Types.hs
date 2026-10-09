@@ -56,6 +56,7 @@ import           Data.Aeson.Types
 data Var a = HVar
   { hvName :: !F.Symbol                         -- ^ name of the variable $k1, $k2 etc.
   , hvArgs :: ![F.Sort] {- len hvArgs > 0 -}    -- ^ sorts of its parameters i.e. of the relation defined by the @HVar@
+  , hvSelf :: !Int {- 0 <= hvSelf <= len hvArgs -} -- ^ number of leading parameters that are self parameters
   , hvMeta :: a                                 -- ^ meta-data
   }
   deriving (Eq, Ord, Data, Typeable, Generic, Functor, ToJSON, FromJSON)
@@ -72,7 +73,7 @@ data Pred
   deriving (Data, Typeable, Generic, Eq, ToJSON, FromJSON)
 
 instance F.ToHornSMT (Var a) where
-  toHornSMT (HVar k ts _) = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> F.toHornSMT ts)
+  toHornSMT (HVar k ts n _) = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> F.toHornSMT ts P.<+> ppSelf n)
 instance F.ToHornSMT Pred where
   toHornSMT (Reft p)   = P.parens (F.toHornSMT p)
   toHornSMT (Var k xs) = F.toHornMany (F.toHornSMT (F.KV k) : (F.toHornSMT <$> xs))
@@ -272,7 +273,12 @@ ppQual (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (pp
     ppArg qp    = P.parens $ F.pprint (F.qpSym qp) P.<+> P.parens (F.pprint (F.qpSort qp))
 
 ppVar :: Var a -> P.Doc
-ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts))
+ppVar (HVar k ts n _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts) P.<+> ppSelf n)
+
+-- | Prints the @:self@ annotation of a kvar, omitted for the default of 1.
+ppSelf :: Int -> P.Doc
+ppSelf 1 = mempty
+ppSelf n = ":self" P.<+> P.int n
 
 
 ppBlanks :: [P.Doc] -> P.Doc
@@ -285,7 +291,7 @@ parens :: String -> String
 parens s = "(" ++ s ++ ")"
 
 instance Show (Var a) where
-  show (HVar k xs _) = show k ++ parens (unwords (show <$> xs))
+  show (HVar k xs _ _) = show k ++ parens (unwords (show <$> xs))
 
 instance Show Pred where
   show (Reft p)   = parens $ F.showpp p

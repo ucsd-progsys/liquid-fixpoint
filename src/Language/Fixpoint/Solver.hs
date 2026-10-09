@@ -311,8 +311,8 @@ sInfoScope cfg si = let base = HS.unions
                           , HS.fromList [ val (dfName df) | dd <- Types.ddecls si, dc <- ddCtors dd, df <- dcFields dc ]
                           -- Reflected equation names
                           , HS.fromList [ eqName eq | eq <- aenvEqs (Types.ae si) ]
-                          -- WF constraints: the kvar self-binder symbol
-                          , HS.fromList [ v | w <- HashMap.elems (Types.ws si), let (v, _, _) = wrft w ]
+                          -- WF constraints: the value variables of kvars
+                          , HS.fromList [ v | w <- HashMap.elems (Types.ws si), (v, _) <- wvvs w ]
                           -- Theory symbols (arr_store_m, set operations, etc.)
                           , HS.fromList $ map fst $ toListSEnv (theoryEnv cfg si)
                           -- Wired-in symbols used by elaboration

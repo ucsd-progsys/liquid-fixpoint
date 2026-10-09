@@ -150,7 +150,10 @@ simplifyBindEnv :: NonTrivSorts -> BindEnv a -> BindEnv a
 simplifyBindEnv tm = mapBindEnv (\_ (x, sr, a) -> (x, simplifySortedReft tm sr, a))
 
 simplifyWfCs :: NonTrivSorts -> M.HashMap KVar (WfC a) -> M.HashMap KVar (WfC a)
-simplifyWfCs tm = M.filter (isNonTrivialSort tm . snd3 . wrft)
+simplifyWfCs tm = M.filter nonTrivial
+  where
+    -- kvars without value variables are kept, since they can be solved to false
+    nonTrivial w = null (wvvs w) || any (isNonTrivialSort tm . snd) (wvvs w)
 
 simplifySubCs :: (Eq k, Hashable k)
               => NonTrivSorts -> M.HashMap k (SubC a) -> M.HashMap k (SubC a)

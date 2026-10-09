@@ -36,6 +36,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Constraints
   , WfC (..)
+  , wrft
   , SubC, SubcId
   , mkSubC, subcId, sid, senv, updateSEnv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
@@ -56,6 +57,7 @@ module Language.Fixpoint.Types.Constraints (
   , QualParam   (..)
   , QualPattern (..)
   , trueQual
+  , falseQual
   , qualifier
   , mkQual
   , remakeQual
@@ -145,7 +147,13 @@ import qualified Data.Binary as B
 type Tag           = [Int]
 
 data WfC a  =  WfC  { wenv  :: !IBindEnv
-                    , wrft  :: (Symbol, Sort, KVar)
+                      -- ^ The parameters of the kvar other than its value variables
+                    , wvvs  :: ![(Symbol, Sort)]
+                      -- ^ The value variables of the kvar. Qualifiers are only
+                      --   instantiated with candidates that bind their first
+                      --   parameter to a value variable, so a kvar without
+                      --   value variables can only be solved to @true@ or @false@.
+                    , wkvar :: !KVar
                     , winfo :: !a
                     }
               deriving (Eq, Generic, Functor)
@@ -393,10 +401,20 @@ instance Fixpoint a => Fixpoint (SimpC a) where
 instance Fixpoint a => Fixpoint (WfC a) where
   toFix w     = hang (text "\n\nwf:") 2 bd
     where bd  =   toFix (wenv w)
+              $+$ warning
               -- NOTE: this next line is printed this way for compatability with the OCAML solver
-              $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k M.empty mempty)))
+              $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar (wkvar w) M.empty mempty)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
-          (v, t, k) = wrft w
+          -- The .fq format has exactly one value variable per kvar, so other
+          -- wf constraints are printed lossily, with a warning.
+          ((v, t), warning) = case wvvs w of
+            [vt]   -> (vt, empty)
+            vt : _ -> (vt, lossy "only the first one is printed")
+            []     -> ((vv Nothing, intSort), lossy "a dummy one is printed")
+          -- rendered as a single line so that it stays a comment
+          lossy msg = text $ "// WARNING: the .fq format cannot express the value variables ["
+                      ++ L.intercalate ", " [ render (toFix x <+> colon <+> toFix t') | (x, t') <- wvvs w ]
+                      ++ "] of " ++ render (toFix (wkvar w)) ++ "; " ++ msg
 
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
@@ -446,7 +464,7 @@ wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
 wfC be sr x = if all isEmptyKVarSubst sus -- ++ gsus)
                  -- NV TO RJ This tests fails with [LT:=GHC.Types.LT][EQ:=GHC.Types.EQ][GT:=GHC.Types.GT]]
                  -- NV TO RJ looks like a resolution issue
-                then [WfC be (v, sr_sort sr, k) x      | k         <- ks ]
+                then [WfC be [(v, sr_sort sr)] k x | k <- ks ]
                 else errorstar msg
   where
     msg             = "wfKvar: malformed wfC " ++ show sr ++ "\n" ++ show sus
@@ -456,6 +474,14 @@ wfC be sr x = if all isEmptyKVarSubst sus -- ++ gsus)
     go (PKVar k _ su) = [(k, su)]
     go (PAnd es)    = [(k, su) | PKVar k _ su <- es]
     go _            = []
+
+-- | The (first) value variable, its sort and the kvar of a wf constraint. Fails
+--   on a wf constraint without value variables.
+wrft :: WfC a -> (Symbol, Sort, KVar)
+wrft w = case wvvs w of
+  (v, t) : _ -> (v, t, wkvar w)
+  []         -> errorstar $ "wrft: wf constraint without value variables: " ++ showpp (wkvar w)
+{-# DEPRECATED wrft "A wf constraint can have zero or several value variables, use wvvs and wkvar" #-}
 
 
 mkSubC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> SubC a
@@ -538,6 +564,9 @@ instance ToHornSMT Qualifier where
 
 trueQual :: Qualifier
 trueQual = Q (symbol ("QTrue" :: String)) [] PTrue (dummyPos "trueQual")
+
+falseQual :: Qualifier
+falseQual = Q (symbol ("QFalse" :: String)) [] PFalse (dummyPos "falseQual")
 
 instance Loc Qualifier where
   srcSpan q = SS l l
@@ -698,7 +727,7 @@ fi :: [SubC a]
    -> GInfo SubC a
 fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts
   = FI { cm       = M.fromList $ addIds cs
-       , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
+       , ws       = M.fromListWith err [(wkvar w, w) | w <- ws]
        , bs       = binds
        , gLits    = ls
        , dLits    = ds
@@ -831,7 +860,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
     gConDoc       = sEnvDoc "constant"             . gLits
     dConDoc       = sEnvDoc "distinct"             . dLits
     csDoc         = vcat     . map (toFix . snd) . hashMapToAscList . cm
-    wsDoc         = vcat     . map toFix . L.sortOn (thd3 . wrft) . M.elems . ws
+    wsDoc         = vcat     . map toFix . L.sortOn wkvar . M.elems . ws
     kutsDoc       = toFix    . kuts
     -- packsDoc      = toFix    . packs
     declsDoc      = vcat     . map ((text "data" <+>) . toFix) . L.sort . ddecls

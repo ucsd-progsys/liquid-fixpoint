@@ -151,11 +151,14 @@ prettyWfConstraint bindEnv wfc =
           | bId <- elemsIBindEnv $ wenv wfc
           , let (s, sr, _a) = lookupBindEnv bId bindEnv
           ]
-      (v, t, k) = wrft wfc
+      k = PKVar (wkvar wfc) M.empty mempty
+      prettyVVs = case wvvs wfc of
+        [(v, t)] -> text "reft" <+> toFix (RR t (Reft (v, k)))
+        vvs      -> hang (text "vvs:") 2 (vcat $ map prettyBind vvs) $+$ text "kvar" <+> toFix k
    in hang (text "\n\nwf:") 2 $
           hang (text "env:") 2
             (vcat $ map prettyBind prettyEnv)
-      $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k M.empty mempty)))
+      $+$ prettyVVs
       $+$ toFixMeta (text "wf") (toFix (winfo wfc))
   where
     prettyBind (s, srt) = toFix s <+> ":" <+> toFix srt

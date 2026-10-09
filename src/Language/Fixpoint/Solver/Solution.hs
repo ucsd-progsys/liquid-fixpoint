@@ -92,7 +92,7 @@ qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ]
 --------------------------------------------------------------------------------
 
 refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> ElabM Sol.QBind
-refine info qs genv w = refineK (allowHOquals info) env lits qs (F.wrft w)
+refine info qs genv w = refineK (allowHOquals info) env lits qs (F.wvvs w)
   where
     env             = wenvSort <> genv
     wenvSort        = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs info) (F.wenv w))
@@ -104,25 +104,31 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
     notLit    = not . F.isLitSymbol . fst
 
 
-refineK :: Bool -> F.SEnv F.Sort -> [F.Constant] -> QCluster -> (F.Symbol, F.Sort, F.KVar) -> ElabM Sol.QBind
-refineK ho env lits qs (v, t, _k) = Sol.qbFilterM (okInst env v t) eqs
+refineK :: Bool -> F.SEnv F.Sort -> [F.Constant] -> QCluster -> [(F.Symbol, F.Sort)] -> ElabM Sol.QBind
+refineK ho env lits qs vvs = Sol.qbFilterM (okInst env') eqs
    where
-    eqs = instK ho env lits v t qs
+    eqs  = instK ho env' lits vvs qs
+    env' = List.foldl' (\e (v, t) -> F.insertSEnv v t e) env vvs
 
 --------------------------------------------------------------------------------
+-- | @instK ho env lits vvs qc@ instantiates the qualifiers in @qc@ for a kvar
+--   with value variables @vvs@. The first (non-literal) parameter of each
+--   qualifier is instantiated with a value variable, and the rest with any
+--   other symbol in @env@, which includes the value variables. A kvar without
+--   value variables only gets @false@ as a candidate.
 instK :: Bool
       -> F.SEnv F.Sort
       -> [F.Constant]
-      -> F.Symbol
-      -> F.Sort
+      -> [(F.Symbol, F.Sort)]
       -> QCluster
       -> Sol.QBind
 --------------------------------------------------------------------------------
-instK ho env lits v t qc = Sol.qb . unique $
+instK _  _   _    []  _  = Sol.qb [Sol.falseEqual]
+instK ho env lits vvs qc = Sol.qb . unique $
   [ Sol.eQual q xs ls
       | (sig, qs) <- M.toList qc
       , let (varSig, litSig) =  splitSig sig
-      , xs        <- instKSig ho env v t varSig
+      , xs        <- instKSig ho env vvs varSig
       , ls        <- instLitSig lits litSig
       , q         <- qs
   ]
@@ -144,19 +150,26 @@ matchSort _       _          = False
 unique :: [Sol.EQual] -> [Sol.EQual]
 unique qs = M.elems $ M.fromList [ (Sol.eqPred q, q) | q <- qs ]
 
+-- | @instKSig ho env vvs sig@ instantiates the first parameter of @sig@ with a
+--   value variable in @vvs@, and the remaining parameters with symbols in @env@
+--   other than the one chosen for the first parameter. The name pattern of the
+--   first parameter is ignored.
 instKSig :: Bool
          -> F.SEnv F.Sort
-         -> F.Symbol
-         -> F.Sort
+         -> [(F.Symbol, F.Sort)]
          -> QCSig
          -> [[F.Symbol]]
-instKSig _  _   _ _ [] = error "Empty qsig in Solution.instKSig"
-instKSig ho env v sort' (qp:qps) = do
-  (su0, i0, qs0) <- candidatesP symToSrch [(0, sort', [v])] qp
-  ixs       <- matchP symToSrch tyss [(i0, qs0)] (applyQPP su0 <$> qps)
-  ys        <- instSymbol tyss (tail $ reverse ixs)
-  return (v:ys)
+instKSig _  _   _   [] = error "Empty qsig in Solution.instKSig"
+instKSig ho env vvs (qp:qps) = do
+  ixs    <- matchP symToSrch (vvQP : restQPs)
+  x : ys <- instSymbol (vvTyss ++ tyss) (reverse ixs)
+  guard (x `notElem` ys)
+  return (x : ys)
   where
+    vvQP       = (vvTyss, qp { F.qpPat = F.PatNone })
+    restQPs    = [ (tyss, qp') | qp' <- qps ]
+    -- value variables use negative indices to keep them apart from the env
+    vvTyss     = zipWith (\i (t, ys) -> (i, t, ys)) [-1, -2 ..] (Misc.groupList [ (t, x) | (x, t) <- vvs ])
     tyss       = zipWith (\i (t, ys) -> (i, t, ys)) [1..] (instCands ho env)
     symToSrch  = (`F.lookupSEnvWithDistance` env)
 
@@ -182,14 +195,16 @@ instCands ho env = filter isOk tyss
 
 type SortIdx = Int
 
-matchP :: So.Env -> [(SortIdx, F.Sort, a)] -> [(SortIdx, QualPattern)] -> [F.QualParam] ->
-          [[(SortIdx, QualPattern)]]
-matchP env tyss = go
+-- | @matchP env qps@ picks, for each parameter in @qps@, a sort index among the
+--   candidates paired with the parameter. Sort variables solved for one parameter
+--   are applied to the remaining ones. The result is in reverse order.
+matchP :: So.Env -> [([(SortIdx, F.Sort, a)], F.QualParam)] -> [[(SortIdx, QualPattern)]]
+matchP env = go []
   where
     go' !i !p !is !qps  = go ((i, p):is) qps
-    go is (qp : qps) = do (su, i, pat) <- candidatesP env tyss qp
-                          go' i pat is (applyQPP su <$> qps)
-    go is []         = return is
+    go is ((tyss, qp) : qps) = do (su, i, pat) <- candidatesP env tyss qp
+                                  go' i pat is [ (tyss', applyQPP su qp') | (tyss', qp') <- qps ]
+    go is []                 = return is
 
 applyQPP :: So.TVSubst -> F.QualParam -> F.QualParam
 applyQPP su qp = qp
@@ -259,15 +274,11 @@ applyQPSubst _ p
   = p
 
 --------------------------------------------------------------------------------
-okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> ElabM Bool
+okInst :: F.SEnv F.Sort -> Sol.EQual -> ElabM Bool
 --------------------------------------------------------------------------------
-okInst env v t eq =
-  do tc <- So.checkSorted (F.srcSpan eq) env sr
+okInst env eq =
+  do tc <- So.checkSorted (F.srcSpan eq) env (Sol.eqPred eq)
      pure $ isNothing tc
-  where
-    sr            = F.RR t (F.Reft (v, p))
-    p             = Sol.eqPred eq
-    -- _msg          = printf "okInst: t = %s, eq = %s" (F.showpp t) (F.showpp eq)
 
 
 --------------------------------------------------------------------------------
