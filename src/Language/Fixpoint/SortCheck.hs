@@ -1476,6 +1476,15 @@ unifyMany f e θ ts ts'
   | otherwise               = throwErrorAt (errUnifyMany ts ts')
 
 unify1 :: Env -> Maybe Expr -> TVSubst -> Sort -> Sort -> CheckM TVSubst
+-- Polymorphic sorts are instantiated before the variable cases, so that a sort
+-- variable is never bound to an uninstantiated `FAbs`, whose bound variables
+-- could clash with the variables of the other sort.
+unify1 f e !θ t1@(FAbs _ _) !t2 = do
+  !t1' <- instantiate t1
+  unifyMany f e θ [t1'] [t2]
+unify1 f e !θ !t1 t2@(FAbs _ _) = do
+  !t2' <- instantiate t2
+  unifyMany f e θ [t1] [t2']
 unify1 f e !θ (FVar !i) !t
   = unifyVar f e θ i t
 unify1 f e !θ !t (FVar !i)
@@ -1485,12 +1494,6 @@ unify1 f e !θ (FApp !t1 !t2) (FApp !t1' !t2')
 unify1 _ _ !θ (FTC !l1) (FTC !l2)
   | isListTC l1 && isListTC l2
   = return θ
-unify1 f e !θ t1@(FAbs _ _) !t2 = do
-  !t1' <- instantiate t1
-  unifyMany f e θ [t1'] [t2]
-unify1 f e !θ !t1 t2@(FAbs _ _) = do
-  !t2' <- instantiate t2
-  unifyMany f e θ [t1] [t2']
 unify1 _ _ !θ !s1 !s2
   | isString s1, isString s2
   = return θ
