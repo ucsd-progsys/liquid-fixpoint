@@ -219,7 +219,7 @@ hPredP :: FParser H.Pred
 -------------------------------------------------------------------------------
 hPredP = parens body
   where
-    body =  H.Var  <$> kvSymP <*> some exprP
+    body =  H.Var  <$> kvSymP <*> many exprP
         <|> H.PAnd <$> (reserved "and" *> some hPredP)
         <|> H.Reft <$> exprP
 
@@ -249,8 +249,8 @@ mkParam (x, t) = case F.stripSuffix (F.symbol (T.pack "#")) x of
 hVarP :: FParser (H.Var H.Tag)
 hVarP = do
   k    <- kvSymP
-  ts   <- parens (some sortP)
-  self <- selfP 1
+  ts   <- parens (many sortP)
+  self <- selfP (min 1 (length ts))
   when (self < 0 || self > length ts) $
     fail $ "variable $" ++ F.symbolString k ++ " has " ++ show (length ts)
         ++ " parameters, so :self must be between 0 and " ++ show (length ts)

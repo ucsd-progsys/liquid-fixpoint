@@ -55,7 +55,7 @@ import           Data.Aeson.Types
 -------------------------------------------------------------------------------
 data Var a = HVar
   { hvName :: !F.Symbol                         -- ^ name of the variable $k1, $k2 etc.
-  , hvArgs :: ![F.Sort] {- len hvArgs > 0 -}    -- ^ sorts of its parameters i.e. of the relation defined by the @HVar@
+  , hvArgs :: ![F.Sort]                         -- ^ sorts of its parameters i.e. of the relation defined by the @HVar@
   , hvSelf :: !Int {- 0 <= hvSelf <= len hvArgs -} -- ^ number of leading parameters that are self parameters
   , hvMeta :: a                                 -- ^ meta-data
   }
@@ -275,7 +275,7 @@ ppQual (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (pp
 ppVar :: Var a -> P.Doc
 ppVar (HVar k ts n _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts) P.<+> ppSelf n)
 
--- | Prints the @:self@ annotation of a kvar, omitted for the default of 1.
+-- | Prints the @:self@ annotation of a kvar, omitted when it is 1.
 ppSelf :: Int -> P.Doc
 ppSelf 1 = mempty
 ppSelf n = ":self" P.<+> P.int n
