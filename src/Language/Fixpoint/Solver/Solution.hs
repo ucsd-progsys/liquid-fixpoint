@@ -57,18 +57,23 @@ import           Prelude                              hiding (init, lookup)
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> M.HashMap F.KVar Sol.QBind
 --------------------------------------------------------------------------------
 init cfg si ks =
-    runReader (traverse (refine si qcs genv) ws) (solverFlags cfg)
+    runReader (traverse (refine si qcs genv chkEnv) ws) (solverFlags cfg)
   where
     qcs = mkQCluster (F.quals si)
     ws = M.intersection (F.ws si) (S.toMap ks)
     genv = initQualifierEnv cfg si
+    chkEnv = initCheckEnv cfg si
 
 initQualifierEnv :: (F.Fixpoint a) => Config -> F.SInfo a -> F.SEnv F.Sort
 initQualifierEnv cfg si
-  | scraping  = So.globalEnv cfg si <> instConstants si
+  | scraping  = initCheckEnv cfg si
   | otherwise = instConstants si
   where
     scraping = scrape cfg /= No
+
+-- | Also includes theory symbols that are not instantiation candidates.
+initCheckEnv :: (F.Fixpoint a) => Config -> F.SInfo a -> F.SEnv F.Sort
+initCheckEnv cfg si = So.globalEnv cfg si <> instConstants si
 
 --------------------------------------------------------------------------------
 -- | [NOTE:qual-cluster] It is wasteful to perform instantiation *individually*
@@ -91,8 +96,8 @@ qualSig q = [ p { F.qpSym = F.dummyName }  | p <- F.qParams q ]
 
 --------------------------------------------------------------------------------
 
-refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.WfC a -> ElabM Sol.QBind
-refine info qs genv w = refineK (allowHOquals info) env lits qs (F.wvvs w)
+refine :: F.SInfo a -> QCluster -> F.SEnv F.Sort -> F.SEnv F.Sort -> F.WfC a -> ElabM Sol.QBind
+refine info qs genv chkEnv w = refineK (allowHOquals info) env (wenvSort <> chkEnv) lits qs (F.wvvs w)
   where
     env             = wenvSort <> genv
     wenvSort        = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs info) (F.wenv w))
@@ -104,11 +109,11 @@ instConstants = F.fromListSEnv . filter notLit . F.toListSEnv . F.gLits
     notLit    = not . F.isLitSymbol . fst
 
 
-refineK :: Bool -> F.SEnv F.Sort -> [F.Constant] -> QCluster -> [(F.Symbol, F.Sort)] -> ElabM Sol.QBind
-refineK ho env lits qs vvs = Sol.qbFilterM (okInst env') eqs
+refineK :: Bool -> F.SEnv F.Sort -> F.SEnv F.Sort -> [F.Constant] -> QCluster -> [(F.Symbol, F.Sort)] -> ElabM Sol.QBind
+refineK ho candEnv chkEnv lits qs vvs = Sol.qbFilterM (okInst (withVVs chkEnv)) eqs
    where
-    eqs  = instK ho env' lits vvs qs
-    env' = List.foldl' (\e (v, t) -> F.insertSEnv v t e) env vvs
+    eqs  = instK ho (withVVs candEnv) lits vvs qs
+    withVVs e = List.foldl' (\e' (v, t) -> F.insertSEnv v t e') e vvs
 
 --------------------------------------------------------------------------------
 -- | @instK ho env lits vvs qc@ instantiates the qualifiers in @qc@ for a kvar
