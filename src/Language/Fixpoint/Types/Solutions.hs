@@ -32,6 +32,7 @@ module Language.Fixpoint.Types.Solutions (
   -- * Equal elements
   , eQual
   , trueEqual
+  , falseEqual
 
   , qbExprs
 
@@ -236,6 +237,9 @@ instance Loc EQual where
 
 trueEqual :: EQual
 trueEqual = EQL trueQual PTrue []
+
+falseEqual :: EQual
+falseEqual = EQL falseQual PFalse []
 
 instance PPrint EQual where
   pprintTidy k = pprintTidy k . eqPred

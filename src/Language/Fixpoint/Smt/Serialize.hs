@@ -339,7 +339,7 @@ instance SMTLIB2 Command where
   smt2     (Comment t)         = pure $ fromText ("; " <> t <> "\n")
 
 instance SMTLIB2 (Triggered Expr) where
-  smt2 (TR NoTrigger e)       = smt2 e
+  smt2 (TR (Patterns []) e)   = smt2 e
   smt2 (TR _ (PExist [] p))   = smt2 p
   smt2 t@(TR _ (PExist xs p)) = smtTr "exists" xs p t
   smt2 (TR _ (PAll   [] p))   = smt2 p
@@ -351,8 +351,8 @@ smtTr :: Builder -> [(Symbol, Sort)] -> Expr -> Triggered Expr -> SymM Builder
 smtTr q xs p t =
   do s <- smt2s xs
      s1 <- smt2 p
-     s2 <- smt2s (makeTriggers t)
-     pure $ key q (parens s <+> key "!" (s1 <+> ":pattern" <> parens s2))
+     s2 <- traverse smt2s (triggerPatterns t)
+     pure $ key q (parens s <+> key "!" (seqs (s1 : [":pattern" <> parens pat | pat <- s2])))
 
 {-# INLINE smt2s #-}
 smt2s :: SMTLIB2 a => [a] -> SymM Builder

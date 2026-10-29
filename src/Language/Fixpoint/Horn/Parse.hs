@@ -19,6 +19,7 @@ import           Text.Megaparsec.Char           (space1, string, char)
 import qualified Data.HashMap.Strict            as M
 import qualified Data.Text as T
 import qualified Text.Megaparsec.Char.Lexer  as L
+import           Control.Monad                  (when)
 
 type FParser = FP.Parser
 
@@ -138,6 +139,7 @@ mkQuery things = H.Query
   , H.qOpts  =              [ o     | HOpt o   <- things ]
   , H.qNums  =              [ s     | HNum s   <- things ]
   , H.qKuts  =              [ k     | HKut k   <- things ]
+  , H.qAxioms =             [ a     | HAxm a   <- things ]
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
@@ -158,6 +160,7 @@ data HThing a
   | HOpt !String
   | HNum  F.Symbol
   | HKut  F.KVar
+  | HAxm  (F.Triggered F.Expr)
   deriving (Functor)
 
 hThingP :: FParser (HThing H.Tag)
@@ -175,6 +178,20 @@ hThingP  = spaces >> parens body
         <|> HDat  <$> (reserved "datatype"   *> dataDeclP)
         <|> HNum  <$> (reserved "numeric"    *> numericDeclP)
         <|> HKut  <$> (reserved "cut"        *> FP.kvarP)
+        <|> HAxm  <$> (reserved "axiom"      *> axiomP)
+
+-- | An axiom is an expression that is sort-checked, elaborated and then
+--   asserted to the SMT solver. Quantified axioms may specify SMTLIB-style
+--   instantiation patterns:
+--
+--   > (axiom (forall ((x Int) (y Int)) (! (= (f x y) (+ x y)) :pattern ((f x y)))))
+axiomP :: FParser (F.Triggered F.Expr)
+axiomP =  try (parens (reserved "forall" *> (mkAxiom <$> bindsP <*> parens triggeredP)))
+      <|> F.noTrigger <$> exprP
+  where
+    triggeredP          = sym "!" *> ((,) <$> exprP <*> some patternP)
+    patternP            = sym ":pattern" *> parens (some exprP)
+    mkAxiom xts (e, ps) = F.TR (F.Patterns ps) (F.PAll xts e)
 
 numericDeclP :: FParser F.Symbol
 numericDeclP = do
@@ -202,7 +219,7 @@ hPredP :: FParser H.Pred
 -------------------------------------------------------------------------------
 hPredP = parens body
   where
-    body =  H.Var  <$> kvSymP <*> some exprP
+    body =  H.Var  <$> kvSymP <*> many exprP
         <|> H.PAnd <$> (reserved "and" *> some hPredP)
         <|> H.Reft <$> exprP
 
@@ -230,7 +247,18 @@ mkParam (x, t) = case F.stripSuffix (F.symbol (T.pack "#")) x of
 -------------------------------------------------------------------------------
 
 hVarP :: FParser (H.Var H.Tag)
-hVarP = H.HVar <$> kvSymP <*> parens (some sortP) <*> pure H.NoTag
+hVarP = do
+  k    <- kvSymP
+  ts   <- parens (many sortP)
+  self <- selfP (min 1 (length ts))
+  when (self < 0 || self > length ts) $
+    fail $ "variable $" ++ F.symbolString k ++ " has " ++ show (length ts)
+        ++ " parameters, so :self must be between 0 and " ++ show (length ts)
+  return $ H.HVar k ts self H.NoTag
+
+-- | Parses an optional @:self n@ annotation, returning the given default when absent.
+selfP :: Int -> FParser Int
+selfP def = option def (reserved ":self" *> fIntP)
 
 -------------------------------------------------------------------------------
 -- | Helpers

@@ -55,7 +55,8 @@ import           Data.Aeson.Types
 -------------------------------------------------------------------------------
 data Var a = HVar
   { hvName :: !F.Symbol                         -- ^ name of the variable $k1, $k2 etc.
-  , hvArgs :: ![F.Sort] {- len hvArgs > 0 -}    -- ^ sorts of its parameters i.e. of the relation defined by the @HVar@
+  , hvArgs :: ![F.Sort]                         -- ^ sorts of its parameters i.e. of the relation defined by the @HVar@
+  , hvSelf :: !Int {- 0 <= hvSelf <= len hvArgs -} -- ^ number of leading parameters that are self parameters
   , hvMeta :: a                                 -- ^ meta-data
   }
   deriving (Eq, Ord, Data, Typeable, Generic, Functor, ToJSON, FromJSON)
@@ -72,7 +73,7 @@ data Pred
   deriving (Data, Typeable, Generic, Eq, ToJSON, FromJSON)
 
 instance F.ToHornSMT (Var a) where
-  toHornSMT (HVar k ts _) = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> F.toHornSMT ts)
+  toHornSMT (HVar k ts n _) = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> F.toHornSMT ts P.<+> ppSelf n)
 instance F.ToHornSMT Pred where
   toHornSMT (Reft p)   = P.parens (F.toHornSMT p)
   toHornSMT (Var k xs) = F.toHornMany (F.toHornSMT (F.KV k) : (F.toHornSMT <$> xs))
@@ -206,6 +207,7 @@ data Query a = Query
   , qOpts  :: ![String]                  -- ^ list of fixpoint options
   , qNums  :: ![F.Symbol]                -- ^ list of numeric TyCon (?)
   , qKuts  :: ![F.KVar]                  -- ^ list of cut variables
+  , qAxioms :: ![F.Triggered F.Expr]     -- ^ list of axioms, to be asserted to the SMT solver
   }
   deriving (Data, Typeable, Generic, Functor, ToJSON, FromJSON)
 
@@ -271,7 +273,12 @@ ppQual (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (pp
     ppArg qp    = P.parens $ F.pprint (F.qpSym qp) P.<+> P.parens (F.pprint (F.qpSort qp))
 
 ppVar :: Var a -> P.Doc
-ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts))
+ppVar (HVar k ts n _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks (P.parens . F.pprint <$> ts) P.<+> ppSelf n)
+
+-- | Prints the @:self@ annotation of a kvar, omitted when it is 1.
+ppSelf :: Int -> P.Doc
+ppSelf 1 = mempty
+ppSelf n = ":self" P.<+> P.int n
 
 
 ppBlanks :: [P.Doc] -> P.Doc
@@ -284,7 +291,7 @@ parens :: String -> String
 parens s = "(" ++ s ++ ")"
 
 instance Show (Var a) where
-  show (HVar k xs _) = show k ++ parens (unwords (show <$> xs))
+  show (HVar k xs _ _) = show k ++ parens (unwords (show <$> xs))
 
 instance Show Pred where
   show (Reft p)   = parens $ F.showpp p
@@ -328,9 +335,18 @@ instance F.ToHornSMT (Query a) where
     , P.vcat   (F.eqnToHornSMT "define_fun" <$> qDefs q)
     , P.vcat   (F.toHornSMT <$> qData q)
     , P.vcat   (F.toHornSMT <$> qMats q)
+    , P.vcat   (toHornAxiom <$> qAxioms q)
     , P.parens (P.vcat ["constraint", P.nest 1 (F.toHornSMT (qCstr q))])
     ]
     where
       toHornNum x   = F.toHornMany ["numeric", F.toHornSMT x]
       toHornOpt str = F.toHornMany ["fixpoint", P.text ("\"" ++ str ++ "\"")]
       toHornCon x t = F.toHornMany ["constant", F.toHornSMT x, F.toHornSMT t]
+
+toHornAxiom :: F.Triggered F.Expr -> P.Doc
+toHornAxiom (F.TR (F.Patterns ps@(_:_)) (F.PAll xts e))
+  = F.toHornMany ["axiom", F.toHornMany ["forall", F.toHornSMT xts, body]]
+  where
+    body = F.toHornMany ("!" : F.toHornSMT e : [":pattern" P.<+> F.toHornSMT p | p <- ps])
+toHornAxiom (F.TR _ e)
+  = F.toHornMany ["axiom", F.toHornSMT e]

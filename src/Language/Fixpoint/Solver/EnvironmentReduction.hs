@@ -195,7 +195,7 @@ reduceWFConstraintEnvironments bindEnv (cs, wfs) =
 
       wfBindsPlusSortSymbols =
         HashMap.unionWith HashSet.union kvarsBinds $
-        HashMap.map (sortSymbols . (\(_, b, _) -> b) . wrft) wfs
+        HashMap.map (HashSet.unions . map (sortSymbols . snd) . wvvs) wfs
 
       kvarsRelevantBinds =
         HashMap.unionWith HashSet.union wfBindsPlusSortSymbols kvarSubstSymbols

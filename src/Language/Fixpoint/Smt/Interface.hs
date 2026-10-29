@@ -455,8 +455,10 @@ smtDefineFunc name symList rsort e =
 
 -----------------------------------------------------------------
 
-smtAssertAxiom :: Triggered Expr -> SmtM ()
-smtAssertAxiom p  = interact' (AssertAx p)
+-- | Uses `interactDecl'` so that any `apply`, `coerce` and `lambda` symbols
+--   used by the axiom are declared before it is asserted.
+smtAssertAxiom :: HasCallStack => Triggered Expr -> SmtM ()
+smtAssertAxiom p  = interactDecl' (AssertAx p)
 
 smtDistinct :: [Expr] -> SmtM ()
 smtDistinct az = interact' (Distinct az)
