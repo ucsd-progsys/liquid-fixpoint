@@ -63,8 +63,6 @@ module Language.Fixpoint.SortCheck  (
   , unApplySortedReft
   , unApplyAt
   , toInt
-  , desugarLfIntOps
-  , desugarLfIntOp
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -1733,24 +1731,3 @@ theoryEnv cfg si
   =  Thy.theorySymbols (Cfg.solver cfg)
   <> Thy.theorySymbols (F.defns si)
   <> Thy.theorySymbols (F.ddecls si)
-
---------------------------------------------------------------------------------
--- | Rewrite the prefix functions @lfMod x y@ and @lfDiv x y@ into the
---   integer operators @EBin Mod@ and @EBin Div@. Liquid Haskell uses these
---   names because infix @/@ means real division there and infix @mod@ is
---   not available (see ucsd-progsys/liquidhaskell#2735).
---------------------------------------------------------------------------------
-desugarLfIntOps :: forall v. (Data v, Symbolic v) => ExprV v -> ExprV v
-desugarLfIntOps = everywhere (mkT (desugarLfIntOp :: ExprV v -> ExprV v))
-
--- | Rewrite a single @lfMod x y@ or @lfDiv x y@ node (non-recursive), for
---   use with generic traversals over larger structures.
-desugarLfIntOp :: Symbolic v => ExprV v -> ExprV v
-desugarLfIntOp (EApp (EApp (EVar f) e1) e2)
-  | symbol f == lfModName = EBin Mod e1 e2
-  | symbol f == lfDivName = EBin Div e1 e2
-desugarLfIntOp e = e
-
-lfModName, lfDivName :: Symbol
-lfModName = "lfMod"
-lfDivName = "lfDiv"

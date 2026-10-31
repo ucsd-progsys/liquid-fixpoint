@@ -103,7 +103,7 @@ module Language.Fixpoint.Parse (
   , isNotReserved
 
   , initPState, PState, PStateV (..)
-  , bops, fixpointOps, liquidHaskellOps
+  , bops, fixpointOps
 
   , LayoutStack(..)
   , Fixity(..), Assoc(..), addOperatorP, addNumTyCon
@@ -950,7 +950,7 @@ initOpTable = IM.empty
 -- | Built-in operator table, extended with the given extra operators.
 --
 -- The division-like operators differ between front-ends, so they are passed
--- in: see 'fixpointOps' and 'liquidHaskellOps'.
+-- in: see 'fixpointOps' for the fixpoint CLI default.
 bops :: forall v. ParseableV v => [Fixity v] -> OpTable v
 bops extraOps = List.foldl' (flip addOperator) initOpTable (builtinOps ++ extraOps)
   where
@@ -987,12 +987,6 @@ fixpointOps :: [Fixity v]
 fixpointOps = [ FInfix (Just 7) "/"   (Just $ const $ EBin Div) AssocLeft
               , FInfix (Just 5) "mod" (Just $ const $ EBin Mod) AssocLeft -- Haskell gives mod 7
               ]
-
--- | Division-like operators used by Liquid Haskell: infix @/@ is real
--- division. Integer division and modulus are written with the prefix
--- functions @lfDiv@ and @lfMod@ (see 'Language.Fixpoint.SortCheck.desugarLfIntOps').
-liquidHaskellOps :: [Fixity v]
-liquidHaskellOps = [ FInfix (Just 7) "/" (Just $ const $ EBin RDiv) AssocLeft ]
 
 -- | Parser for function applications.
 funAppP :: ParseableV v => ParserV v (ExprV v)
