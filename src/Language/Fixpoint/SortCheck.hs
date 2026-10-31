@@ -93,8 +93,6 @@ import           Text.PrettyPrint.HughesPJ.Compat
 import           Text.Printf
 
 import           GHC.Stack
-import           Data.Data (Data)
-import           Data.Generics (everywhere, mkT)
 import qualified Language.Fixpoint.Types as F
 import           System.IO.Unsafe (unsafePerformIO)
 import Language.Fixpoint.Types.Config (ElabFlags(elabExplicitKvars))
