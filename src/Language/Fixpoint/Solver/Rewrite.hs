@@ -20,6 +20,7 @@ module Language.Fixpoint.Solver.Rewrite
   ) where
 
 import           Control.Monad (guard)
+import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Maybe
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
@@ -33,12 +34,9 @@ import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Smt.Types (SmtM)
 import           Language.REST
 import           Language.REST.KBO (kbo)
-import           Language.REST.LPO (lpo)
 import           Language.REST.OCAlgebra as OC
-import           Language.REST.OCToAbstract (lift)
 import           Language.REST.Op
 import           Language.REST.SMT (SMTExpr)
-import           Language.REST.WQOConstraints.ADT (ConstraintsADT, adtOC)
 import qualified Language.REST.RuntimeTerm as RT
 
 -- | @(e, f)@ asserts that @e@ is a subexpression of @f e@
@@ -62,32 +60,36 @@ data RewriteArgs = RWArgs
 -- Monomorphize ordering constraints so we don't litter PLE with type variables
 -- Also helps since GHC doesn't support impredicate polymorphism (yet)
 data OCType =
-    RPO (ConstraintsADT Op)
-  | LPO (ConstraintsADT Op)
-  | KBO (SMTExpr Bool)
-  | Fuel Int
+    RestOC (SMTExpr Bool)
+  | FuelOC Int
   deriving (Eq, Show, Generic, Hashable)
 
-ordConstraints :: RESTOrdering -> (Handle, Handle) -> OCAlgebra OCType RT.RuntimeTerm IO
-ordConstraints RESTRPO      solver = bimapConstraints RPO asRPO (adtRPO solver)
+ordConstraints :: RESTOrdering -> (Handle, Handle) -> IO (OCAlgebra OCType RT.RuntimeTerm IO)
+ordConstraints RESTRPO      solver = do
+  oca <- rpoOCA solver "$R_"
+  return (bimapConstraints RestOC asRestOC oca)
   where
-    asRPO (RPO t) = t
-    asRPO _       = undefined
+    asRestOC (RestOC e) = e
+    asRestOC _          = undefined
 
-ordConstraints RESTKBO      solver = bimapConstraints KBO asKBO (kbo solver)
+ordConstraints RESTKBO solver = do
+    oca <- kbo solver "$K_"
+    return (bimapConstraints RestOC asRestOC oca)
   where
-    asKBO (KBO t) = t
-    asKBO _       = undefined
+    asRestOC (RestOC e) = e
+    asRestOC _          = undefined
 
-ordConstraints RESTLPO      solver = bimapConstraints LPO asLPO (lift (adtOC solver) lpo)
+ordConstraints RESTLPO      solver = do
+  oca <- lpoOCA solver "$L_"
+  return (bimapConstraints RestOC asRestOC oca)
   where
-    asLPO (LPO t) = t
-    asLPO _       = undefined
+    asRestOC (RestOC e) = e
+    asRestOC _          = undefined
 
-ordConstraints (RESTFuel m) _      = bimapConstraints Fuel asFuel $ fuelOC m
+ordConstraints (RESTFuel m) _      = return (bimapConstraints FuelOC asFuelOC (fuelOC m))
   where
-    asFuel (Fuel n) = n
-    asFuel _        = undefined
+    asFuelOC (FuelOC n) = n
+    asFuelOC _          = undefined
 
 
 -- Note: if you change the domain of this function, you need to change
@@ -138,13 +140,10 @@ getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
     let expr' = toE subE'
         eqn = (subst su lhs, subE')
     mapM_ (checkSubst su) exprs
-    return $ case rwTerminationOpts rwArgs of
-      RWTerminationCheckEnabled ->
-        let
-          c' = refine aoc c subE subE'
-        in
-          (eqn, expr', c')
-      RWTerminationCheckDisabled -> (eqn, expr', c)
+    c' <- case rwTerminationOpts rwArgs of
+      RWTerminationCheckEnabled  -> liftIO $ refine aoc c subE subE'
+      RWTerminationCheckDisabled -> return c
+    return (eqn, expr', c')
   where
     check :: Expr -> MaybeT SmtM ()
     check e = do

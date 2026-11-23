@@ -143,9 +143,11 @@ instEnv cfg scope info s cs restSolver = do
     ctx <- get
     refRESTCache <- liftIO $ newIORef mempty
     refRESTSatCache <- liftIO $ newIORef mempty
+    let restOrd = FC.restOC cfg
+    oc0 <- case restSolver of
+      Just h  -> liftIO $ ordConstraints restOrd h
+      Nothing -> liftIO $ ordConstraints (Rewrite.RESTFuel 0) (error "unused solver handle")
     let
-        restOrd = FC.restOC cfg
-        oc0 = ordConstraints restOrd $ Mb.fromJust restSolver
         oc :: OCAlgebra OCType RuntimeTerm IO
         oc = oc0
              { OC.isSat = cachedIsSat refRESTSatCache oc0
@@ -958,7 +960,9 @@ evalRESTWithCache cacheRef γ ctx acc rp =
           acc'' <- if evalIsNewExpr
             then if e' /= exprs && any isRW (path rp)
               then (:[]) <$> eval γ (addConst (exprs, e')) NoRW e'
-              else evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' (rpEval newEqualities e')
+              else do
+              rp' <- rpEval newEqualities e'
+              evalRESTWithCache cacheRef γ (addConst (exprs, e')) acc' rp'
             else return acc'
 
           foldM (\r rw -> evalRESTWithCache cacheRef γ ctx r (rpRW rw)) acc'' rws
@@ -983,15 +987,11 @@ evalRESTWithCache cacheRef γ ctx acc rp =
       in
         nv ++ v
 
-    rpEval newEqualities e' =
-      let
-        c' =
-          if any isRW (path rp)
-            then foldr (\(e1, e2) ctrs -> refine (oc rp) ctrs e1 e2) (c rp) (S.toList newEqualities)
-            else c rp
-
-      in
-        rp{path = path rp ++ [(e', PLE)], c = c'}
+    rpEval newEqualities e' = do
+      c' <- if any isRW (path rp)
+        then foldM (\ctrs (e1, e2) -> liftIO $ refine (oc rp) ctrs e1 e2) (c rp) (S.toList newEqualities)
+        else return (c rp)
+      return $ rp{path = path rp ++ [(e', PLE)], c = c'}
 
     isRW (_, r) = r == RW
 
