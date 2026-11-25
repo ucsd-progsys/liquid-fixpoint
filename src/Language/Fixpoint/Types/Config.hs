@@ -304,7 +304,7 @@ fxOptions =
         ]
       )
   , Option [] ["solver"]           (ReqArg setSolver "SOLVER")
-     (unlines
+      (unlines
         [ "Selects the configuration to use for a given solver [" ++ L.intercalate " | " ["z3", "z3mem", "cvc4", "cvc5", "mathsat"] ++ "]"
         , "Determines initialization flags and the executable to search on the PATH."
         ]
