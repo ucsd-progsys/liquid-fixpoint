@@ -2,6 +2,8 @@
 
 ## NEXT
 
+- Add `--solver-path` to set the executable of the SMT solver instead of looking up its name in `PATH`
+
 ## 0.9.6.3.7 (2026-06-04)
 
 - Migrate from cmdargs to base:System.Console.GetOpt

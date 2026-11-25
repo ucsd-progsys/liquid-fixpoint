@@ -68,6 +68,7 @@ data Config = Config
   , minPartSize :: Int                 -- ^ Minimum size of a partition
   , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
   , solver      :: SMTSolver           -- ^ which SMT solver to use
+  , solverPath  :: Maybe FilePath      -- ^ executable of the SMT solver (default: a name inferred from the value of the --solver flag)
   , linear      :: Bool                -- ^ not interpret div and mul in SMT
   , defunction  :: Bool                -- ^ defunctionalize (use 'apply' for all uninterpreted applications)
   , allowHO     :: Bool                -- ^ allow higher order binders in the logic environment
@@ -215,6 +216,7 @@ defConfig = Config
   { srcFile            = "out"
   , defunction         = False
   , solver             = if Conditional.Z3.builtWithZ3AsALibrary then Z3mem else Z3
+  , solverPath         = Nothing
   , linear             = False
   , noStringTheory     = False
   , allowHO            = False
@@ -302,7 +304,13 @@ fxOptions =
         ]
       )
   , Option [] ["solver"]           (ReqArg setSolver "SOLVER")
-      ("SMT solver [" ++ L.intercalate " | " ["z3", "z3mem", "cvc4", "cvc5", "mathsat"] ++ "]")
+      (unlines
+        [ "Selects the configuration to use for a given solver [" ++ L.intercalate " | " ["z3", "z3mem", "cvc4", "cvc5", "mathsat"] ++ "]"
+        , "Determines initialization flags and the executable to search on the PATH."
+        ]
+      )
+  , Option [] ["solver-path"]      (ReqArg setSolverPath "FILE")
+      "Executable of the SMT solver selected with --solver (default: a name inferred from the value of the --solver flag, then looked up in the PATH)"
   , Option [] ["elimBound"]        (ReqArg (\s -> FxMod $ \c -> c { elimBound   = parseInt "elimBound" s }) "N")
       "(alpha) Maximum eliminate-chain depth"
   , Option [] ["smtTimeout"]       (ReqArg (\s -> FxMod $ \c -> c { smtTimeout  = parseInt "smtTimeout" s }) "N")
@@ -404,6 +412,7 @@ fxOptions =
       error $ "Expected true/false, got: " ++ s ++ " (current default: " ++ show (getDef defConfig) ++ ")"
 
     setSolver s   = FxMod $ \c -> c { solver    = parseSolver s }
+    setSolverPath s = FxMod $ \c -> c { solverPath = Just s }
     setEliminate s = FxMod $ \c -> c { eliminate = parseEliminate s }
     setScrape s   = FxMod $ \c -> c { scrape    = parseScrape s }
     setSaveDir s = FxMod $ \c -> c { saveDir   = Just s }
