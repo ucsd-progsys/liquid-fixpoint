@@ -14,15 +14,11 @@ jobs:
     strategy:
       matrix:
         include:
-          # I couldn't find a minimum supported glibc version for ghc, but ubuntu 22.04
-          # has 2.35 which is oldish and has been tested to work, so we use this as the
-          # minimum supported version.
-          - os: ubuntu-22.04
+          # The ubuntu version sets the minimum glibc we support. We use ubuntu 24.04
+          # (glibc 2.39) because newer z3 releases require a recent glibc anyway.
+          - os: ubuntu-24.04
             artifact: fixpoint-x86_64-linux-gnu
-          # deprecated
-          # - os: macos-13
-          #  artifact: fixpoint-x86_64-apple-darwin
-          - os: macos-14
+          - os: macos-15
             artifact: fixpoint-aarch64-apple-darwin
           - os: windows-2025
             artifact: fixpoint-x86_64-pc-windows
@@ -117,8 +113,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             Automated nightly release of liquid-fixpoint (${{ steps.tag.outputs.TAG_NAME }}).
-            - Darwin aarch64 (built on macOS 14)
-            - Linux x86_64 (built on Ubuntu 22.04)
-              - glibc (2.35)
-              - gmp (6.2)
+            - Darwin aarch64 (built on macOS 15)
+            - Linux x86_64 (built on Ubuntu 24.04)
+              - glibc (2.39)
+              - gmp (6.3)
             - Windows x86_64 (built on Windows 2025)
