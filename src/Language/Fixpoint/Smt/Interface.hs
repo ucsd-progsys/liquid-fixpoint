@@ -65,7 +65,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config ( SMTSolver (..), solverFlags
-                                                , Config (solver, smtTimeout, noStringTheory, save, saveDir, allowHO))
+                                                , Config (solver, solverPath, smtTimeout, noStringTheory, save, saveDir, allowHO))
 import qualified Language.Fixpoint.Misc          as Misc
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
@@ -313,25 +313,27 @@ makeProcess ctxLog cfg
 makeContext' :: Config -> Maybe Handle -> IO Context
 makeContext' cfg ctxLog
   = do let slv = solver cfg
+           -- The solver's executable, by default its name looked up in PATH
+           exe name = fromMaybe name (solverPath cfg)
        (backend, closeIO) <- case slv of
          Z3      ->
            {- "z3 -smt2 -in"                   -}
            {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
            {- "z3 -smtc -in MBQI=false"        -}
            makeProcess ctxLog $ Process.defaultConfig
-                             { Process.exe = "z3"
+                             { Process.exe = exe "z3"
                              , Process.args = ["-smt2", "-in"] }
          Z3mem   -> Conditional.Z3.makeZ3
          Mathsat -> makeProcess ctxLog $ Process.defaultConfig
-                             { Process.exe = "mathsat"
+                             { Process.exe = exe "mathsat"
                              , Process.args = ["-input=smt2"] }
          Cvc4    -> makeProcess ctxLog $
                       Process.defaultConfig
-                             { Process.exe = "cvc4"
+                             { Process.exe = exe "cvc4"
                              , Process.args = ["-L", "smtlib2"] }
          Cvc5    -> makeProcess ctxLog $
                       Process.defaultConfig
-                             { Process.exe = "cvc5"
+                             { Process.exe = exe "cvc5"
                              , Process.args = ["-L", "smtlib2", "--arrays-exp"] }
        solver <- SMTLIB.Backends.initSolver SMTLIB.Backends.Queuing backend
        loud <- isLoud
